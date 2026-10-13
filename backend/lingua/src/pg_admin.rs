@@ -16,7 +16,7 @@ use cymbra_platform::{AppError, Result};
 use sqlx::{PgPool, Row};
 
 use crate::admin::LinguaAdminRepo;
-use crate::admin_core::{LanguageUsage, SeriesMetric, Usage};
+use crate::admin_core::{LanguageUsage, OnlineUsageRow, SeriesMetric, Usage};
 
 fn internal(e: sqlx::Error) -> AppError {
     AppError::Internal(anyhow::anyhow!("lingua db: {e}"))
@@ -122,6 +122,43 @@ impl LinguaAdminRepo for PgLinguaAdminRepo {
         Ok(rows
             .iter()
             .map(|r| (r.get::<i32, _>("day"), r.get::<i64, _>("value")))
+            .collect())
+    }
+
+    async fn online_translation_usage(
+        &self,
+        from_day: i32,
+        to_day: i32,
+    ) -> Result<Vec<OnlineUsageRow>> {
+        let rows = sqlx::query(
+            "SELECT day, provider, pair, \
+                    COALESCE(SUM(requests) FILTER (WHERE outcome = 'answered'), 0)::bigint AS answered, \
+                    COALESCE(SUM(requests) FILTER (WHERE outcome = 'failed'), 0)::bigint AS failed, \
+                    COALESCE(SUM(requests) FILTER (WHERE outcome = 'limited'), 0)::bigint AS limited, \
+                    COALESCE(SUM(input_tokens), 0)::bigint AS input_tokens, \
+                    COALESCE(SUM(output_tokens), 0)::bigint AS output_tokens, \
+                    COALESCE(SUM(cost_micro_usd), 0)::bigint AS cost \
+             FROM lingua.online_translation_daily WHERE day >= $1 AND day <= $2 \
+             GROUP BY day, provider, pair ORDER BY day, provider, pair",
+        )
+        .bind(from_day)
+        .bind(to_day)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(internal)?;
+        Ok(rows
+            .iter()
+            .map(|r| OnlineUsageRow {
+                day: r.get("day"),
+                provider: r.get("provider"),
+                pair: r.get("pair"),
+                answered: r.get("answered"),
+                failed: r.get("failed"),
+                limited: r.get("limited"),
+                input_tokens: r.get("input_tokens"),
+                output_tokens: r.get("output_tokens"),
+                cost_micro_usd: r.get("cost"),
+            })
             .collect())
     }
 }

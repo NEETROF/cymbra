@@ -19,10 +19,16 @@ import { assertPacksMatchEngine, packFile, shippedNatives, shippedPairs } from "
 const root = dirname(fileURLToPath(import.meta.url));
 const requested = process.argv.slice(2).filter((a) => !a.startsWith("-"));
 const TARGETS = ["chromium", "firefox", "safari"];
-const targets = requested.length ? requested : TARGETS;
-for (const t of targets) {
-  if (!TARGETS.includes(t)) throw new Error(`Unknown build target "${t}" — expected one of: ${TARGETS.join(", ")}.`);
+// The Cymbra Lingua app's build (add-lingua-apple-review D1): not a browser variant — no manifest,
+// no background, no content script — but the same Révision and Statistiques, for the Apple app.
+const APP = "app";
+const wanted = requested.length ? requested : [...TARGETS, APP];
+for (const t of wanted) {
+  if (![...TARGETS, APP].includes(t)) {
+    throw new Error(`Unknown build target "${t}" — expected one of: ${[...TARGETS, APP].join(", ")}.`);
+  }
 }
+const targets = wanted.filter((t) => t !== APP);
 
 // The pairs every package ships (packs.json, generalise-lingua-pack-build); the first gives the
 // default studied language, the engine's first pack.
@@ -152,6 +158,7 @@ function capabilities(target) {
     // not from blob: URLs Chrome may isolate in another process (src/reader/section-server.ts).
     __SECTIONS_FROM_WORKER__: JSON.stringify(target === "chromium"),
     __TRANSLATION_HOST__: JSON.stringify(translationHost(target)),
+    __APP__: "false",
   };
 }
 
@@ -325,4 +332,51 @@ for (const target of targets) {
   });
 
   console.log(`Built ${target} → dist-${target}/`);
+}
+
+if (wanted.includes(APP)) {
+  // The app's page runs in WebKit with the engine in the page (as Chromium's extension pages do),
+  // reaches nothing but its own bundle and the app's bridge, and hosts no translation engine.
+  const dist = join(root, "dist-app");
+  rmSync(dist, { recursive: true, force: true });
+  mkdirSync(join(dist, "wasm"), { recursive: true });
+  await build({
+    absWorkingDir: root,
+    bundle: true,
+    sourcemap: false,
+    minifySyntax: true,
+    target: ["safari16"],
+    logLevel: "info",
+    loader: { ".css": "text" },
+    entryPoints: { app: join(root, "src/app/app.ts") },
+    outdir: dist,
+    format: "esm",
+    define: {
+      __TARGET__: JSON.stringify("safari"),
+      __ENGINE_IN_EVENT_PAGE__: "false",
+      __REVIEW_IN_PAGE__: "false",
+      __STATIC_READER__: "false",
+      __NATIVE_PROVIDERS__: "false",
+      __SECTIONS_FROM_WORKER__: "false",
+      __TRANSLATION_HOST__: JSON.stringify("none"),
+      __APP__: "true",
+      __GRPC_WEB_URL__: JSON.stringify(""),
+      __GOOGLE_CLIENT_ID__: JSON.stringify(""),
+      __APPLE_CLIENT_ID__: JSON.stringify(""),
+      __LINGUA_PACKS__: JSON.stringify(PAIRS.join(",")),
+      __NATIVE_CHOICE__: JSON.stringify(shippedNatives(PAIRS).length > 1),
+    },
+  });
+  for (const [from, to] of [
+    ["src/app/app.html", "app.html"],
+    ["src/app/app.css", "app.css"],
+    ["src/styles/tokens.css", "tokens.css"],
+    ["src/styles/review.css", "review.css"],
+    ["src/stats/stats.css", "stats.css"],
+    // No pack: the app serves the ones of the Safari extension it embeds, never a second copy.
+    ["src/wasm/pkg/lingua_wasm_bg.wasm", "wasm/lingua_wasm_bg.wasm"],
+  ]) {
+    cpSync(join(root, from), join(dist, to));
+  }
+  console.log("Built app → dist-app/ (apps/lingua-apple bundles it)");
 }

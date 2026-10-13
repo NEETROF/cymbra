@@ -43,7 +43,7 @@ None.
 ### Modified Capabilities
 
 - `lingua-privacy`: ADDED *The annex names the languages Lingua stores*. *Lingua's privacy
-  disclosures match what it collects* is held by the open `add-lingua-remote-translation` and read
+  disclosures match what it collects* is held by the open `add-lingua-online-translation` and read
   as written; *The disclosures name the languages a card and a day carry* (change 12) stands.
 
 ## Impact

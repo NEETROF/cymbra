@@ -15,7 +15,10 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use cymbra_platform::Result;
 
-use crate::admin_core::{SeriesMetric, SeriesPoint, Usage, parse_window, series_points};
+use crate::admin_core::{
+    OnlineUsageRow, OnlineUsageTotals, SeriesMetric, SeriesPoint, Usage, online_usage_totals,
+    parse_window, series_points,
+};
 
 /// Storage port for the ops aggregates (consumer-declared). Every method returns
 /// counts only — the SQL groups by day and studied language, never by account.
@@ -32,6 +35,13 @@ pub trait LinguaAdminRepo: Send + Sync {
         metric: SeriesMetric,
         language: Option<&str>,
     ) -> Result<Vec<(i32, i64)>>;
+    /// « Traduction en ligne » daily totals over the window, one row per day × provider ×
+    /// pair (change: add-lingua-online-translation).
+    async fn online_translation_usage(
+        &self,
+        from_day: i32,
+        to_day: i32,
+    ) -> Result<Vec<OnlineUsageRow>>;
 }
 
 /// Orchestrates the ops console over a [`LinguaAdminRepo`].
@@ -61,6 +71,18 @@ impl LinguaAdminModule {
         let (f, t) = parse_window(from, to)?;
         let rows = self.repo.series(f, t, metric, language).await?;
         Ok(series_points(rows))
+    }
+
+    /// « Traduction en ligne » rows and totals for a `yyyy-mm-dd` window.
+    pub async fn get_online_translation_usage(
+        &self,
+        from: &str,
+        to: &str,
+    ) -> Result<(Vec<OnlineUsageRow>, OnlineUsageTotals)> {
+        let (f, t) = parse_window(from, to)?;
+        let rows = self.repo.online_translation_usage(f, t).await?;
+        let totals = online_usage_totals(&rows);
+        Ok((rows, totals))
     }
 }
 
@@ -97,6 +119,36 @@ mod tests {
                 .push((from, to, language.map(str::to_owned)));
             Ok(self.series_rows.clone())
         }
+        async fn online_translation_usage(
+            &self,
+            _from: i32,
+            _to: i32,
+        ) -> Result<Vec<OnlineUsageRow>> {
+            Ok(vec![OnlineUsageRow {
+                day: 20_000,
+                provider: "gemini".into(),
+                pair: "es-fr".into(),
+                answered: 7,
+                cost_micro_usd: 900,
+                ..Default::default()
+            }])
+        }
+    }
+
+    #[tokio::test]
+    async fn online_translation_usage_passes_rows_and_totals_through() {
+        let m = module(FakeRepo::default());
+        let (rows, totals) = m
+            .get_online_translation_usage("2026-10-01", "2026-10-11")
+            .await
+            .unwrap();
+        assert_eq!(rows[0].provider, "gemini");
+        assert_eq!((totals.answered, totals.cost_micro_usd), (7, 900));
+        assert!(
+            m.get_online_translation_usage("2026-10-11", "2026-10-01")
+                .await
+                .is_err()
+        );
     }
 
     fn module(repo: FakeRepo) -> LinguaAdminModule {

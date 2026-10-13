@@ -132,7 +132,19 @@
     "comprehension": "Compréhension",
     "unavailable": "—",
     "byLanguage": "Par langue étudiée",
-    "noData": "Aucune donnée pour cette période"
+    "noData": "Aucune donnée pour cette période",
+    "online": {
+      "title": "Traduction en ligne",
+      "answered": "Traductions",
+      "failed": "Échecs fournisseur",
+      "limited": "Refus à la limite quotidienne",
+      "cost": "Coût estimé",
+      "provider": "Fournisseur",
+      "pair": "Paire",
+      "tokens": "Jetons entrée / sortie",
+      "noProvider": "— (refusé avant tout fournisseur)",
+      "note": "Totaux quotidiens par fournisseur et par paire de langues, sans compte ni texte. Le coût est une estimation aux prix configurés (lingua.online_translation.price.*), en dollars américains."
+    }
   },
   "jobs": {
     "title": "Jobs",
@@ -416,7 +428,10 @@
     "scopeUnverifiable": "L’annuaire des campagnes est injoignable : la portée n’a pas pu être vérifiée. Rien n’a été enregistré — réessayez plus tard.",
     "planTag": "plan",
     "betaTag": "bêta",
-    "staffTag": "staff"
+    "staffTag": "staff",
+    "betaOf": "bêta : {name} ({product})",
+    "betaForeign": "{scope} — campagne {product}, pas de cette app",
+    "scopeForeignCampaign": "Cette campagne appartient à un autre produit que l'app de ce réglage. Choisissez une campagne de la même app."
   },
   "sessions": {
     "revokeAccount": "Révoquer les sessions",
@@ -719,11 +734,16 @@
     "sandboxAccountClearTitle": "Ne plus accepter les achats sandbox ?",
     "sandboxAccountSet": "Achats sandbox acceptés",
     "sandboxAccountCleared": "Achats sandbox refusés",
-    "sandboxAccountFilter": "Achats sandbox"
+    "sandboxAccountFilter": "Achats sandbox",
+    "colProduct": "Produit",
+    "product": {
+      "music": "Music",
+      "lingua": "Lingua"
+    }
   },
   "campaigns": {
     "title": "Campagnes",
-    "intro": "Anime les campagnes bêta et les essais premium, frappe des codes d'accès et exporte leurs membres. Réservé aux admins music ; chaque changement est audité."
+    "intro": "Anime les campagnes bêta et les essais premium, frappe des codes d'accès et exporte leurs membres. Chaque campagne appartient à un produit et se gère par les admins de ce produit ; chaque changement est audité."
   },
   "errors": {
     "unauthenticated": "Identifiants invalides ou session expirée.",

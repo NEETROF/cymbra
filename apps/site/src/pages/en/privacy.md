@@ -6,7 +6,7 @@ alternates:
   fr: /confidentialite
   en: /en/privacy
   es: /es/privacidad
-updated: 08/10/2026
+updated: 11/10/2026
 ---
 
 This policy explains what personal data the **Cymbra services** (published by
@@ -78,10 +78,15 @@ We share only what is necessary with providers acting on our behalf:
 - **Paddle** (merchant of record, UK/EU) — only if you subscribe from Linux, Windows or
   the website: it charges, invoices and notifies us of the subscription state bound to
   an opaque identifier.
+- **Google** (Gemini API) and **Anthropic, PBC** (Claude API, United States) — only if you
+  use Cymbra Lingua's **Online translation** (*Annex B*): they receive the sentence to
+  translate, without your account or email, translate it and do not keep it. This
+  transfer outside the EU is framed by the European Commission's Standard Contractual
+  Clauses in their data processing terms.
 
 Your data is **hosted in the European Union** (France). Apart from the subscription
-verification described above (RevenueCat, United States, under Standard Contractual
-Clauses), we do not transfer data outside the EU.
+verification and Online translation described above (RevenueCat, Google and Anthropic,
+under Standard Contractual Clauses), we do not transfer data outside the EU.
 
 ## 5. Retention
 
@@ -151,7 +156,8 @@ addition to §2, we process:
 **Cymbra Lingua** (browser extension and Safari app) highlights, in the pages you read,
 the words you do not know yet in the languages you study. In addition to §2:
 
-**What stays on your device.** Page text is analysed **on your device** and is never sent.
+**What stays on your device.** Page text is analysed **on your device** and is never sent,
+except the sentence you send yourself with **Online translation** (below).
 Also kept on the device: the detail of your reading (which words you met, on which pages),
 the **address of the page** where you add a word to your deck and, when you are not signed
 in, all of your Lingua data.
@@ -174,6 +180,18 @@ data, no account token and no installation identifier, and Cymbra does not assoc
 with an account or an installation. As with any web page, the host of these files
 (Cloudflare) sees the IP address of the device asking for them. Turning the setting off
 deletes the models from the device.
+
+**Online translation.** This setting, off by default and specific to each device (it is not
+synced), is offered only to accounts that have access to it. When it is on, an « Online
+translation » button appears on the translation of a selection of several words. **Nothing is
+sent until you press that button.** When you press it, the sentence your selection is in, the
+selection's position and the language pair are sent to Cymbra, with your account token, then
+by Cymbra to **Google** (Gemini API) to be translated, or to **Anthropic** (Claude API) when
+Google does not answer. Neither Cymbra nor these providers keep the sentence or its
+translation, and these providers do not use it to train their models. To limit use and know
+its cost, Cymbra counts, for your account, the day's online translations (a counter erased
+after a day) and keeps daily totals per provider and language pair, with no account and no
+text.
 
 **Read aloud.** Read aloud uses a voice of the language being read, installed on your device:
 the text read does not leave it. If no voice of that language is installed there, you can turn

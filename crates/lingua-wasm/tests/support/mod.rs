@@ -431,7 +431,10 @@ impl Scenario {
             .retire_card(self.cards[1].lemma, T_SECS + 300.0, lang())
             .unwrap();
         let now = T_SECS + DAY_SECS;
-        g.probe("start-review", reader.start_review(now, None));
+        g.probe(
+            "start-review",
+            reader.start_review(now, None, None, None, None),
+        );
         g.probe("review-current first", shown(reader.review_current()));
         reader.review_reveal();
         reader.review_grade("good", now);

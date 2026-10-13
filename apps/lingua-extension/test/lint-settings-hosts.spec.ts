@@ -47,6 +47,10 @@ const TITLE_KEYS = [
   "account",
   "sync",
   "reset",
+  // refine-lingua-review-session D2, D9: the review's pace, the data as a file, the pack's sources.
+  "reviewPace",
+  "backupFile",
+  "sourcesAndPrivacy",
 ] as const satisfies readonly (keyof typeof settings)[];
 
 /** The surfaces that show Réglages. A new one belongs here. */

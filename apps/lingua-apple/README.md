@@ -58,6 +58,18 @@ extension (see `openspec/changes/add-lingua-apple`).
   shown or passed on, and an older link naming none is shown the same way without it.
   Apple's button keeps the label the system gives it (D3).
 
+- **The review** (`openspec/changes/add-lingua-apple-review`) — once the extension has shared its
+  state, the app opens on the deck it keeps: the extension's own Révision and Statistiques, the `app` build of `apps/lingua-extension`
+  (`dist-app/`), copied into the app bundle (`LinguaApp/`) by a _Copy Lingua app page_ phase on
+  both app targets. `ViewController` serves it under `lingua-app://app/` (`AppPageResource`: the
+  page from the app, the packs from the embedded extension, so they are in the app once) and
+  answers its `lingua` script handler (`AppBridgeMessage`). The relay lives in the App Group as
+  two files (`ReviewRelayStore`): the extension's state, written by `SafariWebExtensionHandler`
+  (`review.saveState`), and the app's changes, written after every answer and taken back by the
+  extension (`review.readOps`, `review.clearOps`). Until a state is shared — or when the page cannot
+  read it — the app shows the activation page, as before. On a Mac the window becomes resizable
+  and grows to a review column.
+
 The project was scaffolded by `xcrun safari-web-extension-converter` and then changed by
 hand to replace its copied resources with the build phase above.
 
@@ -70,6 +82,7 @@ hand to replace its copied resources with the build phase above.
 #    otherwise it calls http://localhost:50051 and every sign-in fails.
 cd apps/lingua-extension && yarn fetch:engine
 LINGUA_GRPC_WEB_URL=https://api.cymbra.app yarn build:safari
+yarn build:app   # the review page the app shows (add-lingua-apple-review)
 
 # 2. The app — Xcode, or from the command line:
 cd ../lingua-apple
@@ -170,6 +183,13 @@ stay unchanged. Privacy policy: `https://cymbra.app/confidentialite/` (`/en/priv
 French page for a French browser and the English one otherwise, next to « Effacer mes données
 Lingua ». `/es/eliminar-cuenta/` is not linked from the extension yet: that link waits for
 `add-site-spanish-locale`'s task 3.2.
+
+Reviewed for « Traduction en ligne » (add-lingua-online-translation, 2026-10-11): **no new data
+type**. The sentence a reader sends with its button goes to Cymbra and on to the translation
+provider, is translated and kept by no one: Apple counts as collected only data accessible for
+longer than it takes to service the request in real time, which this is not. The per-account
+count of the day's online translations (erased after a day) and the daily totals per provider
+and pair (no account) fall under Usage Data → Product Interaction, already declared.
 
 ## Known issue — popup title on iOS 27
 

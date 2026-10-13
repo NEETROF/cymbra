@@ -23,6 +23,7 @@ import {
   runAuthFlow,
 } from "./state/oidc.ts";
 import { isOpenPageMessage } from "./state/open-page.ts";
+import { reviewRelay } from "./state/review-relay.ts";
 import { openOrFocusReader, READER_PAGE, type ReaderWhereMessage } from "./reader/locate.ts";
 import { serveSection } from "./reader/section-server.ts";
 import { EngineChannel, type WorkerLike } from "./translate/host/channel.ts";
@@ -53,6 +54,7 @@ import {
   SESSION_LOST_KEY,
   storedNativeLanguage,
 } from "./state/storage.ts";
+import { reviewContinuity } from "./state/review-continuity.ts";
 import {
   dropRetiredKeys,
   idbArea,
@@ -70,6 +72,9 @@ import {
   watchStore,
 } from "./state/store.ts";
 import { isSyncMessage, LAST_SYNC_KEY, loadLastSync, type SyncReply } from "./sync/messages.ts";
+import { accountOfToken, FlagStore } from "./flags/store.ts";
+import { isFlagsMessage } from "./flags/messages.ts";
+import { answerOnlineTranslation, isOnlineTranslateMessage, ONLINE_UNAVAILABLE } from "./translate/online.ts";
 import { PAGE_INTERVAL_MS, SURFACE_INTERVAL_MS, SyncScheduler } from "./sync/scheduler.ts";
 import { getOrCreateDeviceId, SyncEngine } from "./sync/sync.ts";
 // Static import of the wasm-pack glue (esbuild bundles it into the background). The
@@ -323,11 +328,22 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 {
   const storage = ownedStore;
   const enginePort = new WasmAnalyzerPort(staticGlue, SHIPPED_PAIRS, () => storedNativeLanguage(storage));
+  // The review session survives the browser stopping this page between two answers (Safari):
+  // kept after each call that moves it, resumed when the engine wakes (refine-lingua-review-session D3).
+  const sessionArea: AsyncStorageArea | null = chrome.storage.session
+    ? { get: (keys) => chrome.storage.session.get(keys), set: (items) => chrome.storage.session.set(items) }
+    : null;
+  const continuity = reviewContinuity(enginePort, sessionArea);
   let hydrated: Promise<void> | null = null;
-  const ensure = (): Promise<void> => (hydrated ??= hydrateEngine(enginePort, storage));
+  const ensure = (): Promise<void> =>
+    (hydrated ??= hydrateEngine(enginePort, storage).then(() => continuity.resume().catch(() => {})));
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!isRpcRequest(message)) return undefined;
-    void handleRpc(enginePort, ensure, message).then(sendResponse);
+    void handleRpc(enginePort, ensure, message).then(async (response) => {
+      // Written before the answer leaves: the page may be stopped right after it.
+      if (response.ok) await continuity.after(message.method).catch(() => {});
+      sendResponse(response);
+    });
     return true; // async response
   });
   // A new install's preset may come before any page wrote a backup: this engine's hydration
@@ -537,6 +553,15 @@ if (__TRANSLATION_HOST__ !== "none") {
   });
   initApi(() => session.token());
   setTokenRefresher(() => session.refresh());
+  // The account's effective server flags (add-lingua-feature-betas): fetched on sign-in, on
+  // wake and when a surface opens or a page loads (throttled), read locally by every surface.
+  // The account is the access token's subject; until the session resumes there is none, and
+  // nothing is asked.
+  const flags = new FlagStore({
+    fetch: (knownVersion) => api().flags.getEffectiveFlags({ knownVersion, app: "lingua" }),
+    area: localStore,
+    account: () => accountOfToken(session.token()),
+  });
   // A terminal 401 (refresh already failed and purged) needs no extra work here; the
   // popup re-reads state on open. Left as a hook for the §2 sync-state indicator.
   setUnauthenticatedHandler(() => {});
@@ -603,7 +628,24 @@ if (__TRANSLATION_HOST__ !== "none") {
           if (area === "local" && INTERFACE_LANGUAGE_KEY in changes)
             void tell(changes[INTERFACE_LANGUAGE_KEY]?.newValue);
         });
+        // The Cymbra Lingua app reviews the deck this extension keeps (add-lingua-apple-review D3):
+        // the state goes to the App Group after each save, and the app's changes come back at start
+        // and whenever a surface opens or a page loads, applied on the sync's engine with no sync
+        // running — as a pull is.
+        const relay = reviewRelay({
+          send,
+          store: ownedStore,
+          prefs: settingsArea,
+          port: syncPort,
+          exclusive: (task) => scheduler.exclusive(task),
+          now: () => Date.now(),
+        });
+        void storeArea.then(async () => {
+          await relay.collect();
+          await relay.share();
+        });
         return {
+          relay,
           providers: () => nativeProviders(send),
           handOff: {
             // The sheet in the interface language, the page it is opened from being in it (D3).
@@ -625,7 +667,10 @@ if (__TRANSLATION_HOST__ !== "none") {
         : availableProviders({ google: __GOOGLE_CLIENT_ID__, apple: __APPLE_CLIENT_ID__ }, chrome.identity),
     handOff,
     eraseLinguaData,
-    onSignedIn: () => scheduler.schedule(0),
+    onSignedIn: () => {
+      scheduler.schedule(0);
+      void flags.refresh({ force: true });
+    },
   };
 
   // One collection at a time: the wake below and a surface opening can ask together, and the
@@ -639,13 +684,41 @@ if (__TRANSLATION_HOST__ !== "none") {
   // Restore a session on wake and sync if one was resumed (unless one ran within the minute:
   // an event page restarts often). On Safari, also collect an id_token the host app handed
   // back while the event page was asleep.
-  void session.resume().then(async (ok) => {
+  const resumed = session.resume();
+  void resumed.then(async (ok) => {
+    if (ok) void flags.refresh();
     if (ok) await scheduler.onOpen(SURFACE_INTERVAL_MS);
     if (handOff) await collectHandedToken();
   });
   // A mutation in any context persists the backup → debounced sync. The store's owner
   // reports it, whether the store is IndexedDB or the settings-area fallback.
-  onReaderDataChanged = () => scheduler.schedule(2000);
+  onReaderDataChanged = () => {
+    scheduler.schedule(2000);
+    native?.relay.stateChanged();
+  };
+
+  // « Traduction en ligne » (add-lingua-online-translation): the one request that carries page text,
+  // sent only when the reader presses the card's button. The page never calls the network; this
+  // relays the message to the service once the session has resumed (a woken event page has no
+  // access token before that), from the document's language into the reader's native language,
+  // read from the stored profile as for the engine. The mapping is translate/online.ts's, measured.
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (!isOnlineTranslateMessage(message)) return undefined;
+    void resumed
+      .catch(() => false)
+      .then(() =>
+        answerOnlineTranslation(
+          {
+            client: () => api().onlineTranslation,
+            native: () => storedNativeLanguage(ownedStore),
+            signedIn: () => session.state().signedIn,
+          },
+          message,
+        ),
+      )
+      .then(sendResponse, () => sendResponse(ONLINE_UNAVAILABLE));
+    return true; // async response
+  });
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     // Every account:* message (sign-in, sign-up, verification, reset, providers) goes
@@ -655,16 +728,33 @@ if (__TRANSLATION_HOST__ !== "none") {
         message.type === "account:collectHandedToken"
           ? collectHandedToken()
           : handleAccountMessage(message, accountDeps);
+      // Signed out: no flag of this account may apply to the next one (add-lingua-feature-betas).
+      if (message.type === "account:signOut") void reply.then(() => flags.clear());
       void reply.then(sendResponse);
       return true;
     }
     // A surface opened or a page loaded (throttled), or « Synchroniser maintenant » (forced).
     // Both answer only once the exchange is over: the pending response is what keeps Safari's
     // event page alive until then.
+    // A surface reads the flags: from the stored snapshot once the session has resumed (a
+    // woken event page has no access token before that), then a throttled refresh.
+    if (isFlagsMessage(message)) {
+      void resumed
+        .catch(() => false)
+        .then(async () => {
+          sendResponse({ values: await flags.read() });
+          void flags.refresh();
+        });
+      return true;
+    }
     if (isSyncMessage(message)) {
+      void flags.refresh();
       if (!message.force) {
         const interval = message.reason === "page" ? PAGE_INTERVAL_MS : SURFACE_INTERVAL_MS;
-        void scheduler.onOpen(interval).then(() => sendResponse({ ok: true } satisfies SyncReply));
+        // A review made in the app lands first, so this sync carries it to the account.
+        void (native?.relay.collect() ?? Promise.resolve(0))
+          .then(() => scheduler.onOpen(interval))
+          .then(() => sendResponse({ ok: true } satisfies SyncReply));
         return true;
       }
       void scheduler

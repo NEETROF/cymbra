@@ -14,8 +14,10 @@ import {
   loadReaderFlow,
   READER_DISPLAY_KEY,
   READER_FLOW_KEY,
+  READER_PROGRESS_KEY,
   readerDisplayOf,
   readerFlowOf,
+  readerProgressOf,
 } from "../state/storage.ts";
 import { ReaderApp } from "./app.ts";
 import { readerCopy, readerModule } from "./copy.ts";
@@ -72,6 +74,12 @@ async function main(): Promise<void> {
   const port = createLinguaPort();
   const app = new ReaderApp(root, {
     library,
+    // The words looked up, sorted through the book's session as from their card (add-lingua-chapter-recap).
+    recap: {
+      stillToSort: async (lookups) => (session ? session.stillToSort(lookups) : []),
+      lookupGloss: async (lookup) => (session ? session.lookupGloss(lookup) : lookup.gloss),
+      decide: async (lookup, status, source) => session?.decide(lookup, status, source),
+    },
     language,
     copy,
     languages: () => acceptedLanguages(port),
@@ -91,6 +99,11 @@ async function main(): Promise<void> {
       chrome.storage.onChanged.addListener((changes, area) => {
         const changed = changes[READER_DISPLAY_KEY];
         if (area === "local" && changed) onDisplay(readerDisplayOf(changed.newValue));
+      }),
+    watchProgress: (onProgress) =>
+      chrome.storage.onChanged.addListener((changes, area) => {
+        const changed = changes[READER_PROGRESS_KEY];
+        if (area === "local" && changed) onProgress(readerProgressOf(changed.newValue));
       }),
     loadColours: async () => colourCss(await loadColourPreference(settings)),
     watchColours: (onColours) =>
@@ -119,6 +132,7 @@ async function main(): Promise<void> {
     indicator: (actions) => app.indicator(actions),
     onPainted: () => app.painted(),
     onBlankClick: (e) => app.blankClick(e),
+    onLookup: (lookup) => app.lookup(lookup),
     language,
     copy: readingCopy(language),
   });

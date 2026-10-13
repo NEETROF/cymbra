@@ -88,6 +88,14 @@ export const ANDROID_VOICES_KEY = "cymbra-lingua-android-voices";
 export const REMOTE_VOICES_KEY = "cymbra-lingua-remote-voices";
 
 /**
+ * Whether the reader chose « Traduction en ligne » (add-lingua-online-translation D8): the card
+ * then offers to send the sentence of a selection to the online translation service, on a press.
+ * Absent means not chosen. Per device, never synchronised — ticked on the Mac, it is unticked on
+ * the tablet.
+ */
+export const ONLINE_TRANSLATION_KEY = "cymbra-lingua-online-translation";
+
+/**
  * The last language the reader chose in the review (refine-lingua-review-language D3): the one it
  * opens in away from a page in a studied language. Per device, never synchronised, never in the
  * backup.
@@ -102,6 +110,15 @@ export const REVIEW_LANGUAGE_KEY = "cymbra-lingua-review-language";
 export const READER_FLOW_KEY = "cymbra-lingua-reader-flow";
 
 export type ReaderFlow = "paginated" | "scrolled";
+
+/**
+ * What the book reader's footer says of the progress (add-lingua-reader-progress-toggle D1): the
+ * percentage of the book, the pages left in the chapter, or an estimate of those left in the book.
+ * Set by a tap on the footer; every reader tab follows its `storage.onChanged`.
+ */
+export const READER_PROGRESS_KEY = "cymbra-lingua-reader-progress";
+
+export type ReaderProgress = "percent" | "chapter" | "book";
 
 /** How the book reader shows a book's text: its size and the colour of its page. */
 export const READER_DISPLAY_KEY = "cymbra-lingua-reader-display";
@@ -395,6 +412,17 @@ export async function saveRemoteVoices(area: AsyncStorageArea, allowed: boolean)
   await area.set({ [REMOTE_VOICES_KEY]: allowed });
 }
 
+/** Whether « Traduction en ligne » is chosen on this device; absent means not chosen. */
+export async function loadOnlineTranslation(area: AsyncStorageArea): Promise<boolean> {
+  const got = await area.get(ONLINE_TRANSLATION_KEY);
+  return got[ONLINE_TRANSLATION_KEY] === true;
+}
+
+/** Choose « Traduction en ligne » on this device, or not. */
+export async function saveOnlineTranslation(area: AsyncStorageArea, chosen: boolean): Promise<void> {
+  await area.set({ [ONLINE_TRANSLATION_KEY]: chosen });
+}
+
 /** The read-aloud settings in `area`, followed in every context through `storage.onChanged`. */
 export function storedVoicePreference(area: AsyncStorageArea): VoicePreference {
   const load = async (): Promise<SpeechSettings> => ({
@@ -405,6 +433,9 @@ export function storedVoicePreference(area: AsyncStorageArea): VoicePreference {
   return {
     load,
     watch(onChange) {
+      // The Cymbra Lingua app's voices are the ones the extension shared: nothing changes them while
+      // it runs (add-lingua-apple-review).
+      if (__APP__) return () => {};
       const listener = (changes: Record<string, chrome.storage.StorageChange>, areaName: string): void => {
         if (areaName !== "local" || !(changes[VOICE_KEY] || changes[ANDROID_VOICES_KEY] || changes[REMOTE_VOICES_KEY]))
           return;
@@ -416,9 +447,50 @@ export function storedVoicePreference(area: AsyncStorageArea): VoicePreference {
   };
 }
 
+/**
+ * How many never-reviewed words may enter review each day (refine-lingua-review-session D2). A
+ * comfort preference like the reader flow: under its own key, never in the engine backup, never
+ * synced. Absent — or any value off the steps — reads as the default.
+ */
+export const NEW_WORDS_PER_DAY_KEY = "cymbra-lingua-new-words-per-day";
+
+/** The steps « Nouveaux mots par jour » offers. */
+export const NEW_WORDS_PER_DAY_STEPS = [5, 10, 20] as const;
+
+export type NewWordsPerDay = (typeof NEW_WORDS_PER_DAY_STEPS)[number];
+
+export const DEFAULT_NEW_WORDS_PER_DAY: NewWordsPerDay = 10;
+
+/** A stored value read as a daily allowance: one of the steps, else the default. */
+export function newWordsPerDayOf(value: unknown): NewWordsPerDay {
+  return NEW_WORDS_PER_DAY_STEPS.find((step) => step === value) ?? DEFAULT_NEW_WORDS_PER_DAY;
+}
+
+export async function loadNewWordsPerDay(area: AsyncStorageArea): Promise<NewWordsPerDay> {
+  return newWordsPerDayOf((await area.get(NEW_WORDS_PER_DAY_KEY))[NEW_WORDS_PER_DAY_KEY]);
+}
+
+export async function saveNewWordsPerDay(area: AsyncStorageArea, perDay: NewWordsPerDay): Promise<void> {
+  await area.set({ [NEW_WORDS_PER_DAY_KEY]: perDay });
+}
+
 /** A stored value read as a reader flow; anything but `scrolled` is the paginated default. */
 export function readerFlowOf(value: unknown): ReaderFlow {
   return value === "scrolled" ? "scrolled" : "paginated";
+}
+
+/** A stored footer mode, made safe: anything unknown is the percentage. */
+export function readerProgressOf(value: unknown): ReaderProgress {
+  return value === "chapter" || value === "book" ? value : "percent";
+}
+
+/** What the footer says of the progress; the percentage unless the reader chose otherwise. */
+export async function loadReaderProgress(area: AsyncStorageArea): Promise<ReaderProgress> {
+  return readerProgressOf((await area.get(READER_PROGRESS_KEY))[READER_PROGRESS_KEY]);
+}
+
+export async function saveReaderProgress(area: AsyncStorageArea, progress: ReaderProgress): Promise<void> {
+  await area.set({ [READER_PROGRESS_KEY]: progress });
 }
 
 /** How the book reader lays a book out; paginated unless the reader chose otherwise. */

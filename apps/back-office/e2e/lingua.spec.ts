@@ -6,6 +6,28 @@ import { test, expect, seed } from "./fixtures";
 // (only a `lingua`-scope admin reaches it; a moderator and a music-only admin do not).
 
 test.describe("lingua ops console", () => {
+  test("a lingua admin sees online translation usage and its estimated cost", async ({ page }) => {
+    // change: add-lingua-online-translation — daily totals, no account, no text.
+    await seed(page, {
+      loginAs: "lingua-admin",
+      data: {
+        onlineTranslationUsage: [
+          { day: "2026-10-10", provider: "gemini", pair: "es-fr", answered: 120, failed: 2, costMicroUsd: 16_800 },
+          { day: "2026-10-11", provider: "anthropic", pair: "en-fr", answered: 3, costMicroUsd: 300 },
+          { day: "2026-10-11", provider: "none", pair: "en-fr", answered: 0, limited: 4, costMicroUsd: 0 },
+        ],
+      },
+    });
+    await page.goto("/lingua/overview");
+    const panel = page.getByTestId("online-translation");
+    await expect(panel.getByTestId("online-answered")).toContainText("123");
+    await expect(panel.getByTestId("online-limited")).toContainText("4");
+    await expect(panel.getByTestId("online-cost")).toContainText("$0.0171");
+    await expect(panel.getByTestId("online-row").first()).toContainText("gemini");
+    await expect(panel.getByTestId("online-row").first()).toContainText("es-fr");
+    await expect(panel).toContainText("refused before any provider");
+  });
+
   test("a lingua admin sees the tiles, series and language breakdown", async ({ page }) => {
     await seed(page, {
       loginAs: "lingua-admin",

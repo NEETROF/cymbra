@@ -8,7 +8,8 @@
 # The auth service (sign in / refresh / logout), the user service (the account's handle —
 # add-lingua-account-parity) plus the cymbra.lingua.v1 client services: the three sync
 # services (known words, deck, stats) of add-lingua-connected-clients and the reader's
-# data controls (add-lingua-privacy-controls). The lingua admin
+# data controls (add-lingua-privacy-controls), and « Traduction en ligne », the one RPC that carries
+# page text (add-lingua-online-translation). The lingua admin
 # service is NOT here: that is the back office's, not a client's.
 set -euo pipefail
 
@@ -20,6 +21,8 @@ OUT_DIR="$APP_DIR/src/gen"
 AUTH_PROTO_DIR="$REPO_ROOT/backend/auth-port/proto"
 LINGUA_PROTO_DIR="$REPO_ROOT/backend/lingua/proto"
 USER_PROTO_DIR="$REPO_ROOT/backend/user-port/proto"
+# The caller's effective flags (change: add-lingua-feature-betas).
+FLAGS_PROTO_DIR="$REPO_ROOT/backend/feature-flags/proto"
 
 command -v protoc >/dev/null 2>&1 || {
   echo "error: protoc not found on PATH (brew install protobuf)" >&2
@@ -39,9 +42,10 @@ protoc \
   --proto_path="$AUTH_PROTO_DIR" \
   --proto_path="$LINGUA_PROTO_DIR" \
   --proto_path="$USER_PROTO_DIR" \
+  --proto_path="$FLAGS_PROTO_DIR" \
   --plugin=protoc-gen-es="$PLUGIN" \
   --es_out="$OUT_DIR" \
   --es_opt=target=ts \
-  auth.proto user.proto known_words.proto deck.proto stats.proto lingua_data.proto
+  auth.proto user.proto known_words.proto deck.proto stats.proto lingua_data.proto online_translation.proto flags.proto
 
 echo "Generated TS gRPC stubs into $OUT_DIR"

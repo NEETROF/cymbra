@@ -4,8 +4,10 @@ import { AuthService } from "@/gen/auth_pb";
 import { DeckService } from "@/gen/deck_pb";
 import { KnownWordsService } from "@/gen/known_words_pb";
 import { LinguaDataService } from "@/gen/lingua_data_pb";
+import { OnlineTranslationService } from "@/gen/online_translation_pb";
 import { StatsService } from "@/gen/stats_pb";
 import { UserService } from "@/gen/user_pb";
+import { FlagService } from "@/gen/flags_pb";
 
 // gRPC-web bearer transport for the extension, cloned from the back office
 // (apps/back-office/src/lib/transport.ts). Design D1 (add-lingua-connected-clients):
@@ -17,11 +19,20 @@ import { UserService } from "@/gen/user_pb";
 // Backend gRPC-web origin, injected by esbuild `define` (env.d.ts). Defaults to the
 // local backend so a dogfooding build works without configuration.
 
+// The calls that present the refresh token itself carry NO bearer. The auth service
+// rejects any presented access token that fails verification, before the handler runs
+// (OptionalAuthInterceptor, backend/platform/src/interceptor.rs) — so a refresh sent with
+// the access token it is meant to replace came back UNAUTHENTICATED ("token rejected:
+// expired") and the Session purged a perfectly live session. It bit whenever the
+// background outlived its 15-minute access token: on Firefox Android, a reading session
+// keeps the event page awake for as long as the reader turns pages.
+const WITHOUT_BEARER: ReadonlySet<unknown> = new Set([AuthService.method.refresh, AuthService.method.logout]);
+
 const authInterceptor =
   (getToken: () => string | null): Interceptor =>
   (next) =>
   async (req) => {
-    const token = getToken();
+    const token = WITHOUT_BEARER.has(req.method) ? null : getToken();
     if (token) req.header.set("Authorization", `Bearer ${token}`);
     return next(req);
   };
@@ -105,6 +116,10 @@ export interface Clients {
   data: Client<typeof LinguaDataService>;
   /** The Cymbra ID account (handle) — add-lingua-account-parity. */
   user: Client<typeof UserService>;
+  /** The caller's effective flags — add-lingua-feature-betas. */
+  flags: Client<typeof FlagService>;
+  /** « Traduction en ligne », the one RPC that carries page text — add-lingua-online-translation. */
+  onlineTranslation: Client<typeof OnlineTranslationService>;
 }
 
 export function createClients(transport: Transport): Clients {
@@ -115,5 +130,7 @@ export function createClients(transport: Transport): Clients {
     stats: createClient(StatsService, transport),
     data: createClient(LinguaDataService, transport),
     user: createClient(UserService, transport),
+    flags: createClient(FlagService, transport),
+    onlineTranslation: createClient(OnlineTranslationService, transport),
   };
 }

@@ -461,8 +461,10 @@ impl PlanService {
         key: &str,
         name: &str,
         kind: CampaignKind,
+        product: &str,
         actor: &str,
     ) -> Result<Campaign> {
+        let product = core::campaign_product(product, kind).map_err(AppError::InvalidArgument)?;
         let key = key.trim().to_ascii_lowercase();
         if key.is_empty()
             || !key
@@ -487,6 +489,7 @@ impl PlanService {
                 key: key.clone(),
                 name: name.trim().to_string(),
                 kind,
+                product: product.to_string(),
                 created_by: actor.to_string(),
             })
             .await?;
@@ -1538,12 +1541,12 @@ mod tests {
                 closed_at: None,
                 created_by: n.created_by,
                 created_at: t(5),
-                product: cymbra_platform::MUSIC_SCOPE.to_string(),
+                product: n.product,
             })
         });
         let s = service(m);
         assert!(matches!(
-            s.create_campaign("Bad Key!", "n", CampaignKind::Feature, "adm")
+            s.create_campaign("Bad Key!", "n", CampaignKind::Feature, "", "adm")
                 .await,
             Err(AppError::InvalidArgument(_))
         ));
@@ -1552,17 +1555,47 @@ mod tests {
                 "t",
                 "n",
                 CampaignKind::PremiumTrial { duration_days: 0 },
+                "",
                 "adm"
             )
             .await,
             Err(AppError::InvalidArgument(_))
         ));
         let c = s
-            .create_campaign("Midi-Drums", " MIDI drums ", CampaignKind::Feature, "adm")
+            .create_campaign(
+                "Midi-Drums",
+                " MIDI drums ",
+                CampaignKind::Feature,
+                "",
+                "adm",
+            )
             .await
             .unwrap();
         assert_eq!(c.key, "midi-drums");
         assert_eq!(c.name, "MIDI drums");
+        assert_eq!(c.product, "music");
+        let l = s
+            .create_campaign(
+                "online-translation",
+                "Online",
+                CampaignKind::Feature,
+                "lingua",
+                "adm",
+            )
+            .await
+            .unwrap();
+        assert_eq!(l.product, "lingua");
+        assert!(matches!(
+            s.create_campaign(
+                "lingua-trial",
+                "n",
+                CampaignKind::PremiumTrial { duration_days: 30 },
+                "lingua",
+                "adm"
+            )
+            .await,
+            Err(AppError::InvalidArgument(_))
+        ));
     }
 
     #[tokio::test]

@@ -209,6 +209,49 @@ describe("account detail page", () => {
     expect(w.find('[data-testid="role-history"]').exists()).toBe(true);
   });
 
+  it("a Lingua-only admin sees the account's Lingua memberships and may enrol, nothing of the Music plan", async () => {
+    // change: add-lingua-feature-betas — a reader who asked on Discord is enrolled here.
+    signIn({ lingua: ["admin"] });
+    const lookup = {
+      userId: "u-ada",
+      rows: [],
+      memberships: [
+        {
+          campaignKey: "online-translation",
+          campaignName: "Online translation",
+          kind: "feature",
+          userId: "u-ada",
+          enrolledAt: "2026-10-01T00:00:00Z",
+          source: "admin",
+          product: "lingua",
+        },
+      ],
+    };
+    const campaigns = [
+      {
+        id: "l1",
+        key: "online-translation",
+        name: "Online translation",
+        kind: "feature",
+        acceptsEnrolment: true,
+        product: "lingua",
+      },
+      { id: "l2", key: "lingua-other", name: "Other", kind: "feature", acceptsEnrolment: true, product: "lingua" },
+    ];
+    const { w, state } = await mountDetail("u-ada", { accounts: [ada], lookup, campaigns });
+
+    expect(state.lookupCalls).toHaveLength(1);
+    expect(state.planAuditCalls).toEqual([]);
+    expect(w.find('[data-testid="entitlements"]').exists()).toBe(false);
+    expect(w.find('[data-testid="plan-audit"]').exists()).toBe(false);
+    expect(w.text()).not.toContain("Effective plan");
+    expect(buttonNamed(w, "Grant premium")).toBeUndefined();
+    const memberships = w.find('[data-testid="memberships"]').text();
+    expect(memberships).toContain("online-translation");
+    expect(memberships).toContain("Lingua");
+    expect(buttonNamed(w, "Enrol in campaign")?.attributes("disabled")).toBeUndefined();
+  });
+
   // Change: restructure-back-office-navigation — from an account to its private scores.
   function privateScoresLink(w: VueWrapper) {
     return w.findAllComponents(RouterLinkStub).find((l) => {

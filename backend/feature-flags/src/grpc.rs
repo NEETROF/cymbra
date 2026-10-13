@@ -94,15 +94,18 @@ impl FlagServiceTrait for FlagGrpc {
             // real one and gets cached as such (change: add-drum-input-mapping —
             // beta fix, the drums entry point vanishing at random).
             Some(id) => {
-                let (premium, betas) = self
-                    .plans
-                    .plan_context(&id.user_id)
-                    .await
-                    .map_err(|e| e.to_status())?;
                 // Scope-matched (task 3.13): staff short-circuits StaffOnly, Beta and
                 // PremiumOnly, so reading the flat role set handed this app's betas and
                 // paid features to a moderator of another product.
-                EvalContext::for_identity(&id.audience, id).with_plan(premium, betas)
+                let ctx = EvalContext::for_identity(&id.audience, id);
+                // The betas of the app being evaluated, never another product's
+                // (change: add-lingua-feature-betas).
+                let (premium, betas) = self
+                    .plans
+                    .plan_context(&id.user_id, &ctx.app)
+                    .await
+                    .map_err(|e| e.to_status())?;
+                ctx.with_plan(premium, betas)
             }
             None => EvalContext::anonymous(&r.app),
         };
@@ -638,7 +641,7 @@ mod tests {
     #[tokio::test]
     async fn a_plan_lookup_failure_refuses_the_read_rather_than_evaluating_as_free() {
         let mut plans = crate::context::MockPlanContextSource::new();
-        plans.expect_plan_context().returning(|_| {
+        plans.expect_plan_context().returning(|_, _| {
             Err(cymbra_platform::error::AppError::Internal(anyhow::anyhow!(
                 "plan store unreachable"
             )))
@@ -657,6 +660,31 @@ mod tests {
         assert_ne!(status.code(), tonic::Code::Ok);
     }
 
+    /// The memberships asked for are those of the token's app: a Lingua token's
+    /// evaluation reads Lingua betas, a Music token's Music ones (change:
+    /// add-lingua-feature-betas). The `app` field of the request cannot widen it.
+    #[tokio::test]
+    async fn the_plan_context_is_read_for_the_tokens_app() {
+        for aud in [APP_MUSIC, crate::registry::APP_LINGUA] {
+            let mut plans = crate::context::MockPlanContextSource::new();
+            plans
+                .expect_plan_context()
+                .withf(move |_, app| app == aud)
+                .times(1)
+                .returning(|_, _| Ok((false, Vec::new())));
+            let g = grpc(false).with_plans(Arc::new(plans));
+            g.get_effective_flags(user_req(
+                proto::GetEffectiveFlagsRequest {
+                    known_version: String::new(),
+                    app: APP_MUSIC.into(),
+                },
+                aud,
+            ))
+            .await
+            .expect("evaluated for the token's app");
+        }
+    }
+
     /// The other half of the same distinction: plans deployed and answering
     /// "this caller has none" is a definite answer and still evaluates.
     #[tokio::test]
@@ -664,7 +692,7 @@ mod tests {
         let mut plans = crate::context::MockPlanContextSource::new();
         plans
             .expect_plan_context()
-            .returning(|_| Ok((false, Vec::new())));
+            .returning(|_, _| Ok((false, Vec::new())));
         let g = grpc(false).with_plans(Arc::new(plans));
         let resp = g
             .get_effective_flags(admin_req(
@@ -708,7 +736,7 @@ mod tests {
             let mut plans = crate::context::MockPlanContextSource::new();
             plans
                 .expect_plan_context()
-                .returning(move |_| Ok((false, betas.clone())));
+                .returning(move |_, _| Ok((false, betas.clone())));
             let svc = Arc::new(FlagService::new(
                 Registry::default(),
                 Some(Arc::new(store)),

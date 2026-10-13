@@ -12,6 +12,8 @@ dist/
 dist-chromium/
 dist-firefox/
 dist-safari/
+# The Cymbra Lingua app's page (add-lingua-apple-review), bundled by apps/lingua-apple.
+dist-app/
 web-ext-artifacts/
 coverage/
 

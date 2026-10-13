@@ -37,6 +37,10 @@ export const settings: typeof fr = {
     "El texto de los libros y toda la interfaz: tarjetas, panel, menús. El tema vale también para la interfaz; un preajuste de tinta electrónica la mantiene en negro sobre blanco.",
   colours: "Colores",
   translation: "Traducción",
+  onlineTranslation: "Traducción en línea",
+  onlineTranslationNote:
+    "A petición, desde la tarjeta de una selección de varias palabras: la frase seleccionada se envía a un servicio de traducción externo para traducirla, y nadie la conserva. Ajuste propio de este dispositivo.",
+  privacyPolicy: "Política de privacidad",
   shortcuts: "Atajos y gestos",
   keyAlt: "Alt",
   keyShift: "Mayús",
@@ -82,4 +86,21 @@ export const settings: typeof fr = {
   partialResetDone: "Estados y calibración restablecidos.",
   dataErased: "Datos borrados.",
   tabs: "Ajustes",
+  reviewPace: "Ritmo de repaso",
+  newWordsPerDay: "Palabras nuevas al día",
+  newWordsPerDayNote:
+    "Para cada idioma que estudias. Las palabras añadidas de más esperan a los días siguientes. Una sesión tiene diez tarjetas como máximo.",
+  backupFile: "Archivo de copia de seguridad",
+  backupFileNote:
+    "Una copia completa de tus datos de Lingua: mazo, estados y nivel. Restaurar sustituye el estado actual.",
+  backup: "Copia de seguridad",
+  restore: "Restaurar",
+  restoreFromPanel: "Para restaurar un archivo, abre Ajustes desde el panel de Lingua.",
+  restored: "Copia restaurada.",
+  notABackup: "Archivo de copia de seguridad no reconocido.",
+  sourcesAndPrivacy: "Fuentes y privacidad",
+  privacy: "Nada sale de tu dispositivo: el análisis y las traducciones son locales.",
+  fullNotice: "Avisos completos",
+  sources: (names) => `Fuentes: ${names}`,
+  sourceSeparator: " · ",
 };

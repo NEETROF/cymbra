@@ -251,6 +251,7 @@
 				AFB5BDD1305892E000728144 /* Frameworks */,
 				AFB5BDD2305892E000728144 /* Resources */,
 				AFB5BE15305892E000728144 /* Embed Foundation Extensions */,
+				AFB5BE90305892E000728144 /* Copy Lingua app page */,
 				AFB5BE73305892E000728144 /* Declare Lingua languages */,
 			);
 			buildRules = (
@@ -274,6 +275,7 @@
 				AFB5BDE3305892E000728144 /* Frameworks */,
 				AFB5BDE4305892E000728144 /* Resources */,
 				AFB5BE1C305892E000728144 /* Embed Foundation Extensions */,
+				AFB5BE91305892E000728144 /* Copy Lingua app page */,
 				AFB5BE74305892E000728144 /* Declare Lingua languages */,
 			);
 			buildRules = (
@@ -546,6 +548,44 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "# The extension is the safari build of apps/lingua-extension, copied at build time so this\n# project never keeps a snapshot that could drift. Build it first:\n#   cd apps/lingua-extension && yarn build:safari\nSRC=\"${SRCROOT}/../lingua-extension/dist-safari\"\nif [ ! -f \"${SRC}/manifest.json\" ]; then\n  echo \"error: ${SRC}/manifest.json is missing. Build the extension first: cd apps/lingua-extension && yarn build:safari\"\n  exit 1\nfi\n# A device or an archive cannot reach a local backend: every sign-in would fail. The backend\n# origin is in the bundle's host_permissions (build.mjs, LINGUA_GRPC_WEB_URL).\nif [ \"${PLATFORM_NAME}\" = \"iphoneos\" ] || [ \"${ACTION}\" = \"install\" ]; then\n  if grep -Eq '://(localhost|127[.]0[.]0[.]1)' \"${SRC}/manifest.json\"; then\n    echo \"error: ${SRC} calls a local backend, which a device or an archive cannot reach. Rebuild it for production: cd apps/lingua-extension && LINGUA_GRPC_WEB_URL=https://api.cymbra.app yarn build:safari\"\n    exit 1\n  fi\nfi\nDEST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"\nmkdir -p \"${DEST}\"\n# rsync -a keeps what is already there: the _locales/ of an earlier build would stay beside a build\n# that ships none, or other languages (localise-lingua-manifest). The languages are the build's alone.\nrm -rf \"${DEST:?}/_locales\"\nrsync -a \"${SRC}/\" \"${DEST}/\"\n";
+		};
+		AFB5BE90305892E000728144 /* Copy Lingua app page */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Copy Lingua app page";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# The review page is the app build of apps/lingua-extension (add-lingua-apple-review D1), copied at\n# build time like the extension, so this project never keeps a snapshot that could drift. Its packs\n# are the embedded extension's (AppPageResource.swift). Build it first:\n#   cd apps/lingua-extension && yarn build:app\nSRC=\"${SRCROOT}/../lingua-extension/dist-app\"\nif [ ! -f \"${SRC}/app.html\" ]; then\n  echo \"error: ${SRC}/app.html is missing. Build it first: cd apps/lingua-extension && yarn build:app\"\n  exit 1\nfi\nDEST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/LinguaApp\"\n# The page is the build's alone: a file that left dist-app does not stay behind.\nrm -rf \"${DEST:?}\"\nmkdir -p \"${DEST}\"\nrsync -a \"${SRC}/\" \"${DEST}/\"\n";
+		};
+		AFB5BE91305892E000728144 /* Copy Lingua app page */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Copy Lingua app page";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# The review page is the app build of apps/lingua-extension (add-lingua-apple-review D1), copied at\n# build time like the extension, so this project never keeps a snapshot that could drift. Its packs\n# are the embedded extension's (AppPageResource.swift). Build it first:\n#   cd apps/lingua-extension && yarn build:app\nSRC=\"${SRCROOT}/../lingua-extension/dist-app\"\nif [ ! -f \"${SRC}/app.html\" ]; then\n  echo \"error: ${SRC}/app.html is missing. Build it first: cd apps/lingua-extension && yarn build:app\"\n  exit 1\nfi\nDEST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/LinguaApp\"\n# The page is the build's alone: a file that left dist-app does not stay behind.\nrm -rf \"${DEST:?}\"\nmkdir -p \"${DEST}\"\nrsync -a \"${SRC}/\" \"${DEST}/\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

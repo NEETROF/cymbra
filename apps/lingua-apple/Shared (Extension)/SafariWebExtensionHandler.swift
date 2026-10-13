@@ -4,24 +4,29 @@ import os.log
 
 /// The extension's native side (add-lingua-connected-clients, design D6): it hands over the
 /// id_token the host app's sign-in sheet left in the App Group, once, and keeps the extension's
-/// interface language there for the app's activation page (localise-lingua-apple-host, D2). It
-/// has no UI and never touches the network or the Cymbra session, which stay in the extension.
+/// interface language there for the app's activation page (localise-lingua-apple-host, D2), and
+/// relays the deck with the app's review: the extension's state in, the review's changes out
+/// (add-lingua-apple-review, D3). It has no UI and never touches the network or the Cymbra
+/// session, which stay in the extension.
 class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
 
     func beginRequest(with context: NSExtensionContext) {
         let request = context.inputItems.first as? NSExtensionItem
         let message = request?.userInfo?[SFExtensionMessageKey]
 
-        // Never log the message or the reply: the reply can carry an id_token.
+        // Never log the message or the reply: the reply can carry an id_token, the message the deck.
         let reply = NativeMessage.reply(
             to: message,
             handoff: IdTokenHandoff.shared(),
             googleClientId: Bundle.main.object(forInfoDictionaryKey: "LinguaGoogleClientId") as? String,
-            languages: InterfaceLanguageStore.shared()
+            languages: InterfaceLanguageStore.shared(),
+            review: ReviewRelayStore.shared()
         )
         switch reply["error"] as? String {
         case "unknownLanguage":
             os_log(.error, "Refused an interface language the app does not speak from the extension")
+        case "badState":
+            os_log(.error, "Refused a state without a backup from the extension")
         case .some:
             os_log(.error, "Refused an unknown native message from the extension")
         case .none:

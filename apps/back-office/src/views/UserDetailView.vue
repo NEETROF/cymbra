@@ -59,9 +59,11 @@ function onTabKey(event: KeyboardEvent, index: number) {
   selectTab(list[(index + step + list.length) % list.length]);
 }
 
-/** Plan data is music-admin only: another scope's admin sees the account without any
- *  subscription block, and the plan RPCs are never issued for them. */
-const showPlans = computed(() => auth.adminScopes.includes("music"));
+/** The subscription tab is for an admin of Music (the plan and the Music betas) or of
+ *  Lingua (the Lingua betas only, change: add-lingua-feature-betas); a `live`-only admin
+ *  sees the account without it, and the plan RPCs are never issued for them. */
+const musicAdmin = computed(() => auth.adminScopes.includes("music"));
+const showPlans = computed(() => musicAdmin.value || auth.adminScopes.includes("lingua"));
 
 /** The account's private scores, for whoever may open that page (a music-scope admin):
  *  the lookup opens already filtered on this owner (change:
@@ -212,14 +214,19 @@ watch(
       </button>
     </div>
 
-    <!-- Music-admin only: the subscription is absent (not empty) for any other admin. -->
+    <!-- Music or Lingua admin only: the subscription is absent (not empty) for any other admin. -->
     <div
       v-if="tab === 'subscription' && showPlans"
       id="panel-subscription"
       role="tabpanel"
       aria-labelledby="tab-subscription"
     >
-      <AccountPlanPanel :key="vm.account.userId" :user-id="vm.account.userId" :handle="title" />
+      <AccountPlanPanel
+        :key="vm.account.userId"
+        :user-id="vm.account.userId"
+        :handle="title"
+        :music-admin="musicAdmin"
+      />
     </div>
 
     <div v-if="tab === 'roles'" id="panel-roles" role="tabpanel" aria-labelledby="tab-roles">

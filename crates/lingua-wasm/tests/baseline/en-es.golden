@@ -377,9 +377,9 @@ Octanove: Octanove Vocabulary Profile C1/C2 v1.0, Octanove Labs, CC BY-SA 4.0.
 ### start-review
 10
 ### review-current first
-{"gloss":"Eclécticamente","headword":"eclectically","remaining":10,"revealed":false,"sentence":"","source":"","surface":"eclectically"}
+{"gloss":"Expedición","headword":"expedition","remaining":10,"revealed":false,"sentence":"She will lead the expedition.","source":"https://example.com/homographs","surface":"expedition"}
 ### review-current second
-{"gloss":"Uniforme, constante; Liso, llano; Regular, promedio; Emparejar; Igualar; Nivelar; Ni siquiera; Todavía más, aún más","headword":"even","remaining":9,"revealed":false,"sentence":"","source":"","surface":"even"}
+{"gloss":null,"headword":"grin","remaining":9,"revealed":false,"sentence":"He couldn't stop grinning.","source":"","surface":"grinning"}
 ### review-remaining
 8
 ### calibration
@@ -387,7 +387,7 @@ Octanove: Octanove Vocabulary Profile C1/C2 v1.0, Octanove Labs, CC BY-SA 4.0.
 ### declared-level
 B1
 ### tracked-count
-11
+10
 ### deck-count
 11
 ### due-count in 7 days
@@ -403,11 +403,11 @@ B1
 ### phrase-gloss reader She will lead the expedition
 {"tokens":[{"surface":"She","lemma":"she","class":"Known","gloss":"Ella","function_word":true},{"surface":"will","lemma":"will","class":"Known","gloss":"Voluntad, albedrío; Decisión, intención; Testamento; Deseo, inclinación, disposición; Testar; Úsase para construir el futuro; Legar; Querer, desear","function_word":true},{"surface":"lead","lemma":"lead","class":"Known","gloss":"Plomo; Guía; Plomada; Emplomar; Guiar, conducir; Liderar; Conducir, llevar, ir; Primero, líder, principal","function_word":false},{"surface":"the","lemma":"the","class":"Known","gloss":"El, la, los, las","function_word":true},{"surface":"expedition","lemma":"expedition","class":"Learning","gloss":"Expedición","function_word":false}]}
 ### vocabulary-estimate reader
-{"estimated":3078,"confirmed":6,"universe":22337,"basis":"level"}
+{"estimated":3081,"confirmed":6,"universe":22337,"basis":"level"}
 ### export-status-ops
-[{"language":"en","lemma":"backlog","provenance":"manual","status":"learning","updated_at":1790000060000},{"language":"en","lemma":"betwixt","provenance":"manual","status":"ignored","updated_at":1790000000003},{"language":"en","lemma":"ceiling","provenance":"manual","status":"known","updated_at":1790000000004},{"language":"en","lemma":"councillor","provenance":"manual","status":"cleared","updated_at":1790000000006},{"language":"en","lemma":"even","provenance":"srs","status":"known","updated_at":1790086400000},{"language":"en","lemma":"expedition","provenance":"manual","status":"learning","updated_at":1790000000000},{"language":"en","lemma":"grin","provenance":"manual","status":"learning","updated_at":1790000120000},{"language":"en","lemma":"landlord","provenance":"manual","status":"learning","updated_at":1790000000002},{"language":"en","lemma":"lighthouse","provenance":"manual","status":"known","updated_at":1790000000001},{"language":"en","lemma":"sailor","provenance":"exposure","status":"known","updated_at":1790259200000},{"language":"en","lemma":"shore","provenance":"exposure","status":"known","updated_at":1790259200000},{"language":"en","lemma":"storm","provenance":"exposure","status":"known","updated_at":1790259200000}]
+[{"language":"en","lemma":"backlog","provenance":"manual","status":"learning","updated_at":1790000060000},{"language":"en","lemma":"betwixt","provenance":"manual","status":"ignored","updated_at":1790000000003},{"language":"en","lemma":"ceiling","provenance":"manual","status":"known","updated_at":1790000000004},{"language":"en","lemma":"councillor","provenance":"manual","status":"cleared","updated_at":1790000000006},{"language":"en","lemma":"expedition","provenance":"manual","status":"learning","updated_at":1790000000000},{"language":"en","lemma":"grin","provenance":"srs","status":"known","updated_at":1790086400000},{"language":"en","lemma":"landlord","provenance":"manual","status":"learning","updated_at":1790000000002},{"language":"en","lemma":"lighthouse","provenance":"manual","status":"known","updated_at":1790000000001},{"language":"en","lemma":"sailor","provenance":"exposure","status":"known","updated_at":1790259200000},{"language":"en","lemma":"shore","provenance":"exposure","status":"known","updated_at":1790259200000},{"language":"en","lemma":"storm","provenance":"exposure","status":"known","updated_at":1790259200000}]
 ### export-card-ops
-[{"client_id":"backlog","client_ts":1790000300000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":9223372036854775807,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"","gloss_language":"es","language":"en","lemma":"backlog","source":"","source_sentence":"We really need to take care of the backlog.","surface_form":"backlog"},{"client_id":"eclectically","client_ts":1790086400000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":{\"stability\":3.173,\"difficulty\":5.282434422319005},\"due\":1790345600,\"last_review\":1790086400,\"reps\":1,\"lapses\":0}","gloss":"Eclécticamente","gloss_language":"es","language":"en","lemma":"eclectically","source":"","source_sentence":"","surface_form":"eclectically"},{"client_id":"even","client_ts":1790086400000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":9223372036854775807,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Uniforme, constante; Liso, llano; Regular, promedio; Emparejar; Igualar; Nivelar; Ni siquiera; Todavía más, aún más","gloss_language":"es","language":"en","lemma":"even","source":"","source_sentence":"","surface_form":"even"},{"client_id":"expedition","client_ts":1790000000000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Expedición","gloss_language":"es","language":"en","lemma":"expedition","source":"","source_sentence":"She will lead the expedition.","surface_form":"expedition"},{"client_id":"grin","client_ts":1790000120000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"","gloss_language":"es","language":"en","lemma":"grin","source":"","source_sentence":"He couldn't stop grinning.","surface_form":"grinning"},{"client_id":"irately","client_ts":1790000240000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Airadamente","gloss_language":"es","language":"en","lemma":"irately","source":"","source_sentence":"","surface_form":"irately"},{"client_id":"last","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Último; De/al último; Durar; Alcanzar","gloss_language":"es","language":"en","lemma":"last","source":"","source_sentence":"","surface_form":"last"},{"client_id":"make-up","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Maquillaje","gloss_language":"es","language":"en","lemma":"make-up","source":"","source_sentence":"","surface_form":"make-up"},{"client_id":"tastebud","client_ts":1790000240000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Papila gustativa","gloss_language":"es","language":"en","lemma":"tastebud","source":"","source_sentence":"","surface_form":"tastebud"},{"client_id":"well-known","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Conocido","gloss_language":"es","language":"en","lemma":"well-known","source":"","source_sentence":"","surface_form":"well-known"},{"client_id":"while","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Hacer que pase el tiempo, entretener; Mientras; Aunque; Algún tiempo, mucho tiempo","gloss_language":"es","language":"en","lemma":"while","source":"","source_sentence":"","surface_form":"while"}]
+[{"client_id":"backlog","client_ts":1790000300000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":9223372036854775807,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"","gloss_language":"es","language":"en","lemma":"backlog","source":"","source_sentence":"We really need to take care of the backlog.","surface_form":"backlog"},{"client_id":"eclectically","client_ts":1790000240000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Eclécticamente","gloss_language":"es","language":"en","lemma":"eclectically","source":"","source_sentence":"","surface_form":"eclectically"},{"client_id":"even","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Uniforme, constante; Liso, llano; Regular, promedio; Emparejar; Igualar; Nivelar; Ni siquiera; Todavía más, aún más","gloss_language":"es","language":"en","lemma":"even","source":"","source_sentence":"","surface_form":"even"},{"client_id":"expedition","client_ts":1790086400000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":{\"stability\":3.173,\"difficulty\":5.282434422319005},\"due\":1790345600,\"last_review\":1790086400,\"reps\":1,\"lapses\":0}","gloss":"Expedición","gloss_language":"es","language":"en","lemma":"expedition","source":"","source_sentence":"She will lead the expedition.","surface_form":"expedition"},{"client_id":"grin","client_ts":1790086400000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":9223372036854775807,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"","gloss_language":"es","language":"en","lemma":"grin","source":"","source_sentence":"He couldn't stop grinning.","surface_form":"grinning"},{"client_id":"irately","client_ts":1790000240000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Airadamente","gloss_language":"es","language":"en","lemma":"irately","source":"","source_sentence":"","surface_form":"irately"},{"client_id":"last","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Último; De/al último; Durar; Alcanzar","gloss_language":"es","language":"en","lemma":"last","source":"","source_sentence":"","surface_form":"last"},{"client_id":"make-up","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Maquillaje","gloss_language":"es","language":"en","lemma":"make-up","source":"","source_sentence":"","surface_form":"make-up"},{"client_id":"tastebud","client_ts":1790000240000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Papila gustativa","gloss_language":"es","language":"en","lemma":"tastebud","source":"","source_sentence":"","surface_form":"tastebud"},{"client_id":"well-known","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Conocido","gloss_language":"es","language":"en","lemma":"well-known","source":"","source_sentence":"","surface_form":"well-known"},{"client_id":"while","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Hacer que pase el tiempo, entretener; Mientras; Aunque; Algún tiempo, mucho tiempo","gloss_language":"es","language":"en","lemma":"while","source":"","source_sentence":"","surface_form":"while"}]
 ### export-declared-levels
 [{"language":"en","level":"B1","updated_at":1790000000000}]
 ### backup
@@ -421,11 +421,10 @@ B1
         "ceiling": {
           "Known": "Manual"
         },
-        "even": {
+        "expedition": "Learning",
+        "grin": {
           "Known": "Srs"
         },
-        "expedition": "Learning",
-        "grin": "Learning",
         "landlord": "Learning",
         "lighthouse": {
           "Known": "Manual"
@@ -456,9 +455,8 @@ B1
         "betwixt": 1790000000003,
         "ceiling": 1790000000004,
         "councillor": 1790000000006,
-        "even": 1790086400000,
         "expedition": 1790000000000,
-        "grin": 1790000120000,
+        "grin": 1790086400000,
         "landlord": 1790000000002,
         "lighthouse": 1790000000001,
         "sailor": 1790259200000,
@@ -533,16 +531,13 @@ B1
           "gloss_language": "es",
           "media": null,
           "review": {
-            "memory": {
-              "stability": 3.173,
-              "difficulty": 5.282434422319005
-            },
-            "due": 1790345600,
-            "last_review": 1790086400,
-            "reps": 1,
+            "memory": null,
+            "due": null,
+            "last_review": null,
+            "reps": 0,
             "lapses": 0
           },
-          "updated_at": 1790086400
+          "updated_at": 1790000240
         },
         "even": {
           "lemma": "even",
@@ -557,12 +552,12 @@ B1
           "media": null,
           "review": {
             "memory": null,
-            "due": 9223372036854775807,
+            "due": null,
             "last_review": null,
             "reps": 0,
             "lapses": 0
           },
-          "updated_at": 1790086400
+          "updated_at": 1790000180
         },
         "expedition": {
           "lemma": "expedition",
@@ -580,13 +575,16 @@ B1
           "gloss_language": "es",
           "media": null,
           "review": {
-            "memory": null,
-            "due": null,
-            "last_review": null,
-            "reps": 0,
+            "memory": {
+              "stability": 3.173,
+              "difficulty": 5.282434422319005
+            },
+            "due": 1790345600,
+            "last_review": 1790086400,
+            "reps": 1,
             "lapses": 0
           },
-          "updated_at": 1790000000
+          "updated_at": 1790086400
         },
         "grin": {
           "lemma": "grin",
@@ -605,12 +603,12 @@ B1
           "media": null,
           "review": {
             "memory": null,
-            "due": null,
+            "due": 9223372036854775807,
             "last_review": null,
             "reps": 0,
             "lapses": 0
           },
-          "updated_at": 1790000120
+          "updated_at": 1790086400
         },
         "irately": {
           "lemma": "irately",

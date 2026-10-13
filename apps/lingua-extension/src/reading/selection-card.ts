@@ -11,8 +11,15 @@ import type {
 import { selection as frSelection } from "../i18n/fr/selection.ts";
 import { DEFAULT_INTERFACE_LANGUAGE, formatNumber, type InterfaceLanguage } from "../i18n/index.ts";
 import type { MarkedTranslation, Span } from "../translate/markup.ts";
-import type { TranslationRequest, TranslatorPort } from "../translate/port.ts";
-import { type Gesture, type GlossRow, type WordPopupContent, gestureKey } from "./wordpopup.ts";
+import { type OnlineTranslationRequest, type OnlineTranslationResult, translateOnline } from "../translate/online.ts";
+import { type TranslationRequest, TRANSLATION_WAIT_MS, type TranslatorPort } from "../translate/port.ts";
+import {
+  type Gesture,
+  type GlossRow,
+  type OnlineTranslationOffer,
+  type WordPopupContent,
+  gestureKey,
+} from "./wordpopup.ts";
 
 /** The selection card's copy: the catalogue's `selection` module, in the interface language (its French the default). */
 export type SelectionCopy = typeof frSelection;
@@ -34,6 +41,11 @@ export type SelectionCopy = typeof frSelection;
 // translated in its sentence, marked, never alone (add-lingua-translation-delivery D7). Without
 // the engine, every card is exactly what it was before it existed.
 //
+// A card for several words also offers « Traduction en ligne » when the reader ticked it on this
+// device and their account has access (add-lingua-online-translation) — whatever the engine: with or
+// without a model, before or after its answer. Nothing is sent until the button is pressed; the
+// answer lands through the same generation guard as the engine's, in place of any translation shown.
+//
 // Every word card also asks its word's grammar (add-lingua-word-grammar): what the form is, what
 // else it may be, and its gloss by part of speech. A card that already holds its gloss — a
 // highlighted word — waits for that answer only briefly and is never drawn pending: past the
@@ -50,15 +62,8 @@ export const GRAMMAR_WAIT_MS = 250;
 /** The most word-by-word rows a card shows. */
 export const MAX_ROWS = 6;
 
-/**
- * How long the card keeps its offer to upgrade open. The card no longer waits for the engine
- * before answering — the pack's answer is shown as soon as it arrives and the translation
- * replaces it when it lands — so this is not a wait the reader sits through; it is when the
- * card stops expecting one. Set above the engine's own start bound (START_TIMEOUT_MS), which
- * is what a cold engine is really bounded by: measured at 4.8 s on a Galaxy Tab S6 Lite, far
- * past anything the reader should have been made to wait for.
- */
-export const TRANSLATION_WAIT_MS = 15_000;
+/** How long the card keeps its offer to upgrade open: beside the translator, which the review shares. */
+export { TRANSLATION_WAIT_MS };
 
 /** The reader's current status for a token class, or null for a new/unknown word — drives
  *  which actions the popup offers when a word is reopened. */
@@ -299,18 +304,35 @@ const CLICK_SLACK = 3;
  * own boxes (a line-wrapped word has several) are the truth, with a few pixels of slack so
  * clicking the edge of a letter still counts.
  */
-export function clickIsOnWord(x: number, y: number, rects: Iterable<DOMRect>): boolean {
+export function clickIsOnWord(x: number, y: number, rects: Iterable<DOMRect>, slack = CLICK_SLACK): boolean {
   for (const r of rects) {
-    if (
-      x >= r.left - CLICK_SLACK &&
-      x <= r.right + CLICK_SLACK &&
-      y >= r.top - CLICK_SLACK &&
-      y <= r.bottom + CLICK_SLACK
-    ) {
+    if (x >= r.left - slack && x <= r.right + slack && y >= r.top - slack && y <= r.bottom + slack) {
       return true;
     }
   }
   return false;
+}
+
+/**
+ * How far from any letter a tap still counts as being on the text (px): a fingertip, not a
+ * pointer. A tap that misses a word by this much is a miss, not a tap on the empty page.
+ */
+const TEXT_SLACK = 12;
+
+/**
+ * Whether a tap at (x, y) landed on text at all — any word, painted or not, the space between
+ * two, or the leading between two lines — given the caret it resolved to. Only a tap on no
+ * text is the host's to use (the reader turns its page on one): a tap on a known word, or just
+ * beside a word, is not. The caret snaps to the nearest text, and not always to the nearest
+ * line (WebKit picks the end of the next one), so the line boxes of the whole text it fell in
+ * decide; a page's margins and the empty end of a short line stay blank.
+ */
+export function tapIsOnText(caret: { node: Node; offset: number } | null, x: number, y: number): boolean {
+  const node = caret?.node;
+  if (!node || node.nodeType !== 3 || !(node as Text).length || !node.ownerDocument) return false;
+  const range = node.ownerDocument.createRange();
+  range.selectNodeContents(node);
+  return typeof range.getClientRects === "function" && clickIsOnWord(x, y, range.getClientRects(), TEXT_SLACK);
 }
 
 /**
@@ -378,6 +400,14 @@ export class SelectionCards {
        * and its dictionary form, which the session remembers for the open document.
        */
       onReadElsewhere?: (form: string, language: StudiedLanguage, lemma: string) => void;
+      /**
+       * Whether a card for several words offers « Traduction en ligne » right now: the setting ticked
+       * on this device and the account's access — asked per card, like the translator. Off when not
+       * given.
+       */
+      online?: () => boolean;
+      /** Send a sentence to the online translation service; the background's, by message, by default. */
+      translateOnline?: (request: OnlineTranslationRequest) => Promise<OnlineTranslationResult>;
     },
   ) {
     this.clock = opts.clock ?? DEFAULT_CLOCK;
@@ -705,10 +735,12 @@ export class SelectionCards {
           language: this.language(),
         })
       : null;
+    const online = this.onlineRequest(sel);
     const complete = (answer: PhraseGloss | null): PendingCard => ({
       ...expressionCard(base, answer, this.copy),
       translating: !!later,
       later,
+      onlineAsk: online,
     });
     if (known) {
       this.show(complete(known));
@@ -750,6 +782,65 @@ export class SelectionCards {
   private languageOfCard(): Pick<WordPopupContent, "language"> {
     const language = this.language();
     return language === "en" ? {} : { language };
+  }
+
+  /**
+   * What « Traduction en ligne » would send for a selection, or null when the card does not offer it:
+   * a single word (it keeps its dictionary card), the setting not ticked, no access, or a selection
+   * whose place in its sentence cannot be found — the service marks it there, by position.
+   */
+  private onlineRequest(sel: SelectionInput): OnlineTranslationRequest | null {
+    if (!/\s/.test(sel.text.trim()) || !this.opts.online?.()) return null;
+    const selection = sel.selection ?? placeOf(sel.sentence, sel.text);
+    return selection ? { sentence: sel.sentence, selection, source: this.language() } : null;
+  }
+
+  /**
+   * The button of a shown card. Pressed, it sends the sentence once — never again on this card — and
+   * the answer replaces what the card shows only while it is still that card: one the reader has since
+   * replaced, closed or acted on is never written over. Nothing is sent from a card no longer shown.
+   */
+  private onlineOffer(request: OnlineTranslationRequest, live: LiveCard): OnlineTranslationOffer {
+    let asked = false;
+    const offer = (state: OnlineTranslationOffer["state"], resetsAt?: number): OnlineTranslationOffer => ({
+      state,
+      ...(resetsAt === undefined ? {} : { resetsAt }),
+      press,
+    });
+    const press = (): void => {
+      if (asked || this.surface.generation() !== live.generation) return;
+      asked = true;
+      this.revise(live, { ...live.card, online: offer("asking") });
+      const send = this.opts.translateOnline ?? translateOnline;
+      void new Promise<OnlineTranslationResult>((resolve) => resolve(send(request)))
+        .catch((): OnlineTranslationResult => ({ kind: "unavailable" }))
+        .then((result) => {
+          const card = live.card;
+          if (result.kind === "translated") {
+            // In place of any translation shown, and of the word-by-word rows, as the engine's would be.
+            this.revise(live, {
+              ...card,
+              rows: undefined,
+              translation: result.translation,
+              onlineTranslation: true,
+              online: offer("answered"),
+            });
+          } else if (result.kind === "limit") {
+            this.revise(live, { ...card, online: offer("limit", result.resetsAt) });
+          } else {
+            this.revise(live, { ...card, online: offer("unavailable") });
+          }
+        });
+    };
+    return offer("offered");
+  }
+
+  /** Show `next` in place of `live`, only while the card view still shows it; whether it did. */
+  private revise(live: LiveCard, next: WordPopupContent): boolean {
+    if (this.surface.generation() !== live.generation) return false;
+    live.card = next;
+    live.generation = this.surface.show(next);
+    return true;
   }
 
   /** The engine's answer for this request, or null — never later than TRANSLATION_WAIT_MS. */
@@ -863,24 +954,32 @@ export class SelectionCards {
    * once it is known there is none. Showing bumps the generation: the upgrade is measured against
    * THIS card, so a card the reader has since replaced, closed or acted on is never written over.
    */
-  private show({ later, elsewhere, ...card }: PendingCard): void {
-    const shown = this.surface.show(card);
+  private show({ later, elsewhere, onlineAsk, ...card }: PendingCard): void {
+    // The card as it stands on screen: the engine's answer and the online one both revise it, each
+    // only while it is still the card shown (`revise`).
+    const live: LiveCard = { card, generation: 0 };
+    if (onlineAsk) live.card = { ...card, online: this.onlineOffer(onlineAsk, live) };
+    live.generation = this.surface.show(live.card);
     // A card read in another language: the session remembers its word for the open document (D6).
     if (card.readIn) this.opts.onReadElsewhere?.(card.surface, card.readIn, card.headword);
     // A re-read that came past its bound replaces this card, only while it is the one shown (D3).
     if (elsewhere) {
       void elsewhere.then((next) => {
-        if (next && this.surface.generation() === shown) this.show(next);
+        if (next && this.surface.generation() === live.generation) this.show(next);
       });
     }
     if (!later) return;
     void later.then(
       (translation) => {
-        if (this.surface.generation() !== shown) return;
+        const shown = live.card;
         // A translation is a better answer than word-by-word rows, so they are not kept. Without
-        // one, the card simply stops saying a translation is coming.
-        this.surface.show(
-          translation ? { ...card, rows: undefined, translating: false, translation } : { ...card, translating: false },
+        // one, the card simply stops saying a translation is coming. An online translation the
+        // reader asked for is not replaced by the engine's.
+        this.revise(
+          live,
+          translation && !shown.onlineTranslation
+            ? { ...shown, rows: undefined, translating: false, translation }
+            : { ...shown, translating: false },
         );
       },
       () => undefined,
@@ -895,7 +994,22 @@ export class SelectionCards {
 type PendingCard = WordPopupContent & {
   later?: Promise<MarkedTranslation | null> | null;
   elsewhere?: Promise<WordPopupContent | null> | null;
+  /** What « Traduction en ligne » sends when pressed, on a card that offers it. */
+  onlineAsk?: OnlineTranslationRequest | null;
 };
+
+/** A shown card and the generation it was shown at: what a late answer revises, while it is still shown. */
+interface LiveCard {
+  card: WordPopupContent;
+  generation: number;
+}
+
+/** Where `text` sits in `sentence`, when the page did not say: its first occurrence, or null. */
+function placeOf(sentence: string, text: string): Span | null {
+  const wanted = text.trim();
+  const start = wanted ? sentence.indexOf(wanted) : -1;
+  return start < 0 ? null : { start, end: start + wanted.length };
+}
 
 /** An engine call's answer, or null when it throws or rejects. */
 function attempt<T>(ask: () => Promise<T>): Promise<T | null> {

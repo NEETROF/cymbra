@@ -8,7 +8,7 @@
 # reduced root manifest instead: the same [workspace.package], [workspace.dependencies] and
 # [workspace.lints.*] tables (members inherit `[lints] workspace = true`, which fails to parse
 # without them), with only the three Lingua crates as members. `yarn gen:proto` reads the .proto
-# files of three backend crates, and `yarn gen:pack:real` runs the lingua-pack builder, so
+# files of four backend crates, and `yarn gen:pack:real` runs the lingua-pack builder, so
 # those come along too.
 #
 # The sign-in client ids are inlined into the bundle at build time from repository variables,
@@ -32,6 +32,7 @@ PATHS=(
   backend/auth-port/proto
   backend/lingua/proto
   backend/user-port/proto
+  backend/feature-flags/proto
   Cargo.lock
   rust-toolchain.toml
 )

@@ -81,7 +81,10 @@ export const NAV_SECTIONS: readonly NavSection[] = [
   {
     id: "lingua",
     heading: "nav.sections.lingua",
-    entries: [{ route: "lingua-overview", label: "nav.linguaOverview", icon: "lingua" }],
+    entries: [
+      { route: "lingua-overview", label: "nav.linguaOverview", icon: "lingua" },
+      { route: "lingua-campaigns", label: "nav.campaigns", icon: "campaigns" },
+    ],
   },
   {
     id: "admin",

@@ -46,7 +46,8 @@ export type Surface =
   | "reader"
   | "sync"
   | "languages"
-  | "grammar";
+  | "grammar"
+  | "app";
 
 export const SURFACES: readonly Surface[] = [
   "popup",
@@ -71,6 +72,7 @@ export const SURFACES: readonly Surface[] = [
   "sync",
   "languages",
   "grammar",
+  "app",
 ];
 
 /**
@@ -218,6 +220,11 @@ export function formatPercent(language: InterfaceLanguage, n: number, form: Perc
 /** A date as the interface language writes it: `fr-FR` as the surfaces do today, `en-US`, `es-ES`. */
 export function formatDate(language: InterfaceLanguage, date: Date, options?: Intl.DateTimeFormatOptions): string {
   return date.toLocaleDateString(LOCALES[language], options);
+}
+
+/** An hour and its minutes as the interface language writes them: « 14:05 », "2:05 PM", « 14:05 ». */
+export function formatTime(language: InterfaceLanguage, date: Date): string {
+  return date.toLocaleTimeString(LOCALES[language], { hour: "numeric", minute: "2-digit" });
 }
 
 const regions = new Map<InterfaceLanguage, Intl.DisplayNames>();

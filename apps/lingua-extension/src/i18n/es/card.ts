@@ -5,6 +5,11 @@ import type { card as fr } from "../fr/card.ts";
 export const card: typeof fr = {
   rowsLabel: "Palabra por palabra: no es una traducción de la expresión.",
   translationLabel: "En tu frase: traducción automática",
+  onlineTranslate: "Traducción en línea",
+  onlineTranslating: "Traducción en línea…",
+  onlineTranslationLabel: "En tu frase: traducción automática en línea",
+  onlineUnavailable: "Traducción en línea no disponible por ahora.",
+  onlineLimit: (time: string) => `Límite diario alcanzado: disponible de nuevo a las ${time}.`,
   waiting: "Buscando en el paquete…",
   translating: "Traduciendo…",
   noGloss: "No hay traducción en el paquete.",

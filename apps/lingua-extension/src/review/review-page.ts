@@ -1,4 +1,4 @@
-import { acceptedLanguages, readingLanguage } from "../analyzer/pairs.ts";
+import { acceptedLanguages } from "../analyzer/pairs.ts";
 import { languageName } from "../analyzer/language-labels.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
 import type { StudiedLanguage } from "../analyzer/types.ts";
@@ -11,29 +11,54 @@ import {
   type PluralForms,
   renderAround,
 } from "../i18n/index.ts";
+import { browserSpeechEngine, createSpeaker, type SpeechEngine } from "../reading/speech.ts";
 import { dailyRecorder } from "../state/dailystats.ts";
-import { type AsyncStorageArea, loadReviewLanguage, saveBackup, saveReviewLanguage } from "../state/storage.ts";
-import { saveRestoredBackup, watchBackup } from "../state/store.ts";
+import {
+  type AsyncStorageArea,
+  loadNewWordsPerDay,
+  loadReviewLanguage,
+  saveBackup,
+  saveReviewLanguage,
+  storedVoicePreference,
+} from "../state/storage.ts";
+import { watchBackup } from "../state/store.ts";
+import type { TranslatorSource } from "../translate/create-port.ts";
 import { ReviewController } from "./session.ts";
+import { type ReviewTranslation, reviewTranslationRequest, translateBounded } from "./translation.ts";
 import { type ReviewActions, renderReview, reviewCopy } from "./view.ts";
 
-// The full Révision page — summary + the FSRS review widget + lossless backup/restore +
-// the pack's Sources & confidentialité — built as plain DOM into a container so ONE
-// implementation serves both hosts: the native side panel and the in-page drawer (same
-// pattern as mountSettings / mountStats). It owns a ReviewController on the host's port and
-// persists via saveBackup, so every other surface reacts through storage.onChanged.
+// The Révision page — the language filter, the due count and the FSRS review card — built as
+// plain DOM into a container so ONE implementation serves both hosts: the native side panel and
+// the in-page drawer (same pattern as mountSettings / mountStats). It owns a ReviewController on
+// the host's port and persists via saveBackup, so every other surface reacts through
+// storage.onChanged. Backup, restore and the pack's sources live in Réglages › Données
+// (refine-lingua-review-session D9).
 
 export interface ReviewPageOptions {
   /** Epoch-seconds clock (Date.now()/1000 in production). */
   now: () => number;
-  /** Preferences (chrome.storage.local), where the last language chosen in the review is kept
-   *  (refine-lingua-review-language D3). */
+  /** Preferences (chrome.storage.local): the last language chosen in the review
+   *  (refine-lingua-review-language D3), the daily allowance of new words, and the voices. */
   prefs: AsyncStorageArea;
   /** The language of the page or book the review is shown beside, or null away from one (D2). */
   pageLanguage?: () => Promise<string | null>;
+  /** What reads the card aloud: the browser's synthesiser unless given (a test's, or none). */
+  speech?: SpeechEngine | null;
   /** The interface language its host read, whose catalogue module the page speaks
    *  (localise-lingua-review-stats D1); French when not given. */
   interfaceLanguage?: InterfaceLanguage;
+  /**
+   * The translator its host has, asked per language: a card the pack cannot answer is translated
+   * where a model is ready (add-lingua-review-translation D4). Without one, the review is today's.
+   */
+  translator?: TranslatorSource;
+  /**
+   * Beside a book, how many words looked up in it are still to sort (add-lingua-chapter-recap D6);
+   * none, or 0, away from one: no count is shown.
+   */
+  toSort?: () => Promise<number>;
+  /** Open the book's list of words to sort, in the reader page beside. */
+  openToSort?: () => void;
 }
 
 export interface ReviewPage {
@@ -59,7 +84,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string): 
   return node;
 }
 
-/** Mount the Révision page into `container`. */
+/** Mount the Révision page into `container`; `area` holds the reader's data. */
 export function mountReview(
   container: HTMLElement,
   port: LinguaPort,
@@ -71,10 +96,17 @@ export function mountReview(
   const copy = reviewCopy(interfaceLanguage);
   // Every grade and mark-known is counted under the engine's native language (add-lingua-native-language-sync-client D3).
   const recorder = dailyRecorder(area, port);
-  let controller = new ReviewController(port, opts.now, recorder);
+  const controller = (): ReviewController =>
+    new ReviewController(port, opts.now, recorder, () => loadNewWordsPerDay(opts.prefs));
+  let session = controller();
   let lastBackup: string | null = null;
 
   const summary = el("div", "summary");
+  // The words of the book beside still to sort, opening its list (add-lingua-chapter-recap D6).
+  const toSort = el("button", "review-to-sort");
+  toSort.type = "button";
+  toSort.hidden = true;
+  toSort.addEventListener("click", () => opts.openToSort?.());
   const review = el("div", "review");
   // The language filter, when the reader studies several (add-lingua-language-stats-review D2):
   // one language at a time, never several mixed (refine-lingua-review-language D1).
@@ -90,8 +122,58 @@ export function mountReview(
   const only = (): StudiedLanguage[] | undefined => (language ? [language] : undefined);
   const accepted = (candidate: string | null | undefined): StudiedLanguage | null =>
     languages.find((l) => l === candidate) ?? null;
-  const render = (view: ReturnType<ReviewController["view"]>): void =>
-    renderReview(review, view, actions, { showLanguage: languages.length > 1, interfaceLanguage });
+  // Reads the card aloud in the card's own language, with the voice chosen for it in Réglages
+  // (refine-lingua-review-session D11).
+  // Its lifetime is the page's: `destroy` stops it following the voices and the settings
+  // (add-lingua-native-language-choice D3).
+  const alive = new AbortController();
+  let spoken: string = "en";
+  const speaker = createSpeaker(
+    opts.speech === undefined ? browserSpeechEngine() : opts.speech,
+    () => spoken,
+    storedVoicePreference(opts.prefs),
+    alive.signal,
+  );
+  /**
+   * The current card's translation, tied to its arrival: a card that comes up — a missed one that
+   * comes back included — is a new arrival, and an answer for an earlier one is dropped (D2).
+   */
+  let arrival = 0;
+  let translation: ReviewTranslation | undefined;
+  const render = (view: ReturnType<ReviewController["view"]>): void => {
+    spoken = view.card?.language ?? language ?? spoken;
+    renderReview(review, view, actions, {
+      showLanguage: languages.length > 1,
+      interfaceLanguage,
+      speaker,
+      translation: view.card ? translation : undefined,
+    });
+  };
+
+  /**
+   * A card came up, or none did: a card without a gloss has its translation asked at once, before
+   * the reveal, so it is there when the reader looks (D2). Its answer repaints only a revealed
+   * card: before the reveal, nothing of it shows.
+   */
+  function arrive(card: ReturnType<ReviewController["view"]>["card"]): void {
+    const mine = ++arrival;
+    translation = undefined;
+    const asked = card ? reviewTranslationRequest(card) : null;
+    const translator = asked ? opts.translator?.(asked.request.language) : null;
+    if (!asked || !translator) return;
+    translation = { state: "pending" };
+    void translateBounded(translator, asked.request).then((answer) => {
+      if (mine !== arrival) return; // its card was answered: shown nowhere
+      translation = answer ? { state: "translated", translation: answer, alone: asked.alone } : { state: "none" };
+      const view = session.view();
+      if (view.card?.revealed) render(view);
+    });
+  }
+
+  /** A session starts: the route of its language warmed, so its first card does not wait on a cold engine. */
+  function warm(): void {
+    if (language) opts.translator?.(language)?.warm?.(language);
+  }
   /** A count of the summary — « 12 carte(s) » — its figure in bold where its message puts it. */
   const counted = (n: number, forms: PluralForms): Node[] => {
     const holder = el("span");
@@ -99,30 +181,7 @@ export function mountReview(
     return [...holder.childNodes];
   };
 
-  const tools = el("div", "tools");
-  const backupBtn = el("button");
-  backupBtn.type = "button";
-  backupBtn.textContent = copy.backup;
-  const restoreBtn = el("button");
-  restoreBtn.type = "button";
-  restoreBtn.textContent = copy.restore;
-  const fileInput = el("input");
-  fileInput.type = "file";
-  fileInput.accept = "application/json";
-  fileInput.hidden = true;
-  tools.append(backupBtn, restoreBtn, fileInput);
-  const msg = el("div", "msg");
-
-  const details = el("details");
-  const detailsSummary = el("summary");
-  detailsSummary.textContent = copy.sourcesAndPrivacy;
-  const privacy = el("div", "privacy");
-  privacy.textContent = copy.privacy;
-  const licences = el("div");
-  const notice = el("pre", "notice");
-  details.append(detailsSummary, privacy, licences, notice);
-
-  container.append(filterRow, summary, review, tools, msg, details);
+  container.append(filterRow, summary, toSort, review);
 
   /** The filter's segments: one per accepted language, the review's own active. */
   function drawFilter(): void {
@@ -147,9 +206,7 @@ export function mountReview(
 
   /** Put the review in `next`: a session over in another language gives way to a new start. */
   function switchTo(next: StudiedLanguage): void {
-    if (next !== language && controller.view().phase === "done") {
-      controller = new ReviewController(port, opts.now, recorder);
-    }
+    if (next !== language && session.view().phase === "done") session = controller();
     language = next;
   }
 
@@ -165,7 +222,7 @@ export function mountReview(
    * language chosen beside the same one stands (D2, D3). A session under way keeps its queue.
    */
   async function followPage(): Promise<void> {
-    if (controller.view().phase === "reviewing") return;
+    if (session.view().phase === "reviewing") return;
     const page = accepted((await opts.pageLanguage?.()) ?? null);
     if (page === followed && accepted(language)) return;
     followed = page;
@@ -174,10 +231,10 @@ export function mountReview(
   }
 
   async function choose(choice: StudiedLanguage): Promise<void> {
-    if (controller.view().phase === "reviewing") return; // a session under way keeps its queue
+    if (session.view().phase === "reviewing") return; // a session under way keeps its queue
     switchTo(choice);
     drawFilter();
-    render(controller.view());
+    render(session.view());
     await saveReviewLanguage(opts.prefs, choice);
     await refreshSummary();
   }
@@ -193,8 +250,20 @@ export function mountReview(
     summary.replaceChildren(...counted(deck, copy.deckCards), copy.summarySeparator, ...counted(due, copy.dueCards));
   }
 
-  async function run(produce: () => Promise<ReturnType<ReviewController["view"]>>, changed: boolean): Promise<void> {
+  /** The count of words to sort beside a book; hidden away from one, or at nothing to sort. */
+  async function refreshToSort(): Promise<void> {
+    const n = await (opts.toSort?.() ?? Promise.resolve(0)).catch(() => 0);
+    toSort.hidden = n <= 0;
+    toSort.textContent = n > 0 ? plural(interfaceLanguage, n, copy.toSort) : "";
+  }
+
+  async function run(
+    produce: () => Promise<ReturnType<ReviewController["view"]>>,
+    changed: boolean,
+    arrives = true,
+  ): Promise<void> {
     const view = await produce();
+    if (arrives) arrive(view.card);
     if (changed) {
       await persist();
       await refreshSummary();
@@ -203,69 +272,44 @@ export function mountReview(
   }
 
   const actions: ReviewActions = {
-    start: () => void run(() => controller.start(only()), false),
-    reveal: () => void run(() => controller.reveal(), false),
-    grade: (rating) => void run(() => controller.grade(rating), true),
-    markKnown: () => void run(() => controller.markKnown(), true),
+    // A session starts with the focus in the card, so the keys answer it at once.
+    start: () => {
+      warm();
+      void run(() => session.start(only()), false).then(() => review.focus({ preventScroll: true }));
+    },
+    reveal: () => void run(() => session.reveal(), false, false),
+    grade: (rating) => void run(() => session.grade(rating), true),
+    markKnown: () => void run(() => session.markKnown(), true),
+    ignore: () => void run(() => session.ignore(), true),
   };
 
-  function download(name: string, text: string): void {
-    const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
-    const a = el("a");
-    a.href = url;
-    a.download = name;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  /** A fresh controller over the engine as it now is: the idle card and the counts. */
+  async function restart(): Promise<void> {
+    session = controller();
+    arrive(null);
+    // The profile came with the state: a language may have joined or left the filter.
+    await readLanguages();
+    await refreshSummary();
+    render(session.view());
   }
 
-  async function doRestore(file: File): Promise<void> {
-    try {
-      await port.restore(await file.text());
-      // Saved as a restore from a file: the native language it names is the reader's from now on,
-      // where a write naming another would be refused (add-lingua-native-language-choice, task 4.5).
-      const backup = await port.backup();
-      lastBackup = backup; // ignore our own storage.onChanged echo
-      await saveRestoredBackup(area, backup);
-      controller = new ReviewController(port, opts.now, recorder);
-      await readLanguages(); // the file's profile may hold other languages
-      await refreshSummary();
-      render(controller.view());
-      msg.textContent = copy.restored;
-    } catch {
-      msg.textContent = copy.notABackup;
-    }
-  }
-
-  backupBtn.addEventListener("click", async () => download("cymbra-lingua-backup.json", await port.backup()));
-  restoreBtn.addEventListener("click", () => fileInput.click());
-  fileInput.addEventListener("change", () => {
-    const file = fileInput.files?.[0];
-    if (file) void doRestore(file);
-  });
-
-  void loadAttributions();
-  /** The sources of the reader's language's pack (add-lingua-studied-language-profile). */
-  async function loadAttributions(): Promise<void> {
-    const lang = port.for(await readingLanguage(port));
-    const names = await lang.licences();
-    licences.textContent = names.length ? copy.sources(names.join(copy.sourceSeparator)) : "";
-    notice.textContent = await lang.notice();
-  }
-
-  // Keep in sync with changes made elsewhere (a reading gesture, a reset in Réglages, or
-  // another surface), unless mid-review or it is our own echo. The controller caches its
-  // state, so it is rebuilt to reflect the restored engine.
-  const unwatch = watchBackup(area, (backup) => {
+  // Keep in sync with changes made elsewhere (a reading gesture, a reset or a restore in
+  // Réglages, or another surface), unless it is our own echo. Mid-review, another surface's
+  // change waits — unless it already ended this engine's session: a restore made in this very
+  // page (Réglages › Données beside the review) drops the session it was walking.
+  // The Cymbra Lingua app has no other surface writing its store (add-lingua-apple-review D1).
+  const watch = __APP__ ? () => () => {} : watchBackup;
+  const unwatch = watch(area, (backup) => {
     if (backup === lastBackup) return;
-    if (controller.view().phase === "reviewing") return;
-    void port.restore(backup).then(async () => {
-      controller = new ReviewController(port, opts.now, recorder);
-      void loadAttributions();
-      // The profile came with the state: a language may have joined or left the filter.
-      await readLanguages();
-      await refreshSummary();
-      render(controller.view());
-    });
+    void (async () => {
+      if (session.view().phase === "reviewing") {
+        if (await port.reviewCurrent()) return;
+        await restart();
+        return;
+      }
+      await port.restore(backup);
+      await restart();
+    })();
   });
 
   return {
@@ -273,13 +317,18 @@ export function mountReview(
       await readLanguages();
       await followPage();
       await refreshSummary();
-      render(controller.view());
+      await refreshToSort();
+      render(session.view());
     },
-    reviewing: () => controller.view().phase === "reviewing",
+    reviewing: () => session.view().phase === "reviewing",
     pageChanged: () => {
       followed = undefined;
     },
-    destroy: unwatch,
+    destroy: () => {
+      unwatch();
+      speaker.stop();
+      alive.abort();
+    },
   };
 }
 

@@ -4,6 +4,7 @@ import type { card as frCard } from "../i18n/fr/card.ts";
 import {
   DEFAULT_INTERFACE_LANGUAGE,
   formatCount,
+  formatTime,
   type GrammarLine,
   type InterfaceLanguage,
   NODE_SLOT,
@@ -79,6 +80,22 @@ export function gestureKey(g: Gesture): string {
   return g.expression || g.expressionAnswer || g.asWritten ? g.lemma.toLowerCase() : g.lemma;
 }
 
+/**
+ * « Traduction en ligne » on a card (add-lingua-online-translation D8): its button, and where the
+ * request it sends stands. The card renders it; the caller decides when it is offered and what
+ * pressing does, and sends the sentence at most once per card.
+ * - offered: the button can be pressed; nothing has left the device.
+ * - asking: pressed, the sentence on its way — the card says so and keeps what it shows.
+ * - answered: the online translation is the one shown.
+ * - unavailable: no translation came — refused, failed or silent; the card keeps what it shows.
+ * - limit: the daily limit is reached; `resetsAt` says when it resets (epoch milliseconds).
+ */
+export interface OnlineTranslationOffer {
+  state: "offered" | "asking" | "answered" | "unavailable" | "limit";
+  resetsAt?: number;
+  press: () => void;
+}
+
 /** One word-by-word row: a dictionary form the reader does not know, with its pack gloss. */
 export interface GlossRow {
   form: string;
@@ -131,6 +148,13 @@ export interface WordPopupContent {
    * reach a card: only dictionary data is stored.
    */
   translation?: MarkedTranslation | null;
+  /**
+   * The translation shown is the online service's, not the engine's: its label says it is an online
+   * machine translation, and never names a provider (add-lingua-online-translation).
+   */
+  onlineTranslation?: boolean;
+  /** « Traduction en ligne »'s button and its request, on a card for several words when offered. */
+  online?: OnlineTranslationOffer;
   /**
    * The word's grammar, when the engine answered it (add-lingua-word-grammar): what the form is,
    * what else it may be, the pieces of a split word, and the gloss laid out by part of speech.
@@ -347,8 +371,11 @@ export function createCard(
   const alsoEl = div("grammar also");
   alsoEl.hidden = true;
   const translationEl = div("translation");
+  // « Traduction en ligne », under any translation the card shows and above the actions.
+  const onlineEl = div("online");
+  onlineEl.hidden = true;
   const actionsEl = div("actions");
-  el.append(headwordEl, seenEl, rarityEl, listenEl, grammarEl, glossEl, alsoEl, translationEl, actionsEl);
+  el.append(headwordEl, seenEl, rarityEl, listenEl, grammarEl, glossEl, alsoEl, translationEl, onlineEl, actionsEl);
 
   let current: WordPopupContent | null = null;
   let generation = 0;
@@ -688,7 +715,7 @@ export function createCard(
     translationEl.hidden = !t;
     if (!t) return;
     const label = div("translation-label");
-    label.textContent = copy.translationLabel;
+    label.textContent = content.onlineTranslation ? copy.onlineTranslationLabel : copy.translationLabel;
     const sentence = div("translation-sentence");
     let at = 0;
     for (const { start, end } of [...t.marks].sort((a, b) => a.start - b.start)) {
@@ -701,6 +728,41 @@ export function createCard(
     }
     sentence.append(document.createTextNode(t.sentence.slice(at)));
     translationEl.append(label, sentence);
+  }
+
+  /**
+   * « Traduction en ligne »: the button — pressable only while offered — and the line saying where
+   * its request stands. Text nodes only, like everything the card shows.
+   */
+  function renderOnline(content: WordPopupContent): void {
+    onlineEl.replaceChildren();
+    const offer = content.pending ? undefined : content.online;
+    onlineEl.hidden = !offer;
+    if (!offer) return;
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = copy.onlineTranslate;
+    b.disabled = offer.state !== "offered";
+    // As the listen buttons: keep the reader's selection on the page.
+    b.addEventListener("pointerdown", (e) => e.preventDefault());
+    b.addEventListener("mousedown", (e) => e.preventDefault());
+    b.addEventListener("click", () => {
+      if (b.disabled) return;
+      b.disabled = true;
+      offer.press();
+    });
+    const note = div("online-note");
+    note.setAttribute("role", "status");
+    note.textContent =
+      offer.state === "asking"
+        ? copy.onlineTranslating
+        : offer.state === "unavailable"
+          ? copy.onlineUnavailable
+          : offer.state === "limit"
+            ? copy.onlineLimit(formatTime(language, new Date(offer.resetsAt ?? Date.now())))
+            : "";
+    note.hidden = !note.textContent;
+    onlineEl.append(b, note);
   }
 
   const view: CardView = {
@@ -741,6 +803,7 @@ export function createCard(
       renderGrammar(content);
       renderAnswer(content);
       renderTranslation(content);
+      renderOnline(content);
 
       // Actions depend on the word's current status: hide the one it already is. Offer
       // "Remettre à apprendre" (clear) only for an IGNORED word — ignored is always an

@@ -50,7 +50,10 @@ test.describe("grouped sidebar", () => {
       "Campaigns",
       "Usage",
     ]);
-    await expect(sidebar(page).getByRole("group", { name: "Lingua" }).getByRole("link")).toHaveText(["Overview"]);
+    await expect(sidebar(page).getByRole("group", { name: "Lingua" }).getByRole("link")).toHaveText([
+      "Overview",
+      "Campaigns",
+    ]);
     await expect(sidebar(page).getByRole("group", { name: "Administration" }).getByRole("link")).toHaveText([
       "Users",
       "Feature flags",
@@ -65,9 +68,11 @@ test.describe("grouped sidebar", () => {
 
     await expect(page).toHaveURL(/\/lingua\/overview$/);
     await expect(sidebar(page).getByRole("group", { name: "Music" })).toHaveCount(0);
-    for (const name of ["Sound fonts", "Campaigns", "Usage"]) {
+    for (const name of ["Sound fonts", "Usage"]) {
       await expect(page.getByRole("link", { name })).toHaveCount(0);
     }
+    // Lingua's own campaigns, and no other (change: add-lingua-feature-betas).
+    await expect(sidebar(page).getByRole("link", { name: "Campaigns" })).toHaveAttribute("href", "/lingua/campaigns");
     // And the pages themselves are closed to them, not only unlisted.
     await page.goto("/music/campaigns");
     await expect(page).toHaveURL(/\/lingua\/overview$/);

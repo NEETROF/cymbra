@@ -18,6 +18,9 @@ declare const __NATIVE_PROVIDERS__: boolean;
 // Chromium only: the book reader loads each section from the background service worker
 // (src/reader/section-server.ts) — a blob: document may land in another process there.
 declare const __SECTIONS_FROM_WORKER__: boolean;
+// The Cymbra Lingua app's build only (add-lingua-apple-review D1): the review and the statistics in
+// the Apple app's web view, served from its bundle — no browser-extension API, the engine in the page.
+declare const __APP__: boolean;
 
 // The language pairs the package ships (packs.json, generalise-lingua-pack-build), comma-separated,
 // the default studied language's first: each one's pack is at assets/packs/<pair>.lingua.
@@ -93,7 +96,8 @@ declare module "foliate-js/epub.js" {
   }
   export interface FoliateBook {
     toc?: FoliateTocItem[];
-    sections: unknown[];
+    /** Each section's bytes and whether it is in the reading order (`linear: "no"` when not). */
+    sections: { size?: number; linear?: string }[];
     /** Dispatches `data` for each resource the loader is about to hand a section: its content
      *  (`detail.data`, a string or a promise of one) may be replaced before it is used. */
     transformTarget?: EventTarget;
@@ -106,6 +110,8 @@ declare module "foliate-js/view.js" {
     cfi: string;
     fraction: number;
     tocItem?: { label?: string } | null;
+    /** The section on screen, by its index in the book's sections. */
+    section?: { current: number; total: number };
   }
   export interface FoliatePaginator extends HTMLElement {
     setStyles(styles: string | [string, string]): void;
@@ -114,6 +120,9 @@ declare module "foliate-js/view.js" {
     readonly start: number;
     readonly end: number;
     readonly viewSize: number;
+    /** The page shown and the section's page count (a blank page at each end when paginated). */
+    readonly page: number;
+    readonly pages: number;
   }
   export class View extends HTMLElement {
     renderer: FoliatePaginator;

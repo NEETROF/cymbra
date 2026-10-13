@@ -6,6 +6,8 @@ import type {
   NewCard,
   Rating,
   ReviewCard,
+  ReviewOptions,
+  ReviewSummary,
   StatusChangeIn,
   StatusOp,
 } from "./port.ts";
@@ -58,12 +60,22 @@ interface WasmEngine {
   retireCard(lemma: string, now: number, language?: string | null): void;
   deckCount(languages?: string[] | null): number;
   dueCount(now: number, languages?: string[] | null): number;
-  startReview(now: number, languages?: string[] | null): number;
+  startReview(
+    now: number,
+    languages?: string[] | null,
+    limit?: number | null,
+    newPerDay?: number | null,
+    dayStart?: number | null,
+  ): number;
   reviewCurrent(): string | undefined;
   reviewCurrentLanguage(): string | undefined;
   reviewReveal(): void;
-  reviewGrade(rating: string, now: number): void;
+  reviewGrade(rating: string, now: number): boolean;
   reviewMarkKnown(now: number): void;
+  reviewIgnore(now: number): void;
+  reviewSummary(): string | undefined;
+  reviewSnapshot(): string | undefined;
+  reviewResume(json: string): boolean;
   backup(): string;
   restore(json: string): void;
   reset(): void;
@@ -124,8 +136,15 @@ const CLEAR = "clear";
  * works in a Firefox event page — but NOT in a Chromium service worker, where the HTML
  * spec forbids dynamic `import()`. The service worker passes a static loader instead.
  */
-const dynamicGlue: GlueLoader = async () =>
-  (await import(/* @vite-ignore */ chrome.runtime.getURL(GLUE_PATH))) as WasmModule;
+const dynamicGlue: GlueLoader = async () => (await import(/* @vite-ignore */ packageUrl(GLUE_PATH))) as WasmModule;
+
+/**
+ * A packaged file's address: the extension's, or — in the Cymbra Lingua app, which serves its
+ * bundle under its own scheme (add-lingua-apple-review D2) — the page's own origin.
+ */
+function packageUrl(path: string): string {
+  return __APP__ ? new URL(path, globalThis.location.href).href : chrome.runtime.getURL(path);
+}
 
 /**
  * One initialisation per glue module, shared by every engine built on it. The glue's init()
@@ -139,7 +158,7 @@ const initialised = new WeakMap<WasmModule, Promise<unknown>>();
 function initialise(mod: WasmModule): Promise<unknown> {
   let ready = initialised.get(mod);
   if (!ready) {
-    const attempt = fetch(chrome.runtime.getURL(WASM_PATH)).then((wasm) => mod.default(wasm));
+    const attempt = fetch(packageUrl(WASM_PATH)).then((wasm) => mod.default(wasm));
     // A failed initialisation is retried by the next engine rather than remembered.
     attempt.catch(() => {
       if (initialised.get(mod) === attempt) initialised.delete(mod);
@@ -170,7 +189,7 @@ export async function reprofileBackup(
 
 /** A pair's pack, read from the package. */
 async function fetchPack(pair: string): Promise<Uint8Array> {
-  return new Uint8Array(await (await fetch(chrome.runtime.getURL(packPath(pair)))).arrayBuffer());
+  return new Uint8Array(await (await fetch(packageUrl(packPath(pair)))).arrayBuffer());
 }
 
 export class WasmAnalyzerPort implements LinguaPort {
@@ -324,8 +343,14 @@ export class WasmAnalyzerPort implements LinguaPort {
     return (await this.engine()).dueCount(now, languages ?? null);
   }
 
-  async startReview(now: number, languages?: StudiedLanguage[]): Promise<number> {
-    return (await this.engine()).startReview(now, languages ?? null);
+  async startReview(now: number, languages?: StudiedLanguage[], options?: ReviewOptions): Promise<number> {
+    return (await this.engine()).startReview(
+      now,
+      languages ?? null,
+      options?.limit ?? null,
+      options?.newPerDay ?? null,
+      options?.dayStart ?? null,
+    );
   }
 
   async reviewCurrent(): Promise<ReviewCard | null> {
@@ -341,12 +366,31 @@ export class WasmAnalyzerPort implements LinguaPort {
     (await this.engine()).reviewReveal();
   }
 
-  async reviewGrade(rating: Rating, now: number): Promise<void> {
-    (await this.engine()).reviewGrade(rating, now);
+  async reviewGrade(rating: Rating, now: number): Promise<boolean> {
+    return (await this.engine()).reviewGrade(rating, now);
   }
 
   async reviewMarkKnown(now: number): Promise<void> {
     (await this.engine()).reviewMarkKnown(now);
+  }
+
+  async reviewIgnore(now: number): Promise<void> {
+    (await this.engine()).reviewIgnore(now);
+  }
+
+  async reviewSummary(): Promise<ReviewSummary | null> {
+    const json = (await this.engine()).reviewSummary();
+    return json ? (JSON.parse(json) as ReviewSummary) : null;
+  }
+
+  /** The session under way as text, or null: what the background keeps across its own restart. */
+  async reviewSnapshot(): Promise<string | null> {
+    return (await this.engine()).reviewSnapshot() ?? null;
+  }
+
+  /** Resume the session `reviewSnapshot` wrote; false for text that is not one. */
+  async reviewResume(json: string): Promise<boolean> {
+    return (await this.engine()).reviewResume(json);
   }
 
   async backup(): Promise<string> {

@@ -339,7 +339,7 @@ describe("FlagsView", () => {
     const texts = options.map((o) => o.text());
     // offered list = fixed scopes + OPEN campaigns only; the closed one appears
     // solely as the stored option, quietly suffixed.
-    expect(texts).toContain("beta: Spring beta");
+    expect(texts).toContain("beta: Spring beta (Music)");
     expect(texts).toContain("beta: MIDI drums (closed)");
     expect(texts).not.toContain("beta: MIDI drums");
     const stale = options.find((o) => o.attributes("value") === "beta:midi-drums")!;
@@ -390,5 +390,63 @@ describe("FlagsView", () => {
     expect(msg).not.toContain("no existing campaign");
     expect(w.text()).not.toContain("campaign_unverifiable");
     expect(w.text()).not.toContain("aborted");
+  });
+  // --- campaigns of the flag's app (change: add-lingua-feature-betas) ---
+
+  const PRODUCT_CAMPAIGNS = [
+    { id: "m1", key: "spring-beta", name: "Spring beta", kind: "feature", product: "music" },
+    { id: "l1", key: "online-translation", name: "Online translation", kind: "feature", product: "lingua" },
+  ];
+
+  it("offers a Lingua flag only Lingua campaigns, each naming its product", async () => {
+    const { w } = await mountView([def({ key: "lingua.online_translation.enabled", app: "lingua" })], [], {
+      campaigns: PRODUCT_CAMPAIGNS,
+    });
+    await openEdit(w);
+    const texts = w
+      .get(".drawer select")
+      .findAll("option")
+      .map((o) => o.text());
+    expect(texts).toContain("beta: Online translation (Lingua)");
+    expect(texts.some((t) => t.includes("Spring beta"))).toBe(false);
+  });
+
+  it("offers a flag shared by every app every product's campaigns", async () => {
+    const { w } = await mountView([def({ key: "shared.enabled", app: "all" })], [], { campaigns: PRODUCT_CAMPAIGNS });
+    await openEdit(w);
+    const texts = w
+      .get(".drawer select")
+      .findAll("option")
+      .map((o) => o.text());
+    expect(texts).toContain("beta: Spring beta (Music)");
+    expect(texts).toContain("beta: Online translation (Lingua)");
+  });
+
+  it("shows a stored scope naming another product's campaign as a defect, naming the product", async () => {
+    const { w } = await mountView(
+      [def({ key: "drums.enabled", app: "music", rolloutScope: "beta:online-translation" })],
+      [],
+      { campaigns: PRODUCT_CAMPAIGNS },
+    );
+    await openEdit(w);
+    const stale = w
+      .get(".drawer select")
+      .findAll("option")
+      .find((o) => o.attributes("value") === "beta:online-translation")!;
+    expect(stale.text()).toContain("a Lingua campaign, not of this app");
+    expect(w.find(".drawer .scope-warn").exists()).toBe(true);
+  });
+
+  it("surfaces a refused scope of another product as such, never the raw status", async () => {
+    const { w } = await mountView([def({ key: "drums.enabled", valueType: "bool" })], [], {
+      failFlagWrite: new ConnectError(
+        "foreign_campaign: rollout scope `beta:online-translation` names a lingua campaign, not a music one",
+        Code.FailedPrecondition,
+      ),
+    });
+    await openEdit(w);
+    await clickSave(w);
+    expect(w.get(".drawer .error").text()).toContain("belongs to another product");
+    expect(w.text()).not.toContain("foreign_campaign");
   });
 });

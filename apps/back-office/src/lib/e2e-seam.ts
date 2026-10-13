@@ -86,6 +86,18 @@ export interface E2EData {
       newWordsSeen?: number;
     }[];
   };
+  /** « Traduction en ligne » daily totals (change: add-lingua-online-translation). */
+  onlineTranslationUsage?: {
+    day: string;
+    provider: string;
+    pair: string;
+    answered: number;
+    failed?: number;
+    limited?: number;
+    inputTokens?: number;
+    outputTokens?: number;
+    costMicroUsd: number;
+  }[];
   /** Declared flag/config keys for the "Notifications" panel (change:
    * add-push-notifications), which is a filtered view over the flag registry.
    * Mutated in place by setFlag/setConfig/clearOverride so the panel's re-read
@@ -179,6 +191,8 @@ export interface E2ECampaign {
   acceptsEnrolment?: boolean;
   enrollmentClosesAt?: string;
   closedAt?: string;
+  /** `music` (the default, as the server stores an empty one) or `lingua`. */
+  product?: "music" | "lingua";
 }
 
 /** One account's plan data: entitlement rows + memberships; the effective plan is
@@ -699,6 +713,28 @@ export function installE2EClients(): void {
         const total = totals[req.metric] ?? u.wordsLearned;
         return { points: [{ day: today, value: BigInt(total ?? 0) }] };
       },
+      adminGetOnlineTranslationUsage: async () => {
+        failIfSet("adminGetOnlineTranslationUsage");
+        const rows = data.onlineTranslationUsage ?? [];
+        const sum = (f: (r: (typeof rows)[number]) => number) => BigInt(rows.reduce((t, r) => t + f(r), 0));
+        return {
+          rows: rows.map((r) => ({
+            day: r.day,
+            provider: r.provider,
+            pair: r.pair,
+            answered: BigInt(r.answered),
+            failed: BigInt(r.failed ?? 0),
+            limited: BigInt(r.limited ?? 0),
+            inputTokens: BigInt(r.inputTokens ?? 0),
+            outputTokens: BigInt(r.outputTokens ?? 0),
+            costMicroUsd: BigInt(r.costMicroUsd),
+          })),
+          answered: sum((r) => r.answered),
+          failed: sum((r) => r.failed ?? 0),
+          limited: sum((r) => r.limited ?? 0),
+          costMicroUsd: sum((r) => r.costMicroUsd),
+        };
+      },
     },
     // Jobs console (change: add-admin-jobs-console). Global-admin only server-side; here
     // a cancellation mutates the seeded queue so the store's re-read reflects it.
@@ -999,7 +1035,13 @@ export function installE2EClients(): void {
         recordPlanAudit(uid, "revoke_membership", req.campaignKey, req.reason);
         return {};
       },
-      createCampaign: async (req: { key: string; name: string; kind: string; durationDays?: number }) => {
+      createCampaign: async (req: {
+        key: string;
+        name: string;
+        kind: string;
+        durationDays?: number;
+        product?: string;
+      }) => {
         failIfSet("createCampaign");
         if (campaignByKey(req.key)) throw new ConnectError("key taken", Code.AlreadyExists);
         const c: E2ECampaign = {
@@ -1008,6 +1050,7 @@ export function installE2EClients(): void {
           kind: req.kind as E2ECampaign["kind"],
           durationDays: req.durationDays,
           acceptsEnrolment: true,
+          product: req.product === "lingua" ? "lingua" : "music",
         };
         campaigns.push(c);
         return { campaign: { ...c, id: c.key, createdBy: "u1", createdAt: nowIso() } };
@@ -1017,7 +1060,7 @@ export function installE2EClients(): void {
         return {
           campaigns: campaigns
             .filter((c) => req.includeClosed || !c.closedAt)
-            .map((c) => ({ ...c, id: c.key, createdBy: "u1", createdAt: "2026-01-01T00:00:00Z" })),
+            .map((c) => ({ product: "music", ...c, id: c.key, createdBy: "u1", createdAt: "2026-01-01T00:00:00Z" })),
         };
       },
       closeEnrollment: async (req: { campaignKey: string }) => {

@@ -124,6 +124,30 @@ pub fn membership_end(kind: CampaignKind, enrolled_at: DateTime<Utc>) -> Option<
     }
 }
 
+/// The products a beta campaign may belong to (change: add-lingua-feature-betas).
+/// Live has no campaign yet; adding it here is the whole of enabling it.
+pub const CAMPAIGN_PRODUCTS: [&str; 2] =
+    [cymbra_platform::MUSIC_SCOPE, cymbra_platform::LINGUA_SCOPE];
+
+/// The product a new campaign belongs to: empty is Music (a back office that predates
+/// the field keeps creating Music campaigns); otherwise one of [`CAMPAIGN_PRODUCTS`].
+/// A trial grants a plan and only Music has one, so Lingua takes `feature` only.
+pub fn campaign_product(product: &str, kind: CampaignKind) -> Result<&'static str, String> {
+    let product = product.trim();
+    let product = if product.is_empty() {
+        cymbra_platform::MUSIC_SCOPE
+    } else {
+        CAMPAIGN_PRODUCTS
+            .into_iter()
+            .find(|p| *p == product)
+            .ok_or_else(|| format!("unknown campaign product {product}"))?
+    };
+    if product != cymbra_platform::MUSIC_SCOPE && kind.is_trial() {
+        return Err(format!("a {product} campaign is of kind feature only"));
+    }
+    Ok(product)
+}
+
 /// Why an enrolment is refused (spec `music-access-codes`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EnrolRefusal {
@@ -155,10 +179,14 @@ pub fn can_enrol(
     {
         return Err(EnrolRefusal::AlreadyMember);
     }
+    // One trial at a time, per product: a trial of another product grants another
+    // product's plan, so it neither blocks nor is blocked (change: add-lingua-feature-betas).
     if campaign.kind.is_trial()
-        && existing
-            .iter()
-            .any(|m| m.campaign.kind.is_trial() && membership_is_active(m, now))
+        && existing.iter().any(|m| {
+            m.campaign.product == campaign.product
+                && m.campaign.kind.is_trial()
+                && membership_is_active(m, now)
+        })
     {
         return Err(EnrolRefusal::TrialActive);
     }
@@ -292,6 +320,21 @@ mod tests {
         Utc.with_ymd_and_hms(2026, 1, day, 12, 0, 0).unwrap()
     }
     const GRACE: Duration = Duration::days(3);
+
+    #[test]
+    fn campaign_product_defaults_to_music_and_keeps_lingua_to_features() {
+        let trial = CampaignKind::PremiumTrial { duration_days: 90 };
+        assert_eq!(campaign_product("", CampaignKind::Feature), Ok("music"));
+        assert_eq!(campaign_product(" ", trial), Ok("music"));
+        assert_eq!(campaign_product("music", trial), Ok("music"));
+        assert_eq!(
+            campaign_product("lingua", CampaignKind::Feature),
+            Ok("lingua")
+        );
+        assert!(campaign_product("lingua", trial).is_err());
+        assert!(campaign_product("live", CampaignKind::Feature).is_err());
+        assert!(campaign_product("Music", CampaignKind::Feature).is_err());
+    }
 
     fn row(source: Source, ends: Option<u32>, status: EntitlementStatus) -> EntitlementRow {
         EntitlementRow {
@@ -598,6 +641,14 @@ mod tests {
         );
         // a feature beta is fine alongside a running trial
         assert_eq!(can_enrol(&feat, std::slice::from_ref(&m), t(3)), Ok(()));
+        // the one-trial rule holds within a product: another product's running trial
+        // neither blocks nor is blocked (change: add-lingua-feature-betas)
+        let mut elsewhere = m.clone();
+        elsewhere.campaign.product = cymbra_platform::LINGUA_SCOPE.to_string();
+        assert_eq!(
+            can_enrol(&trial2, std::slice::from_ref(&elsewhere), t(3)),
+            Ok(())
+        );
         // once the trial is over, another trial is allowed
         assert_eq!(
             can_enrol(&trial2, std::slice::from_ref(&m), t(2) + Duration::days(91)),

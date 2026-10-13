@@ -4,6 +4,8 @@ import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
 import {
   comprehension,
+  formatUsd,
+  type OnlineUsage,
   type SeriesPoint,
   type LinguaReport,
   studiedLanguageOptions,
@@ -47,6 +49,18 @@ const vm = computed(() =>
 );
 
 const num = (v: number) => v.toLocaleString(currentLocale());
+const usd = (micro: number) => formatUsd(micro, currentLocale());
+
+const emptyOnline: OnlineUsage = { answered: 0, failed: 0, limited: 0, costMicroUsd: 0, lines: [] };
+/** « Traduction en ligne » (change: add-lingua-online-translation), its own union. */
+const onlineVm = computed(() =>
+  match(store.online)
+    .with({ status: "idle" }, () => ({ loading: true, error: null as string | null, data: emptyOnline }))
+    .with({ status: "loading" }, () => ({ loading: true, error: null, data: emptyOnline }))
+    .with({ status: "error" }, ({ error }) => ({ loading: false, error, data: emptyOnline }))
+    .with({ status: "success" }, ({ data }) => ({ loading: false, error: null, data }))
+    .exhaustive(),
+);
 /** Comprehension as a whole percentage, or "—" when nothing was read. */
 const pct = (read: number, fresh: number) => {
   const c = comprehension(read, fresh);
@@ -225,6 +239,63 @@ function apply() {
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- « Traduction en ligne »: daily totals per provider and pair, and their estimated
+           cost — no account, no text (change: add-lingua-online-translation). -->
+      <div class="panel" data-testid="online-translation">
+        <h2>{{ t("lingua.online.title") }}</h2>
+        <p v-if="onlineVm.error" class="state error" data-testid="online-error">{{ onlineVm.error }}</p>
+        <template v-else>
+          <div class="kpis">
+            <div class="kpi" data-testid="online-answered">
+              <span class="kpi-value">{{ num(onlineVm.data.answered) }}</span>
+              <span class="kpi-label">{{ t("lingua.online.answered") }}</span>
+            </div>
+            <div class="kpi" data-testid="online-failed">
+              <span class="kpi-value">{{ num(onlineVm.data.failed) }}</span>
+              <span class="kpi-label">{{ t("lingua.online.failed") }}</span>
+            </div>
+            <div class="kpi" data-testid="online-limited">
+              <span class="kpi-value">{{ num(onlineVm.data.limited) }}</span>
+              <span class="kpi-label">{{ t("lingua.online.limited") }}</span>
+            </div>
+            <div class="kpi" data-testid="online-cost">
+              <span class="kpi-value">{{ usd(onlineVm.data.costMicroUsd) }}</span>
+              <span class="kpi-label">{{ t("lingua.online.cost") }}</span>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>{{ t("lingua.online.provider") }}</th>
+                <th>{{ t("lingua.online.pair") }}</th>
+                <th class="n">{{ t("lingua.online.answered") }}</th>
+                <th class="n">{{ t("lingua.online.failed") }}</th>
+                <th class="n">{{ t("lingua.online.limited") }}</th>
+                <th class="n">{{ t("lingua.online.tokens") }}</th>
+                <th class="n">{{ t("lingua.online.cost") }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="l in onlineVm.data.lines" :key="`${l.provider}|${l.pair}`" data-testid="online-row">
+                <td>{{ l.provider === "none" ? t("lingua.online.noProvider") : l.provider }}</td>
+                <td class="mono">{{ l.pair }}</td>
+                <td class="n">{{ num(l.answered) }}</td>
+                <td class="n">{{ num(l.failed) }}</td>
+                <td class="n">{{ num(l.limited) }}</td>
+                <td class="n">{{ num(l.inputTokens) }} / {{ num(l.outputTokens) }}</td>
+                <td class="n">{{ usd(l.costMicroUsd) }}</td>
+              </tr>
+              <tr v-if="onlineVm.data.lines.length === 0">
+                <td colspan="7" class="muted">
+                  {{ onlineVm.loading ? t("lingua.loading") : t("lingua.noData") }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="muted" data-testid="online-note">{{ t("lingua.online.note") }}</p>
+        </template>
       </div>
     </template>
   </section>

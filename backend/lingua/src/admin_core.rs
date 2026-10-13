@@ -83,6 +83,40 @@ pub struct Usage {
     pub reviewers: i64,
 }
 
+/// One day × provider × pair of « Traduction en ligne » totals, as stored (no account, no
+/// text — change: add-lingua-online-translation).
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct OnlineUsageRow {
+    pub day: i32,
+    pub provider: String,
+    pub pair: String,
+    pub answered: i64,
+    pub failed: i64,
+    pub limited: i64,
+    pub input_tokens: i64,
+    pub output_tokens: i64,
+    pub cost_micro_usd: i64,
+}
+
+/// The window's totals of online translation rows.
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct OnlineUsageTotals {
+    pub answered: i64,
+    pub failed: i64,
+    pub limited: i64,
+    pub cost_micro_usd: i64,
+}
+
+pub fn online_usage_totals(rows: &[OnlineUsageRow]) -> OnlineUsageTotals {
+    rows.iter()
+        .fold(OnlineUsageTotals::default(), |t, r| OnlineUsageTotals {
+            answered: t.answered + r.answered,
+            failed: t.failed + r.failed,
+            limited: t.limited + r.limited,
+            cost_micro_usd: t.cost_micro_usd + r.cost_micro_usd,
+        })
+}
+
 /// One point of a per-day series: a day and a count.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SeriesPoint {
@@ -165,5 +199,33 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    fn online_usage_totals_sum_every_row() {
+        let rows = vec![
+            OnlineUsageRow {
+                answered: 3,
+                failed: 1,
+                cost_micro_usd: 700,
+                ..Default::default()
+            },
+            OnlineUsageRow {
+                answered: 2,
+                limited: 4,
+                cost_micro_usd: 300,
+                ..Default::default()
+            },
+        ];
+        assert_eq!(
+            online_usage_totals(&rows),
+            OnlineUsageTotals {
+                answered: 5,
+                failed: 1,
+                limited: 4,
+                cost_micro_usd: 1_000
+            }
+        );
+        assert_eq!(online_usage_totals(&[]), OnlineUsageTotals::default());
     }
 }

@@ -37,7 +37,7 @@ use lingua_core::decks::card::{
     Card, EncounterSource, FRENCH, Provenance, gloss_language_or_french,
 };
 use lingua_core::decks::fsrs::{Rating, ReviewState};
-use lingua_core::decks::review::ReviewSession;
+use lingua_core::decks::review::{NewCardAllowance, ReviewSession, SessionOptions};
 use lingua_core::engine::{
     analyse_page_json, french_expression_key, gloss_phrase_json, reading_expression_key,
     word_grammar_json,
@@ -1060,13 +1060,35 @@ impl LinguaEngine {
 
     // --- Review session ---
 
-    /// Starts a review session over everything due at `now`, in `languages` (ISO 639-1 tags)
-    /// or in every language when absent; returns how many cards it will walk. A queue that
-    /// mixes languages is ordered by due date (add-lingua-language-stats-review D1).
+    /// Starts a review session over the cards due at `now`, in `languages` (ISO 639-1 tags)
+    /// or in every language when absent; returns how many cards it will walk. The queue starts
+    /// with the lowest predicted recall, never-reviewed cards in capture order
+    /// (refine-lingua-review-session D1). `limit` caps the distinct cards; `newPerDay`, with
+    /// `dayStart` (the reader's local midnight, epoch seconds), is the day's allowance of
+    /// never-reviewed cards (D2). Absent options take every due card, as before.
     #[wasm_bindgen(js_name = startReview)]
-    pub fn start_review(&mut self, now: f64, languages: Option<Vec<String>>) -> usize {
-        let session =
-            ReviewSession::start_for(&self.state.deck, now as i64, &known_languages(languages));
+    pub fn start_review(
+        &mut self,
+        now: f64,
+        languages: Option<Vec<String>>,
+        limit: Option<u32>,
+        new_per_day: Option<u32>,
+        day_start: Option<f64>,
+    ) -> usize {
+        let options = SessionOptions {
+            limit: limit.map(|n| n as usize),
+            new_cards: new_per_day.map(|per_day| NewCardAllowance {
+                per_day: per_day as usize,
+                day_start: day_start.map_or(i64::MIN, |t| t as i64),
+            }),
+        };
+        let session = ReviewSession::start_with(
+            &self.state.deck,
+            &self.state.fsrs,
+            now as i64,
+            &known_languages(languages),
+            options,
+        );
         let remaining = session.remaining();
         self.session = Some(session);
         remaining
@@ -1132,9 +1154,11 @@ impl LinguaEngine {
         self.session.as_ref().map_or(0, ReviewSession::remaining)
     }
 
-    /// Grades the current card (`again`/`hard`/`good`/`easy`) and advances.
+    /// Answers the current card (`again`/`hard`/`good`/`easy`) and advances; returns whether
+    /// the answer updated the card's FSRS state — only a card's first answer in a session does
+    /// (refine-lingua-review-session D3), so a caller counts a review only then.
     #[wasm_bindgen(js_name = reviewGrade)]
-    pub fn review_grade(&mut self, rating: &str, now: f64) {
+    pub fn review_grade(&mut self, rating: &str, now: f64) -> bool {
         let rating = match rating {
             "again" => Rating::Again,
             "hard" => Rating::Hard,
@@ -1142,9 +1166,9 @@ impl LinguaEngine {
             _ => Rating::Good,
         };
         let params = self.state.fsrs.clone();
-        if let Some(session) = self.session.as_mut() {
-            session.grade(&mut self.state.deck, &params, rating, now as i64);
-        }
+        self.session
+            .as_mut()
+            .is_some_and(|session| session.grade(&mut self.state.deck, &params, rating, now as i64))
     }
 
     /// Marks the current card known (provenance `srs`) and retires it. Advances.
@@ -1153,6 +1177,44 @@ impl LinguaEngine {
         if let Some(session) = self.session.as_mut() {
             session.mark_known(&mut self.state.deck, &mut self.state.knowledge, now as i64);
         }
+    }
+
+    /// Hides the current card's word from review — « Ne plus me le montrer »: the word becomes
+    /// `ignored`, stamped for sync, and its card is retired, not deleted
+    /// (refine-lingua-review-session D5). Advances.
+    #[wasm_bindgen(js_name = reviewIgnore)]
+    pub fn review_ignore(&mut self, now: f64) {
+        if let Some(session) = self.session.as_mut() {
+            session.ignore(&mut self.state.deck, &mut self.state.knowledge, now as i64);
+        }
+    }
+
+    /// The session under way as text, or `undefined` without one: what a background page the
+    /// browser may stop keeps, to resume it with `reviewResume` (refine-lingua-review-session D3).
+    #[wasm_bindgen(js_name = reviewSnapshot)]
+    pub fn review_snapshot(&self) -> Option<String> {
+        self.session.as_ref().map(ReviewSession::to_snapshot)
+    }
+
+    /// Resume the session `reviewSnapshot` wrote; `false` (and nothing changed) for text that is
+    /// not one.
+    #[wasm_bindgen(js_name = reviewResume)]
+    pub fn review_resume(&mut self, json: &str) -> bool {
+        match ReviewSession::from_snapshot(json) {
+            Some(session) => {
+                self.session = Some(session);
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// What the current session has done, as JSON — `{ reviewed, recovered, holding, known,
+    /// hidden }` — or `null` when no session was started (refine-lingua-review-session D8).
+    #[wasm_bindgen(js_name = reviewSummary)]
+    pub fn review_summary(&self) -> Option<String> {
+        let summary = self.session.as_ref()?.summary();
+        serde_json::to_string(&summary).ok()
     }
 
     // --- Backup / restore ---
@@ -1166,7 +1228,11 @@ impl LinguaEngine {
     /// version. Clears any in-flight review session.
     pub fn restore(&mut self, json: &str) -> Result<(), JsError> {
         self.state = LinguaState::from_backup(json).map_err(|e| JsError::new(&e.to_string()))?;
-        self.session = None;
+        // A session survives a state that still holds its cards — on Safari the reading session
+        // restores, into the engine it shares with the review, the state each answer just saved —
+        // and ends with one that does not (refine-lingua-review-session D12).
+        let deck = &self.state.deck;
+        self.session = self.session.take().filter(|session| session.fits(deck));
         // A backup written by a build that counted every word can be megabytes: bound it
         // here, so the first load after an update shrinks the store instead of failing to
         // write it.

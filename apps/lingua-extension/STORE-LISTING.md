@@ -168,8 +168,12 @@ Pour l'espagnol, le dictionnaire français est un peu moins complet que pour l'a
 chiffres sont publiés sur cymbra.app/lingua.
 
 Créez un compte Cymbra si — et seulement si — vous voulez retrouver vos mots et vos cartes sur
-vos autres appareils. C'est la seule chose qui quitte votre machine, et vous pouvez effacer ces
-données depuis les Réglages sans supprimer votre compte.
+vos autres appareils. Avec la Traduction en ligne ci-dessous, c'est la seule chose qui quitte votre
+machine, et vous pouvez effacer ces données depuis les Réglages sans supprimer votre compte.
+
+**Traduction en ligne** (désactivée par défaut, pour les comptes qui y ont accès) : un bouton
+envoie à un service de traduction en ligne la phrase que vous voulez mieux traduire, seulement quand
+vous appuyez dessus ; personne ne la conserve.
 
 Cymbra Lingua est disponible sur Chrome, sur Firefox pour ordinateur et dans l'app Safari (iPhone, iPad, Mac).
 
@@ -211,9 +215,13 @@ never leaves your device. Turning it off deletes the models.
 How many Spanish and French words our dictionary explains in English: our figures are published at
 cymbra.app/en/lingua.
 
-Create a Cymbra account if — and only if — you want your words and cards on your other devices. That
-is the only thing that leaves your machine, and you can erase it from Settings without deleting your
-account.
+Create a Cymbra account if — and only if — you want your words and cards on your other devices. With
+Online translation below, that is the only thing that leaves your machine, and you can erase it from
+Settings without deleting your account.
+
+**Online translation** (off by default, for accounts that have access): a button sends the sentence
+you want translated better to an online translation service, only when you press it; nobody keeps
+it.
 
 The interface is in English. Cymbra Lingua also teaches English and Spanish to French speakers, in
 French.
@@ -263,8 +271,12 @@ publicadas en cymbra.app/es/lingua. Para el francés, el diccionario es algo men
 el inglés.
 
 Crea una cuenta de Cymbra si —y solo si— quieres recuperar tus palabras y tus tarjetas en tus otros
-dispositivos. Es lo único que sale de tu dispositivo, y puedes borrar esos datos desde los Ajustes
-sin eliminar tu cuenta.
+dispositivos. Con la Traducción en línea de más abajo, es lo único que sale de tu dispositivo, y
+puedes borrar esos datos desde los Ajustes sin eliminar tu cuenta.
+
+**Traducción en línea** (desactivada por defecto, para las cuentas que tienen acceso): un botón envía
+a un servicio de traducción en línea la frase que quieres traducir mejor, solo cuando lo pulsas;
+nadie la conserva.
 
 La interfaz está en español. Cymbra Lingua también enseña inglés y español a los francohablantes, en
 francés, y español y francés a los anglohablantes, en inglés.
@@ -309,8 +321,12 @@ Cuántas palabras inglesas explica nuestro diccionario en español: nuestras cif
 en cymbra.app/es/lingua.
 
 Crea una cuenta de Cymbra si —y solo si— quieres recuperar tus palabras y tus tarjetas en tus otros
-dispositivos. Es lo único que sale de tu dispositivo, y puedes borrar esos datos desde los Ajustes
-sin eliminar tu cuenta.
+dispositivos. Con la Traducción en línea de más abajo, es lo único que sale de tu dispositivo, y
+puedes borrar esos datos desde los Ajustes sin eliminar tu cuenta.
+
+**Traducción en línea** (desactivada por defecto, para las cuentas que tienen acceso): un botón envía
+a un servicio de traducción en línea la frase que quieres traducir mejor, solo cuando lo pulsas;
+nadie la conserva.
 
 La interfaz está en español. Cymbra Lingua también enseña inglés y español a los francohablantes, en
 francés, y español y francés a los anglohablantes, en inglés.
@@ -572,9 +588,9 @@ matches the hash the package carries (`model-manifest.json`,
 
 ## Data usage disclosures (Chrome Web Store)
 
-Answer **yes** to collecting _"Personally identifiable information"_ — but only in the narrow
-sense below — and **no** to every other category (health, financial, authentication
-information, personal communications, location, web history, user activity, website content).
+Answer **yes** to collecting _"Personally identifiable information"_ and _"Website content"_ — but
+only in the narrow senses below — and **no** to every other category (health, financial,
+authentication information, personal communications, location, web history, user activity).
 
 What is collected, and only for a signed-in reader: the email address used to create the
 account, and the reader's own vocabulary state (word statuses, cards, review history) sent to
@@ -583,6 +599,13 @@ history are **not** collected — the analysis never leaves the browser. Nor are
 reader imports, their text or where the reader is in them: they stay on the device. Turning on
 « Traduction étendue » downloads models from Cymbra; those requests carry nothing of the
 reader's (no cookie, no identifier, no page text) and are not tied to an account.
+
+Website content, only for a signed-in reader whose account has access to « Traduction en ligne »
+(off by default, per device): the one sentence the reader sends by pressing its button, with the
+selection's position and the language pair, is sent to `https://api.cymbra.app` and from there to
+the translation provider (Google, or Anthropic as a fallback), translated, and kept by no one —
+not by Cymbra, not by the provider, and not used for training. Nothing is sent without that
+press.
 
 Tick the three certifications: the data is not sold to third parties, it is not used or
 transferred for a purpose unrelated to the item's single purpose, and it is not used or

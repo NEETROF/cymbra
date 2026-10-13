@@ -21,7 +21,7 @@ yarn gen:wasm     # build the wasm bindings from crates/lingua-wasm  → src/was
 yarn gen:proto    # build the gRPC-web/protobuf stubs (auth + sync)  → src/gen/ (gitignored)
 yarn gen:pack     # build the tiny test pack of every shipped pair (packs.json) → assets/packs/<pair>.lingua (gitignored)
 yarn gen:pack:real  # build the real packs from the committed tables, offline   → assets/packs/<pair>.lingua
-yarn build        # bundle every browser variant → dist-chromium/, dist-firefox/, dist-safari/
+yarn build        # bundle every browser variant → dist-chromium/, dist-firefox/, dist-safari/, and the app's page → dist-app/
 ```
 
 ## Account sync (Cymbra ID)
@@ -233,13 +233,36 @@ extension never janks a page. This can't run in CI; do it against a real pack.
 Reading builds the deck; review runs it, on the same local state:
 
 - A native **side panel** (`sidepanel.html`, `Alt+Shift+S`, the page is pushed and the
-  panel survives navigation): deck summary, an FSRS review session (answer hidden until
-  revealed, `À revoir`/`Difficile`/`Correct`/`Facile`, `Je connais`), lossless
-  **backup** (download) / **restore** (re-import), and a Sources & confidentialité
-  section (the pack's NOTICE + "nothing leaves the device").
+  panel survives navigation): the deck summary and an FSRS review session.
 - An injected **drawer** (`Alt+Shift+D`, closed shadow DOM) for micro-reviews without
   leaving the page — the same `ReviewController` + `renderReview` as the side panel, two
   hosts over one logic. On Firefox and Safari it is the review surface.
+
+A session (`refine-lingua-review-session`) holds at most 10 cards, the lowest predicted
+recall first, with never-reviewed words entering at a daily pace in each studied language
+(« Nouveaux mots par jour » in Réglages › Langue: 5, 10 or 20). The front of a card is the sentence the word was met in,
+the word marked; the gloss stays hidden until « Afficher la réponse ». Two answers: « Pas su »
+(FSRS `again`) and « Su » (`good`) — a missed card comes back three cards later, up to three
+times, and only its first answer counts. « Je connais » retires the card as known, « Ne plus
+me le montrer » as ignored. The end says what the session did and offers « Encore 10 » while
+another session would hold cards. Keys: Space reveals, ← and → answer. The card can be heard
+before and after the reveal (« ▶ Mot » or « ▶ Expression », « ▶ Phrase », then the dictionary
+form), with the word card's voices, in the card's language.
+
+A card the pack cannot answer — an expression, or a word without a gloss —
+(`add-lingua-review-translation`) is translated on the device where « Traduction étendue » has
+the models of its language: its sentence, the word's place marked, asked the moment the card
+comes up (the route warmed when the session starts) and shown once revealed, under « Dans votre
+phrase — traduction automatique ». An expression its sentence does not hold is translated alone,
+under « Traduction automatique »; a single word never is. A translation still on its way at the
+reveal says « Traduction en cours… »; none within 15 s leaves « Pas de traduction… ». A card with
+a gloss is never translated. The translation is never stored — not on the card, not in a backup,
+not synced. The drawer uses the reading session's translator, the side panel its own messaging
+port.
+
+Lossless **backup** (download) / **restore** (re-import) and the pack's sources live in
+Réglages › Données, in every host; the toolbar popup offers the download and points to the
+panel for a restore, since Firefox closes a popup when a file picker opens.
 
 State authority: the WASM engine holds lingua-core's whole `LinguaState` (knowledge +
 deck + FSRS); it is persisted as its lossless backup string in `chrome.storage.local`,
@@ -315,6 +338,18 @@ bundle folds away the other variants' branches:
   add-on id. Like Firefox, its event page hosts the translation engine (« Traduction
   étendue », measured on iPhone, iPad and Mac). Distributed inside the host app
   `apps/lingua-apple`, whose Xcode project bundles `dist-safari/`.
+- **The Cymbra Lingua app** (`app`, `yarn build:app` → `dist-app/`, add-lingua-apple-review): not a
+  browser variant but the same Révision and Statistiques (`src/app/`) for the Apple app's web view,
+  under `__APP__`: the engine in the page with its glue bundled, no browser-extension API (no
+  `chrome.*` in the bundle — `check:variants`), no translation engine, no pack (the app serves the
+  Safari extension's). The deck comes from the extension on the same device: Safari's background
+  hands its backup and the review's preferences to its native handler after each save
+  (`state/review-relay.ts`), which keeps them in the App Group; the app's page reviews that state and
+  writes the card and status ops of every answer back (`app/session.ts`); the background applies
+  them at start and whenever a surface opens or a page loads, last-write-wins as it applies a pull
+  (`state/app-relay.ts`). The day's reviews and words learned counted in the app ride with them, the
+  whole of each opening's under its id: the background adds only what it has not added yet for that
+  opening, so the statistics count them once. Nothing leaves the device for this.
 
 ## Release
 

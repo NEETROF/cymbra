@@ -43,6 +43,7 @@ const opError = computed(() =>
   store.op.status === "error"
     ? match(store.op.error)
         .with({ kind: "unknownCampaign" }, () => t("flags.scopeNoCampaign"))
+        .with({ kind: "foreignCampaign" }, () => t("flags.scopeForeignCampaign"))
         .with({ kind: "campaignUnverifiable" }, () => t("flags.scopeUnverifiable"))
         .with({ kind: "other" }, ({ message }) => message)
         .exhaustive()

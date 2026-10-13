@@ -1,3 +1,5 @@
+import { pluralForms } from "../index.ts";
+
 // The book reader's copy (reader/copy.ts, reader/library.ts and reader.html), in French — the
 // source module (add-lingua-interface-language). A failure is one plain sentence saying what
 // happened — never a raw error.
@@ -31,12 +33,44 @@ export const reader = {
   fullscreen: "Plein écran",
   leaveFullscreen: "Quitter le plein écran",
   noToc: "Ce livre n'a pas de sommaire.",
-  review: "Réviser",
-  stats: "Stats",
   settings: "Réglages",
   prev: "Page précédente",
   next: "Page suivante",
   percentTitle: "Mots connus dans ce chapitre",
   /** A book whose package names no title (reader/library.ts). */
   untitled: "Livre sans titre",
+  /**
+   * The footer's progress, in turn at each tap (add-lingua-reader-progress-toggle D1): the pages left
+   * in the chapter, exact; those left in the book, an estimate marked « ≈ ».
+   */
+  progressTitle: "Pourcentage ou pages restantes",
+  chapterPagesLeft: pluralForms({
+    one: (n) => `Chapitre : ${n} page restante`,
+    other: (n) => `Chapitre : ${n} pages restantes`,
+  }),
+  chapterLastPage: "Chapitre : dernière page",
+  bookPagesLeft: pluralForms({
+    one: (n) => `Livre : ≈ ${n} page restante`,
+    other: (n) => `Livre : ≈ ${n} pages restantes`,
+  }),
+  bookLastPage: "Livre : dernière page",
+  /**
+   * The words looked up, sorted at the end of a chapter (add-lingua-chapter-recap D5, D6): the recap's
+   * title, its rows' three actions, its dismissal, and the bar's counter.
+   */
+  recapChapter: (chapter: string) => `Fin de « ${chapter} »`,
+  recapIntro: "Les mots que tu as regardés dans ce chapitre. Garde ceux que tu veux revoir.",
+  recapAll: "Mots à trier",
+  recapAllIntro: "Les mots que tu as regardés dans ce livre et pas encore triés.",
+  recapNoChapter: "Sans chapitre",
+  recapAdd: "+ Deck",
+  recapKnown: "Je connais",
+  recapLeave: "Laisser",
+  recapLater: "Plus tard",
+  recapClose: "Fermer",
+  toSort: pluralForms({
+    one: (n) => `${n} à trier`,
+    other: (n) => `${n} à trier`,
+  }),
+  toSortTitle: "Les mots regardés dans ce livre, à trier",
 };

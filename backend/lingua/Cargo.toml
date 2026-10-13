@@ -26,6 +26,8 @@ chrono.workspace = true
 tokio.workspace = true
 tonic.workspace = true
 prost.workspace = true
+# The translation providers' HTTPS APIs (change: add-lingua-online-translation).
+reqwest.workspace = true
 cymbra-platform = { path = "../platform" }
 cymbra-user-port = { path = "../user-port" }
 
@@ -36,6 +38,7 @@ tonic-build.workspace = true
 tokio = { workspace = true }
 cymbra-user-port = { path = "../user-port", features = ["mock"] }
 mockall = { workspace = true }
+tracing-subscriber = { workspace = true }
 
 [lints]
 workspace = true

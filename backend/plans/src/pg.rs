@@ -339,8 +339,8 @@ impl CampaignRepo for PgCampaignRepo {
         };
         let created_by = parse_uuid(&new.created_by)?;
         let row = sqlx::query(&format!(
-            "INSERT INTO beta_campaigns (id, key, name, kind, duration_days, created_by) \
-             VALUES ($1, $2, $3, $4, $5, $6) RETURNING {CAMPAIGN_COLS}"
+            "INSERT INTO beta_campaigns (id, key, name, kind, duration_days, created_by, product) \
+             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING {CAMPAIGN_COLS}"
         ))
         .bind(Uuid::now_v7())
         .bind(&new.key)
@@ -348,6 +348,7 @@ impl CampaignRepo for PgCampaignRepo {
         .bind(kind)
         .bind(duration)
         .bind(created_by)
+        .bind(&new.product)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| match &e {

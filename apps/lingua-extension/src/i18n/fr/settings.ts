@@ -42,6 +42,11 @@ export const settings = {
     "Le texte des livres et toute l'interface : cartes, tiroir, menus. Le thème vaut aussi pour l'interface ; un préréglage e-ink la garde en noir sur blanc.",
   colours: "Couleurs",
   translation: "Traduction",
+  /** « Traduction en ligne » (add-lingua-online-translation): never names the service. */
+  onlineTranslation: "Traduction en ligne",
+  onlineTranslationNote:
+    "Sur demande, depuis la carte d'une sélection de plusieurs mots : la phrase sélectionnée est envoyée à un service de traduction externe pour être traduite, et n'est conservée par personne. Réglage propre à cet appareil.",
+  privacyPolicy: "Politique de confidentialité",
   shortcuts: "Raccourcis & gestes",
   /** The keys, as the interface names them. */
   keyAlt: "Alt",
@@ -90,4 +95,22 @@ export const settings = {
   dataErased: "Données effacées.",
   /** The tab row's accessible name. */
   tabs: "Réglages",
+  /** The review's pace and the reader's data as a file (refine-lingua-review-session D2, D9). */
+  reviewPace: "Rythme de révision",
+  newWordsPerDay: "Nouveaux mots par jour",
+  newWordsPerDayNote:
+    "Pour chaque langue étudiée. Les mots ajoutés au-delà attendent les jours suivants. Une séance compte dix cartes au plus.",
+  backupFile: "Fichier de sauvegarde",
+  backupFileNote:
+    "Une copie complète de tes données Lingua : deck, statuts et niveau. Restaurer remplace l'état actuel.",
+  backup: "Sauvegarder",
+  restore: "Restaurer",
+  restoreFromPanel: "Pour restaurer un fichier, ouvre Réglages depuis le panneau Lingua.",
+  restored: "Sauvegarde restaurée.",
+  notABackup: "Fichier de sauvegarde non reconnu.",
+  sourcesAndPrivacy: "Sources et confidentialité",
+  privacy: "Rien ne quitte votre appareil : l'analyse et les traductions sont locales.",
+  fullNotice: "Mentions complètes",
+  sources: (names: string) => `Sources : ${names}`,
+  sourceSeparator: " · ",
 };
