@@ -368,7 +368,7 @@ mod tests {
             md.insert("x-forwarded-for", ADDRESS.parse().unwrap());
             md.insert("origin", ORIGIN.parse().unwrap());
             md.insert("user-agent", AGENT.parse().unwrap());
-            md.insert("authorization", "Bearer eyJ.reader.token".parse().unwrap());
+            md.insert("authorization", "Bearer eyJ.reader.bearer".parse().unwrap());
             req
         };
         let monday = monday_of(20_747);
@@ -399,16 +399,19 @@ mod tests {
         let out = String::from_utf8(captured.0.lock().unwrap().clone()).unwrap();
         // The capture is live: the failed write was logged.
         assert!(out.contains("counter not written"), "{out}");
-        for secret in [
+        for needle in [
             ADDRESS,
             "198.51.100.23",
             ORIGIN,
             "4b1d7a3e",
             AGENT,
             "Firefox/140.0",
-            "eyJ.reader.token",
+            "eyJ.reader.bearer",
         ] {
-            assert!(!out.contains(secret), "{secret} leaked into: {out}");
+            assert!(
+                !out.contains(needle),
+                "a request value leaked into the logs: {needle}"
+            );
         }
     }
 }
