@@ -144,6 +144,40 @@
       "tokens": "Jetons entrée / sortie",
       "noProvider": "— (refusé avant tout fournisseur)",
       "note": "Totaux quotidiens par fournisseur et par paire de langues, sans compte ni texte. Le coût est une estimation aux prix configurés (lingua.online_translation.price.*), en dollars américains."
+    },
+    "installations": {
+      "title": "Installations",
+      "browser": "Navigateur",
+      "anyBrowser": "Tous les navigateurs",
+      "browsers": {
+        "chromium": "Chromium",
+        "firefox": "Firefox",
+        "safari": "Safari"
+      },
+      "loading": "Chargement des installations…",
+      "note": "Comptages anonymes des installations qui comptent : sur Chromium, seulement celles dont le lecteur a accepté. Les nombres absolus de Chromium ne se comparent donc pas à ceux de Firefox et de Safari, mais ses pourcentages au sein d’une semaine, si. Une réinstallation et chaque appareil comptent chacun pour une installation. Aucun chiffre n’est plus fin qu’une semaine et une famille de navigateurs.",
+      "notYetNote": "Un retour affiche « pas encore » tant que sa fenêtre n’est pas close pour chaque jour de la semaine d’installation.",
+      "chartTitle": "Installations par semaine",
+      "week": "Semaine d’installation",
+      "installed": "Installées",
+      "setUp": "Niveau choisi",
+      "firstAnalysis": "Première page analysée",
+      "returnedDay1": "Retour au jour 1",
+      "returnedDays7To13": "Retour aux jours 7–13",
+      "returnedDays30To59": "Retour aux jours 30–59",
+      "notYet": "pas encore",
+      "capped": "plafonné",
+      "cappedHint": "Un compteur a atteint son plafond : ces chiffres sont des minimums.",
+      "reasonsTitle": "Pourquoi les lecteurs sont partis",
+      "reasonsNote": "Réponses de la page d’au revoir, sur la même période et le même navigateur.",
+      "reasons": {
+        "not_using": "Je ne m’en servais pas",
+        "highlighting": "Trop de mots surlignés, ou pas assez",
+        "missing_language": "Ma langue n’y est pas",
+        "slow": "Ça ralentissait mon navigateur",
+        "unclear": "Je n’ai pas compris comment m’en servir",
+        "other": "Une autre raison"
+      }
     }
   },
   "jobs": {

@@ -3,6 +3,14 @@ import { defineStore } from "pinia";
 import { api } from "@/lib/api";
 import { type Async, idle, run } from "@/lib/async";
 import { LinguaSeriesMetric } from "@/gen/lingua_admin_pb";
+import {
+  type BrowserFilter,
+  type InstallationFunnel,
+  type LeaveReasons,
+  installationFunnel,
+  orderReasons,
+  todayUtc,
+} from "@/lib/linguaFunnel";
 
 // Lingua ops console (change: add-lingua-back-office, task 5). Reads aggregates over the
 // existing sync data through the `api()` seam — never a direct API call from a component.
@@ -129,11 +137,14 @@ export function studiedLanguageOptions(byLanguage: readonly LanguageUsage[], sel
   return [...languages].sort((a, b) => a.localeCompare(b));
 }
 
-/** The window + optional studied-language filter. Empty language = every language. */
+/** The window + optional studied-language filter. Empty language = every language. The browser
+ *  family filters the Installations section alone (change: add-lingua-usage-counts); empty =
+ *  every family. */
 export interface LinguaFilters {
   fromDay: string; // inclusive ISO yyyy-mm-dd
   toDay: string; // inclusive ISO yyyy-mm-dd
   language: string;
+  browser: BrowserFilter;
 }
 
 /** ISO `yyyy-mm-dd` for `date` (UTC). */
@@ -145,7 +156,7 @@ function isoDay(date: Date): string {
 export function defaultFilters(): LinguaFilters {
   const to = new Date();
   const from = new Date(to.getTime() - 29 * 24 * 60 * 60 * 1000);
-  return { fromDay: isoDay(from), toDay: isoDay(to), language: "" };
+  return { fromDay: isoDay(from), toDay: isoDay(to), language: "", browser: "" };
 }
 
 export const useLinguaStore = defineStore("lingua", () => {
@@ -153,10 +164,51 @@ export const useLinguaStore = defineStore("lingua", () => {
   const series = ref<Async<LinguaSeries>>(idle);
   /** Its own union: a failed online-usage read leaves the rest of the console standing. */
   const online = ref<Async<OnlineUsage>>(idle);
+  /** The installation funnel and the leaving reasons (change: add-lingua-usage-counts): anonymous
+   *  weekly counters, each its own union so one failed read leaves the other standing. */
+  const funnel = ref<Async<InstallationFunnel>>(idle);
+  const reasons = ref<Async<LeaveReasons>>(idle);
   const filters = reactive<LinguaFilters>(defaultFilters());
 
   function currentWindow() {
     return { fromDay: filters.fromDay, toDay: filters.toDay };
+  }
+
+  /** The funnel + the leaving reasons over the console's window, both for the same browser filter.
+   *  "Not yet" is decided against today's UTC day, at load time. */
+  function installationReads(): Promise<unknown>[] {
+    const win = currentWindow();
+    const browser = filters.browser; // "" => every family
+    const today = todayUtc();
+    return [
+      run(funnel, async () => {
+        const r = await api().lingua.adminGetUsageFunnel({ window: win, browser });
+        const weeks = r.weeks.map((w) => ({
+          week: w.week,
+          installed: Number(w.installed),
+          setUp: Number(w.setUp),
+          firstAnalysis: Number(w.firstAnalysis),
+          returnedDay1: Number(w.returnedDay1),
+          returnedDays7To13: Number(w.returnedDays7To13),
+          returnedDays30To59: Number(w.returnedDays30To59),
+          capped: w.capped,
+        }));
+        return installationFunnel(weeks, win, today);
+      }),
+      run(reasons, async () => {
+        const r = await api().lingua.adminGetLeaveReasons({ window: win, browser });
+        return {
+          reasons: orderReasons(r.reasons.map((x) => ({ reason: x.reason, count: Number(x.count) }))),
+          capped: r.capped,
+        } satisfies LeaveReasons;
+      }),
+    ];
+  }
+
+  /** Re-read the Installations section alone — on a change of its browser filter. */
+  async function loadInstallations(next: { browser?: BrowserFilter } = {}) {
+    if (next.browser !== undefined) filters.browser = next.browser;
+    await Promise.all(installationReads());
   }
 
   /** Load the tiles/breakdown + the per-day series for the current filters. */
@@ -221,8 +273,9 @@ export const useLinguaStore = defineStore("lingua", () => {
           ),
         } satisfies OnlineUsage;
       }),
+      ...installationReads(),
     ]);
   }
 
-  return { report, series, online, filters, load };
+  return { report, series, online, funnel, reasons, filters, load, loadInstallations };
 });

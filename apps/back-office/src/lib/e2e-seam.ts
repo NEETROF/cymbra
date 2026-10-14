@@ -98,6 +98,22 @@ export interface E2EData {
     outputTokens?: number;
     costMicroUsd: number;
   }[];
+  /** The Lingua installation funnel (change: add-lingua-usage-counts): one row per installation
+   * week (its Monday) and browser family. The fake sums the families the request's browser filter
+   * keeps, so the filter is observable. */
+  linguaFunnel?: {
+    week: string;
+    browser: string;
+    installed: number;
+    setUp?: number;
+    firstAnalysis?: number;
+    returnedDay1?: number;
+    returnedDays7To13?: number;
+    returnedDays30To59?: number;
+    capped?: boolean;
+  }[];
+  /** The leaving reasons, one row per reason and browser family; summed like the funnel. */
+  linguaLeaveReasons?: { reason: string; browser: string; count: number; capped?: boolean }[];
   /** Declared flag/config keys for the "Notifications" panel (change:
    * add-push-notifications), which is a filtered view over the flag registry.
    * Mutated in place by setFlag/setConfig/clearOverride so the panel's re-read
@@ -733,6 +749,41 @@ export function installE2EClients(): void {
           failed: sum((r) => r.failed ?? 0),
           limited: sum((r) => r.limited ?? 0),
           costMicroUsd: sum((r) => r.costMicroUsd),
+        };
+      },
+      // Change add-lingua-usage-counts: per-week sums over the families the filter keeps.
+      adminGetUsageFunnel: async (req: { browser: string }) => {
+        failIfSet("adminGetUsageFunnel");
+        const rows = (data.linguaFunnel ?? []).filter((r) => !req.browser || r.browser === req.browser);
+        const byWeek = new Map<string, (typeof rows)[number][]>();
+        for (const r of rows) byWeek.set(r.week, [...(byWeek.get(r.week) ?? []), r]);
+        const total = (rs: typeof rows, f: (r: (typeof rows)[number]) => number | undefined) =>
+          BigInt(rs.reduce((t, r) => t + (f(r) ?? 0), 0));
+        return {
+          weeks: [...byWeek.entries()]
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([week, rs]) => ({
+              week,
+              installed: total(rs, (r) => r.installed),
+              setUp: total(rs, (r) => r.setUp),
+              firstAnalysis: total(rs, (r) => r.firstAnalysis),
+              returnedDay1: total(rs, (r) => r.returnedDay1),
+              returnedDays7To13: total(rs, (r) => r.returnedDays7To13),
+              returnedDays30To59: total(rs, (r) => r.returnedDays30To59),
+              capped: rs.some((r) => r.capped),
+            })),
+        };
+      },
+      adminGetLeaveReasons: async (req: { browser: string }) => {
+        failIfSet("adminGetLeaveReasons");
+        const rows = (data.linguaLeaveReasons ?? []).filter((r) => !req.browser || r.browser === req.browser);
+        const reasons = ["not_using", "highlighting", "missing_language", "slow", "unclear", "other"];
+        return {
+          reasons: reasons.map((reason) => ({
+            reason,
+            count: BigInt(rows.filter((r) => r.reason === reason).reduce((t, r) => t + r.count, 0)),
+          })),
+          capped: rows.some((r) => r.capped),
         };
       },
     },

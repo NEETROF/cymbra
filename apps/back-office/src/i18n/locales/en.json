@@ -144,6 +144,40 @@
       "tokens": "Tokens in / out",
       "noProvider": "— (refused before any provider)",
       "note": "Daily totals per provider and language pair, with no account and no text. The cost is an estimate at the configured prices (lingua.online_translation.price.*), in US dollars."
+    },
+    "installations": {
+      "title": "Installations",
+      "browser": "Browser",
+      "anyBrowser": "All browsers",
+      "browsers": {
+        "chromium": "Chromium",
+        "firefox": "Firefox",
+        "safari": "Safari"
+      },
+      "loading": "Loading installations…",
+      "note": "Anonymous counts from the installations that count: on Chromium, only those whose reader agreed, so Chromium's absolute numbers are not comparable with Firefox's and Safari's, while its percentages within a week are. A reinstall and each device each count as one installation. No figure is finer than a week and a browser family.",
+      "notYetNote": "A return reads “not yet” until its window has closed for every day of the installation week.",
+      "chartTitle": "Installations per week",
+      "week": "Installation week",
+      "installed": "Installed",
+      "setUp": "Level chosen",
+      "firstAnalysis": "First page analysed",
+      "returnedDay1": "Back on day 1",
+      "returnedDays7To13": "Back on days 7–13",
+      "returnedDays30To59": "Back on days 30–59",
+      "notYet": "not yet",
+      "capped": "capped",
+      "cappedHint": "A counter reached its ceiling: these figures are lower bounds.",
+      "reasonsTitle": "Why readers left",
+      "reasonsNote": "Answers from the leaving page, over the same period and browser.",
+      "reasons": {
+        "not_using": "I wasn't using it",
+        "highlighting": "Too many words highlighted, or too few",
+        "missing_language": "My language isn't there",
+        "slow": "It slowed my browser down",
+        "unclear": "I didn't understand how to use it",
+        "other": "Another reason"
+      }
     }
   },
   "jobs": {
