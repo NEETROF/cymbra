@@ -29,8 +29,7 @@ pub use flags::{
     CampaignExistence, FlagCatalogLimitsConfig, FlagDailyAccessConfig, FlagLibraryQuota,
     FlagOnlineTranslationPolicy, FlagPaywallConfig, FlagPlanConfig, FlagScorePreviewConfig,
     FlagScoreQuotas, FlagStreakConfig, FlagUsageCountsPolicy, OfflineSecretRotator, PlanContext,
-    UserPortHandles,
-    build_flag_service, spawn_flag_refreshers,
+    UserPortHandles, build_flag_service, spawn_flag_refreshers,
 };
 
 // The music HTTP surface now lives in the music module itself (change:

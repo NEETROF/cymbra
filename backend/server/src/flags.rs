@@ -1003,7 +1003,10 @@ mod tests {
         assert_eq!(defaults.ceiling(), 5_000);
         let overridden = FlagUsageCountsPolicy::new(
             service(vec![
-                lingua(registry::LINGUA_USAGE_COUNTS_ENABLED, FlagValue::Bool(false)),
+                lingua(
+                    registry::LINGUA_USAGE_COUNTS_ENABLED,
+                    FlagValue::Bool(false),
+                ),
                 lingua(registry::LINGUA_USAGE_COUNTS_CEILING, FlagValue::Int(300)),
             ])
             .await,

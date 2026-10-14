@@ -166,8 +166,7 @@ pub struct FunnelWeek {
 /// Pivot week × step rows into one funnel row per week, ascending; a step the server does
 /// not know (none should exist) is ignored.
 pub fn funnel_weeks(rows: Vec<FunnelRow>) -> Vec<FunnelWeek> {
-    let mut weeks: std::collections::BTreeMap<i32, FunnelWeek> =
-        std::collections::BTreeMap::new();
+    let mut weeks: std::collections::BTreeMap<i32, FunnelWeek> = std::collections::BTreeMap::new();
     for r in rows {
         let Some(step) = Step::ALL.into_iter().find(|s| s.as_str() == r.step) else {
             continue;

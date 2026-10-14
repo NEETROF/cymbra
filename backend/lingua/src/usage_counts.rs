@@ -303,11 +303,7 @@ impl UsageCountsModule {
             }
             *last = Some(today);
         }
-        if let Err(e) = self
-            .repo
-            .delete_before(core::retention_cutoff(today))
-            .await
-        {
+        if let Err(e) = self.repo.delete_before(core::retention_cutoff(today)).await {
             tracing::warn!(error = %e, "usage counts: old counters not pruned");
         }
     }

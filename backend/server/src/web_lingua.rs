@@ -176,7 +176,10 @@ mod tests {
             .header(CONTENT_TYPE, "application/json")
             .header("origin", origin)
             .header("x-forwarded-for", "203.0.113.5")
-            .header("user-agent", "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Firefox/140.0")
+            .header(
+                "user-agent",
+                "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Firefox/140.0",
+            )
             .body(Body::from(body.to_string()))
             .unwrap()
     }
@@ -300,9 +303,8 @@ mod tests {
     async fn a_counter_not_written_is_503() {
         let mut repo = MockUsageCountsRepo::new();
         repo.expect_delete_before().returning(|_| Ok(()));
-        repo.expect_count_leave().returning(|_, _, _, _, _| {
-            Err(AppError::Internal(anyhow::anyhow!("pool timed out")))
-        });
+        repo.expect_count_leave()
+            .returning(|_, _, _, _, _| Err(AppError::Internal(anyhow::anyhow!("pool timed out"))));
         let app = web_lingua_router(module(repo, true, 60), vec![SITE.into()]);
         let resp = app.oneshot(post_leave(SLOW, SITE)).await.unwrap();
         assert_eq!(resp.status(), StatusCode::SERVICE_UNAVAILABLE);

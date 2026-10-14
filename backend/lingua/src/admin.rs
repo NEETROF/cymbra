@@ -16,9 +16,9 @@ use async_trait::async_trait;
 use cymbra_platform::Result;
 
 use crate::admin_core::{
-    FunnelRow, FunnelWeek, LeaveTotals, OnlineUsageRow, OnlineUsageTotals, ReasonRow,
-    SeriesMetric, SeriesPoint, Usage, browser_filter, funnel_weeks, leave_totals,
-    online_usage_totals, parse_window, series_points,
+    FunnelRow, FunnelWeek, LeaveTotals, OnlineUsageRow, OnlineUsageTotals, ReasonRow, SeriesMetric,
+    SeriesPoint, Usage, browser_filter, funnel_weeks, leave_totals, online_usage_totals,
+    parse_window, series_points,
 };
 use crate::usage_counts::{DEFAULT_CEILING, UsageCountsPolicy};
 use crate::usage_counts_core::monday_of;
@@ -167,9 +167,12 @@ mod tests {
     use cymbra_platform::AppError;
     use std::sync::Mutex;
 
-    #[derive(Default)]
+    /// `(from_week, to_day, browser, ceiling)` of one usage-count read.
+    type CountsRead = (i32, i32, Option<String>, i64);
+
     // A recording fake, not a mockall mock: `automock` cannot generate this port's
     // `Option<&str>` arguments without naming a lifetime the trait does not have.
+    #[derive(Default)]
     struct FakeRepo {
         usage: Usage,
         // (day, value) rows the series call should echo back (unsorted on purpose).
@@ -178,7 +181,7 @@ mod tests {
         // The usage counts' rows, and (from_week, to_day, browser, ceiling) of each read.
         funnel_rows: Vec<FunnelRow>,
         reason_rows: Vec<ReasonRow>,
-        counts_seen: Mutex<Vec<(i32, i32, Option<String>, i64)>>,
+        counts_seen: Mutex<Vec<CountsRead>>,
     }
 
     #[async_trait]

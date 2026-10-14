@@ -824,16 +824,15 @@ async fn main() -> anyhow::Result<()> {
             > = std::sync::Arc::new(cymbra_server::FlagUsageCountsPolicy::new(
                 flag_service.clone(),
             ));
-            let usage_counts = std::sync::Arc::new(
-                cymbra_lingua::usage_counts::UsageCountsModule::new(
+            let usage_counts =
+                std::sync::Arc::new(cymbra_lingua::usage_counts::UsageCountsModule::new(
                     std::sync::Arc::new(cymbra_lingua::pg_usage_counts::PgUsageCountsRepo::new(
                         pool.clone(),
                     )),
                     usage_counts_policy.clone(),
                     std::sync::Arc::new(cymbra_lingua::usage_counts::SystemClock),
                     cymbra_lingua::usage_counts::FloodGuard::new()?,
-                ),
-            );
+                ));
             // Ops console (change: add-lingua-back-office): gated by `admin` in the
             // `lingua` scope.
             let admin = std::sync::Arc::new(

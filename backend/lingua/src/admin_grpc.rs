@@ -175,7 +175,10 @@ impl LinguaAdminService for LinguaAdminGrpc {
         require_admin_in_scope(&identity(&req)?, LINGUA_SCOPE)?;
         let r = req.into_inner();
         let (from, to) = window(r.window)?;
-        let totals = self.module.get_leave_reasons(&from, &to, &r.browser).await?;
+        let totals = self
+            .module
+            .get_leave_reasons(&from, &to, &r.browser)
+            .await?;
         Ok(Response::new(AdminGetLeaveReasonsResponse {
             reasons: totals
                 .reasons
@@ -301,7 +304,10 @@ mod tests {
             .into_inner();
         // The window starts on a Wednesday: its week is the Monday before.
         assert_eq!(
-            all.weeks.iter().map(|w| w.week.as_str()).collect::<Vec<_>>(),
+            all.weeks
+                .iter()
+                .map(|w| w.week.as_str())
+                .collect::<Vec<_>>(),
             ["2026-10-19", "2026-10-26"]
         );
         let firefox = grpc()
@@ -326,7 +332,10 @@ mod tests {
             .unwrap()
             .into_inner();
         assert_eq!(r.reasons.len(), 6);
-        assert_eq!((r.reasons[4].reason.as_str(), r.reasons[4].count), ("unclear", 2));
+        assert_eq!(
+            (r.reasons[4].reason.as_str(), r.reasons[4].count),
+            ("unclear", 2)
+        );
     }
 
     #[tokio::test]
