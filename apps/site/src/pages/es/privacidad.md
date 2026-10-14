@@ -207,7 +207,7 @@ traducción, y estos proveedores no la usan para entrenar sus modelos. Para limi
 conocer su coste, Cymbra cuenta, para tu cuenta, las traducciones en línea del día (un contador
 que se borra al cabo de un día) y guarda totales diarios por proveedor y par de idiomas, sin
 cuenta ni texto. En la app Cymbra Lingua, la Traducción en línea te pide iniciar sesión **en la
-app** (con Apple o Google): la app abre entonces su propia sesión de tu cuenta, distinta de la
+app** (con Apple, Google o tu correo y tu contraseña): la app abre entonces su propia sesión de tu cuenta, distinta de la
 de la extensión, que puedes cerrar desde la app.
 
 **Traducción guardada.** Una traducción automática (en el dispositivo o en línea) solo se

@@ -25,7 +25,10 @@ export const app = {
   megabytes: (amount: string) => `${amount} Mo`,
   /** The app's own session, for « Traduction en ligne » only (D8). */
   signedIn: "Connecté à Cymbra pour la traduction en ligne",
+  /** The account named (add-lingua-app-email-signin D9): « @handle », else its address. */
+  signedInAs: (account: string) => `Connecté en tant que ${account} pour la traduction en ligne`,
   signOut: "Se déconnecter",
   signIn: "Se connecter pour la traduction en ligne",
-  signInNote: "Dans l'app, la traduction en ligne demande de te connecter avec Apple ou Google.",
+  /** Closes the email sign-in without signing in (add-lingua-app-email-signin D2). */
+  emailCancel: "Annuler",
 };

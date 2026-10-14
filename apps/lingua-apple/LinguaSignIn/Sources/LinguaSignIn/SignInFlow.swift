@@ -80,6 +80,11 @@ public struct SignInCopy: Sendable {
     public var browserWaiting: String { table.browserWaiting }
     public var close: String { table.close }
     public var cancel: String { table.cancel }
+    /**
+     * The third entry of the app's own sheet (add-lingua-app-email-signin D2): sign in with an email and
+     * a password, in the app's page. « email », the spelling of the extension's account copy.
+     */
+    public var emailButton: String { table.emailButton }
 
     public func button(_ provider: SignInProvider) -> String {
         Self.name(provider, in: table.button)
@@ -120,6 +125,7 @@ public struct SignInCopy: Sendable {
         let browserWaiting: String
         let close: String
         let cancel: String
+        let emailButton: String
         let button: String
         let failure: String
         let unavailable: String
@@ -134,6 +140,7 @@ public struct SignInCopy: Sendable {
             "Termine la connexion dans la fenêtre de ton navigateur. Si rien ne s'ouvre, annule, quitte ton navigateur et réessaie.",
         close: "Fermer",
         cancel: "Annuler",
+        emailButton: "Continuer avec un email",
         button: "Continuer avec {provider}",
         failure: "La connexion avec {provider} n'a pas abouti. Réessaie dans un instant.",
         unavailable: "La connexion avec {provider} n'est pas encore disponible dans cette version."
@@ -149,6 +156,7 @@ public struct SignInCopy: Sendable {
             "Finish signing in, in your browser window. If nothing opens, cancel, quit your browser, and try again.",
         close: "Close",
         cancel: "Cancel",
+        emailButton: "Continue with email",
         button: "Continue with {provider}",
         failure: "Signing in with {provider} did not go through. Try again in a moment.",
         unavailable: "Signing in with {provider} is not available in this version yet."
@@ -164,6 +172,7 @@ public struct SignInCopy: Sendable {
             "Termina de iniciar sesión en la ventana de tu navegador. Si no se abre nada, cancela, cierra tu navegador y vuelve a intentarlo.",
         close: "Cerrar",
         cancel: "Cancelar",
+        emailButton: "Continuar con un correo",
         button: "Continuar con {provider}",
         failure: "No se pudo iniciar sesión con {provider}. Vuelve a intentarlo en un momento.",
         unavailable: "Iniciar sesión con {provider} todavía no está disponible en esta versión."

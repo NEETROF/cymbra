@@ -377,6 +377,8 @@ if (wanted.includes(APP)) {
     ["src/styles/tokens.css", "tokens.css"],
     ["src/styles/review.css", "review.css"],
     ["src/stats/stats.css", "stats.css"],
+    // The email sign-in's card (add-lingua-app-email-signin D2): the account page's own styles.
+    ["src/account/account.css", "account.css"],
     // No pack: the app serves the ones of the Safari extension it embeds, never a second copy.
     ["src/wasm/pkg/lingua_wasm_bg.wasm", "wasm/lingua_wasm_bg.wasm"],
   ]) {

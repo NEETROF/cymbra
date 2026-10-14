@@ -384,6 +384,13 @@ bundle folds away the other variants' branches:
   (`state/app-relay.ts`). The day's reviews and words learned counted in the app ride with them, the
   whole of each opening's under its id: the background adds only what it has not added yet for that
   opening, so the statistics count them once. Nothing leaves the device for this.
+  « Traduction en ligne » in the app runs under a session of the app's own (`app/account.ts`),
+  opened from the app's native sheet: Apple or Google hand an id_token back; « Continuer avec un
+  email » (add-lingua-app-email-signin) shows this extension's own email sign-in in the page
+  (`app/email-panel.ts`: `AccountFlow` and `renderAccount` with `scope: "app"`, answered by
+  `handleAccountMessage` over the app's `Session`) — sign-in, the code step, « Mot de passe oublié ? »;
+  no account creation, no provider buttons, no handle step. The password goes from the page to Cymbra
+  ID only, never to the bridge or any storage; the app keeps only the refresh token, in its Keychain.
 
 ## Release
 

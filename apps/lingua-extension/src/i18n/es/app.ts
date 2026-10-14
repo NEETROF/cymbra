@@ -17,7 +17,8 @@ export const app: typeof fr = {
   modelRetry: "Reintentar",
   megabytes: (amount: string) => `${amount} MB`,
   signedIn: "Sesión iniciada en Cymbra para la traducción en línea",
+  signedInAs: (account: string) => `Sesión iniciada como ${account} para la traducción en línea`,
   signOut: "Cerrar sesión",
   signIn: "Iniciar sesión para la traducción en línea",
-  signInNote: "En la app, la traducción en línea requiere iniciar sesión con Apple o Google.",
+  emailCancel: "Cancelar",
 };

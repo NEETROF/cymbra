@@ -197,7 +197,7 @@ translation, and these providers do not use it to train their models. To limit u
 its cost, Cymbra counts, for your account, the day's online translations (a counter erased
 after a day) and keeps daily totals per provider and language pair, with no account and no
 text. In the Cymbra Lingua app, Online translation asks you to sign in **inside the app** (with
-Apple or Google): the app then opens its own session of your account, separate from the
+Apple, Google or your email and password): the app then opens its own session of your account, separate from the
 extension's, which you can end from the app.
 
 **A kept translation.** A machine translation (on the device or online) is kept only if, in

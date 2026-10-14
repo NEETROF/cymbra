@@ -207,8 +207,8 @@ fournisseurs ne conservent la phrase ni sa traduction, et ces fournisseurs ne s'
 pour entraîner leurs modèles. Pour limiter l'usage et en connaître le coût, Cymbra compte, pour
 votre compte, le nombre de traductions en ligne du jour (compteur effacé au bout d'un jour) et
 tient des totaux quotidiens par fournisseur et par paire de langues, sans compte ni texte. Dans
-l'app Cymbra Lingua, la Traduction en ligne demande de vous connecter **dans l'app** (avec Apple
-ou Google) : l'app ouvre alors sa propre session de votre compte, distincte de celle de
+l'app Cymbra Lingua, la Traduction en ligne demande de vous connecter **dans l'app** (avec Apple,
+Google ou votre email et votre mot de passe) : l'app ouvre alors sa propre session de votre compte, distincte de celle de
 l'extension, que vous pouvez fermer depuis l'app.
 
 **Traduction gardée.** Une traduction automatique (sur l'appareil ou en ligne) n'est conservée
