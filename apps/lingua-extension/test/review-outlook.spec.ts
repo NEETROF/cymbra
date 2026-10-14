@@ -30,7 +30,14 @@ function outlook(over: Partial<ReviewOutlook> = {}): ReviewOutlook {
     computedAt: 1_000 * DAY + HOUR,
     dayStart: 1_000 * DAY,
     languages: [
-      { language: "en", cards: 60, due: 3, upcoming: [1_000 * DAY + 5 * HOUR, 1_001 * DAY + HOUR], fresh: 40, introduced: 4 },
+      {
+        language: "en",
+        cards: 60,
+        due: 3,
+        upcoming: [1_000 * DAY + 5 * HOUR, 1_001 * DAY + HOUR],
+        fresh: 40,
+        introduced: 4,
+      },
       { language: "es", cards: 9, due: 1, upcoming: [], fresh: 2, introduced: 0 },
     ],
     ...over,
@@ -91,7 +98,9 @@ describe("counting from an outlook", () => {
 
   it("says when a cut list of upcoming times is used up, never for a list that was not cut", () => {
     const many = Array.from({ length: UPCOMING_MAX }, (_, i) => today + (i + 1) * 60);
-    const cut = outlook({ languages: [{ language: "en", cards: 130, due: 0, upcoming: many, fresh: 0, introduced: 0 }] });
+    const cut = outlook({
+      languages: [{ language: "en", cards: 130, due: 0, upcoming: many, fresh: 0, introduced: 0 }],
+    });
     expect(usedUp(cut, today + 99 * 60)).toBe(false);
     expect(usedUp(cut, today + 100 * 60)).toBe(true);
     expect(usedUp(o, today + 10 * DAY)).toBe(false);

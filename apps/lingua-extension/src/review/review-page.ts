@@ -17,6 +17,7 @@ import { STORE_REVIEW_PAGE } from "../state/store-links.ts";
 import { dailyRecorder } from "../state/dailystats.ts";
 import {
   type AsyncStorageArea,
+  DEFAULT_NEW_WORDS_PER_DAY,
   loadNewWordsPerDay,
   loadReviewLanguage,
   saveBackup,
@@ -448,7 +449,9 @@ export function mountReview(
   // popup and the toolbar icon show too (add-lingua-comeback-hints D1).
   async function refreshSummary(): Promise<void> {
     const now = opts.now();
-    const allowance = { newPerDay: await loadNewWordsPerDay(opts.prefs), dayStart: localDayStart(now) };
+    // Preferences that cannot be read (a page torn down) count with the default allowance.
+    const newPerDay = await loadNewWordsPerDay(opts.prefs).catch(() => DEFAULT_NEW_WORDS_PER_DAY);
+    const allowance = { newPerDay, dayStart: localDayStart(now) };
     const [deck, due] = [await port.deckCount(only()), await port.reviewableCount(now, only(), allowance)];
     summary.replaceChildren(...counted(deck, copy.deckCards), copy.summarySeparator, ...counted(due, copy.dueCards));
   }
@@ -467,7 +470,8 @@ export function mountReview(
   ): Promise<void> {
     const view = await produce();
     if (arrives) arrive(view.card);
-    await countEnd(view);
+    // Preferences that cannot be read never hold the end back: no request then.
+    await countEnd(view).catch(() => {});
     if (changed) {
       await persist();
       await refreshSummary();

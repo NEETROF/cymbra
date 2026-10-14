@@ -38,8 +38,14 @@ export function realPort(): WasmAnalyzerPort {
     "fetch",
     vi.fn(async (url: string) => ({
       arrayBuffer: async () =>
-        String(url).endsWith(".lingua") ? PACK.buffer.slice(PACK.byteOffset, PACK.byteOffset + PACK.byteLength) : new ArrayBuffer(0),
+        String(url).endsWith(".lingua")
+          ? PACK.buffer.slice(PACK.byteOffset, PACK.byteOffset + PACK.byteLength)
+          : new ArrayBuffer(0),
     })),
   );
-  return new WasmAnalyzerPort(async () => mod, ["en-fr"], async () => "fr");
+  return new WasmAnalyzerPort(
+    async () => mod,
+    ["en-fr"],
+    async () => "fr",
+  );
 }

@@ -73,7 +73,12 @@ export function outlookOf(value: unknown): ReviewOutlook | null {
   if (!Array.isArray(v.languages)) return null;
   const languages = v.languages.map(languageOutlookOf);
   if (languages.some((l) => l === null)) return null;
-  return { version: OUTLOOK_VERSION, computedAt: v.computedAt, dayStart: v.dayStart, languages: languages as LanguageOutlook[] };
+  return {
+    version: OUTLOOK_VERSION,
+    computedAt: v.computedAt,
+    dayStart: v.dayStart,
+    languages: languages as LanguageOutlook[],
+  };
 }
 
 /** The core's JSON, read: null when it is not an outlook of this version. */

@@ -62,7 +62,12 @@ interface WasmEngine {
   keepGloss(lemma: string, gloss: string, language: string | null | undefined, now: number): boolean;
   deckCount(languages?: string[] | null): number;
   dueCount(now: number, languages?: string[] | null): number;
-  reviewableCount(now: number, languages?: string[] | null, newPerDay?: number | null, dayStart?: number | null): number;
+  reviewableCount(
+    now: number,
+    languages?: string[] | null,
+    newPerDay?: number | null,
+    dayStart?: number | null,
+  ): number;
   startReview(
     now: number,
     languages?: string[] | null,

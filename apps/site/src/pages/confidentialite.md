@@ -6,7 +6,7 @@ alternates:
   fr: /confidentialite
   en: /en/privacy
   es: /es/privacidad
-updated: 14/10/2026
+updated: 15/10/2026
 ---
 
 La présente politique explique quelles données personnelles les **services Cymbra**
@@ -169,7 +169,10 @@ complément du §2 :
 n'est jamais envoyé, sauf la phrase que vous envoyez vous-même avec la **Traduction en ligne**
 et la traduction d'un mot que vous choisissez de garder sur sa carte (ci-dessous). Restent aussi sur l'appareil : le détail de vos lectures (quels mots
 vous avez rencontrés, sur quelles pages), l'**adresse de la page** où vous ajoutez un mot à
-votre deck et, si vous n'êtes pas connecté, l'ensemble de vos données Lingua.
+votre deck et, si vous n'êtes pas connecté, l'ensemble de vos données Lingua. Restent aussi sur
+l'appareil, sans être synchronisés ni enregistrés dans le fichier de sauvegarde, le nombre de
+séances de révision que vous avez terminées et votre réponse à la demande de note ; la page de
+la boutique ne s'ouvre que si vous choisissez de noter Cymbra Lingua.
 
 **Vos langues.** Vos réglages de langues restent sur l'appareil : les langues que vous
 étudiez et votre langue maternelle ne sont pas enregistrées en tant que telles. Chaque statut,

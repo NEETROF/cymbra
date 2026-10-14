@@ -36,7 +36,7 @@ function setup(over: Partial<BadgeHostDeps> = {}, prefs: Record<string, unknown>
     action,
     prefs: memoryArea(prefs),
     applied: memoryArea(),
-    store: memoryArea({ [ROOT_KEY]: { v: 2, backup: "{\"backup\":true}" } }),
+    store: memoryArea({ [ROOT_KEY]: { v: 2, backup: '{"backup":true}' } }),
     computeOutlook: vi.fn(async (_backup: string, at: number) => JSON.stringify(outlook({}, at))),
     now: () => now,
     supported: true,
@@ -68,7 +68,7 @@ describe("the badge's outlook", () => {
   it("A review finished in the browser: the data changed, the outlook is worked out and the count shown", async () => {
     const t = setup();
     await t.host.dataChanged();
-    expect(t.compute).toHaveBeenCalledWith("{\"backup\":true}", MORNING, DAY_START);
+    expect(t.compute).toHaveBeenCalledWith('{"backup":true}', MORNING, DAY_START);
     expect(t.prefs.raw[OUTLOOK_KEY]).toEqual(outlook());
     expect(t.action.setBadgeText).toHaveBeenCalledWith({ text: "12" });
     expect(t.action.setBadgeBackgroundColor).toHaveBeenCalledWith({ color: BADGE_COUNT_COLOUR });
@@ -132,7 +132,9 @@ describe("the badge's outlook", () => {
 
   it("New words beyond the day's allowance wait, and a new day lets the allowance in", async () => {
     const t = setup({}, { [NEW_WORDS_PER_DAY_KEY]: 10 });
-    t.compute.mockImplementation(async () => JSON.stringify(outlook({ due: 3, upcoming: [], fresh: 40, introduced: 10 })));
+    t.compute.mockImplementation(async () =>
+      JSON.stringify(outlook({ due: 3, upcoming: [], fresh: 40, introduced: 10 })),
+    );
     await t.host.dataChanged();
     expect(t.action.setBadgeText).toHaveBeenLastCalledWith({ text: "3" });
     t.at(DAY_START + 86_400 + 9 * 3_600);

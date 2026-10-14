@@ -42,7 +42,10 @@ describe("the global badge", () => {
       { language: "en", count: 8 },
       { language: "es", count: 4 },
     ];
-    expect(globalBadge(counts, on)).toMatchObject({ text: "12", title: "Cymbra Lingua — à revoir : anglais 8, espagnol 4" });
+    expect(globalBadge(counts, on)).toMatchObject({
+      text: "12",
+      title: "Cymbra Lingua — à revoir : anglais 8, espagnol 4",
+    });
     expect(globalBadge(counts, { ...on, interfaceLanguage: "en" }).title).toBe(
       "Cymbra Lingua — to review: English 8, Spanish 4",
     );
@@ -142,7 +145,8 @@ describe("where the count can show (D4)", () => {
   // An iPad's Safari asks for desktop sites by default: it presents itself as a Mac.
   const IPAD_26_AS_MAC =
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15";
-  const CHROME = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36";
+  const CHROME =
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36";
 
   it("Safari 17: no count, on the Mac, the iPhone and the iPad", () => {
     for (const ua of [MAC_17, IPHONE_17, IPAD_17]) expect(countSupported(ua, "safari"), ua).toBe(false);

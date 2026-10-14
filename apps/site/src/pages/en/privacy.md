@@ -6,7 +6,7 @@ alternates:
   fr: /confidentialite
   en: /en/privacy
   es: /es/privacidad
-updated: 14/10/2026
+updated: 15/10/2026
 ---
 
 This policy explains what personal data the **Cymbra services** (published by
@@ -161,7 +161,9 @@ except the sentence you send yourself with **Online translation** and the transl
 you choose to keep on its card (below).
 Also kept on the device: the detail of your reading (which words you met, on which pages),
 the **address of the page** where you add a word to your deck and, when you are not signed
-in, all of your Lingua data.
+in, all of your Lingua data. Also kept on the device, neither synchronised nor written in the
+backup file: the number of review sessions you finished and your answer to the request for a
+rating; the store page opens only if you choose to rate Cymbra Lingua.
 
 **Your languages.** Your language settings stay on the device: the languages you study and
 your native language are not stored as such. Each synced status, level, card and day of

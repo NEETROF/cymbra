@@ -155,7 +155,8 @@ describe("the manifest step while every shipped pair is French-native", () => {
     (target) => {
       const { manifest } = step(target, TODAY);
       const permissions = manifest.permissions as string[];
-      for (const absent of ["alarms", "idle", "notifications", "tabs"]) expect(permissions, target).not.toContain(absent);
+      for (const absent of ["alarms", "idle", "notifications", "tabs"])
+        expect(permissions, target).not.toContain(absent);
       const expected: Record<string, string[]> = {
         chromium: ["activeTab", "storage", "scripting", "sidePanel", "identity", "offscreen"],
         firefox: ["activeTab", "storage", "scripting", "identity"],

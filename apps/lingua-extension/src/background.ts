@@ -323,7 +323,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     setBadgeText: (details) => chrome.action.setBadgeText(details as chrome.action.BadgeTextDetails),
     setBadgeBackgroundColor: (details) => chrome.action.setBadgeBackgroundColor(details),
     // Unavailable in Safari, which draws its own badge colours.
-    setBadgeTextColor: chrome.action.setBadgeTextColor ? (details) => chrome.action.setBadgeTextColor(details) : undefined,
+    setBadgeTextColor: chrome.action.setBadgeTextColor
+      ? (details) => chrome.action.setBadgeTextColor(details)
+      : undefined,
     setTitle: (details) => chrome.action.setTitle(details),
   };
   const badge = badgeHost({

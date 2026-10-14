@@ -1,13 +1,6 @@
 import { localDayStart } from "../review/session.ts";
 import { type InterfaceLanguage } from "../i18n/index.ts";
-import {
-  BADGE_TEXT_COLOUR,
-  einkColours,
-  globalBadge,
-  type GlobalBadge,
-  type PageReport,
-  tabBadge,
-} from "./badge.ts";
+import { BADGE_TEXT_COLOUR, einkColours, globalBadge, type GlobalBadge, type PageReport, tabBadge } from "./badge.ts";
 import {
   countsAt,
   loadOutlook,
