@@ -5,7 +5,7 @@ When the card under review holds no gloss, or holds one in a language other than
 
 #### Scenario: The English baseline
 - **WHEN** the English baseline runs
-- **THEN** every review view is byte for byte as pinned
+- **THEN** every review view is byte for byte as pinned, except a card pinned without a gloss whose lemma the pack glosses, which now shows that gloss (the probe `review-current second` of each pair's baseline)
 
 #### Scenario: A word glossed in another native language
 - **WHEN** a French-native engine reviews a Spanish word card whose gloss is in English
