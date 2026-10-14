@@ -440,7 +440,7 @@ const installationsChart = computed(() => ({
       <table v-else class="reasons">
         <tbody>
           <tr v-for="r in reasonsVm.data.reasons" :key="r.reason" data-testid="reason-row" :data-reason="r.reason">
-            <td>{{ reasonLabel(r.reason) }}</td>
+            <th scope="row" class="reason">{{ reasonLabel(r.reason) }}</th>
             <td class="n">{{ num(r.count) }}</td>
           </tr>
         </tbody>
@@ -567,6 +567,10 @@ th.n,
 td.n {
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+/* A leaving reason heads its row: it reads like the cells beside it. */
+th.reason {
+  font-weight: normal;
 }
 .muted {
   opacity: 0.6;

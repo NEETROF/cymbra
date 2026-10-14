@@ -85,7 +85,7 @@ test.describe("lingua installations", () => {
     // The leaving reasons: all six, in the page's order, with their labels.
     const reasons = section.getByTestId("reason-row");
     await expect(reasons).toHaveCount(6);
-    await expect(reasons.locator("td:first-child")).toHaveText([
+    await expect(reasons.locator("th")).toHaveText([
       "I wasn't using it",
       "Too many words highlighted, or too few",
       "My language isn't there",
