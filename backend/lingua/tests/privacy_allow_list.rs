@@ -119,10 +119,11 @@ fn a_count_report_carries_only_a_week_a_browser_a_version_and_steps() {
     // or account id, a hash of one) or anything read (a language, a level) cannot be added
     // without this test failing in review.
     let proto = include_str!("../proto/usage_counts.proto");
-    // Enum values (`USAGE_STEP_INSTALLED = 1;`) parse like fields; only lowercase names are.
+    // Enum values (`USAGE_STEP_INSTALLED = 1;`) and `syntax = "proto3";` parse like fields;
+    // only the lowercase names after the syntax line are fields.
     let fields: Vec<String> = field_names(proto)
         .into_iter()
-        .filter(|f| f.chars().any(|c| c.is_ascii_lowercase()))
+        .filter(|f| f != "syntax" && f.chars().any(|c| c.is_ascii_lowercase()))
         .collect();
     assert_eq!(
         fields,

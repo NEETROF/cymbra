@@ -65,6 +65,9 @@ chrono.workspace = true
 cymbra-feature-flags = { path = "../feature-flags", features = ["mock"] }
 cymbra-plans = { path = "../plans", features = ["mock"] }
 cymbra-user-port = { path = "../user-port", features = ["mock"] }
+# The usage-count seams (`MockUsageCountsRepo` & co.) for the leaving route tests
+# (change: add-lingua-usage-counts).
+cymbra-lingua = { path = "../lingua", features = ["mock"] }
 mockall.workspace = true
 # `ServiceExt::oneshot` drives the Axum router in web-auth handler tests (no socket).
 tower.workspace = true
