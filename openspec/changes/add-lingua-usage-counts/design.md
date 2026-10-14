@@ -662,14 +662,17 @@ Rollback: set `lingua.usage_counts.enabled` off (clients keep working, nothing i
 an extension whose switch defaults off. Dropping the two tables loses only counts. The Caddy filter
 is one global option; removing it restores today's error lines.
 
-**TODO before implementation (task 0.2).** The `No network requests` block in
-`specs/lingua-browser-extension/spec.md` is written on top of `add-lingua-youtube-captions` as it
-stands on `main` on 2026-10-14. That change is being amended and split into
-`add-lingua-youtube-captions` (A) and `add-lingua-youtube-caption-translation` (B). Once that lands,
-this block is rebased on the amended text — its counts bullet and scenarios added to whatever A and B
-say — and both stay in `archiveAfter`.
+**Base of the `No network requests` block.** It is written on top of `add-lingua-youtube-caption-translation`
+(B) as amended and split in PR #946 (2026-10-14): B's block with this change's counts bullet first, the
+counts' two scenarios, and « counts off » added to the two scenarios that expect no request. A and B both
+stay in `archiveAfter`, so this block is the last to archive and its text is final. Task 0.2 re-checks it
+against A and B as merged.
 
 ## Open Questions
+
+**Owner's answers (2026-10-14).** Q1: Chrome asks once, with two equal buttons; Firefox and Safari
+stay on by default, with the switch in Réglages. Every other question takes its recommended answer.
+Q12 (the Limited Use statement) is handled in a change of its own, ahead of this one.
 
 Each has a recommended answer; the design above assumes it. Q1 comes first because it changes
 something you decided.
