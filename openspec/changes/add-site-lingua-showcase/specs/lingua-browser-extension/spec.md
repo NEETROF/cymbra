@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Store and site captures come from the real extension, by one command
-The repository SHALL hold one command, run on a developer's machine and never in CI, that builds the Chromium package, loads it unpacked in a Chromium that honours unpacked extensions with the browser's field trials left on, opens committed fixture pages — one article per studied language, written for the purpose or in the public domain, their licence stated beside them — and a public-domain EPUB, restores a committed reader state through the extension's own restore, and writes, for each interface language: the site's images, a share image, a silent demo video of about thirty seconds with its poster, and 1280×800 PNG captures without alpha for the Chrome Web Store and addons.mozilla.org. The captures SHALL show a highlighted page with its percentage pill and a word card, a page in the reader's second studied language, a review card with the answers the interface shows, the statistics ladder and the EPUB reader. The build it loads SHALL differ from the published Chromium package only by holding the permission to read every page, and SHALL be written apart from the published packages' folders. Safari and App Store captures SHALL stay manual.
+The repository SHALL hold one command, run on a developer's machine and never in CI, that builds the Chromium package, loads it unpacked in a Chromium that honours unpacked extensions with the browser's field trials left on, opens committed fixture pages — one article per studied language, written for the purpose or in the public domain, their licence stated beside them — and a public-domain EPUB, restores a committed reader state through the extension's own restore, and writes, for each interface language: the site's images, a share image, a silent demo video of about thirty seconds with its poster, and 1280×800 PNG captures without alpha for the Chrome Web Store and addons.mozilla.org. The captures SHALL show a highlighted page with its percentage pill and a word card, a page in the reader's second studied language, a review card, in the review panel the extension draws in the page, with the answers the interface shows, the statistics ladder and the EPUB reader. The build it loads SHALL differ from a Chromium build made with the same settings only by declaring the reader's content script on every page, and SHALL be written apart from the published packages' folders. Safari and App Store captures SHALL stay manual.
 
 #### Scenario: A set per interface language
 - **WHEN** the owner runs the capture command
@@ -13,7 +13,7 @@ The repository SHALL hold one command, run on a developer's machine and never in
 
 #### Scenario: The published package is untouched
 - **WHEN** the capture build is made beside a Chromium build
-- **THEN** every file but the manifest is identical, the manifests differ by the permission to read every page alone, and no published package's folder is written
+- **THEN** every file but the manifest is identical, the manifests differ by the reader's content script on every page alone, and no published package's folder is written
 
 #### Scenario: The same state each run
 - **WHEN** the command is run twice on one commit

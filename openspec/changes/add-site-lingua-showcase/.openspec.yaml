@@ -1,12 +1,6 @@
 schema: spec-driven
 created: 2026-10-13
-# The site-lingua-page and site-locales requirements this change ADDS sit beside requirements
-# these open changes ADD or MODIFY (site-locales does not exist in openspec/specs/ until
-# add-site-spanish-locale archives). No requirement is modified twice; the order keeps each
-# capability's spec reading in the order the work landed.
-archiveAfter:
-  - add-site-spanish-locale
-  - extend-site-spanish-locale
-  - add-site-lingua-matrix-pages
-  - remove-lingua-several-languages-offer
-  - add-lingua-french-listings
+# No archiveAfter: every delta of this change is ADDED, and none names a requirement another open
+# change adds or modifies, so its archive never waits for another one
+# (scripts/openspec_archive_order.py exits 0). site-locales is created by whichever of this change
+# and add-site-spanish-locale archives first; the other appends its requirements to it.

@@ -39,14 +39,16 @@ shows them, and listing texts that match what a reader sees.
 ## What Changes
 
 - **A capture command, run on your Mac, not in CI** (`apps/lingua-extension`, `yarn capture`):
-  it builds the Chromium package into a folder of its own, loads it unpacked in Playwright's
+  it builds the Chromium package into a folder of its own, with the development switch the build
+  already has to run the reader on every page (`LINGUA_ALL_URLS=1`), loads it unpacked in Playwright's
   Chromium (Chrome for Testing — branded Chrome ignores `--load-extension`), with Chrome's field
   trials left on (Playwright's `--disable-field-trial-config` is what hid the blank EPUB reader on
   2026-09-24), opens committed article pages — one per studied language, English, Spanish and
   French, written for the purpose — and a public-domain EPUB, restores a committed reader state
   through the extension's own restore, and captures, in each interface language (fr, en, es):
   the highlighted page with its percentage pill and a word card open, a page in the reader's
-  second studied language, a review card, the statistics ladder and the EPUB reader. It writes
+  second studied language, a review card in the review panel the extension draws in the page (the
+  one Firefox readers use), the statistics ladder and the EPUB reader. It writes
   the site's images, 1280×800 PNGs without alpha for the Chrome Web Store and addons.mozilla.org,
   a share image, and a silent demo video of about 30 seconds with its poster. Safari and App Store
   captures stay manual.
@@ -96,7 +98,8 @@ shows them, and listing texts that match what a reader sees.
 ## Impact
 
 - **Products.** Lingua: a local tool under `apps/lingua-extension/tool/capture/` and its fixtures,
-  a `capture` build output (`dist-capture/`) that no package, release or store upload reads; the
+  a `capture` build output (`dist-capture/`, through a new output-folder option of `build.mjs`)
+  that no package, release or store upload reads; the
   shipped packages do not change by a byte. Site: `Base.astro`, `LinguaPage.astro`,
   `StoreButtons.astro`, `lingua-text.ts`, `stores.ts`, the French home page, a sitemap step in
   `astro.config.mjs`, `public/robots.txt`, images under `src/assets/`, videos under
@@ -105,7 +108,7 @@ shows them, and listing texts that match what a reader sees.
 - **Listings.** Text only, pasted by the owner. No `_locales` summary changes.
 - **CI.** `site-check`'s filter gains `apps/music/store/macos/desktop_1440x900/**`; its existing
   `check:routes` step runs the new post-build tests. The capture command is never run in CI.
-- **Order.** Archives after the open site changes listed in `.openspec.yaml`. The site goes out
+- **Order.** Every delta is ADDED, so the change archives in any order (no `archiveAfter`). The site goes out
   with `site-deploy`, by the owner, under the deploy rule of `update-lingua-privacy-annex-languages`
   (task 7.1).
 - **Not here.** Translation shown in captures (it downloads a model); a Chrome Web Store video

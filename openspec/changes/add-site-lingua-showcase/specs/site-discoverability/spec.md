@@ -16,7 +16,7 @@ Every page of the site that is not marked `noindex` SHALL carry a canonical link
 - **THEN** it is marked `noindex` and carries no canonical link
 
 ### Requirement: Every page has a share preview
-Every page of the site SHALL carry an `og:image` of 1200×630 pixels in JPEG or PNG, with its width, its height and an `og:image:alt` in the page's language, an `og:site_name`, and a `twitter:card` of type `summary_large_image`. The Lingua pages SHALL use a capture of the extension in their own language, the Music pages a capture of Cymbra Music in their own language, and every other page one image of the brand that holds no words but the name Cymbra. The page SHALL NOT need any script for its preview.
+Every page of the site SHALL carry an `og:image` of 1200×630 pixels in JPEG or PNG, named by its absolute `https://cymbra.app/` address, with its width, its height and an `og:image:alt` in the page's language, an `og:site_name`, and a `twitter:card` of type `summary_large_image`. The Lingua pages SHALL use a capture of the extension in their own language, the Music pages a capture of Cymbra Music in their own language, and every other page one image of the brand that holds no words but the name Cymbra. The page SHALL NOT need any script for its preview.
 
 #### Scenario: Sharing the English Lingua page
 - **WHEN** `https://cymbra.app/en/lingua/` is pasted in a messaging app that shows previews
@@ -24,7 +24,7 @@ Every page of the site SHALL carry an `og:image` of 1200×630 pixels in JPEG or 
 
 #### Scenario: Sharing the Spanish privacy policy
 - **WHEN** `/es/privacidad/` is built
-- **THEN** its `og:image` is the brand image and its `og:image:alt` is in Spanish
+- **THEN** its `og:image` is the brand image at an absolute `https://cymbra.app/` address, and its `og:image:alt` is in Spanish
 
 ### Requirement: The site publishes a sitemap and a robots file
 The site SHALL serve `/sitemap.xml`, listing every built page that is not marked `noindex` at its canonical address, each with one alternate per translation the page names, and SHALL serve `/robots.txt`, allowing every crawler and naming the sitemap. The sitemap SHALL be generated from the built pages, so that a page enters it by existing and leaves it by being marked `noindex`, and the build SHALL fail if a page that is not marked `noindex` has no canonical link. The robots file SHALL NOT disallow the pages marked `noindex`.

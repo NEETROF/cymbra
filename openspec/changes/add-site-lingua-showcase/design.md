@@ -2,7 +2,8 @@
 
 ## Context
 
-See proposal.md (Why). What exists, read on `main` at e07d23bd3:
+See proposal.md (Why). What exists, read on `main` at e07d23bd3 and re-read on review at fb9c607c2
+(nothing under `apps/`, `.github/` or `scripts/` moved between the two):
 
 | Where | What |
 |---|---|
@@ -16,7 +17,9 @@ See proposal.md (Why). What exists, read on `main` at e07d23bd3:
 | `apps/site/public/` | icons and the Cymbra ID brand mark; no `robots.txt` |
 | `apps/site/yarn.lock` | `sharp@0.35.4` (Astro's image service) already resolved |
 | `.github/workflows/site-check.yml` | `check`, `typecheck`, `test`, `build`, then `check:routes` (the post-build tests in `test/post-build/`) |
-| `apps/lingua-extension/build.mjs`, `tool/manifests.mjs` | Chromium: `<all_urls>` is an **optional** host permission; `syncReaderRegistration` registers the reader on every page once it is granted (`src/background.ts`), on install too; the dev key pins the id `figfjglfdiffocldficbimecjnhnkhkh`; Firefox: `gecko_android` declared (#599) |
+| `apps/lingua-extension/build.mjs`, `tool/manifests.mjs` | Chromium: `<all_urls>` is an **optional** host permission; `syncReaderRegistration` registers the reader on every page once it is granted (`src/background.ts`), on install too; `LINGUA_ALL_URLS=1` (`buildManifest`'s `allUrls`) adds the static content script on every page to a Chromium build — a development switch, documented in `README.md` ("Chromium-only dev escape hatch") and held by `test/manifests.spec.ts` ("forces the static reader on Chromium only when asked"); the build writes `dist-<target>/` only, no output-folder option; the dev key pins the id `figfjglfdiffocldficbimecjnhnkhkh`; Firefox: `gecko_android` declared (#599), and `side_panel` deleted with no `sidebar_action` declared |
+| `apps/lingua-extension/src/reading/drawer.ts`, `src/reading/session.ts` | the in-page panel (Révision / Statistiques / Réglages), a closed-shadow overlay mounting the same views as Chrome's side panel; the only panel on Firefox and Safari, the Alt+Shift+D review on Chrome; a reading session opens it on `{ type: "openDrawer", view }`, the message the Firefox background sends |
+| `apps/lingua-extension/src/content.ts` | guards against running twice (`__cymbraLinguaReading`): a registered script and a static one never start two sessions |
 | `apps/lingua-extension/src/reading/settings-view.ts` | Réglages › Données › Restaurer: a file input, `port.restore(text)`, then `saveRestoredBackup` |
 | `apps/lingua-extension/src/state/dailystats.ts` | daily counts under `cymbra-lingua-daily-v4`, not part of a backup |
 | `apps/lingua-extension/STORE-LISTING.md` | "Screenshots cannot be generated from the repository"; plan of five shots per listing language; "the four answers"; "Firefox for desktop" |
@@ -31,8 +34,15 @@ Facts the decisions lean on, checked rather than remembered:
   was blank for the owner and green under Playwright, because a Chrome field trial isolated its
   `blob:` sections. The reader now serves sections from the service worker, but a capture that
   turns trials off would still not show Chrome as readers run it.
+- Playwright's default headless binary (`chrome-headless-shell`) does not load extensions; the
+  full Chromium build does, headless too, when launched with `channel: 'chromium'` (Playwright's
+  Chrome-extensions guide).
 - Chrome's side panel is browser UI, not a page: a page screenshot does not include it. Its
-  document is a DevTools target of its own (reached that way on 2026-10-06 to debug #717).
+  document is a DevTools target of its own (reached that way on 2026-10-06 to debug #717). The
+  in-page panel (`drawer.ts`) is part of the page, and a page screenshot includes it.
+- The main spec's *Firefox variant* requirement still says the panel is a `sidebar_action`; the
+  code removed it (`firefoxManifest`'s comment: "there is no side_panel AND no sidebar_action"). This change does
+  not touch that requirement; D6 follows the code.
 - Cloudflare Pages: 25 MiB per file, 20,000 files per site
   (developers.cloudflare.com/pages/platform/limits).
 - Chrome Web Store screenshots: 1280×800 or 640×400, no alpha, up to five. addons.mozilla.org
@@ -60,21 +70,34 @@ Facts the decisions lean on, checked rather than remembered:
 
 ## Decisions
 
-### D1 — A capture build that has the global grant, nothing else different
+### D1 — The capture build: the existing "reader on every page" switch, in a folder of its own
 
-`node build.mjs chromium --capture` (behind `yarn capture`) writes `dist-capture/`: the Chromium
-variant's bundles, byte for byte, and a manifest whose `<all_urls>` is a host permission instead
-of an optional one. Chrome grants a required host permission at load, `onInstalled` runs
-`syncReaderRegistration`, and the reader is registered on every page — the path of a reader who
-said yes to « Toujours surligner ». `dist-chromium/`, `dist-firefox/`, `dist-safari/`, the release
-workflow and `check:variants` never read `dist-capture/`; a unit test holds that every file but
-`manifest.json` is identical to `dist-chromium/`'s, and that the two manifests differ by that
-permission alone. It is a folder of its own so that a capture never rebuilds the `dist-chromium/`
-a dogfood browser has loaded.
+On Chromium the reader starts on a page after the toolbar button (`activeTab`) or once the reader
+has granted `<all_urls>` (« Toujours surligner »), and both pass through browser UI a test driver
+cannot reach. The build already has a way round it: `LINGUA_ALL_URLS=1` makes `buildManifest`
+(`tool/manifests.mjs`, `allUrls`) add the static content script on every page that the Firefox and
+Safari variants always carry. It is documented in `README.md` as a Chromium-only development
+switch, `test/manifests.spec.ts` holds it, and `build.mjs` hands it to `buildManifest` alone, so
+the bundles do not move. If the background also registers its dynamic copy, `content.ts`'s guard
+keeps it to one reading session. The reader the captures show is the same `content.js`, at
+`document_idle`, that a Chrome reader who said yes to « Toujours surligner » gets; only the way it
+is attached differs.
 
-Rejected: clicking « Analyser cette page » (the popup is browser UI; opened as a tab, `popup.html`
-is its own active tab); accepting the permission prompt (browser UI); the extension's keyboard
-commands (keys sent through DevTools reach the page, not Chrome's shortcut handler).
+`yarn capture` builds the Chromium variant with that switch into `dist-capture/`. `build.mjs` gains
+one thing, an output-folder option (`LINGUA_DIST_DIR`, `dist-<target>` by default), so that a
+capture never rewrites the `dist-chromium/` a dogfood browser has loaded — often a build made with
+the production settings. Before loading it, the tool builds a plain Chromium variant with the same
+settings into a temporary folder and refuses to go on unless every file but `manifest.json` is
+identical and the manifests differ by that content script alone; then it deletes the temporary
+folder. `dist-chromium/`, `dist-firefox/`, `dist-safari/`, the release workflow and
+`check:variants` never read `dist-capture/`.
+
+Rejected: a new manifest shape that makes `<all_urls>` a required host permission (this proposal's
+first draft: a second capture-only variant of the manifest to write and test, when the repository
+already has and tests one); clicking « Analyser cette page » (the popup is browser UI; opened as a
+tab, `popup.html` is its own active tab); accepting the permission prompt (browser UI); the
+extension's keyboard commands (keys sent through DevTools reach the page, not Chrome's shortcut
+handler).
 
 ### D2 — Playwright's Chromium, with Chrome's field trials on
 
@@ -83,14 +106,28 @@ Playwright version so both use one cached browser. The tool calls
 `chromium.launchPersistentContext` (extensions need one) with `--disable-extensions-except` and
 `--load-extension` on `dist-capture/`, and `ignoreDefaultArgs` removing
 `--disable-field-trial-config` (and `--disable-extensions` if the pinned version passes it). It
-never asks for `channel: 'chrome'`. It runs headed by default — a window opens on the Mac for a
-few minutes; `--headless` exists once task 1.1 shows the side panel renders in Chromium's headless
-mode. The tool prints `chrome://version`'s command line in its log, so the owner can see which
+never asks for `channel: 'chrome'` (branded Chrome). Each run starts on a fresh temporary profile,
+deleted afterwards, so no run inherits another's state; the onboarding tab the install opens is
+closed. Headless is the default once task 1.1 shows the captures match a headed run — launched
+with `channel: 'chromium'`, since the default headless binary loads no extension — and `--headed`
+opens the window to watch it. Nothing the shots need is browser UI (D6), so headless is expected
+to work. The tool prints `chrome://version`'s command line in its log, so the owner can see which
 flags the captures ran with.
 
+Driving the product: the word card (`wordpopup.ts`), the pill (`hud.ts`) and the in-page panel
+(`drawer.ts`) each live in a **closed** shadow root, which Playwright's locators do not enter, and
+the highlights are painted with `CSS.highlights`, so a highlighted word is not an element. The
+tool therefore finds a word from the page's own text (a `Range` and its `getClientRects()`), finds
+a control of those surfaces through the DevTools protocol (`DOM.getDocument` with `pierce: true`,
+which reaches closed roots as DevTools' own Elements panel does, then `DOM.getBoxModel`), and
+clicks at that point with `page.mouse`, as a reader's pointer would; once a surface has the
+focus, its own keys work too (the review reveals on Space and grades on ← and →,
+`src/review/view.ts`). Nothing is clicked by a fixed coordinate, so a layout change fails loudly
+on the missing control rather than clicking the wrong one. Task 1.1 checks it.
+
 Rejected: Puppeteer (a second browser toolchain in the repo); Firefox through WebDriver BiDi for
-the AMO set (the panel's page is the same document on both, D6, and the in-page parts are the
-same code).
+the AMO set (the page, the word card and the in-page review panel are the same code on both, D6;
+only the browser's own frame differs, and no shot shows it).
 
 ### D3 — Fixtures: our own articles and public-domain books, served locally
 
@@ -103,8 +140,13 @@ repository (Apache-2.0), which `tool/capture/fixtures/README.md` states.
 `tool/capture/fixtures/books/`: one chapter per studied language from a public-domain work —
 English: Jane Austen, *Pride and Prejudice* (1813), chapter 1; Spanish: Benito Pérez Galdós,
 *Marianela* (1878), chapter 1; French: Jules Verne, *Le Tour du monde en quatre-vingts jours*
-(1872), chapter 1. Authors dead more than 100 years; the text committed without any distributor's
-header or licence, the source edition named in the README. The tool assembles each into an EPUB 3
+(1872), chapter 1. Each is the original-language text, not a translation (a translation has its
+translator's own copyright); the authors died in 1817, 1920 and 1905, so the works are in the
+public domain in France, Spain, the European Union and the United States. The text is taken from a
+transcription of a nineteenth-century printing — Project Gutenberg's, for instance, whose licence
+lets its header, licence and name be removed — never from a modern annotated or critical edition,
+whose apparatus, notes or modernised text may carry rights of their own. It is committed without
+any distributor's header or licence, the source printing named in the README. The tool assembles each into an EPUB 3
 with `@zip.js/zip.js` (already a dependency), as `test/epub-fixtures.ts` builds its test books.
 
 A tiny Node server on `127.0.0.1` (ephemeral port) serves the pages: content scripts do not run on
@@ -148,7 +190,7 @@ Viewport 1280×800, device scale factor 2. Per interface language:
 |---|---|---|---|---|
 | `card` | The first studied language's article, highlighted, the pill showing the share known, the word card open on a verb form whose card names its tense | English page | Spanish page | English page |
 | `second` | The second studied language's article, highlighted, the card open (the card names tense and gender) | Spanish | French | French |
-| `review` | The article beside the review panel, a card revealed with its sentence and the two answers (D6) | English | Spanish | English |
+| `review` | The article with the in-page review panel open, a card revealed with its sentence and the two answers (D6) | English | Spanish | English |
 | `stats` | The statistics page, the first studied language's ladder and the fortnight | English | Spanish | English |
 | `reader` | The EPUB reader on the first studied language's book, highlighted | Austen | Galdós | Austen |
 | `reader-eink` | The same page in the « E-ink contrasté » preset (open question 3) | idem | idem | idem |
@@ -158,18 +200,24 @@ five, the Chrome Web Store's cap. The reader's two languages are shown by `card`
 no slot is spent on "the French capture" alone, which `STORE-LISTING.md` planned as the fifth
 before the reader existed (open question 4).
 
-### D6 — The review panel, captured where Chrome draws it
+### D6 — The review shot: the in-page review panel, opened by the product's own message
 
-The side panel is opened with a user gesture (`Runtime.evaluate` with `userGesture: true` on an
-extension page: `chrome.sidePanel.open`), then captured through its own DevTools target
-(`Page.captureScreenshot` on the `sidepanel.html` target). The tool composes it beside the page,
-with no browser frame drawn: the page 920 px wide, the panel 360 px, 1280×800 in all. The panel's
-document is the page Firefox shows in its sidebar (`sidebar_action`, same page — spec *Firefox
-variant*), so the composite is true for both stores.
+The review is shown in the panel every variant draws inside the page: the drawer
+(`src/reading/drawer.ts`), a closed-shadow overlay that mounts the same review, statistics and
+settings views as Chrome's side panel. On Firefox and Safari it is the only panel —
+`firefoxManifest` deletes `side_panel` and declares no `sidebar_action` — so it is what an
+addons.mozilla.org visitor will get; on Chrome it is the review that Alt+Shift+D opens. The tool
+opens it the way the Firefox background does: `chrome.tabs.sendMessage(tabId, { type:
+"openDrawer", view: "review" })` from an extension page, which the page's reading session answers
+(`src/reading/session.ts`). The page and the panel are then one page screenshot at 1280×800: no
+DevTools target, no composition, nothing drawn that is not the product's.
 
-If task 1.1 finds the target cannot be captured, the fallback is the panel's page opened in a
-second page 360 px wide with the review language set (`cymbra-lingua-review-language`), composed
-the same way. Rejected: drawing a panel that is not the product's.
+Rejected: Chrome's side panel, opened with a user gesture through DevTools, captured through its
+own DevTools target and composed beside the page (this proposal's first draft). It assumed that
+Firefox shows the same page in a `sidebar_action`, which the code removed, so the AMO set would
+have shown a panel no Firefox reader sees; and the gesture, the second target's screenshot and the
+composition were the riskiest part of the spike. A Chrome-only review shot in the side panel can
+follow later if the owner wants Chrome's set to show it.
 
 ### D7 — Sizes, formats and where each output goes
 
@@ -266,8 +314,10 @@ on a borrowed computer still needs them).
 ### D12 — One address form in the head, and a share image on every page
 
 `Base.astro` gains `image?: { src: ImageMetadata; alt: string }` and writes, for every page:
-`og:image` (a 1200×630 JPEG made by `getImage`), `og:image:width`, `og:image:height`,
-`og:image:alt`, `og:site_name` « Cymbra », `twitter:card` `summary_large_image`; and for every page
+`og:image` (a 1200×630 JPEG made by `getImage`, named by its absolute address — `https://cymbra.app`
++ the hashed path `getImage` returns — since several link previewers ignore a relative one),
+`og:image:width`, `og:image:height`, `og:image:alt`, `og:site_name` « Cymbra », `twitter:card`
+`summary_large_image`; and for every page
 without `noindex`: `<link rel="canonical">` and `og:url`. One function, `servedUrl(path)`, turns
 a declared path into the address the host serves — `https://cymbra.app` + the path with a trailing
 slash (`/` stays `/`) — and every `hreflang`, the canonical and `og:url` go through it. The language
@@ -330,8 +380,9 @@ claim with the file that makes it true ») gains the Android line's file (`tool/
 `gecko_android`).
 
 `apps/lingua-apple/STORE-LISTING.md`: the screenshot plan's two answers; a line that the App Store
-slots, macOS's 1280×800 included, are not filled from the Chromium captures — they show Chrome's
-panel, and App Review asks for the app in use (Guideline 2.3.3).
+slots, macOS's 1280×800 included, are not filled from the Chromium captures — they are Chromium's
+rendering of the extension, not the Safari app's, and App Review asks for the app in use
+(Guideline 2.3.3).
 
 No `_locales` summary changes, so the extension's version check is untouched.
 
@@ -340,8 +391,12 @@ No `_locales` summary changes, so the extension's version check is untouched.
 - **Repository weight.** Three videos (≈ 12 MB) and ≈ 25 site sources (≈ 6 MB) per refresh, kept
   in history. Mitigated by refreshing only when the interface visibly changes and by D14's caps;
   store PNGs are not committed (open question 5).
-- **Panel capture.** If neither D6 path works, the review shot is the in-page parts only and the
-  set has four shots until a follow-up; task 1.1 settles it before anything else is built.
+- **The review panel shown.** Chrome's set shows the in-page panel (D6), which Chrome readers
+  reach with Alt+Shift+D while the page's own buttons open the side panel there; both hold the same review view,
+  the same card and the same two answers. Accepted for this change; a side-panel shot for Chrome
+  alone can follow.
+- **Headless.** If task 1.1 finds a headless run differs from a headed one, the tool stays headed
+  (a window open on the Mac for a few minutes); nothing else changes.
 - **The fixtures are ours.** A capture of our own article is honest about the product but not about
   "any website"; the listings and page say "the page you read", never name a site.
 - **Seeded numbers.** The pill, the ladder and the fortnight show a plausible reader's figures, not
@@ -356,7 +411,8 @@ No `_locales` summary changes, so the extension's version check is untouched.
 
 ## Migration Plan
 
-1. Task 1.1's spike decides D6's path and headed or headless.
+1. Task 1.1's spike confirms D1, D2 and D6 on the pinned Playwright, decides headed or headless,
+   and D8's recording path.
 2. The tool, fixtures and seed land; the implementation pull request carries the first generated
    set (site images, share images, videos) so the site builds.
 3. The site work lands in the same pull request; `site-check` runs the budget.
@@ -364,6 +420,27 @@ No `_locales` summary changes, so the extension's version check is untouched.
 
 Rollback: revert the pull request; the shipped packages are untouched, and the site redeploys from
 the previous ref.
+
+## A leaner first version (an option for the owner)
+
+The full scope above is 11.75–18.25 ideal days (tasks.md). Most of it is the capture tool, the
+fixtures, five shots in three interface languages and the site's head — the core of the request,
+which no cut can remove without losing it. What can wait without losing anything you asked for
+except the video:
+
+| Left for later | Saves | Later, as its own small change |
+|---|---|---|
+| The demo video (D8, D9, its markup, script, poster and budget lines) | 1.5–2.5 d | 1.5–2.5 d, reusing the tool, the fixtures and the seed |
+| `--record-seed`: the three seed backups are made once by hand in the capture browser and saved through Réglages › Données › Sauvegarder (still the product's own format, D4) | 0.5–0.75 d | only if re-recording by hand becomes a chore |
+| The e-ink figure (open question 3) | 0.25 d | 0.25 d |
+| The Music pages' own share image: they take the brand image, so no crop of Music's capture and no new `site-check` filter | 0.25 d | 0.25 d |
+
+The leaner first version is **9.25–14.5 ideal days** (1: 4–6.5, 2: 1.5–2.25, 3: 3–4.5, 4: 0.5–1,
+5: 0.25): about a fifth less, **not half**. It is therefore not the recommendation (open question
+6); it is the right choice only if having the pictures and the store screenshots live a few days
+sooner matters more to you than launching the video with them. If chosen, the video sentences of
+`site-lingua-page`'s first requirement and of the capture requirement move to the follow-up change
+before implementation starts, and tasks 1.6 and the video parts of 3.1 and 3.4 go with them.
 
 ## Open Questions
 
@@ -384,3 +461,8 @@ the previous ref.
 5. **Commit the store PNGs, as Music does?** Recommendation: no — they are made from the committed
    site sources' run in a minute and uploaded once; committing ≈ 7 MB per refresh buys little.
    Committed, they would sit under `apps/lingua-extension/store/` like Music's.
+6. **Everything at once, or the leaner first version without the video?** Recommendation: everything
+   at once (11.75–18.25 days). The leaner version (9.25–14.5 days, above) saves about a fifth,
+   not half, and drops the one thing that shows Lingua moving, which you asked for. Choose the
+   leaner one only if the pictures must be online sooner and the video can follow a few weeks
+   later.
