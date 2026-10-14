@@ -1,5 +1,14 @@
+import { Code, ConnectError } from "@connectrpc/connect";
 import { describe, expect, it, vi } from "vitest";
-import { APP_SIGNED_OUT_KEY, type AppAccountClients, appAccount, keychainArea } from "@/app/account.ts";
+import {
+  APP_SIGNED_OUT_KEY,
+  type AppAccountClients,
+  type AppAccountSend,
+  appAccount,
+  appAccountLocale,
+  type EmailSignIn,
+  keychainArea,
+} from "@/app/account.ts";
 import type { AppMessage } from "@/app/bridge.ts";
 import { ACCESS_KEY, REFRESH_KEY } from "@/state/session.ts";
 
@@ -40,6 +49,9 @@ function bridge(over: { sheet?: unknown; keychain?: string | null } = {}) {
 function clients(access = true) {
   const auth = {
     signInOidc: vi.fn(async () => ({ accessToken: token("u1"), refreshToken: "refresh-1" })),
+    signInLocal: vi.fn(async () => ({ accessToken: token("u1"), refreshToken: "refresh-email" })),
+    verifyEmail: vi.fn(async () => ({})),
+    resendVerification: vi.fn(async () => ({})),
     refresh: vi.fn(async () => ({ accessToken: token("u1"), refreshToken: "refresh-2" })),
     logout: vi.fn(async () => ({})),
   };
@@ -71,7 +83,14 @@ function storage() {
 const REQUEST = { sentence: "The rope began to slacken.", selection: { start: 18, end: 25 }, source: "en" };
 
 function account(
-  over: { sheet?: unknown; keychain?: string | null; chosen?: boolean; relayedAccess?: boolean; access?: boolean } = {},
+  over: {
+    sheet?: unknown;
+    keychain?: string | null;
+    chosen?: boolean;
+    relayedAccess?: boolean;
+    access?: boolean;
+    emailSignIn?: EmailSignIn;
+  } = {},
 ) {
   const b = bridge(over);
   const c = clients(over.access ?? true);
@@ -85,6 +104,7 @@ function account(
     relayedAccess: over.relayedAccess ?? true,
     local,
     onChange,
+    emailSignIn: over.emailSignIn,
   });
   return { a, b, c, local, onChange };
 }
@@ -214,5 +234,102 @@ describe("the Session's storage in the app", () => {
     await area.set({ [REFRESH_KEY]: null });
     expect(b.keychain()).toBeNull();
     expect(await area.get(REFRESH_KEY)).toEqual({});
+  });
+});
+
+describe("the app's email sign-in (add-lingua-app-email-signin D2, D3)", () => {
+  const EMAIL = "me@example.com";
+  const PASSWORD = "correct horse battery";
+
+  /** The panel's double: signs in with the email and password through `send`, like the flow would. */
+  function typing(password = PASSWORD): EmailSignIn & { sends: AppAccountSend[] } {
+    const sends: AppAccountSend[] = [];
+    const panel = async (send: AppAccountSend): Promise<boolean> => {
+      sends.push(send);
+      const reply = await send({ type: "account:signInLocal", email: EMAIL, password });
+      return reply?.ok === true;
+    };
+    return Object.assign(panel, { sends });
+  }
+
+  it("An email account signs in: the panel opens, SignInLocal for lingua, only the refresh token kept", async () => {
+    const panel = typing();
+    const s = account({ sheet: { method: "email" }, emailSignIn: panel });
+    const result = await s.a.online.translate(REQUEST);
+
+    expect(panel.sends).toHaveLength(1);
+    expect(s.c.auth.signInLocal).toHaveBeenCalledWith({ email: EMAIL, password: PASSWORD, audience: "lingua" });
+    expect(s.c.auth.signInOidc).not.toHaveBeenCalled();
+    expect(s.b.sent.map((m) => m.type)).toEqual(["auth.signIn", "auth.writeRefresh"]);
+    expect(s.b.keychain()).toBe("refresh-email");
+    // The password never crosses the bridge, nor lands in the page's storage.
+    expect(JSON.stringify(s.b.sent)).not.toContain(PASSWORD);
+    expect(JSON.stringify(s.local.items)).not.toContain(PASSWORD);
+    expect(s.a.signedIn()).toBe(true);
+    // The online translation that asked for the sign-in is requested.
+    expect(s.c.onlineTranslation.translate).toHaveBeenCalledOnce();
+    expect(result.kind).toBe("translated");
+    expect(s.onChange).toHaveBeenCalled();
+  });
+
+  it("a closed panel: no session, no translation", async () => {
+    const closed: EmailSignIn = async () => false;
+    const s = account({ sheet: { method: "email" }, emailSignIn: closed });
+    expect(await s.a.online.translate(REQUEST)).toEqual({ kind: "unavailable" });
+    expect(s.c.onlineTranslation.translate).not.toHaveBeenCalled();
+    expect(s.a.signedIn()).toBe(false);
+    expect(s.b.sent.map((m) => m.type)).toEqual(["auth.signIn"]);
+  });
+
+  it("a panel that fails, or no panel at all, opens no session", async () => {
+    const failing: EmailSignIn = async () => {
+      throw new Error("panel");
+    };
+    for (const emailSignIn of [failing, undefined]) {
+      const s = account({ sheet: { method: "email" }, emailSignIn });
+      expect(await s.a.signIn()).toBe(false);
+      expect(s.a.signedIn()).toBe(false);
+    }
+  });
+
+  it("a panel that says done without a session is not believed", async () => {
+    const liar: EmailSignIn = async () => true;
+    const s = account({ sheet: { method: "email" }, emailSignIn: liar });
+    expect(await s.a.signIn()).toBe(false);
+  });
+
+  it("Wrong password: the dispatch answers its category, nothing stored", async () => {
+    const panel = typing("wrong");
+    const s = account({ sheet: { method: "email" }, emailSignIn: panel });
+    s.c.auth.signInLocal.mockRejectedValue(new ConnectError("bad", Code.Unauthenticated));
+    expect(await s.a.signIn()).toBe(false);
+    expect(await panel.sends[0]({ type: "account:signInLocal", email: EMAIL, password: "wrong" })).toEqual({
+      ok: false,
+      error: "unauthenticated",
+    });
+    expect(s.b.sent.map((m) => m.type)).toEqual(["auth.signIn"]);
+    expect(s.b.keychain()).toBeNull();
+    expect(s.a.signedIn()).toBe(false);
+  });
+
+  it("answers the flow's messages over the app's Session: categories, no provider, no profile", async () => {
+    const panel = typing();
+    const s = account({ sheet: { method: "email" }, emailSignIn: panel });
+    s.c.auth.signInLocal.mockRejectedValueOnce(new ConnectError("unverified", Code.FailedPrecondition));
+    expect(await s.a.signIn()).toBe(false);
+    const send = panel.sends[0];
+    expect(await send({ type: "account:providers" })).toEqual({ ok: true, providers: { google: false, apple: false } });
+    expect(await send({ type: "account:verifyEmail", code: "123456" })).toEqual({ ok: true });
+    expect(s.c.auth.verifyEmail).toHaveBeenCalledWith({ token: "123456" });
+    expect(await send({ type: "account:resendVerification", email: EMAIL, locale: "fr" })).toEqual({ ok: true });
+    // The profile port is never reached in the app scope: a call is refused, loud in a test.
+    expect((await send({ type: "account:checkHandle", handle: "x" }))?.ok).toBe(false);
+    expect((await send({ type: "account:eraseLinguaData" }))?.ok).toBe(false);
+  });
+
+  it("the requests' locale: the language chosen in the extension, else the device's tag, else French", () => {
+    expect(appAccountLocale("es", "fr-FR")).toBe("es");
+    expect(appAccountLocale(null, "en-GB")).toBe("en-GB");
+    expect(appAccountLocale(null, "")).toBe("fr");
   });
 });

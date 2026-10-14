@@ -19,5 +19,5 @@ export const app: typeof fr = {
   signedIn: "Sesión iniciada en Cymbra para la traducción en línea",
   signOut: "Cerrar sesión",
   signIn: "Iniciar sesión para la traducción en línea",
-  signInNote: "En la app, la traducción en línea requiere iniciar sesión con Apple o Google.",
+  emailCancel: "Cancelar",
 };

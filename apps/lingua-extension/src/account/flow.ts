@@ -18,6 +18,16 @@ export { deleteAccountUrl } from "./locale.ts";
 
 export type AccountView = "signin" | "signup" | "verify" | "forgot" | "reset" | "handle" | "signedin" | "connected";
 
+/**
+ * Where the flow runs (add-lingua-app-email-signin D3): the extension's whole account page, or the
+ * Cymbra Lingua app's email panel — sign-in to an existing account only, with its code step and its
+ * reset, no account creation, no provider, no handle step, no signed-in view.
+ */
+export type AccountScope = "page" | "app";
+
+/** The views the app's email panel shows (D3). */
+export const APP_VIEWS: readonly AccountView[] = ["signin", "verify", "forgot", "reset"];
+
 /** « Définir un mot de passe » on the connected accounts: closed, its form, or its code step. */
 export type PasswordStep = "closed" | "form" | "code";
 
@@ -49,6 +59,8 @@ export interface AccountViewState {
   passwordStep: PasswordStep;
   /** The address « Définir un mot de passe » sent its code to. */
   passwordEmail: string;
+  /** Where the flow runs; the extension's whole page when absent (add-lingua-app-email-signin D3). */
+  scope?: AccountScope;
 }
 
 export interface PendingEmailStore {
@@ -79,6 +91,13 @@ export interface AccountFlowDeps {
   language?: InterfaceLanguage;
   /** Drop the background's persisted provider failure once it was shown live. */
   clearPersistedError: () => Promise<void>;
+  /** The extension's whole account page (the default), or the app's email panel (D3). */
+  scope?: AccountScope;
+  /**
+   * The app scope only: a sign-in succeeded — directly, after the code, or after a reset then a
+   * sign-in. The flow reads no profile there; the panel closes.
+   */
+  onSignedIn?: () => void;
 }
 
 const NAVIGABLE: readonly AccountView[] = ["signin", "signup", "verify", "forgot", "reset"];
@@ -137,6 +156,7 @@ export class AccountFlow {
   ) {
     this.language = deps.language ?? DEFAULT_INTERFACE_LANGUAGE;
     this.copy = accountCopy(this.language);
+    if (deps.scope === "app") this.s.scope = "app";
     // A page the reader reads: by the language they chose, or by the browser's until then (D2).
     this.s.deleteAccountUrl = deleteAccountUrl(deps.deletionLanguage ?? deps.locale);
   }
@@ -150,7 +170,19 @@ export class AccountFlow {
     };
   }
 
+  /** The flow runs in the app's email panel (D3). */
+  private get inApp(): boolean {
+    return this.deps.scope === "app";
+  }
+
   async init(hash: string): Promise<AccountViewState> {
+    if (this.inApp) {
+      // The app's panel opens on sign-in, or on the code step of an address still waiting for its
+      // code; the sheet ran the providers, and the app's session is signed out (it asked to sign in).
+      const pending = await this.deps.pending.get();
+      if (pending) this.s.email = pending;
+      return this.set({ view: pending ? "verify" : "signin" });
+    }
     const [state, providers, pending] = await Promise.all([
       this.deps.send({ type: "account:state" }),
       this.deps.send({ type: "account:providers" }),
@@ -171,6 +203,8 @@ export class AccountFlow {
   go(view: AccountView): AccountViewState {
     if (this.s.view === "signedin" || this.s.view === "handle") return this.view();
     if (view === "signedin" || view === "handle" || view === this.s.view) return this.view();
+    // The app's panel: sign-in, its code step and the reset only — no account creation (D4).
+    if (this.inApp && !APP_VIEWS.includes(view)) return this.view();
     const target = view === "verify" && !this.s.email ? "signin" : view;
     return this.set({ view: target, error: null, errorKind: null, notice: null });
   }
@@ -200,6 +234,7 @@ export class AccountFlow {
   }
 
   async signUp(email: string, password: string): Promise<AccountViewState> {
+    if (this.inApp) return this.view(); // no account creation in the app (D4)
     email = email.trim();
     if (!email || !password) return this.view();
     this.s.email = email;
@@ -260,6 +295,7 @@ export class AccountFlow {
   }
 
   async signInWith(provider: Provider): Promise<AccountViewState> {
+    if (this.inApp) return this.view(); // the app's sheet ran the providers (D3)
     const context: FlowContext = provider === "apple" ? "signInApple" : "signInGoogle";
     const type = provider === "apple" ? "account:signInApple" : "account:signInGoogle";
     const reply = await this.run(context, { type });
@@ -485,6 +521,14 @@ export class AccountFlow {
    * handle step. A profile that cannot be read keeps the session; the popup asks again later.
    */
   private async resolveProfile(notice: string | null): Promise<AccountViewState> {
+    if (this.inApp) {
+      // The app's session serves online translation only: no profile, no handle step, no signed-in
+      // view — the panel is told, and closes (D3). The pending address is done with.
+      await this.deps.pending.set(null);
+      const view = this.set({ view: "signin", notice, error: null, errorKind: null });
+      this.deps.onSignedIn?.();
+      return view;
+    }
     const reply = await this.run("handle", { type: "account:profile" });
     if (reply?.ok && reply.handle == null) {
       this.checkSeq++;

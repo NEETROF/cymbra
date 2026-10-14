@@ -200,11 +200,12 @@ class ViewController: PlatformViewController, WKNavigationDelegate, WKScriptMess
 #endif
         var presented: PlatformViewController?
         let sheet = AppSignInView(language: language, google: GoogleWebSignIn.fromBundle(anchor: anchor)) {
-            [weak self] provider, outcome in
+            [weak self] choice in
             guard let self else { return }
             let answer = self.pendingSignIn
             self.pendingSignIn = nil
-            answer?(AppSessionMessage.signInReply(provider, outcome))
+            // A provider's id_token, `{method: "email"}` for the page's email form, or `{}`.
+            answer?(AppSessionMessage.signInReply(choice))
 #if os(iOS)
             presented?.dismiss(animated: true)
 #elseif os(macOS)
@@ -217,7 +218,8 @@ class ViewController: PlatformViewController, WKNavigationDelegate, WKScriptMess
         present(host, animated: true)
 #elseif os(macOS)
         let host = NSHostingController(rootView: sheet)
-        host.view.frame = NSRect(x: 0, y: 0, width: 460, height: 380)
+        // Tall enough for the three entries (add-lingua-app-email-signin D2).
+        host.view.frame = NSRect(x: 0, y: 0, width: 460, height: 450)
         presented = host
         presentAsSheet(host)
 #endif

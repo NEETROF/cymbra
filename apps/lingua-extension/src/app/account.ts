@@ -2,7 +2,11 @@ import type { Client } from "@connectrpc/connect";
 import type { AuthService } from "@/gen/auth_pb";
 import type { FlagService } from "@/gen/flags_pb";
 import type { OnlineTranslationService } from "@/gen/online_translation_pb";
+import { type AccountHostDeps, handleAccountMessage } from "../account/host.ts";
+import type { AccountMessage, AccountReply } from "../account/messages.ts";
+import type { AccountPort } from "../account/profile.ts";
 import { flagOn, toValues } from "../flags/store.ts";
+import type { InterfaceLanguage } from "../i18n/index.ts";
 import type { ReviewOnlineSource } from "../review/review-page.ts";
 import type { Provider } from "../state/oidc.ts";
 import { REFRESH_KEY, Session } from "../state/session.ts";
@@ -26,6 +30,45 @@ import type { AppSend } from "./bridge.ts";
 // access token stays in this page's memory; the refresh token is kept in the app's Keychain through
 // the bridge (`auth.readRefresh`, `auth.writeRefresh`, `auth.clear`) — never in web storage, whose
 // durability under a custom scheme is not guaranteed.
+//
+// An email account (add-lingua-app-email-signin): the sheet's third entry answers `{method: "email"}`,
+// and the page shows the extension's own email sign-in (`AccountFlow` in its app scope, email-panel.ts)
+// whose messages are answered here by the background's own dispatch, `handleAccountMessage`, over this
+// Session — `SignInLocal` for the `lingua` audience. The password stays in the page: it goes to Cymbra
+// ID and nowhere else, never to the bridge nor to any storage.
+
+/** The account messages the page sends while signing in with an email, answered over the app's Session. */
+export type AppAccountSend = (message: AccountMessage) => Promise<AccountReply | null>;
+
+/**
+ * Show the email sign-in over `send`; resolves true once signed in, false when the reader closed it.
+ * The page's panel (email-panel.ts); a seam so the session is tested without the DOM.
+ */
+export type EmailSignIn = (send: AppAccountSend) => Promise<boolean>;
+
+/** What the sheet answered for an email account: the page's own form takes over. */
+function choseEmail(reply: unknown): boolean {
+  return (reply as { method?: unknown } | null | undefined)?.method === "email";
+}
+
+/** The panel never reaches the account's profile (no handle step in the app): a call is a bug, made loud. */
+const NO_PROFILE: AccountPort = {
+  profile: () => Promise.reject(new Error("the app reads no profile")),
+  checkHandle: () => Promise.reject(new Error("the app sets no handle")),
+  setHandle: () => Promise.reject(new Error("the app sets no handle")),
+  deleteAccount: () => Promise.reject(new Error("the app deletes no account")),
+  identities: () => Promise.reject(new Error("the app lists no identities")),
+};
+
+/**
+ * The locale the email sign-in's requests carry (resending the code, requesting a reset —
+ * `AccountLanguage.locale`, add-lingua-app-email-signin D3): the interface language the reader chose in
+ * the extension when the shared state names it, else the device's whole language tag, else French.
+ * The account's stored language wins server-side anyway.
+ */
+export function appAccountLocale(shared: InterfaceLanguage | null, deviceTag: string): string {
+  return shared ?? (deviceTag || "fr");
+}
 
 /** What the account needs of the transport: the clients, bound to this session's bearer. */
 export interface AppAccountClients {
@@ -48,6 +91,8 @@ export interface AppAccountDeps {
   local?: Pick<Storage, "getItem" | "setItem" | "removeItem"> | null;
   /** The account's state changed (signed in, out, its access read): the page repaints. */
   onChange?: () => void;
+  /** The page's email sign-in, shown when the sheet answers `{method: "email"}`; absent = none. */
+  emailSignIn?: EmailSignIn;
 }
 
 /**
@@ -169,22 +214,44 @@ export function appAccount(deps: AppAccountDeps): AppAccount {
     deps.onChange?.();
   }
 
+  /** The background's dispatch, in the page, over the app's Session: the same categories, the same copy. */
+  const hostDeps: AccountHostDeps = {
+    session,
+    account: NO_PROFILE,
+    // The sheet ran Apple and Google; the panel offers none, and hands nothing off.
+    providers: () => ({ google: false, apple: false }),
+    eraseLinguaData: () => Promise.reject(new Error("the app erases nothing")),
+    onSignedIn: () => {},
+  };
+  const accountSend: AppAccountSend = (message) => handleAccountMessage(message, hostDeps);
+
+  /** Signed in: the account's own access is read, the page repaints. */
+  async function opened(): Promise<boolean> {
+    markSignedOut(false);
+    await readAccess();
+    return true;
+  }
+
   async function signIn(): Promise<boolean> {
-    let token: ReturnType<typeof handed>;
+    let reply: unknown;
     try {
-      token = handed(await deps.send({ type: "auth.signIn" }));
+      reply = await deps.send({ type: "auth.signIn" });
     } catch {
-      token = null;
+      reply = null;
     }
+    if (choseEmail(reply)) {
+      if (!deps.emailSignIn) return false;
+      const done = await deps.emailSignIn(accountSend).catch(() => false);
+      return done && signedIn() ? opened() : false;
+    }
+    const token = handed(reply);
     if (!token) return false;
     try {
       await session.signInWithIdToken(token.provider, token.idToken);
     } catch {
       return false;
     }
-    markSignedOut(false);
-    await readAccess();
-    return true;
+    return opened();
   }
 
   const online: ReviewOnlineSource = {

@@ -64,19 +64,33 @@ describe("the app's session line", () => {
       "Connecté à Cymbra pour la traduction en ligne — Se déconnecter",
     ],
     [{ relevant: true, signedIn: false, signedOut: true }, "Se connecter pour la traduction en ligne"],
-    [
-      { relevant: true, signedIn: false, signedOut: false },
-      "Dans l'app, la traduction en ligne demande de te connecter avec Apple ou Google.",
-    ],
+    // Never signed in (add-lingua-app-email-signin D8): the link, no note restricting the methods.
+    [{ relevant: true, signedIn: false, signedOut: false }, "Se connecter pour la traduction en ligne"],
     [{ relevant: false, signedIn: false, signedOut: false }, ""],
     [{ relevant: false, signedIn: false, signedOut: true }, ""],
   ];
 
-  it("says the session, offers to sign in again after a sign-out, or notes that the app needs Apple or Google", () => {
+  it("says the session, or offers to sign in — never a note restricting sign-in to Apple or Google", () => {
     for (const [state, text] of CASES) {
       renderAccountLine(el, state, "fr", { signIn: vi.fn(), signOut: vi.fn() });
       expect(el.textContent, JSON.stringify(state)).toBe(text);
       expect(el.hidden).toBe(text === "");
+      expect(el.textContent).not.toMatch(/Apple|Google/);
+    }
+  });
+
+  it("Before any sign-in: the sign-in link in every language", () => {
+    const LINKS: ["fr" | "en" | "es", string][] = [
+      ["fr", "Se connecter pour la traduction en ligne"],
+      ["en", "Sign in for online translation"],
+      ["es", "Iniciar sesión para la traducción en línea"],
+    ];
+    for (const [language, text] of LINKS) {
+      const actions = { signIn: vi.fn(), signOut: vi.fn() };
+      renderAccountLine(el, { relevant: true, signedIn: false, signedOut: false }, language, actions);
+      expect(buttons()).toEqual([text]);
+      el.querySelector<HTMLButtonElement>(".app-sign-in")!.click();
+      expect(actions.signIn).toHaveBeenCalledOnce();
     }
   });
 

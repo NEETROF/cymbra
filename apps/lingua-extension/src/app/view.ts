@@ -90,9 +90,9 @@ export interface AccountLineActions {
 
 /**
  * The app's session line (add-lingua-review-translation-fallback D8): « Connecté à Cymbra pour la
- * traduction en ligne — Se déconnecter » while signed in; signed out from the app, « Se connecter pour
- * la traduction en ligne »; otherwise, where online translation is offered, the note that the app
- * needs Apple or Google — the email flows stay in the extension. Hidden where none applies.
+ * traduction en ligne — Se déconnecter » while signed in; otherwise, where online translation is
+ * offered or after a sign-out from the app, « Se connecter pour la traduction en ligne » — an email
+ * account signs in too (add-lingua-app-email-signin D8). Hidden where none applies.
  */
 export function renderAccountLine(
   el: HTMLElement,
@@ -109,11 +109,8 @@ export function renderAccountLine(
       text,
       button(copy.signOut, "app-link app-sign-out", () => actions.signOut()),
     );
-  } else if (state.signedOut && state.relevant) {
-    el.append(button(copy.signIn, "app-link app-sign-in", () => actions.signIn()));
   } else if (state.relevant) {
-    text.textContent = copy.signInNote;
-    el.append(text);
+    el.append(button(copy.signIn, "app-link app-sign-in", () => actions.signIn()));
   }
   el.hidden = el.childNodes.length === 0;
 }

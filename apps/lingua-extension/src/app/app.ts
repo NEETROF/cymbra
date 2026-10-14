@@ -18,8 +18,9 @@ import { modelDb } from "../translate/host/model-db.ts";
 import { loadBundledCatalogue } from "../translate/host/model-manifest.ts";
 import { parseHost, TRANSLATION_HOST_KEY } from "../translate/setting.ts";
 import * as wasmGlue from "../wasm/pkg/lingua_wasm.js";
-import { appAccount } from "./account.ts";
+import { appAccount, appAccountLocale } from "./account.ts";
 import { webkitSend } from "./bridge.ts";
+import { type EmailPanel, emailPanel, reloadsOnForeground } from "./email-panel.ts";
 import { openAppSession } from "./session.ts";
 import { type AppTranslation, openAppTranslation } from "./translation.ts";
 import { appCopy, renderAccountLine, renderModelOffer, savedAtLine } from "./view.ts";
@@ -42,6 +43,7 @@ function $(id: string): HTMLElement {
 }
 
 let review: ReviewPage | null = null;
+let emailSignIn: EmailPanel | null = null;
 
 async function main(): Promise<void> {
   const send = webkitSend();
@@ -126,8 +128,17 @@ async function main(): Promise<void> {
   // « Traduction en ligne » in the app (D8): its own session, opened on the first press.
   let clients: Clients | null = null;
   const line = $("account-line");
+  // An email account signs in in the page (add-lingua-app-email-signin): the extension's own flow.
+  emailSignIn = emailPanel({
+    dialog: $("email-panel") as HTMLDialogElement,
+    root: $("email-root"),
+    cancel: $("email-cancel") as HTMLButtonElement,
+    language,
+    locale: appAccountLocale(session.sharedLanguage, navigator.language),
+  });
   const account = appAccount({
     send,
+    emailSignIn: emailSignIn.signIn,
     clients: () => (clients ??= createClients(createTransport(() => account.token()))),
     native: () => port.nativeLanguage(),
     chosen: chosen[ONLINE_TRANSLATION_KEY] === true,
@@ -196,10 +207,12 @@ async function main(): Promise<void> {
 
 /**
  * The app came back to the foreground (ViewController.swift): the extension may have saved since.
- * Read the shared state again, unless a session is under way — its queue stays as it is.
+ * Read the shared state again, unless a session is under way — its queue stays as it is — or the email
+ * sign-in is open, whose code step the reader came back from Mail for (add-lingua-app-email-signin D6).
  */
 (globalThis as { linguaForeground?: () => void }).linguaForeground = () => {
-  if (review?.reviewing()) return;
+  if (!reloadsOnForeground({ reviewing: review?.reviewing() ?? false, emailPanelOpen: emailSignIn?.isOpen() ?? false }))
+    return;
   location.reload();
 };
 

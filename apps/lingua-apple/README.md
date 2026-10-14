@@ -92,8 +92,16 @@ extension (see `openspec/changes/add-lingua-apple`).
     `auth.signIn`; the page exchanges the id_token through `SignInOidc` (`lingua` audience) and keeps
     the access token in memory, the refresh token in the Keychain (`KeychainRefreshTokenStore`, the
     page's `auth.readRefresh` / `auth.writeRefresh` / `auth.clear`, `AppSessionMessage`). A line under
-    the views shows the session and ends it; an email-only account is told the app needs Apple or
-    Google. The page calls the server directly over gRPC-web: WebKit sends `Origin: lingua-app://app`,
+    the views shows the session and ends it, or offers to sign in. *Email accounts*
+    (add-lingua-app-email-signin): the sheet's third entry, « Continuer avec un email », closes it and
+    answers `{method: "email"}` (`AppSignInChoice.email`); the page then shows the extension's own
+    email sign-in (`AccountFlow` + `renderAccount` in their app scope, `src/app/email-panel.ts`) —
+    sign-in, the code step of an unverified address, « Mot de passe oublié ? » — over the app's
+    session (`SignInLocal`, `lingua` audience). No account creation in the app (a new reader uses Apple,
+    Google, or the extension's account page), no handle step. The password is typed in the page and
+    sent only to Cymbra ID: it never crosses the bridge and is never stored — only the refresh token,
+    in the Keychain. The app does not reload its page on returning to the foreground while the panel
+    is open, so a code read in Mail finds its step. The page calls the server directly over gRPC-web: WebKit sends `Origin: lingua-app://app`,
     which production must list in `CYMBRA_ALLOWED_WEB_ORIGINS`.
 
 The project was scaffolded by `xcrun safari-web-extension-converter` and then changed by

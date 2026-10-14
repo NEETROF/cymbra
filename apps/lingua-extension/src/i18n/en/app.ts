@@ -19,5 +19,5 @@ export const app: typeof fr = {
   signedIn: "Signed in to Cymbra for online translation",
   signOut: "Sign out",
   signIn: "Sign in for online translation",
-  signInNote: "In the app, online translation needs you to sign in with Apple or Google.",
+  emailCancel: "Cancel",
 };
