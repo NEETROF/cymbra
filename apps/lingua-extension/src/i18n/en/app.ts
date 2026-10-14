@@ -17,7 +17,8 @@ export const app: typeof fr = {
   modelRetry: "Try again",
   megabytes: (amount: string) => `${amount} MB`,
   signedIn: "Signed in to Cymbra for online translation",
+  signedInAs: (account: string) => `Signed in as ${account} for online translation`,
   signOut: "Sign out",
   signIn: "Sign in for online translation",
-  signInNote: "In the app, online translation needs you to sign in with Apple or Google.",
+  emailCancel: "Cancel",
 };

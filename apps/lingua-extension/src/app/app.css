@@ -154,3 +154,29 @@ h1 {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+/* The email sign-in (add-lingua-app-email-signin D2): the extension's account card in a modal over the
+   review, a readable column on every screen, « Annuler » under it. The card's own styles are the
+   account page's (account.css). */
+.app-email {
+  box-sizing: border-box;
+  width: min(420px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--cymbra-lingua-text);
+  font-family: var(--cymbra-lingua-font);
+  font-size: calc(15px * var(--cymbra-lingua-ui-scale, 1));
+  line-height: 1.6;
+}
+
+.app-email::backdrop {
+  background: var(--cymbra-lingua-bg);
+  opacity: 0.85;
+}
+
+.app-email-cancel {
+  display: block;
+  margin: 12px auto 0;
+}
