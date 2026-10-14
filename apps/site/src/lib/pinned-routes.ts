@@ -61,9 +61,9 @@ export const PINNED_ROUTES: PinnedRoute[] = [
   // The leaving page each interface language registers as its uninstall address (change:
   // add-lingua-usage-counts, D12). Chrome and Firefox open it after the extension is gone,
   // so no update can ever change the path an installed build asks for.
-  { path: "/lingua/au-revoir/", pinnedBy: "Lingua — uninstall page, compiled into Chromium and Firefox builds (French interface)", source: "apps/lingua-extension/src — `setUninstallURL` (add-lingua-usage-counts, D12)" },
-  { path: "/en/lingua/goodbye/", pinnedBy: "Lingua — uninstall page, compiled into Chromium and Firefox builds (English interface)", source: "apps/lingua-extension/src — `setUninstallURL` (add-lingua-usage-counts, D12)" },
-  { path: "/es/lingua/adios/", pinnedBy: "Lingua — uninstall page, compiled into Chromium and Firefox builds (Spanish interface)", source: "apps/lingua-extension/src — `setUninstallURL` (add-lingua-usage-counts, D12)" },
+  { path: "/lingua/au-revoir/", pinnedBy: "Lingua — uninstall page, compiled into Chromium and Firefox builds (French interface)", source: "apps/lingua-extension/src/usage/counts.ts — `LEAVING_PAGES`, registered by `setUninstallURL` (add-lingua-usage-counts, D12)" },
+  { path: "/en/lingua/goodbye/", pinnedBy: "Lingua — uninstall page, compiled into Chromium and Firefox builds (English interface)", source: "apps/lingua-extension/src/usage/counts.ts — `LEAVING_PAGES`, registered by `setUninstallURL` (add-lingua-usage-counts, D12)" },
+  { path: "/es/lingua/adios/", pinnedBy: "Lingua — uninstall page, compiled into Chromium and Firefox builds (Spanish interface)", source: "apps/lingua-extension/src/usage/counts.ts — `LEAVING_PAGES`, registered by `setUninstallURL` (add-lingua-usage-counts, D12)" },
 
   // Rendered into Cymbra ID e-mails (change: localise-cymbra-id-email-legal-links).
   // An e-mail already sent keeps the links it was rendered with, like a shipped
