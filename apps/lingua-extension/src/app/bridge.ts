@@ -14,6 +14,11 @@ export type AppMessage =
   /** The page cannot show the state it was given: the app shows how to turn the extension on. */
   | { type: "review.unavailable" }
   /**
+   * A review session ended saying it was complete (« Séance terminée »): the app counts it, and may
+   * ask StoreKit for a review — never a prompt of its own (add-lingua-comeback-hints D11).
+   */
+  | { type: "review.sessionFinished" }
+  /**
    * The app's own session (add-lingua-review-translation-fallback D8): open the app's Apple / Google
    * sheet and answer `{provider, idToken}`, or `{}` when the reader closed it or it failed.
    */

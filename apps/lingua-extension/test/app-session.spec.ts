@@ -61,6 +61,18 @@ describe("the app opens on the extension's state (add-lingua-apple-review)", () 
     expect(await openAppSession({ send: bridge(null).send, port: () => port, now: () => 0 })).toBeNull();
   });
 
+  it("tells the app each « Séance terminée », for StoreKit's own request (add-lingua-comeback-hints D11)", async () => {
+    const { send } = bridge(shared());
+    const session = await openAppSession({ send, port: () => fakePort().port, now: () => 5_500 });
+    send.mockClear();
+    session!.sessionFinished();
+    session!.sessionFinished();
+    expect(send.mock.calls).toEqual([[{ type: "review.sessionFinished" }], [{ type: "review.sessionFinished" }]]);
+    // An app that cannot answer it loses nothing of the review.
+    send.mockRejectedValueOnce(new Error("no handler"));
+    expect(() => session!.sessionFinished()).not.toThrow();
+  });
+
   it("restores the shared backup, in an engine built for it", async () => {
     const { port, calls } = fakePort();
     const built: string[] = [];

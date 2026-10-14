@@ -7,6 +7,7 @@
 
 import AuthenticationServices
 import LinguaSignIn
+import StoreKit
 import SwiftUI
 import WebKit
 
@@ -38,6 +39,9 @@ class ViewController: PlatformViewController, WKNavigationDelegate, WKScriptMess
     private let refreshTokens: RefreshTokenStore = KeychainRefreshTokenStore()
     /// The page's `auth.signIn` waiting for the sheet: answered once, when the sheet closes.
     private var pendingSignIn: (([String: Any]) -> Void)?
+    /// When StoreKit is asked for a rating (add-lingua-comeback-hints D11): the app's own count of
+    /// finished sessions, in its own defaults.
+    private let reviewRequests = ReviewRequestPolicy()
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -209,7 +213,31 @@ class ViewController: PlatformViewController, WKNavigationDelegate, WKScriptMess
             load()
             return
         }
-        replyHandler(AppBridgeMessage.reply(to: message.body, store: store), nil)
+        replyHandler(
+            AppBridgeMessage.reply(to: message.body, store: store) { [weak self] in self?.sessionFinished() },
+            nil
+        )
+    }
+
+    /// « Séance terminée » in the review (add-lingua-comeback-hints D11): counted, and from the fifth
+    /// session, once per version of the app, StoreKit is asked two seconds after the end shows, as
+    /// Apple's sample does. The system decides whether its prompt appears; the app draws nothing.
+    private func sessionFinished() {
+        guard reviewRequests.sessionFinished() else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in self?.requestReview() }
+    }
+
+    private func requestReview() {
+#if os(iOS)
+        guard let scene = view.window?.windowScene else { return }
+        AppStore.requestReview(in: scene)
+#elseif os(macOS)
+        if #available(macOS 13.0, *) {
+            AppStore.requestReview(in: self)
+        } else {
+            SKStoreReviewController.requestReview()
+        }
+#endif
     }
 
     /// The app's sign-in sheet for its own session, in the language the page was opened in. A second

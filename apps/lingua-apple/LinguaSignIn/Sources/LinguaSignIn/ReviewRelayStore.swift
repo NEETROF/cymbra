@@ -84,10 +84,20 @@ public enum AppBridgeMessage {
     /// - `review.state` → `{state}`, or `{}` before the extension has shared one;
     /// - `review.pendingOps` → `{ops, writtenAt}` for changes the extension has not taken, or `{}`;
     /// - `review.writeOps` `{ops}` → `{writtenAt}`, the changes kept for the extension;
+    /// - `review.sessionFinished` → `{}`, after `onSessionFinished` is told: a review session ended
+    ///   saying it was complete, which the app counts for StoreKit's own review request
+    ///   (add-lingua-comeback-hints D11, `ReviewRequestPolicy`);
     /// - anything else → `{error: "unknownMessage"}`.
-    public static func reply(to message: Any?, store: ReviewRelayStore?) -> [String: Any] {
+    public static func reply(
+        to message: Any?,
+        store: ReviewRelayStore?,
+        onSessionFinished: (() -> Void)? = nil
+    ) -> [String: Any] {
         let body = message as? [String: Any]
         switch body?["type"] as? String {
+        case "review.sessionFinished":
+            onSessionFinished?()
+            return [:]
         case "review.state":
             guard let state = store?.state() else { return [:] }
             return ["state": state]

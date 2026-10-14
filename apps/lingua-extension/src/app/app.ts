@@ -233,6 +233,8 @@ async function main(): Promise<void> {
       };
     },
     online: account.online,
+    // « Séance terminée »: the app's own count, for StoreKit's request — no prompt in the page (D11).
+    onSessionFinished: session.sessionFinished,
   });
 
   async function show(view: "review" | "stats"): Promise<void> {

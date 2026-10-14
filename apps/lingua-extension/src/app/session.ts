@@ -87,6 +87,11 @@ export interface AppSession {
    * as a rule — so the extension finds no change from before the erasure.
    */
   discardPending: (erasedAt: number) => Promise<void>;
+  /**
+   * A session's end said it was complete: told to the app, which counts it for StoreKit's own review
+   * request (add-lingua-comeback-hints D11). Nothing is awaited: the app answers nothing.
+   */
+  sessionFinished: () => void;
 }
 
 function pick(items: Record<string, unknown>, keys: string | string[] | null): Record<string, unknown> {
@@ -208,5 +213,6 @@ export async function openAppSession(deps: AppSessionDeps): Promise<AppSession |
       return { cards: ops.cardOps, statuses: ops.statusOps };
     },
     discardPending,
+    sessionFinished: () => void deps.send({ type: "review.sessionFinished" }).catch(() => {}),
   };
 }

@@ -255,7 +255,8 @@ export function mountReview(
   async function answerRating(choice: RatingChoice): Promise<void> {
     if (!ratingShown) return;
     ratingShown = false;
-    if (choice === "rate") (opts.openPage ?? openPageViaBackground)(STORE_REVIEW_PAGE);
+    // The app has no extension API and asks no rating of its own (D11): its bundle folds this away.
+    if (choice === "rate" && !__APP__) (opts.openPage ?? openPageViaBackground)(STORE_REVIEW_PAGE);
     render(session.view());
     await saveRating(opts.prefs, answerRequest(await loadRating(opts.prefs), choice));
   }
