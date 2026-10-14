@@ -266,9 +266,29 @@ comes up (the route warmed when the session starts) and shown once revealed, und
 phrase — traduction automatique ». An expression its sentence does not hold is translated alone,
 under « Traduction automatique »; a single word never is. A translation still on its way at the
 reveal says « Traduction en cours… »; none within 15 s leaves « Pas de traduction… ». A card with
-a gloss is never translated. The translation is never stored — not on the card, not in a backup,
-not synced. The drawer uses the reading session's translator, the side panel its own messaging
-port.
+a gloss is not translated on its own. The drawer uses the reading session's translator, the side
+panel its own messaging port.
+
+The gloss a revealed card shows is, for every card (`add-lingua-review-translation-fallback`), the
+one the reader chose, else the current pack's for its lemma, else the text stored at capture —
+display only, so a pack fixed since the capture reaches cards already in the deck. Under a gloss,
+« Traduire la phrase » asks for the card's translation on demand; it is shown only when a model is
+ready for the card's language or online translation is offered. « Traduction en ligne » is offered on
+a revealed card — without a gloss, or after « Traduire la phrase » — when the setting is ticked on
+this device and the account has access, the selection card's rule; unlike the selection card a single
+word is allowed, always sent in its sentence with its place marked (an expression its sentence does
+not hold is sent alone). One press per card per review; a late answer is dropped; « indisponible » and
+the daily limit read as on the selection card. The drawer, the EPUB reader (through its drawer) and
+the side panel hand Révision the runtime-message client the selection card uses: the background owns
+the session.
+
+Under any machine translation the reader can keep the word's part as the card's gloss: one mark that
+fits in 80 UTF-16 code units is named and kept in one tap (« Garder « se relâcher » », « Modifier »
+beside it); no mark, several marks or a longer one go through « Garder une traduction… », a one-line
+field prefilled with the candidate. A kept gloss is written by `keepGloss`, in the native language,
+marked `gloss_by_reader`: it wins over the pack, survives a re-capture of the word and syncs with the
+card. A translation not kept is discarded with the card — never in a backup, never synced; the
+translated sentence is never kept.
 
 Lossless **backup** (download) / **restore** (re-import) and the pack's sources live in
 Réglages › Données, in every host; the toolbar popup offers the download and points to the

@@ -200,9 +200,12 @@ export CYMBRA_LINGUA_DB_PASSWORD=<chosen lingua password>
 # 2. Set both env lines (URL password MUST equal CYMBRA_LINGUA_DB_PASSWORD):
 #      CYMBRA_LINGUA_DATABASE_URL=postgres://lingua_svc:<pw>@postgres:5432/cymbra
 #      CYMBRA_LINGUA_DB_PASSWORD=<pw>
-# 3. Add `lingua` to CYMBRA_ALLOWED_AUDIENCES, and the published extension origin to
-#    CYMBRA_ALLOWED_WEB_ORIGINS (bearer-only gRPC-web CORS; does NOT widen the
-#    back-office list). No Caddy change — the cymbra.lingua.v1 paths fall through to gRPC.
+# 3. Add `lingua` to CYMBRA_ALLOWED_AUDIENCES, and the published extension origin and the
+#    Cymbra Lingua app's page origin `lingua-app://app` to CYMBRA_ALLOWED_WEB_ORIGINS
+#    (bearer-only gRPC-web CORS; does NOT widen the back-office list). Without the app's
+#    origin, « Traduction en ligne » in the app fails with a CORS refusal
+#    (add-lingua-review-translation-fallback D8). No Caddy change — the cymbra.lingua.v1
+#    paths fall through to gRPC.
 # 4. Roll server AND worker (the worker reads the URL for GDPR purge):
 docker compose -f docker-compose.prod.yml up -d
 ```

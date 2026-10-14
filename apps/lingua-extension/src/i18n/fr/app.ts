@@ -11,4 +11,21 @@ export const app = {
   loading: "Chargement de tes cartes…",
   /** When the extension last saved the deck the app reviews: « Cartes de Safari, 12 oct. à 9:41 ». */
   savedAt: (when: string) => `Cartes de Safari, ${when}`,
+  /**
+   * « Traduction étendue » in the app (add-lingua-review-translation-fallback D7): the offer to
+   * download its own copy of the models, made once, and where the download stands.
+   */
+  modelOffer: (size: string) => `Traduire aussi dans l'app ? Téléchargement de ${size}`,
+  modelDownload: "Télécharger",
+  modelLater: "Plus tard",
+  modelDownloading: (percent: string) => `Téléchargement des modèles… ${percent} %`,
+  modelFailed: "Le téléchargement n'a pas abouti.",
+  modelRetry: "Réessayer",
+  /** « 25,8 Mo ». */
+  megabytes: (amount: string) => `${amount} Mo`,
+  /** The app's own session, for « Traduction en ligne » only (D8). */
+  signedIn: "Connecté à Cymbra pour la traduction en ligne",
+  signOut: "Se déconnecter",
+  signIn: "Se connecter pour la traduction en ligne",
+  signInNote: "Dans l'app, la traduction en ligne demande de te connecter avec Apple ou Google.",
 };

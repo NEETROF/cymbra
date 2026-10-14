@@ -55,6 +55,9 @@ export default defineConfig({
         "src/stats/stats.ts",
         // The Cymbra Lingua app's page (add-lingua-apple-review): its session and home are measured.
         "src/app/app.ts",
+        // Its two workers' construction (add-lingua-review-translation-fallback D7): glue over the
+        // channel and the download host, measured on their own.
+        "src/app/workers.ts",
         "src/onboarding/onboarding.ts",
         "src/reading/drawer.ts",
         "src/analyzer/engine.ts",

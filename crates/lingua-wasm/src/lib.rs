@@ -164,16 +164,37 @@ fn readable_gloss(pack: Option<&Pack>, card: &Card) -> Option<String> {
     .or_else(|| card.gloss.clone())
 }
 
-/// The gloss `reviewCurrent` shows for `card` on an engine whose native language is `native`: the
-/// card's own when it holds one in that language, and otherwise [`readable_gloss`] — for a card
-/// glossed in another language (add-lingua-card-gloss-language D3) and for a card holding no gloss
-/// (fix-lingua-selection-card-punctuation D3), so a card captured before the pack knew its lemma
-/// shows the answer the pack has since gained.
-fn review_gloss(pack: Option<&Pack>, card: &Card, native: &str) -> Option<String> {
-    if card.gloss.is_some() && card.gloss_language == native {
+/// The gloss `reviewCurrent` shows for `card` (add-lingua-review-translation-fallback D5), for
+/// every card, display only: a gloss the reader chose, as written, whatever its language; else
+/// the current pack's for the lemma, read as [`readable_gloss`] reads it; else the card's own
+/// stored text — [`readable_gloss`]'s fallback. A pack fixed after a card was captured thus
+/// reaches that card at its next review, and a gloss the reader kept is never replaced by the
+/// pack's. The card is not rewritten.
+fn review_gloss(pack: Option<&Pack>, card: &Card) -> Option<String> {
+    if card.gloss_by_reader && card.gloss.is_some() {
         card.gloss.clone()
     } else {
         readable_gloss(pack, card)
+    }
+}
+
+/// The longest gloss the reader may keep, in UTF-16 code units — what JavaScript's `length`
+/// counts (add-lingua-review-translation-fallback D3).
+pub const KEPT_GLOSS_MAX_UNITS: usize = 80;
+
+/// `gloss` trimmed, when the reader may keep it: not empty, at most [`KEPT_GLOSS_MAX_UNITS`]
+/// UTF-16 code units.
+fn checked_kept_gloss(gloss: &str) -> Result<&str, String> {
+    let gloss = gloss.trim();
+    let units = gloss.encode_utf16().count();
+    if units == 0 {
+        Err("a kept gloss cannot be empty".to_owned())
+    } else if units > KEPT_GLOSS_MAX_UNITS {
+        Err(format!(
+            "a kept gloss holds at most {KEPT_GLOSS_MAX_UNITS} UTF-16 code units, not {units}"
+        ))
+    } else {
+        Ok(gloss)
     }
 }
 
@@ -794,6 +815,11 @@ impl LinguaEngine {
                 if card.gloss_language != FRENCH {
                     op["gloss_language"] = card.gloss_language.clone().into();
                 }
+                // Only when set, so every export without a chosen gloss keeps its bytes
+                // (add-lingua-review-translation-fallback D6).
+                if card.gloss_by_reader {
+                    op["gloss_by_reader"] = true.into();
+                }
                 op
             })
             .collect();
@@ -867,6 +893,11 @@ impl LinguaEngine {
             );
             card.review = review;
             card.updated_at = updated_at;
+            // Absent or not a boolean: not chosen by the reader (D6).
+            card.gloss_by_reader = op
+                .get("gloss_by_reader")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false);
             if self.state.deck.apply_card_lww(language, card) {
                 changed += 1;
             }
@@ -984,7 +1015,7 @@ impl LinguaEngine {
         );
         // The gloss handed in is the pack's, or the one the surface showed: both in the engine's
         // native language, which labels the card (add-lingua-card-gloss-language D2).
-        let card = Card::new(
+        let mut card = Card::new(
             lemma,
             surface,
             Provenance {
@@ -997,8 +1028,40 @@ impl LinguaEngine {
             gloss,
             self.packs.native().tag(),
         );
+        // A gloss the reader chose survives a re-capture: the sentence and the form are
+        // refreshed, the reader's choice is not (add-lingua-review-translation-fallback D5).
+        if let Some(existing) = self.state.deck.get(language, lemma)
+            && existing.gloss_by_reader
+        {
+            card.gloss = existing.gloss.clone();
+            card.gloss_language = existing.gloss_language.clone();
+            card.gloss_by_reader = true;
+        }
         self.state.deck.upsert(language, card);
         Ok(())
+    }
+
+    /// Keeps `gloss` — a machine translation the reader accepted in review — as the gloss of the
+    /// card for `lemma` (add-lingua-review-translation-fallback D3, D5): the text trimmed,
+    /// labelled with the engine's native language, marked as chosen by the reader, the card's
+    /// `updated_at` bumped to `now` (Unix-epoch seconds; never moved back). Returns whether a
+    /// card was there to keep it; refuses an empty gloss or one longer than
+    /// [`KEPT_GLOSS_MAX_UNITS`] UTF-16 code units.
+    #[wasm_bindgen(js_name = keepGloss)]
+    pub fn keep_gloss(
+        &mut self,
+        lemma: &str,
+        gloss: &str,
+        language: Option<String>,
+        now: f64,
+    ) -> Result<bool, JsError> {
+        let (language, _) = resolve(&self.packs, language.as_deref())?;
+        let gloss = checked_kept_gloss(gloss).map_err(|e| JsError::new(&e))?;
+        let native = self.packs.native().tag().to_owned();
+        Ok(self
+            .state
+            .deck
+            .keep_gloss(language, lemma, gloss, &native, now as i64))
     }
 
     /// Retire the deck card for `lemma` if present (keep it, stop it coming due) — used
@@ -1120,11 +1183,10 @@ impl LinguaEngine {
     /// source, gloss, revealed, remaining }` — or `null` when the session is finished
     /// or not started. `source` is where the word was met, as the device kept it: a
     /// page address, or a book and its chapter (`add-lingua-reader`); empty when none.
-    /// `gloss` is the card's, unless its gloss is written in another language than the
-    /// engine's native: then the current pack's for the lemma, and the card's own text when
-    /// the pack has none (add-lingua-card-gloss-language D3, D4); a card holding no gloss is read
-    /// in the pack the same way (fix-lingua-selection-card-punctuation D3). The keys do not change, so
-    /// the baselines pin the same bytes; the card itself is not rewritten.
+    /// `gloss` is, for every card, the reader's chosen gloss, else the current pack's for the
+    /// lemma, else the card's own text ([`review_gloss`], add-lingua-review-translation-fallback
+    /// D5; add-lingua-card-gloss-language D3, D4). The keys do not change; the card itself is
+    /// not rewritten.
     #[wasm_bindgen(js_name = reviewCurrent)]
     pub fn review_current(&self) -> Option<String> {
         let session = self.session.as_ref()?;
@@ -1134,7 +1196,7 @@ impl LinguaEngine {
             EncounterSource::Web { url } => url.as_str(),
             EncounterSource::AgentSession { .. } | EncounterSource::Import => "",
         };
-        let gloss = review_gloss(self.packs.get(*language), card, self.packs.native().tag());
+        let gloss = review_gloss(self.packs.get(*language), card);
         let view = serde_json::json!({
             "headword": card.lemma,
             "surface": card.encountered_form,
@@ -1382,46 +1444,110 @@ mod tests {
                 "fr-en" => &fr_en,
                 _ => &es_fr,
             };
-            let clean = review_gloss(Some(pack), &card(trimmed, None, native), native);
+            let clean = review_gloss(Some(pack), &card(trimmed, None, native));
             assert!(clean.is_some(), "{pair} glosses {trimmed:?}");
-            let shown = review_gloss(Some(pack), &card(captured, None, native), native);
+            let shown = review_gloss(Some(pack), &card(captured, None, native));
             assert_eq!(shown, clean, "{pair}: {captured:?}");
         }
         assert_eq!(
-            review_gloss(Some(&en_fr), &card("four-poster bed,", None, "fr"), "fr").as_deref(),
+            review_gloss(Some(&en_fr), &card("four-poster bed,", None, "fr")).as_deref(),
             Some("Lit à baldaquin")
         );
         assert_eq!(
-            review_gloss(Some(&en_fr), &card("bed ,", None, "fr"), "fr").as_deref(),
+            review_gloss(Some(&en_fr), &card("bed ,", None, "fr")).as_deref(),
             en_fr.gloss("bed"),
             "`bed ,` is the word `bed`"
         );
     }
 
+    /// add-lingua-review-translation-fallback D5, on fix-lingua-selection-card-punctuation's trimmed
+    /// lookup: for every card the reader's gloss as written, else the pack's at the trimmed lemma,
+    /// else the card's own text — whatever language that text is in.
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
-    fn a_card_s_own_gloss_wins_only_when_it_holds_one_in_the_native_language() {
+    fn the_readers_gloss_then_the_pack_then_the_stored_text() {
         let en_fr = pack_holding_four_poster_bed();
-        let read = |lemma: &str, gloss: Option<&str>, language: &str| {
-            review_gloss(Some(&en_fr), &card(lemma, gloss, language), "fr")
+        let read = |lemma: &str, gloss: Option<&str>, language: &str, by_reader: bool| {
+            let mut card = card(lemma, gloss, language);
+            card.gloss_by_reader = by_reader;
+            review_gloss(Some(&en_fr), &card)
         };
-        // Glossed in the native language: its own text, even where the pack has another.
-        assert_eq!(
-            read("four-poster bed,", Some("baldaquin"), "fr").as_deref(),
-            Some("baldaquin")
-        );
-        // Glossless, and the pack holds nothing at its trimmed lemma: no gloss, as before.
-        assert_eq!(read("blorft quux,", None, "fr"), None);
-        // Glossed in another language the pack does not know: the card's own text.
-        assert_eq!(
-            read("blorft quux,", Some("thing"), "en").as_deref(),
-            Some("thing")
-        );
+        type Case<'a> = (&'a str, Option<&'a str>, &'a str, bool, Option<&'a str>);
+        // (lemma, stored gloss, its language, chosen by the reader, what review shows)
+        let cases: [Case; 6] = [
+            // The pack wins over a stored gloss, in the native language or not.
+            (
+                "four-poster bed,",
+                Some("baldaquin"),
+                "fr",
+                false,
+                Some("Lit à baldaquin"),
+            ),
+            (
+                "four-poster bed,",
+                Some("canopy bed"),
+                "en",
+                false,
+                Some("Lit à baldaquin"),
+            ),
+            // The reader's gloss wins over the pack, whatever its language.
+            (
+                "four-poster bed,",
+                Some("baldaquin"),
+                "fr",
+                true,
+                Some("baldaquin"),
+            ),
+            (
+                "four-poster bed,",
+                Some("canopy bed"),
+                "en",
+                true,
+                Some("canopy bed"),
+            ),
+            // The pack holds nothing at the trimmed lemma: the stored text, or none.
+            ("blorft quux,", Some("thing"), "en", false, Some("thing")),
+            ("blorft quux,", None, "fr", false, None),
+        ];
+        for (lemma, gloss, language, by_reader, shown) in cases {
+            assert_eq!(
+                read(lemma, gloss, language, by_reader).as_deref(),
+                shown,
+                "{lemma:?} {gloss:?} {language} reader: {by_reader}"
+            );
+        }
         // No pack held for the card's language: its own gloss, or none.
         assert_eq!(
-            review_gloss(None, &card("four-poster bed,", None, "fr"), "fr"),
+            review_gloss(None, &card("four-poster bed,", None, "fr")),
             None
         );
+        assert_eq!(
+            review_gloss(None, &card("four-poster bed,", Some("lit"), "fr")).as_deref(),
+            Some("lit")
+        );
+    }
+
+    #[test]
+    fn a_kept_gloss_is_trimmed_and_refused_empty_or_over_eighty_utf16_units() {
+        // add-lingua-review-translation-fallback D3. `é` is one UTF-16 unit, `𝄞` two: the bound
+        // is JavaScript's `length`. (`keepGloss` turns a refusal into a `JsError`, which only
+        // exists on wasm.)
+        let cases = [
+            (String::new(), None),
+            ("   ".to_owned(), None),
+            ("  se relâcher ".to_owned(), Some("se relâcher".to_owned())),
+            ("é".repeat(80), Some("é".repeat(80))),
+            ("é".repeat(81), None),
+            ("𝄞".repeat(40), Some("𝄞".repeat(40))),
+            (format!("{}a", "𝄞".repeat(40)), None),
+        ];
+        for (gloss, kept) in cases {
+            assert_eq!(
+                checked_kept_gloss(&gloss).ok().map(str::to_owned),
+                kept,
+                "{gloss:?}"
+            );
+        }
     }
 
     #[test]

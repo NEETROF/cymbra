@@ -275,7 +275,7 @@ translations its Spanish entries list, where the French Wiktionary has no gloss.
 ### start-review
 10
 ### review-current first
-{"gloss":"voyage","headword":"viaje","remaining":10,"revealed":false,"sentence":"Ella dirigirá el viaje.","source":"https://example.com/homografos","surface":"viaje"}
+{"gloss":"Voyage","headword":"viaje","remaining":10,"revealed":false,"sentence":"Ella dirigirá el viaje.","source":"https://example.com/homografos","surface":"viaje"}
 ### review-current second
 {"gloss":"Sourire","headword":"sonreír","remaining":9,"revealed":false,"sentence":"Entró en la sala sonriendo.","source":"","surface":"sonriendo"}
 ### review-remaining

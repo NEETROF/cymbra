@@ -48,6 +48,11 @@ message CardOp {
   // part of the key: two devices of one account write one card row, and the label
   // travels with the gloss that wins.
   string gloss_language = 12;
+  // Whether the reader chose `gloss` — a machine translation they kept in review, or a
+  // translation they wrote (add-lingua-review-translation-fallback, add-lingua-card-edit).
+  // False from a client that predates the field. Stored and returned as received, with no
+  // logic of its own: a client keeps a gloss the reader chose over the pack's.
+  bool gloss_by_reader = 13;
 }
 
 message PushCardsRequest {

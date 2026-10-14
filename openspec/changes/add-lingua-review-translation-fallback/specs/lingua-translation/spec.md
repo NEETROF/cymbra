@@ -115,7 +115,8 @@ the Cymbra Lingua app included.
 Under a machine translation shown in review, engine or online, the review SHALL offer an action that keeps the translation of the card's word as the card's gloss, and SHALL show what it keeps before it is kept.
 The candidate SHALL be the marked text of the translation — several marks joined in order by « … » —
 or, for an expression translated alone, the whole translation. A candidate that is non-empty, in
-range and at most 80 characters SHALL be kept in one tap from an action naming it (French UI copy:
+range, at most 80 characters and drawn from a single mark — or an expression translated alone —
+SHALL be kept in one tap from an action naming it (French UI copy:
 « Garder « se relâcher » »), with a neighbouring « Modifier » opening a one-line field prefilled with
 it. Otherwise the action (French UI copy: « Garder une traduction… ») SHALL open that field
 prefilled with the candidate, or empty without one, and SHALL NOT save while the trimmed field is
@@ -134,7 +135,7 @@ control, with no transition.
 
 #### Scenario: A split mark
 - **WHEN** the translation marks « remettait » and « à plus tard » for « putting off »
-- **THEN** the action names « remettait … à plus tard », and « Modifier » lets the reader save « remettre à plus tard » instead
+- **THEN** no action keeps it in one tap: « Garder une traduction… » opens the field prefilled with « remettait … à plus tard », and the reader can save « remettre à plus tard » instead
 
 #### Scenario: Replacing a useless gloss
 - **WHEN** the reader keeps « aurait » under the translation of a « would » card whose gloss was the pack's

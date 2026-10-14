@@ -70,6 +70,32 @@ extension (see `openspec/changes/add-lingua-apple`).
   read it — the app shows the activation page, as before. On a Mac the window becomes resizable
   and grows to a review column.
 
+- **Translation in the app's review** (`openspec/changes/add-lingua-review-translation-fallback`,
+  D7–D9; measured in `spike-1.4.md` of that change on a real iPhone 15 Pro Max, the simulators and a
+  Mac).
+  - *Engine.* The extension's own engine worker and model worker run as classic workers of the page.
+    Their files — `engine-worker.js`, `model-worker.js`, `engine/` and `model-manifest.json` — are
+    the Safari extension's, served by `AppPageResource` from the embedded `.appex` under
+    `lingua-app://app/`, so they are in the app once and `dist-app` carries none. Measured on the
+    iPhone: cold load 107–172 ms, first translation 129–136 ms, then 25–30 ms; the web content process
+    peaks near 347 MiB and settles near 290 MiB with one model.
+  - *Models.* The app keeps its own copy in the page's IndexedDB (`lingua-model`), downloaded by the
+    extension's download code from `models.cymbra.app` and checked against the bundled catalogue. It
+    follows the extension's « Traduction étendue » on the device (relayed): on, the review offers the
+    download once, with its size, and fetches nothing before the reader accepts; off, the app deletes
+    its copy at its next opening. WebKit refuses `navigator.storage.persist()` to the custom scheme,
+    so the copy is evictable: a pair downloaded once and missing since is offered again. The copy
+    survives relaunch and a device restart. **`models.cymbra.app` must keep answering
+    `access-control-allow-origin: *`**: the page reads the models cross-origin.
+  - *Session.* « Traduction en ligne » in the app uses a Cymbra session of the app's own, never the
+    extension's. The first press opens `AppSignInView` (Apple first, then Google) through the page's
+    `auth.signIn`; the page exchanges the id_token through `SignInOidc` (`lingua` audience) and keeps
+    the access token in memory, the refresh token in the Keychain (`KeychainRefreshTokenStore`, the
+    page's `auth.readRefresh` / `auth.writeRefresh` / `auth.clear`, `AppSessionMessage`). A line under
+    the views shows the session and ends it; an email-only account is told the app needs Apple or
+    Google. The page calls the server directly over gRPC-web: WebKit sends `Origin: lingua-app://app`,
+    which production must list in `CYMBRA_ALLOWED_WEB_ORIGINS`.
+
 The project was scaffolded by `xcrun safari-web-extension-converter` and then changed by
 hand to replace its copied resources with the build phase above.
 

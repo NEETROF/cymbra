@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createSpeaker, type VoiceInfo } from "@/reading/speech.ts";
 import type { ReviewView } from "@/review/session.ts";
-import { markWord, type ReviewActions, renderReview, sourceLabel } from "@/review/view.ts";
+import { markWord, type ReviewActions, type ReviewOnlineOffer, renderReview, sourceLabel } from "@/review/view.ts";
 import { makeFakeSpeech } from "./helpers.ts";
 
 let root: HTMLElement;
@@ -576,5 +576,220 @@ describe("renderReview — a card translated at review (add-lingua-review-transl
       translation: { state: "pending" },
     });
     expect(root.querySelector(".review-translating")?.textContent).toBe("Translating…");
+  });
+});
+
+// add-lingua-review-translation-fallback D1–D3, D10: the link, the online button and keeping.
+describe("renderReview — keeping a translation, the link and the online button", () => {
+  const slacken = {
+    headword: "slacken",
+    surface: "slacken",
+    sentence: "He felt his grip slacken.",
+    gloss: null,
+    revealed: true,
+  };
+  const translated = (sentence: string, marks: { start: number; end: number }[], alone = false) => ({
+    state: "translated" as const,
+    translation: { sentence, marks },
+    alone,
+  });
+  const SE_RELACHER = translated("Il sentit sa prise se relâcher.", [{ start: 19, end: 30 }]);
+  const field = (): HTMLInputElement => root.querySelector<HTMLInputElement>(".review-keep-input")!;
+  const type = (value: string): void => {
+    field().value = value;
+    field().dispatchEvent(new Event("input"));
+  };
+
+  it("One tap: names the marked word and keeps it, « Modifier » beside it", () => {
+    const keep = vi.fn();
+    renderReview(root, reviewing(slacken), actions, { translation: SE_RELACHER, keep });
+    expect(button("Modifier")).toBeTruthy();
+    button("Garder « se relâcher »").click();
+    expect(keep).toHaveBeenCalledWith("se relâcher");
+  });
+
+  // (marks, alone, the action's label) — a candidate named, or the field's path.
+  const CANDIDATES: [string, { start: number; end: number }[], boolean, string][] = [
+    [
+      "Il remettait toujours le travail à plus tard.",
+      [
+        { start: 3, end: 12 },
+        { start: 33, end: 44 },
+      ],
+      false,
+      "Garder une traduction…",
+    ],
+    ["comme celles faites", [], true, "Garder « comme celles faites »"],
+    ["Il sentit sa prise se relâcher.", [], false, "Garder une traduction…"],
+    ["Il sentit sa prise se relâcher.", [{ start: 40, end: 50 }], false, "Garder une traduction…"],
+    [`Il dit ${"très ".repeat(20)}fort.`, [{ start: 7, end: 107 }], false, "Garder une traduction…"],
+  ];
+
+  it("names a one-mark candidate or an expression alone whole; several marks, none or too long: the field", () => {
+    for (const [sentence, marks, alone, label] of CANDIDATES) {
+      renderReview(root, reviewing(slacken), actions, {
+        translation: translated(sentence, marks, alone),
+        keep: vi.fn(),
+      });
+      expect(button(label), sentence).toBeTruthy();
+    }
+  });
+
+  it("No mark: an empty field, « Enregistrer » disabled until a translation is typed, then kept", () => {
+    const keep = vi.fn();
+    renderReview(root, reviewing(slacken), actions, {
+      translation: translated("Il sentit sa prise faiblir.", []),
+      keep,
+    });
+    button("Garder une traduction…").click();
+    expect(field().value).toBe("");
+    for (const [value, enabled] of [
+      ["", false],
+      ["   ", false],
+      ["x".repeat(81), false],
+      [" faiblir ", true],
+    ] as const) {
+      type(value);
+      expect(button("Enregistrer").disabled, JSON.stringify(value)).toBe(!enabled);
+    }
+    button("Enregistrer").click();
+    expect(keep).toHaveBeenCalledWith("faiblir");
+  });
+
+  // (translation, its marks, the field prefilled with) — several marks never kept in one tap.
+  const SPLIT: [string, { start: number; end: number }[], string][] = [
+    [
+      "Il remettait toujours le travail à plus tard.",
+      [
+        { start: 3, end: 12 },
+        { start: 33, end: 44 },
+      ],
+      "remettait … à plus tard",
+    ],
+    // The iPhone spike's answer for « colloquially referred to as »: a non-word and a spurious second mark.
+    [
+      "Ce phénomène est facilitamment appelé une ruée vers le sucre",
+      [
+        { start: 17, end: 37 },
+        { start: 47, end: 51 },
+      ],
+      "facilitamment appelé … vers",
+    ],
+  ];
+
+  it("A split mark: never one tap — « Garder une traduction… » opens the field prefilled, a correction is saved", () => {
+    for (const [sentence, marks, prefilled] of SPLIT) {
+      const keep = vi.fn();
+      renderReview(root, reviewing(slacken), actions, { translation: translated(sentence, marks), keep });
+      expect(root.querySelector(".review-keep-btn"), sentence).toBeNull();
+      expect(root.querySelector(".review-keep-edit"), sentence).toBeNull();
+      button("Garder une traduction…").click();
+      expect(field().value).toBe(prefilled);
+      button("Annuler").click();
+      button("Garder une traduction…").click();
+      type("remettre à plus tard");
+      button("Enregistrer").click();
+      expect(keep).toHaveBeenCalledWith("remettre à plus tard");
+    }
+  });
+
+  it("One mark: « Modifier » opens the field prefilled, « Annuler » comes back", () => {
+    renderReview(root, reviewing(slacken), actions, { translation: SE_RELACHER, keep: vi.fn() });
+    button("Modifier").click();
+    expect(field().value).toBe("se relâcher");
+    button("Annuler").click();
+    expect(button("Garder « se relâcher »")).toBeTruthy();
+  });
+
+  it("lays the field out first, its label said, « Enregistrer » and « Annuler » after it", () => {
+    renderReview(root, reviewing(slacken), actions, { translation: SE_RELACHER, keep: vi.fn() });
+    button("Modifier").click();
+    const form = root.querySelector(".review-keep-field")!;
+    expect([...form.children].map((c) => c.className)).toEqual([
+      "review-keep-input",
+      "review-link review-keep-save",
+      "review-link review-keep-cancel",
+    ]);
+    expect(field().getAttribute("aria-label")).toBe("Traduction à garder");
+  });
+
+  it("typing in the field never answers the card", () => {
+    renderReview(root, reviewing(slacken), actions, { translation: SE_RELACHER, keep: vi.fn() });
+    button("Modifier").click();
+    key(field(), "ArrowLeft");
+    key(field(), "ArrowRight");
+    expect(actions.grade).not.toHaveBeenCalled();
+  });
+
+  it("shows a translation holding markup as text, its candidate too", () => {
+    renderReview(root, reviewing(slacken), actions, {
+      translation: translated("Il <b>se</b> relâche.", [{ start: 3, end: 12 }]),
+      keep: vi.fn(),
+    });
+    expect(root.querySelector(".review-translation b")).toBeNull();
+    expect(root.querySelector(".review-translation mark")?.textContent).toBe("<b>se</b>");
+    expect(button("Garder « <b>se</b> »")).toBeTruthy();
+  });
+
+  it("offers no keep action without a translation shown, nor without the host's keep", () => {
+    renderReview(root, reviewing(slacken), actions, { translation: { state: "pending" }, keep: vi.fn() });
+    expect(root.querySelector(".review-keep")).toBeNull();
+    renderReview(root, reviewing(slacken), actions, { translation: SE_RELACHER });
+    expect(root.querySelector(".review-keep")).toBeNull();
+  });
+
+  it("A word the pack glosses: the link beside the gloss, the asked translation under it", () => {
+    const ask = vi.fn();
+    renderReview(root, reviewing({ revealed: true }), actions, { askTranslation: ask });
+    expect(root.querySelector(".review-gloss")?.textContent).toBe("rarement");
+    button("Traduire la phrase").click();
+    expect(ask).toHaveBeenCalledOnce();
+
+    renderReview(root, reviewing({ revealed: true }), actions, { translation: { state: "pending" } });
+    expect(root.querySelector(".review-translating")?.textContent).toBe("Traduction en cours…");
+    renderReview(root, reviewing({ revealed: true }), actions, { translation: SE_RELACHER });
+    expect(root.querySelector(".review-gloss")?.textContent).toBe("rarement");
+    expect(root.querySelector(".review-translation-label")?.textContent).toBe(
+      "Dans votre phrase — traduction automatique",
+    );
+    renderReview(root, reviewing({ revealed: true }), actions, { translation: { state: "none" } });
+    expect(root.querySelector(".review-translation, .review-translating, .review-no-gloss")).toBeNull();
+  });
+
+  it("No model: no link, as before", () => {
+    renderReview(root, reviewing({ revealed: true }), actions);
+    expect(root.querySelector(".review-ask-translation")).toBeNull();
+  });
+
+  // (state, pressable, the note)
+  const ONLINE: [ReviewOnlineOffer["state"], boolean, string][] = [
+    ["offered", true, ""],
+    ["asking", false, "Traduction en ligne…"],
+    ["answered", false, ""],
+    ["unavailable", false, "Traduction en ligne indisponible pour le moment."],
+    ["limit", false, "Limite quotidienne atteinte — de nouveau disponible à"],
+  ];
+
+  it("the online button: pressable only while offered, its note as the selection card's", () => {
+    for (const [state, pressable, note] of ONLINE) {
+      const press = vi.fn();
+      renderReview(root, reviewing(slacken), actions, { online: { state, resetsAt: Date.now(), press } });
+      const b = button("Traduction en ligne");
+      expect(b.disabled, state).toBe(!pressable);
+      expect(root.querySelector(".review-online-note")?.textContent ?? "").toContain(note);
+      b.click();
+      b.click();
+      expect(press, state).toHaveBeenCalledTimes(pressable ? 1 : 0);
+    }
+  });
+
+  it("labels an online translation as one", () => {
+    for (const [alone, label] of [
+      [false, "Dans votre phrase — traduction automatique en ligne"],
+      [true, "Traduction automatique en ligne"],
+    ] as const) {
+      renderReview(root, reviewing(slacken), actions, { translation: { ...translated("x", [], alone), online: true } });
+      expect(root.querySelector(".review-translation-label")?.textContent).toBe(label);
+    }
   });
 });

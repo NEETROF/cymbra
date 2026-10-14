@@ -751,6 +751,26 @@ describe("the side panel hands review and statistics the language it read (panel
     expect(text(doc, "#view-stats .seed .mlabel")).toBe("Strengthen a level");
   });
 
+  it("hands Révision the panel's online translation (add-lingua-review-translation-fallback D2)", async () => {
+    const doc = load(HTML);
+    const port = makeFakePort([
+      { headword: "slacken", surface: "slacken", sentence: "He felt his grip slacken.", gloss: null },
+    ]).port;
+    const panel = startPanel(doc, {
+      ...deps(pageArea({ [INTERFACE_LANGUAGE_KEY]: "en" }) as AsyncStorageArea),
+      port,
+      online: { offered: () => true, translate: async () => ({ kind: "unavailable" as const }) },
+    });
+    const container = doc.getElementById("view-review")!;
+    const review = await panel.review(container);
+    await review.refresh();
+    for (const label of ["Review", "Show the answer"]) {
+      [...container.querySelectorAll("button")].find((b) => b.textContent === label)!.click();
+      await settle();
+    }
+    expect(buttons(container)).toContain("Online translation");
+  });
+
   it("Révision asked for before the language has answered waits for it, and is mounted once, in English", async () => {
     const doc = load(HTML);
     const prefs = heldPrefs("en");

@@ -108,6 +108,14 @@ pub struct Card {
         skip_serializing_if = "is_french"
     )]
     pub gloss_language: String,
+    /// Whether the reader chose `gloss` — a machine translation they kept in review, or a
+    /// translation they wrote (add-lingua-review-translation-fallback D5, the mark
+    /// `add-lingua-card-edit` shares). Such a gloss wins over the pack's: review shows it as
+    /// written and a re-capture keeps it. Left out of the backup when `false`, so every backup
+    /// without a chosen gloss keeps its bytes and a build released before the mark reads one
+    /// that carries it.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub gloss_by_reader: bool,
     /// Optional attached media (reserved; unpopulated in this change).
     pub media: Option<Media>,
     /// The FSRS review state (never reviewed until first graded).
@@ -131,6 +139,10 @@ fn french() -> String {
 
 fn is_french(language: &str) -> bool {
     language == FRENCH
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 /// The gloss language a label names: trimmed and lowercased, so `" EN "` is `en`; blank is
@@ -185,6 +197,7 @@ impl Card {
             provenance,
             gloss,
             gloss_language: gloss_language.to_owned(),
+            gloss_by_reader: false,
             media: None,
             review: ReviewState::new(),
             updated_at,
@@ -391,6 +404,41 @@ mod tests {
         assert_eq!(back.gloss.as_deref(), Some("courir"));
         json["unknown_to_this_build"] = "ignored".into();
         assert!(serde_json::from_value::<Card>(json).is_ok());
+    }
+
+    #[test]
+    fn the_readers_mark_is_written_only_when_set() {
+        let card = Card::new(
+            "slacken",
+            "slacken",
+            web_provenance("The ropes slacken.", "https://x"),
+            Some("détendre".to_owned()),
+            "fr",
+        );
+        let unmarked = serde_json::to_string(&card).expect("serialise");
+        assert!(!unmarked.contains("gloss_by_reader"), "{unmarked}");
+        assert!(
+            !serde_json::from_str::<Card>(&unmarked)
+                .unwrap()
+                .gloss_by_reader
+        );
+
+        let mut kept = card;
+        kept.gloss = Some("se relâcher".to_owned());
+        kept.gloss_by_reader = true;
+        let json: serde_json::Value = serde_json::to_value(&kept).expect("serialise");
+        assert_eq!(json["gloss_by_reader"], true);
+        let back: Card = serde_json::from_value(json.clone()).expect("deserialise");
+        assert_eq!(back, kept);
+
+        // A reader that does not know the mark (any deserialiser that denies no unknown
+        // field — every build before it) reads the card with its gloss.
+        #[derive(Deserialize)]
+        struct Older {
+            gloss: Option<String>,
+        }
+        let older: Older = serde_json::from_value(json).expect("an older build reads it");
+        assert_eq!(older.gloss.as_deref(), Some("se relâcher"));
     }
 
     #[test]
