@@ -122,6 +122,104 @@ struct SignInView: View {
     }
 }
 
+/// The sheet the app opens for its own Cymbra session (add-lingua-review-translation-fallback, D8):
+/// asked by its review page on the first press of « Traduction en ligne » (`auth.signIn`). Both
+/// providers, Apple first; the id_token goes back to the page, which exchanges it — never to the
+/// App Group, never to the Safari extension, whose session this does not touch. `finish` is called
+/// once: with the provider and its outcome, or with nothing when the reader closes the sheet.
+struct AppSignInView: View {
+    let language: SignInLanguage
+    let google: GoogleIdTokenSource?
+    let finish: (SignInProvider?, ProviderOutcome?) -> Void
+
+    @State private var failed: SignInProvider?
+    @State private var working = false
+
+    private var copy: SignInCopy { SignInCopy(language: language) }
+
+    var body: some View {
+        VStack(spacing: 18) {
+            Text(copy.heading)
+                .font(.title2.bold())
+                .foregroundStyle(Palette.text)
+            Text(copy.appLede)
+                .foregroundStyle(Palette.muted)
+            SignInWithAppleButton(.continue) { request in
+                request.requestedScopes = [.email]
+            } onCompletion: { result in
+                answered(.apple, appleOutcome(result))
+            }
+            .signInWithAppleButtonStyle(.white)
+            .frame(height: 48)
+            .disabled(working)
+            if let google {
+                Button {
+                    working = true
+                    Task {
+                        let outcome = await google.idToken()
+                        working = false
+                        answered(.google, outcome)
+                    }
+                } label: {
+                    Text(copy.button(.google))
+                        .font(.body.weight(.semibold))
+                        .frame(maxWidth: .infinity, minHeight: 48)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Palette.accentInk)
+                .background(Palette.accentStrong, in: RoundedRectangle(cornerRadius: 12))
+                .disabled(working)
+            }
+            if working {
+                Text(copy.browserWaiting)
+                    .foregroundStyle(Palette.muted)
+            }
+            if let failed {
+                Text(copy.failure(failed))
+                    .foregroundStyle(Palette.coral)
+            }
+            Button(copy.cancel) { finish(nil, nil) }
+                .buttonStyle(.plain)
+                .foregroundStyle(Palette.accent)
+        }
+        .multilineTextAlignment(.center)
+        .padding(28)
+        .frame(maxWidth: 420)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Palette.background)
+        .environment(\.locale, Locale(identifier: language.rawValue))
+        .onDisappear { google?.cancel() }
+    }
+
+    /// A token closes the sheet with it; a cancel stays on the choice; a failure says so.
+    private func answered(_ provider: SignInProvider, _ outcome: ProviderOutcome) {
+        switch outcome {
+        case .idToken:
+            finish(provider, outcome)
+        case .cancelled:
+            failed = nil
+        case .failed:
+            failed = provider
+        }
+    }
+
+    private func appleOutcome(_ result: Result<ASAuthorization, Error>) -> ProviderOutcome {
+        switch result {
+        case let .success(authorization):
+            let credential = authorization.credential as? ASAuthorizationAppleIDCredential
+            guard let data = credential?.identityToken, let token = String(data: data, encoding: .utf8) else {
+                os_log(.error, "Sign in with Apple returned no identity token")
+                return .failed
+            }
+            return .idToken(token)
+        case let .failure(error):
+            if (error as? ASAuthorizationError)?.code == .canceled { return .cancelled }
+            os_log(.error, "Sign in with Apple failed: %{public}@", String(describing: error))
+            return .failed
+        }
+    }
+}
+
 /// The Cymbra palette (apps/lingua-extension/src/styles/tokens.css).
 private enum Palette {
     static let background = Color(hex: 0x0B1326)

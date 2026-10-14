@@ -165,6 +165,13 @@ export interface LanguagePort extends AnalyzerPort {
   addCard(card: NewCard): Promise<void>;
   /** Retire the card for a lemma if present (keep it, stop it coming due); `now` in epoch seconds. */
   retireCard(lemma: string, now: number): Promise<void>;
+  /**
+   * Keep `gloss` — a machine translation the reader accepted in review — as the gloss of the card
+   * for `lemma`, marked as the reader's choice, `now` in epoch seconds
+   * (add-lingua-review-translation-fallback D3, D5); resolves whether a card was there. Rejects an
+   * empty gloss or one over KEEP_MAX_UNITS UTF-16 code units.
+   */
+  keepGloss(lemma: string, gloss: string, now: number): Promise<boolean>;
   /** The pack's bundled attribution NOTICE. */
   notice(): Promise<string>;
   /** The pack's source licences. */

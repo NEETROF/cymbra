@@ -45,13 +45,14 @@ impl DeckRepo for PgDeckRepo {
         let affected = sqlx::query(
             "INSERT INTO lingua.cards \
                (user_id, language, client_id, lemma, surface_form, source_sentence, gloss, \
-                fsrs_state, deleted, updated_at, device_id, seq, gloss_language) \
+                fsrs_state, deleted, updated_at, device_id, seq, gloss_language, gloss_by_reader) \
              VALUES ($1, $11, $2, $3, $4, $5, $6, $7, $8, $9, $10, nextval('lingua.change_seq'), \
-                     $12) \
+                     $12, $13) \
              ON CONFLICT (user_id, language, client_id) DO UPDATE SET \
                lemma = excluded.lemma, surface_form = excluded.surface_form, \
                source_sentence = excluded.source_sentence, \
                gloss = excluded.gloss, gloss_language = excluded.gloss_language, \
+               gloss_by_reader = excluded.gloss_by_reader, \
                fsrs_state = excluded.fsrs_state, \
                deleted = excluded.deleted, updated_at = excluded.updated_at, \
                device_id = excluded.device_id, seq = nextval('lingua.change_seq') \
@@ -71,6 +72,7 @@ impl DeckRepo for PgDeckRepo {
         .bind(&card.device_id)
         .bind(&card.language)
         .bind(&card.gloss_language)
+        .bind(card.gloss_by_reader)
         .execute(&self.pool)
         .await
         .map_err(internal)?
@@ -97,7 +99,7 @@ impl DeckRepo for PgDeckRepo {
     ) -> Result<Vec<Card>> {
         let rows = sqlx::query(
             "SELECT language, client_id, lemma, surface_form, source_sentence, gloss, \
-                    gloss_language, fsrs_state, deleted, updated_at, device_id, seq \
+                    gloss_language, gloss_by_reader, fsrs_state, deleted, updated_at, device_id, seq \
              FROM lingua.cards \
              WHERE user_id = $1 AND seq > $2 AND language = ANY($3) \
                AND ($4 OR gloss_language = $5) \
@@ -121,6 +123,7 @@ impl DeckRepo for PgDeckRepo {
                 source_sentence: r.get("source_sentence"),
                 gloss: r.get::<Option<String>, _>("gloss").unwrap_or_default(),
                 gloss_language: r.get("gloss_language"),
+                gloss_by_reader: r.get("gloss_by_reader"),
                 fsrs_state: r.get("fsrs_state"),
                 deleted: r.get("deleted"),
                 updated_at: r.get("updated_at"),

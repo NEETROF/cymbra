@@ -619,3 +619,110 @@ fn a_restore_of_the_state_just_saved_keeps_the_session_and_another_deck_ends_it(
     e.restore(&other).unwrap();
     assert!(e.review_current().is_none());
 }
+
+// --- A gloss the reader kept (add-lingua-review-translation-fallback D3, D5, D6) ---
+
+fn card_ops(e: &LinguaEngine) -> Vec<serde_json::Value> {
+    serde_json::from_str(&e.export_card_ops()).expect("card ops")
+}
+
+fn op_of<'a>(ops: &'a [serde_json::Value], lemma: &str) -> &'a serde_json::Value {
+    ops.iter().find(|op| op["lemma"] == lemma).expect("an op")
+}
+
+fn shown_gloss(e: &LinguaEngine) -> serde_json::Value {
+    let view: serde_json::Value =
+        serde_json::from_str(&e.review_current().expect("a card under review")).unwrap();
+    view["gloss"].clone()
+}
+
+#[test]
+fn a_kept_gloss_is_shown_exported_marked_and_stamped() {
+    let mut e = engine();
+    e.add_card(
+        "slacken",
+        "slacken",
+        "The ropes slacken.",
+        "https://x",
+        None,
+        100.0,
+        None,
+    )
+    .unwrap();
+    assert!(
+        card_ops(&e)[0].get("gloss_by_reader").is_none(),
+        "an export without a chosen gloss keeps its bytes"
+    );
+    assert!(
+        e.keep_gloss("slacken", "  se relâcher ", None, 500.0)
+            .unwrap()
+    );
+    assert_eq!(e.start_review(600.0, None, None, None, None, None), 1);
+    assert_eq!(shown_gloss(&e), "se relâcher");
+    let op = &card_ops(&e)[0];
+    assert_eq!(op["gloss"], "se relâcher");
+    assert_eq!(op["gloss_by_reader"], true);
+    assert_eq!(op["client_ts"], 500_000);
+    // No card for the lemma: nothing kept.
+    assert!(!e.keep_gloss("absent", "x", None, 500.0).unwrap());
+}
+
+#[test]
+fn spec_scenario_kept_then_captured_again() {
+    let mut e = engine();
+    let capture = |e: &mut LinguaEngine, lemma: &str, sentence: &str, gloss: &str, at: f64| {
+        e.add_card(
+            lemma,
+            lemma,
+            sentence,
+            "https://a",
+            Some(gloss.to_owned()),
+            at,
+            None,
+        )
+        .unwrap();
+    };
+    capture(&mut e, "slacken", "The ropes slacken.", "détendre", 100.0);
+    assert!(e.keep_gloss("slacken", "se relâcher", None, 200.0).unwrap());
+    capture(&mut e, "slacken", "Demand slackened.", "relâcher", 300.0);
+    // A card the reader did not choose takes the new capture's gloss, as before.
+    capture(&mut e, "seldom", "s", "a", 100.0);
+    capture(&mut e, "seldom", "s", "b", 300.0);
+    let ops = card_ops(&e);
+    let slacken = op_of(&ops, "slacken");
+    assert_eq!(slacken["source_sentence"], "Demand slackened.");
+    assert_eq!(slacken["gloss"], "se relâcher");
+    assert_eq!(slacken["gloss_by_reader"], true);
+    let seldom = op_of(&ops, "seldom");
+    assert_eq!(seldom["gloss"], "b");
+    assert!(seldom.get("gloss_by_reader").is_none());
+}
+
+#[test]
+fn a_kept_gloss_reaches_another_device_and_survives_an_echo() {
+    // lingua-sync « A kept gloss reaches another device » and « An echo without the mark ».
+    let mut phone = engine();
+    phone
+        .add_card("slacken", "slacken", "s", "https://x", None, 100.0, None)
+        .unwrap();
+    phone
+        .keep_gloss("slacken", "se relâcher", None, 200.0)
+        .unwrap();
+    let mut mac = engine();
+    assert_eq!(mac.apply_card_ops(&phone.export_card_ops()).unwrap(), 1);
+    assert_eq!(card_ops(&mac)[0]["gloss_by_reader"], true);
+    // A newer op with the same text and no mark: the card lands, the mark stays.
+    let mut echo = card_ops(&mac);
+    echo[0].as_object_mut().unwrap().remove("gloss_by_reader");
+    echo[0]["client_ts"] = 900_000.into();
+    assert_eq!(
+        mac.apply_card_ops(&serde_json::to_string(&echo).unwrap())
+            .unwrap(),
+        1
+    );
+    let op = &card_ops(&mac)[0];
+    assert_eq!(op["client_ts"], 900_000);
+    assert_eq!(op["gloss_by_reader"], true);
+    assert_eq!(mac.start_review(1_000.0, None, None, None, None, None), 1);
+    assert_eq!(shown_gloss(&mac), "se relâcher");
+}

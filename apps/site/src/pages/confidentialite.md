@@ -167,7 +167,7 @@ complément du §2 :
 
 **Ce qui reste sur votre appareil.** Le texte des pages est analysé **sur votre appareil** et
 n'est jamais envoyé, sauf la phrase que vous envoyez vous-même avec la **Traduction en ligne**
-(ci-dessous). Restent aussi sur l'appareil : le détail de vos lectures (quels mots
+et la traduction d'un mot que vous choisissez de garder sur sa carte (ci-dessous). Restent aussi sur l'appareil : le détail de vos lectures (quels mots
 vous avez rencontrés, sur quelles pages), l'**adresse de la page** où vous ajoutez un mot à
 votre deck et, si vous n'êtes pas connecté, l'ensemble de vos données Lingua.
 
@@ -190,19 +190,31 @@ appareil**, et le texte des pages n'est toujours jamais envoyé. Ces télécharg
 contiennent ni texte des pages, ni données Lingua, ni jeton de compte, ni identifiant
 d'installation, et Cymbra ne les associe à aucun compte ni à aucune installation. Comme pour
 toute page web, l'hébergeur de ces fichiers (Cloudflare) voit l'adresse IP de l'appareil qui
-les demande. Désactiver le réglage supprime les modèles de l'appareil.
+les demande. Désactiver le réglage supprime les modèles de l'appareil. L'app Cymbra Lingua
+garde sa propre copie des modèles : elle ne la télécharge, depuis la même adresse et dans les
+mêmes conditions, qu'après que vous l'avez acceptée dans l'app, quand le réglage est activé dans
+l'extension Safari du même appareil, et la supprime quand il est désactivé.
 
 **Traduction en ligne.** Ce réglage, désactivé par défaut et propre à chaque appareil (il
 n'est pas synchronisé), n'est proposé qu'aux comptes qui y ont accès. Quand il est activé, un
-bouton « Traduction en ligne » apparaît sur la traduction d'une sélection de plusieurs mots.
-**Rien n'est envoyé tant que vous n'appuyez pas sur ce bouton.** Quand vous appuyez, la phrase
-qui contient votre sélection, la position de la sélection et la paire de langues sont envoyées
+bouton « Traduction en ligne » apparaît sur la traduction d'une sélection de plusieurs mots, et
+sur une carte en révision. **Rien n'est envoyé tant que vous n'appuyez pas sur ce bouton.** Quand
+vous appuyez, la phrase qui contient votre sélection — ou la phrase de la carte révisée, le mot
+repéré par sa position —, la position de la sélection et la paire de langues sont envoyées
 à Cymbra, avec votre jeton de compte, puis par Cymbra à **Google** (API Gemini) pour être
 traduites, ou à **Anthropic** (API Claude) quand Google ne répond pas. Ni Cymbra ni ces
 fournisseurs ne conservent la phrase ni sa traduction, et ces fournisseurs ne s'en servent pas
 pour entraîner leurs modèles. Pour limiter l'usage et en connaître le coût, Cymbra compte, pour
 votre compte, le nombre de traductions en ligne du jour (compteur effacé au bout d'un jour) et
-tient des totaux quotidiens par fournisseur et par paire de langues, sans compte ni texte.
+tient des totaux quotidiens par fournisseur et par paire de langues, sans compte ni texte. Dans
+l'app Cymbra Lingua, la Traduction en ligne demande de vous connecter **dans l'app** (avec Apple
+ou Google) : l'app ouvre alors sa propre session de votre compte, distincte de celle de
+l'extension, que vous pouvez fermer depuis l'app.
+
+**Traduction gardée.** Une traduction automatique (sur l'appareil ou en ligne) n'est conservée
+que si, en révision, vous choisissez de garder la traduction du mot comme traduction de sa
+carte : seul ce mot traduit est gardé, sur la carte, et synchronisé avec elle ; la phrase
+traduite ne l'est jamais. Une traduction que vous ne gardez pas n'est conservée nulle part.
 
 **Lecture à voix haute.** La lecture à voix haute utilise une voix de la langue lue,
 installée sur votre appareil : le texte lu ne le quitte pas. Si aucune voix de cette langue
@@ -217,7 +229,7 @@ installée sur l'appareil, elle est utilisée à la place.
 | Donnée | Origine | Finalité |
 |---|---|---|
 | Statut de chaque mot (connu, en apprentissage, ignoré) et niveau déclaré, pour chaque langue étudiée | vous | retrouver votre progression sur vos appareils |
-| Deck de révision, pour chaque langue étudiée : le mot, la phrase où vous l'avez trouvé, sa traduction, la langue de cette traduction et son état de révision — **sans** l'adresse de la page | vous | réviser sur tous vos appareils |
+| Deck de révision, pour chaque langue étudiée : le mot, la phrase où vous l'avez trouvé, sa traduction — celle du dictionnaire, ou la traduction automatique du mot que vous avez choisi de garder, jamais une phrase traduite —, la langue de cette traduction et son état de révision — **sans** l'adresse de la page | vous | réviser sur tous vos appareils |
 | Statistiques par jour et par langue étudiée (mots appris, révisions, nombre de mots lus et, parmi eux, de mots nouveaux), avec votre langue maternelle ce jour-là (celle des traductions) | calculées sur l'appareil | afficher vos statistiques ; chiffres d'usage **agrégés** pour faire fonctionner le service et, sans nom ni nombre de personnes, publiés sur les canaux de la communauté Cymbra (voir §2) |
 | Identifiant d'installation aléatoire | généré par l'extension | départager deux appareils lors de la synchronisation |
 

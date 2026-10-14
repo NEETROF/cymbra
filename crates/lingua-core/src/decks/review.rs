@@ -136,6 +136,28 @@ impl Deck {
         true
     }
 
+    /// Keeps `gloss` as the gloss the reader chose for the card of `lemma`
+    /// (add-lingua-review-translation-fallback D3, D5): written in `gloss_language`, marked
+    /// [`Card::gloss_by_reader`], the card stamped for sync without moving its clock back.
+    /// Returns whether a card was there; the caller checks the text.
+    pub fn keep_gloss(
+        &mut self,
+        lang: StudiedLanguage,
+        lemma: &str,
+        gloss: &str,
+        gloss_language: &str,
+        now: i64,
+    ) -> bool {
+        let Some(card) = self.cards.get_mut(&lang).and_then(|m| m.get_mut(lemma)) else {
+            return false;
+        };
+        card.gloss = Some(gloss.to_owned());
+        card.gloss_language = gloss_language.to_owned();
+        card.gloss_by_reader = true;
+        card.updated_at = card.updated_at.max(now);
+        true
+    }
+
     /// Total number of cards across all languages.
     pub fn len(&self) -> usize {
         self.cards.values().map(BTreeMap::len).sum()
@@ -242,6 +264,12 @@ impl Deck {
             // a synced card arrives without one and keeps whatever this device recorded.
             if matches!(&card.provenance.source, EncounterSource::Web { url } if url.is_empty()) {
                 card.provenance.source = existing.provenance.source.clone();
+            }
+            // The echo of a gloss the reader chose (add-lingua-review-translation-fallback D6):
+            // a server or a client that predates the mark sends the same text back without
+            // it. The text is the reader's, so the mark stays.
+            if existing.gloss_by_reader && !card.gloss_by_reader && card.gloss == existing.gloss {
+                card.gloss_by_reader = true;
             }
         }
         let changed = self.get(lang, &card.lemma) != Some(&card);
@@ -1477,6 +1505,91 @@ mod tests {
             deck.get(EN, "city").unwrap().provenance.source,
             EncounterSource::Web { url: String::new() }
         );
+    }
+
+    #[test]
+    fn keeping_a_gloss_marks_the_card_and_never_dates_it_backwards() {
+        let mut deck = Deck::new();
+        deck.upsert(EN, card_at("slacken", 9_000));
+        assert!(!deck.keep_gloss(EN, "absent", "x", "fr", 10_000));
+        for (now, stamped) in [(2_000, 9_000), (10_000, 10_000)] {
+            assert!(deck.keep_gloss(EN, "slacken", "se relâcher", "en", now));
+            let kept = deck.get(EN, "slacken").unwrap();
+            assert_eq!(kept.gloss.as_deref(), Some("se relâcher"));
+            assert_eq!(kept.gloss_language, "en");
+            assert!(kept.gloss_by_reader);
+            assert_eq!(kept.updated_at, stamped, "kept at {now}");
+        }
+    }
+
+    #[test]
+    fn apply_card_lww_keeps_the_readers_mark_on_an_echo_only() {
+        // (local: marked, gloss) (incoming: marked, gloss, ts) → stored (marked, gloss)
+        // add-lingua-review-translation-fallback D6, scenario « An echo without the mark ».
+        type Side<'a> = (bool, Option<&'a str>);
+        let cases: [(Side, Side, i64, Side); 6] = [
+            // The echo: same text, no mark — the newer card lands and the mark stays.
+            (
+                (true, Some("se relâcher")),
+                (false, Some("se relâcher")),
+                200,
+                (true, Some("se relâcher")),
+            ),
+            // Another text without the mark: the newer card wins, mark and all.
+            (
+                (true, Some("se relâcher")),
+                (false, Some("détendre")),
+                200,
+                (false, Some("détendre")),
+            ),
+            // No gloss coming back is not an echo.
+            (
+                (true, Some("se relâcher")),
+                (false, None),
+                200,
+                (false, None),
+            ),
+            // A marked card from elsewhere carries its mark in.
+            (
+                (false, Some("détendre")),
+                (true, Some("se relâcher")),
+                200,
+                (true, Some("se relâcher")),
+            ),
+            // An unmarked local card stays unmarked on an unmarked echo.
+            (
+                (false, Some("détendre")),
+                (false, Some("détendre")),
+                200,
+                (false, Some("détendre")),
+            ),
+            // An older echo loses as any older card does.
+            (
+                (true, Some("se relâcher")),
+                (false, Some("détendre")),
+                50,
+                (true, Some("se relâcher")),
+            ),
+        ];
+        for (i, ((local_mark, local_gloss), (in_mark, in_gloss), ts, (mark, gloss))) in
+            cases.into_iter().enumerate()
+        {
+            let mut local = card_at("slacken", 100);
+            local.gloss = local_gloss.map(str::to_owned);
+            local.gloss_by_reader = local_mark;
+            let mut deck = Deck::new();
+            deck.upsert(EN, local);
+            let mut incoming = card_at("slacken", ts);
+            incoming.gloss = in_gloss.map(str::to_owned);
+            incoming.gloss_by_reader = in_mark;
+            deck.apply_card_lww(EN, incoming);
+            let stored = deck.get(EN, "slacken").unwrap();
+            assert_eq!(
+                (stored.gloss_by_reader, stored.gloss.as_deref()),
+                (mark, gloss),
+                "case {i}"
+            );
+        }
     }
 
     #[test]

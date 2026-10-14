@@ -173,6 +173,14 @@ A single shared `admin_svc` is used for now; **per-operator IAM-authenticated ro
 (individually audited) are the natural prod hardening and are deferred to a later
 ops change.
 
+### Web origins for gRPC-web
+
+`CYMBRA_ALLOWED_WEB_ORIGINS` admits bearer-only gRPC-web callers beyond the back office, by exact
+origin: the Chrome extension (`chrome-extension://<id>`) and the Cymbra Lingua app's review page,
+`lingua-app://app` — the origin WebKit sends from the app's custom scheme, for « Traduction en
+ligne » under the app's own session (add-lingua-review-translation-fallback D8). See
+[deploy/.env.prod.example](deploy/.env.prod.example).
+
 ### Single-box production deploy
 
 For the pragmatic non-HA production (Docker Compose + Caddy auto-TLS + nightly

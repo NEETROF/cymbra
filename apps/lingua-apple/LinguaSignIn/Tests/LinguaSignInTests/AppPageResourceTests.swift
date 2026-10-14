@@ -3,27 +3,50 @@ import XCTest
 
 final class AppPageResourceTests: XCTestCase {
     private let page = URL(fileURLWithPath: "/App.app/LinguaApp")
-    private let packs = URL(fileURLWithPath: "/App.app/PlugIns/Ext.appex")
+    private let ext = URL(fileURLWithPath: "/App.app/PlugIns/Ext.appex")
 
-    private func file(_ address: String, packsRoot: URL? = nil) -> String? {
-        AppPageResource.file(for: URL(string: address)!, pageRoot: page, packsRoot: packsRoot ?? packs)?.path
+    private func file(_ address: String, extensionRoot: URL? = nil) -> String? {
+        AppPageResource.file(for: URL(string: address)!, pageRoot: page, extensionRoot: extensionRoot ?? ext)?.path
     }
 
     func testThePageAndItsFilesComeFromTheAppBundle() {
-        XCTAssertEqual(AppPageResource.file(for: AppPageResource.page, pageRoot: page, packsRoot: packs)?.path, "/App.app/LinguaApp/app.html")
+        XCTAssertEqual(AppPageResource.file(for: AppPageResource.page, pageRoot: page, extensionRoot: ext)?.path, "/App.app/LinguaApp/app.html")
         XCTAssertEqual(file("lingua-app://app/wasm/lingua_wasm_bg.wasm"), "/App.app/LinguaApp/wasm/lingua_wasm_bg.wasm")
     }
 
     func testThePacksComeFromTheEmbeddedExtension() {
         XCTAssertEqual(file("lingua-app://app/assets/packs/en-fr.lingua"), "/App.app/PlugIns/Ext.appex/assets/packs/en-fr.lingua")
-        XCTAssertNil(AppPageResource.file(for: URL(string: "lingua-app://app/assets/packs/en-fr.lingua")!, pageRoot: page, packsRoot: nil))
+        XCTAssertNil(AppPageResource.file(for: URL(string: "lingua-app://app/assets/packs/en-fr.lingua")!, pageRoot: page, extensionRoot: nil))
         // Deeper than a pack is the page's own folder, never the extension's.
         XCTAssertEqual(file("lingua-app://app/assets/packs/x/y"), "/App.app/LinguaApp/assets/packs/x/y")
+    }
+
+    /// add-lingua-review-translation-fallback D7: the engine's files are the extension's, served once.
+    func testTheEngineFilesComeFromTheEmbeddedExtension() {
+        for name in [
+            "engine-worker.js", "model-worker.js", "model-manifest.json",
+            "engine/bergamot-translator.js", "engine/bergamot-translator.wasm",
+        ] {
+            XCTAssertEqual(file("lingua-app://app/\(name)"), "/App.app/PlugIns/Ext.appex/\(name)", name)
+            XCTAssertNil(
+                AppPageResource.file(for: URL(string: "lingua-app://app/\(name)")!, pageRoot: page, extensionRoot: nil),
+                "\(name): no extension, no engine"
+            )
+        }
+    }
+
+    /// Anything else of the extension stays out of the page's reach: its background, its manifest,
+    /// a deeper path under `engine/`, the page's own files of the same names elsewhere.
+    func testNothingElseOfTheExtensionIsServed() {
+        for name in ["background.js", "manifest.json", "engine/x/y.js", "engine", "sub/engine-worker.js", "app.js"] {
+            XCTAssertEqual(file("lingua-app://app/\(name)"), "/App.app/LinguaApp/\(name)", name)
+        }
     }
 
     func testNothingOutsideItsRootNorAnotherOrigin() {
         XCTAssertNil(file("lingua-app://app/../secret"))
         XCTAssertNil(file("lingua-app://app/./app.html"))
+        XCTAssertNil(file("lingua-app://app/engine/../background.js"))
         XCTAssertNil(file("lingua-app://app/"))
         XCTAssertNil(file("lingua-app://other/app.html"))
         XCTAssertNil(file("https://app/app.html"))

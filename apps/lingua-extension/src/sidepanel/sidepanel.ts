@@ -10,6 +10,7 @@ import { messagedArea, watchBackup } from "../state/store.ts";
 import { requestSync } from "../sync/messages.ts";
 import { followSurfaceLook } from "../reading/surface-look.ts";
 import { createTranslatorPort } from "../translate/create-port.ts";
+import { createOnlineOffer, translateOnline } from "../translate/online.ts";
 import { type PanelView, reloadOnView, start, toSortOf, viewToRestore } from "./panel.ts";
 
 // This page is a surface: it follows the reader's colours and text size (add-lingua-colour-settings D8, D9).
@@ -115,6 +116,9 @@ const panel = start(document, {
   now,
   pageLanguage,
   translator: createTranslatorPort(),
+  // « Traduction en ligne »: the setting and the account's access followed, the request a runtime
+  // message to the background, which owns the session (add-lingua-review-translation-fallback D2).
+  online: { offered: createOnlineOffer(), translate: (request) => translateOnline(request) },
   toSort,
   openToSort,
 });
