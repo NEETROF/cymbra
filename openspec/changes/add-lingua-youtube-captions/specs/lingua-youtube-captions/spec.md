@@ -60,12 +60,18 @@ Until the caption mode starts on a video, the extension SHALL read nothing of th
 That list SHALL be read from what the watch page already holds, by a script running in the
 page's own context that makes no network request, sends nothing anywhere, and changes nothing
 in the player; it SHALL be read again when YouTube moves to another video inside the same page.
-No caption text SHALL be read, and no caption request SHALL be made or replayed, before the mode
-starts.
+That script SHALL be placed only on a watch page where the reader has Lingua switched on and
+studies English, in a desktop browser; a reader who does not study English, or who switched Lingua
+off, SHALL get no script of the caption mode in the page. No caption text SHALL be read, and no
+caption request SHALL be made or replayed, before the mode starts.
 
 #### Scenario: Opening a watch page with the mode not started
 - **WHEN** a reader opens a watch page with English captions and does not start the mode
 - **THEN** the extension knows the video's tracks, has made no request, has read no caption text, and the player's captions are as the reader left them
+
+#### Scenario: A reader who does not study English
+- **WHEN** a reader who studies Spanish only opens a watch page
+- **THEN** no script of the caption mode is placed in the page, and the page is read as any page is
 
 ### Requirement: The caption mode never takes over the player unasked
 The caption mode SHALL start only when the reader asks for it on the video, or on every watch page where it is offered when the reader has turned on a per-device preference (French interface: « Démarrer automatiquement sur YouTube »), which SHALL be off by default.
@@ -227,7 +233,7 @@ kind, holding no caption text, so that a breakage is visible in diagnostics.
 Ending the caption mode SHALL restore the player's native caption line and the captions state the reader had before the mode started.
 Captions turned on by the extension to obtain the track SHALL be turned off again when the mode
 ends; captions the reader had turned on SHALL stay on. The mode SHALL end when the reader turns it
-off, leaves the watch page, or moves to a video it does not start on.
+off, leaves the watch page, moves to a video it does not start on, or switches Lingua off.
 
 #### Scenario: Captions turned on by the extension
 - **WHEN** the reader had captions off, the mode turned them on, and the reader turns the mode off

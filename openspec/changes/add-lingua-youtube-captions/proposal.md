@@ -20,9 +20,10 @@ captions as Lingua text — can ship without waiting for the sentence translatio
 ## What Changes
 
 - **A YouTube caption mode on desktop** (Chromium, Firefox desktop, Safari on macOS). On a watch
-  page, Lingua reads the list of the video's caption tracks that the page already holds — the
-  list, not the captions, and with no request of its own — so the « Sous-titres Lingua » control
-  appears only on a video that has an English track. Once started, the mode reads the **whole
+  page, for a reader who studies English and has Lingua switched on, a small script in the page
+  reads the list of the video's caption tracks that the page already holds — the list, not the
+  captions, with no request of its own and nothing changed in the player — so the « Sous-titres
+  Lingua » control appears only on a video that has an English track. Once started, the mode reads the **whole
   English track**, analyses it once, and shows the video's **percentage known before it is
   played**. It starts when the reader asks for it, or automatically under a per-device preference
   that is off by default — never because the extension was granted every site, since it changes
@@ -72,9 +73,10 @@ captions as Lingua text — can ship without waiting for the sentence translatio
 Consumed, not redeclared: **The page reader never reads a video player's caption line**, which
 `fix-lingua-dynamic-rescan` adds (its code is on `main`); **A card's page address stays on the
 device** (a watch address with its time is a page address); **A machine translation is never
-stored** and, once it lands, `add-lingua-card-sentence-translation`'s **A card keeps the
-translation of its sentence** — a card captured from a caption keeps exactly what a card captured
-on a page keeps.
+stored** (renamed **A machine translation is stored only when the reader keeps it** by the open
+`add-lingua-review-translation-fallback`) and, once it lands,
+`add-lingua-card-sentence-translation`'s **A card keeps the translation of its sentence** — a card
+captured from a caption keeps exactly what a card captured on a page keeps.
 
 ## Impact
 
@@ -98,9 +100,10 @@ daily statistics (`src/state/dailystats.ts`), new copy in French, English and Sp
 API: the caption endpoint, its token, the player's API and its markup. It will break some day; the
 design treats breakage as an expected state with a fallback and a signal, not as an exception.
 
-**Stores.** Injecting into youtube.com's page context and replaying the player's request must be
-explained to reviewers (`apps/lingua-extension/REVIEWERS.md`), AMO in particular, which reads the
-code.
+**Stores.** A script of ours in YouTube's own page context on every watch page where the reader
+studies English, and the replay of the player's request, must be explained to reviewers
+(`apps/lingua-extension/REVIEWERS.md`, AMO in particular, which reads the code) and in the Chrome
+Web Store's justifications (`STORE-LISTING.md`). No permission is added.
 
 **Owner's time.** Three short probes on real browser profiles (task group 1, about a day) must come
 before any code: automated browsers land on YouTube's consent page and get a different token, so

@@ -35,8 +35,8 @@ work with no network connection.
 - **THEN** no request has carried the sentence
 
 #### Scenario: Watching YouTube with the caption mode off
-- **WHEN** a reader who is not signed in watches YouTube videos without starting the caption mode
-- **THEN** the extension has made no network request
+- **WHEN** a reader who is not signed in and has not turned on extended translation watches YouTube videos without starting the caption mode
+- **THEN** the extension has made no network request, although it read each video's list of caption tracks
 
 ### Requirement: Daily reading statistics count what was read
 The extension SHALL keep, per UTC day and studied language, a count of the **words read** and of the **new words seen**, and SHALL count them only from the text blocks the reader actually saw — a block counts once it has stayed on screen for the reading dwell used by exposure tracking, never merely because its page was opened — and from the caption lines the reader watched in the YouTube caption mode, a line counting once it was played through as `lingua-youtube-captions` defines it.

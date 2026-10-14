@@ -22,8 +22,9 @@ full-screen layouts, and SHALL be hidden while an advertisement plays.
 ### Requirement: The translation line comes from the engine when there is one, from YouTube otherwise
 The translation line SHALL show the translation engine's translation of the caption sentence when the reader has an engine ready for English, and otherwise SHALL show only YouTube's own automatic translation of the caption.
 With an engine, a sentence's translation SHALL be computed ahead of its line being shown — a few
-sentences ahead of the playhead, never the whole track at once — and SHALL NOT delay a translation
-the reader asks for on a card. A model still downloading SHALL count as no engine until it is
+sentences ahead of the playhead, one at a time, never the whole track at once — and a translation
+the reader asks for on a card SHALL wait at most for the one sentence already being translated,
+never for the sentences ahead. A model still downloading SHALL count as no engine until it is
 ready. Without an engine, the translation SHALL be YouTube's automatic translation of the track
 into the language of the reader's glosses, fetched once per video when the line is first shown,
 shown whole-line under a label in the interface language (French interface: « Traduction
@@ -47,7 +48,7 @@ translation SHALL NOT be shown; an engine SHALL translate the line on screen.
 
 #### Scenario: A card opened while sentences are translated ahead
 - **WHEN** the reader selects several words on the caption line while the line's next sentences are being translated ahead
-- **THEN** the card's translation is not queued behind them
+- **THEN** the card's translation waits at most for the one sentence already being translated, and the sentences ahead wait for the card
 
 #### Scenario: A model still downloading
 - **WHEN** the reader's model is still downloading and the reader shows the translation line

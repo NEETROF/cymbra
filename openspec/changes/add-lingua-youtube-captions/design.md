@@ -122,12 +122,14 @@ The observer only reads what the page's performance timeline already exposes; it
 page's world, and nothing that interferes with the player.
 
 **Where the replay runs, per variant.** The request must leave as the page's own: same origin, the
-page's cookies. A Chromium content script's `fetch` does. A **Firefox** content script's `fetch`
-runs with the extension's principal — another origin, possibly without the page's cookies — while
-`content.fetch` makes the request as the page; Safari is unmeasured. The probes (task group 1)
-record, per variant, which of `fetch` and (Firefox) `content.fetch` returns the track. Where neither
-does, that variant replays from the page-world script (D2), which then accepts one more command —
-"replay this URL" — and only for an `/api/timedtext` URL naming the current video.
+page's cookies. A Chromium content script's `fetch` does. A **Firefox** content script's `fetch` is
+the extension's own, more privileged one: under Manifest V3 it follows the page's CORS policy, but
+whether it carries the page's cookies and is answered like the player's is unmeasured; where
+`content.fetch` exists, it makes the request as the page. Safari is unmeasured. The probes (task
+group 1, P2) record, per variant, whether the content script's world, the page's world, or neither
+gets the track. Where only the page's world does, that variant replays from the page-world script
+(D2), which then accepts one more command — "replay this URL" — and only for an `/api/timedtext`
+URL naming the current video.
 
 *Alternatives.* Patching `XMLHttpRequest.prototype.open` in the main world works and is what most
 caption extensions do, but it runs our code inside every request the page makes; it stays the
@@ -135,20 +137,29 @@ fallback for a variant whose isolated world does not see the request. Reading `g
 fails (buffer full, see spike). Scraping the transcript panel (`/youtubei/v1/get_transcript`)
 needs its own parameters, gives no per-word timing, and is equally internal.
 
-### D2 — A minimal page-world script reads the list of tracks on every watch page
+### D2 — A minimal page-world script reads the list of tracks where the mode could be offered
 
 The isolated content script cannot read the player's state. A small script in the page's world
-(`world: "MAIN"`) runs on every watch page where the reader runs (D9), and reads only: the video
-id, the caption track list (language, `kind`, whether YouTube translates it), whether the video is
-a Short, a live stream or a premiere in progress, and the player's captions state. It reads them
-from the player's in-memory response (`movie_player.getPlayerResponse()`), reads them again on
-`yt-navigate-finish`, and posts them to the content script with `window.postMessage` under a random
-per-load channel id. It makes **no request**, reads no caption text, holds no Lingua state, and
-accepts no command but "captions on / off / select this track" (D8) — plus "replay this URL" on a
-variant that needs it (D1).
+(`world: "MAIN"`) is placed on a watch page where the mode could be offered (D9: the reader is
+switched on and studies English, in a desktop browser), and reads only: the video id, the caption
+track list (language, `kind`, whether YouTube translates it — the last for
+`add-lingua-youtube-caption-translation`, read with the list because it is part of it), and whether
+the video is a Short, a live stream or a premiere in progress. The player's captions state is read
+only when the mode starts (D8). It reads them from the player's in-memory response
+(`movie_player.getPlayerResponse()`), reads them again on `yt-navigate-finish`, and posts them to
+the content script with `window.postMessage` under a random per-load channel id. It makes **no
+request**, reads no caption text, holds no Lingua state, and accepts no command but "captions on /
+off / select this track" (D8) — plus "replay this URL" on a variant that needs it (D1).
+
+**The channel is the page's.** Whatever crosses `window.postMessage` can be read, and forged, by
+YouTube's own scripts. Nothing of the reader's ever crosses it — only YouTube's own data going one
+way and commands about YouTube's player going the other — and the content script treats what it
+receives as untrusted input: a shape it checks, a language code it checks, and a replay URL it
+refuses unless it is an `https://www.youtube.com/api/timedtext` address naming the current video
+(task 2.3). The line's text is still built with DOM construction APIs (D3), never parsed as markup.
 
 It is injected by the background with `chrome.scripting.executeScript({ world: "MAIN", files })`
-when the content script reports a watch page: page code may not call `chrome.scripting`
+when the content script asks for it (D9): page code may not call `chrome.scripting`
 (`test/lint-page-context.spec.ts`; the new directory joins its `IN_THE_PAGE` list). Where
 `world: "MAIN"` is missing (Safari is unmeasured; Firefox has it from 128, the manifest's minimum),
 the fallback is a `<script src>` pointing at a web-accessible resource — same code, same channel —
@@ -166,20 +177,37 @@ button that answers "no English captions" — the owner ruled that out (2026-10-
 The line is an element of ours placed inside the player element (`#movie_player`), positioned over
 the player's caption area and following its size in the default, theatre and full-screen layouts
 (only descendants of the full-screen element are painted). Its words are **light-DOM text under our
-own host element**, which carries `data-cymbra-lingua-skip` so the page reader ignores it, and are
-slotted into a closed shadow root that gives the line its look. The native line is hidden with a
-stylesheet scoped to `.ytp-caption-window-container`, not removed. Pointer events on the line stop
-there, so a click on a word does not play or pause the video through the player.
+own host element**, which carries `data-cymbra-lingua-skip` so the page reader ignores it — no scan
+(`EXCLUDED_SELECTOR`, `src/reading/blocks.ts`), no rescan (`blockOf`, `src/reading/observer.ts`),
+no page card — and are slotted into a closed shadow root that gives the line its look. The native
+line is hidden with a stylesheet scoped to `.ytp-caption-window-container`, not removed. Pointer
+events on the line stop there, so a click on a word does not play or pause the video through the
+player.
 
-Because the text is in the document, the existing machinery works on it unchanged: the highlight
-registry paints it, `document.getSelection()` sees a selection in it, and `SelectionWatcher`
-(`src/reading/selection.ts`, which reads through an injectable `read`) classifies it by its usual
-rules (length cap, settle time). Highlighting stays within "In-place highlighting without DOM
-mutation" in spirit: we add our own element and change nothing of the page's.
+Because the text is in the document, the existing machinery can work on it, with two small seams
+the page has never needed:
 
-*Alternative rejected:* the text inside the closed shadow root, read with
-`Selection.getComposedRanges()`. Firefox only has it from 142, while the manifest accepts 128; the
-root's own selection is not standard. Light DOM costs one skip attribute.
+- **Painting.** The page's painter owns the two highlight registry entries and rebuilds them from
+  its own tokens on every paint (`paintRanges` and `render` in `src/reading/highlight.ts`); ranges
+  added beside it would be wiped by the next page repaint, and would wipe the page's. The painter
+  gains a layer of ranges kept per owner — here the caption line — that every paint merges in and
+  `render` / `clear` of the page leave alone. Same registry names, so the token sheet's
+  `::highlight()` rules and the reader's colour settings (`src/reading/colours.ts`) apply unchanged.
+- **Selecting.** `SelectionWatcher` drops any selection anchored inside `[data-cymbra-lingua-skip]`
+  (`insideReaderUi`, `src/reading/selection.ts`) — which is what keeps the page's own watcher, and
+  so the page's cards in the page's language, away from the line. The mode runs a watcher of its
+  own, given the line as the one region it watches (a new `within` option): it accepts a selection
+  only inside that region, by the usual rules (length cap, settle time, `onBegin` warming the
+  engine).
+
+Highlighting stays within "In-place highlighting without DOM mutation" in spirit: we add our own
+element and change nothing of the page's.
+
+*Alternatives rejected:* the text inside the closed shadow root, read with
+`Selection.getComposedRanges()` — Firefox only has it from 142, while the manifest accepts 128, and
+the root's own selection is not standard. Two registry names of the line's own — every `::highlight()`
+rule (`src/styles/tokens.css`, `colours.ts`, `surface-css.ts`) would need a twin, and a colour
+setting that missed one would leave the line unpainted.
 
 **The cards follow the player into full screen.** The word card, the HUD and the drawer are closed
 shadow hosts on `documentElement` (`src/reading/wordpopup.ts`, `hud.ts`, `drawer.ts`), invisible
@@ -215,16 +243,26 @@ independent of playback rate. Seeks do not record the cues they jump over. Annot
 a filler list are dropped before analysis, so they count neither in the percentage nor in exposures.
 
 The tracker emits the same payload as a page block, a `BlockReading` (`lemmas`, `read`, `unknown`),
-computed in English (D11). It goes through the same flush as page reading, so the distinct-day
-promotion rule is untouched — a video watched once in a day is one day of exposure, as a page is.
-Its exposure source is `video:youtube`, so the per-word counter's "source of the last encounter"
-says a video.
+computed in English (D11). It is flushed by the same rules as page reading — throttled, then
+`recordExposures` and `promoteByExposure`, so the distinct-day promotion rule is untouched: a video
+watched once in a day is one day of exposure, as a page is. It cannot share the page's batch:
+`ReadingSession.flushExposure` (`src/reading/session.ts`) records its pending lemmas through the
+session's port, in the page's detected language, under `ReadingHost.exposureSource()`. The caption
+batch is kept apart and flushed through the English port, under the exposure source
+`video:youtube`, so the per-word counter's "source of the last encounter" says a video.
 
 **« Mots lus ».** The same event adds the line's `read` and `unknown` to the day, in English. The
 day's record (`DailyStat` in `src/state/dailystats.ts`) gains an optional `video` share
 (`{ exposures, unknownSeen }`), part of the totals, absent meaning zero; `recordReading` takes the
 origin. `pushStats` (`src/sync/sync.ts`) maps the fields it pushes one by one, so the share stays on
 the device and the pushed totals include it: no `.proto` or backend change.
+
+This stays coherent with synchronised statistics because nothing is ever pulled back into the local
+record: each device pushes its own days (replace-by-key per device), the server sums devices, and the
+stats screen of a signed-in reader draws the server's sums (`fetchCounts`, `src/stats/view.ts`) —
+which include the video words, since the totals do. Only the split is local. No screen shows the
+split in this change; it is there so that video reading can be checked during the manual passes and
+so that open question 1 can be answered later without a migration.
 
 *Alternatives rejected.* Counting words read from the whole track at load: it would count what was
 fetched, not what was seen. A separate "video" counter outside « Mots lus »: the owner wants video
@@ -235,11 +273,15 @@ reading to count as reading (2026-10-14).
 The caption line's cards are the page's: `SelectionCard` (`src/reading/selection-card.ts`) asks the
 engine for a single word only when the pack has no gloss (`wordEngine`), for several words always
 (`openExpression`), and offers « Traduction en ligne » on a card for several words (`onlineRequest`).
-The caption mode feeds that path with the caption sentence, `language: "en"` and
-`translator: () => source("en")`, and warms the engine when a selection begins, as a page does. It
+The caption mode feeds that path with the caption sentence, `language: () => "en"` and
+`translator: () => source("en")` (the card's options), and warms the engine when a selection
+begins, as a page does. It
 pre-translates nothing: the card asks when it opens, as on a page. A card added to the deck keeps
 exactly what a card captured on a page keeps — today no translation (**A machine translation is
-never stored**), and the sentence translation once `add-lingua-card-sentence-translation` lands.
+never stored**, which the open `add-lingua-review-translation-fallback` renames **A machine
+translation is stored only when the reader keeps it**), and the sentence translation once
+`add-lingua-card-sentence-translation` lands. Whichever of them lands first, a caption card follows
+it with no change here.
 
 The whole-line translation of the first draft's D6 — YouTube's automatic translation when there is
 no engine, paced engine pre-translation, the preference that shows it — moves to
@@ -260,9 +302,10 @@ background's devtools do.
 
 ### D8 — The player's captions setting is ours to restore
 
-At start the mode notes whether the reader had captions on. If it had to turn them on (D1), it
-turns them off at the end; otherwise it only removes the hiding stylesheet. The mode ends on
-toggle-off, on navigation to a non-watch page, and on moving to a video it does not start on.
+At start the mode asks the page-world script whether the reader had captions on. If it had to turn
+them on (D1), it turns them off at the end; otherwise it only removes the hiding stylesheet. The mode
+ends on toggle-off, on navigation to a non-watch page, on moving to a video it does not start on, and
+when the reader switches Lingua off (« Surlignage activé »).
 
 YouTube remembers the captions toggle across videos. Turning captions on through the player's own
 control would teach it that preference, so the page-world script selects the track for this video
@@ -279,21 +322,31 @@ it.
 
 ### D9 — Offered at page load where the reader runs; started only on request
 
-Where the reader runs on a watch page — always on Firefox and Safari (static script), on Chromium
+Where the reader runs on a watch page — on Firefox and Safari through the static script, on Chromium
 with the every-site grant or after a click on the toolbar icon (`activeTab`) — the content script
-asks the background to inject the page-world script (D2) once per document, and decides the offer
-from what it posts: the reader studies English, the browser is a desktop one (D13), the page is
-`/watch`, the video is not a Short, a live stream or a premiere in progress, and it has an English
-track. Only then does the « Sous-titres Lingua » control appear near the player, and the popup offer
-the mode. The decision is taken again on every in-page navigation.
+first checks what it knows without the page: the reader is switched on (« Surlignage activé »),
+studies English, the browser is a desktop one (D13), and the page is `/watch`. Only then does it ask
+the background to inject the page-world script (D2), once per document; a reader who does not study
+English, or who switched Lingua off, gets no script in the page at all. From what the script posts it
+completes the decision: the video is not a Short, a live stream or a premiere in progress, and it has
+an English track. Only then does the « Sous-titres Lingua » control appear near the player, and the
+popup offer the mode. The decision is taken again on every in-page navigation.
+
+**Reading the list is not starting the mode.** The rule that the every-site grant never starts the
+mode exists because the mode changes the player (it may turn its captions on, it hides the native
+line). The page-world script changes nothing in the player, sends nothing and reads only what the
+page already holds, so it may run wherever the reader already runs, the every-site grant included.
+It is still a script of ours in YouTube's own context on every such watch page — the privacy annex
+and the reviewers' notes say so (tasks 8.1–8.3).
 
 The mode starts on a click on that control or in the popup, or on every offered watch page when the
 per-device « Démarrer automatiquement sur YouTube » preference is on (off by default). No new
 permission is added: on Chromium, a reader without the every-site grant gets the offer after
 clicking the toolbar icon, and the automatic start needs the existing grant plus the preference.
 
-*Cost.* One small script per watch page where the reader already runs, reading an object already in
-memory; no request. That is the price of offering the mode only where it works.
+*Cost.* One small script per watch page where the reader already runs and the mode could be offered,
+reading an object already in memory; no request. That is the price of offering the mode only where it
+works.
 
 ### D10 — Sequenced after the translation delivery
 
@@ -360,7 +413,12 @@ touch points (`navigator.maxTouchPoints > 1`). Desktop Safari on macOS stays in.
 - **[The percentage misleads on a video with few captions]** → the popup shows words analysed, as
   for a page.
 - **[One more script on every watch page]** → it reads an object in memory, sends nothing, and runs
-  only where the reader already runs (D9).
+  only where the reader already runs, is switched on and studies English (D9); the privacy annex and
+  the reviewers' notes say it exists.
+- **[YouTube's scripts read or forge the page channel]** → nothing of the reader's crosses it, and
+  what comes back is checked as untrusted input (D2).
+- **[The page repaints over the line's highlights, or the line over the page's]** → the painter's
+  per-owner layer (D3), with a test that a page repaint keeps the line's ranges and the reverse.
 
 ## Migration Plan
 
@@ -389,9 +447,12 @@ YouTube » preference and the local failure list, both ignored when unknown.
 
 ## Unknowns the probes settle (not decisions)
 
+- Whether the full track can still be read at all (P2) — the one answer that can stop the change.
 - Whether the isolated world's `PerformanceObserver` sees the player's request in each variant; if
   not in one, that variant observes from the page-world script (D1).
 - Where the replay must run per variant — `fetch`, Firefox's `content.fetch`, or the page world (D1).
+- Whether the replay with `tlang` still returns YouTube's translation (P2), which
+  `add-lingua-youtube-caption-translation` relies on; recorded here so the owner probes once.
 - Whether Safari's `scripting.executeScript` accepts `world: "MAIN"` in the Apple host app's
   extension (D2).
 - Whether selecting a track through the player's API leaves YouTube's sticky captions preference
@@ -404,95 +465,142 @@ YouTube » preference and the local failure list, both ignored when unknown.
 
 ## Appendix — probe snippets (task group 1)
 
-All snippets are pasted into **the extension's background console**, in this order, with one
-YouTube watch page open in a tab:
+**Where to paste.** Every snippet goes into **the extension's background console**, with exactly
+one YouTube watch page open in a tab:
 
-- Chrome: `chrome://extensions` › Developer mode › Cymbra Lingua › "service worker".
+- Chrome: `chrome://extensions` › Developer mode on › Cymbra Lingua › the "service worker" link ›
+  Console tab. Keep that window open during the probes: Chrome does not stop the service worker
+  while its console is open.
 - Firefox: `about:debugging#/runtime/this-firefox` › Cymbra Lingua › Inspect › Console.
-- Safari: Develop menu › Web Extension Background Content › Cymbra Lingua (Develop is enabled in
-  Safari's settings › Advanced).
+- Safari on macOS: Safari › Settings › Advanced › "Show features for web developers" on; then
+  Develop › Web Extension Background Content › Cymbra Lingua › Console.
+- Safari on an iPad (task 1.5 only): on the iPad, Settings › Apps › Safari › Advanced › Web
+  Inspector on; plug the iPad into the Mac; on the Mac, Develop › (the iPad's name) › Web Extension
+  Background Content › Cymbra Lingua › Console.
 
-The extension needs access to youtube.com: on Chrome, turn « Toujours surligner » on for the probes
-(P1 finds the tab by its address, which a click on the icon alone does not reveal); on Firefox and
-Safari, the access Lingua already has to every site. Snippets running in the `ISOLATED` world run exactly where
-the content script runs. Nothing they return is a token or caption text; paste only what they return
-into the task notes.
+**Access.** Lingua needs access to youtube.com: on Chrome, turn « Toujours surligner » on in the
+popup (the probes find the tab by its address, which a click on the icon alone does not reveal); on
+Firefox, `about:addons` › Cymbra Lingua › Permissions › access to all websites on; on Safari, Lingua
+allowed on youtube.com (Safari asks the first time).
 
-**P1 — the YouTube tab and a runner**
+**How to read the answers.** Each snippet prints a block of text (JSON) in the console; copy the
+fields the task names into the task notes. Snippets running in the `"ISOLATED"` world run exactly
+where Lingua's content script runs; `"MAIN"` is the page's own world. Nothing they print is a token
+or caption text — only counts, yes/no flags, keys and their types. The snippets are written without
+top-level `await`, so they paste the same way in all three consoles.
+
+**P1 — helpers** (once per console; paste again if you closed the console)
 
 ```js
-const [tab] = await chrome.tabs.query({ url: "https://www.youtube.com/watch*" });
-const run = async (func, world = "ISOLATED") =>
-  (await chrome.scripting.executeScript({ target: { tabId: tab.id }, world, func }))[0]?.result;
+globalThis.show = (result) => console.log(JSON.stringify(result, null, 2));
+globalThis.run = (func, world = "ISOLATED") =>
+  chrome.tabs.query({ url: "https://www.youtube.com/watch*" }).then(([tab]) => {
+    if (!tab) throw new Error("No YouTube watch tab Lingua can reach: check its access to youtube.com");
+    // The content script's world is every browser's default: only the page's world is named.
+    const where = world === "MAIN" ? { world } : {};
+    return chrome.scripting.executeScript({ target: { tabId: tab.id }, func, ...where });
+  }).then((results) => results?.[0]?.result);
+"ready";
 ```
 
-**P2 — the player's request, seen and replayed from the content script's world** (captions off
-before; run it, then press `c` in the player within 30 s)
+**P2 — the player's caption request, seen and replayed** (the go/no-go). Before **each** run: turn
+captions off (the CC button), reload the watch page, let the video play a few seconds. Paste the
+first block once, then the run line for the world the task names, then press `c` in the player
+within 30 seconds. The answer prints once the player has asked for its captions.
 
 ```js
-await run(() => new Promise((resolve) => {
-  const shape = (v) => Array.isArray(v) ? [v.length ? shape(v[0]) : "empty"]
-    : v && typeof v === "object" ? Object.fromEntries(Object.keys(v).map((k) => [k, shape(v[k])])) : typeof v;
-  const probe = async (get, url) => {
+globalThis.p2 = () => new Promise((resolve) => {
+  const types = (objects) => Object.fromEntries(objects.flatMap((o) => Object.entries(o ?? {}))
+    .map(([key, value]) => [key, Array.isArray(value) ? "array" : typeof value]));
+  const probe = async (get, url, withShape) => {
     try {
-      const r = await get(url); const t = await r.text();
-      const j = t ? JSON.parse(t) : null;
-      return { status: r.status, length: t.length, events: j?.events?.length ?? 0,
-               shape: j ? shape(j.events.find((e) => e.segs) ?? {}) : null };
-    } catch (err) { return { error: String(err) }; }
+      const response = await get(url);
+      const body = await response.text();
+      const json = body ? JSON.parse(body) : null;
+      const events = Array.isArray(json?.events) ? json.events : [];
+      const out = { status: response.status, length: body.length, events: events.length };
+      if (withShape) Object.assign(out, { top: types([json]), event: types(events),
+        seg: types(events.flatMap((e) => (Array.isArray(e.segs) ? e.segs : []))) });
+      return out;
+    } catch (error) { return { error: String(error) }; }
   };
-  const po = new PerformanceObserver(async (list) => {
-    const e = list.getEntries().find((x) => x.name.includes("/api/timedtext"));
-    if (!e) return;
-    po.disconnect();
-    const u = new URL(e.name); u.searchParams.set("fmt", "json3");
-    const bare = new URL(u); bare.searchParams.delete("pot");
-    resolve({
-      seen: true, initiator: e.initiatorType, hasPot: u.searchParams.has("pot"), c: u.searchParams.get("c"),
-      fetch: await probe((x) => fetch(x), u.href),
-      contentFetch: typeof content !== "undefined" && content.fetch ? await probe((x) => content.fetch(x), u.href) : "n/a",
-      withoutPot: await probe((x) => fetch(x), bare.href),
+  const done = (result) => { globalThis.__linguaP2 = result; resolve(result); };
+  const observer = new PerformanceObserver(async (list) => {
+    const entry = list.getEntries().find((x) => x.name.includes("/api/timedtext"));
+    if (!entry) return;
+    observer.disconnect();
+    clearTimeout(timer);
+    const url = new URL(entry.name); url.searchParams.set("fmt", "json3");
+    const withoutPot = new URL(url); withoutPot.searchParams.delete("pot");
+    const translated = new URL(url); translated.searchParams.set("tlang", "fr");
+    const pageFetch = typeof content !== "undefined" && typeof content?.fetch === "function";
+    done({
+      seen: true, initiator: entry.initiatorType, hasPot: url.searchParams.has("pot"), c: url.searchParams.get("c"),
+      fetch: await probe((x) => fetch(x), url.href, true),
+      contentFetch: pageFetch ? await probe((x) => content.fetch(x), url.href, false) : "n/a",
+      withoutPot: await probe((x) => fetch(x), withoutPot.href, false),
+      tlang: await probe((x) => fetch(x), translated.href, false),
     });
   });
-  po.observe({ type: "resource" });
-  setTimeout(() => resolve({ seen: false }), 30000);
-}));
+  observer.observe({ type: "resource" });
+  const timer = setTimeout(() => { observer.disconnect(); done({ seen: false }); }, 30000);
+});
+"p2 ready";
 ```
 
-**P3 — the list of tracks, from the page's world** (run it; then click a suggested video and run it
-again)
-
 ```js
-await run(() => {
-  const r = document.getElementById("movie_player")?.getPlayerResponse?.();
-  const list = r?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
-  return { video: r?.videoDetails?.videoId ?? null, live: r?.videoDetails?.isLive ?? null,
-           tracks: list.map((t) => ({ lang: t.languageCode, kind: t.kind ?? "", translatable: !!t.isTranslatable })) };
-}, "MAIN");
+run(p2).then(show);            // the content script's world
+run(p2, "MAIN").then(show);    // the page's world (reload first, captions off)
 ```
 
-**P4 — captions on for this video only, then off** (captions off before)
+If a run prints nothing or `undefined` (a browser that does not wait for a script's promise), press
+`c` as usual, wait 30 seconds, then read what the probe kept:
+`run(() => globalThis.__linguaP2).then(show);` — add `, "MAIN"` after the arrow function for the
+page's world. Afterwards, turn captions off again with the CC button.
+
+**P3 — the list of tracks, from the page's world** (run it; then click a suggested video, wait for it
+to play, and run it again)
 
 ```js
-await run(() => {
-  const p = document.getElementById("movie_player");
-  p.loadModule?.("captions");
-  p.setOption?.("captions", "track", { languageCode: "en" });
-  return p.getOption?.("captions", "track")?.languageCode ?? null;
-}, "MAIN");
-// later, to turn them off again:
-await run(() => { document.getElementById("movie_player")?.unloadModule?.("captions"); return "off"; }, "MAIN");
+run(() => {
+  const response = document.getElementById("movie_player")?.getPlayerResponse?.();
+  const list = response?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
+  return {
+    video: response?.videoDetails?.videoId ?? null,
+    live: response?.videoDetails?.isLive ?? false,
+    upcoming: response?.videoDetails?.isUpcoming ?? false,
+    tracks: list.map((t) => ({ lang: t.languageCode, kind: t.kind ?? "written", translatable: !!t.isTranslatable })),
+  };
+}, "MAIN").then(show);
+```
+
+**P4 — captions on for this video only, then off** (captions off before; look at the player, not at
+the printed answer)
+
+```js
+run(() => {
+  const player = document.getElementById("movie_player");
+  player.loadModule?.("captions");
+  player.setOption?.("captions", "track", { languageCode: "en" });
+  return "asked";
+}, "MAIN").then(show);
+```
+
+```js
+run(() => { document.getElementById("movie_player")?.unloadModule?.("captions"); return "off"; }, "MAIN").then(show);
 ```
 
 **P5 — the platform**
 
 ```js
-await chrome.runtime.getPlatformInfo();
+chrome.runtime.getPlatformInfo().then(show);
 ```
 
-**P6 — an advertisement** (during an advertisement, then after it)
+**P6 — an advertisement** (once during an advertisement, once after it)
 
 ```js
-await run(() => ({ ad: document.getElementById("movie_player")?.classList.contains("ad-showing") ?? null,
-                   time: document.querySelector("video")?.currentTime ?? null }));
+run(() => {
+  const player = document.getElementById("movie_player");
+  return { ad: player?.classList.contains("ad-showing") ?? null, time: player?.querySelector("video")?.currentTime ?? null };
+}).then(show);
 ```

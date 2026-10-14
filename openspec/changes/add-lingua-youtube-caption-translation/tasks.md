@@ -1,5 +1,6 @@
 Estimate: 3–4 ideal days — agent ~3 days (groups 1, 2, 4), owner ~0.5 day (group 3). Starts once
-`add-lingua-youtube-captions` is implemented.
+`add-lingua-youtube-captions` is implemented, and only if its probe notes (task 1.2 step 2, `tlang`)
+show YouTube's translation still answers in at least one browser.
 
 ## 1. The translation line (~2.5 d)
 

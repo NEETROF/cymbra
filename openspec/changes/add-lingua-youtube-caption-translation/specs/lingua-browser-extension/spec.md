@@ -37,8 +37,8 @@ work with no network connection.
 - **THEN** no request has carried the sentence
 
 #### Scenario: Watching YouTube with the caption mode off
-- **WHEN** a reader who is not signed in watches YouTube videos without starting the caption mode
-- **THEN** the extension has made no network request
+- **WHEN** a reader who is not signed in and has not turned on extended translation watches YouTube videos without starting the caption mode
+- **THEN** the extension has made no network request, although it read each video's list of caption tracks
 
 #### Scenario: The translation line hidden
 - **WHEN** a reader with no engine watches a video in the caption mode without showing the translation line

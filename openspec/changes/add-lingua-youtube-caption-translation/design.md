@@ -11,7 +11,10 @@ page's cards on it (its D6). Its cards translate as a page's do: on demand, thro
 The 2026-09-23 spike also found that the replayed caption request accepts `&tlang=<language>`:
 YouTube then returns its own machine translation of the track, with the same events and timings,
 the sentences redistributed across cues (the first cue of the French version read the tail of the
-previous sentence). That is the second source this change uses.
+previous sentence). That is the second source this change uses. The owner re-measures it with A's
+probes, once, in each browser (A's task 1.2 step 2, the `tlang` field of P2): no new probe here. If
+no browser gets a translated track there, D2's source is gone and this change is reconsidered before
+it starts.
 
 The engine reaches readers through `add-lingua-translation-delivery` on Chromium and Firefox
 desktop, and since through `add-lingua-translation-android` and `add-lingua-translation-safari`. A
@@ -64,8 +67,10 @@ line, which « Traduction en ligne »'s press-only rule exists to avoid.
 
 With an engine, the line keeps the next three sentences ahead of the playhead translated, one
 request at a time, and asks for the next only when the previous answered. A card's request (A's
-cards) goes first: pre-translation waits while one is in flight, which keeps **A translation blocks
-nothing else** true from the reader's side. Answers are kept for the session, so a seek back costs
+cards) goes first: pre-translation asks nothing while one is in flight. `TranslatorPort.translate`
+(`src/translate/port.ts`) takes no cancellation, so a card opened while a sentence is being
+translated waits for that one sentence — at most one, never the window ahead. That keeps **A
+translation blocks nothing else** true from the reader's side. Answers are kept for the session, so a seek back costs
 nothing; a seek forward restarts the window at the new position. In degraded mode (A's D7) there are
 no sentences ahead, so the engine translates the line on screen when it appears.
 
