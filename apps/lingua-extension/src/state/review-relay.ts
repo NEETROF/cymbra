@@ -3,7 +3,9 @@ import {
   applyAppDaily,
   applyAppOps,
   encodeSharedState,
+  onlineAccessOf,
   parseAppOps,
+  RELAYED_FLAGS_KEY,
   RELAYED_PREFS,
   RELAYED_STORE_KEYS,
 } from "./app-relay.ts";
@@ -55,9 +57,11 @@ export function reviewRelay(deps: ReviewRelayDeps): ReviewRelay {
       if (stored.kind !== "v2") return;
       const prefs = await deps.prefs.get([...RELAYED_PREFS]);
       const storeItems = await deps.store.get([...RELAYED_STORE_KEYS]);
+      // The one flag, read from the snapshot: the snapshot itself names the account, and stays here.
+      const onlineAccess = onlineAccessOf((await deps.prefs.get(RELAYED_FLAGS_KEY))[RELAYED_FLAGS_KEY]);
       await deps.send({
         type: "review.saveState",
-        state: encodeSharedState({ backup: stored.backup, savedAt: deps.now(), prefs, storeItems }),
+        state: encodeSharedState({ backup: stored.backup, savedAt: deps.now(), prefs, storeItems, onlineAccess }),
       });
     } catch (e) {
       console.warn("[Cymbra Lingua] could not hand the state to the app:", e);

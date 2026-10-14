@@ -29,10 +29,37 @@ export const review = {
   hide: "Ne plus me le montrer",
   noGloss: "Pas de traduction pour ce mot.",
   noGlossExpression: "Pas de traduction pour cette expression.",
+  /**
+   * A card nothing can translate (add-lingua-review-translation-fallback D12): after the
+   * no-translation note, how to get one — in the extension's Réglages, in the Safari extension (the
+   * app, the setting off there), or the app's own download (a link re-offering it).
+   */
+  hintSettings: "Activez la traduction étendue dans les réglages pour traduire cette carte.",
+  hintExtension: "Activez la traduction étendue dans l'extension Cymbra Lingua de Safari pour traduire cette carte.",
+  hintDownload: "Téléchargez la traduction pour l'app",
   /** A card the pack cannot answer, translated on the device (add-lingua-review-translation D5). */
   translationLabel: "Dans votre phrase — traduction automatique",
   translationAloneLabel: "Traduction automatique",
   translating: "Traduction en cours…",
+  /**
+   * A card with a gloss: the link asking the translation of its sentence on demand, and
+   * « Traduction en ligne » in review (add-lingua-review-translation-fallback D1, D2).
+   */
+  translateSentence: "Traduire la phrase",
+  onlineTranslate: "Traduction en ligne",
+  onlineTranslating: "Traduction en ligne…",
+  onlineTranslationLabel: "Dans votre phrase — traduction automatique en ligne",
+  onlineTranslationAloneLabel: "Traduction automatique en ligne",
+  onlineUnavailable: "Traduction en ligne indisponible pour le moment.",
+  /** `time` is the reset time, already formatted in the interface language. */
+  onlineLimit: (time: string) => `Limite quotidienne atteinte — de nouveau disponible à ${time}.`,
+  /** Keeping a machine translation as the card's gloss (D3): what it keeps, named before it is kept. */
+  keep: (candidate: string) => `Garder « ${candidate} »`,
+  keepOther: "Garder une traduction…",
+  keepEdit: "Modifier",
+  keepFieldLabel: "Traduction à garder",
+  keepSave: "Enregistrer",
+  keepCancel: "Annuler",
   /** The end of a session: its title, then one line per count, its figure in bold. */
   sessionDone: "Séance terminée",
   reviewed: pluralForms({

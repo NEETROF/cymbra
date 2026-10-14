@@ -42,6 +42,8 @@
 
 mod support;
 
+use lingua_core::analysis::language::StudiedLanguage;
+use lingua_core::decks::backup::LinguaState;
 use lingua_core::packs::Pack;
 use lingua_wasm::LinguaEngine;
 use support::english::ENGLISH;
@@ -442,30 +444,71 @@ fn spec_scenario_a_gloss_the_pack_has_not() {
 }
 
 #[test]
-fn a_card_glossed_in_the_engines_native_language_is_shown_as_before() {
-    // The label is the engine's native: the card's text, not the pack's, even where they differ.
+fn spec_scenarios_a_pack_fixed_after_the_capture_and_a_gloss_the_reader_chose() {
+    // add-lingua-review-translation-fallback D5: for every card, the reader's gloss as written,
+    // else the current pack's, else the stored text. A card glossed in the engine's native
+    // language with a text the pack has since replaced (`demeure`, where es-fr says otherwise)
+    // shows the pack's; kept by the reader, its own. Either way the card keeps its text.
     let (es_fr, _) = packs();
-    let mut engine = Scenario::engine(&[("es-fr", es_fr)]);
-    engine
-        .add_card(
-            "casa",
-            "casa",
-            "La casa.",
-            "https://example.es",
-            Some("demeure".to_owned()),
-            T,
-            Some("es".to_owned()),
-        )
-        .unwrap();
-    assert_eq!(
-        engine.start_review(T + DAY, None, None, None, None, None),
-        1
-    );
-    assert_eq!(view(&engine)["gloss"], "demeure");
+    let pack_gloss = Pack::load(&es_fr)
+        .unwrap()
+        .gloss("casa")
+        .expect("es-fr glosses casa")
+        .to_owned();
+    assert_ne!(pack_gloss, "demeure");
+    for kept in [false, true] {
+        let mut engine = Scenario::engine(&[("es-fr", es_fr.clone())]);
+        engine
+            .add_card(
+                "casa",
+                "casa",
+                "La casa.",
+                "https://example.es",
+                Some("demeure".to_owned()),
+                T,
+                Some("es".to_owned()),
+            )
+            .unwrap();
+        if kept {
+            assert!(
+                engine
+                    .keep_gloss("casa", "demeure", Some("es".to_owned()), T)
+                    .unwrap()
+            );
+        }
+        assert_eq!(
+            engine.start_review(T + DAY, None, None, None, None, None),
+            1
+        );
+        let expected = if kept { "demeure" } else { pack_gloss.as_str() };
+        assert_eq!(view(&engine)["gloss"], expected, "kept: {kept}");
+        assert_eq!(
+            text_and_label(&engine),
+            ("demeure".to_owned(), String::new()),
+            "the card keeps its text, and fr is left out"
+        );
+    }
+}
+
+#[test]
+fn spec_scenario_a_gloss_the_reader_chose_in_another_language() {
+    // Kept on the English-native engine, labelled `en`, then reviewed on a French-native engine
+    // whose es-fr glosses the lemma: the reader's text, as written.
+    let (es_fr, es_en) = packs();
+    assert!(Pack::load(&es_fr).unwrap().gloss("casa").is_some());
+    let mut english = glossed_in_english(&es_en, "casa", "house");
     assert!(
-        ops(&engine)[0].get("gloss_language").is_none(),
-        "fr is left out"
+        english
+            .keep_gloss("casa", "home, sweet home", Some("es".to_owned()), T)
+            .unwrap()
     );
+    let engine = french_native_reviewing(&es_fr, &english);
+    assert_eq!(view(&engine)["gloss"], "home, sweet home");
+    assert_eq!(
+        text_and_label(&engine),
+        ("home, sweet home".to_owned(), "en".to_owned())
+    );
+    assert_eq!(ops(&engine)[0]["gloss_by_reader"], true);
 }
 
 #[test]
@@ -726,4 +769,59 @@ fn spec_scenario_a_word_written_with_an_apostrophe() {
         "hoy",
     ));
     assert_eq!(view(&engine)["gloss"], word);
+}
+
+/// en-fr whose expression table holds `four-poster bed → Lit à baldaquin`.
+fn en_fr_holding_four_poster_bed() -> Vec<u8> {
+    let pack = support::committed::en_fr_holding_four_poster_bed();
+    assert_eq!(
+        Pack::load(&pack).unwrap().expression("four-poster bed"),
+        Some("Lit à baldaquin")
+    );
+    pack
+}
+
+/// fix-lingua-selection-card-punctuation D3, D5: a card captured with the punctuation of its
+/// selection, without a gloss, is read in the pack at its lemma without that punctuation — its
+/// stored lemma, form and absent gloss are carried unchanged by the backup written after review.
+#[test]
+fn spec_scenario_an_expression_card_captured_with_its_comma() {
+    // (lemma and form as captured, the gloss review shows)
+    let cases = [
+        ("four-poster bed,", Some("Lit à baldaquin")),
+        ("stood in silence.", None),
+    ];
+    let pack = en_fr_holding_four_poster_bed();
+    for (lemma, shown) in cases {
+        let mut engine = Scenario::engine(&[("en-fr", pack.clone())]);
+        engine
+            .add_card(
+                lemma,
+                lemma,
+                "He slept in a four-poster bed, alone.",
+                "https://example.com/novel",
+                None,
+                T,
+                Some("en".to_owned()),
+            )
+            .unwrap();
+        assert_eq!(
+            engine.start_review(T + DAY, None, None, None, None, None),
+            1
+        );
+        let current = view(&engine);
+        assert_eq!(current["headword"], lemma, "the stored headword");
+        assert_eq!(current["surface"], lemma, "the stored form");
+        assert_eq!(current["gloss"].as_str(), shown, "{lemma}");
+        assert!(engine.review_grade("good", T + DAY));
+
+        let state = LinguaState::from_backup(&engine.backup()).expect("the backup restores");
+        let card = state
+            .deck
+            .get(StudiedLanguage::English, lemma)
+            .expect("the card keeps its lemma");
+        assert_eq!(card.encountered_form, lemma);
+        assert_eq!(card.gloss, None, "{lemma}: review writes no gloss");
+        assert_eq!(state.deck.len(), 1, "no card is added or renamed");
+    }
 }
