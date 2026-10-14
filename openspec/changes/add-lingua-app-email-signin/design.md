@@ -153,6 +153,11 @@ key, a domain suggestion, one-time codes from Mail. Typing the password, or pick
 Passwords list, is the accepted fallback. If the dogfood finds autofill missing and typing a burden,
 associated domains are a follow-up change of their own.
 
+**Outcome on iPhone (dogfood 2026-10-14, iPhone 15 Pro Max, build 535b409d9):** iOS offered no autofill
+at all in the app's web view: no « Mots de passe » key, no suggestion, no code from Mail. Guillaume
+judged it unimportant: typing is accepted, and associated domains are not needed now. The Mac
+(task 5.3) is still to be measured.
+
 ### D6 — Coming back from the mailbox keeps the step
 
 The app reloads its page when it returns to the foreground (`linguaForeground`), unless a review is
