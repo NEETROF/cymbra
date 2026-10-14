@@ -67,7 +67,19 @@ function clients(access = true) {
       outcome: { case: "translated", value: { translation: "La corde se relâche.", marks: [{ start: 9, end: 19 }] } },
     })),
   };
-  return { auth, flags, onlineTranslation, all: { auth, flags, onlineTranslation } as unknown as AppAccountClients };
+  const user = {
+    getAccount: vi.fn(async (): Promise<{ handle?: string }> => ({ handle: "alice" })),
+    listIdentities: vi.fn(async (): Promise<{ identities: { provider: string; subject: string }[] }> => ({
+      identities: [],
+    })),
+  };
+  return {
+    auth,
+    flags,
+    onlineTranslation,
+    user,
+    all: { auth, flags, onlineTranslation, user } as unknown as AppAccountClients,
+  };
 }
 
 function storage() {
@@ -331,5 +343,76 @@ describe("the app's email sign-in (add-lingua-app-email-signin D2, D3)", () => {
     expect(appAccountLocale("es", "fr-FR")).toBe("es");
     expect(appAccountLocale(null, "en-GB")).toBe("en-GB");
     expect(appAccountLocale(null, "")).toBe("fr");
+  });
+});
+
+describe("the account the app is signed in to (add-lingua-app-email-signin D9)", () => {
+  it("The account signed in is named: its handle, read once after an Apple or Google sign-in", async () => {
+    const s = account({ sheet: { provider: "google", idToken: "g" } });
+    expect(s.a.name()).toBeNull();
+    await s.a.signIn();
+    expect(s.a.name()).toEqual({ handle: "alice", email: null });
+    expect(s.c.user.getAccount).toHaveBeenCalledOnce();
+    expect(s.c.user.listIdentities).not.toHaveBeenCalled();
+    await s.a.online.translate(REQUEST);
+    expect(s.c.user.getAccount).toHaveBeenCalledOnce();
+  });
+
+  it("read on opening when the Keychain holds a session", async () => {
+    const s = account({ keychain: "refresh-1" });
+    await s.a.resume();
+    expect(s.a.name()).toEqual({ handle: "alice", email: null });
+  });
+
+  it("an email sign-in without a handle is named by the address it typed — never the password", async () => {
+    const panel: EmailSignIn = async (send) =>
+      (await send({ type: "account:signInLocal", email: "me@example.com", password: "pw-secret" }))?.ok === true;
+    const s = account({ sheet: { method: "email" }, emailSignIn: panel });
+    s.c.user.getAccount.mockResolvedValueOnce({});
+    await s.a.signIn();
+    expect(s.a.name()).toEqual({ handle: null, email: "me@example.com" });
+    expect(s.c.user.listIdentities).not.toHaveBeenCalled();
+    expect(JSON.stringify(s.a.name())).not.toContain("pw-secret");
+  });
+
+  it("no handle after a provider sign-in: the email-and-password identity's address, else nothing", async () => {
+    const s = account({ sheet: { provider: "apple", idToken: "t" } });
+    s.c.user.getAccount.mockResolvedValue({});
+    s.c.user.listIdentities.mockResolvedValueOnce({
+      identities: [
+        { provider: "apple", subject: "000123.abc" },
+        { provider: "local", subject: "me@example.com" },
+      ],
+    });
+    await s.a.signIn();
+    expect(s.a.name()).toEqual({ handle: null, email: "me@example.com" });
+    const none = account({ sheet: { provider: "apple", idToken: "t" } });
+    none.c.user.getAccount.mockResolvedValue({});
+    await none.a.signIn();
+    expect(none.a.name()).toBeNull();
+  });
+
+  it("a profile read that fails leaves no name (the plain line), and signing out forgets it", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const s = account({ sheet: { provider: "apple", idToken: "t" } });
+    s.c.user.getAccount.mockRejectedValueOnce(Object.assign(new Error("x"), { code: 14 }));
+    expect(await s.a.signIn()).toBe(true);
+    expect(s.a.name()).toBeNull();
+    warn.mockRestore();
+    const t = account({ sheet: { provider: "apple", idToken: "t" } });
+    await t.a.signIn();
+    await t.a.signOut();
+    expect(t.a.name()).toBeNull();
+  });
+
+  it("a failed read after an email sign-in still names the address typed", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const panel: EmailSignIn = async (send) =>
+      (await send({ type: "account:signInLocal", email: "me@example.com", password: "pw" }))?.ok === true;
+    const s = account({ sheet: { method: "email" }, emailSignIn: panel });
+    s.c.user.getAccount.mockRejectedValueOnce(new Error("down"));
+    await s.a.signIn();
+    expect(s.a.name()).toEqual({ handle: null, email: "me@example.com" });
+    warn.mockRestore();
   });
 });

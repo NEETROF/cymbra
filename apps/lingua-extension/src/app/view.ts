@@ -2,6 +2,7 @@ import { app as enApp } from "../i18n/en/app.ts";
 import { app as esApp } from "../i18n/es/app.ts";
 import { app as frApp } from "../i18n/fr/app.ts";
 import { formatDate, formatNumber, formatTime, type InterfaceLanguage } from "../i18n/index.ts";
+import type { AppAccountName } from "./account.ts";
 import type { AppModelView } from "./translation.ts";
 
 // What the Cymbra Lingua app's home shows of its own beside the extension's Révision
@@ -81,6 +82,14 @@ export interface AccountLineState {
   signedIn: boolean;
   /** The reader signed out from the app: the line offers to sign in again. */
   signedOut: boolean;
+  /** The account signed in to, when known (add-lingua-app-email-signin D9). */
+  name?: AppAccountName | null;
+}
+
+/** How the line names the account: « @handle », else the address, else null (the plain line). */
+export function accountLabel(name: AppAccountName | null | undefined): string | null {
+  if (name?.handle) return `@${name.handle}`;
+  return name?.email || null;
 }
 
 export interface AccountLineActions {
@@ -104,7 +113,9 @@ export function renderAccountLine(
   el.replaceChildren();
   const text = document.createElement("span");
   if (state.signedIn) {
-    text.textContent = `${copy.signedIn} — `;
+    // The account's name is the reader's data: a text node, never markup.
+    const label = accountLabel(state.name);
+    text.textContent = `${label ? copy.signedInAs(label) : copy.signedIn} — `;
     el.append(
       text,
       button(copy.signOut, "app-link app-sign-out", () => actions.signOut()),

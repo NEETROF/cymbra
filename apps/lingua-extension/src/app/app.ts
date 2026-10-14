@@ -157,6 +157,7 @@ async function main(): Promise<void> {
         relevant: account.online.offered() || account.signedOut(),
         signedIn: account.signedIn(),
         signedOut: account.signedOut(),
+        name: account.name(),
       },
       language,
       { signIn: () => void account.signIn(), signOut: () => void account.signOut() },

@@ -4,7 +4,8 @@
 The Cymbra Lingua app SHALL open on the review of the deck the extension keeps on the same device: the extension's own Révision page — its language filter and due count, its sessions, answers, read-aloud, machine translations and end summary — laid out for the screen it is on. The app SHALL obtain the deck through the container it shares with the extension, never through a network request of its own. Until the extension has shared its state, the app SHALL say how to turn the extension on.
 The only network requests the app SHALL make are the download of translation models the reader
 accepted, from Cymbra's model host, and, for online translation, the reader's sign-in — for an
-email account, with its verification code and password reset — and the sentence sent when the
+email account, with its verification code and password reset — and the reading of the signed-in
+account's access and name, and the sentence sent when the
 reader presses « Traduction en ligne »; none SHALL carry the deck.
 
 #### Scenario: A review on the train
@@ -35,7 +36,11 @@ SHALL be held only in the page's memory and only until the sign-in or the verifi
 it SHALL NOT be stored, logged or passed to the native app. Coming back to the app while the email
 sign-in is open SHALL keep its current step. Where the app used to say that online translation
 needed Apple or Google, it SHALL offer to sign in instead (French UI copy: « Se connecter pour la
-traduction en ligne »). The same SHALL hold on iPhone, iPad and Mac.
+traduction en ligne »). Once signed in, whatever the method (Apple, Google or an email), the app's
+line SHALL name the account — its handle, else its email address — (French UI copy: « Connecté en
+tant que @handle pour la traduction en ligne »), read once after the sign-in and on opening with a
+session, kept in memory only; when neither can be read it SHALL keep the plain signed-in line. The
+same SHALL hold on iPhone, iPad and Mac.
 
 #### Scenario: An email account signs in
 - **WHEN** a reader whose account was created with an email picks « Continuer avec un email » in the app's sheet and enters their email and password
@@ -68,3 +73,7 @@ traduction en ligne »). The same SHALL hold on iPhone, iPad and Mac.
 #### Scenario: Before any sign-in
 - **WHEN** online translation is offered in the app's review and the app has never been signed in
 - **THEN** the app shows « Se connecter pour la traduction en ligne » (French UI copy) and no note restricting sign-in to Apple or Google
+
+#### Scenario: The account signed in is named
+- **WHEN** the app is signed in, with Apple, Google or an email, or opens with the session its Keychain holds
+- **THEN** its line says « Connecté en tant que @handle pour la traduction en ligne — Se déconnecter » (French UI copy) with the account's handle, else its email address, else « Connecté à Cymbra pour la traduction en ligne » when neither can be read, and nothing of it is stored

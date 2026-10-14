@@ -2,6 +2,7 @@ import type { Client } from "@connectrpc/connect";
 import type { AuthService } from "@/gen/auth_pb";
 import type { FlagService } from "@/gen/flags_pb";
 import type { OnlineTranslationService } from "@/gen/online_translation_pb";
+import type { UserService } from "@/gen/user_pb";
 import { type AccountHostDeps, handleAccountMessage } from "../account/host.ts";
 import type { AccountMessage, AccountReply } from "../account/messages.ts";
 import type { AccountPort } from "../account/profile.ts";
@@ -75,6 +76,17 @@ export interface AppAccountClients {
   auth: Client<typeof AuthService>;
   flags: Pick<Client<typeof FlagService>, "getEffectiveFlags">;
   onlineTranslation: Pick<Client<typeof OnlineTranslationService>, "translate">;
+  /** The account's handle and its email-and-password address, for the signed-in line. */
+  user: Pick<Client<typeof UserService>, "getAccount" | "listIdentities">;
+}
+
+/**
+ * Which account the app is signed in to, as its line names it (add-lingua-app-email-signin D9): the
+ * handle, else the address of its email and password, else neither. In memory only, never stored.
+ */
+export interface AppAccountName {
+  handle: string | null;
+  email: string | null;
 }
 
 export interface AppAccountDeps {
@@ -109,6 +121,8 @@ export interface AppAccount {
   /** Reopen the session the Keychain holds, if any; whether one is usable. */
   resume(): Promise<boolean>;
   signedIn(): boolean;
+  /** The account signed in to, once read (D9); null signed out, or before and when it could not be read. */
+  name(): AppAccountName | null;
   /** The reader signed out from the app, and has not signed in since. */
   signedOut(): boolean;
   /** Open the app's sheet and sign in; whether a session was opened. */
@@ -183,6 +197,10 @@ export function appAccount(deps: AppAccountDeps): AppAccount {
   });
   /** The account's own access, read once signed in; until then the extension's snapshot decides. */
   let ownAccess: boolean | null = null;
+  /** The account's name for the signed-in line (D9): read once per session, in memory only. */
+  let accountName: AppAccountName | null = null;
+  /** The address an email sign-in used: the email fallback without another request. */
+  let signedInEmail: string | null = null;
   const signedIn = (): boolean => session.state().signedIn;
   const signedOut = (): boolean => {
     try {
@@ -214,6 +232,36 @@ export function appAccount(deps: AppAccountDeps): AppAccount {
     deps.onChange?.();
   }
 
+  /**
+   * Which account the line names (D9): its handle (`GetAccount`, as the extension's account page reads
+   * it), else the address of an email sign-in, else its email-and-password identity (`ListIdentities`).
+   * A read that fails leaves the plain line; nothing is stored.
+   */
+  async function readName(): Promise<void> {
+    try {
+      const user = deps.clients().user;
+      const handle = (await user.getAccount({})).handle || null;
+      let email = signedInEmail;
+      if (!handle && !email) {
+        const local = (await user.listIdentities({})).identities.find((i) => i.provider === "local");
+        email = local?.subject || null;
+      }
+      accountName = handle || email ? { handle, email } : null;
+    } catch (e: unknown) {
+      accountName = signedInEmail ? { handle: null, email: signedInEmail } : null;
+      console.warn(
+        "[Cymbra Lingua] the app's account could not be read:",
+        (e as { code?: unknown } | null)?.code ?? "error",
+      );
+    }
+    deps.onChange?.();
+  }
+
+  /** The account's access and its name, read together once a session is open. */
+  async function readAccount(): Promise<void> {
+    await Promise.all([readAccess(), readName()]);
+  }
+
   /** The background's dispatch, in the page, over the app's Session: the same categories, the same copy. */
   const hostDeps: AccountHostDeps = {
     session,
@@ -223,12 +271,17 @@ export function appAccount(deps: AppAccountDeps): AppAccount {
     eraseLinguaData: () => Promise.reject(new Error("the app erases nothing")),
     onSignedIn: () => {},
   };
-  const accountSend: AppAccountSend = (message) => handleAccountMessage(message, hostDeps);
+  const accountSend: AppAccountSend = async (message) => {
+    const reply = await handleAccountMessage(message, hostDeps);
+    // The address that signed in names the account when it has no handle (D9) — never the password.
+    if (message.type === "account:signInLocal" && reply.ok) signedInEmail = message.email;
+    return reply;
+  };
 
-  /** Signed in: the account's own access is read, the page repaints. */
+  /** Signed in: the account's own access and name are read, the page repaints. */
   async function opened(): Promise<boolean> {
     markSignedOut(false);
-    await readAccess();
+    await readAccount();
     return true;
   }
 
@@ -239,6 +292,7 @@ export function appAccount(deps: AppAccountDeps): AppAccount {
     } catch {
       reply = null;
     }
+    signedInEmail = null;
     if (choseEmail(reply)) {
       if (!deps.emailSignIn) return false;
       const done = await deps.emailSignIn(accountSend).catch(() => false);
@@ -277,15 +331,18 @@ export function appAccount(deps: AppAccountDeps): AppAccount {
     refresh: () => session.refresh(),
     async resume() {
       const usable = await session.resume().catch(() => false);
-      if (usable) await readAccess();
+      if (usable) await readAccount();
       return usable;
     },
     signedIn,
+    name: () => (signedIn() && accountName ? { ...accountName } : null),
     signedOut,
     signIn,
     async signOut() {
       await session.signOut();
       ownAccess = null;
+      accountName = null;
+      signedInEmail = null;
       markSignedOut(true);
       deps.onChange?.();
     },

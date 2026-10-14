@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppModelView } from "@/app/translation.ts";
-import { type AccountLineState, renderAccountLine, renderModelOffer } from "@/app/view.ts";
+import { type AccountLineState, accountLabel, renderAccountLine, renderModelOffer } from "@/app/view.ts";
 
 // The Cymbra Lingua app's own lines beside the extension's Révision (add-lingua-review-translation-fallback
 // D7, D8): the models' offer and the app's session line, text nodes and small buttons only.
@@ -102,5 +102,53 @@ describe("the app's session line", () => {
     el.querySelector<HTMLButtonElement>(".app-sign-in")!.click();
     expect(actions.signOut).toHaveBeenCalledOnce();
     expect(actions.signIn).toHaveBeenCalledOnce();
+  });
+});
+
+describe("the account named on the session line (add-lingua-app-email-signin D9)", () => {
+  const OUT = "Connecté à Cymbra pour la traduction en ligne — Se déconnecter";
+  // (name, language, the line's text)
+  const CASES: [AccountLineState["name"], "fr" | "en" | "es", string][] = [
+    [
+      { handle: "alice", email: "me@example.com" },
+      "fr",
+      "Connecté en tant que @alice pour la traduction en ligne — Se déconnecter",
+    ],
+    [
+      { handle: null, email: "me@example.com" },
+      "fr",
+      "Connecté en tant que me@example.com pour la traduction en ligne — Se déconnecter",
+    ],
+    [null, "fr", OUT],
+    [{ handle: null, email: null }, "fr", OUT],
+    [{ handle: "alice", email: null }, "en", "Signed in as @alice for online translation — Sign out"],
+    [{ handle: "alice", email: null }, "es", "Sesión iniciada como @alice para la traducción en línea — Cerrar sesión"],
+  ];
+
+  it("The account signed in is named: the handle, else the email, else the plain line", () => {
+    for (const [name, language, text] of CASES) {
+      renderAccountLine(el, { relevant: true, signedIn: true, signedOut: false, name }, language, {
+        signIn: vi.fn(),
+        signOut: vi.fn(),
+      });
+      expect(el.textContent, JSON.stringify(name)).toBe(text);
+    }
+  });
+
+  it("renders the name as text, never as markup", () => {
+    const name = { handle: "<img src=x onerror=alert(1)>", email: null };
+    renderAccountLine(el, { relevant: true, signedIn: true, signedOut: false, name }, "fr", {
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+    });
+    expect(el.querySelector("img")).toBeNull();
+    expect(el.textContent).toContain("@<img src=x onerror=alert(1)>");
+  });
+
+  it("labels the account", () => {
+    expect(accountLabel({ handle: "alice", email: "me@example.com" })).toBe("@alice");
+    expect(accountLabel({ handle: null, email: "me@example.com" })).toBe("me@example.com");
+    expect(accountLabel({ handle: null, email: null })).toBeNull();
+    expect(accountLabel(undefined)).toBeNull();
   });
 });

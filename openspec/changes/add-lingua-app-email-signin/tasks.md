@@ -17,6 +17,7 @@
 - [x] 3.4 (D8) `src/app/view.ts` `renderAccountLine`: where the note was shown, the sign-in link (« Se connecter pour la traduction en ligne »); `signInNote` removed from `src/i18n/{fr,en,es}/app.ts`; the « Annuler » copy of the panel in the three. Verify with `test/app-view.spec.ts` (relevant, never signed in → the link, no note) and the i18n alignment test.
 - [x] 3.5 `apps/lingua-extension/README.md` and `apps/lingua-apple/README.md`: the app's email sign-in (entry in the sheet, the extension's flow in the page, no account creation, the password never stored). Verify by reading both against the `lingua-apple-app` requirement.
 - [x] 3.6 Gates in `apps/lingua-extension`. Verify `yarn typecheck && yarn lint && yarn format:check && yarn test && yarn build && yarn check:variants` pass, with coverage at or above 80 %.
+- [x] 3.7 (D9) The signed-in line names the account: `src/app/account.ts` reads the handle (`GetAccount`), else the address of the email sign-in, else the `local` identity (`ListIdentities`), once after each sign-in and on opening with a session, in memory only, forgotten on sign-out; `src/app/view.ts` renders « Connecté en tant que @handle pour la traduction en ligne » as a text node, the plain line when nothing is known; `signedInAs` in `src/i18n/{fr,en,es}/app.ts`. Verify with `test/app-account.spec.ts` (handle known, email only, identity fallback, read failing → no name, sign-out forgets) and `test/app-view.spec.ts` (handle, email, plain line, the three languages, no markup).
 
 ## 4. The native sheet
 
