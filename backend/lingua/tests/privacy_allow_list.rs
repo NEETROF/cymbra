@@ -62,6 +62,9 @@ fn no_proto_field_names_a_browsing_signal() {
             include_str!("../proto/online_translation.proto"),
         ),
         ("lingua_admin", include_str!("../proto/lingua_admin.proto")),
+        // The anonymous usage counts: a week, a browser family, a version and steps
+        // (add-lingua-usage-counts).
+        ("usage_counts", include_str!("../proto/usage_counts.proto")),
     ];
     let mut checked = 0usize;
     for (name, proto) in protos {
@@ -107,6 +110,25 @@ fn the_card_source_is_a_deprecated_slot_and_nowhere_else() {
             "only a deck card may carry a `source`"
         );
     }
+}
+
+#[test]
+fn a_count_report_carries_only_a_week_a_browser_a_version_and_steps() {
+    // Spec `lingua-usage-counts`, "A report carries no identifier and nothing of what is
+    // read": the report's fields are pinned exactly, so an identifier (an installation, device
+    // or account id, a hash of one) or anything read (a language, a level) cannot be added
+    // without this test failing in review.
+    let proto = include_str!("../proto/usage_counts.proto");
+    // Enum values (`USAGE_STEP_INSTALLED = 1;`) parse like fields; only lowercase names are.
+    let fields: Vec<String> = field_names(proto)
+        .into_iter()
+        .filter(|f| f.chars().any(|c| c.is_ascii_lowercase()))
+        .collect();
+    assert_eq!(
+        fields,
+        ["install_week", "browser", "version", "steps"],
+        "usage_counts.proto messages may carry nothing else"
+    );
 }
 
 #[test]

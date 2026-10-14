@@ -18,7 +18,9 @@
 //! reader's own press: « Traduction en ligne » ([`OnlineTranslationService`](online_translation_grpc))
 //! carries the sentence to translate, relays it to a provider and keeps neither it nor its
 //! translation (change: add-lingua-online-translation). A reader can erase all of it
-//! without deleting their account ([`LinguaDataService`](data_grpc::DataGrpc)).
+//! without deleting their account ([`LinguaDataService`](data_grpc::DataGrpc)). The
+//! anonymous usage counts ([`UsageCountsService`](usage_counts_grpc)) carry no account at
+//! all: week counters, reported without authentication (change: add-lingua-usage-counts).
 
 pub mod grpc_util;
 // One rule for every studied-language value received (change: add-lingua-card-language).
@@ -58,6 +60,13 @@ pub mod online_translation_core;
 pub mod online_translation_grpc;
 pub mod pg_online_usage;
 pub mod providers;
+
+// Anonymous usage counts (change: add-lingua-usage-counts): week counters with no identifier,
+// reported without authentication.
+pub mod pg_usage_counts;
+pub mod usage_counts;
+pub mod usage_counts_core;
+pub mod usage_counts_grpc;
 
 pub use data::{DataModule, DataRepo, ErasureMarks};
 pub use data_grpc::DataGrpc;

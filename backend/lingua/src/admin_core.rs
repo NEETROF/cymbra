@@ -13,6 +13,8 @@
 use chrono::{Duration, NaiveDate};
 use cymbra_platform::{AppError, Result};
 
+use crate::usage_counts_core::{Browser, Reason, Step};
+
 /// The Unix epoch as a civil date — the origin of the epoch-day key.
 fn epoch() -> NaiveDate {
     NaiveDate::from_ymd_opt(1970, 1, 1).expect("1970-01-01 is a valid date")
@@ -115,6 +117,109 @@ pub fn online_usage_totals(rows: &[OnlineUsageRow]) -> OnlineUsageTotals {
             limited: t.limited + r.limited,
             cost_micro_usd: t.cost_micro_usd + r.cost_micro_usd,
         })
+}
+
+/// The browser filter of the installation funnel and the leaving reasons (change:
+/// add-lingua-usage-counts, D13): empty is every family; otherwise one of the three families,
+/// or `unknown` where `allow_unknown` (leaving answers may not know theirs).
+pub fn browser_filter(s: &str, allow_unknown: bool) -> Result<Option<&'static str>> {
+    let s = s.trim();
+    if s.is_empty() {
+        return Ok(None);
+    }
+    if let Some(b) = Browser::parse(s) {
+        return Ok(Some(b.as_str()));
+    }
+    if allow_unknown && s == crate::usage_counts_core::UNKNOWN {
+        return Ok(Some(crate::usage_counts_core::UNKNOWN));
+    }
+    Err(AppError::InvalidArgument(format!(
+        "unknown browser family {s:?}"
+    )))
+}
+
+/// One week × step of the installation counters, versions summed, as the repository
+/// returns it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FunnelRow {
+    pub week: i32,
+    pub step: String,
+    pub count: i64,
+    /// One of the counters summed reached the ceiling.
+    pub capped: bool,
+}
+
+/// One installation week of the funnel (counts only, no identifier).
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct FunnelWeek {
+    /// The Monday that starts the installation week (epoch day).
+    pub week: i32,
+    pub installed: i64,
+    pub set_up: i64,
+    pub first_analysis: i64,
+    pub returned_day_1: i64,
+    pub returned_days_7_13: i64,
+    pub returned_days_30_59: i64,
+    pub capped: bool,
+}
+
+/// Pivot week × step rows into one funnel row per week, ascending; a step the server does
+/// not know (none should exist) is ignored.
+pub fn funnel_weeks(rows: Vec<FunnelRow>) -> Vec<FunnelWeek> {
+    let mut weeks: std::collections::BTreeMap<i32, FunnelWeek> =
+        std::collections::BTreeMap::new();
+    for r in rows {
+        let Some(step) = Step::ALL.into_iter().find(|s| s.as_str() == r.step) else {
+            continue;
+        };
+        let w = weeks.entry(r.week).or_insert_with(|| FunnelWeek {
+            week: r.week,
+            ..Default::default()
+        });
+        let slot = match step {
+            Step::Installed => &mut w.installed,
+            Step::SetUp => &mut w.set_up,
+            Step::FirstAnalysis => &mut w.first_analysis,
+            Step::ReturnedDay1 => &mut w.returned_day_1,
+            Step::ReturnedDays7To13 => &mut w.returned_days_7_13,
+            Step::ReturnedDays30To59 => &mut w.returned_days_30_59,
+        };
+        *slot += r.count;
+        w.capped |= r.capped;
+    }
+    weeks.into_values().collect()
+}
+
+/// One leaving reason's total over a window, as the repository returns it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ReasonRow {
+    pub reason: String,
+    pub count: i64,
+    pub capped: bool,
+}
+
+/// The six leaving reasons' totals, in their fixed order (zero when none was given).
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct LeaveTotals {
+    pub reasons: Vec<(&'static str, i64)>,
+    pub capped: bool,
+}
+
+pub fn leave_totals(rows: &[ReasonRow]) -> LeaveTotals {
+    LeaveTotals {
+        reasons: Reason::ALL
+            .into_iter()
+            .map(|reason| {
+                let total = rows
+                    .iter()
+                    .filter(|r| r.reason == reason.as_str())
+                    .map(|r| r.count)
+                    .sum();
+                (reason.as_str(), total)
+            })
+            .collect(),
+        capped: rows.iter().any(|r| r.capped),
+    }
 }
 
 /// One point of a per-day series: a day and a count.
@@ -227,5 +332,89 @@ mod tests {
             }
         );
         assert_eq!(online_usage_totals(&[]), OnlineUsageTotals::default());
+    }
+
+    #[test]
+    fn the_browser_filter_is_closed() {
+        assert_eq!(browser_filter("", false).unwrap(), None);
+        assert_eq!(browser_filter(" firefox ", false).unwrap(), Some("firefox"));
+        assert_eq!(browser_filter("unknown", true).unwrap(), Some("unknown"));
+        assert!(matches!(
+            browser_filter("unknown", false),
+            Err(AppError::InvalidArgument(_))
+        ));
+        assert!(matches!(
+            browser_filter("chromium' OR 1=1", true),
+            Err(AppError::InvalidArgument(_))
+        ));
+    }
+
+    #[test]
+    fn funnel_rows_pivot_into_weeks() {
+        let row = |week, step: &str, count, capped| FunnelRow {
+            week,
+            step: step.into(),
+            count,
+            capped,
+        };
+        let weeks = funnel_weeks(vec![
+            row(11, "installed", 3, false),
+            row(4, "installed", 40, false),
+            row(4, "set_up", 30, false),
+            row(4, "first_analysis", 25, false),
+            row(4, "returned_day_1", 12, false),
+            row(4, "returned_days_7_13", 8, true),
+            row(4, "returned_days_30_59", 2, false),
+            row(4, "retired_step", 99, true),
+            row(18, "retired_step", 1, true),
+        ]);
+        assert_eq!(
+            weeks,
+            vec![
+                FunnelWeek {
+                    week: 4,
+                    installed: 40,
+                    set_up: 30,
+                    first_analysis: 25,
+                    returned_day_1: 12,
+                    returned_days_7_13: 8,
+                    returned_days_30_59: 2,
+                    capped: true,
+                },
+                FunnelWeek {
+                    week: 11,
+                    installed: 3,
+                    ..Default::default()
+                },
+            ]
+        );
+        assert!(funnel_weeks(vec![]).is_empty());
+    }
+
+    #[test]
+    fn leave_totals_list_the_six_reasons_in_order() {
+        let reason = |r: &str, count, capped| ReasonRow {
+            reason: r.into(),
+            count,
+            capped,
+        };
+        let t = leave_totals(&[
+            reason("slow", 2, false),
+            reason("slow", 1, false),
+            reason("not_using", 5, true),
+        ]);
+        assert_eq!(
+            t.reasons,
+            vec![
+                ("not_using", 5),
+                ("highlighting", 0),
+                ("missing_language", 0),
+                ("slow", 3),
+                ("unclear", 0),
+                ("other", 0)
+            ]
+        );
+        assert!(t.capped);
+        assert!(!leave_totals(&[]).capped);
     }
 }

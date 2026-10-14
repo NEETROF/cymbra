@@ -27,6 +27,12 @@ service LinguaAdminService {
   // daily totals the translation service keeps — no account, no text
   // (change: add-lingua-online-translation).
   rpc AdminGetOnlineTranslationUsage(AdminGetOnlineTranslationUsageRequest) returns (AdminGetOnlineTranslationUsageResponse);
+  // The anonymous installation funnel (change: add-lingua-usage-counts): per installation
+  // week, how many installations reached each step, from week counters that carry no
+  // identifier. Versions are summed; the finest grain is week × browser family.
+  rpc AdminGetUsageFunnel(AdminGetUsageFunnelRequest) returns (AdminGetUsageFunnelResponse);
+  // The leaving page's answers, totalled per reason over the window (same counters' rules).
+  rpc AdminGetLeaveReasons(AdminGetLeaveReasonsRequest) returns (AdminGetLeaveReasonsResponse);
 }
 
 // A closed UTC-day window, inclusive both ends (yyyy-mm-dd, the /usage convention).
@@ -106,4 +112,44 @@ message AdminGetOnlineTranslationUsageResponse {
   int64 failed = 3;
   int64 limited = 4;
   int64 cost_micro_usd = 5;
+}
+
+message AdminGetUsageFunnelRequest {
+  // The installation weeks whose days meet the window.
+  LinguaWindow window = 1;
+  string browser = 2;          // `chromium` | `firefox` | `safari`; empty => every family
+}
+
+// One installation week of the funnel: counts only, versions summed.
+message UsageFunnelWeek {
+  string week = 1;             // yyyy-mm-dd, the Monday that starts the installation week
+  int64 installed = 2;
+  int64 set_up = 3;
+  int64 first_analysis = 4;
+  int64 returned_day_1 = 5;
+  int64 returned_days_7_to_13 = 6;
+  int64 returned_days_30_to_59 = 7;
+  bool capped = 8;             // one of this week's counters reached the ceiling
+}
+
+message AdminGetUsageFunnelResponse {
+  repeated UsageFunnelWeek weeks = 1; // ascending by week
+}
+
+message AdminGetLeaveReasonsRequest {
+  // The weeks the answers arrived in whose days meet the window.
+  LinguaWindow window = 1;
+  string browser = 2;          // `chromium` | `firefox` | `safari` | `unknown`; empty => every
+}
+
+// One leaving reason's total over the window.
+message LeaveReasonTotal {
+  // not_using | highlighting | missing_language | slow | unclear | other
+  string reason = 1;
+  int64 count = 2;
+}
+
+message AdminGetLeaveReasonsResponse {
+  repeated LeaveReasonTotal reasons = 1; // the six reasons, in their fixed order
+  bool capped = 2;             // one of the counters summed reached the ceiling
 }

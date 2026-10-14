@@ -30,6 +30,17 @@ prost.workspace = true
 reqwest.workspace = true
 cymbra-platform = { path = "../platform" }
 cymbra-user-port = { path = "../user-port" }
+# The usage counts' flood guard keys each network by an HMAC under a key drawn at start-up
+# (change: add-lingua-usage-counts, D10).
+hmac.workspace = true
+sha2.workspace = true
+getrandom = "0.2"
+# `MockUsageCountsRepo` & co. via `#[automock]` under the `mock` feature, so the server can
+# double the usage-count seams in its route tests (rust-testing default).
+mockall = { workspace = true, optional = true }
+
+[features]
+mock = ["dep:mockall"]
 
 [build-dependencies]
 tonic-build.workspace = true
