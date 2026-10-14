@@ -162,8 +162,11 @@ you choose to keep on its card (below).
 Also kept on the device: the detail of your reading (which words you met, on which pages),
 the **address of the page** where you add a word to your deck and, when you are not signed
 in, all of your Lingua data. Also kept on the device, neither synchronised nor written in the
-backup file: the number of review sessions you finished and your answer to the request for a
-rating; the store page opens only if you choose to rate Cymbra Lingua.
+backup file, is what the request for a rating remembers: the number of review sessions you
+finished, the number of days on which you finished one, the date of the last one, the number of
+times the request was shown to you and your answer — and, in the Cymbra Lingua app, the number of
+sessions finished in the app and the version of the app for which a rating was requested; the
+store page opens only if you choose to rate Cymbra Lingua.
 
 **Your languages.** Your language settings stay on the device: the languages you study and
 your native language are not stored as such. Each synced status, level, card and day of
