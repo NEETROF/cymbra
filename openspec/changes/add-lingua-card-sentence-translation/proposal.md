@@ -63,7 +63,7 @@ This change archives after `refine-lingua-review-session` (`archiveAfter` in
   keeping a local translation when the pulled one is empty).
 - `crates/lingua-wasm/src/lib.rs`: `addCard`, `reviewCurrent`, the card ops.
 - `backend/lingua/proto/deck.proto`, `backend/lingua/src/deck.rs`, `pg_deck.rs`,
-  `backend/lingua/migrations/0006_lingua_card_sentence_translation.sql`.
+  `backend/lingua/migrations/0009_lingua_card_sentence_translation.sql`.
 - `apps/lingua-extension`: the word and selection cards' gesture, `reading/session.ts`
   (capture), the port, `sync/sync.ts` (the op mapping), `review/view.ts` (display).
 - `apps/site/src/pages/confidentialite.md`, `apps/site/src/pages/en/privacy.md`.

@@ -78,9 +78,15 @@ message TextSpan {
   uint32 end = 2;
 }
 // in CardOp:
-string sentence_translation = 12;
-repeated TextSpan sentence_translation_marks = 13;
+string sentence_translation = 14;
+repeated TextSpan sentence_translation_marks = 15;
 ```
+
+Numbering: when this was written it named fields 12 and 13; since then 12 became
+`gloss_language` (`add-lingua-native-language-server`) and 13 `gloss_by_reader`
+(`add-lingua-review-translation-fallback`, shared with `add-lingua-card-edit`), so this change
+takes the next free numbers, 14 and 15. Likewise migrations `0006`–`0008` are taken: the
+migration below is `0009`.
 
 Both are additive: `buf breaking` (rule set `FILE`) passes, and clients built before them
 ignore them. Last-write-wins replaces a whole card, so a newer op from such a client would
@@ -91,9 +97,9 @@ that sync cannot clear a translation, which nothing does.
 
 ### D4 — The server stores two columns
 
-`0006_lingua_card_sentence_translation.sql` adds `sentence_translation TEXT NOT NULL DEFAULT ''`
+`0009_lingua_card_sentence_translation.sql` adds `sentence_translation TEXT NOT NULL DEFAULT ''`
 and `sentence_translation_marks JSONB NOT NULL DEFAULT '[]'` to `lingua.cards`, idempotent and
-schema-qualified like 0001–0005. The upsert sets each with a `CASE` on the incoming text being
+schema-qualified like 0001–0008. The upsert sets each with a `CASE` on the incoming text being
 empty; pulls return them. `FakeDeckRepo` follows the same rule, so the module's tests cover it
 without Postgres.
 

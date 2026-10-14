@@ -16,8 +16,8 @@
 
 ## 3. The contract and the server
 
-- [ ] 3.1 `backend/lingua/proto/deck.proto`: `TextSpan` and `CardOp` fields 12 and 13, commented like the others (D3). Verify that `buf lint` and `buf breaking` against `main` pass (the `proto` workflow's commands).
-- [ ] 3.2 `backend/lingua/migrations/0006_lingua_card_sentence_translation.sql`: the two columns, idempotent and schema-qualified (D4). Verify by applying it twice on a local database without error.
+- [ ] 3.1 `backend/lingua/proto/deck.proto`: `TextSpan` and `CardOp` fields 14 and 15 (12 is `gloss_language`, 13 `gloss_by_reader`), commented like the others (D3). Verify that `buf lint` and `buf breaking` against `main` pass (the `proto` workflow's commands).
+- [ ] 3.2 `backend/lingua/migrations/0009_lingua_card_sentence_translation.sql`: the two columns, idempotent and schema-qualified (D4). Verify by applying it twice on a local database without error.
 - [ ] 3.3 `backend/lingua/src/deck.rs` and `pg_deck.rs`: store and return the translation and its marks; keep the stored ones when the incoming text is empty; `FakeDeckRepo` alike. Verify with module tests on the fake (both rules) and a `backend-it` case on Postgres: an op from an older client does not erase a kept translation.
 
 ## 4. The extension

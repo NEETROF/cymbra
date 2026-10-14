@@ -4,3 +4,4 @@ archiveAfter:
   - refine-lingua-review-session
   - add-lingua-review-translation
   - add-lingua-online-translation
+  - add-lingua-review-translation-fallback
