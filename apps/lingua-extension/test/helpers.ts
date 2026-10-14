@@ -5,6 +5,7 @@ import type {
   LanguagePort,
   LinguaPort,
   NewCard,
+  NewWordAllowance,
   Rating,
   ReviewCard,
   ReviewOptions,
@@ -58,6 +59,8 @@ export interface FakeCalls {
   reviewLanguages: (StudiedLanguage[] | undefined)[];
   /** The options each review start was given. */
   reviewOptions: (ReviewOptions | undefined)[];
+  /** The allowance each count of what a review would hold was asked with (add-lingua-comeback-hints D1). */
+  allowances: (NewWordAllowance | undefined)[];
 }
 
 /**
@@ -80,6 +83,7 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
     restored: [],
     reviewLanguages: [],
     reviewOptions: [],
+    allowances: [],
   };
   let queue: FakeCard[] = [];
   let pos = 0;
@@ -146,6 +150,12 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
     deckCount: async (languages) => deck.filter(within(languages)).length + calls.addCard.length,
     dueCount: async (_now, languages) => {
       calls.reviewLanguages.push(languages);
+      return queue.slice(pos).filter(within(languages)).length;
+    },
+    // What the queue still holds, as the due count reads it: the fake has no allowance of its own.
+    reviewableCount: async (_now, languages, allowance) => {
+      calls.reviewLanguages.push(languages);
+      calls.allowances.push(allowance);
       return queue.slice(pos).filter(within(languages)).length;
     },
     startReview: async (_now, languages, options) => {

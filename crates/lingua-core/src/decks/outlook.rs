@@ -19,8 +19,9 @@
 //! The count changes when the data changes, and when time passes: a reviewed card comes due, a
 //! new day refills the allowance of new words. So the outlook keeps, per studied language, the
 //! reviewed cards due when it was worked out, the due times of the next ones to come, the
-//! never-reviewed cards waiting and the new words already let in today. Counts and timestamps
-//! only — no word, no page. [`ReviewOutlook::count_at`] is the one reading of it; the extension
+//! never-reviewed cards waiting and the new words already let in today — and the language's cards,
+//! which the popup shows beside the count away from a page (D8). Counts and timestamps only — no
+//! word, no page. [`ReviewOutlook::count_at`] is the one reading of it; the extension
 //! repeats it in TypeScript, held to this one by a test against the engine.
 
 use serde::{Deserialize, Serialize};
@@ -42,6 +43,9 @@ pub const UPCOMING_MAX: usize = 100;
 pub struct LanguageOutlook {
     /// The language, as its ISO 639-1 tag.
     pub language: String,
+    /// Every card of the language, retired ones included — the deck the popup shows away from a
+    /// page (D8).
+    pub cards: usize,
     /// The reviewed cards due when the outlook was worked out.
     pub due: usize,
     /// The due times (Unix-epoch seconds) of the next reviewed cards to come due, ascending, at
@@ -71,10 +75,12 @@ pub struct ReviewOutlook {
 impl LanguageOutlook {
     /// Worked out from `deck` at `now` for `language`, `introduced` counted from `day_start`.
     pub fn of(deck: &Deck, language: StudiedLanguage, now: i64, day_start: i64) -> Self {
+        let mut cards = 0;
         let mut due = 0;
         let mut fresh = 0;
         let mut upcoming = Vec::new();
         for (_, card) in deck.iter().filter(|(l, _)| *l == language) {
+            cards += 1;
             let review = &card.review;
             if review.is_due(now) {
                 if review.memory.is_some() {
@@ -93,6 +99,7 @@ impl LanguageOutlook {
         upcoming.truncate(UPCOMING_MAX);
         Self {
             language: language.tag().to_owned(),
+            cards,
             due,
             upcoming,
             fresh,
@@ -277,7 +284,15 @@ mod tests {
         let outlook = ReviewOutlook::of(&deck, &[EN, ES], now, day_start);
         let english = &outlook.languages[0];
         assert_eq!(english.language, "en");
-        assert_eq!((english.due, english.fresh, english.introduced), (3, 13, 0));
+        assert_eq!(
+            (
+                english.cards,
+                english.due,
+                english.fresh,
+                english.introduced
+            ),
+            (24, 3, 13, 0)
+        );
         assert_eq!(
             english.upcoming.len(),
             6,
@@ -366,7 +381,7 @@ mod tests {
         assert_eq!(
             outlook.to_json(),
             format!(
-                r#"{{"version":{OUTLOOK_VERSION},"computedAt":{DAY},"dayStart":{DAY},"languages":[{{"language":"en","due":0,"upcoming":[{}],"fresh":1,"introduced":0}},{{"language":"es","due":0,"upcoming":[],"fresh":0,"introduced":0}}]}}"#,
+                r#"{{"version":{OUTLOOK_VERSION},"computedAt":{DAY},"dayStart":{DAY},"languages":[{{"language":"en","cards":2,"due":0,"upcoming":[{}],"fresh":1,"introduced":0}},{{"language":"es","cards":0,"due":0,"upcoming":[],"fresh":0,"introduced":0}}]}}"#,
                 5 * DAY
             )
         );

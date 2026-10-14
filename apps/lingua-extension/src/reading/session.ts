@@ -55,6 +55,7 @@ import {
   loadEnabled,
   loadHudHidden,
   loadHudPosition,
+  loadNewWordsPerDay,
   parseHudPosition,
   saveBackup,
   saveHudPosition,
@@ -62,6 +63,7 @@ import {
   storedVoicePreference,
 } from "../state/storage.ts";
 import { messagedArea, watchBackup } from "../state/store.ts";
+import { localDayStart } from "../review/session.ts";
 import { requestSync } from "../sync/messages.ts";
 
 // The reading controller, one implementation for its two hosts: the content script on a web
@@ -1356,9 +1358,13 @@ export class ReadingSession {
       trackedCount: await this.port.trackedCount(),
       reviewLanguage: beside,
       toSort: await this.toSortBeside(),
-      // Where the review opens beside it (refine-lingua-review-language D4).
+      // Where the review opens beside it (refine-lingua-review-language D4), and what a review would
+      // hold there today: the new words beyond the day's allowance wait (add-lingua-comeback-hints D1).
       deckCount: await this.port.deckCount([counted]),
-      dueCount: await this.port.dueCount(now, [counted]),
+      dueCount: await this.port.reviewableCount(now, [counted], {
+        newPerDay: await loadNewWordsPerDay(storageArea),
+        dayStart: localDayStart(now),
+      }),
     };
   }
 }

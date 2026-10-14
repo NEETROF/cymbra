@@ -762,7 +762,11 @@ describe("the reading session and the studied language", () => {
 describe("the review beside the document (refine-lingua-review-language)", () => {
   /** A reader of English and Spanish, reading a book the engine finds Spanish; every count asked is kept. */
   async function spanishBook() {
-    const counted: { deck: (string[] | undefined)[]; due: (string[] | undefined)[] } = { deck: [], due: [] };
+    const counted: {
+      deck: (string[] | undefined)[];
+      due: (string[] | undefined)[];
+      allowances: (number | undefined)[];
+    } = { deck: [], due: [], allowances: [] };
     const fake = session();
     await fake.port.setStudiedLanguages(["en", "es"]);
     fake.port.detectLanguage = async () => "es";
@@ -770,8 +774,10 @@ describe("the review beside the document (refine-lingua-review-language)", () =>
       counted.deck.push(languages);
       return 7;
     };
-    fake.port.dueCount = async (_now, languages) => {
+    // What a review would hold today, within the day's allowance (add-lingua-comeback-hints D1).
+    fake.port.reviewableCount = async (_now, languages, allowance) => {
       counted.due.push(languages);
+      counted.allowances.push(allowance?.newPerDay);
       return 2;
     };
     await fake.s.start(null);
@@ -786,7 +792,7 @@ describe("the review beside the document (refine-lingua-review-language)", () =>
     await vi.waitFor(() => expect(answer).not.toBe("none"));
 
     expect(answer).toMatchObject({ language: "es", reviewLanguage: "es", deckCount: 7, dueCount: 2 });
-    expect(counted).toEqual({ deck: [["es"]], due: [["es"]] });
+    expect(counted).toEqual({ deck: [["es"]], due: [["es"]], allowances: [10] });
   });
 
   it("announces the document's language with its figures, for Chrome's side panel (D3)", async () => {

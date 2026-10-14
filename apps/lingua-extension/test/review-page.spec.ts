@@ -144,23 +144,31 @@ function button(container: HTMLElement, label: string): HTMLButtonElement {
 const text = (container: HTMLElement, selector: string): string => container.querySelector(selector)?.textContent ?? "";
 
 describe("Révision — the page", () => {
-  it("shows the deck and what is due, asked on the injected clock", async () => {
+  it("shows the deck and what a review would hold today, asked on the injected clock", async () => {
     // The clock is a seam precisely so the page never reads Date.now() for the schedule.
-    const asked: number[] = [];
+    const asked: unknown[] = [];
     const { port } = makeFakePort();
-    const m = mount({
-      ...port,
-      deckCount: async () => 12,
-      dueCount: async (now) => {
-        asked.push(now);
-        return 3;
+    const prefs = fakeArea();
+    prefs.raw[NEW_WORDS_PER_DAY_KEY] = 5;
+    const m = mount(
+      {
+        ...port,
+        deckCount: async () => 12,
+        dueCount: async () => 40, // every new word: no longer the figure shown
+        reviewableCount: async (now, _languages, allowance) => {
+          asked.push([now, allowance]);
+          return 3;
+        },
       },
-    });
+      fakeArea(),
+      { prefs },
+    );
 
     await m.page.refresh();
 
+    // add-lingua-comeback-hints D1: the new words beyond the day's allowance are not counted.
     expect(text(m.container, ".summary")).toBe("12 carte(s) · 3 à revoir");
-    expect(asked).toEqual([NOW_SECONDS]);
+    expect(asked).toEqual([[NOW_SECONDS, { newPerDay: 5, dayStart: localDayStart(NOW_SECONDS) }]]);
     expect(button(m.container, "Réviser")).toBeTruthy();
   });
 

@@ -264,7 +264,7 @@ describe("An English-native reader's review", () => {
 
   it("the page: each count of the summary in bold, grouped as English groups it, in its own form", async () => {
     const { port } = makeFakePort();
-    const m = mount({ ...port, deckCount: async () => 1, dueCount: async () => 12_345 });
+    const m = mount({ ...port, deckCount: async () => 1, reviewableCount: async () => 12_345 });
     await m.refresh();
     expect(text(m.container, ".summary")).toBe("1 card · 12,345 to review");
     expect([...m.container.querySelectorAll(".summary b")].map((b) => b.textContent)).toEqual(["1", "12,345"]);

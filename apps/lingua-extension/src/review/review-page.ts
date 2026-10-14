@@ -24,7 +24,7 @@ import {
 import { watchBackup } from "../state/store.ts";
 import type { TranslatorSource } from "../translate/create-port.ts";
 import type { OnlineTranslationRequest, OnlineTranslationResult } from "../translate/online.ts";
-import { ReviewController } from "./session.ts";
+import { localDayStart, ReviewController } from "./session.ts";
 import {
   cardTranslationRequest,
   onlineReviewRequest,
@@ -373,8 +373,12 @@ export function mountReview(
     await saveBackup(area, backup);
   }
 
+  // What a review would hold today, new words beyond the day's allowance left out: the figure the
+  // popup and the toolbar icon show too (add-lingua-comeback-hints D1).
   async function refreshSummary(): Promise<void> {
-    const [deck, due] = [await port.deckCount(only()), await port.dueCount(opts.now(), only())];
+    const now = opts.now();
+    const allowance = { newPerDay: await loadNewWordsPerDay(opts.prefs), dayStart: localDayStart(now) };
+    const [deck, due] = [await port.deckCount(only()), await port.reviewableCount(now, only(), allowance)];
     summary.replaceChildren(...counted(deck, copy.deckCards), copy.summarySeparator, ...counted(due, copy.dueCards));
   }
 
