@@ -87,7 +87,22 @@ export interface ReviewRenderOptions {
    * offered under a translation shown. Absent: no action.
    */
   keep?: (gloss: string) => void;
+  /**
+   * On a revealed card without a gloss that nothing can translate — no model ready, no online
+   * button —, how the reader gets a translation, said in the no-translation note itself
+   * (add-lingua-review-translation-fallback D12). Absent: the note alone.
+   */
+  hint?: ReviewTranslationHint;
 }
+
+/**
+ * How the reader gets a translation for a card nothing can translate (D12), per host: turn on
+ * « Traduction étendue » in Réglages (the extension), turn it on in the Safari extension (the app,
+ * the setting off there), or download the app's copy of the models (the app, the setting on and its
+ * models absent) — `download` re-offering the app's own offer.
+ */
+export type ReviewTranslationHint =
+  { kind: "settings" } | { kind: "extension" } | { kind: "download"; download: () => void };
 
 /**
  * The review's « Traduction en ligne » button, as the selection card's
@@ -250,7 +265,7 @@ function cardView(
         answer.append(button(copy.translateSentence, "review-link review-ask-translation", () => ask()));
       }
     } else {
-      answer.append(missingGloss(card, opts.translation, copy));
+      answer.append(missingGloss(card, opts.translation, opts.hint, copy));
     }
     if (opts.online) answer.append(onlineRow(opts.online, language, copy));
     if (opts.keep && opts.translation?.state === "translated") {
@@ -343,12 +358,29 @@ export function markedIn(card: ReviewCard): MarkedWord | null {
 
 /**
  * In the place of a missing gloss: the machine translation that came, « Traduction en cours… » while
- * it is on its way, else the no-translation note (add-lingua-review-translation D2, D5).
+ * it is on its way, else the no-translation note (add-lingua-review-translation D2, D5) — saying, when
+ * nothing can translate the card, how to get a translation (add-lingua-review-translation-fallback D12).
  */
-function missingGloss(card: ReviewCard, translation: ReviewTranslation | undefined, copy: ReviewCopy): HTMLElement {
+function missingGloss(
+  card: ReviewCard,
+  translation: ReviewTranslation | undefined,
+  hint: ReviewTranslationHint | undefined,
+  copy: ReviewCopy,
+): HTMLElement {
   if (translation?.state === "pending") return note(copy.translating, "review-translating");
-  if (translation?.state !== "translated") return note(noGloss(card, copy), "review-no-gloss");
-  return translationBlock(translation, copy);
+  if (translation?.state === "translated") return translationBlock(translation, copy);
+  const missing = note(noGloss(card, copy), "review-no-gloss");
+  if (hint?.kind === "download") {
+    // The same line, its action a small text control: nothing moves but the line itself.
+    const { download } = hint;
+    missing.append(
+      " ",
+      button(copy.hintDownload, "review-link review-hint-download", () => download()),
+    );
+  } else if (hint) {
+    missing.append(" ", hint.kind === "settings" ? copy.hintSettings : copy.hintExtension);
+  }
+  return missing;
 }
 
 /** Under a gloss, what the reader asked: the translation, or that it is on its way; nothing when none came. */

@@ -167,3 +167,46 @@ describe("the app's models (add-lingua-review-translation-fallback D7)", () => {
     expect((await openAppTranslation({ ...s.deps, local: null })).view()).toMatchObject({ phase: "offer" });
   });
 });
+
+describe("the review's hint in the app (add-lingua-review-translation-fallback D12)", () => {
+  // (case, deps, the hint for an English card)
+  const HINTS: [string, Partial<AppTranslationDeps> & { complete?: string[] }, string | null][] = [
+    ["« Traduction étendue » off in the extension: turn it on there", { enabled: false }, "extension"],
+    ["on, the models absent: the download", {}, "download"],
+    ["on, the models there: nothing to say", { complete: ["en-fr/m"] }, null],
+    ["a pair without a route: nothing would help", { pairs: async () => ["fr-de"] }, null],
+  ];
+
+  it("says how the app gets a card translated, per case", async () => {
+    for (const [name, over, kind] of HINTS) {
+      const t = await openAppTranslation(setup(over).deps);
+      expect(t.hint("en")?.kind ?? null, name).toBe(kind);
+    }
+  });
+
+  it("re-offers the download after a « Plus tard », through the same offer", async () => {
+    const s = setup();
+    const t = await openAppTranslation(s.deps);
+    t.decline();
+    expect(t.view()).toEqual({ phase: "none" });
+    const hint = t.hint("en");
+    expect(hint?.kind).toBe("download");
+    if (hint?.kind === "download") hint.download();
+    await vi.waitFor(() => expect(t.view()).toEqual({ phase: "offer", pairs: ["en-fr"], bytes: 26_000_000 }));
+    expect(JSON.parse(s.local.items[APP_MODELS_KEY]!)).toEqual({ declined: [], downloaded: [] });
+    expect(s.downloads).toEqual([]); // offered, never fetched before the reader accepts
+    t.accept();
+    expect(s.downloads).toHaveLength(1);
+    expect(t.hint("en")).toBeNull(); // a download running: its progress says enough
+    t.reoffer(); // and nothing is re-offered under it
+    expect(t.view()).toMatchObject({ phase: "downloading" });
+  });
+
+  it("the setting off: the hint points to the extension and the re-offer does nothing", async () => {
+    const s = setup({ enabled: false });
+    const t = await openAppTranslation(s.deps);
+    t.reoffer();
+    expect(t.view()).toEqual({ phase: "none" });
+    expect(s.downloads).toEqual([]);
+  });
+});
