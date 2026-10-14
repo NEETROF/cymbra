@@ -41,6 +41,8 @@ class ViewController: PlatformViewController, WKNavigationDelegate, WKScriptMess
         configuration.setURLSchemeHandler(AppPageSchemeHandler(), forURLScheme: AppPageResource.scheme)
         configuration.userContentController.add(self, name: "controller")
         configuration.userContentController.addScriptMessageHandler(self, contentWorld: .page, name: "lingua")
+        // SPIKE 1.4 (throwaway): the spike page's log lines, printed to the console.
+        configuration.userContentController.add(SpikeLogger(), name: "spike")
 
         // The page's language (localise-lingua-apple-host, D2): the extension's interface language
         // once the extension has run — its native handler keeps it in the App Group — and the
@@ -65,6 +67,7 @@ class ViewController: PlatformViewController, WKNavigationDelegate, WKScriptMess
         webView.removeFromSuperview()
         webView = built
         webView.navigationDelegate = self
+        if #available(iOS 16.4, macOS 13.3, *) { webView.isInspectable = true }
 
 #if os(iOS)
         NotificationCenter.default.addObserver(
@@ -81,6 +84,23 @@ class ViewController: PlatformViewController, WKNavigationDelegate, WKScriptMess
 
     /// The review when the extension has shared a state the page can show, the explanation otherwise.
     private func load() {
+        // SPIKE 1.4 (throwaway): always the spike page, with SPIKE_QUERY (env) as its query.
+        if ProcessInfo.processInfo.environment["SPIKE_OFF"] == nil {
+            let query = ProcessInfo.processInfo.environment["SPIKE_QUERY"].map { "?" + $0 } ?? ""
+            showingReview = true
+#if os(macOS)
+            sizeWindowForReview()
+#endif
+            webView.load(URLRequest(url: URL(string: "\(AppPageResource.scheme)://app/spike.html\(query)")!))
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                let pid = (self?.webView.value(forKey: "_webProcessIdentifier") as? NSNumber)?.intValue ?? -1
+                let line = "[spike] INFO web content pid: \(pid) (app pid \(ProcessInfo.processInfo.processIdentifier))"
+                NSLog("%@", line)
+                print(line)
+                fflush(stdout)
+            }
+            return
+        }
         let state = ReviewRelayStore.shared()?.state()
         if let state, state != unusableState {
             showingReview = true
@@ -190,6 +210,16 @@ class ViewController: PlatformViewController, WKNavigationDelegate, WKScriptMess
 #endif
     }
 
+}
+
+/// SPIKE 1.4 (throwaway): prints the spike page's lines.
+final class SpikeLogger: NSObject, WKScriptMessageHandler {
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        let line = "[spike] \(message.body)"
+        NSLog("%@", line)
+        print(line)
+        fflush(stdout)
+    }
 }
 
 /// Serves the review page and its files from the app's bundle, and the packs from the Safari

@@ -378,5 +378,35 @@ if (wanted.includes(APP)) {
   ]) {
     cpSync(join(root, from), join(dist, to));
   }
+  // THROWAWAY spike (add-lingua-review-translation-fallback task 1.4, branch spike/lingua-app-engine):
+  // the spike page, the extension's own engine + model workers, the engine and the catalogue.
+  {
+    const spikeCommon = {
+      absWorkingDir: root,
+      bundle: true,
+      sourcemap: false,
+      minifySyntax: true,
+      target: ["safari16"],
+      logLevel: "info",
+      define: { __TARGET__: JSON.stringify("safari"), __APP__: "true" },
+    };
+    await build({ ...spikeCommon, entryPoints: { spike: join(root, "src/app/spike/spike.ts") }, outdir: dist, format: "esm" });
+    await build({
+      ...spikeCommon,
+      entryPoints: {
+        "engine-worker": join(root, "src/translate/host/engine-worker.ts"),
+        "model-worker": join(root, "src/translate/host/model-worker.ts"),
+        "probe-worker": join(root, "src/app/spike/probe-worker.ts"),
+      },
+      outdir: dist,
+      format: "iife",
+    });
+    writeFileSync(join(dist, "probe-import.js"), "self.__probeImported = true;\n");
+    cpSync(join(root, "src/app/spike/spike.html"), join(dist, "spike.html"));
+    mkdirSync(join(dist, "engine"), { recursive: true });
+    for (const f of ENGINE_FILES) cpSync(join(ENGINE_DIR, f), join(dist, "engine", f));
+    const bundled = bundledCatalogue(MODEL_CATALOGUE, MODEL_BASE_URL || MODEL_CATALOGUE.base);
+    writeFileSync(join(dist, "model-manifest.json"), `${JSON.stringify(bundled, null, 2)}\n`);
+  }
   console.log("Built app → dist-app/ (apps/lingua-apple bundles it)");
 }
