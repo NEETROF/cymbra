@@ -136,6 +136,12 @@ matches the release. The French text names no other audience and is unchanged bu
 « Plusieurs langues à la fois… » is gone, by the owner's decision of 2026-10-10 (no listing text
 speaks of price; change 53b took the line out of the extension and the site).
 
+Each text's local-analysis paragraph carries the sentence of add-lingua-usage-counts (design Q5,
+accepted by the owner on 2026-10-14) where it promised that, with no account and no extended
+translation, nothing reached the network — the anonymous counts make that false — and
+its account paragraph names the counts beside « Traduction en ligne ». The four counts were
+re-measured with it, the same way.
+
 **FR** — for French speakers (2,729 / 16,000 characters)
 
 Cymbra Lingua surligne, sur la page que vous lisez, les mots d'anglais ou d'espagnol que vous ne
@@ -157,9 +163,10 @@ Lisez aussi vos livres : importez vos fichiers EPUB sans DRM dans la bibliothèq
 l'extension et lisez-les, hors ligne, avec le même surlignage, page par page — une tablette à
 encre électronique comprise. Vos livres restent sur votre appareil.
 
-**L'analyse est locale.** Les dictionnaires et le moteur tournent dans votre navigateur : aucune
-page que vous lisez n'est envoyée nulle part, et l'extension fonctionne hors ligne. Sans
-compte ni traduction étendue, elle ne fait aucune requête réseau.
+**L'analyse est locale.** Les dictionnaires et le moteur tournent dans votre navigateur, et
+l'extension fonctionne hors ligne. Ce que vous lisez ne quitte jamais votre appareil. Lingua peut
+envoyer des comptages anonymes — installation, premiers pas, retours —, sans aucun identifiant ; un
+interrupteur dans les Réglages les coupe.
 
 **Traduction étendue** (facultative, désactivée par défaut, sur Chrome, Firefox (ordinateur et
 Android) et Safari) : votre sélection est traduite dans sa phrase, sur votre appareil, par le moteur de
@@ -171,8 +178,9 @@ Pour l'espagnol, le dictionnaire français est un peu moins complet que pour l'a
 chiffres sont publiés sur cymbra.app/lingua.
 
 Créez un compte Cymbra si — et seulement si — vous voulez retrouver vos mots et vos cartes sur
-vos autres appareils. Avec la Traduction en ligne ci-dessous, c'est la seule chose qui quitte votre
-machine, et vous pouvez effacer ces données depuis les Réglages sans supprimer votre compte.
+vos autres appareils. Avec la Traduction en ligne ci-dessous et les comptages anonymes, c'est la
+seule chose qui quitte votre machine, et vous pouvez effacer ces données depuis les Réglages sans
+supprimer votre compte.
 
 **Traduction en ligne** (désactivée par défaut, pour les comptes qui y ont accès) : un bouton
 envoie à un service de traduction en ligne la phrase que vous voulez mieux traduire, seulement quand
@@ -206,9 +214,9 @@ Read your own books too: import your DRM-free EPUB files into the extension's li
 offline with the same highlighting, page by page — on an e-ink tablet as well. Your books stay on
 your device.
 
-**The analysis is local.** The dictionaries and the engine run in your browser: no page you read is
-ever sent anywhere, and the extension works offline. With no account and no extended translation, it
-makes no network request at all.
+**The analysis is local.** The dictionaries and the engine run in your browser, and the extension
+works offline. What you read never leaves your device. Lingua may send anonymous counts — install,
+first steps, returns — with no identifier of any kind; one switch in Settings turns them off.
 
 **Extended translation** (optional, off by default, on Chrome, Firefox (desktop and Android), and
 Safari):
@@ -221,8 +229,8 @@ How many Spanish and French words our dictionary explains in English: our figure
 cymbra.app/en/lingua.
 
 Create a Cymbra account if — and only if — you want your words and cards on your other devices. With
-Online translation below, that is the only thing that leaves your machine, and you can erase it from
-Settings without deleting your account.
+Online translation below and the anonymous counts, that is the only thing that leaves your machine,
+and you can erase it from Settings without deleting your account.
 
 **Online translation** (off by default, for accounts that have access): a button sends the sentence
 you want translated better to an online translation service, only when you press it; nobody keeps
@@ -260,9 +268,10 @@ Lee también tus propios libros: importa tus archivos EPUB sin DRM a la bibliote
 léelos sin conexión con el mismo resaltado, página a página, también en una tableta de tinta
 electrónica. Tus libros se quedan en tu dispositivo.
 
-**El análisis es local.** Los diccionarios y el motor se ejecutan en tu navegador: ninguna de las
-páginas que lees se envía a ningún sitio, y la extensión funciona sin conexión. Sin cuenta ni
-traducción ampliada, no hace ninguna solicitud de red.
+**El análisis es local.** Los diccionarios y el motor se ejecutan en tu navegador, y la extensión
+funciona sin conexión. Lo que lees nunca sale de tu dispositivo. Lingua puede enviar recuentos
+anónimos —instalación, primeros pasos, regresos—, sin ningún identificador; un interruptor en los
+Ajustes los desactiva.
 
 **Traducción ampliada** (opcional, desactivada por defecto, en Chrome, Firefox (escritorio y
 Android) y Safari): tu selección se traduce al español dentro de su frase, directamente desde el inglés y,
@@ -276,8 +285,8 @@ publicadas en cymbra.app/es/lingua. Para el francés, el diccionario es algo men
 el inglés.
 
 Crea una cuenta de Cymbra si —y solo si— quieres recuperar tus palabras y tus tarjetas en tus otros
-dispositivos. Con la Traducción en línea de más abajo, es lo único que sale de tu dispositivo, y
-puedes borrar esos datos desde los Ajustes sin eliminar tu cuenta.
+dispositivos. Con la Traducción en línea de más abajo y los recuentos anónimos, es lo único que sale
+de tu dispositivo, y puedes borrar esos datos desde los Ajustes sin eliminar tu cuenta.
 
 **Traducción en línea** (desactivada por defecto, para las cuentas que tienen acceso): un botón envía
 a un servicio de traducción en línea la frase que quieres traducir mejor, solo cuando lo pulsas;
@@ -312,9 +321,10 @@ Lee también tus propios libros: importa tus archivos EPUB sin DRM a la bibliote
 léelos sin conexión con el mismo resaltado, página a página, también en una tableta de tinta
 electrónica. Tus libros se quedan en tu dispositivo.
 
-**El análisis es local.** Los diccionarios y el motor se ejecutan en tu navegador: ninguna de las
-páginas que lees se envía a ningún sitio, y la extensión funciona sin conexión. Sin cuenta ni
-traducción ampliada, no hace ninguna solicitud de red.
+**El análisis es local.** Los diccionarios y el motor se ejecutan en tu navegador, y la extensión
+funciona sin conexión. Lo que lees nunca sale de tu dispositivo. Lingua puede enviar recuentos
+anónimos —instalación, primeros pasos, regresos—, sin ningún identificador; un interruptor en los
+Ajustes los desactiva.
 
 **Traducción ampliada** (opcional, desactivada por defecto, en Chrome, Firefox (escritorio y
 Android) y Safari): tu selección se traduce al español dentro de su frase, directamente desde el inglés, en tu
@@ -326,8 +336,8 @@ Cuántas palabras inglesas explica nuestro diccionario en español: nuestras cif
 en cymbra.app/es/lingua.
 
 Crea una cuenta de Cymbra si —y solo si— quieres recuperar tus palabras y tus tarjetas en tus otros
-dispositivos. Con la Traducción en línea de más abajo, es lo único que sale de tu dispositivo, y
-puedes borrar esos datos desde los Ajustes sin eliminar tu cuenta.
+dispositivos. Con la Traducción en línea de más abajo y los recuentos anónimos, es lo único que sale
+de tu dispositivo, y puedes borrar esos datos desde los Ajustes sin eliminar tu cuenta.
 
 **Traducción en línea** (desactivada por defecto, para las cuentas que tienen acceso): un botón envía
 a un servicio de traducción en línea la frase que quieres traducir mejor, solo cuando lo pulsas;
@@ -359,7 +369,7 @@ do — each claim and the file that makes it true once change 52 lists fr-en (an
 | Spanish's and French's levels estimated from word frequency, no freely licensed CEFR list (M7)                                                                        | EN                | `levels_estimated` in every Spanish pack (`tables/es-en/NOTICE`) and every French one (change 46, D5; `reduce-fr-en.py`); the interface's own reason (`estimatedLevelsNote`, `src/i18n/en/languages.ts`), "Estimated French level" (`levelTitleEstimated`)                                                                                                                                                                                                                    |
 | Statistics A1 to C2, MCER; English's levels not estimated, French's estimated                                                                                         | ES                | the scale's Spanish name (`levelScale`, `src/i18n/es/languages.ts`, M19); English's levels are CEFR-J's and Octanove's (`levels_estimated: false`, `reduce-en-es.py`); French's estimated (`reduce-fr-es.py`), « Nivel de francés estimado » (`levelTitleEstimated`)                                                                                                                                                                                                          |
 | Books: DRM-free EPUB, offline, on the device, e-ink                                                                                                                   | EN, ES            | the books note (`booksNote`, `src/i18n/{en,es}/settings.ts`); the reader is every pair's (`src/reader/`)                                                                                                                                                                                                                                                                                                                                                                      |
-| Local analysis; no request without an account or translation                                                                                                          | EN, ES            | as the French text (_Remote code_, _Data usage disclosures_)                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Local analysis; what is read never leaves the device; anonymous counts, no identifier, one switch in Settings                                                         | EN, ES            | as the French text (_Remote code_, _Data usage disclosures_); the counts and their switch, "Anonymous usage counts" / « Recuentos anónimos » in Settings → Data (`src/usage/`, `src/i18n/{en,es}/settings.ts`; add-lingua-usage-counts)                                                                                                                                                                                                                                       |
 | Extended translation straight from Spanish or French: 26.2 MB each                                                                                                    | EN                | routes `es-en` = `es-en/base-memory/2.0`, 23,288,494 + 2,543,246 + 409,312 B, and `fr-en` = `fr-en/base-memory/2.0`, 23,175,075 + 2,649,934 + 409,706 B = 26,234,715 B (`model-manifest.json`), "26.2 MB" each as the setting rounds them (`megabytes`, `src/reading/translation-setting.ts`); the setting adds the models of every language the reader studies (`modelsFor`, `src/translate/host/model-manifest.ts`, called by `model-controller.ts`): 52,475,767 B for both |
 | Directly from English, through English from French: « 25,4 MB para el inglés, 51,6 MB con el francés »                                                                | ES with fr-es     | route `en-es` = `en-es/base-memory/2.1`, 22,698,792 + 2,265,250 + 409,312 = 25,373,354 B; route `fr-es` = fr-en 2.0 then en-es 2.1, 26,234,715 + 25,373,354 = 51,608,069 B — French needs both models whether or not English is studied, as Spanish does for a French speaker (« 52,0 Mo avec l'espagnol »)                                                                                                                                                                   |
 | Extended translation on Chrome, Firefox (desktop and Android) and Safari; the models deleted when off                                                                 | EN, ES            | « Traducción ampliada » / "Extended translation" (`toggle`, `src/i18n/{en,es}/translation.ts`); the platforms are the French text's, the owner's wording                                                                                                                                                                                                                                                                                                                      |
@@ -550,12 +560,16 @@ pages) » in French) for readers who want highlighting on every page without cli
 each time. It is requested by `chrome.permissions.request` from a user gesture, the click on that button
 (`src/popup/popup.ts`), and can be revoked at any time. The extension is fully usable without it.
 
-**`https://api.cymbra.app/*` (host permission)** — Only for the optional account: signing in,
+**`https://api.cymbra.app/*` (host permission)** — For the optional account: signing in,
 then what a signed-in reader synchronizes across their own devices — word statuses, declared levels, cards
 with their review history, and daily learning statistics (`SyncEngine`, `src/sync/sync.ts`).
+And, only once the reader has pressed "Yes, count" (« Sí, contar » in Spanish, « Oui, compter » in
+French), the anonymous usage counts (`cymbra.lingua.v1.UsageCountsService/Report`,
+`src/usage/client.ts`): sent without the account's token, carrying only the week of installation,
+the browser family and the version — see _Data usage disclosures_.
 The origin is set at build time (`LINGUA_GRPC_WEB_URL`, `src/net/transport.ts`) and
-granted by the build (`tool/manifests.mjs`, `hostPattern`). A reader who does not sign in never
-sends it a request.
+granted by the build (`tool/manifests.mjs`, `hostPattern`). A reader who neither signs in nor
+agrees to the counts never sends it a request.
 
 ## Remote code
 
@@ -581,14 +595,14 @@ matches the hash the package carries (`model-manifest.json`,
 
 ## Data usage disclosures (Chrome Web Store)
 
-Answer **yes** to collecting _"Personally identifiable information"_ and _"Website content"_ — but
-only in the narrow senses below — and **no** to every other category (health, financial,
-authentication information, personal communications, location, web history, user activity).
+Answer **yes** to collecting _"Personally identifiable information"_, _"Website content"_ and
+_"User activity"_ — but only in the narrow senses below — and **no** to every other category
+(health, financial, authentication information, personal communications, location, web history).
 
 What is collected, and only for a signed-in reader: the email address used to create the
 account, and the reader's own vocabulary state (word statuses, cards, review history) sent to
-`https://api.cymbra.app` so their devices agree. Reading activity, page content and browsing
-history are **not** collected — the analysis never leaves the browser. Nor are the books a
+`https://api.cymbra.app` so their devices agree. What the reader reads — page content, browsing
+history — is **not** collected: the analysis never leaves the browser. Nor are the books a
 reader imports, their text or where the reader is in them: they stay on the device. Turning on
 « Traduction étendue » downloads models from Cymbra; those requests carry nothing of the
 reader's (no cookie, no identifier, no page text) and are not tied to an account.
@@ -599,6 +613,27 @@ selection's position and the language pair, is sent to `https://api.cymbra.app` 
 the translation provider (Google, or Anthropic as a fallback), translated, and kept by no one —
 not by Cymbra, not by the provider, and not used for training. Nothing is sent without that
 press.
+
+User activity, **only after the reader agrees**: the anonymous usage counts. The extension asks
+once, on the welcome tab or in the popup, in one sentence with two equal buttons, "Yes, count" and
+"No, thanks" (« Sí, contar » / « No, gracias », « Oui, compter » / « Non merci »); nothing is sent
+before "Yes, count", and "No, thanks" turns counting off. Six steps are then counted, each sent
+once per installation: installed; set up (a first level chosen); first page analysed in a studied
+language; back on day 1; back during days 7–13; back during days 30–59. A report carries those
+steps, the week of installation, the browser family and the extension's version (major.minor) —
+**no identifier** of any kind (no installation, device or account id, even for a signed-in reader)
+and nothing about what is read. It goes to `https://api.cymbra.app` without the account's token, to
+a service that authenticates no one; the server adds one to a weekly counter, keeps no network
+address and deletes the counters after 25 months. The device keeps the day of installation for at
+most 60 days. Turning "Anonymous usage counts" off in Settings → Data stops the counts for good on
+that installation. While counting is on, removing the extension opens a cymbra.app page that asks
+why, with six fixed answers and no free text; only an answer the reader taps is sent, counted the
+same anonymous way. The figures are read only as aggregates, in Cymbra's own back office.
+
+Google's documentation does not publish what the dashboard means by _"User activity"_ (read on
+2026-10-14): read its description in the dashboard when ticking it (add-lingua-usage-counts, Q7).
+It is ticked because each counted step is interaction with the extension: declaring it costs
+nothing, while a declaration that does not match what the extension does can get it removed.
 
 Tick the three certifications: the data is not sold to third parties, it is not used or
 transferred for a purpose unrelated to the item's single purpose, and it is not used or

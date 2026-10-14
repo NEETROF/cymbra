@@ -27,8 +27,9 @@ yarn build        # bundle every browser variant → dist-chromium/, dist-firefo
 ## Account sync (Cymbra ID)
 
 Signing in (icon popup → **Continuer avec Google / Apple** or email/password) turns on
-cross-device sync of the deck, word statuses and stats; signed out, the extension stays
-purely local. Account creation, email verification (emailed code) and password reset live
+cross-device sync of the deck, word statuses and stats; signed out, the deck, the word
+statuses and the stats stay on the device (the anonymous usage counts carry none of them —
+see **Permissions** below). Account creation, email verification (emailed code) and password reset live
 on the **account page** (`account.html`, a tab opened from the popup or onboarding — the
 popup is destroyed when the reader leaves for their mailbox). The transport is gRPC-web
 bearer (Connect-ES), tokens split by volatility — access in `chrome.storage.session`,
@@ -193,8 +194,13 @@ yarn lint && yarn format:check && yarn typecheck && yarn test
 - **Permissions** — on Chromium, `activeTab` by default (the popup's _Analyser cette
   page_) with `<all_urls>` optional (_Toujours surligner_, granted once); on Firefox and
   Safari the reader is a static content script on every page (see the injection note
-  above). No network request unless the reader signs in or turns on « Traduction étendue »
-  (its model, once); the pack, the glosses and the translation engine are local assets.
+  above). A reader who neither signs in nor turns on « Traduction étendue » (its model, once)
+  makes one kind of request only, the anonymous usage counts (`src/usage/`): six steps per
+  installation, each sent once with the week of installation, the browser family and the
+  version — no identifier, no account token, nothing read. Chromium sends them only after
+  « Oui, compter », Firefox only under its built-in data consent (never below 140, or 142 on
+  Android), Safari by default; « Comptages anonymes » in Réglages → Données turns them off.
+  The pack, the glosses and the translation engine are local assets.
 - **Identity** — one token sheet (`src/styles/tokens.css`) mirrors the Cymbra
   "Sonic Luminescence" palette; no colour literal lives anywhere else (lint-enforced).
 
