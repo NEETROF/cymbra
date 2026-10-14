@@ -227,3 +227,7 @@ Optional, to see the Origin a server receives from the device itself: on the Mac
 Scheme → Run → Environment Variables, `SPIKE_QUERY` = `echo=http://<mac's LAN IP>:8765`. An `http://`
 address may be refused from the secure `lingua-app://` page (mixed content) or by Local Network
 privacy; httpbin's line already shows the Origin over HTTPS.
+
+### Device restart (Guillaume, 2026-10-14 18:40)
+
+After a full restart of the iPhone 15 Pro Max: `idb.relaunch` `{"survived":true,"verified":true,"stored":"64.0 MiB"}`, `model.stored: en-fr already in lingua-model`, engine cold load 137 ms, first translation 131 ms, warm 23–29 ms. `storage.persist()` still false. The free-selection sentence came back as « Ce phénomène est <b>facilitamment appelé</b> une ruée <b>vers</b> le sucre » — a non-word and a spurious second mark: the keep action's split-mark path (« Garder une traduction… », editable field) is needed, the one-tap keep must not offer such a candidate as is.
