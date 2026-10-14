@@ -22,18 +22,22 @@ The Music page SHALL show a gallery of screenshots of the app in each language t
 - **THEN** the site check fails
 
 ### Requirement: The Music page shows a short video of the app being played
-The Music page SHALL show a muted video of 30 seconds or less, recorded from a scripted run of the real app, that shows a piece being played with the score following the player. The video SHALL loop without sound and SHALL show a still poster image before it plays. It SHALL start playing on its own only when the visitor has not asked their system to reduce motion; otherwise it SHALL stay on its poster with controls to play it. The video SHALL not be downloaded before the page's first render, and each video file SHALL stay within a size budget of 4 MB.
+The Music page SHALL show a video of 30 seconds or less, recorded from a scripted run of the real app, that shows a piece being played with the score following the player. Its sound SHALL be the app's own instrument playing that piece, with no added background music. The video SHALL start without sound and SHALL show a visible control, labelled in the page's language, that turns the sound on; the sound SHALL never start without that action. The video SHALL loop and SHALL show a still poster image before it plays. It SHALL start playing on its own only when the visitor has not asked their system to reduce motion; otherwise it SHALL stay on its poster with controls to play it. The video SHALL not be downloaded before the page's first render, and each video file SHALL stay within a size budget of 4 MB.
 
 #### Scenario: Default visitor
 - **WHEN** a visitor without a reduced-motion preference scrolls the video into view
-- **THEN** it plays muted and loops
+- **THEN** it plays without sound, loops, and shows the control to turn the sound on
+
+#### Scenario: Visitor turns the sound on
+- **WHEN** the visitor activates the sound control
+- **THEN** the video plays with the app's piano sound, in time with the notes on screen
 
 #### Scenario: Reduced motion
 - **WHEN** a visitor whose system asks to reduce motion opens the page
 - **THEN** the video shows its poster and does not play until they start it
 
-#### Scenario: Over budget
-- **WHEN** a video file on the site exceeds 4 MB or 30 seconds
+#### Scenario: Over budget or silent
+- **WHEN** a video file on the site exceeds 4 MB or 30 seconds, or has no audio track
 - **THEN** the site check fails
 
 ### Requirement: Every Music page declares a share preview

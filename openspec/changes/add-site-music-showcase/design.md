@@ -23,7 +23,8 @@
 - A shared link renders with a picture, in the page's language.
 
 **Non-Goals:**
-- A video with sound, a voice-over or a YouTube cut — later, once the muted loop exists.
+- Background music, a voice-over, or a YouTube-specific cut (the same file can be uploaded
+  as is; editing for YouTube is later).
 - Share previews for the home, Lingua or legal pages (the layout input makes it a one-line
   change per page; Lingua's comes with `add-site-lingua-showcase`).
 - Rewriting the page copy or its feature cards, analytics on the site, any store-listing
@@ -53,19 +54,24 @@ set — smaller, but 16:10 desktop framing undersells a mobile-first app.
 `xcrun simctl io booted recordVideo`, runs a `showcase_test.dart` scenario (reusing the
 capture fixtures: open a piece, Wait Mode, the faked keyboard plays ~20 s, the session
 summary), stops the recording, then `ffmpeg` trims, scales to 1280 px wide, encodes H.264
-(`-an`, CRF tuned to the budget, `+faststart`) and extracts the poster. It writes to a
+(CRF tuned to the budget, `+faststart`), muxes the sound of D6 as AAC and extracts the
+poster. It writes to a
 temporary file and moves it into `apps/music/store/video/<locale>/` only on success, so
 a failed run leaves the previous video. The scenario asserts the seeded state the way
 `capture_test.dart` does. *Alternatives:* `flutter screenshot` frame sequence → video
 (no real frame timing, choppy); screen recording by hand (rejected by the harness's own
 rule). Local-only, like the screenshot command: CI never records.
 
-**D4 — One video per locale, MP4 H.264 only.** The app's text is visible in the player,
+**D4 — One video per locale, MP4 H.264 + AAC only.** The app's text is visible in the player,
 so a French video on the Spanish page would contradict the gallery. H.264 MP4 plays in
 every target browser; adding WebM would double the weight to maintain for no reach gain.
 `<video muted loop playsinline preload="none" poster=…>`; a few lines of script start it
 when it enters the viewport and `prefers-reduced-motion` is not set, otherwise it shows
-`controls`. Budget: 4 MB and 30 s per file, checked by reading the MP4 header in the test.
+`controls`. Browsers refuse to autoplay with sound, so the file carries its audio but the
+element starts `muted`, with a visible "🔊 Listen" button (localised) that unmutes it and
+restarts from the beginning, so the visitor hears the piece from its first note. Budget:
+4 MB and 30 s per file, and an audio track present, checked by reading the MP4 header in
+the test.
 
 **D5 — Share preview = an optional `share` prop on `Base.astro`.** `share: { image, alt }`
 emits `og:title`, `og:description`, `og:url` (from `Astro.site` + path), `og:type=website`,
@@ -77,11 +83,29 @@ build stays pure. A post-build test checks every Music page declares one and the
 exists at 1200×630. This is the input `add-site-lingua-showcase` also needs: the first of
 the two to land adds it.
 
+**D6 — The sound is rendered offline by the app's own mixer, not recorded.** The iOS
+simulator's `recordVideo` captures no audio, and the app's CoreAudio output destabilises
+the simulator, so the run plays silently. Instead the scenario logs every command it sends
+to the sound engine (notes played by the faked keyboard, notes the app plays itself, the
+SoundFont in use), stamped with the host clock the simulator shares; the script stamps the
+recording start the same way. A small binary in `apps/music/rust` (`showcase-render`) drives
+the existing `renderer.rs` mixer — already driver-independent, since Android's `AudioTrack`
+feeds it as well as `cpal` — from that log into a 48 kHz WAV, with the same SoundFont, so
+the sound is the app's sound to the sample. `ffmpeg` muxes it at the logged offset.
+*Alternatives:* recording the macOS desktop app with system audio (its window renders black
+under the integration_test binding); a stock music track (hides the piano, licensing
+question, and would not match the notes on screen). The binary is tooling glue, excluded
+from the coverage gate like the rest of the audio glue; the log parsing it relies on is
+pure and unit-tested.
+
 ## Risks / Trade-offs
 
 - [Captures in git grow the repo] → five iPad PNGs × 3 locales ≈ 6 MB plus ≤ 12 MB of
   video; accepted, same policy as `apps/music/store/`. The optimized variants are build
   output, not committed.
+- [Sound drifts from the picture] → the log and the recording share the host clock; the
+  review step (task 1.5) checks a note's light-up frame against its onset, and the script
+  takes an offset override if a residual lag shows.
 - [Simulator recording frame drops on a loaded Mac] → the script records at the
   simulator's native rate and the review step (task 1.4) watches the result; re-run if
   choppy.

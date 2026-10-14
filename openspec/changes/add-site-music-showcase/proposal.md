@@ -15,9 +15,12 @@ convince them.
 - The Music page, in French, English and Spanish, shows the app: a gallery of real
   screenshots in the page's language, taken from the store captures the harness already
   generates (`apps/music/store/`), so the site and the store listings never disagree.
-- The Music page shows a short, muted, looping video of the app being played (score
-  following, Wait Mode, scoring), recorded from a scripted run of the real app — the same
-  no-backend, faked-keyboard approach as the store captures, never a hand-made recording.
+- The Music page shows a short looping video of the app being played (score following,
+  Wait Mode, scoring), recorded from a scripted run of the real app — the same no-backend,
+  faked-keyboard approach as the store captures, never a hand-made recording. Its sound is
+  the app's own piano playing the piece (no added background music); it starts silent, as
+  browsers require, with a visible control to turn the sound on. The same file can later
+  serve YouTube, Reddit or a store preview, where it plays with sound.
 - Every Music page declares a share preview (title, description, a 1200×630 image in its
   language, an absolute URL), so a shared link shows a picture.
 - A check fails the site build when the site's copies drift from the store captures, when a
@@ -28,8 +31,10 @@ Products impacted:
 
 - **site** — new: the Music page's gallery, video and share preview; the shared layout gains
   an optional share-preview input that any page can use (only the Music pages set it here).
-- **Music** — consumed: the store captures and the capture harness's deterministic,
-  no-backend app state. New: a video recording mode in that harness. No change to the app.
+- **Music** — consumed: the store captures, the capture harness's deterministic,
+  no-backend app state, and the sound engine's mixer (driven offline to render the
+  video's sound). New: a video recording mode in that harness and an offline render tool.
+  No change to the shipped app.
 - **ID / Live / back-office** — not impacted.
 
 Nothing on the page mentions pricing, a trial or a beta; the copy keeps describing what the
@@ -55,7 +60,8 @@ app does.
   `src/layouts/Base.astro` (optional share-preview prop); new media under the site
   (screenshots, video, poster, preview images); `src/lib/i18n.ts` (alt texts, captions);
   new tests (media check, built-HTML preview check).
-- `apps/music`: `tool/` gains the video recording command; `integration_test/` gains the
+- `apps/music`: `tool/` gains the video recording command; `rust/` gains a small offline
+  render binary driving the existing mixer; `integration_test/` gains the
   showcase scenario; `store/README.md` documents it.
 - `.github/workflows/site-check.yml`: its paths filter watches the store captures the site
   copies, so a capture refresh that is not carried to the site fails there.
