@@ -1472,8 +1472,9 @@ mod tests {
             card.gloss_by_reader = by_reader;
             review_gloss(Some(&en_fr), &card)
         };
+        type Case<'a> = (&'a str, Option<&'a str>, &'a str, bool, Option<&'a str>);
         // (lemma, stored gloss, its language, chosen by the reader, what review shows)
-        let cases: [(&str, Option<&str>, &str, bool, Option<&str>); 6] = [
+        let cases: [Case; 6] = [
             // The pack wins over a stored gloss, in the native language or not.
             (
                 "four-poster bed,",
