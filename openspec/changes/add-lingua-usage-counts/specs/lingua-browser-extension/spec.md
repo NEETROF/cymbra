@@ -2,10 +2,11 @@
 
 ### Requirement: No network requests
 The extension SHALL issue no network request unless the anonymous usage counts are on, the reader has signed in, turned on extended translation, or started the YouTube caption mode, and SHALL then issue only the requests those choices need.
-- **Anonymous usage counts on** (the default, `lingua-usage-counts`): the count reports to the Cymbra
-  backend — each step at most once per installation, with no identifier and nothing of what is read
-  — and, on Chromium and Firefox, the leaving page registered as the uninstall address. Turning the
-  counts off stops both.
+- **Anonymous usage counts on** (`lingua-usage-counts`: on by default in Safari; on Firefox, as
+  the reader left the browser's "technical and interaction data" consent, ticked at installation;
+  on Chromium, only after the reader agrees): the count reports to the Cymbra backend — each step at most once per
+  installation, with no identifier and nothing of what is read — and, on Chromium and Firefox, the
+  leaving page registered as the uninstall address. Turning the counts off stops both.
 - **Signed in:** the requests of signing in, and those to the Cymbra backend for the account and
   the synchronisation of what `lingua-privacy` lists as synced.
 - **Extended translation on:** the download of the model from Cymbra's static host, once per model
@@ -27,8 +28,12 @@ translation SHALL work with no network connection.
 - **THEN** the extension has made no network request
 
 #### Scenario: Default settings, signed out
-- **WHEN** a reader who is not signed in and has changed no setting reads pages for a day
+- **WHEN** a Safari reader who is not signed in and has changed no setting reads pages for a day
 - **THEN** the only requests the extension made are count reports, none carrying an identifier, an address, page text or a word
+
+#### Scenario: Chromium, before the reader agrees
+- **WHEN** a Chrome reader who is not signed in has not answered the counts' question and reads pages for a day
+- **THEN** the extension has made no network request
 
 #### Scenario: Translating offline
 - **WHEN** a reader whose model is on the device selects a phrase with no network connection

@@ -16,6 +16,13 @@ any kind** (no installation id, no device id, no account id even when signed in,
 and nothing about what the reader reads. The goal is a sentence you can read in the back office:
 « 40 installations this week, 25 analysed a page, 8 came back at D+7 ».
 
+**One thing you need to decide again (design.md, Q1).** Firefox and Safari allow counting by
+default. Chrome's written rules do not: before collecting any data about how someone uses an
+extension — anonymous or not — Chrome wants the extension itself to ask and get a "yes" button
+pressed. This proposal therefore counts by default on Firefox (Firefox's own install window shows a
+ticked box for this) and Safari, and asks Chrome readers once, with "Yes, count" and "No, thanks".
+Shipping on-by-default on Chrome risks Google suspending the publisher's extensions.
+
 You also want to know why people leave. Chrome and Firefox can open a page of your choice when an
 extension is removed; Lingua does not use it today (`runtime.setUninstallURL` appears nowhere in
 `apps/lingua-extension/src`).
@@ -32,39 +39,51 @@ the first build that sends.
 - **Six counts per installation, each sent once.** Installed; set up (a first level chosen, the
   only "setup done" every browser shares); first page analysed in a studied language; back on the
   next day; back during days 7–13; back during days 30–59. "Back" means a page analysed in a studied
-  language or a Lingua surface opened. Each count is filed under the day the installation was made,
-  so the back office can say how many of one week's installations reached each step.
-- **No identifier, nothing read.** A report carries the installation's day, the browser family
+  language or a Lingua surface opened. Each count is filed under the **week** the installation was
+  made, so the back office can say how many of one week's installations reached each step. The week,
+  not the day: with a handful of readers, an exact day could tell someone who knows when a friend
+  installed whether that friend came back (Q2).
+- **No identifier, nothing read.** A report carries the installation's week, the browser family
   (Chromium, Firefox, Safari), the extension's version (major.minor) and the steps it reports —
   nothing else. It never carries the account's token, even for a signed-in reader, and the server
   service is mounted with no authentication at all, so it could not resolve an account if it tried.
   The device keeps the installation's day for at most 60 days, then forgets it.
-- **On by default, one switch to turn it off** — « Comptages anonymes » in Settings → Data
-  (fr/en/es). Off, the device forgets what it had not sent and stops for good for this installation.
-  On Firefox the switch is Firefox's own "technical and interaction data" consent, which Firefox
-  shows ticked at install and lets the reader untick.
+- **Each store's rule, one switch to turn it off** — « Comptages anonymes » in Settings → Data
+  (fr/en/es). Safari: on by default. Firefox 140+ (Android 142+): the switch is Firefox's own
+  "technical and interaction data" consent, which Firefox shows ticked at install and lets the
+  reader untick; older Firefox versions count nothing. Chromium: nothing is sent until the reader
+  presses "Yes, count". Off, the device forgets what it had not sent and stops for good for this
+  installation.
 - **Told before anything is sent.** One plain sentence on the welcome tab and in the popup the
-  first time it opens, linking to the switch and the privacy policy. Nothing during reading: no
-  notification, no badge, no timer.
+  first time it opens — with the two buttons on Chromium — linking to the switch and the privacy
+  policy. Nothing during reading: no notification, no badge, no timer.
 - **A leaving page on the site.** On Chrome and Firefox, while counting is on, removing Lingua opens
   `cymbra.app/lingua/au-revoir/` (or `/en/lingua/goodbye/`, `/es/lingua/adios/`) with one question,
   "Why are you leaving?", and six fixed answers. Nothing is sent until the reader taps one; the
   answer is counted the same anonymous way. No free-text box. Safari ignores this API.
 - **Counters only on the server.** A new unauthenticated `UsageCountsService.Report` in
-  `backend/lingua` adds one to day counters in the `lingua` schema; the leaving page posts to a
+  `backend/lingua` adds one to week counters in the `lingua` schema; the leaving page posts to a
   JSON route under `/web/` that does the same for reasons. No row per report, no IP address, no
-  header kept. Values are bounded, floods from one address are refused without writing the address
-  anywhere, and a runtime flag stops collection server-side without a release.
+  header kept, and counters deleted after 25 months (Q6). Values are bounded, floods from one
+  address (or one IPv6 network) are refused by a bounded in-memory guard that never writes the
+  address, and a runtime flag stops collection server-side without a release.
+- **Caddy stops logging addresses.** Caddy keeps no access log, but its error log today records the
+  client's address and every header whenever the backend answers with an error (a deploy, a crash).
+  A log filter removes them, for every route, so "no address kept" is true end to end.
 - **A funnel in the back office.** The Lingua console gains a section: installations by week and
   browser, how many reached each step, and why readers left. Aggregates only, like the rest of the
   console.
 - **Disclosures.** The privacy policy's Lingua annex (fr/en/es) describes the counts, the leaving
   page and the switch, and the policy gains the Chrome Web Store "Limited Use" statement it lacks
-  today. Store descriptions, Chrome's privacy-practices answers, Firefox reviewer notes, the App
-  Review notes and the recorded App Store privacy answers are brought in line.
+  today (Chrome already requires it; Q12 suggests not waiting for this change). Eight store
+  descriptions (four texts pasted in both the Chrome Web Store and AMO, four on the App Store),
+  Chrome's privacy-practices answers, Firefox reviewer notes, the two live App Review notes blocks
+  (3976 and 3935 of 4000 characters), the recorded App Store privacy answers, and the "everything
+  stays local without an account" lines of the site and the welcome tab are brought in line —
+  design.md D14 lists each one.
 - **BREAKING (promise).** "No network request without an account or extended translation"
-  becomes "nothing you read ever leaves your device; by default Lingua sends anonymous counts you
-  can turn off". The `lingua-browser-extension` and `lingua-sync` requirements that promise no
+  becomes "nothing you read ever leaves your device; Lingua may send anonymous counts you can turn
+  off". The `lingua-browser-extension` and `lingua-sync` requirements that promise no
   request for a signed-out reader are amended to name this one exception.
 
 ## Capabilities
@@ -81,13 +100,15 @@ the first build that sends.
 ### Modified Capabilities
 
 - `lingua-browser-extension`: **No network requests** names the anonymous counts as the one request
-  made by default (written on top of the open `add-lingua-youtube-captions` text, itself on top of
-  `add-lingua-translation-delivery`).
+  made without an account (written on top of the open `add-lingua-youtube-captions` text, itself on
+  top of `add-lingua-translation-delivery`; to be rebased once `add-lingua-youtube-captions` is split
+  into it and `add-lingua-youtube-caption-translation` — tasks.md 0.2).
 - `lingua-sync`: **Optional account, local-first preserved** and **Synchronisation keeps up with the
   reader** say "no synchronisation request" where they said "no request".
 - `lingua-privacy`: **Lingua's privacy disclosures match what it collects** adds the counts, the
   leaving page, the switch and the Limited Use statement, and extends the store-listing rule to the
-  "no request" sentence.
+  "no request" and "no analytics" sentences (written on top of the open
+  `add-lingua-review-translation-fallback` text).
 - `admin-lingua-console`: ADDED — the installation funnel and the leaving reasons.
 - `site-lingua-page`: ADDED — the leaving page.
 
@@ -98,10 +119,12 @@ the first build that sends.
   untouched) — new: the counting state, the report client, the switch, the first-run sentence, the
   leaving-page registration, copy in fr/en/es. Consumed: the background's existing wake-ups
   (`sync:request`, the `stats` message, `onInstalled`), the gRPC-web transport (without its bearer).
-- **Backend (`backend/lingua`, `backend/server`)** — new: a proto, a module with its core, port,
-  gRPC service and Postgres adapter, one migration, one JSON route, one runtime flag and one config
-  key. Consumed: the `lingua_svc` pool, the flag registry, `client_addr::resolve`. No Caddy change:
-  gRPC paths already fall through to tonic and `/web/*` is already on the `@http` allow-list.
+- **Backend (`backend/lingua`, `backend/server`, `backend/deploy`)** — new: a proto, a module with
+  its core, ports, gRPC service and Postgres adapter, one migration (the next free number; `0008` is
+  planned by `add-lingua-card-edit`), one JSON route, one runtime flag and one config key, and a log
+  filter in the Caddyfile. Consumed: the `lingua_svc` pool, the flag registry,
+  `client_addr::resolve`. No routing change: gRPC paths already fall through to tonic and `/web/*` is
+  already on the `@http` allow-list.
 - **Site (`apps/site`)** — new: the leaving page in fr/en/es and its route pins; the privacy
   annex in fr/en/es.
 - **Back office** — new: a funnel section in `/lingua/overview`, strings in en/fr.
@@ -111,7 +134,7 @@ the first build that sends.
 `lingua_admin.proto`; nothing existing changes shape, so no installed client breaks. Both protos
 join `backend/lingua/tests/privacy_allow_list.rs`.
 
-**Order.** Server deployed and checked from outside → site (annex + leaving page) deployed →
-store forms and listing text updated → the first extension release that sends.
+**Order.** Server and Caddy filter deployed and checked from outside → site (annex + leaving page)
+deployed → store forms and listing text updated → the first extension release that sends.
 
-**Size.** About 13.5 ideal days (tasks.md).
+**Size.** About 14 ideal days (tasks.md).
