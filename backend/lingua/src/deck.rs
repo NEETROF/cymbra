@@ -43,6 +43,9 @@ pub struct Card {
     /// The language of `gloss`; normalised by the adapter, `fr` when the client sent
     /// none (add-lingua-native-language-server). Not part of the key.
     pub gloss_language: String,
+    /// Whether the reader chose `gloss` (add-lingua-review-translation-fallback D6): stored
+    /// and returned as received, `false` from a client that predates it.
+    pub gloss_by_reader: bool,
     pub fsrs_state: String,
     pub deleted: bool,
     pub updated_at: i64,
@@ -215,6 +218,7 @@ mod tests {
             source_sentence: sentence.into(),
             gloss: "rarement".into(),
             gloss_language: "fr".into(),
+            gloss_by_reader: false,
             fsrs_state: "{}".into(),
             deleted: false,
             updated_at: ts,
@@ -405,6 +409,39 @@ mod tests {
         // Re-pulling from the start with both is a no-op for what it already holds.
         let (all, _) = module.pull_cards("u1", 0, &both, false).await.unwrap();
         assert_eq!(all.len(), 2);
+    }
+
+    // --- Whether the reader chose the gloss (add-lingua-review-translation-fallback D6) ---
+
+    #[tokio::test]
+    async fn the_readers_mark_is_stored_and_returned_as_received() {
+        // A kept gloss reaches another device marked; a client that predates the mark pushes
+        // `false` and is stored as not chosen, as before; a newer op replaces the mark with
+        // the card, the server adding no rule of its own.
+        let module = DeckModule::new(Arc::new(FakeDeckRepo::default()), never_erased());
+        let kept = |id: &str, gloss: &str, mark: bool, ts: i64| Card {
+            gloss: gloss.into(),
+            gloss_by_reader: mark,
+            ..card(id, "The ropes slacken.", ts, "iphone")
+        };
+        let cases = [
+            (kept("c1", "se relâcher", true, 100), ("se relâcher", true)),
+            (kept("c2", "rarement", false, 100), ("rarement", false)),
+            (
+                kept("c1", "se relâcher", false, 200),
+                ("se relâcher", false),
+            ),
+        ];
+        for (pushed, (gloss, mark)) in cases {
+            let id = pushed.client_id.clone();
+            module.push_cards("u1", vec![pushed], 1_000).await.unwrap();
+            let (cards, _) = module.pull_cards("u1", 0, &[], false).await.unwrap();
+            let pulled = cards.iter().find(|c| c.client_id == id).unwrap();
+            assert_eq!(
+                (pulled.gloss.as_str(), pulled.gloss_by_reader),
+                (gloss, mark)
+            );
+        }
     }
 
     // --- A card carries the language of its gloss (add-lingua-native-language-server) ---

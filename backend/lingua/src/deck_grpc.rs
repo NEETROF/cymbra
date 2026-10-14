@@ -43,6 +43,8 @@ fn from_proto(o: CardOp) -> Card {
         gloss: o.gloss,
         // Empty from a client that predates the field: every gloss it holds is French.
         gloss_language: gloss_language(&o.gloss_language),
+        // False from a client that predates the field; passed through as received.
+        gloss_by_reader: o.gloss_by_reader,
         fsrs_state: o.fsrs_state,
         deleted: o.deleted,
         updated_at: o.client_ts,
@@ -68,6 +70,7 @@ fn to_proto(c: Card) -> CardOp {
         device_id: c.device_id,
         language: c.language,
         gloss_language: c.gloss_language,
+        gloss_by_reader: c.gloss_by_reader,
     }
 }
 
@@ -148,6 +151,22 @@ mod tests {
             ..Card::default()
         };
         assert_eq!(to_proto(stored).gloss_language, "tlh");
+    }
+
+    #[test]
+    fn the_readers_mark_passes_through_the_edge_both_ways() {
+        // add-lingua-review-translation-fallback D6: an op that predates the field reads
+        // `false`; the mark is carried in and out as received.
+        assert!(!from_proto(CardOp::default()).gloss_by_reader);
+        for mark in [false, true] {
+            let op = CardOp {
+                gloss_by_reader: mark,
+                ..CardOp::default()
+            };
+            let card = from_proto(op);
+            assert_eq!(card.gloss_by_reader, mark);
+            assert_eq!(to_proto(card).gloss_by_reader, mark);
+        }
     }
 
     #[tokio::test]

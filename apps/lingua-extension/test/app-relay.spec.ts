@@ -9,6 +9,7 @@ import {
   appOpsSince,
   encodeAppOps,
   encodeSharedState,
+  onlineAccessOf,
   parseAppOps,
   parseSharedState,
   RELAY_VERSION,
@@ -49,7 +50,11 @@ describe("the shared state (add-lingua-apple-review D3)", () => {
       savedAt: 42,
       prefs: { a: 1 },
       storeItems: { d: 2 },
+      onlineAccess: false,
     });
+    expect(
+      parseSharedState(encodeSharedState({ backup: "B", savedAt: 1, prefs: {}, storeItems: {}, onlineAccess: true })),
+    ).toMatchObject({ onlineAccess: true });
   });
 
   it("reads nothing, another version, an empty backup or garbage as no state", () => {
@@ -74,7 +79,27 @@ describe("the shared state (add-lingua-apple-review D3)", () => {
       savedAt: 0,
       prefs: {},
       storeItems: {},
+      onlineAccess: false,
     });
+  });
+
+  // add-lingua-review-translation-fallback D9: an older payload has no access; only `true` grants it.
+  it("reads an older payload, or anything but true, as no online access", () => {
+    for (const onlineAccess of [undefined, "true", 1, null]) {
+      expect(parseSharedState(JSON.stringify({ v: 1, backup: "B", onlineAccess }))?.onlineAccess).toBe(false);
+    }
+  });
+
+  it("reads the one flag from the extension's snapshot, whatever else it holds", () => {
+    const cases: [unknown, boolean][] = [
+      [{ account: "a", values: { "lingua.online_translation.enabled": true, other: true } }, true],
+      [{ account: "a", values: { "lingua.online_translation.enabled": false } }, false],
+      [{ account: "a", values: {} }, false],
+      [{ account: "a" }, false],
+      [null, false],
+      [undefined, false],
+    ];
+    for (const [snapshot, access] of cases) expect(onlineAccessOf(snapshot), JSON.stringify(snapshot)).toBe(access);
   });
 });
 

@@ -71,6 +71,11 @@ public struct SignInCopy: Sendable {
 
     public var heading: String { table.heading }
     public var lede: String { table.lede }
+    /**
+     * The lede of the sheet the app opens for its own session (add-lingua-review-translation-fallback
+     * D8): online translation in its review, not the extension's sign-in.
+     */
+    public var appLede: String { table.appLede }
     public var done: String { table.done }
     public var browserWaiting: String { table.browserWaiting }
     public var close: String { table.close }
@@ -110,6 +115,7 @@ public struct SignInCopy: Sendable {
     private struct Table: Sendable {
         let heading: String
         let lede: String
+        let appLede: String
         let done: String
         let browserWaiting: String
         let close: String
@@ -122,6 +128,7 @@ public struct SignInCopy: Sendable {
     private static let fr = Table(
         heading: "Connexion à Cymbra Lingua",
         lede: "Connecte-toi pour retrouver tes mots et tes révisions sur tous tes appareils.",
+        appLede: "Connecte-toi pour utiliser la traduction en ligne dans l'app. Ta connexion dans Safari ne change pas.",
         done: "C'est fait ! Retourne dans Safari : Cymbra Lingua termine la connexion.",
         browserWaiting:
             "Termine la connexion dans la fenêtre de ton navigateur. Si rien ne s'ouvre, annule, quitte ton navigateur et réessaie.",
@@ -136,6 +143,7 @@ public struct SignInCopy: Sendable {
     private static let en = Table(
         heading: "Sign in to Cymbra Lingua",
         lede: "Sign in to find your words and your reviews on all your devices.",
+        appLede: "Sign in to use online translation in the app. Your sign-in in Safari does not change.",
         done: "Done! Go back to Safari: Cymbra Lingua is finishing the sign-in.",
         browserWaiting:
             "Finish signing in, in your browser window. If nothing opens, cancel, quit your browser, and try again.",
@@ -150,6 +158,7 @@ public struct SignInCopy: Sendable {
     private static let es = Table(
         heading: "Inicia sesión en Cymbra Lingua",
         lede: "Inicia sesión para encontrar tus palabras y tus repasos en todos tus dispositivos.",
+        appLede: "Inicia sesión para usar la traducción en línea en la app. Tu sesión en Safari no cambia.",
         done: "¡Listo! Vuelve a Safari: Cymbra Lingua está terminando de iniciar sesión.",
         browserWaiting:
             "Termina de iniciar sesión en la ventana de tu navegador. Si no se abre nada, cancela, cierra tu navegador y vuelve a intentarlo.",

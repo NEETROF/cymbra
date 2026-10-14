@@ -58,6 +58,7 @@ interface WasmEngine {
     language?: string | null,
   ): void;
   retireCard(lemma: string, now: number, language?: string | null): void;
+  keepGloss(lemma: string, gloss: string, language: string | null | undefined, now: number): boolean;
   deckCount(languages?: string[] | null): number;
   dueCount(now: number, languages?: string[] | null): number;
   startReview(
@@ -533,6 +534,10 @@ class WasmLanguagePort implements LanguagePort {
 
   async retireCard(lemma: string, now: number): Promise<void> {
     (await this.engine()).retireCard(lemma, now, this.language);
+  }
+
+  async keepGloss(lemma: string, gloss: string, now: number): Promise<boolean> {
+    return (await this.engine()).keepGloss(lemma, gloss, this.language, now);
   }
 
   async notice(): Promise<string> {
