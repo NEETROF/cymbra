@@ -97,6 +97,13 @@ export const settings = {
   tabs: "Réglages",
   /** The review's pace and the reader's data as a file (refine-lingua-review-session D2, D9). */
   reviewPace: "Rythme de révision",
+  /** The toolbar icon's count (add-lingua-comeback-hints D7), under « Nouveaux mots par jour ». */
+  badgeCount: "Afficher les cartes à réviser sur l'icône",
+  badgeCountNote:
+    "Ce qu'une révision contiendrait aujourd'hui, sur les pages où l'icône n'affiche pas de pourcentage. Calculé sur cet appareil.",
+  /** Réglages › Données, under « Sources et confidentialité » (D13). */
+  rate: "Noter Cymbra Lingua",
+  rateNote: "Sur la boutique où tu as installé Cymbra Lingua.",
   newWordsPerDay: "Nouveaux mots par jour",
   newWordsPerDayNote:
     "Pour chaque langue étudiée. Les mots ajoutés au-delà attendent les jours suivants. Une séance compte dix cartes au plus.",

@@ -114,4 +114,12 @@ export const review = {
     one: (n) => `${n} mot de ce livre à trier`,
     other: (n) => `${n} mots de ce livre à trier`,
   }),
+  /**
+   * The rating request at the end of a session (add-lingua-comeback-hints D10): one sentence and
+   * three actions, below the end's own. Nothing offered, no rating chosen in advance.
+   */
+  ratingAsk: "Une note sur la boutique de ton navigateur aide d'autres lecteurs à trouver Cymbra Lingua.",
+  ratingRate: "Noter Cymbra Lingua",
+  ratingLater: "Plus tard",
+  ratingNever: "Ne plus demander",
 };

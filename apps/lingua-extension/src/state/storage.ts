@@ -474,6 +474,26 @@ export async function saveNewWordsPerDay(area: AsyncStorageArea, perDay: NewWord
   await area.set({ [NEW_WORDS_PER_DAY_KEY]: perDay });
 }
 
+/**
+ * « Afficher les cartes à réviser sur l'icône » (add-lingua-comeback-hints D7): whether the toolbar
+ * icon counts the cards waiting where it shows no percentage. A device preference — never in the
+ * backup, never synced — on unless the reader turned it off.
+ */
+export const BADGE_COUNT_KEY = "cymbra-lingua-badge-count";
+
+/** A stored value read as the count's setting: only an explicit `false` turns it off. */
+export function badgeCountOf(value: unknown): boolean {
+  return value !== false;
+}
+
+export async function loadBadgeCount(area: AsyncStorageArea): Promise<boolean> {
+  return badgeCountOf((await area.get(BADGE_COUNT_KEY))[BADGE_COUNT_KEY]);
+}
+
+export async function saveBadgeCount(area: AsyncStorageArea, shown: boolean): Promise<void> {
+  await area.set({ [BADGE_COUNT_KEY]: shown });
+}
+
 /** A stored value read as a reader flow; anything but `scrolled` is the paginated default. */
 export function readerFlowOf(value: unknown): ReaderFlow {
   return value === "scrolled" ? "scrolled" : "paginated";

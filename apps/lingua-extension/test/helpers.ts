@@ -325,6 +325,27 @@ export function pageArea(items: Record<string, unknown> = {}): { get(key: string
   };
 }
 
+/** A storage area in memory, as chrome.storage.local behaves: `raw` is what it holds. */
+export function memoryArea(items: Record<string, unknown> = {}): {
+  raw: Record<string, unknown>;
+  get(keys: string | string[] | null): Promise<Record<string, unknown>>;
+  set(items: Record<string, unknown>): Promise<void>;
+} {
+  const raw: Record<string, unknown> = { ...items };
+  return {
+    raw,
+    async get(keys) {
+      const list = keys == null ? Object.keys(raw) : Array.isArray(keys) ? keys : [keys];
+      const out: Record<string, unknown> = {};
+      for (const k of list) if (k in raw) out[k] = structuredClone(raw[k]);
+      return out;
+    },
+    async set(more) {
+      for (const [k, v] of Object.entries(more)) raw[k] = structuredClone(v);
+    },
+  };
+}
+
 /** An area whose every read fails, as chrome.storage can (a context torn down, a profile locked). */
 export function refusingArea(): { get(key: string): Promise<Record<string, unknown>> } {
   return { get: () => Promise.reject(new Error("storage unavailable")) };

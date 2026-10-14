@@ -90,4 +90,8 @@ export const review: typeof fr = {
     one: (n) => `${n} word from this book to sort`,
     other: (n) => `${n} words from this book to sort`,
   },
+  ratingAsk: "A rating in your browser's store helps other readers find Cymbra Lingua.",
+  ratingRate: "Rate Cymbra Lingua",
+  ratingLater: "Later",
+  ratingNever: "Don't ask again",
 };

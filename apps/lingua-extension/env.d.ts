@@ -75,6 +75,8 @@ declare module "@/wasm/pkg/lingua_wasm.js" {
   export default function init(
     moduleOrPath?: { module_or_path: string | Request | Response | URL } | string | Request | Response | URL,
   ): Promise<unknown>;
+  /** The module instantiated from its bytes at once: the real engine under vitest (test/real-wasm.ts). */
+  export function initSync(module: { module: BufferSource | WebAssembly.Module }): unknown;
 }
 
 // The vendored foliate-js (vendor/foliate-js, add-lingua-reader D2), resolved by build.mjs's
