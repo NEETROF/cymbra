@@ -326,7 +326,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     setBadgeTextColor: chrome.action.setBadgeTextColor
       ? (details) => chrome.action.setBadgeTextColor(details)
       : undefined,
-    setTitle: (details) => chrome.action.setTitle(details),
+    // A browser without a title for its toolbar entry still shows the count.
+    setTitle: (details) => chrome.action.setTitle?.(details) ?? Promise.resolve(),
   };
   const badge = badgeHost({
     action,
