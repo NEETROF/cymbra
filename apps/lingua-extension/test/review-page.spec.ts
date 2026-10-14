@@ -716,6 +716,29 @@ describe("Révision — a card the pack cannot answer (add-lingua-review-transla
     expect(m.container.querySelector(".review-translation, .review-translating")).toBeNull(); // not before the reveal
   });
 
+  it("asks a glossless card captured with its full stop with a span that ends before it (fix-lingua-selection-card-punctuation D4)", async () => {
+    const t = fakeTranslator();
+    const stood: FakeCard = {
+      headword: "stood in silence.",
+      surface: "stood in silence.",
+      sentence: "They stood in silence. Then they left.",
+      gloss: null,
+    };
+    const m = mount(makeFakePort([stood]).port, fakeArea(), { translator: t.source });
+    await m.page.refresh();
+
+    button(m.container, "Réviser").click();
+    await settle();
+
+    expect(t.requests).toEqual([
+      {
+        sentence: "They stood in silence. Then they left.",
+        selection: { start: 5, end: 5 + "stood in silence".length },
+        language: "en",
+      },
+    ]);
+  });
+
   it("warms the route of the review's language when a session starts", async () => {
     const t = fakeTranslator();
     const m = mount(makeFakePort(DECK).port, fakeArea(), { translator: t.source });

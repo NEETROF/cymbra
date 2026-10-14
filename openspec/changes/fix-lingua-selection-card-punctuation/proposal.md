@@ -39,8 +39,8 @@ reader cannot fix it: there is no way to rename a card yet.
 - **No card is rewritten, merged or migrated.** The card keeps its stored lemma, form and
   history; the backup, the card operations and synchronisation carry the same bytes. A reader
   who wants the card renamed will do it with `add-lingua-card-edit`.
-- Unchanged: a card with a gloss in the engine's native language shows it, the English
-  baseline's review views keep their bytes, and a selection without edge punctuation is read as
+- Unchanged: a card with a gloss in the engine's native language shows it, the
+  baselines' review views keep their bytes except a glossless card the pack glosses (re-pinned), and a selection without edge punctuation is read as
   today.
 
 ## Capabilities

@@ -42,6 +42,8 @@
 
 mod support;
 
+use lingua_core::analysis::language::StudiedLanguage;
+use lingua_core::decks::backup::LinguaState;
 use lingua_core::packs::Pack;
 use lingua_wasm::LinguaEngine;
 use support::english::ENGLISH;
@@ -726,4 +728,59 @@ fn spec_scenario_a_word_written_with_an_apostrophe() {
         "hoy",
     ));
     assert_eq!(view(&engine)["gloss"], word);
+}
+
+/// en-fr whose expression table holds `four-poster bed → Lit à baldaquin`.
+fn en_fr_holding_four_poster_bed() -> Vec<u8> {
+    let pack = support::committed::en_fr_holding_four_poster_bed();
+    assert_eq!(
+        Pack::load(&pack).unwrap().expression("four-poster bed"),
+        Some("Lit à baldaquin")
+    );
+    pack
+}
+
+/// fix-lingua-selection-card-punctuation D3, D5: a card captured with the punctuation of its
+/// selection, without a gloss, is read in the pack at its lemma without that punctuation — its
+/// stored lemma, form and absent gloss are carried unchanged by the backup written after review.
+#[test]
+fn spec_scenario_an_expression_card_captured_with_its_comma() {
+    // (lemma and form as captured, the gloss review shows)
+    let cases = [
+        ("four-poster bed,", Some("Lit à baldaquin")),
+        ("stood in silence.", None),
+    ];
+    let pack = en_fr_holding_four_poster_bed();
+    for (lemma, shown) in cases {
+        let mut engine = Scenario::engine(&[("en-fr", pack.clone())]);
+        engine
+            .add_card(
+                lemma,
+                lemma,
+                "He slept in a four-poster bed, alone.",
+                "https://example.com/novel",
+                None,
+                T,
+                Some("en".to_owned()),
+            )
+            .unwrap();
+        assert_eq!(
+            engine.start_review(T + DAY, None, None, None, None, None),
+            1
+        );
+        let current = view(&engine);
+        assert_eq!(current["headword"], lemma, "the stored headword");
+        assert_eq!(current["surface"], lemma, "the stored form");
+        assert_eq!(current["gloss"].as_str(), shown, "{lemma}");
+        assert!(engine.review_grade("good", T + DAY));
+
+        let state = LinguaState::from_backup(&engine.backup()).expect("the backup restores");
+        let card = state
+            .deck
+            .get(StudiedLanguage::English, lemma)
+            .expect("the card keeps its lemma");
+        assert_eq!(card.encountered_form, lemma);
+        assert_eq!(card.gloss, None, "{lemma}: review writes no gloss");
+        assert_eq!(state.deck.len(), 1, "no card is added or renamed");
+    }
 }

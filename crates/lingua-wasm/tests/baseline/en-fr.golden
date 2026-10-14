@@ -288,7 +288,7 @@ Octanove: Octanove Vocabulary Profile C1/C2 v1.0, Octanove Labs, CC BY-SA 4.0.
 ### review-current first
 {"gloss":"expédition","headword":"expedition","remaining":10,"revealed":false,"sentence":"She will lead the expedition.","source":"https://example.com/homographs","surface":"expedition"}
 ### review-current second
-{"gloss":null,"headword":"grin","remaining":9,"revealed":false,"sentence":"He couldn't stop grinning.","source":"","surface":"grinning"}
+{"gloss":"Sourire","headword":"grin","remaining":9,"revealed":false,"sentence":"He couldn't stop grinning.","source":"","surface":"grinning"}
 ### review-remaining
 8
 ### calibration

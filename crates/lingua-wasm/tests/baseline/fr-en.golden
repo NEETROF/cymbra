@@ -515,7 +515,7 @@ one, and every pack studying French reads them as committed.
 ### review-current first
 {"gloss":"horizon","headword":"horizon","remaining":10,"revealed":false,"sentence":"Il resta à regarder l’horizon.","source":"https://example.com/fiction","surface":"horizon"}
 ### review-current second
-{"gloss":null,"headword":"rassurer","remaining":9,"revealed":false,"sentence":"Le son de sa voix le rassure.","source":"","surface":"rassure"}
+{"gloss":"to reassure; to calm down","headword":"rassurer","remaining":9,"revealed":false,"sentence":"Le son de sa voix le rassure.","source":"","surface":"rassure"}
 ### review-remaining
 8
 ### calibration
