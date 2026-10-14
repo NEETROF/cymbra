@@ -12,6 +12,8 @@ import {
   renderAround,
 } from "../i18n/index.ts";
 import { browserSpeechEngine, createSpeaker, type SpeechEngine } from "../reading/speech.ts";
+import { type OpenPage, openPageViaBackground } from "../state/open-page.ts";
+import { STORE_REVIEW_PAGE } from "../state/store-links.ts";
 import { dailyRecorder } from "../state/dailystats.ts";
 import {
   type AsyncStorageArea,
@@ -24,6 +26,17 @@ import {
 import { watchBackup } from "../state/store.ts";
 import type { TranslatorSource } from "../translate/create-port.ts";
 import type { OnlineTranslationRequest, OnlineTranslationResult } from "../translate/online.ts";
+import {
+  afterSession,
+  answer as answerRequest,
+  loadRating,
+  localDay,
+  markShown,
+  type RatingChoice,
+  ratingDue,
+  ratingOffered,
+  saveRating,
+} from "./rating.ts";
 import { localDayStart, ReviewController } from "./session.ts";
 import {
   cardTranslationRequest,
@@ -38,6 +51,7 @@ import {
   type ReviewTranslationHint,
   renderReview,
   reviewCopy,
+  sessionCompleted,
 } from "./view.ts";
 
 // The Révision page — the language filter, the due count and the FSRS review card — built as
@@ -99,6 +113,18 @@ export interface ReviewPageOptions {
   toSort?: () => Promise<number>;
   /** Open the book's list of words to sort, in the reader page beside. */
   openToSort?: () => void;
+  /**
+   * Whether the end of a session may ask for a rating (add-lingua-comeback-hints D10): the build's —
+   * Chromium and Firefox, never the Safari extension nor the Cymbra Lingua app (D11) — unless given.
+   */
+  askRating?: boolean;
+  /** Opens the store page when the reader chooses to rate: the background does it, unless given. */
+  openPage?: OpenPage;
+  /**
+   * A session's end said it was complete (« Séance terminée »): the Cymbra Lingua app counts it for
+   * StoreKit's own request (add-lingua-comeback-hints D11).
+   */
+  onSessionFinished?: () => void;
 }
 
 export interface ReviewPage {
@@ -180,6 +206,16 @@ export function mountReview(
    */
   let arrival = 0;
   let assist: Assist = { mine: 0, request: null, asked: false, kept: false };
+  // The rating request (add-lingua-comeback-hints D10): each complete end counted once, the request
+  // shown at the end that qualifies until the reader answers or starts another session.
+  const askRating = opts.askRating ?? ratingOffered(__TARGET__, __APP__);
+  let endCounted = false;
+  let ratingShown = false;
+  const ratingActions = {
+    rate: () => void answerRating("rate"),
+    later: () => void answerRating("later"),
+    never: () => void answerRating("never"),
+  };
   const render = (view: ReturnType<ReviewController["view"]>): void => {
     spoken = view.card?.language ?? language ?? spoken;
     renderReview(review, view, actions, {
@@ -187,8 +223,42 @@ export function mountReview(
       interfaceLanguage,
       speaker,
       ...(view.card ? assisted(view.card) : {}),
+      ...(ratingShown && view.phase === "done" ? { rating: ratingActions } : {}),
     });
   };
+
+  /** A new session, or none: the next complete end is counted, and no request stays on screen. */
+  function newSession(): void {
+    endCounted = false;
+    ratingShown = false;
+  }
+
+  /**
+   * An end that says the session is complete — practice included, never « Rien à réviser » — is
+   * counted once; the request shows when this end qualifies, and counts as made from then on (D10).
+   * Nothing is sent anywhere: the state stays in the preferences of this device.
+   */
+  async function countEnd(view: ReturnType<ReviewController["view"]>): Promise<void> {
+    if (endCounted || view.phase !== "done" || !sessionCompleted(view.summary)) return;
+    endCounted = true;
+    opts.onSessionFinished?.();
+    if (!askRating) return;
+    let state = afterSession(await loadRating(opts.prefs), localDay(opts.now()));
+    if (ratingDue(state)) {
+      state = markShown(state);
+      ratingShown = true;
+    }
+    await saveRating(opts.prefs, state);
+  }
+
+  /** The reader's answer: « Noter » opens the store page through the background, and only then. */
+  async function answerRating(choice: RatingChoice): Promise<void> {
+    if (!ratingShown) return;
+    ratingShown = false;
+    if (choice === "rate") (opts.openPage ?? openPageViaBackground)(STORE_REVIEW_PAGE);
+    render(session.view());
+    await saveRating(opts.prefs, answerRequest(await loadRating(opts.prefs), choice));
+  }
 
   /** Whether `card` has a gloss — the reader's, the pack's or its own (add-lingua-review-translation-fallback D1). */
   const glossed = (card: NonNullable<ReturnType<ReviewController["view"]>["card"]>): boolean => !!card.gloss;
@@ -396,6 +466,7 @@ export function mountReview(
   ): Promise<void> {
     const view = await produce();
     if (arrives) arrive(view.card);
+    await countEnd(view);
     if (changed) {
       await persist();
       await refreshSummary();
@@ -407,11 +478,13 @@ export function mountReview(
     // A session starts with the focus in the card, so the keys answer it at once.
     start: () => {
       warm();
+      newSession();
       void run(() => session.start(only()), false).then(() => review.focus({ preventScroll: true }));
     },
     // Nothing due: practise the cards already reviewed, no schedule moved (add-lingua-review-practice).
     practice: () => {
       warm();
+      newSession();
       void run(() => session.start(only(), true), false).then(() => review.focus({ preventScroll: true }));
     },
     reveal: () => void run(() => session.reveal(), false, false),
@@ -426,6 +499,7 @@ export function mountReview(
   /** A fresh controller over the engine as it now is: the idle card and the counts. */
   async function restart(): Promise<void> {
     session = controller();
+    newSession();
     arrive(null);
     // The profile came with the state: a language may have joined or left the filter.
     await readLanguages();

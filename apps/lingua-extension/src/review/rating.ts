@@ -40,6 +40,15 @@ export interface RatingState {
 
 export const INITIAL_RATING: RatingState = { sessions: 0, days: 0, lastDay: null, shown: 0, shownAt: 0, answer: null };
 
+/**
+ * Whether a build's review asks for a rating at all (D10, D11): Chromium and Firefox. The Safari
+ * extension ships inside the app App Review examines, and Apple disallows custom review prompts;
+ * the Cymbra Lingua app asks through StoreKit's own prompt instead.
+ */
+export function ratingOffered(target: string, app: boolean): boolean {
+  return !app && target !== "safari";
+}
+
 /** What the reader chose: rate, later, or never again. */
 export type RatingChoice = "rate" | "later" | "never";
 

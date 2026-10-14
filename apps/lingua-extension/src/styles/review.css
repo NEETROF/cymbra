@@ -292,6 +292,34 @@
   gap: 10px;
 }
 
+/* The rating request (add-lingua-comeback-hints D10): below the end's own actions, set apart by a
+   rule, quieter than « Encore 10 » — a plain button and two links. */
+.review-rating {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--cymbra-lingua-border-2);
+}
+
+.review-rating-ask {
+  color: var(--cymbra-lingua-muted);
+  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+.review-rating-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 16px;
+  color: var(--cymbra-lingua-muted);
+}
+
+.review-rating-actions .review-btn {
+  width: auto;
+}
+
 .review-done-title {
   font-family: Georgia, "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
   font-size: calc(20px * var(--cymbra-lingua-ui-scale, 1));

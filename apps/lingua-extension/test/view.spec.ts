@@ -495,6 +495,48 @@ describe("renderReview — the end of a session", () => {
   });
 });
 
+describe("renderReview — the rating request (add-lingua-comeback-hints D10)", () => {
+  const summary = { reviewed: 10, recovered: 0, holding: 0, known: 0, hidden: 0 };
+
+  it("renders it below « Encore 10 » when the page asks, each answer wired", () => {
+    const rating = { rate: vi.fn(), later: vi.fn(), never: vi.fn() };
+    renderReview(root, done(summary, true), actions, { rating });
+    const box = root.querySelector(".review-done")!;
+    const buttons = [...box.querySelectorAll("button")].map((b) => b.textContent);
+    expect(buttons).toEqual(["Encore 10", "Noter Cymbra Lingua", "Plus tard", "Ne plus demander"]);
+    expect(box.querySelector(".review-rating-ask")?.textContent).toBe(
+      "Une note sur la boutique de ton navigateur aide d'autres lecteurs à trouver Cymbra Lingua.",
+    );
+    // No stars, nothing chosen in advance, nothing offered: three buttons and a sentence.
+    expect(box.querySelector(".review-rating input, .review-rating select")).toBeNull();
+    button("Noter Cymbra Lingua").click();
+    button("Plus tard").click();
+    button("Ne plus demander").click();
+    expect([rating.rate, rating.later, rating.never].map((fn) => fn.mock.calls.length)).toEqual([1, 1, 1]);
+  });
+
+  it("in the three interface languages", () => {
+    const rating = { rate: vi.fn(), later: vi.fn(), never: vi.fn() };
+    renderReview(root, done(summary), actions, { rating, interfaceLanguage: "en" });
+    expect([...root.querySelectorAll(".review-rating button")].map((b) => b.textContent)).toEqual([
+      "Rate Cymbra Lingua",
+      "Later",
+      "Don't ask again",
+    ]);
+    renderReview(root, done(summary), actions, { rating, interfaceLanguage: "es" });
+    expect([...root.querySelectorAll(".review-rating button")].map((b) => b.textContent)).toEqual([
+      "Valorar Cymbra Lingua",
+      "Más tarde",
+      "No volver a preguntar",
+    ]);
+  });
+
+  it("shows nothing of it without the page's request", () => {
+    renderReview(root, done(summary, true), actions);
+    expect(root.querySelector(".review-rating")).toBeNull();
+  });
+});
+
 describe("renderReview — keys (refine-lingua-review-session D7)", () => {
   it("scenario: with a keyboard, Space reveals, then the right arrow answers « Su »", () => {
     renderReview(root, reviewing(), actions);

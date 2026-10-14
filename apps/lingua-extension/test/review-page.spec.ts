@@ -4,6 +4,8 @@ import { inSettings, mountReview, type ReviewOnlineSource } from "@/review/revie
 import type { ReviewTranslationHint } from "@/review/view.ts";
 import { loadDailyStats, utcDay } from "@/state/dailystats.ts";
 import { localDayStart } from "@/review/session.ts";
+import { localDay, RATING_KEY, type RatingState, ratingOffered } from "@/review/rating.ts";
+import { STORE_REVIEW_PAGE } from "@/state/store-links.ts";
 import type { SpeechEngine, VoiceInfo } from "@/reading/speech.ts";
 import {
   type AsyncStorageArea,
@@ -108,6 +110,10 @@ interface Host {
   /** Beside a book, its words still to sort and opening their list (add-lingua-chapter-recap D6). */
   toSort?: () => Promise<number>;
   openToSort?: () => void;
+  /** The rating request (add-lingua-comeback-hints D10): the build's unless given. */
+  askRating?: boolean;
+  openPage?: (url: string) => void;
+  onSessionFinished?: () => void;
 }
 
 function mount(port: LinguaPort, area: Area = fakeArea(), host: Host = {}) {
@@ -124,6 +130,9 @@ function mount(port: LinguaPort, area: Area = fakeArea(), host: Host = {}) {
     translationHint: host.translationHint,
     toSort: host.toSort,
     openToSort: host.openToSort,
+    askRating: host.askRating,
+    openPage: host.openPage ?? (() => {}),
+    onSessionFinished: host.onSessionFinished,
   });
   return { page, container, area, prefs };
 }
@@ -1282,5 +1291,129 @@ describe("Révision — the words of the book beside, to sort", () => {
       expect(count.textContent).toBe("");
       count.click(); // no list to open: nothing happens
     }
+  });
+});
+
+describe("Révision — the rating request at the end of a session (add-lingua-comeback-hints D10)", () => {
+  /** Twelve cards, so « Encore 10 » is offered after a first session of ten. */
+  const TWELVE: FakeCard[] = Array.from({ length: 12 }, (_, i) => ({
+    headword: `w${i}`,
+    surface: `w${i}`,
+    sentence: "",
+    gloss: null,
+  }));
+  const TODAY = localDay(NOW_SECONDS);
+  /** Four sessions finished on three days, the last today: the next complete end qualifies. */
+  const READY: RatingState = { sessions: 4, days: 3, lastDay: TODAY, shown: 0, shownAt: 0, answer: null };
+
+  /** Mount with the request's state in the preferences, then finish one session of `cards`. */
+  async function finishOne(state: RatingState | null, host: Host = {}, cards: FakeCard[] = TWELVE) {
+    const prefs = host.prefs ?? fakeArea();
+    if (state) prefs.raw[RATING_KEY] = state;
+    const m = mount(makeFakePort(cards).port, fakeArea(), { ...host, prefs });
+    await m.page.refresh();
+    button(m.container, "Réviser").click();
+    await settle();
+    while (m.container.querySelector(".review-reveal")) {
+      button(m.container, "Afficher la réponse").click();
+      await settle();
+      button(m.container, "Su").click();
+      await settle();
+    }
+    return m;
+  }
+
+  const request = (container: HTMLElement) => container.querySelector<HTMLElement>(".review-rating");
+
+  it("The fifth session, on the third day: « Séance terminée », its summary and « Encore 10 », then the request", async () => {
+    const m = await finishOne(READY);
+    expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+    const shown = request(m.container)!;
+    expect(shown.textContent).toContain(
+      "Une note sur la boutique de ton navigateur aide d'autres lecteurs à trouver Cymbra Lingua.",
+    );
+    expect([...shown.querySelectorAll("button")].map((b) => b.textContent)).toEqual([
+      "Noter Cymbra Lingua",
+      "Plus tard",
+      "Ne plus demander",
+    ]);
+    // Below the end's own actions, which stay first.
+    const done = m.container.querySelector(".review-done")!;
+    const order = [...done.children].map((c) => c.className);
+    expect(order.indexOf("review-btn primary review-more")).toBeLessThan(order.indexOf("review-rating"));
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, shown: 1, shownAt: 5, answer: null });
+  });
+
+  it("Five sessions in one evening: not before the third day of review", async () => {
+    const m = await finishOne({ ...READY, days: 1 });
+    expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+    expect(request(m.container)).toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, days: 1, shown: 0 });
+  });
+
+  it("Rating: the store page opens through the background, and the request never shows again", async () => {
+    const opened: string[] = [];
+    const m = await finishOne(READY, { openPage: (url) => opened.push(url) });
+    expect(opened).toEqual([]);
+    button(m.container, "Noter Cymbra Lingua").click();
+    await settle();
+    expect(opened).toEqual([STORE_REVIEW_PAGE]);
+    expect(request(m.container)).toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ answer: "rated" });
+  });
+
+  it("No network before the choice: « Plus tard » sends nothing, and the request goes", async () => {
+    const opened: string[] = [];
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    const m = await finishOne(READY, { openPage: (url) => opened.push(url) });
+    button(m.container, "Plus tard").click();
+    await settle();
+    expect(opened).toEqual([]);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(request(m.container)).toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ shown: 1, answer: null });
+  });
+
+  it("Don't ask again: the answer is kept", async () => {
+    const m = await finishOne(READY);
+    button(m.container, "Ne plus demander").click();
+    await settle();
+    expect(request(m.container)).toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ answer: "never" });
+  });
+
+  it("Later, by starting « Encore 10 » without answering: the request goes, and counts as made", async () => {
+    const m = await finishOne(READY);
+    button(m.container, "Encore 10").click();
+    await settle();
+    expect(request(m.container)).toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, shown: 1, answer: null });
+  });
+
+  it("Nothing due: no session counted, no request", async () => {
+    const m = await finishOne(READY, {}, []);
+    expect(m.container.textContent).toContain("Rien à réviser pour l'instant.");
+    expect(request(m.container)).toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toEqual(READY);
+  });
+
+  it("In Safari and in the app: no request, though the end is counted for the app's own", async () => {
+    const finished = vi.fn();
+    const m = await finishOne(READY, { askRating: false, onSessionFinished: finished });
+    expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+    expect(request(m.container)).toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toEqual(READY);
+    expect(finished).toHaveBeenCalledTimes(1);
+    // A repaint of the same end counts it no second time.
+    await m.page.refresh();
+    expect(finished).toHaveBeenCalledTimes(1);
+  });
+
+  it("is offered by the Chromium and Firefox builds only", () => {
+    expect(ratingOffered("chromium", false)).toBe(true);
+    expect(ratingOffered("firefox", false)).toBe(true);
+    expect(ratingOffered("safari", false)).toBe(false);
+    expect(ratingOffered("safari", true)).toBe(false);
   });
 });
