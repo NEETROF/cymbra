@@ -34,7 +34,7 @@ inside its card.
 - **THEN** the card's gloss becomes « se relâcher », marked as chosen by the reader, in the reader's native language, and the translated sentence is stored nowhere
 
 ### Requirement: The review translates a card the pack cannot answer
-When a card without a gloss comes up in a review — an expression, or a single word the pack does not gloss — and this device has a model ready for the card's language, the review SHALL ask the engine for the card's sentence translated with the word's place marked, as soon as the card comes up, and SHALL show that translation with the answer once revealed, labelled as a machine translation (French UI copy: « Dans votre phrase — traduction automatique ») and rendered as text. This SHALL hold in every host of the review: the in-page drawer, the side panel, the EPUB reader and the Cymbra Lingua app. An expression whose sentence does not hold it SHALL be translated alone, under a label saying it is a machine translation of the expression (French UI copy: « Traduction automatique »); a single word SHALL never be translated alone. A card with a gloss SHALL show its gloss, and the engine SHALL NOT be asked for it unless the reader asks, once revealed, through a link (French UI copy: « Traduire la phrase ») shown only when a model is ready or online translation is offered for that card; the link SHALL be a small text control, not a block. The translation SHALL NOT show before the reveal, SHALL NOT hold the reveal back, and SHALL be discarded with the card unless the reader keeps it.
+When a card without a gloss comes up in a review — an expression, or a single word the pack does not gloss — and this device has a model ready for the card's language, the review SHALL ask the engine for the card's sentence translated with the word's place marked, as soon as the card comes up, and SHALL show that translation with the answer once revealed, labelled as a machine translation (French UI copy: « Dans votre phrase — traduction automatique ») and rendered as text. This SHALL hold in every host of the review: the in-page drawer, the side panel, the EPUB reader and the Cymbra Lingua app. An expression whose sentence does not hold it SHALL be translated alone, under a label saying it is a machine translation of the expression (French UI copy: « Traduction automatique »); a single word SHALL never be translated alone. A card with a gloss SHALL show its gloss, and the engine SHALL NOT be asked for it unless the reader asks, once revealed, through a link (French UI copy: « Traduire la phrase ») shown only when a model is ready or online translation is offered for that card; the link SHALL be a small text control, not a block. The translation SHALL NOT show before the reveal, SHALL NOT hold the reveal back, and SHALL be discarded with the card unless the reader keeps it. When a revealed card has no gloss and nothing can translate it — no model ready for its language and online translation not offered — while a translation could be had for it (a sentence or an expression to send), its no-translation note SHALL say, in the same line, how to get one: in the extension, turning « Traduction étendue » on in Réglages; in the Cymbra Lingua app, turning it on in the Safari extension when it is off there, else downloading the app's models, through a link that offers the app's existing download again. The note SHALL keep saying whether the card is a word or an expression, SHALL add no block and no transition, and SHALL NOT change when a translation is possible.
 
 #### Scenario: An expression in review
 - **WHEN** the card of « such as those made », which has no gloss, comes up and a model is ready for English
@@ -58,7 +58,15 @@ When a card without a gloss comes up in a review — an expression, or a single 
 
 #### Scenario: No model
 - **WHEN** extended translation is off on this device, or the models of the card's language are not on it, and online translation is not offered
-- **THEN** the review is as it was before the engine existed, with no line about a translation and no « Traduire la phrase » link
+- **THEN** no translation is asked, no « Traduire la phrase » link is shown, and a card without a gloss says how to get a translation, as « Nothing can translate the card » states
+
+#### Scenario: Nothing can translate the card
+- **WHEN** the card of « slacken », which has no gloss, is revealed in the side panel with « Traduction étendue » off and online translation not offered
+- **THEN** the answer reads « Pas de traduction pour ce mot. Activez la traduction étendue dans les réglages pour traduire cette carte. » in one line, and an expression's reads « Pas de traduction pour cette expression. » followed by the same sentence
+
+#### Scenario: A translation is possible
+- **WHEN** a card without a gloss is revealed with a model ready for its language, or with online translation offered
+- **THEN** its answer says nothing about the settings
 
 #### Scenario: A sentence that does not hold the expression
 - **WHEN** an expression's card holds a sentence the expression is not in

@@ -281,6 +281,10 @@ not hold is sent alone). One press per card per review; a late answer is dropped
 the daily limit read as on the selection card. The drawer, the EPUB reader (through its drawer) and
 the side panel hand Révision the runtime-message client the selection card uses: the background owns
 the session.
+A card without a gloss that nothing can translate — no model ready, no online button — says how in
+its note's line: « Activez la traduction étendue dans les réglages pour traduire cette carte. » in the
+extension; in the app, the same in « l'extension Cymbra Lingua de Safari » when the setting is off
+there, else « Téléchargez la traduction pour l'app », a link re-offering the app's download.
 
 Under any machine translation the reader can keep the word's part as the card's gloss: one mark that
 fits in 80 UTF-16 code units is named and kept in one tap (« Garder « se relâcher » », « Modifier »

@@ -30,6 +30,7 @@
 - [x] 4.5 (D2) Hosts: the drawer, the side panel and the EPUB reader hand `mountReview` the runtime-message online client the selection card uses. Verify with the drawer and side-panel specs and `test/lint-translator-placement.spec.ts` unchanged.
 - [x] 4.6 Copy in every interface language (fr, en, es), aligned. Verify with the i18n alignment test.
 - [x] 4.7 The review section of `apps/lingua-extension/README.md`: online translation in review, « Traduire la phrase », keeping a translation, the precedence. Verify by reading it against the specs.
+- [x] 4.8 (D12) A card nothing can translate — no gloss, no model ready, no online button, and a request something could answer — says how in its no-translation note: `ReviewPageOptions.translationHint`, `ReviewRenderOptions.hint`; the drawer and the side panel point to « Traduction étendue » in Réglages; the app to the Safari extension when the setting is off there, else to its own download, the link re-offering the existing offer (`AppTranslation.hint` / `reoffer`); copy in fr, en, es. Verify with `test/view.spec.ts`, `test/review-page.spec.ts` and `test/app-translation.spec.ts` for « Nothing can translate the card », and the i18n alignment test.
 
 ## 5. Relay and the Cymbra Lingua app
 

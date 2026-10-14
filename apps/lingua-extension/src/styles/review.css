@@ -197,6 +197,11 @@
   color: var(--cymbra-lingua-muted);
 }
 
+/* The no-translation note's own action (D12): inside the note's line, no taller than its text. */
+.review-no-gloss .review-link {
+  padding: 0;
+}
+
 .review-online,
 .review-keep {
   display: flex;
