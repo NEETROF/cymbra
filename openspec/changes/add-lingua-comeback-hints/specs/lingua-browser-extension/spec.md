@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Page percentage always visible
-The icon badge SHALL show the percentage of known words for the active tab when its page has been analysed, refreshed on every state change. Where the active tab shows no percentage — a page not analysed, a page with nothing to count, a tab where the reader is switched off — the badge SHALL show the count of cards waiting for review that *The toolbar icon counts the cards waiting for review* describes, or nothing; it SHALL NOT show a percentage carried over from another page. The icon popup SHALL break the percentage down: percentage known, words analysed, unknown words (occurrences and distinct words), and the reader's setting — the declared CEFR level when the studied language has CEFR data, otherwise the frequency calibration.
+The icon badge SHALL show the percentage of known words for the active tab when its page has been analysed, refreshed on every state change. Where the active tab shows no percentage — a page not analysed, a page with nothing to count, a tab where the reader is switched off — the badge SHALL show the count of cards waiting for review that *The toolbar icon counts the cards waiting for review* describes, or nothing; it SHALL NOT show a percentage carried over from another page, except in a browser that keeps one badge for every tab (Safari before 18), where the badge SHALL keep showing the last percentage set, as before. The icon popup SHALL break the percentage down: percentage known, words analysed, unknown words (occurrences and distinct words), and the reader's setting — the declared CEFR level when the studied language has CEFR data, otherwise the frequency calibration.
 
 #### Scenario: Badge on an analysed page
 - **WHEN** a page at 94% known tokens is active
@@ -22,7 +22,7 @@ The icon badge SHALL show the percentage of known words for the active tab when 
 ## ADDED Requirements
 
 ### Requirement: The toolbar icon counts the cards waiting for review
-Where the toolbar icon shows no page percentage, its badge SHALL show how many cards a review would hold today across the reader's studied languages — the reviewed cards due and, in each language, the never-reviewed cards within that language's daily allowance left today — as the number, as « 99+ » above 99, and as nothing at 0. The count SHALL carry no « % »; where the browser lets the extension colour the badge, it SHALL have a colour of its own, distinct from the percentage's and from the colours of word statuses, and black on the e-ink colour presets. The icon's title SHALL say the count in words, naming each language when several hold cards (French UI copy: « Cymbra Lingua — 12 carte(s) à revoir »). The count SHALL be worked out on the device from the reader's own data, only when an event happens — the browser starting, the extension installed or updated, a tab activated, a browser window focused, the reader's data changing (an answer, a capture, a synchronisation applied, a restore, a review made in the Cymbra Lingua app) or a setting it depends on changing — and never from a timer or an alarm; it SHALL need no new permission and SHALL make no network request, and a start of the extension's background caused by one of these events SHALL make no exchange with the server. A setting (French UI copy: « Afficher les cartes à réviser sur l'icône »), on by default and kept on the device only, SHALL turn the count off; off, the badge SHALL show page percentages only.
+Where the toolbar icon shows no page percentage, its badge SHALL show how many cards a review would hold today across the reader's studied languages — the reviewed cards due and, in each language, the never-reviewed cards within that language's daily allowance left today — as the number, as « 99+ » above 99, and as nothing at 0. The count SHALL carry no « % »; where the browser lets the extension colour the badge, it SHALL have a colour of its own, distinct from the percentage's and from the colours of word statuses, and black on the e-ink colour presets. The icon's title SHALL say the count in words, naming each language when several hold cards (French UI copy: « Cymbra Lingua — 12 carte(s) à revoir »). The count SHALL be worked out on the device from the reader's own data, only when an event happens — the browser starting, the extension installed or updated, a tab activated, a browser window focused, the reader's data changing (an answer, a capture, a synchronisation applied, a restore, a review made in the Cymbra Lingua app) or a setting it depends on changing — and never from a timer or an alarm; between two events the badge SHALL keep the count worked out at the last one. Working out the count SHALL need no new permission and SHALL make no network request; the synchronisation SHALL keep its own triggers, this count adding none and removing none. A setting (French UI copy: « Afficher les cartes à réviser sur l'icône »), on by default and kept on the device only, SHALL turn the count off; off, the badge SHALL show page percentages only. In a browser that keeps one badge for every tab (Safari before 18), the count SHALL NOT be shown and the setting SHALL NOT be offered.
 
 #### Scenario: Coming back to the browser
 - **WHEN** a reader with 12 English cards due and no new word waiting switches to a tab they did not analyse
@@ -52,9 +52,17 @@ Where the toolbar icon shows no page percentage, its badge SHALL show how many c
 - **WHEN** a card comes due at 14:00 and the reader does nothing in the browser until 15:00, then activates a tab
 - **THEN** nothing in the extension runs at 14:00, and the badge counts that card from the tab's activation
 
-#### Scenario: A review finished elsewhere
-- **WHEN** the reader answers the last due card in the side panel, the drawer or the Cymbra Lingua app
+#### Scenario: A review finished in the browser
+- **WHEN** the reader answers the last due card in the side panel or the drawer
 - **THEN** the badge's count goes down without any page being reloaded
+
+#### Scenario: A review made in the Cymbra Lingua app
+- **WHEN** the reader reviews in the app, then comes back to Safari on the same device
+- **THEN** the badge counts the app's answers from the moment the extension takes them in from the app, as it already does for the deck
+
+#### Scenario: A review made on another device
+- **WHEN** a signed-in reader reviews on their phone, then switches tabs in a browser that has not synced since
+- **THEN** the badge may still count those cards, and stops counting them once that browser's next synchronisation applies the answers
 
 #### Scenario: E-ink colours
 - **WHEN** the reader chose an e-ink colour preset
@@ -67,6 +75,10 @@ Where the toolbar icon shows no page percentage, its badge SHALL show how many c
 #### Scenario: No new permission
 - **WHEN** a reader's browser updates the extension to the version that counts the cards
 - **THEN** the browser asks for no new permission
+
+#### Scenario: Safari 17
+- **WHEN** a reader uses the extension in Safari 17 with 12 cards waiting
+- **THEN** the badge shows no count, Réglages do not offer the setting, and the popup still shows « Réviser (N) »
 
 ### Requirement: Réglages carry a link to rate the extension
 Réglages › Données SHALL offer a link to rate the extension (French UI copy: « Noter Cymbra Lingua ») in every browser, opening in a new tab the page of the store the build is distributed by — the Chrome Web Store listing's reviews for Chromium, the Firefox Add-ons listing for Firefox, the App Store's write-review page for Safari — through the extension's background, so that no address of a page being read is sent with it. Nothing SHALL be sent before the reader follows the link.
