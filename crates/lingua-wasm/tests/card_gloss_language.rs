@@ -444,30 +444,71 @@ fn spec_scenario_a_gloss_the_pack_has_not() {
 }
 
 #[test]
-fn a_card_glossed_in_the_engines_native_language_is_shown_as_before() {
-    // The label is the engine's native: the card's text, not the pack's, even where they differ.
+fn spec_scenarios_a_pack_fixed_after_the_capture_and_a_gloss_the_reader_chose() {
+    // add-lingua-review-translation-fallback D5: for every card, the reader's gloss as written,
+    // else the current pack's, else the stored text. A card glossed in the engine's native
+    // language with a text the pack has since replaced (`demeure`, where es-fr says otherwise)
+    // shows the pack's; kept by the reader, its own. Either way the card keeps its text.
     let (es_fr, _) = packs();
-    let mut engine = Scenario::engine(&[("es-fr", es_fr)]);
-    engine
-        .add_card(
-            "casa",
-            "casa",
-            "La casa.",
-            "https://example.es",
-            Some("demeure".to_owned()),
-            T,
-            Some("es".to_owned()),
-        )
-        .unwrap();
-    assert_eq!(
-        engine.start_review(T + DAY, None, None, None, None, None),
-        1
-    );
-    assert_eq!(view(&engine)["gloss"], "demeure");
+    let pack_gloss = Pack::load(&es_fr)
+        .unwrap()
+        .gloss("casa")
+        .expect("es-fr glosses casa")
+        .to_owned();
+    assert_ne!(pack_gloss, "demeure");
+    for kept in [false, true] {
+        let mut engine = Scenario::engine(&[("es-fr", es_fr.clone())]);
+        engine
+            .add_card(
+                "casa",
+                "casa",
+                "La casa.",
+                "https://example.es",
+                Some("demeure".to_owned()),
+                T,
+                Some("es".to_owned()),
+            )
+            .unwrap();
+        if kept {
+            assert!(
+                engine
+                    .keep_gloss("casa", "demeure", Some("es".to_owned()), T)
+                    .unwrap()
+            );
+        }
+        assert_eq!(
+            engine.start_review(T + DAY, None, None, None, None, None),
+            1
+        );
+        let expected = if kept { "demeure" } else { pack_gloss.as_str() };
+        assert_eq!(view(&engine)["gloss"], expected, "kept: {kept}");
+        assert_eq!(
+            text_and_label(&engine),
+            ("demeure".to_owned(), String::new()),
+            "the card keeps its text, and fr is left out"
+        );
+    }
+}
+
+#[test]
+fn spec_scenario_a_gloss_the_reader_chose_in_another_language() {
+    // Kept on the English-native engine, labelled `en`, then reviewed on a French-native engine
+    // whose es-fr glosses the lemma: the reader's text, as written.
+    let (es_fr, es_en) = packs();
+    assert!(Pack::load(&es_fr).unwrap().gloss("casa").is_some());
+    let mut english = glossed_in_english(&es_en, "casa", "house");
     assert!(
-        ops(&engine)[0].get("gloss_language").is_none(),
-        "fr is left out"
+        english
+            .keep_gloss("casa", "home, sweet home", Some("es".to_owned()), T)
+            .unwrap()
     );
+    let engine = french_native_reviewing(&es_fr, &english);
+    assert_eq!(view(&engine)["gloss"], "home, sweet home");
+    assert_eq!(
+        text_and_label(&engine),
+        ("home, sweet home".to_owned(), "en".to_owned())
+    );
+    assert_eq!(ops(&engine)[0]["gloss_by_reader"], true);
 }
 
 #[test]
