@@ -49,18 +49,23 @@ a phone. Five surfaces carry the page's claims: `staff`, `synthesia`, `measures`
 fallback; images after the first are `loading="lazy"`. *Alternative:* the macOS 1440×900
 set — smaller, but 16:10 desktop framing undersells a mobile-first app.
 
-**D3 — Video recorded on the iOS simulator by `simctl io recordVideo`.** A new
-`tool/record_showcase_video.sh <locale>` boots the iPad 13" simulator, starts
-`xcrun simctl io booted recordVideo`, runs a `showcase_test.dart` scenario (reusing the
-capture fixtures: open a piece, Wait Mode, the faked keyboard plays ~20 s, the session
-summary), stops the recording, then `ffmpeg` trims, scales to 1280 px wide, encodes H.264
-(CRF tuned to the budget, `+faststart`), muxes the sound of D6 as AAC and extracts the
-poster. It writes to a
-temporary file and moves it into `apps/music/store/video/<locale>/` only on success, so
-a failed run leaves the previous video. The scenario asserts the seeded state the way
-`capture_test.dart` does. *Alternatives:* `flutter screenshot` frame sequence → video
-(no real frame timing, choppy); screen recording by hand (rejected by the harness's own
-rule). Local-only, like the screenshot command: CI never records.
+**D3 — The video is drawn by the app, frame by frame, on a virtual clock.** A
+`showcase_test.dart` scenario reuses the capture fixtures (no backend, faked keyboard) and
+the iPad 13" layout, opens a bundled piece in Wait Mode, then stops the app's tickers and
+moves time itself: for each of the 30 frames per second it sets a `VirtualClock`
+(overriding `clockProvider`), advances the player by one frame, lets the faked keyboard
+play the keys the playhead waits on, and renders the frame from the app's own layer tree
+(the same `RepaintBoundary.toImage` the screenshots use) to a PNG. Halfway through it
+switches from the staff to the falling notes, so one video shows both readings.
+`tool/record_showcase_video.sh <locale>` runs it with `flutter drive`, renders the sound
+(D6), and has `ffmpeg` encode H.264 + AAC (`+faststart`, CRF raised until the file fits
+the budget) and extract the poster. It writes to `build/` and moves the result into
+`apps/music/store/video/<locale>/` only on success, so a failed run leaves the previous
+video. *Alternatives:* `simctl io recordVideo` on the simulator — rejected before implementation: iPadOS 26 ignores the app's landscape lock, so the simulator shows it in portrait,
+its recording has no sound, and its timing would have to be lined up with the sound log
+after the fact; a frame drawn at an exact instant has none of these problems. Screen
+recording by hand is rejected by the harness's own rule. Local-only, like the screenshot
+command: CI never records.
 
 **D4 — One video per locale, MP4 H.264 + AAC only.** The app's text is visible in the player,
 so a French video on the Spanish page would contradict the gallery. H.264 MP4 plays in
@@ -83,32 +88,29 @@ build stays pure. A post-build test checks every Music page declares one and the
 exists at 1200×630. This is the input `add-site-lingua-showcase` also needs: the first of
 the two to land adds it.
 
-**D6 — The sound is rendered offline by the app's own mixer, not recorded.** The iOS
-simulator's `recordVideo` captures no audio, and the app's CoreAudio output destabilises
-the simulator, so the run plays silently. Instead the scenario logs every command it sends
-to the sound engine (notes played by the faked keyboard, notes the app plays itself, the
-SoundFont in use), stamped with the host clock the simulator shares; the script stamps the
-recording start the same way. A small binary in `apps/music/rust` (`showcase-render`) drives
-the existing `renderer.rs` mixer — already driver-independent, since Android's `AudioTrack`
-feeds it as well as `cpal` — from that log into a 48 kHz WAV, with the same SoundFont, so
-the sound is the app's sound to the sample. `ffmpeg` muxes it at the logged offset.
-*Alternatives:* recording the macOS desktop app with system audio (its window renders black
-under the integration_test binding); a stock music track (hides the piano, licensing
-question, and would not match the notes on screen). The binary is tooling glue, excluded
-from the coverage gate like the rest of the audio glue; the log parsing it relies on is
-pure and unit-tested.
+**D6 — The sound is rendered offline by the app's own mixer, not recorded.** The run
+plays silently: its `AudioService` is a recording double that logs every command the app
+sends to the sound engine (notes played by the faked keyboard, notes the app plays itself,
+SoundFont swaps), stamped with the same virtual clock as the frames. A small binary in
+`apps/music/rust` (`showcase-render`) drives the existing `renderer.rs` mixer — already
+driver-independent, since Android's `AudioTrack` feeds it as well as `cpal` — from that log
+into a 48 kHz WAV, with the same SoundFont, so the sound is the app's sound to the sample
+and each note starts on the frame that shows it. *Alternatives:* recording the macOS
+desktop app with system audio (its window renders black under the integration_test
+binding); a stock music track (hides the piano, licensing question, and would not match
+the notes on screen). The binary's entry point is excluded from the coverage gate; the
+log parsing, the WAV encoding and the render itself are unit-tested.
 
 ## Risks / Trade-offs
 
 - [Captures in git grow the repo] → five iPad PNGs × 3 locales ≈ 6 MB plus ≤ 12 MB of
   video; accepted, same policy as `apps/music/store/`. The optimized variants are build
   output, not committed.
-- [Sound drifts from the picture] → the log and the recording share the host clock; the
-  review step (task 1.5) checks a note's light-up frame against its onset, and the script
-  takes an offset override if a residual lag shows.
-- [Simulator recording frame drops on a loaded Mac] → the script records at the
-  simulator's native rate and the review step (task 1.4) watches the result; re-run if
-  choppy.
+- [The faked keyboard plays too evenly to look human] → velocities vary per key and the
+  keys are held until the next onset; the review step (task 1.5) judges the result.
+- [Tickers stopped during the recording freeze the app's own short animations (key flash,
+  wait pulse)] → the playhead, the notes and the gauge are driven by the player's state,
+  which the scenario advances; the review step checks nothing on screen looks stuck.
 - [Store captures refreshed for a new surface the site does not show] → the check only
   covers files the site copies; a new surface is a deliberate gallery edit.
 - [Discord/WhatsApp cache an old preview] → the preview file name carries a content hash,
