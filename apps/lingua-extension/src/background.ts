@@ -590,7 +590,10 @@ if (__TRANSLATION_HOST__ !== "none") {
     signedIn: () => session.state().signedIn,
     now: () => Date.now(),
     lastSynced: async () => (await loadLastSync(localStore)) ?? 0,
-    onSynced: (at) => localStore.set({ [LAST_SYNC_KEY]: at }),
+    onSynced: async (at) => {
+      await localStore.set({ [LAST_SYNC_KEY]: at });
+      void native?.relay.accountChanged(false);
+    },
     onError: (e) => {
       // Reset the memoised device id + engine so a transient failure (e.g. a storage
       // read error) retries next time instead of wedging for the worker's lifetime.
@@ -639,6 +642,15 @@ if (__TRANSLATION_HOST__ !== "none") {
           port: syncPort,
           exclusive: (task) => scheduler.exclusive(task),
           now: () => Date.now(),
+          // The account by a digest of its id, never a token (add-lingua-app-deck-sync D7): the app
+          // synchronises only on this extension's account. Read once the session has resumed.
+          account: {
+            signedIn: async () => {
+              await resumed.catch(() => false);
+              return session.state().signedIn;
+            },
+            userId: async () => (await api().user.getAccount({})).userId,
+          },
         });
         void storeArea.then(async () => {
           await relay.collect();
@@ -670,6 +682,7 @@ if (__TRANSLATION_HOST__ !== "none") {
     onSignedIn: () => {
       scheduler.schedule(0);
       void flags.refresh({ force: true });
+      void native?.relay.accountChanged(true);
     },
   };
 
@@ -730,6 +743,9 @@ if (__TRANSLATION_HOST__ !== "none") {
           : handleAccountMessage(message, accountDeps);
       // Signed out: no flag of this account may apply to the next one (add-lingua-feature-betas).
       if (message.type === "account:signOut") void reply.then(() => flags.clear());
+      // Signed out (or the account deleted): the app no longer finds this account in the relay (D7).
+      if (message.type === "account:signOut" || message.type === "account:abandon")
+        void reply.then(() => native?.relay.accountChanged(false));
       void reply.then(sendResponse);
       return true;
     }
