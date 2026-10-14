@@ -1,5 +1,6 @@
 import type { AccountReply, AccountState } from "../account/messages.ts";
 import { createLinguaPort } from "../analyzer/create-port.ts";
+import { reviewOutlookJson } from "../analyzer/engine.ts";
 import { readingLanguage } from "../analyzer/pairs.ts";
 import { popup as enPopup } from "../i18n/en/popup.ts";
 import { popup as esPopup } from "../i18n/es/popup.ts";
@@ -7,14 +8,21 @@ import { popup as frPopup } from "../i18n/fr/popup.ts";
 import { DEFAULT_INTERFACE_LANGUAGE, fillPageInLanguage, type InterfaceLanguage } from "../i18n/index.ts";
 import { mountSettings, type SettingsTab, type SettingsView } from "../reading/settings-view.ts";
 import { mountNativeCta } from "./native-cta.ts";
-import { type PageStats, type PopupCopy, renderStats } from "./render.ts";
+import { deckFigure, reviewDestination } from "./deck.ts";
+import { type PageStats, type PopupCopy, renderDeck, renderStats } from "./render.ts";
+import { localDayStart } from "../review/session.ts";
+import { loadOutlook, parseOutlook, type ReviewOutlook, usedUp } from "../state/review-outlook.ts";
 import { browserSpeechEngine, createSpeaker } from "../reading/speech.ts";
 import { presetNativeLanguage, reloadOnNativeLanguageChange } from "../state/native-language.ts";
 import { isPersistedSignInError, SIGNIN_ERROR_KEY } from "../state/session.ts";
 import {
   type AsyncStorageArea,
   hydrateEngine,
+  loadBadgeCount,
   loadEnabled,
+  loadNewWordsPerDay,
+  loadReviewLanguage,
+  loadStored,
   ROOT_KEY,
   saveBackup,
   saveEnabled,
@@ -171,18 +179,32 @@ async function showSettings(tab?: SettingsTab): Promise<void> {
   await settings.refresh();
 }
 
+/** Whether the active tab's reader answered: the drawer can open there (add-lingua-comeback-hints D8). */
+let hasReader = false;
+
 /**
  * Open a panel view, staying in the page as much as possible and landing in the SAME place
  * as the in-page HUD:
  *  - Chromium: the native Side Panel (docks beside the page).
  *  - Firefox and Safari: the in-page drawer — a page element cannot open Firefox's sidebar and
  *    Safari has no panel API, so both the popup and the HUD use the drawer, which never leaves
- *    the page (and works on mobile too). The reader is always injected there, so the message
- *    reaches the active tab.
+ *    the page (and works on mobile too). A tab the reader cannot run on (a browser page) has no
+ *    drawer: the review page opens in a tab of its own there (add-lingua-comeback-hints D8).
  */
 async function openReviewSurface(view: "review" | "stats"): Promise<void> {
-  if (__REVIEW_IN_PAGE__) {
+  const destination = reviewDestination(__REVIEW_IN_PAGE__, hasReader);
+  if (destination === "drawer") {
     await send({ type: "openDrawer", view });
+    window.close();
+    return;
+  }
+  if (destination === "tab") {
+    try {
+      await chrome.storage.session.set({ "cymbra-lingua-panel-view": view });
+    } catch {
+      // storage.session may be unavailable; the page opens on the review.
+    }
+    await chrome.tabs.create({ url: chrome.runtime.getURL("sidepanel.html") });
     window.close();
     return;
   }
@@ -206,11 +228,39 @@ async function analyseCurrentPage(): Promise<void> {
   setTimeout(() => void refresh(), 500);
 }
 
-async function refresh(): Promise<void> {
-  render((await send({ type: "getStats" })) as PageStats | null, await activeTabIsReader());
+/**
+ * The outlook the toolbar icon counts from (add-lingua-comeback-hints D2), or — when the count is
+ * off, or none is kept yet — the same worked out here from the stored backup: no engine, no pack.
+ */
+async function currentOutlook(now: number): Promise<ReviewOutlook | null> {
+  const kept = (await loadBadgeCount(storageArea)) ? await loadOutlook(storageArea) : null;
+  if (kept && !usedUp(kept, now)) return kept;
+  const stored = await loadStored(store);
+  if (stored.kind !== "v2") return null;
+  return parseOutlook(await reviewOutlookJson(stored.backup, now, localDayStart(now)).catch(() => ""));
 }
 
-/** Reflect the global enabled flag: off hides the reader panels; on shows them. */
+/** The deck and « Réviser (N) »: the page's figures where it answered, else what a review would hold away from it. */
+async function refreshDeck(stats: PageStats | null): Promise<void> {
+  const now = Math.floor(Date.now() / 1000);
+  const outlook = stats ? null : await currentOutlook(now);
+  const figure = deckFigure(stats, outlook, {
+    reviewLanguage: await loadReviewLanguage(storageArea),
+    now,
+    dayStart: localDayStart(now),
+    perDay: await loadNewWordsPerDay(storageArea),
+  });
+  renderDeck(document, language, copy, figure);
+}
+
+async function refresh(enabled = true): Promise<void> {
+  const stats = (await send({ type: "getStats" })) as PageStats | null;
+  hasReader = stats !== null;
+  if (enabled) render(stats, await activeTabIsReader());
+  await refreshDeck(stats);
+}
+
+/** Reflect the global enabled flag: off hides the reader panels, never the deck and its review; on shows them. */
 async function applyEnabled(enabled: boolean): Promise<void> {
   ($("enabled") as HTMLInputElement).checked = enabled;
   $("enabled-label").textContent = enabled ? copy.highlightingOn : copy.highlightingOff;
@@ -218,9 +268,8 @@ async function applyEnabled(enabled: boolean): Promise<void> {
   if (!enabled) {
     $("setup").hidden = true;
     $("controls").hidden = true;
-    return;
   }
-  await refresh();
+  await refresh(enabled);
 }
 
 async function main(): Promise<void> {
@@ -252,7 +301,7 @@ async function main(): Promise<void> {
   $("settings-back").addEventListener("click", () => {
     $("settings-view").hidden = true;
     $("main-view").hidden = false;
-    void refresh();
+    void refresh(($("enabled") as HTMLInputElement).checked);
     // Signed in or out in Réglages › Données: the account line follows.
     void readAccount().then(renderAccount).then(refreshSessionLost);
   });
