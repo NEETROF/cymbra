@@ -240,6 +240,64 @@ describe("renderReview — the card (refine-lingua-review-session)", () => {
   });
 });
 
+// fix-lingua-selection-card-punctuation D4: the front reads a card's word without its edge
+// punctuation, and never rewrites the card.
+describe("renderReview — a card's word without its edge punctuation", () => {
+  const comma = {
+    headword: "four-poster bed,",
+    surface: "four-poster bed,",
+    sentence: "He slept in a four-poster bed, alone.",
+    gloss: "Lit à baldaquin",
+  };
+
+  it("scenario: a card captured with its comma — marked without it, no dictionary form beside it", () => {
+    const view = reviewing({ ...comma, revealed: true });
+    renderReview(root, view, actions);
+    expect(root.querySelector("mark.review-word")!.textContent).toBe("four-poster bed");
+    expect(root.querySelector(".review-sentence")!.textContent).toBe("He slept in a four-poster bed, alone.");
+    expect(root.querySelector(".review-dictionary-form")).toBeNull();
+    expect(root.querySelector(".review-gloss")!.textContent).toBe("Lit à baldaquin");
+    expect(view.card!.headword).toBe("four-poster bed,"); // the card keeps its stored headword
+  });
+
+  it("heads a card whose sentence does not hold it by the trimmed headword, and hears it so", () => {
+    const fake = makeFakeSpeech([
+      { name: "Samantha", lang: "en-US", localService: true, default: false, voiceURI: "Samantha" },
+    ]);
+    const speaker = createSpeaker(fake.engine, "en", fake.preference);
+    renderReview(root, reviewing({ ...comma, sentence: "" }), actions, { speaker });
+    expect(root.querySelector(".review-headword")!.textContent).toBe("four-poster bed");
+    button("▶ Expression").click();
+    expect(fake.spoken[0]?.text).toBe("four-poster bed");
+  });
+
+  it("tests the trimmed headword for the no-translation note", () => {
+    renderReview(root, reviewing({ headword: "harbour,", surface: "harbour,", gloss: null, revealed: true }), actions);
+    expect(root.querySelector(".review-no-gloss")?.textContent).toBe("Pas de traduction pour ce mot.");
+    expect(root.querySelector("mark")).toBeNull();
+    expect(root.querySelector(".review-headword")!.textContent).toBe("harbour");
+  });
+
+  it("compares the dictionary form with the form met once both are trimmed", () => {
+    const grin = { headword: "grin.", surface: "grinning,", sentence: "He couldn't stop grinning, then left." };
+    renderReview(root, reviewing({ ...grin, revealed: true }), actions);
+    expect(root.querySelector("mark.review-word")!.textContent).toBe("grinning");
+    expect(root.querySelector(".review-dictionary-form")!.textContent).toBe("grin");
+  });
+
+  it("shows a word of punctuation alone as it is stored", () => {
+    renderReview(root, reviewing({ headword: "—", surface: "—", sentence: "" }), actions);
+    expect(root.querySelector(".review-headword")!.textContent).toBe("—");
+  });
+
+  it("scenario: a card without punctuation — the front is as before", () => {
+    renderReview(root, reviewing({ revealed: true }), actions);
+    expect(root.querySelector("mark.review-word")!.textContent).toBe("seldom");
+    expect(root.querySelector(".review-dictionary-form")).toBeNull();
+    expect(root.querySelector(".review-gloss")!.textContent).toBe("rarement");
+  });
+});
+
 describe("renderReview — the end of a session", () => {
   it("scenario: end of a session says what it did and offers more while cards remain", () => {
     renderReview(root, done({ reviewed: 10, recovered: 2, holding: 3, known: 0, hidden: 1 }, true), actions);

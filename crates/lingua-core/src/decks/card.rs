@@ -23,6 +23,7 @@
 //! schema is a stable contract for backup/restore and the future sync.
 
 use serde::{Deserialize, Serialize};
+use unicode_normalization::char::is_combining_mark;
 
 use super::fsrs::ReviewState;
 
@@ -144,6 +145,22 @@ pub fn gloss_language_or_french(label: &str) -> String {
     }
 }
 
+/// Whether a character is kept at an edge of a text (fix-lingua-selection-card-punctuation D1):
+/// a letter, a combining mark or a digit. Everything else — punctuation of every kind, quotes,
+/// brackets, dashes, apostrophes, hyphens, symbols and whitespace — is an edge character.
+fn is_word_edge(c: char) -> bool {
+    c.is_alphanumeric() || is_combining_mark(c)
+}
+
+/// `text` without the characters that are neither letters, combining marks nor digits at its two
+/// ends (fix-lingua-selection-card-punctuation D1): `four-poster bed,` reads `four-poster bed`,
+/// `« Bonjour »` reads `Bonjour`, `—` reads empty. Nothing inside the text is touched, so
+/// `d'abord`, `dit-il` and `rock 'n' roll` read as written. The extension trims a selection with
+/// the same class (`withoutEdgePunctuation`), pinned by the same table of cases.
+pub fn without_edge_punctuation(text: &str) -> &str {
+    text.trim_matches(|c: char| !is_word_edge(c))
+}
+
 fn read_gloss_language<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<String, D::Error> {
@@ -198,6 +215,13 @@ impl Card {
     /// Whether the lemma is a multi-word expression.
     pub fn is_expression(&self) -> bool {
         self.lemma.contains(' ')
+    }
+
+    /// The lemma a pack is read at (fix-lingua-selection-card-punctuation D3): the stored lemma
+    /// without its edge punctuation, so a card captured as `four-poster bed,` is looked up at
+    /// `four-poster bed`. The stored lemma is never rewritten.
+    pub fn lookup_lemma(&self) -> &str {
+        without_edge_punctuation(&self.lemma)
     }
 }
 
@@ -264,6 +288,41 @@ mod tests {
         assert!(card.provenance.sentence.is_empty());
         assert_eq!(card.provenance.captured_at, 1_700_000_000);
         assert_eq!(card.updated_at, 1_700_000_000);
+    }
+
+    /// The cases the extension's `withoutEdgePunctuation` is pinned by too (D1).
+    const EDGE_CASES: &[(&str, &str)] = &[
+        ("four-poster bed,", "four-poster bed"),
+        ("\u{2018}four-poster bed,\u{2019}", "four-poster bed"),
+        ("\u{ab} Bonjour \u{bb}", "Bonjour"),
+        ("d'abord,", "d'abord"),
+        ("d\u{2019}abord,", "d\u{2019}abord"),
+        ("dit-il.", "dit-il"),
+        ("rock 'n' roll", "rock 'n' roll"),
+        ("dogs'", "dogs"),
+        ("cafe\u{301}", "cafe\u{301}"),
+        ("(harbour", "harbour"),
+        ("stood in silence.", "stood in silence"),
+        ("1984.", "1984"),
+        ("\u{2014}", ""),
+        ("", ""),
+        ("harbour", "harbour"),
+    ];
+
+    #[test]
+    fn edge_punctuation_is_trimmed_and_inner_characters_are_kept() {
+        for (text, trimmed) in EDGE_CASES {
+            assert_eq!(without_edge_punctuation(text), *trimmed, "{text:?}");
+        }
+    }
+
+    #[test]
+    fn the_lookup_lemma_is_trimmed_and_the_stored_lemma_is_kept() {
+        for (lemma, trimmed) in EDGE_CASES {
+            let card = Card::new(lemma, lemma, web_provenance("", "https://x"), None, "fr");
+            assert_eq!(card.lookup_lemma(), *trimmed, "{lemma:?}");
+            assert_eq!(card.lemma, *lemma);
+        }
     }
 
     #[test]

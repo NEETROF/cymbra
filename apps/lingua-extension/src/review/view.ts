@@ -12,6 +12,7 @@ import {
   type PluralForms,
   renderAround,
 } from "../i18n/index.ts";
+import { withoutEdgePunctuation } from "../reading/selection.ts";
 import { sameSpokenText, type Speaker } from "../reading/speech.ts";
 import { type ReviewView, SESSION_CARDS } from "./session.ts";
 import type { ReviewTranslation } from "./translation.ts";
@@ -190,7 +191,8 @@ function cardView(
   const sentence = card.sentence.trim();
   const marked = markedIn(card);
   // No sentence (a word seeded from a level), or none holding the word: the word itself.
-  if (!marked) main.append(studiedLine("headword", card.headword, studied));
+  const headword = cardHeadword(card);
+  if (!marked) main.append(studiedLine("headword", headword, studied));
   if (sentence) main.append(sentenceView(sentence, marked, studied));
   // What there is to hear stays the same once revealed, so the reveal moves nothing here (D11).
   const listen = (listens: Listen[]): HTMLElement[] => {
@@ -205,11 +207,12 @@ function cardView(
   const answer = div("review-answer");
   answer.setAttribute("aria-live", "polite");
   if (card.revealed) {
-    // The dictionary form, when the sentence shows another one.
-    const otherForm = marked !== null && marked.text.toLowerCase() !== card.headword.toLowerCase();
-    if (otherForm) answer.append(studiedLine("dictionary-form", card.headword, studied));
+    // The dictionary form, when the sentence shows another one — both read without their edge
+    // punctuation, so `four-poster bed,` is not offered as the form of `four-poster bed`.
+    const otherForm = marked !== null && marked.text.toLowerCase() !== headword.toLowerCase();
+    if (otherForm) answer.append(studiedLine("dictionary-form", headword, studied));
     answer.append(card.gloss ? line("gloss", card.gloss) : missingGloss(card, opts.translation, copy));
-    if (otherForm) answer.append(...listen([headwordListen(card.headword, copy)]));
+    if (otherForm) answer.append(...listen([headwordListen(headword, copy)]));
   }
   main.append(answer);
 
@@ -272,10 +275,26 @@ function ending(view: ReviewView, actions: ReviewActions, language: InterfaceLan
   return box;
 }
 
-/** The card's word as its sentence shows it, or null without a sentence holding it. */
-function markedIn(card: ReviewCard): MarkedWord | null {
+/**
+ * A card's word read without its edge punctuation (fix-lingua-selection-card-punctuation D4): a card
+ * captured as `four-poster bed,` is shown, heard and compared as `four-poster bed`, and never
+ * rewritten. A word of punctuation alone is shown as it is stored.
+ */
+const readWord = (word: string): string => withoutEdgePunctuation(word) || word.trim();
+
+/** The card's headword as the front reads it: without its edge punctuation. */
+export function cardHeadword(card: ReviewCard): string {
+  return readWord(card.headword);
+}
+
+/**
+ * The card's word as its sentence shows it — the form met, then the dictionary form, each without
+ * its edge punctuation, so the mark leaves a captured comma outside — or null without a sentence
+ * holding it. The review's translation marks the same place.
+ */
+export function markedIn(card: ReviewCard): MarkedWord | null {
   const sentence = card.sentence.trim();
-  return sentence ? markWord(sentence, card.surface, card.headword) : null;
+  return sentence ? markWord(sentence, readWord(card.surface), cardHeadword(card)) : null;
 }
 
 /**
@@ -305,7 +324,7 @@ function missingGloss(card: ReviewCard, translation: ReviewTranslation | undefin
 
 /** An expression is not a word: its missing translation says so. */
 function noGloss(card: ReviewCard, copy: ReviewCopy): string {
-  return /\s/u.test(card.headword.trim()) ? copy.noGlossExpression : copy.noGloss;
+  return /\s/u.test(cardHeadword(card)) ? copy.noGlossExpression : copy.noGloss;
 }
 
 /**
@@ -313,7 +332,7 @@ function noGloss(card: ReviewCard, copy: ReviewCopy): string {
  * shows it — marked in its sentence, else above it — then the sentence, unless it is the word.
  */
 function frontListens(card: ReviewCard, copy: ReviewCopy): Listen[] {
-  const word = (markedIn(card)?.text ?? card.headword).trim();
+  const word = (markedIn(card)?.text ?? cardHeadword(card)).trim();
   if (!word) return [];
   const listens: Listen[] = [
     /\s/u.test(word)
@@ -339,7 +358,7 @@ function headwordListen(headword: string, copy: ReviewCopy): Listen {
 
 /** Every text the card may be reading: one that is not is stopped when the card changes. */
 function listensOf(card: ReviewCard, copy: ReviewCopy): Listen[] {
-  return [...frontListens(card, copy), headwordListen(card.headword, copy)];
+  return [...frontListens(card, copy), headwordListen(cardHeadword(card), copy)];
 }
 
 /**

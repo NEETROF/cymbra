@@ -360,7 +360,7 @@ the frequency ranks and its French glosses, and every pack studying Spanish read
 ### review-current first
 {"gloss":"voyage; journey, trip; a state of hallucination or altered consciousness caused by a narcotic drug; a lot, loads","headword":"viaje","remaining":10,"revealed":false,"sentence":"Ella dirigirá el viaje.","source":"https://example.com/homografos","surface":"viaje"}
 ### review-current second
-{"gloss":null,"headword":"sonreír","remaining":9,"revealed":false,"sentence":"Entró en la sala sonriendo.","source":"","surface":"sonriendo"}
+{"gloss":"to smile","headword":"sonreír","remaining":9,"revealed":false,"sentence":"Entró en la sala sonriendo.","source":"","surface":"sonriendo"}
 ### review-remaining
 8
 ### calibration

@@ -123,6 +123,10 @@ fn fresh_state(packs: &PackSet) -> LinguaState {
 /// lemma read as one token (`aujourd'hui`) is a word, as before (add-lingua-french-word-card D8).
 /// `Card::is_expression` keeps its meaning for every other caller.
 ///
+/// The pack is read at the card's lemma without its edge punctuation, [`Card::lookup_lemma`], and
+/// that trimmed lemma decides word or expression (fix-lingua-selection-card-punctuation D3): a card
+/// captured as `four-poster bed,` is read at `four-poster bed`, a card `bed ,` as the word `bed`.
+///
 /// Several French headwords may reach one key (`ça va` and `ça ira` read `ça aller`), and a French
 /// pack keeps them all (pick-lingua-expression-written-as-the-page D1): both French branches read,
 /// at the key, the gloss of the headword the card is named by — the match's name, its lemma — and
@@ -135,28 +139,42 @@ fn fresh_state(packs: &PackSet) -> LinguaState {
 /// not that of `hacer tiempo`, which wins the key. A card whose lemma is itself a key — the
 /// winner's name (`hacer tiempo`), a lemma chain (`bueno día`) — is read there, as before.
 fn readable_gloss(pack: Option<&Pack>, card: &Card) -> Option<String> {
+    let lemma = card.lookup_lemma();
     pack.and_then(|pack| {
-        if !card.is_expression() {
+        if !lemma.contains(' ') {
             if pack.studied() == StudiedLanguage::French
-                && let Some(gloss) = french_expression_key(&card.lemma, pack.lexicon())
-                    .and_then(|key| pack.expression_gloss_named(&key, &card.lemma))
+                && let Some(gloss) = french_expression_key(lemma, pack.lexicon())
+                    .and_then(|key| pack.expression_gloss_named(&key, lemma))
             {
                 return Some(gloss);
             }
-            return pack.gloss(&card.lemma);
+            return pack.gloss(lemma);
         }
         match pack.studied() {
-            StudiedLanguage::French => french_expression_key(&card.lemma, pack.lexicon())
-                .and_then(|key| pack.expression_gloss_named(&key, &card.lemma)),
-            StudiedLanguage::Spanish => pack.expression(&card.lemma).or_else(|| {
-                reading_expression_key(&card.lemma, StudiedLanguage::Spanish, pack.lexicon())
-                    .and_then(|key| pack.expression_gloss_named(&key, &card.lemma))
+            StudiedLanguage::French => french_expression_key(lemma, pack.lexicon())
+                .and_then(|key| pack.expression_gloss_named(&key, lemma)),
+            StudiedLanguage::Spanish => pack.expression(lemma).or_else(|| {
+                reading_expression_key(lemma, StudiedLanguage::Spanish, pack.lexicon())
+                    .and_then(|key| pack.expression_gloss_named(&key, lemma))
             }),
-            StudiedLanguage::English => pack.expression(&card.lemma),
+            StudiedLanguage::English => pack.expression(lemma),
         }
     })
     .map(str::to_owned)
     .or_else(|| card.gloss.clone())
+}
+
+/// The gloss `reviewCurrent` shows for `card` on an engine whose native language is `native`: the
+/// card's own when it holds one in that language, and otherwise [`readable_gloss`] — for a card
+/// glossed in another language (add-lingua-card-gloss-language D3) and for a card holding no gloss
+/// (fix-lingua-selection-card-punctuation D3), so a card captured before the pack knew its lemma
+/// shows the answer the pack has since gained.
+fn review_gloss(pack: Option<&Pack>, card: &Card, native: &str) -> Option<String> {
+    if card.gloss.is_some() && card.gloss_language == native {
+        card.gloss.clone()
+    } else {
+        readable_gloss(pack, card)
+    }
 }
 
 /// The languages a list of ISO 639-1 tags names, unknown tags dropped; absent is none, which the
@@ -1104,7 +1122,8 @@ impl LinguaEngine {
     /// page address, or a book and its chapter (`add-lingua-reader`); empty when none.
     /// `gloss` is the card's, unless its gloss is written in another language than the
     /// engine's native: then the current pack's for the lemma, and the card's own text when
-    /// the pack has none (add-lingua-card-gloss-language D3, D4). The keys do not change, so
+    /// the pack has none (add-lingua-card-gloss-language D3, D4); a card holding no gloss is read
+    /// in the pack the same way (fix-lingua-selection-card-punctuation D3). The keys do not change, so
     /// the baselines pin the same bytes; the card itself is not rewritten.
     #[wasm_bindgen(js_name = reviewCurrent)]
     pub fn review_current(&self) -> Option<String> {
@@ -1115,11 +1134,7 @@ impl LinguaEngine {
             EncounterSource::Web { url } => url.as_str(),
             EncounterSource::AgentSession { .. } | EncounterSource::Import => "",
         };
-        let gloss = if card.gloss_language == self.packs.native().tag() {
-            card.gloss.clone()
-        } else {
-            readable_gloss(self.packs.get(*language), card)
-        };
+        let gloss = review_gloss(self.packs.get(*language), card, self.packs.native().tag());
         let view = serde_json::json!({
             "headword": card.lemma,
             "surface": card.encountered_form,
@@ -1290,6 +1305,12 @@ impl LinguaEngine {
     }
 }
 
+/// Packs built from the committed tables, the integration tests' own (`tests/support`). Host only:
+/// the builder uses C zstd.
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "../tests/support/committed.rs"]
+mod committed;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1301,6 +1322,106 @@ mod tests {
 
     fn tags(tags: &[&str]) -> Vec<String> {
         tags.iter().map(|tag| (*tag).to_owned()).collect()
+    }
+
+    /// The pack the extension ships for `pair`, built from the committed tables.
+    #[cfg(not(target_arch = "wasm32"))]
+    fn committed_pack(pair: &str) -> Pack {
+        Pack::load(&committed::pack(pair)).expect("it loads")
+    }
+
+    /// en-fr whose expression table holds `four-poster bed → Lit à baldaquin`.
+    #[cfg(not(target_arch = "wasm32"))]
+    fn pack_holding_four_poster_bed() -> Pack {
+        let pack = Pack::load(&committed::en_fr_holding_four_poster_bed()).expect("it loads");
+        assert_eq!(pack.expression("four-poster bed"), Some("Lit à baldaquin"));
+        pack
+    }
+
+    fn card(lemma: &str, gloss: Option<&str>, gloss_language: &str) -> Card {
+        let provenance = Provenance {
+            sentence: String::new(),
+            source: EncounterSource::Import,
+            captured_at: 0,
+        };
+        Card::new(
+            lemma,
+            lemma,
+            provenance,
+            gloss.map(str::to_owned),
+            gloss_language,
+        )
+    }
+
+    /// fix-lingua-selection-card-punctuation D3: a card captured with the punctuation of its
+    /// selection, glossless, is read in the pack at its trimmed lemma, as the clean card is, on
+    /// the English, French and Spanish paths; word or expression is decided on the trimmed lemma.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn a_glossless_card_is_read_at_its_lemma_without_edge_punctuation() {
+        // (pair, engine's native language, card as captured, the same card captured trimmed)
+        let cases = [
+            ("en-fr", "fr", "four-poster bed,", "four-poster bed"),
+            (
+                "en-fr",
+                "fr",
+                "\u{2018}four-poster bed,\u{2019}",
+                "four-poster bed",
+            ),
+            ("en-fr", "fr", "(start point.)", "start point"),
+            ("en-fr", "fr", "bed ,", "bed"),
+            ("fr-en", "en", "d'abord,", "d'abord"),
+            ("fr-en", "en", "\u{ab} au revoir \u{bb}", "au revoir"),
+            ("es-fr", "fr", "tener en cuenta.", "tener en cuenta"),
+        ];
+        let en_fr = pack_holding_four_poster_bed();
+        let (fr_en, es_fr) = (committed_pack("fr-en"), committed_pack("es-fr"));
+        for (pair, native, captured, trimmed) in cases {
+            let pack = match pair {
+                "en-fr" => &en_fr,
+                "fr-en" => &fr_en,
+                _ => &es_fr,
+            };
+            let clean = review_gloss(Some(pack), &card(trimmed, None, native), native);
+            assert!(clean.is_some(), "{pair} glosses {trimmed:?}");
+            let shown = review_gloss(Some(pack), &card(captured, None, native), native);
+            assert_eq!(shown, clean, "{pair}: {captured:?}");
+        }
+        assert_eq!(
+            review_gloss(Some(&en_fr), &card("four-poster bed,", None, "fr"), "fr").as_deref(),
+            Some("Lit à baldaquin")
+        );
+        assert_eq!(
+            review_gloss(Some(&en_fr), &card("bed ,", None, "fr"), "fr").as_deref(),
+            en_fr.gloss("bed"),
+            "`bed ,` is the word `bed`"
+        );
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn a_card_s_own_gloss_wins_only_when_it_holds_one_in_the_native_language() {
+        let en_fr = pack_holding_four_poster_bed();
+        let read = |lemma: &str, gloss: Option<&str>, language: &str| {
+            review_gloss(Some(&en_fr), &card(lemma, gloss, language), "fr")
+        };
+        // Glossed in the native language: its own text, even where the pack has another.
+        assert_eq!(
+            read("four-poster bed,", Some("baldaquin"), "fr").as_deref(),
+            Some("baldaquin")
+        );
+        // Glossless, and the pack holds nothing at its trimmed lemma: no gloss, as before.
+        assert_eq!(read("blorft quux,", None, "fr"), None);
+        // Glossed in another language the pack does not know: the card's own text.
+        assert_eq!(
+            read("blorft quux,", Some("thing"), "en").as_deref(),
+            Some("thing")
+        );
+        // No pack held for the card's language: its own gloss, or none.
+        assert_eq!(
+            review_gloss(None, &card("four-poster bed,", None, "fr"), "fr"),
+            None
+        );
     }
 
     #[test]

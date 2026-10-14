@@ -249,6 +249,16 @@ another session would hold cards. Keys: Space reveals, ← and → answer. The c
 before and after the reveal (« ▶ Mot » or « ▶ Expression », « ▶ Phrase », then the dictionary
 form), with the word card's voices, in the card's language.
 
+A selection is read without the punctuation at its two ends before it opens a card
+(`fix-lingua-selection-card-punctuation`): `four-poster bed,` is captured as `four-poster bed`,
+`« Bonjour »` as `Bonjour` — its headword, the form stored, what the pack and the translation are
+asked, its place in its sentence — while an elision, a compound or an inner apostrophe (`l’homme`,
+`dit-il`, `rock 'n' roll`) stays as written, and punctuation alone opens no card. A card captured
+with that punctuation before is answered at review without being rewritten: a card without a
+gloss is looked up in the pack of its language, at its lemma without edge punctuation, and the
+front marks, heads, compares and reads aloud that trimmed form; the stored lemma, form and
+history, the backup and the card operations keep their bytes.
+
 A card the pack cannot answer — an expression, or a word without a gloss —
 (`add-lingua-review-translation`) is translated on the device where « Traduction étendue » has
 the models of its language: its sentence, the word's place marked, asked the moment the card

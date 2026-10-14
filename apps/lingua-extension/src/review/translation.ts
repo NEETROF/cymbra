@@ -1,7 +1,7 @@
 import type { ReviewCard } from "../analyzer/port.ts";
 import type { MarkedTranslation } from "../translate/markup.ts";
 import { TRANSLATION_WAIT_MS, type TranslationRequest, type TranslatorPort } from "../translate/port.ts";
-import { markWord } from "./view.ts";
+import { cardHeadword, markedIn } from "./view.ts";
 
 // The translation a review card is answered with when the pack has none (add-lingua-review-translation):
 // the card's sentence, the word's place marked where the front marks it — the word card's own rule
@@ -26,9 +26,11 @@ export interface ReviewTranslationRequest {
 export function reviewTranslationRequest(card: ReviewCard): ReviewTranslationRequest | null {
   if (card.gloss) return null;
   const language = card.language ?? "en";
-  const headword = card.headword.trim();
+  // The word without its edge punctuation, marked where the front marks it
+  // (fix-lingua-selection-card-punctuation D4).
+  const headword = cardHeadword(card);
   const sentence = card.sentence.trim();
-  const marked = sentence ? markWord(sentence, card.surface, card.headword) : null;
+  const marked = markedIn(card);
   if (marked) {
     const start = marked.before.length;
     return { request: { sentence, selection: { start, end: start + marked.text.length }, language }, alone: false };
