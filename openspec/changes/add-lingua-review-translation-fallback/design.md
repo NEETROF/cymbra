@@ -221,13 +221,30 @@ Téléchargement de 26 Mo ») with « Télécharger »; a second download on the
 reader's call, never silent. When the setting is off, the app deletes its copy at its next opening.
 Until the models are there the app's review is today's.
 
-**Feasibility gate (task 4.1).** A spike on a real iPhone, iPad and Mac confirms, for the
-`lingua-app://` origin: IndexedDB writes of 50+ MB that survive relaunch, a classic worker with
-`importScripts` and WebAssembly, and the engine's memory inside the app's web content process.
-Fallback if IndexedDB on the custom scheme fails: the native side downloads the files into the app's
-Application Support (verified against the same catalogue) and `AppPageResource` serves them to the
-worker by sha256 — the worker reads them by URL instead of from IndexedDB. If the worker or the
-memory fails, the app ships the online part only and the spike's result is written back here.
+**Feasibility gate (task 1.4) — passed; chosen: models in the page's IndexedDB, the engine (not
+online-only).** The spike (branch `spike/lingua-app-engine`, its `spike-1.4.md`) ran on a Mac (M2
+Max), the iOS simulators (iPhone 17e, iPad Air, iPhone 15 on iOS 17.2, the app's minimum) and a real
+iPhone 15 Pro Max (8 GB, iOS 27.2), under `lingua-app://app/`:
+- IndexedDB: 64 MiB written in 359–720 ms and the real en-fr model (24.6 MiB served, 35.0 MiB stored)
+  downloaded, verified and stored in 1.0–1.3 s on Wi-Fi; both **survive a relaunch and a device
+  restart**; quota ~9.8 GiB on iOS, no quota error even at 1 GiB. `navigator.storage.persist()` is
+  **refused** (no prompt): the copy is evictable, so the app offers the download again when a pair it
+  downloaded is missing.
+- The extension's own `engine-worker.ts` and `model-worker.ts`, unchanged, run as classic workers
+  (`importScripts`, Bergamot's WebAssembly `200 application/wasm` from `AppPageResource`). On the
+  iPhone: cold load 107–172 ms, first translation 129–136 ms, warm 25–30 ms — the extension's own
+  answers, marks included.
+- The web content process peaks near **347 MiB** and settles near **290 MiB** with the engine and one
+  model (Instruments, real iPhone); not killed. An older 4 GB iPhone is still to be watched in the
+  dogfood.
+- `models.cymbra.app` answers `access-control-allow-origin: *`, which the page needs to read the
+  models cross-origin: **that header is now a dependency of the app** (the `cymbra-models` Pages
+  project).
+
+So: no native download, no models served by `AppPageResource`. The engine's files — its worker, the
+download worker, `engine/` and `model-manifest.json` — are the Safari extension's, served by
+`AppPageResource` from the embedded `.appex`; `dist-app` carries none of them. The page constructs the
+two workers in one module (`src/app/workers.ts`), which the placement lint holds to.
 
 *Alternative.* Apple's Translation framework in Swift: free and system-managed, but iOS 18 / macOS 15
 only (the app supports iOS 17.2), another engine with other answers than the extension's, and no
@@ -256,11 +273,16 @@ The app needs a bearer and the server's access check. Three ways were weighed:
 
 Before the app has a session, whether to show the button reads the relayed facts: the extension's
 setting and its last snapshot of the access flag — never its session. After sign-in, access is read
-from the app's own session's flags, like the extension's. The page's gRPC-web calls carry the
-`lingua-app://app` origin, admitted by adding it to `CYMBRA_ALLOWED_WEB_ORIGINS` (configuration, as
-for the extensions). If WebKit sends no usable origin from a custom scheme (task 4.1), the page's
-transport is swapped for one through the bridge: the native side forwards the gRPC-web request with
-`URLSession`, a fixed host only, bearer and body untouched.
+from the app's own session's flags, like the extension's. A reader who signed out from the app is
+offered no button until they sign in again from the app's line.
+
+**Transport (task 1.4) — direct.** Measured on the Mac, the simulators and the real iPhone: every
+request from the page carries **`Origin: lingua-app://app`** (never `null`), with `Sec-Fetch-Mode:
+cors`; a gRPC-web POST is preflighted with that origin and passes CORS when the server echoes it.
+Production refuses it today only because the origin is not listed: the server matches origins
+exactly (`AllowOrigin::list`), and `lingua-app://app` is a valid header value. So the page calls the
+server directly with the extension's own gRPC-web transport, and `lingua-app://app` is added to
+`CYMBRA_ALLOWED_WEB_ORIGINS` (configuration, as for the extensions). No bridge transport.
 
 This modifies `lingua-sync`'s « The container app SHALL hold neither a session nor learning state »:
 the app may hold a session, for online translation only, and still no learning state of its own.
@@ -311,11 +333,16 @@ change's keep action without asking any engine.
   the hand-off code (D8 alternative) is the follow-up if it hurts. An email-only account cannot sign
   in in the app (note shown).
 - [**Engine in the app's WKWebView**: IndexedDB on a custom scheme, the worker, WebAssembly memory
-  inside the app's web content process (iOS jetsam limits)] → spike first (task 4.1), with the
-  native-download fallback; if the engine cannot run, the app ships the online part only.
+  inside the app's web content process (iOS jetsam limits)] → measured (task 1.4): it runs on a real
+  iPhone at ~290 MiB settled; an older 4 GB iPhone is watched in the dogfood.
+- [**The app's models are evictable** (`persist()` refused)] → a pair downloaded once and found
+  missing is offered again; never re-downloaded silently.
+- [**`models.cymbra.app` stops answering `access-control-allow-origin: *`**] → the app could no longer
+  read the models; the header is recorded as a dependency of the app.
 - [**Two copies of the models on one device** (26–52 MB more)] → never silent: offered once, deleted
   when the setting is turned off.
-- [A custom-scheme origin rejected by CORS] → bridge transport fallback, a fixed host.
+- [A custom-scheme origin rejected by CORS] → measured: WebKit sends `lingua-app://app`, admitted once
+  listed in `CYMBRA_ALLOWED_WEB_ORIGINS`; the deploy must list it before the app ships.
 - [A badly placed mark kept as a gloss] → the action names what it keeps; « Modifier » corrects it;
   `add-lingua-card-edit` edits it later.
 - [More text derived from a page leaves the device: the word's translation, synced] → only on an
