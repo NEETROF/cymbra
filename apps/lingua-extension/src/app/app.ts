@@ -100,6 +100,7 @@ async function main(): Promise<void> {
   // models, offered once; the engine in a worker of this page.
   const offer = $("model-offer");
   let translation: AppTranslation | null = null;
+  let reoffered = false;
   const offerActions = { accept: () => translation?.accept(), decline: () => translation?.decline() };
   translation = await openAppTranslation({
     enabled: parseHost(chosen[TRANSLATION_HOST_KEY]) === "local",
@@ -113,7 +114,12 @@ async function main(): Promise<void> {
     engine: appEngine(),
     download: appDownload,
     local,
-    onChange: (view) => renderModelOffer(offer, view, language, offerActions),
+    onChange: (view) => {
+      renderModelOffer(offer, view, language, offerActions);
+      // Re-offered from a card's note: the offer, below the review, brought into view.
+      if (reoffered && view.phase === "offer") offer.scrollIntoView?.({ block: "nearest" });
+      reoffered = false;
+    },
   });
   renderModelOffer(offer, translation.view(), language, offerActions);
 
@@ -152,6 +158,19 @@ async function main(): Promise<void> {
     prefs,
     interfaceLanguage: language,
     translator: translation.source,
+    // A card nothing can translate says how (add-lingua-review-translation-fallback D12); its
+    // download link re-offers the offer above.
+    translationHint: (studied) => {
+      const hint = translation?.hint(studied) ?? null;
+      if (hint?.kind !== "download") return hint;
+      return {
+        kind: "download",
+        download: () => {
+          reoffered = true;
+          hint.download();
+        },
+      };
+    },
     online: account.online,
   });
 

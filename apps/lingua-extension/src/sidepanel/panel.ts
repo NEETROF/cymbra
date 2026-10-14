@@ -3,7 +3,7 @@ import { sidepanel as enSidepanel } from "../i18n/en/sidepanel.ts";
 import { sidepanel as esSidepanel } from "../i18n/es/sidepanel.ts";
 import { sidepanel as frSidepanel } from "../i18n/fr/sidepanel.ts";
 import { fillPageInLanguage, type InterfaceLanguage } from "../i18n/index.ts";
-import { mountReview, type ReviewOnlineSource, type ReviewPage } from "../review/review-page.ts";
+import { inSettings, mountReview, type ReviewOnlineSource, type ReviewPage } from "../review/review-page.ts";
 import type { AsyncStorageArea } from "../state/storage.ts";
 import type { TranslatorSource } from "../translate/create-port.ts";
 import { mountStats } from "../stats/view.ts";
@@ -75,6 +75,8 @@ export function start(document: Document, deps: PanelDeps): PanelViews {
           pageLanguage: deps.pageLanguage,
           interfaceLanguage: language,
           translator: deps.translator,
+          // « Traduction étendue » lives in the panel's Réglages (add-lingua-review-translation-fallback D12).
+          ...(deps.translator ? { translationHint: inSettings } : {}),
           online: deps.online,
           toSort: deps.toSort,
           openToSort: deps.openToSort,

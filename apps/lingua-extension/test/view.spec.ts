@@ -1,7 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createSpeaker, type VoiceInfo } from "@/reading/speech.ts";
 import type { ReviewView } from "@/review/session.ts";
-import { markWord, type ReviewActions, type ReviewOnlineOffer, renderReview, sourceLabel } from "@/review/view.ts";
+import type { InterfaceLanguage } from "@/i18n/index.ts";
+import {
+  markWord,
+  type ReviewActions,
+  type ReviewOnlineOffer,
+  type ReviewTranslationHint,
+  renderReview,
+  sourceLabel,
+} from "@/review/view.ts";
 import { makeFakeSpeech } from "./helpers.ts";
 
 let root: HTMLElement;
@@ -205,6 +213,88 @@ describe("renderReview — the card (refine-lingua-review-session)", () => {
       actions,
     );
     expect(root.querySelector(".review-no-gloss")?.textContent).toBe("Pas de traduction pour cette expression.");
+  });
+
+  // add-lingua-review-translation-fallback D12: a card nothing can translate says how, in the note's
+  // own line. (interface language, hint, word or expression, the note)
+  const HINTS: [InterfaceLanguage, ReviewTranslationHint["kind"], boolean, string][] = [
+    [
+      "fr",
+      "settings",
+      false,
+      "Pas de traduction pour ce mot. Activez la traduction étendue dans les réglages pour traduire cette carte.",
+    ],
+    [
+      "fr",
+      "settings",
+      true,
+      "Pas de traduction pour cette expression. Activez la traduction étendue dans les réglages pour traduire cette carte.",
+    ],
+    [
+      "fr",
+      "extension",
+      false,
+      "Pas de traduction pour ce mot. Activez la traduction étendue dans l'extension Cymbra Lingua de Safari pour traduire cette carte.",
+    ],
+    ["fr", "download", true, "Pas de traduction pour cette expression. Téléchargez la traduction pour l'app"],
+    [
+      "en",
+      "settings",
+      false,
+      "No translation for this word. Turn on Extended translation in Settings to translate this card.",
+    ],
+    [
+      "en",
+      "extension",
+      true,
+      "No translation for this expression. Turn on Extended translation in the Cymbra Lingua extension in Safari to translate this card.",
+    ],
+    ["en", "download", false, "No translation for this word. Download translation for the app"],
+    [
+      "es",
+      "settings",
+      true,
+      "No hay traducción para esta expresión. Activa la traducción ampliada en Ajustes para traducir esta tarjeta.",
+    ],
+    [
+      "es",
+      "extension",
+      false,
+      "No hay traducción para esta palabra. Activa la traducción ampliada en la extensión Cymbra Lingua de Safari para traducir esta tarjeta.",
+    ],
+    ["es", "download", false, "No hay traducción para esta palabra. Descarga la traducción para la app"],
+  ];
+
+  it("scenario: nothing can translate the card — the note says how, per host and language", () => {
+    for (const [language, kind, expression, expected] of HINTS) {
+      const download = vi.fn();
+      const hint: ReviewTranslationHint = kind === "download" ? { kind, download } : { kind };
+      const words = expression ? { headword: "such as those made", surface: "such as those made" } : {};
+      renderReview(root, reviewing({ ...words, gloss: null, revealed: true }), actions, {
+        interfaceLanguage: language,
+        hint,
+      });
+      const missing = root.querySelectorAll(".review-no-gloss");
+      expect(missing, `${language} ${kind}`).toHaveLength(1);
+      expect(missing[0]!.textContent, `${language} ${kind}`).toBe(expected);
+      const link = missing[0]!.querySelector("button");
+      expect(link !== null, `${language} ${kind}`).toBe(kind === "download");
+      link?.click();
+      expect(download).toHaveBeenCalledTimes(kind === "download" ? 1 : 0);
+    }
+  });
+
+  it("a hint changes nothing before the reveal, on a glossed card, or under a translation", () => {
+    const hint: ReviewTranslationHint = { kind: "settings" };
+    renderReview(root, reviewing({ gloss: null, revealed: false }), actions, { hint });
+    expect(root.textContent).not.toContain("réglages");
+    renderReview(root, reviewing({ gloss: "rarement", revealed: true }), actions, { hint });
+    expect(root.textContent).not.toContain("réglages");
+    renderReview(root, reviewing({ gloss: null, revealed: true }), actions, {
+      hint,
+      translation: { state: "pending" },
+    });
+    expect(root.textContent).not.toContain("réglages");
   });
 
   it("scenario: remembered and forgotten — two answers on a revealed card, left « Pas su », right « Su »", () => {

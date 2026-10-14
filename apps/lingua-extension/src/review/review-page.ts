@@ -32,7 +32,13 @@ import {
   type ReviewTranslationRequest,
   translateBounded,
 } from "./translation.ts";
-import { type ReviewActions, type ReviewOnlineOffer, renderReview, reviewCopy } from "./view.ts";
+import {
+  type ReviewActions,
+  type ReviewOnlineOffer,
+  type ReviewTranslationHint,
+  renderReview,
+  reviewCopy,
+} from "./view.ts";
 
 // The Révision page — the language filter, the due count and the FSRS review card — built as
 // plain DOM into a container so ONE implementation serves both hosts: the native side panel and
@@ -50,6 +56,12 @@ export interface ReviewOnlineSource {
   offered(): boolean;
   translate(request: OnlineTranslationRequest): Promise<OnlineTranslationResult>;
 }
+
+/**
+ * The extension's hint (add-lingua-review-translation-fallback D12): « Traduction étendue » is in the
+ * host's own Réglages — off, or its models not on this device.
+ */
+export const inSettings = (): ReviewTranslationHint => ({ kind: "settings" });
 
 export interface ReviewPageOptions {
   /** Epoch-seconds clock (Date.now()/1000 in production). */
@@ -74,6 +86,12 @@ export interface ReviewPageOptions {
    * card offers it.
    */
   online?: ReviewOnlineSource;
+  /**
+   * How the reader gets a translation for a card in `language` that nothing can translate — no
+   * gloss, no model ready, no online button (add-lingua-review-translation-fallback D12) — or null
+   * when nothing they could do would help. Without one, the no-translation note stands alone.
+   */
+  translationHint?: (language: string) => ReviewTranslationHint | null;
   /**
    * Beside a book, how many words looked up in it are still to sort (add-lingua-chapter-recap D6);
    * none, or 0, away from one: no count is shown.
@@ -186,12 +204,17 @@ export function mountReview(
     online?: ReviewOnlineOffer;
     askTranslation?: () => void;
     keep?: (gloss: string) => void;
+    hint?: ReviewTranslationHint;
   } {
     const { request } = assist;
     const asked = assist.asked || !glossed(card);
     const offered = !!request && !!opts.online?.offered();
     const engine = !!request && !!opts.translator?.(request.request.language);
+    // Nothing can translate this card, though something could (D12): the note says what.
+    const hint =
+      request && !glossed(card) && !engine && !offered ? opts.translationHint?.(request.request.language) : null;
     return {
+      ...(hint ? { hint } : {}),
       ...(asked && assist.translation ? { translation: assist.translation } : {}),
       ...(asked && offered ? { online: onlineOffer() } : {}),
       ...(!asked && (offered || engine) ? { askTranslation: () => ask() } : {}),
