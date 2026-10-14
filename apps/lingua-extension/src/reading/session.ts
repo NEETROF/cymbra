@@ -693,6 +693,9 @@ export class ReadingSession {
       else if (msg?.type === "toggleDrawer") void this.drawer.toggle();
       else if (msg?.type === "openDrawer") void this.drawer.openOn(drawerView(msg.view));
       else if (msg?.type === "openToSort") this.host?.openToSort?.();
+      // The tab's load ended (add-lingua-comeback-hints D4): the background cleared the tab's own
+      // figure at its start, and this page stayed — a link within it — so it says its figure again.
+      else if (msg?.type === "badge:again") this.reportBadge();
       else if (msg?.type === "getStats") {
         void this.statsMessage().then(sendResponse);
         return true; // async response
@@ -1044,6 +1047,12 @@ export class ReadingSession {
     } catch {
       // The service worker may be asleep; the badge refreshes on the next pass.
     }
+  }
+
+  /** Say this tab's figure again, as the last paint did: its percentage, or switched off. */
+  private reportBadge(): void {
+    if (this.enabled) this.pushBadge();
+    else this.pushDisabledBadge();
   }
 
   /** Clear the badge for this tab: the reader is switched off here. */

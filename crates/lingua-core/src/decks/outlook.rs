@@ -108,16 +108,28 @@ impl LanguageOutlook {
     }
 
     /// What a review started at `at` would hold in this language, as
-    /// [`Deck::reviewable_count_for`] counts it, while the data is unchanged. `allowance` is the
-    /// day's allowance at `at`: its `day_start` later than the outlook's means another day, on
-    /// which no new word has been let in yet. Exact while the upcoming times are not used up
-    /// ([`Self::used_up`]).
+    /// [`Deck::reviewable_count_for`] counts it, while the data is unchanged. `computed_at` and
+    /// `outlook_day_start` are the outlook's; `allowance` is the day's allowance at `at`: its
+    /// `day_start` later than the outlook's means another day, on which no new word has been let in
+    /// yet. Exact while the upcoming times are not used up ([`Self::used_up`]). `None` when the
+    /// outlook cannot say — `at` before it was worked out, or a day before its own (the clock went
+    /// back): its `due` and `introduced` were counted later, and would over-count; only a new
+    /// outlook knows ([`ReviewOutlook::stale_at`]).
     pub fn count_at(
         &self,
         at: i64,
+        computed_at: i64,
         outlook_day_start: i64,
         allowance: Option<NewCardAllowance>,
-    ) -> usize {
+    ) -> Option<usize> {
+        if stale(
+            at,
+            allowance.map(|a| a.day_start),
+            computed_at,
+            outlook_day_start,
+        ) {
+            return None;
+        }
         let come_due = self.upcoming.iter().take_while(|&&t| t <= at).count();
         let admitted = allowance.map_or(self.fresh, |allowance| {
             let introduced = if allowance.day_start > outlook_day_start {
@@ -127,7 +139,7 @@ impl LanguageOutlook {
             };
             self.fresh.min(allowance.per_day.saturating_sub(introduced))
         });
-        self.due + come_due + admitted
+        Some(self.due + come_due + admitted)
     }
 
     /// Whether the upcoming times kept are used up at `at`: the list was cut at
@@ -155,13 +167,13 @@ impl ReviewOutlook {
 
     /// What a review started at `at` would hold in `languages` (tags; every language of the
     /// outlook when empty), as [`Deck::reviewable_count_for`] counts it while the data is
-    /// unchanged.
+    /// unchanged; `None` when the outlook is stale at `at` ([`Self::stale_at`]).
     pub fn count_at(
         &self,
         at: i64,
         languages: &[StudiedLanguage],
         allowance: Option<NewCardAllowance>,
-    ) -> usize {
+    ) -> Option<usize> {
         self.languages
             .iter()
             .filter(|outlook| {
@@ -170,14 +182,28 @@ impl ReviewOutlook {
                         .iter()
                         .any(|language| language.tag() == outlook.language)
             })
-            .map(|outlook| outlook.count_at(at, self.day_start, allowance))
+            .map(|outlook| outlook.count_at(at, self.computed_at, self.day_start, allowance))
             .sum()
+    }
+
+    /// Whether the outlook cannot count at `at`, `day_start` being the reader's local midnight
+    /// then (if known): the clock is before the time it was worked out, or on an earlier day. The
+    /// cards it counted due then may not be due yet, and the new words it counted introduced may
+    /// not be, so it would over-count; a new outlook is worked out instead.
+    pub fn stale_at(&self, at: i64, day_start: Option<i64>) -> bool {
+        stale(at, day_start, self.computed_at, self.day_start)
     }
 
     /// The outlook as JSON, the shape the extension keeps.
     pub fn to_json(&self) -> String {
         serde_json::to_string(self).expect("an outlook is always serialisable")
     }
+}
+
+/// An outlook worked out at `computed_at`, on the day starting at `outlook_day_start`, asked at
+/// `at` on the day starting at `day_start`: stale when the clock went back.
+fn stale(at: i64, day_start: Option<i64>, computed_at: i64, outlook_day_start: i64) -> bool {
+    at < computed_at || day_start.is_some_and(|day_start| day_start < outlook_day_start)
 }
 
 #[cfg(test)]
@@ -269,7 +295,7 @@ mod tests {
             for allowance in [None, allowance(10, day_start), allowance(4, day_start)] {
                 assert_eq!(
                     outlook.count_at(at, languages, allowance),
-                    deck.reviewable_count_for(at, languages, allowance),
+                    Some(deck.reviewable_count_for(at, languages, allowance)),
                     "at {at}, in {languages:?}, with {allowance:?}"
                 );
             }
@@ -352,15 +378,15 @@ mod tests {
         assert_eq!(english.upcoming.len(), UPCOMING_MAX);
         assert_eq!(english.upcoming.last(), Some(&(day_start + 100 * 60)));
         assert!(!english.used_up(day_start + 99 * 60));
-        assert_eq!(outlook.count_at(day_start + 99 * 60, &[], None), 99);
+        assert_eq!(outlook.count_at(day_start + 99 * 60, &[], None), Some(99));
         assert!(english.used_up(day_start + 100 * 60));
         // Exact up to the last time kept; beyond it only a new outlook knows.
         assert_eq!(
             outlook.count_at(day_start + 100 * 60, &[], None),
-            deck.reviewable_count_for(day_start + 100 * 60, &[], None)
+            Some(deck.reviewable_count_for(day_start + 100 * 60, &[], None))
         );
         assert!(
-            outlook.count_at(day_start + DAY, &[], None)
+            outlook.count_at(day_start + DAY, &[], None).unwrap()
                 < deck.reviewable_count_for(day_start + DAY, &[], None)
         );
 
@@ -370,6 +396,54 @@ mod tests {
             "a list not cut is never used up"
         );
         assert_eq!(short.languages[0].upcoming.len(), 80);
+    }
+
+    #[test]
+    fn a_card_due_exactly_now_is_counted_and_one_due_a_second_later_comes_due_at_its_time() {
+        let day_start = 200 * DAY;
+        let now = day_start + 9 * HOUR;
+        let mut deck = Deck::new();
+        deck.upsert(EN, reviewed("now", day_start - DAY, now));
+        deck.upsert(EN, reviewed("soon", day_start - DAY, now + 1));
+        let outlook = ReviewOutlook::of(&deck, &[EN], now, day_start);
+        let english = &outlook.languages[0];
+        assert_eq!((english.due, english.upcoming.clone()), (1, vec![now + 1]));
+        for at in [now, now + 1] {
+            assert_counts_agree(&outlook, &deck, at, day_start);
+        }
+        assert_eq!(outlook.count_at(now, &[], None), Some(1));
+        assert_eq!(outlook.count_at(now + 1, &[], None), Some(2));
+    }
+
+    #[test]
+    fn an_outlook_asked_before_it_was_worked_out_is_stale_and_a_new_one_counts_right() {
+        let day_start = 200 * DAY;
+        let deck = deck(day_start);
+        // Worked out at 20:00; the clock then goes back to 09:00 the same day, and to the day before.
+        let late = day_start + 20 * HOUR;
+        let outlook = ReviewOutlook::of(&deck, &[EN, ES], late, day_start);
+        let earlier = day_start + 9 * HOUR;
+        assert!(outlook.stale_at(earlier, Some(day_start)));
+        assert_eq!(
+            outlook.count_at(earlier, &[], allowance(10, day_start)),
+            None
+        );
+        assert_eq!(outlook.count_at(earlier, &[EN], None), None);
+        let yesterday = day_start - DAY;
+        assert!(outlook.stale_at(late, Some(yesterday)), "an earlier day");
+        assert_eq!(outlook.count_at(late, &[], allowance(10, yesterday)), None);
+        assert!(!outlook.stale_at(late, Some(day_start)));
+        assert!(!outlook.stale_at(late + DAY, None));
+        // What the over-count would have been: the cards due at 20:00 are not all due at 09:00.
+        let over: usize = outlook
+            .languages
+            .iter()
+            .map(|l| l.due + l.fresh.min(10))
+            .sum();
+        assert!(over > deck.reviewable_count_for(earlier, &[], allowance(10, day_start)));
+        // Worked out again at the earlier time, it counts what the deck counts.
+        let again = ReviewOutlook::of(&deck, &[EN, ES], earlier, day_start);
+        assert_counts_agree(&again, &deck, earlier, day_start);
     }
 
     #[test]

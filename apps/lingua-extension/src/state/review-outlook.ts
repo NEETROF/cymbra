@@ -41,6 +41,12 @@ export interface ReviewOutlook {
   /** The reader's local midnight then, epoch seconds: the day `introduced` counts. */
   dayStart: number;
   languages: LanguageOutlook[];
+  /**
+   * The digest of what it was worked out from in the backup (`outlookFingerprint`), kept beside it
+   * by the background: a write whose digest is the same — reading exposures, statuses — changes no
+   * figure here, and works nothing out again.
+   */
+  inputs?: string;
 }
 
 /** One language's count at a time. */
@@ -78,6 +84,7 @@ export function outlookOf(value: unknown): ReviewOutlook | null {
     computedAt: v.computedAt,
     dayStart: v.dayStart,
     languages: languages as LanguageOutlook[],
+    ...(typeof v.inputs === "string" ? { inputs: v.inputs } : {}),
   };
 }
 
@@ -95,44 +102,71 @@ export async function loadOutlook(area: AsyncStorageArea): Promise<ReviewOutlook
 }
 
 /**
+ * Whether the outlook cannot count at `now`, `dayStart` being the reader's local midnight then: the
+ * clock is before the time it was worked out, or on an earlier day (it went back). The cards it
+ * counted due may not be due yet, and the new words it counted introduced may not be: it would
+ * over-count, so a new one is worked out instead (`ReviewOutlook::stale_at` in the core).
+ */
+export function staleAt(
+  outlook: Pick<ReviewOutlook, "computedAt" | "dayStart">,
+  now: number,
+  dayStart: number,
+): boolean {
+  return now < outlook.computedAt || dayStart < outlook.dayStart;
+}
+
+/**
  * What a review started at `now` would hold in one language, while the data is unchanged: its
  * reviewed cards due, those come due since, and the smaller of its new words waiting and what
  * is left of `perDay` today. `dayStart` is the reader's local midnight at `now`: later than the
- * outlook's, it is another day, on which no new word has been let in yet.
+ * outlook's, it is another day, on which no new word has been let in yet. Null when the outlook
+ * is stale at `now` (`staleAt`): only a new one knows.
  */
 export function languageCountAt(
   entry: LanguageOutlook,
-  outlookDayStart: number,
+  outlook: Pick<ReviewOutlook, "computedAt" | "dayStart">,
   now: number,
   dayStart: number,
   perDay: number,
-): number {
+): number | null {
+  if (staleAt(outlook, now, dayStart)) return null;
   let comeDue = 0;
   for (const at of entry.upcoming) {
     if (at > now) break;
     comeDue++;
   }
-  const introduced = dayStart > outlookDayStart ? 0 : entry.introduced;
+  const introduced = dayStart > outlook.dayStart ? 0 : entry.introduced;
   return entry.due + comeDue + Math.min(entry.fresh, Math.max(0, perDay - introduced));
 }
 
-/** Each studied language's count at `now`, in the reader's order. */
-export function countsAt(outlook: ReviewOutlook, now: number, dayStart: number, perDay: number): LanguageCount[] {
+/** Each studied language's count at `now`, in the reader's order; null when the outlook is stale. */
+export function countsAt(
+  outlook: ReviewOutlook,
+  now: number,
+  dayStart: number,
+  perDay: number,
+): LanguageCount[] | null {
+  if (staleAt(outlook, now, dayStart)) return null;
   return outlook.languages.map((entry) => ({
     language: entry.language,
-    count: languageCountAt(entry, outlook.dayStart, now, dayStart, perDay),
+    count: languageCountAt(entry, outlook, now, dayStart, perDay) ?? 0,
   }));
 }
 
-/** What a review started at `now` would hold in `languages` — every language of the outlook when empty. */
+/**
+ * What a review started at `now` would hold in `languages` — every language of the outlook when
+ * empty —, or null when the outlook is stale at `now`.
+ */
 export function countAt(
   outlook: ReviewOutlook,
   languages: readonly string[],
   now: number,
   dayStart: number,
   perDay: number,
-): number {
-  return countsAt(outlook, now, dayStart, perDay)
+): number | null {
+  const counts = countsAt(outlook, now, dayStart, perDay);
+  if (!counts) return null;
+  return counts
     .filter(({ language }) => languages.length === 0 || languages.includes(language))
     .reduce((sum, { count }) => sum + count, 0);
 }
@@ -151,4 +185,39 @@ export function usedUp(outlook: ReviewOutlook, now: number): boolean {
 /** A language's cards in the outlook, 0 for a language it does not hold. */
 export function cardsOf(outlook: ReviewOutlook, language: string): number {
   return outlook.languages.find((entry) => entry.language === language)?.cards ?? 0;
+}
+
+/**
+ * The top-level keys of a backup as the engine writes it (`LinguaState::to_backup`: pretty JSON,
+ * one top-level key per line, two spaces in). A string in JSON never holds a raw line break, and a
+ * nested key sits deeper, so this finds the top level only.
+ */
+const TOP_LEVEL_KEY = /\n {2}"([a-z_]+)": /g;
+
+/** What the outlook is worked out from: the deck, and the profile that lists the studied languages. */
+const OUTLOOK_SECTIONS: ReadonlySet<string> = new Set(["deck", "profile"]);
+
+/**
+ * The part of a backup the outlook reads (`reviewOutlook` in lingua-wasm: the deck and the studied
+ * languages) — not the statuses, the exposures nor the scheduler's settings, which a page's reading
+ * rewrites every few seconds. A backup not laid out as the engine writes it is read whole: any
+ * change of it then counts as a change of the outlook's inputs.
+ */
+export function outlookInputs(backup: string): string {
+  const keys = [...backup.matchAll(TOP_LEVEL_KEY)].map((m) => ({ key: m[1]!, at: m.index }));
+  if (!keys.some(({ key }) => key === "deck")) return backup;
+  return keys
+    .map(({ key, at }, i) => (OUTLOOK_SECTIONS.has(key) ? backup.slice(at, keys[i + 1]?.at ?? backup.length) : ""))
+    .join("");
+}
+
+/**
+ * A digest of `outlookInputs(backup)` (SHA-256, hex): equal for two backups that hold the same
+ * outlook. Null where the platform has no digest — every write then works the outlook out again.
+ */
+export async function outlookFingerprint(backup: string): Promise<string | null> {
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) return null;
+  const digest = await subtle.digest("SHA-256", new TextEncoder().encode(outlookInputs(backup)));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }

@@ -9,9 +9,12 @@ import {
   loadOutlook,
   OUTLOOK_KEY,
   OUTLOOK_VERSION,
+  outlookFingerprint,
+  outlookInputs,
   outlookOf,
   parseOutlook,
   type ReviewOutlook,
+  staleAt,
   UPCOMING_MAX,
   usedUp,
 } from "@/state/review-outlook.ts";
@@ -55,6 +58,9 @@ describe("reading an outlook", () => {
     expect(outlookOf({ ...good, computedAt: "noon" })).toBeNull();
     expect(outlookOf(undefined)).toBeNull();
     expect(parseOutlook("{ not json")).toBeNull();
+    // The digest of its inputs, kept beside it by the background, is read back.
+    expect(outlookOf({ ...good, inputs: "ab12" })).toEqual({ ...good, inputs: "ab12" });
+    expect(outlookOf({ ...good, inputs: 12 })).toEqual(good);
   });
 
   it("is read from the preferences, null when none was worked out", async () => {
@@ -74,16 +80,16 @@ describe("counting from an outlook", () => {
 
   it("counts the cards due, those come due since, and the new words left of today's allowance", () => {
     // 3 due + 0 come due + min(40, 10 − 4).
-    expect(languageCountAt(o.languages[0], today, today + 2 * HOUR, today, 10)).toBe(9);
+    expect(languageCountAt(o.languages[0], o, today + 2 * HOUR, today, 10)).toBe(9);
     // Past the first upcoming time.
-    expect(languageCountAt(o.languages[0], today, today + 6 * HOUR, today, 10)).toBe(10);
+    expect(languageCountAt(o.languages[0], o, today + 6 * HOUR, today, 10)).toBe(10);
     // An allowance already spent today: no new word.
-    expect(languageCountAt(o.languages[0], today, today + 2 * HOUR, today, 4)).toBe(3);
+    expect(languageCountAt(o.languages[0], o, today + 2 * HOUR, today, 4)).toBe(3);
   });
 
   it("on the next local day, the allowance is whole again", () => {
     const tomorrow = today + DAY;
-    expect(languageCountAt(o.languages[0], today, tomorrow + 2 * HOUR, tomorrow, 10)).toBe(3 + 2 + 10);
+    expect(languageCountAt(o.languages[0], o, tomorrow + 2 * HOUR, tomorrow, 10)).toBe(3 + 2 + 10);
   });
 
   it("sums the languages asked, every one when none is named", () => {
@@ -94,6 +100,27 @@ describe("counting from an outlook", () => {
     ]);
     expect(countAt(o, [], at, today, 10)).toBe(12);
     expect(countAt(o, ["es"], at, today, 10)).toBe(3);
+  });
+
+  it("a card due exactly now is counted; one due a second later is not, until its time", () => {
+    const at = today + 5 * HOUR; // the first upcoming due time
+    expect(languageCountAt(o.languages[0], o, at - 1, today, 0)).toBe(3);
+    expect(languageCountAt(o.languages[0], o, at, today, 0)).toBe(4);
+    expect(countAt(o, ["en"], at, today, 0)).toBe(4);
+  });
+
+  it("the clock gone back: an outlook asked before it was worked out, or on an earlier day, cannot count", () => {
+    const before = o.computedAt - 1;
+    expect(staleAt(o, before, today)).toBe(true);
+    expect(languageCountAt(o.languages[0], o, before, today, 10)).toBeNull();
+    expect(countsAt(o, before, today, 10)).toBeNull();
+    expect(countAt(o, [], before, today, 10)).toBeNull();
+    // A later time on an earlier day (the time zone moved west, the date set back).
+    expect(staleAt(o, o.computedAt + HOUR, today - DAY)).toBe(true);
+    expect(countAt(o, [], o.computedAt + HOUR, today - DAY, 10)).toBeNull();
+    // At the time it was worked out, and after, it counts.
+    expect(staleAt(o, o.computedAt, today)).toBe(false);
+    expect(countAt(o, [], o.computedAt, today, 10)).toBe(12);
   });
 
   it("says when a cut list of upcoming times is used up, never for a list that was not cut", () => {
@@ -141,7 +168,10 @@ describe("the outlook against the engine (add-lingua-comeback-hints D2)", () => 
     const read = parseOutlook(json)!;
     expect(read.languages[0].introduced).toBeGreaterThan(0);
 
-    for (const at of [computed, day + 20 * HOUR, day + DAY + 9 * HOUR, day + 4 * DAY]) {
+    // Exactly at a card's due time, and a second before it: a card is due when its time is now.
+    const first = read.languages[0].upcoming[0]!;
+    expect(first).toBeGreaterThan(computed);
+    for (const at of [first - 1, first, computed, day + 20 * HOUR, day + DAY + 9 * HOUR, day + 4 * DAY]) {
       const dayStart = localDayStart(at);
       for (const perDay of [5, 10, 20]) {
         expect(countAt(read, ["en"], at, dayStart, perDay), `at ${at - day} s, ${perDay} a day`).toBe(
@@ -149,5 +179,41 @@ describe("the outlook against the engine (add-lingua-comeback-hints D2)", () => 
         );
       }
     }
+  });
+});
+
+describe("what the outlook reads in a backup (review finding: every exposure save recomputed it)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("the engine's backup: reading exposures and a status leave it as it was; a card or a language move it", async () => {
+    const port = realPort();
+    const english = port.for("en");
+    await english.addCard({ lemma: "seldom", surface: "seldom", sentence: "", url: "", gloss: null, capturedAt: 1 });
+    const start = await port.backup();
+
+    await english.recordExposures(["seldom", "ship", "harbour"], "reading:example.com", 2_000);
+    await english.setStatus("harbour", "known");
+    const read = await port.backup();
+    expect(read).not.toBe(start);
+    expect(outlookInputs(read)).toBe(outlookInputs(start));
+    expect(await outlookFingerprint(read)).toBe(await outlookFingerprint(start));
+    expect(outlookInputs(start)).toContain('"deck":');
+    expect(outlookInputs(start)).not.toContain('"exposure":');
+
+    await english.addCard({ lemma: "ship", surface: "ship", sentence: "", url: "", gloss: null, capturedAt: 3 });
+    const captured = await port.backup();
+    expect(await outlookFingerprint(captured)).not.toBe(await outlookFingerprint(read));
+
+    await port.setStudiedLanguages(["en", "es"]);
+    const studied = await port.backup();
+    expect(outlookInputs(studied)).toContain('"profile":');
+    expect(await outlookFingerprint(studied)).not.toBe(await outlookFingerprint(captured));
+  });
+
+  it("a backup not laid out as the engine writes it is read whole", () => {
+    const compact = JSON.stringify({ schema_version: 2, exposure: { a: 1 }, deck: {} });
+    expect(outlookInputs(compact)).toBe(compact);
   });
 });

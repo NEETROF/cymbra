@@ -1,10 +1,18 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { reviewOutlookJson } from "@/analyzer/engine.ts";
 import { BADGE_COUNT_COLOUR, BADGE_NEUTRAL_COLOUR, BADGE_PERCENT_COLOUR } from "@/state/badge.ts";
 import { BADGE_APPLIED_KEY, type BadgeAction, badgeHost, type BadgeHostDeps } from "@/state/badge-host.ts";
-import { OUTLOOK_KEY, OUTLOOK_VERSION, type ReviewOutlook, UPCOMING_MAX } from "@/state/review-outlook.ts";
+import {
+  OUTLOOK_KEY,
+  OUTLOOK_VERSION,
+  outlookFingerprint,
+  type ReviewOutlook,
+  UPCOMING_MAX,
+} from "@/state/review-outlook.ts";
 import { localDayStart } from "@/review/session.ts";
 import { BADGE_COUNT_KEY, COLOURS_KEY, NEW_WORDS_PER_DAY_KEY, ROOT_KEY } from "@/state/storage.ts";
 import { memoryArea } from "./helpers.ts";
+import { realGlue, realPort } from "./real-wasm.ts";
 
 // The background's badge wiring (add-lingua-comeback-hints D2–D4), on fakes: the action API is a
 // mock, the stores are in memory, the WASM function a mock returning an outlook. What is pinned:
@@ -26,7 +34,7 @@ function outlook(over: Partial<ReviewOutlook["languages"][number]> = {}, at = MO
 
 function setup(over: Partial<BadgeHostDeps> = {}, prefs: Record<string, unknown> = {}) {
   const action = {
-    setBadgeText: vi.fn(async () => {}),
+    setBadgeText: vi.fn<(details: { text: string | null; tabId?: number }) => Promise<void>>(async () => {}),
     setBadgeBackgroundColor: vi.fn(async () => {}),
     setBadgeTextColor: vi.fn(async () => {}),
     setTitle: vi.fn(async () => {}),
@@ -52,6 +60,10 @@ function setup(over: Partial<BadgeHostDeps> = {}, prefs: Record<string, unknown>
     at: (t: number) => {
       now = t;
     },
+    /** The reader's data written anew (a backup the engine wrote). */
+    write: (backup: string) => {
+      (deps.store as ReturnType<typeof memoryArea>).raw[ROOT_KEY] = { v: 2, backup };
+    },
     /** Every action call since the last `clear`. */
     calls: () => [
       ...action.setBadgeText.mock.calls,
@@ -69,13 +81,15 @@ describe("the badge's outlook", () => {
     const t = setup();
     await t.host.dataChanged();
     expect(t.compute).toHaveBeenCalledWith('{"backup":true}', MORNING, DAY_START);
-    expect(t.prefs.raw[OUTLOOK_KEY]).toEqual(outlook());
+    // Kept with the digest of what it read in the backup.
+    expect(t.prefs.raw[OUTLOOK_KEY]).toEqual({ ...outlook(), inputs: await outlookFingerprint('{"backup":true}') });
     expect(t.action.setBadgeText).toHaveBeenCalledWith({ text: "12" });
     expect(t.action.setBadgeBackgroundColor).toHaveBeenCalledWith({ color: BADGE_COUNT_COLOUR });
     expect(t.action.setTitle).toHaveBeenCalledWith({ title: "Cymbra Lingua — 12 carte(s) à revoir" });
 
     // The last due card answered: the next outlook says nothing waits, and the badge empties.
     t.compute.mockImplementation(async () => JSON.stringify(outlook({ due: 0, upcoming: [] })));
+    t.write('{"backup":"answered"}');
     await t.host.dataChanged();
     expect(t.action.setBadgeText).toHaveBeenLastCalledWith({ text: "" });
     expect(t.action.setTitle).toHaveBeenLastCalledWith({ title: "Cymbra Lingua" });
@@ -90,11 +104,14 @@ describe("the badge's outlook", () => {
     );
     const first = t.host.dataChanged();
     await vi.waitFor(() => expect(t.compute).toHaveBeenCalledTimes(1));
+    t.write('{"backup":"second"}');
     const second = t.host.dataChanged();
+    t.write('{"backup":"third"}');
     const third = t.host.dataChanged();
     release();
     await Promise.all([first, second, third]);
     expect(t.compute).toHaveBeenCalledTimes(2);
+    expect(t.compute).toHaveBeenLastCalledWith('{"backup":"third"}', MORNING, DAY_START);
   });
 
   it("is worked out at an event when missing, of another version, or used up — and only then", async () => {
@@ -246,5 +263,253 @@ describe("what was last applied", () => {
     t.clear();
     await t.host.refresh();
     expect(t.action.setBadgeText).toHaveBeenCalledWith({ text: "12" });
+  });
+});
+
+describe("only what the outlook reads works it out again (review finding: every exposure save recomputed it)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** A deck of `cards` English words on the real engine, a few of them read on the page. */
+  async function reader(cards: number) {
+    const port = realPort();
+    const english = port.for("en");
+    for (let i = 0; i < cards; i++) {
+      await english.addCard({
+        lemma: `word${i}`,
+        surface: `word${i}`,
+        sentence: "",
+        url: "",
+        gloss: null,
+        capturedAt: DAY_START - 86_400 + i,
+      });
+    }
+    return { port, english };
+  }
+
+  /**
+   * Sixty seconds of reading as the page does it: an exposure flush every two seconds
+   * (`EXPOSURE_FLUSH_MS`), each saving the whole backup — then one word captured. Returns how many
+   * times the outlook was worked out, `fingerprint` given or not.
+   */
+  async function sixtySecondsOfReading(fingerprint?: BadgeHostDeps["fingerprint"]) {
+    const { port, english } = await reader(12);
+    const compute = vi.fn((backup: string, now: number, dayStart: number) =>
+      reviewOutlookJson(backup, now, dayStart, async () => realGlue()),
+    );
+    const t = setup({ computeOutlook: compute, ...(fingerprint ? { fingerprint } : {}) });
+    t.write(await port.backup());
+    await t.host.dataChanged();
+    for (let second = 2; second <= 60; second += 2) {
+      t.at(MORNING + second);
+      await english.recordExposures(
+        [`word${second % 12}`, `seen${second}`],
+        "reading:example.com",
+        (MORNING + second) * 1000,
+      );
+      await english.promoteByExposure(4, (MORNING + second) * 1000);
+      t.write(await port.backup());
+      await t.host.dataChanged();
+    }
+    const whileReading = compute.mock.calls.length;
+    await english.addCard({
+      lemma: "captured",
+      surface: "captured",
+      sentence: "",
+      url: "",
+      gloss: null,
+      capturedAt: MORNING + 61,
+    });
+    t.write(await port.backup());
+    await t.host.dataChanged();
+    return { whileReading, afterCapture: compute.mock.calls.length, t };
+  }
+
+  it("Reading for a minute: thirty exposure saves work nothing out again; a capture does", async () => {
+    // Before: every save of the backup worked the outlook out — 1 at the start, 30 while reading.
+    const before = await sixtySecondsOfReading(async () => null);
+    expect(before.whileReading).toBe(31);
+    // After: the deck and the studied languages did not move, so nothing is worked out.
+    const after = await sixtySecondsOfReading();
+    expect(after.whileReading).toBe(1);
+    expect(after.afterCapture).toBe(2);
+    // 12 new words, ten let in today; the captured one is the thirteenth: the count is still 10.
+    expect(after.t.prefs.raw[OUTLOOK_KEY]).toMatchObject({ languages: [{ language: "en", cards: 13, fresh: 13 }] });
+    expect(after.t.action.setBadgeText).toHaveBeenLastCalledWith({ text: "10" });
+  });
+
+  it("A change of the studied languages works it out again", async () => {
+    const { port } = await reader(3);
+    const t = setup({ computeOutlook: (b, n, d) => reviewOutlookJson(b, n, d, async () => realGlue()) });
+    t.write(await port.backup());
+    await t.host.dataChanged();
+    const compute = vi.spyOn(t.deps, "computeOutlook");
+    const rebuilt = badgeHost(t.deps);
+    await port.setStudiedLanguages(["en", "es"]);
+    t.write(await port.backup());
+    await rebuilt.dataChanged();
+    expect(compute).toHaveBeenCalledTimes(1);
+    expect(t.prefs.raw[OUTLOOK_KEY]).toMatchObject({ languages: [{ language: "en" }, { language: "es" }] });
+  });
+
+  it("the same deck, its outlook stale or used up, is still worked out again", async () => {
+    const t = setup();
+    const inputs = await outlookFingerprint('{"backup":true}');
+    // Worked out later than now: the clock went back.
+    t.prefs.raw[OUTLOOK_KEY] = { ...outlook({ due: 30 }, MORNING + 5 * 3_600), inputs };
+    await t.host.dataChanged();
+    expect(t.compute).toHaveBeenCalledTimes(1);
+    expect(t.action.setBadgeText).toHaveBeenLastCalledWith({ text: "12" });
+  });
+});
+
+describe("the clock going back (review finding: the count went too high)", () => {
+  it("an event finding an outlook worked out later than now works a new one out", async () => {
+    const t = setup({}, { [OUTLOOK_KEY]: outlook({ due: 30 }, MORNING + 5 * 3_600) });
+    await t.host.refresh();
+    expect(t.compute).toHaveBeenCalledWith('{"backup":true}', MORNING, DAY_START);
+    expect(t.action.setBadgeText).toHaveBeenLastCalledWith({ text: "12" });
+  });
+
+  it("an outlook of a later day is stale too; a backup that cannot be read then shows nothing, not too much", async () => {
+    const tomorrow = outlook({ due: 30 }, MORNING + 86_400);
+    const t = setup({}, { [OUTLOOK_KEY]: tomorrow });
+    t.compute.mockRejectedValue(new Error("malformed backup"));
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    await t.host.refresh();
+    expect(t.compute).toHaveBeenCalledTimes(1);
+    expect(t.action.setBadgeText).toHaveBeenLastCalledWith({ text: "" });
+  });
+});
+
+describe("the switch and a run under way (review finding: a stale count after turning it back on)", () => {
+  it("a run that finishes after the switch went off writes nothing; turned on, the count is worked out anew", async () => {
+    const t = setup();
+    t.compute.mockImplementation(async (backup: string, at: number) =>
+      JSON.stringify(outlook({ due: backup.includes("later") ? 4 : 12 }, at)),
+    );
+    let release: () => void = () => {};
+    t.compute.mockImplementationOnce(
+      (_b: string, at: number) =>
+        new Promise<string>((resolve) => (release = () => resolve(JSON.stringify(outlook({}, at))))),
+    );
+    const running = t.host.dataChanged();
+    await vi.waitFor(() => expect(t.compute).toHaveBeenCalledTimes(1));
+    t.prefs.raw[BADGE_COUNT_KEY] = false;
+    await t.host.settingChanged();
+    expect(t.prefs.raw[OUTLOOK_KEY]).toBeNull();
+    release();
+    await running;
+    expect(t.prefs.raw[OUTLOOK_KEY]).toBeNull();
+
+    // Off, the data moves on unseen; on again, the count is today's, not the run's.
+    t.write('{"backup":"later"}');
+    await t.host.dataChanged();
+    t.prefs.raw[BADGE_COUNT_KEY] = true;
+    await t.host.settingChanged();
+    expect(t.compute).toHaveBeenLastCalledWith('{"backup":"later"}', MORNING, DAY_START);
+    expect(t.action.setBadgeText).toHaveBeenLastCalledWith({ text: "4" });
+  });
+
+  it("off and on again while a run is under way: the run's outlook is dropped, a new one kept", async () => {
+    const t = setup();
+    let release: () => void = () => {};
+    t.compute.mockImplementationOnce(
+      (_b: string, at: number) =>
+        new Promise<string>((resolve) => (release = () => resolve(JSON.stringify(outlook({ due: 99 }, at))))),
+    );
+    const running = t.host.dataChanged();
+    await vi.waitFor(() => expect(t.compute).toHaveBeenCalledTimes(1));
+    t.prefs.raw[BADGE_COUNT_KEY] = false;
+    await t.host.settingChanged();
+    t.prefs.raw[BADGE_COUNT_KEY] = true;
+    const on = t.host.settingChanged();
+    release();
+    await Promise.all([running, on]);
+    expect(t.compute).toHaveBeenCalledTimes(2);
+    expect(t.prefs.raw[OUTLOOK_KEY]).toMatchObject({ languages: [{ due: 12 }] });
+    expect(t.action.setBadgeText).toHaveBeenLastCalledWith({ text: "12" });
+  });
+});
+
+describe("one touch of the icon at a time (review finding: the record and the icon could part)", () => {
+  /** setBadgeText held on its first call, until `release`. */
+  function holdFirst(t: ReturnType<typeof setup>) {
+    let release: () => void = () => {};
+    t.action.setBadgeText.mockImplementationOnce(() => new Promise<void>((resolve) => (release = resolve)));
+    return () => release();
+  }
+
+  it("two events, the first slow: the second's figure is shown last, and is what is remembered", async () => {
+    const t = setup({}, { [OUTLOOK_KEY]: outlook() });
+    const release = holdFirst(t);
+    const first = t.host.refresh();
+    await vi.waitFor(() => expect(t.action.setBadgeText).toHaveBeenCalledTimes(1));
+    t.prefs.raw[OUTLOOK_KEY] = outlook({ due: 3 });
+    const second = t.host.refresh();
+    // Everything the second event can do before the first's touch ends.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    release();
+    await Promise.all([first, second]);
+    expect(t.action.setBadgeText.mock.calls.map(([d]) => d.text)).toEqual(["12", "3"]);
+    expect(t.action.setTitle).toHaveBeenLastCalledWith({ title: "Cymbra Lingua — 3 carte(s) à revoir" });
+    const applied = (await t.deps.applied!.get(BADGE_APPLIED_KEY))[BADGE_APPLIED_KEY];
+    expect(applied).toMatchObject({ text: "3" });
+  });
+
+  it("a tab's navigation start then its page's report: the percentage, in its colour, wins", async () => {
+    const t = setup();
+    const release = holdFirst(t);
+    const cleared = t.host.tabUpdated(7, "loading");
+    await vi.waitFor(() => expect(t.action.setBadgeText).toHaveBeenCalledTimes(1));
+    const reported = t.host.tabReport(7, { pct: 94 });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    release();
+    await Promise.all([cleared, reported]);
+    expect(t.action.setBadgeText.mock.calls.map(([d]) => d.text)).toEqual([null, "94%"]);
+    expect(t.action.setBadgeBackgroundColor).toHaveBeenLastCalledWith({ tabId: 7, color: BADGE_PERCENT_COLOUR });
+  });
+
+  it("a failed touch does not stop the ones after it", async () => {
+    const t = setup();
+    t.action.setBadgeText.mockRejectedValueOnce(new Error("No tab with id: 7"));
+    await expect(t.host.tabReport(7, { pct: 94 })).rejects.toThrow("No tab");
+    await t.host.tabReport(8, { pct: 50 });
+    expect(t.action.setBadgeText).toHaveBeenLastCalledWith({ tabId: 8, text: "50%" });
+  });
+});
+
+describe("a tab's navigation (review finding: Safari 18 may keep a percentage past its page)", () => {
+  it("at its start, the tab's own percentage goes, so the tab shows the count", async () => {
+    const t = setup();
+    await t.host.tabReport(7, { pct: 94 });
+    await t.host.tabUpdated(7, "loading");
+    expect(t.action.setBadgeText).toHaveBeenLastCalledWith({ tabId: 7, text: null });
+    expect(t.action.setBadgeBackgroundColor).toHaveBeenLastCalledWith({ tabId: 7, color: BADGE_COUNT_COLOUR });
+  });
+
+  it("at its end, the page is asked to say its figure again — a page that stayed puts its percentage back", async () => {
+    const askReport = vi.fn(async () => {});
+    const t = setup({ askReport });
+    await t.host.tabUpdated(7, "complete");
+    expect(askReport).toHaveBeenCalledWith(7);
+    expect(t.action.setBadgeText).not.toHaveBeenCalled();
+  });
+
+  it("a page without the reader does not answer: nothing breaks", async () => {
+    const t = setup({ askReport: async () => Promise.reject(new Error("Receiving end does not exist")) });
+    await expect(t.host.tabUpdated(7, "complete")).resolves.toBeUndefined();
+    await t.host.tabUpdated(7, undefined);
+    expect(t.calls()).toEqual([]);
+  });
+
+  it("Safari 17 keeps one badge for every tab: a load clears nothing there", async () => {
+    const askReport = vi.fn(async () => {});
+    const t = setup({ supported: false, askReport });
+    await t.host.tabUpdated(7, "loading");
+    await t.host.tabUpdated(7, "complete");
+    expect(t.calls()).toEqual([]);
+    expect(askReport).not.toHaveBeenCalled();
   });
 });

@@ -126,7 +126,7 @@ fn the_outlook_of_the_backup_counts_what_the_engine_counts() {
                         day_start: day_start as i64,
                     })
                 ),
-                engine.reviewable_count(at, None, Some(per_day as u32), Some(day_start)),
+                Some(engine.reviewable_count(at, None, Some(per_day as u32), Some(day_start))),
                 "at {at}, {per_day} a day"
             );
         }

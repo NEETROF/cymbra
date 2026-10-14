@@ -338,6 +338,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     now: () => Math.floor(Date.now() / 1000),
     supported: countSupported(navigator.userAgent),
     interfaceLanguage: () => interfaceLanguage(settingsArea),
+    // A page that stayed through its tab's load says its figure again (session.ts, `badge:again`).
+    askReport: (tabId) => chrome.tabs.sendMessage(tabId, { type: "badge:again" }),
   });
   const show = (): void => void badge.refresh().catch(() => {});
   onBadgeDataChanged = () => void badge.dataChanged().catch(() => {});
@@ -364,6 +366,21 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   chrome.windows?.onFocusChanged?.addListener((windowId) => {
     if (windowId !== chrome.windows.WINDOW_ID_NONE) show();
   });
+  // A tab's load (D4): at its start the tab's own percentage goes, so it never outlives its page
+  // whatever the browser does with a tab's values on a navigation; at its end a page that stayed
+  // says it again. `status` needs no permission. Firefox can be told to wake for it alone; Chrome
+  // refuses a filter on this event.
+  const onTabUpdated = (tabId: number, changeInfo: { status?: string }): void => {
+    if (changeInfo.status) void badge.tabUpdated(tabId, changeInfo.status).catch(() => {});
+  };
+  if (__TARGET__ === "firefox") {
+    (chrome.tabs.onUpdated.addListener as (cb: typeof onTabUpdated, filter: { properties: string[] }) => void)(
+      onTabUpdated,
+      { properties: ["status"] },
+    );
+  } else {
+    chrome.tabs.onUpdated.addListener(onTabUpdated);
+  }
   // A setting the count depends on: the allowance, the colours, the title's language, the switch.
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;

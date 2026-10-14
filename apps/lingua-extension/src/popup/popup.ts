@@ -11,7 +11,7 @@ import { mountNativeCta } from "./native-cta.ts";
 import { deckFigure, reviewDestination } from "./deck.ts";
 import { type PageStats, type PopupCopy, renderDeck, renderStats } from "./render.ts";
 import { localDayStart } from "../review/session.ts";
-import { loadOutlook, parseOutlook, type ReviewOutlook, usedUp } from "../state/review-outlook.ts";
+import { loadOutlook, parseOutlook, type ReviewOutlook, staleAt, usedUp } from "../state/review-outlook.ts";
 import { browserSpeechEngine, createSpeaker } from "../reading/speech.ts";
 import { presetNativeLanguage, reloadOnNativeLanguageChange } from "../state/native-language.ts";
 import { isPersistedSignInError, SIGNIN_ERROR_KEY } from "../state/session.ts";
@@ -230,11 +230,12 @@ async function analyseCurrentPage(): Promise<void> {
 
 /**
  * The outlook the toolbar icon counts from (add-lingua-comeback-hints D2), or — when the count is
- * off, or none is kept yet — the same worked out here from the stored backup: no engine, no pack.
+ * off, none is kept yet, or the kept one cannot count now (used up, or the clock went back) — the
+ * same worked out here from the stored backup: no engine, no pack.
  */
 async function currentOutlook(now: number): Promise<ReviewOutlook | null> {
   const kept = (await loadBadgeCount(storageArea)) ? await loadOutlook(storageArea) : null;
-  if (kept && !usedUp(kept, now)) return kept;
+  if (kept && !usedUp(kept, now) && !staleAt(kept, now, localDayStart(now))) return kept;
   const stored = await loadStored(store);
   if (stored.kind !== "v2") return null;
   return parseOutlook(await reviewOutlookJson(stored.backup, now, localDayStart(now)).catch(() => ""));

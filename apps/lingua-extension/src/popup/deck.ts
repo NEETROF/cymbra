@@ -30,7 +30,8 @@ export function deckFigure(page: DeckFigure | null, outlook: ReviewOutlook | nul
   const language = (chosen ?? outlook.languages[0]!).language;
   return {
     deckCount: cardsOf(outlook, language),
-    dueCount: countAt(outlook, [language], away.now, away.dayStart, away.perDay),
+    // A stale outlook (the clock went back) is never handed here: the popup works one out first.
+    dueCount: countAt(outlook, [language], away.now, away.dayStart, away.perDay) ?? 0,
   };
 }
 

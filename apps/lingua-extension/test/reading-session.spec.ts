@@ -223,6 +223,15 @@ describe("a session attached to a book section", () => {
     expect(answer).not.toHaveBeenCalled();
   });
 
+  it("says its figure again when the background asks, after its tab's load (add-lingua-comeback-hints D4)", async () => {
+    const { s } = session();
+    await s.start(null);
+    await s.attach(section("<p>It was a dark night.</p>").host);
+    sent.length = 0;
+    expect(runtimeListeners[0]({ type: "badge:again" }, {}, vi.fn())).toBe(false);
+    expect(sent).toEqual([{ type: "stats", pct: 80, language: "en" }]);
+  });
+
   it("keeps the book and chapter as the source of a card captured in it", async () => {
     const { s, calls } = session();
     await s.start(null);
@@ -387,6 +396,10 @@ describe("a session attached to a book section", () => {
     expect(painted).toHaveBeenCalled();
     expect(registry.has(HL_UNKNOWN)).toBe(false);
     expect(sent).toContainEqual({ type: "stats", pct: null, disabled: true });
+    // Asked again after its tab's load (add-lingua-comeback-hints D4): still switched off.
+    sent.length = 0;
+    runtimeListeners[0]({ type: "badge:again" }, {}, vi.fn());
+    expect(sent).toEqual([{ type: "stats", pct: null, disabled: true }]);
   });
 });
 
