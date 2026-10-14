@@ -218,6 +218,8 @@
 }
 
 .review-keep-field {
+  /* In place of the keep row's buttons, the field spans that whole row. */
+  flex: 1 0 100%;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
