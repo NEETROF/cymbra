@@ -542,6 +542,8 @@ export class ReadingSession {
       translator: this.translator,
       // The selection card's runtime-message client: the background owns the session (D2).
       online: { offered: online, translate: (request) => translateOnline(request) },
+      // The book reader's drawer asks for no rating (add-lingua-comeback-hints D10).
+      inBook: opts.surface === "book",
     });
     const actions: HudActions = {
       onReview: () => this.openReviewSurface("review"),

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { drawer as enDrawer } from "@/i18n/en/drawer.ts";
 import { Drawer, type DrawerOptions } from "@/reading/drawer.ts";
+import { localDay, RATING_KEY } from "@/review/rating.ts";
 import type { AsyncStorageArea } from "@/state/storage.ts";
 import { makeFakePort } from "./helpers.ts";
 
@@ -133,5 +134,41 @@ describe("the drawer's Révision (add-lingua-review-translation D4)", () => {
       selection: { start: 17, end: 24 },
       source: "en",
     });
+  });
+});
+
+describe("the drawer's Révision and the rating request (add-lingua-comeback-hints D10)", () => {
+  const ready = () => ({ sessions: 4, days: 3, lastDay: localDay(0), shown: 0, shownAt: 0, answer: null });
+
+  async function finishIn(inBook: boolean) {
+    const prefs: Record<string, unknown> = { [RATING_KEY]: ready() };
+    const { drawer: d, root } = drawer({
+      inBook,
+      area: areaWith(prefs),
+      port: makeFakePort([{ headword: "seldom", surface: "seldom", sentence: "", gloss: "rarement" }]).port,
+    });
+    await d.openOn("review");
+    const click = async (label: string): Promise<void> => {
+      [...root.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent === label)!.click();
+      for (let i = 0; i < 3; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+    };
+    await click("Réviser");
+    await click("Afficher la réponse");
+    await click("Su");
+    return { root, prefs };
+  }
+
+  it("Beside a web page: the fifth finished session asks", async () => {
+    const { root, prefs } = await finishIn(false);
+    expect(root.querySelector(".review-done-title")?.textContent).toBe("Séance terminée");
+    expect(root.querySelector(".review-rating")).not.toBeNull();
+    expect(prefs[RATING_KEY]).toMatchObject({ sessions: 5, shown: 1 });
+  });
+
+  it("In the book reader: the session counts, and no request is shown", async () => {
+    const { root, prefs } = await finishIn(true);
+    expect(root.querySelector(".review-done-title")?.textContent).toBe("Séance terminée");
+    expect(root.querySelector(".review-rating")).toBeNull();
+    expect(prefs[RATING_KEY]).toMatchObject({ sessions: 5, shown: 0 });
   });
 });

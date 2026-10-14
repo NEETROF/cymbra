@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LinguaPort } from "@/analyzer/port.ts";
-import { inSettings, mountReview, type ReviewOnlineSource } from "@/review/review-page.ts";
+import { inSettings, mountReview, type ReviewOnlineSource, shownOnScreen } from "@/review/review-page.ts";
 import type { ReviewTranslationHint } from "@/review/view.ts";
 import { loadDailyStats, utcDay } from "@/state/dailystats.ts";
 import { localDayStart } from "@/review/session.ts";
@@ -112,6 +112,8 @@ interface Host {
   openToSort?: () => void;
   /** The rating request (add-lingua-comeback-hints D10): the build's unless given. */
   askRating?: boolean;
+  requestRating?: boolean;
+  onScreen?: (element: HTMLElement) => boolean;
   openPage?: (url: string) => void;
   onSessionFinished?: () => void;
 }
@@ -131,6 +133,8 @@ function mount(port: LinguaPort, area: Area = fakeArea(), host: Host = {}) {
     toSort: host.toSort,
     openToSort: host.openToSort,
     askRating: host.askRating,
+    requestRating: host.requestRating,
+    onScreen: host.onScreen,
     openPage: host.openPage ?? (() => {}),
     onSessionFinished: host.onSessionFinished,
   });
@@ -1415,5 +1419,179 @@ describe("Révision — the rating request at the end of a session (add-lingua-c
     expect(ratingOffered("firefox", false)).toBe(true);
     expect(ratingOffered("safari", false)).toBe(false);
     expect(ratingOffered("safari", true)).toBe(false);
+  });
+});
+
+describe("Révision — the rating request, seen and kept (review findings)", () => {
+  const CARDS: FakeCard[] = Array.from({ length: 3 }, (_, i) => ({
+    headword: `w${i}`,
+    surface: `w${i}`,
+    sentence: "",
+    gloss: null,
+  }));
+  const TODAY = localDay(NOW_SECONDS);
+  const READY: RatingState = { sessions: 4, days: 3, lastDay: TODAY, shown: 0, shownAt: 0, answer: null };
+  const request = (container: HTMLElement) => container.querySelector<HTMLElement>(".review-rating");
+
+  /** A backup as the engine writes it: one top-level key per line, the deck apart from the reading. */
+  const engineBackup = (deck: string, exposure: number): string =>
+    JSON.stringify(
+      { schema_version: 2, knowledge: {}, exposure: { read: exposure }, deck: { en: deck }, fsrs: {} },
+      null,
+      2,
+    );
+
+  /** Mount on a port whose backups are laid out as the engine's, the request's state given. */
+  function mountRated(state: RatingState | null, host: Host = {}, cards: FakeCard[] = CARDS) {
+    const prefs = host.prefs ?? fakeArea();
+    if (state) prefs.raw[RATING_KEY] = state;
+    const fake = makeFakePort(cards);
+    const port: LinguaPort = { ...fake.port, backup: async () => engineBackup("three cards", 0) };
+    const m = mount(port, fakeArea(), { ...host, prefs });
+    return { ...m, fake };
+  }
+
+  /** Start a session (or practice), then answer every card with `answer` until the end. */
+  async function finish(
+    container: HTMLElement,
+    answer: "Su" | "Pas su" | "Je connais" | "Ne plus me le montrer",
+    start = "Réviser",
+  ) {
+    button(container, start).click();
+    await settle();
+    while (container.querySelector(".review-reveal")) {
+      if (answer === "Su" || answer === "Pas su") {
+        button(container, "Afficher la réponse").click();
+        await settle();
+      }
+      button(container, answer).click();
+      await settle();
+    }
+  }
+
+  it("Side panel beside a page being read: the page's exposure saves keep the end and its request, shown once", async () => {
+    const m = mountRated(READY);
+    await m.page.refresh();
+    await finish(m.container, "Su");
+    expect(request(m.container)).not.toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, shown: 1 });
+
+    // Reading on, the page saves what it read every two seconds: the deck stays as it was.
+    for (let read = 1; read <= 3; read++) {
+      await m.area.set({ [ROOT_KEY]: { v: STORAGE_VERSION, backup: engineBackup("three cards", read) } });
+      announce([ROOT_KEY]);
+      await settle();
+    }
+    expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+    expect(request(m.container)).not.toBeNull();
+    // Taken on in the engine, so the next answer saves it too.
+    expect(m.fake.calls.restored).toHaveLength(3);
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, shown: 1, answer: null });
+
+    // A word captured on the page changes the deck: the review starts over, as before.
+    await m.area.set({ [ROOT_KEY]: { v: STORAGE_VERSION, backup: engineBackup("four cards", 3) } });
+    announce([ROOT_KEY]);
+    await settle();
+    expect(request(m.container)).toBeNull();
+    expect(button(m.container, "Réviser")).toBeTruthy();
+  });
+
+  it("A request drawn where the reader cannot see it is not used up; seen once shown", async () => {
+    let visible = false;
+    const m = mountRated(READY, { onScreen: () => visible });
+    await m.page.refresh();
+    await finish(m.container, "Su");
+    expect(request(m.container)).not.toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, shown: 0 });
+    // The host shows Révision again (the drawer opened, the panel's tab chosen): it refreshes.
+    visible = true;
+    await m.page.refresh();
+    await settle();
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, shown: 1, shownAt: 5 });
+    await m.page.refresh();
+    await settle();
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ shown: 1 });
+  });
+
+  it("Never seen, then another session: not counted, so the next qualifying end asks", async () => {
+    const m = mountRated(
+      READY,
+      { onScreen: () => false },
+      Array.from({ length: 12 }, (_, i) => ({
+        headword: `x${i}`,
+        surface: `x${i}`,
+        sentence: "",
+        gloss: null,
+      })),
+    );
+    await m.page.refresh();
+    await finish(m.container, "Su");
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, shown: 0 });
+    await finish(m.container, "Su", "Encore 10");
+    expect(request(m.container)).not.toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 6, shown: 0 });
+  });
+
+  it("the default check: a request in a hidden view is not seen, in a shown one it is", () => {
+    const outer = document.createElement("div");
+    const inner = document.createElement("div");
+    outer.append(inner);
+    expect(shownOnScreen(inner)).toBe(false); // not in the document
+    document.body.append(outer);
+    expect(shownOnScreen(inner)).toBe(true);
+    outer.hidden = true;
+    expect(shownOnScreen(inner)).toBe(false);
+    // Across a shadow root, to the drawer's host.
+    outer.hidden = false;
+    const host = document.createElement("div");
+    const shadow = host.attachShadow({ mode: "open" });
+    const drawn = document.createElement("div");
+    shadow.append(drawn);
+    document.body.append(host);
+    expect(shownOnScreen(drawn)).toBe(true);
+    host.hidden = true;
+    expect(shownOnScreen(drawn)).toBe(false);
+  });
+
+  it("In the book reader: the session counts, no request is shown there", async () => {
+    const m = mountRated(READY, { requestRating: false });
+    await m.page.refresh();
+    await finish(m.container, "Su");
+    expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+    expect(request(m.container)).toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, days: 3, shown: 0 });
+  });
+
+  it("« S'entraîner quand même »: a finished practice session counts, and may ask", async () => {
+    const m = mountRated({ ...READY, sessions: 3 });
+    await m.page.refresh();
+    await finish(m.container, "Su");
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 4 });
+    expect(request(m.container)).toBeNull();
+    await finish(m.container, "Su", "S'entraîner quand même");
+    expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, shown: 1 });
+    expect(request(m.container)).not.toBeNull();
+  });
+
+  for (const answer of ["Je connais", "Ne plus me le montrer"] as const) {
+    it(`a session ended only with « ${answer} » is a finished session`, async () => {
+      const m = mountRated(READY);
+      await m.page.refresh();
+      await finish(m.container, answer);
+      expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+      expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, shown: 1 });
+      expect(request(m.container)).not.toBeNull();
+    });
+  }
+
+  it("A hard session — every card « Pas su » — still counts and still asks: nothing depends on the results", async () => {
+    const m = mountRated(READY);
+    await m.page.refresh();
+    await finish(m.container, "Pas su");
+    expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+    expect(m.fake.calls.grades.every((g) => g === "again")).toBe(true);
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, shown: 1 });
+    expect(request(m.container)).not.toBeNull();
   });
 });

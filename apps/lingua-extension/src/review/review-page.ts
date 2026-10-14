@@ -13,6 +13,7 @@ import {
 } from "../i18n/index.ts";
 import { browserSpeechEngine, createSpeaker, type SpeechEngine } from "../reading/speech.ts";
 import { type OpenPage, openPageViaBackground } from "../state/open-page.ts";
+import { outlookInputs } from "../state/review-outlook.ts";
 import { STORE_REVIEW_PAGE } from "../state/store-links.ts";
 import { dailyRecorder } from "../state/dailystats.ts";
 import {
@@ -35,6 +36,7 @@ import {
   markShown,
   type RatingChoice,
   ratingDue,
+  type RatingState,
   ratingOffered,
   saveRating,
 } from "./rating.ts";
@@ -119,6 +121,16 @@ export interface ReviewPageOptions {
    * Chromium and Firefox, never the Safari extension nor the Cymbra Lingua app (D11) — unless given.
    */
   askRating?: boolean;
+  /**
+   * Whether this host shows the request: not the drawer of the book reader, where the spec never
+   * asks (D10) — a session finished there still counts. True unless given.
+   */
+  requestRating?: boolean;
+  /**
+   * Whether the review is on the reader's screen now: the request counts as made only once it was
+   * (D10). Its container, every ancestor and its document not hidden, unless given.
+   */
+  onScreen?: (element: HTMLElement) => boolean;
   /** Opens the store page when the reader chooses to rate: the background does it, unless given. */
   openPage?: OpenPage;
   /**
@@ -208,10 +220,22 @@ export function mountReview(
   let arrival = 0;
   let assist: Assist = { mine: 0, request: null, asked: false, kept: false };
   // The rating request (add-lingua-comeback-hints D10): each complete end counted once, the request
-  // shown at the end that qualifies until the reader answers or starts another session.
+  // shown at the end that qualifies until the reader answers or starts another session, and
+  // counted as made only once the reader could see it.
   const askRating = opts.askRating ?? ratingOffered(__TARGET__, __APP__);
+  const requestRating = opts.requestRating ?? true;
+  const onScreen = opts.onScreen ?? shownOnScreen;
   let endCounted = false;
+  /** The request belongs to this end: drawn under it while the end is on screen. */
   let ratingShown = false;
+  /** The request was seen, and counted as made. */
+  let ratingSeen = false;
+  /**
+   * What the review's end was reached with in the backup — the deck and the languages
+   * (`outlookInputs`) — or null: a write elsewhere that leaves them as they were (a page's reading
+   * saved beside the panel every two seconds) keeps the end, and its request, on screen.
+   */
+  let endInputs: string | null = null;
   const ratingActions = {
     rate: () => void answerRating("rate"),
     later: () => void answerRating("later"),
@@ -226,12 +250,15 @@ export function mountReview(
       ...(view.card ? assisted(view.card) : {}),
       ...(ratingShown && view.phase === "done" ? { rating: ratingActions } : {}),
     });
+    void noteSeen();
   };
 
   /** A new session, or none: the next complete end is counted, and no request stays on screen. */
   function newSession(): void {
     endCounted = false;
     ratingShown = false;
+    ratingSeen = false;
+    endInputs = null;
   }
 
   /**
@@ -244,22 +271,47 @@ export function mountReview(
     endCounted = true;
     opts.onSessionFinished?.();
     if (!askRating) return;
-    let state = afterSession(await loadRating(opts.prefs), localDay(opts.now()));
-    if (ratingDue(state)) {
-      state = markShown(state);
-      ratingShown = true;
-    }
-    await saveRating(opts.prefs, state);
+    const state = await updateRating((s) => afterSession(s, localDay(opts.now())));
+    // Drawn now; counted as made once seen (`noteSeen`). Never in the book reader, where the
+    // session still counts toward the next end elsewhere.
+    ratingShown = requestRating && ratingDue(state);
+  }
+
+  /** The request's state changed, one change at a time: none is lost to another read before it. */
+  let ratingChain: Promise<unknown> = Promise.resolve();
+  function updateRating(change: (state: RatingState) => RatingState): Promise<RatingState> {
+    const next = ratingChain.then(async () => {
+      const state = change(await loadRating(opts.prefs));
+      await saveRating(opts.prefs, state);
+      return state;
+    });
+    ratingChain = next.catch(() => {});
+    return next;
+  }
+
+  /**
+   * The request is on the reader's screen: it counts as made from now on, answered or not (D10) —
+   * never before, so a request drawn in a closed drawer or a hidden tab is not used up unseen.
+   */
+  async function noteSeen(): Promise<void> {
+    if (!ratingShown || ratingSeen || session.view().phase !== "done" || !onScreen(review)) return;
+    ratingSeen = true;
+    await updateRating(markShown).catch(() => {});
   }
 
   /** The reader's answer: « Noter » opens the store page through the background, and only then. */
   async function answerRating(choice: RatingChoice): Promise<void> {
     if (!ratingShown) return;
+    // Answered, it was seen: counted as made first, if no check saw it yet.
+    if (!ratingSeen) {
+      ratingSeen = true;
+      void updateRating(markShown).catch(() => {});
+    }
     ratingShown = false;
     // The app has no extension API and asks no rating of its own (D11): its bundle folds this away.
     if (choice === "rate" && !__APP__) (opts.openPage ?? openPageViaBackground)(STORE_REVIEW_PAGE);
     render(session.view());
-    await saveRating(opts.prefs, answerRequest(await loadRating(opts.prefs), choice));
+    await updateRating((state) => answerRequest(state, choice));
   }
 
   /** Whether `card` has a gloss — the reader's, the pack's or its own (add-lingua-review-translation-fallback D1). */
@@ -475,6 +527,8 @@ export function mountReview(
     if (changed) {
       await persist();
       await refreshSummary();
+      // The end, as the deck and the languages stand at it.
+      if (view.phase === "done" && lastBackup !== null) endInputs = outlookInputs(lastBackup);
     }
     render(view);
   }
@@ -518,6 +572,9 @@ export function mountReview(
   // page (Réglages › Données beside the review) drops the session it was walking.
   // The Cymbra Lingua app has no other surface writing its store (add-lingua-apple-review D1).
   const watch = __APP__ ? () => () => {} : watchBackup;
+  // At a session's end, a write that leaves the deck and the languages as they were — a page's
+  // reading saved beside the panel or under the drawer — is taken on without leaving the end: it
+  // and its rating request stay on screen (add-lingua-comeback-hints D10).
   const unwatch = watch(area, (backup) => {
     if (backup === lastBackup) return;
     void (async () => {
@@ -527,9 +584,12 @@ export function mountReview(
         return;
       }
       await port.restore(backup);
+      if (session.view().phase === "done" && endInputs !== null && outlookInputs(backup) === endInputs) return;
       await restart();
     })();
   });
+  // A request drawn while the page was in the background is seen when it comes back.
+  document.addEventListener("visibilitychange", () => void noteSeen(), { signal: alive.signal });
 
   return {
     refresh: async () => {
@@ -564,6 +624,18 @@ interface Assist {
   translation?: ReviewTranslation;
   /** The online request, once pressed: never sent twice for this arrival. */
   online?: { state: "asking" | "answered" | "unavailable" | "limit"; resetsAt?: number };
+}
+
+/**
+ * Whether `element` is on the reader's screen: its document shown, and neither it nor any
+ * ancestor — across a shadow root, to the drawer's host — hidden.
+ */
+export function shownOnScreen(element: HTMLElement): boolean {
+  if (!element.isConnected || element.ownerDocument.visibilityState === "hidden") return false;
+  for (let node: Node | null = element; node; node = node.parentNode ?? (node as ShadowRoot).host ?? null) {
+    if ((node as HTMLElement).hidden === true) return false;
+  }
+  return true;
 }
 
 function bold(text: string): HTMLElement {
