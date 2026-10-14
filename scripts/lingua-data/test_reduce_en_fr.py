@@ -1076,7 +1076,7 @@ class Main(TempDir):
         {"word": "Bill", "pos": "name", "senses": [{"glosses": ["Prénom masculin."]}]},
     ]
 
-    def run_main(self):
+    def run_main(self, word_glosses=None):
         self.file("scowl.txt", "35: house <n>: houses, house's\n\n35: bill <n_v>: billed, billing, bills, bill's\n")
         self.file("kaikki-Anglais.jsonl", "".join(json.dumps(e, ensure_ascii=False) + "\n" for e in self.ENTRIES))
         top = ["house", "london", "bill"]
@@ -1084,8 +1084,10 @@ class Main(TempDir):
         wordfreq.top_n_list = lambda lang, n: top[:n]
         wordfreq.zipf_frequency = lambda word, lang: 5.0 if word in top else 0.0
         argv = ["reduce-en-fr.py", "--work", self.dir, "--built-at", "2026-09-26", "--pack-version", "2026.09.26+abcdef0"]
+        # The fixture glosses none of the modals: the real table would fail the reduction.
+        table = {} if word_glosses is None else word_glosses
         with mock.patch.dict(sys.modules, {"wordfreq": wordfreq}), mock.patch.object(sys, "argv", argv):
-            with contextlib.redirect_stdout(io.StringIO()):
+            with mock.patch.object(red, "WORD_GLOSSES", table), contextlib.redirect_stdout(io.StringIO()):
                 red.main()
         return {path.name: path.read_text(encoding="utf-8") for path in Path(self.dir).iterdir()}
 
@@ -1099,3 +1101,201 @@ class Main(TempDir):
         # English's dictionary words, written after senses.tsv for `split` to file into tables/en/.
         self.assertEqual(out["lexical.tsv"], "bill\nhouse\n")
         self.assertEqual(json.loads(out["manifest.json"])["meta"]["analyzer_version"], red.analyser_version())
+
+    def test_main_applies_word_glosses_before_the_writes(self):
+        out = self.run_main({"bill": [("VERB", "Facturer, envoyer la note"), ("NOUN", "Facture")]})
+        self.assertIn("bill\tFacturer, envoyer la note; Facture\n", out["gloss.tsv"])
+        self.assertIn("bill\tVERB:1\tNOUN:1\n", out["senses.tsv"])
+        self.assertIn("house\tMaison\n", out["gloss.tsv"])
+        self.assertEqual(out["lexical.tsv"], "bill\nhouse\n")
+
+    def test_main_fails_on_an_entry_the_source_does_not_gloss(self):
+        with self.assertRaisesRegex(ValueError, "'would'"):
+            self.run_main({"would": [("VERB", "Conditionnel")]})
+
+
+
+
+# The table as the owner approved it (fix-lingua-en-fr-modal-glosses, design D3): gloss, runs.
+_EXPECTED_WORD_GLOSSES = {
+    "would": (
+        "Conditionnel : would come = viendrait; Futur dans le passé : he said he would come = il a dit qu’il "
+        "viendrait; Habitude passée : he would walk = il marchait, il avait l’habitude de marcher; Demande polie : "
+        "would you… ? = voudriez-vous… ?",
+        [("VERB", 4)],
+    ),
+    "could": (
+        "Pouvoir, au passé : pouvait, a pu (I could swim = je savais nager); Pouvoir, au conditionnel : pourrait "
+        "(could you… ? = pourriez-vous… ?)",
+        [("VERB", 2)],
+    ),
+    "should": (
+        "Devrait, conseil ou obligation : you should go = tu devrais y aller; Devrait, attente : it should work = "
+        "ça devrait marcher; Si jamais : should you need help = si jamais vous avez besoin d’aide",
+        [("VERB", 3)],
+    ),
+    "might": (
+        "Pourrait, il se peut que : it might rain = il se peut qu’il pleuve; Passé de may : pouvait; Force, puissance",
+        [("VERB", 2), ("NOUN", 1)],
+    ),
+    "must": (
+        "Devoir, obligation : you must go = tu dois partir; Devoir, déduction : it must be late = il doit être tard; "
+        "Incontournable, chose à ne pas manquer; Moût; Moisi, moisissure",
+        [("VERB", 2), ("NOUN", 3)],
+    ),
+    "shall": (
+        "Futur, surtout à la 1re personne : I shall go = j’irai; Proposition : shall we go? = on y va ?; "
+        "Obligation, dans un texte de loi ou un règlement : devoir",
+        [("VERB", 3)],
+    ),
+    "shalt": (
+        "Forme ancienne de shall avec thou : thou shalt not kill = tu ne tueras point",
+        [("VERB", 1)],
+    ),
+    "can": (
+        "Pouvoir, savoir, avoir la capacité de; Pouvoir, avoir le droit de; Pouvoir, avoir la possibilité de; "
+        "Mettre en boite de conserve; Boîte de conserve; Canette métal, souvent cylindrique; Bidon; Pot de chambre",
+        [("VERB", 4), ("NOUN", 4)],
+    ),
+    "may": (
+        "Pouvoir, avoir le droit de; Il se peut que, peut-être : it may rain = il se peut qu’il pleuve; Souhait : "
+        "may you be happy = puisses-tu être heureux; Mois de mai; Nom de famille anglais; Nom féminin anglais, "
+        "diminutif de Mary et Margaret",
+        [("VERB", 3), ("PROPN", 3)],
+    ),
+    "will": (
+        "Futur : she will come = elle viendra; Vouloir, dans le sens d’un acte délibéré ou d’un souhait intense; "
+        "Léguer (par testament); Volonté; Testament; Prénom masculin",
+        [("VERB", 3), ("NOUN", 2), ("PROPN", 1)],
+    ),
+}
+
+
+class WordGlosses(unittest.TestCase):
+    """`WORD_GLOSSES` and `apply_word_glosses` (fix-lingua-en-fr-modal-glosses, design D2, D4)."""
+
+    # What the source glosses, as `native_tables` returns it: every modal, and words the table leaves.
+    SOURCE = {
+        **{lemma: "Glose de la source" for lemma in _EXPECTED_WORD_GLOSSES},
+        "house": "Maison",
+        "london": "Londres; Nom de famille",
+        "ought": "Devrait, indiquant le devoir",
+    }
+    SOURCE_RUNS = {
+        **{lemma: [("VERB", 1)] for lemma in _EXPECTED_WORD_GLOSSES},
+        "house": [("NOUN", 1)],
+        "london": [("PROPN", 2)],
+        "ought": [("VERB", 1)],
+    }
+
+    def applied(self):
+        return red.apply_word_glosses(self.SOURCE, self.SOURCE_RUNS)
+
+    def assert_entry(self, lemma):
+        glosses, runs = self.applied()
+        gloss, word_runs = _EXPECTED_WORD_GLOSSES[lemma]
+        self.assertEqual(glosses[lemma], gloss)
+        self.assertEqual(runs[lemma], word_runs)
+        self.assertEqual(len(gloss.split("; ")), sum(n for _, n in word_runs))
+
+    def test_would(self):
+        self.assert_entry("would")
+        glosses, runs = self.applied()
+        self.assertTrue(glosses["would"].startswith("Conditionnel : would come = viendrait"))
+        self.assertNotIn("attrayant", glosses["would"])
+        self.assertNotIn("INTJ", [pos for pos, _ in runs["would"]])
+
+    def test_could(self):
+        self.assert_entry("could")
+
+    def test_should(self):
+        self.assert_entry("should")
+
+    def test_might(self):
+        self.assert_entry("might")
+
+    def test_must(self):
+        self.assert_entry("must")
+        _, runs = self.applied()
+        self.assertEqual(runs["must"], [("VERB", 2), ("NOUN", 3)])
+
+    def test_shall(self):
+        self.assert_entry("shall")
+
+    def test_shalt(self):
+        self.assert_entry("shalt")
+
+    def test_can(self):
+        self.assert_entry("can")
+        glosses, _ = self.applied()
+        self.assertTrue(glosses["can"].startswith("Pouvoir"))
+
+    def test_may(self):
+        self.assert_entry("may")
+
+    def test_will(self):
+        self.assert_entry("will")
+
+    def test_the_table_is_closed(self):
+        self.assertEqual(
+            set(red.WORD_GLOSSES),
+            {"would", "could", "should", "might", "must", "shall", "shalt", "can", "may", "will"},
+        )
+        self.assertEqual(set(red.WORD_GLOSSES), set(_EXPECTED_WORD_GLOSSES))
+
+    def test_every_other_key_is_unchanged(self):
+        glosses, runs = self.applied()
+        self.assertEqual(set(glosses), set(self.SOURCE))
+        self.assertEqual(set(runs), set(self.SOURCE_RUNS))
+        for lemma in set(self.SOURCE) - set(red.WORD_GLOSSES):
+            self.assertIs(glosses[lemma], self.SOURCE[lemma])
+            self.assertIs(runs[lemma], self.SOURCE_RUNS[lemma])
+
+    def test_the_inputs_are_not_mutated(self):
+        source, source_runs = dict(self.SOURCE), dict(self.SOURCE_RUNS)
+        red.apply_word_glosses(source, source_runs)
+        self.assertEqual(source, self.SOURCE)
+        self.assertEqual(source_runs, self.SOURCE_RUNS)
+
+    def test_every_entry_keeps_the_lemma_a_dictionary_word(self):
+        glosses, runs = self.applied()
+        words = red.french.dictionary_words(glosses, runs)
+        for lemma in red.WORD_GLOSSES:
+            self.assertIn(lemma, words)
+
+    def refuse(self, table, pattern="'would'"):
+        with self.assertRaisesRegex(ValueError, pattern):
+            red.apply_word_glosses(self.SOURCE, self.SOURCE_RUNS, table)
+
+    def test_refuses_a_lemma_the_source_does_not_gloss(self):
+        self.refuse({"wouldst": [("VERB", "Conditionnel")]}, "'wouldst'.*not glossed")
+
+    def test_refuses_a_sense_over_300_characters(self):
+        self.refuse({"would": [("VERB", "a" * 301)]}, "'would'.*300")
+        red.apply_word_glosses(self.SOURCE, self.SOURCE_RUNS, {"would": [("VERB", "a" * 300)]})
+
+    def test_refuses_a_gloss_over_800_characters(self):
+        self.refuse({"would": [("VERB", "a" * 300), ("VERB", "b" * 300), ("VERB", "c" * 300)]}, "'would'.*800")
+
+    def test_refuses_more_than_eight_senses(self):
+        self.refuse({"would": [("VERB", f"Sens {i}") for i in range(9)]}, "'would'.*9 senses")
+
+    def test_refuses_no_sense(self):
+        self.refuse({"would": []}, "'would'.*0 senses")
+
+    def test_refuses_a_part_of_speech_split_across_two_runs(self):
+        self.refuse({"would": [("VERB", "Un"), ("NOUN", "Deux"), ("VERB", "Trois")]}, "'would'.*two runs")
+
+    def test_refuses_a_separator_inside_a_sense(self):
+        self.refuse({"would": [("VERB", "Un; deux")]}, "'would'.*separator")
+        self.refuse({"would": [("VERB", "Un\tdeux")]}, "'would'.*separator")
+
+    def test_refuses_an_unknown_part_of_speech(self):
+        self.refuse({"would": [("MODAL", "Conditionnel")]}, "'would'.*unknown part of speech")
+
+    def test_refuses_proper_noun_senses_alone(self):
+        self.refuse({"may": [("PROPN", "Mois de mai")]}, "'may'.*proper-noun")
+
+    def test_refuses_an_empty_or_padded_sense(self):
+        self.refuse({"would": [("VERB", " ")]}, "'would'.*empty")
+        self.refuse({"would": [("VERB", "Conditionnel ")]}, "'would'.*padded")
