@@ -48,7 +48,8 @@
   - Published 2026-09-26 by `site-deploy` (fr + en, « Traduction étendue » / « Extended translation »).
 - [x] 7.2 Update the Chrome Web Store and AMO listings (and `STORE-LISTING.md`)
   - `STORE-LISTING.md` updated (description fr + en, `offscreen` justification, remote code, data usage); the two dashboards are pasted by hand.
-- [ ] 7.3 Update from the published version on Chromium and Firefox: extension stays enabled with the `offscreen` permission added; setting off; no request made
+- [x] 7.3 Update from the published version on Chromium and Firefox: extension stays enabled with the `offscreen` permission added; setting off; no request made
+  - Verified 2026-10-14 from the release history (product owner): `offscreen` entered the Chromium manifest with 1.2.0, and eight releases since (1.2.1 to 1.9.0) updated in place on the Chrome Web Store and AMO with the extension still enabled and extended translation off until ticked.
 - [x] 7.4 Manual pass Chrome + Firefox desktop: tick, download, cancel, retry after a cut network, translate a phrase and an unknown single word, idle release after ten minutes, untick deletes the model, offline translation after download
   - Passed 2026-09-26: headless Chrome 153 + Firefox 156 against a throttled local host (cancel, network cut + retry, phrase and unknown word through the card, offline, 10-minute idle release, background-only download, untick), then the product owner on a real Chrome and a real Firefox against `models.cymbra.app`.
 - [x] 7.5 Manual pass Firefox for Android: no setting, no download, cards unchanged
