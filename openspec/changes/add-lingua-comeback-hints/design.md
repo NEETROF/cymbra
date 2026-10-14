@@ -218,7 +218,7 @@ count as of the last event:
   events, not at 14:00; the day's new words show at the first event after midnight.
 - *Too high*: cards the reader answered on another device (or in the app) still count until this
   browser applies them — at its next sync, which a surface opening, a page loading, the browser
-  starting or, on Chromium, a wake of the background after a quiet spell already triggers (D9).
+  starting or, on every browser, a wake of the background after a quiet spell already triggers (D9).
 
 That is the price of "no timer", and the events above are frequent while the browser is in use;
 opening the popup is itself one of them (it asks for a sync), and the review counts from the engine,
