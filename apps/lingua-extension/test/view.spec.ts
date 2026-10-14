@@ -701,6 +701,18 @@ describe("renderReview — keeping a translation, the link and the online button
     expect(button("Garder « se relâcher »")).toBeTruthy();
   });
 
+  it("lays the field out first, its label said, « Enregistrer » and « Annuler » after it", () => {
+    renderReview(root, reviewing(slacken), actions, { translation: SE_RELACHER, keep: vi.fn() });
+    button("Modifier").click();
+    const form = root.querySelector(".review-keep-field")!;
+    expect([...form.children].map((c) => c.className)).toEqual([
+      "review-keep-input",
+      "review-link review-keep-save",
+      "review-link review-keep-cancel",
+    ]);
+    expect(field().getAttribute("aria-label")).toBe("Traduction à garder");
+  });
+
   it("typing in the field never answers the card", () => {
     renderReview(root, reviewing(slacken), actions, { translation: SE_RELACHER, keep: vi.fn() });
     button("Modifier").click();

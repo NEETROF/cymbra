@@ -225,9 +225,14 @@
   margin-top: 4px;
 }
 
+/* The field takes the card's whole width on its own line — a candidate such as « facilitamment
+   appelé … vers » reads whole — and « Enregistrer » / « Annuler » sit on the line below. */
 .review-keep-input {
-  flex: 1 1 calc(160px * var(--cymbra-lingua-ui-scale, 1));
+  flex: 1 0 100%;
+  box-sizing: border-box;
+  width: 100%;
   min-width: 0;
+  margin-bottom: 2px;
   padding: 4px 6px;
   border: 1px solid var(--cymbra-lingua-border-2);
   border-radius: 6px;
