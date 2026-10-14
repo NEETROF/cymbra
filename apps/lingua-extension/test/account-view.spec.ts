@@ -336,3 +336,45 @@ describe("renderAccount — Comptes connectés (add-lingua-connected-accounts)",
     expect(labels()).not.toContain("Réessayer");
   });
 });
+
+describe("renderAccount in the app scope (add-lingua-app-email-signin D3, D4, D5)", () => {
+  it("sign-in has no provider buttons and no sign-up link, and keeps the autofill hints", () => {
+    render({ scope: "app", providers: { google: true, apple: true }, email: "me@example.com" });
+    expect(root.querySelector("[data-provider]")).toBeNull();
+    expect(root.textContent).not.toContain("Créer un compte");
+    expect(root.textContent).not.toContain("ou avec ton email");
+    expect(input("email").type).toBe("email");
+    expect(input("email").autocomplete).toBe("username");
+    expect(input("password").autocomplete).toBe("current-password");
+    input("password").value = "pw";
+    submit();
+    expect(actions.signInEmail).toHaveBeenCalledWith("me@example.com", "pw");
+    button("Mot de passe oublié ?").click();
+    expect(actions.go).toHaveBeenCalledWith("forgot");
+  });
+
+  it("the code step's fields hint a one-time code, and « Utiliser un autre email » goes back to sign-in", () => {
+    render({ scope: "app", view: "verify", email: "me@example.com" });
+    expect(input("code").autocomplete).toBe("one-time-code");
+    expect(input("code").inputMode).toBe("numeric");
+    button("Utiliser un autre email").click();
+    expect(actions.go).toHaveBeenCalledWith("signin");
+    expect(actions.go).not.toHaveBeenCalledWith("signup");
+    button("Renvoyer le code").click();
+    expect(actions.resend).toHaveBeenCalledOnce();
+  });
+
+  it("the reset's code hints a one-time code and its password a new password", () => {
+    render({ scope: "app", view: "reset", email: "me@example.com" });
+    expect(input("code").autocomplete).toBe("one-time-code");
+    expect(input("password").autocomplete).toBe("new-password");
+    render({ scope: "app", view: "forgot" });
+    expect(input("email").autocomplete).toBe("username");
+  });
+
+  it("the extension's page is unchanged: its code step still offers sign-up for another email", () => {
+    render({ view: "verify", email: "me@example.com" });
+    button("Utiliser un autre email").click();
+    expect(actions.go).toHaveBeenCalledWith("signup");
+  });
+});

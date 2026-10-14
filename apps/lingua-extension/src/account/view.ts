@@ -122,6 +122,8 @@ function links(items: [string, () => void][]): HTMLElement {
 
 function providerButtons(s: AccountViewState, a: AccountActions, { c }: Words): HTMLElement[] {
   const out: HTMLElement[] = [];
+  // The app's email panel: the app's sheet ran that choice (add-lingua-app-email-signin D3).
+  if (s.scope === "app") return out;
   const add = (provider: Provider, label: string): void => {
     const b = h("button", "account-provider", label);
     b.type = "button";
@@ -302,6 +304,7 @@ export function renderAccount(
 ): void {
   const w: Words = { language, c: accountCopy(language) };
   const { c } = w;
+  const inApp = s.scope === "app";
   const card = h("section", "account-card");
   const title = (text: string): void => {
     card.append(h("h2", "account-title", text), ...messages(s));
@@ -313,12 +316,12 @@ export function renderAccount(
       card.append(...providerButtons(s, a, w));
       const email = field("email", c.email, "email", "username", s.email);
       const password = field("password", c.password, "password", "current-password");
+      const signInLinks: [string, () => void][] = [[c.forgotPassword, () => a.go("forgot")]];
+      // No account creation in the app (add-lingua-app-email-signin D4).
+      if (!inApp) signInLinks.push([c.createAccount, () => a.go("signup")]);
       card.append(
         form([email, password], c.signIn, s.busy, () => a.signInEmail(email.input.value, password.input.value)),
-        links([
-          [c.forgotPassword, () => a.go("forgot")],
-          [c.createAccount, () => a.go("signup")],
-        ]),
+        links(signInLinks),
       );
       break;
     }
@@ -350,7 +353,8 @@ export function renderAccount(
         form([code], c.verify, s.busy, () => a.verify(code.input.value)),
         links([
           [c.resendCode, () => a.resend()],
-          [c.useAnotherEmail, () => a.go("signup")],
+          // The app signs in only: another address is typed at sign-in (D3).
+          [c.useAnotherEmail, () => a.go(inApp ? "signin" : "signup")],
         ]),
       );
       break;

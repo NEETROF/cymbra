@@ -163,6 +163,10 @@ describe("the app opens on the extension's state (add-lingua-apple-review)", () 
     expect((await open({ "cymbra-lingua-interface-language": "es" }, "en"))?.interfaceLanguage).toBe("es");
     expect((await open({}, "en"))?.interfaceLanguage).toBe("en");
     expect((await open({}, "xx"))?.interfaceLanguage).toBe("fr");
+    // The language the extension names, apart (add-lingua-app-email-signin D3): the email requests' locale.
+    expect((await open({ "cymbra-lingua-interface-language": "es" }, "en"))?.sharedLanguage).toBe("es");
+    expect((await open({ "cymbra-lingua-interface-language": "xx" }, "en"))?.sharedLanguage).toBeNull();
+    expect((await open({}, "en"))?.sharedLanguage).toBeNull();
     const session = await open({}, "en");
     expect(await session?.prefs.get("cymbra-lingua-interface-language")).toEqual({
       "cymbra-lingua-interface-language": "en",

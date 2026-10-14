@@ -102,4 +102,26 @@ public enum AppSessionMessage {
         guard let provider, case let .idToken(token)? = outcome, !token.isEmpty else { return [:] }
         return ["provider": provider.rawValue, "idToken": token]
     }
+
+    /// What `auth.signIn` answers for the sheet's choice (add-lingua-app-email-signin D2): a provider's
+    /// id_token as `signInReply(_:_:)` words it; `{method: "email"}` when the reader chose to sign in
+    /// with an email — the page then shows its own email sign-in, and no password ever crosses the
+    /// bridge; `{}` when the sheet was closed.
+    public static func signInReply(_ choice: AppSignInChoice?) -> [String: Any] {
+        switch choice {
+        case let .provider(provider, outcome)?:
+            return signInReply(provider, outcome)
+        case .email?:
+            return ["method": "email"]
+        case nil:
+            return [:]
+        }
+    }
+}
+
+/// What the reader chose in the app's own sheet (add-lingua-app-email-signin D2): a provider and what
+/// its native sheet answered, or the email sign-in the page runs.
+public enum AppSignInChoice: Equatable, Sendable {
+    case provider(SignInProvider, ProviderOutcome)
+    case email
 }

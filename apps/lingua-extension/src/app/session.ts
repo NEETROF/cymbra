@@ -59,6 +59,12 @@ export interface AppSession {
   /** When the extension saved the state shown (epoch millis; 0 when it did not say). */
   savedAt: number;
   interfaceLanguage: InterfaceLanguage;
+  /**
+   * The interface language the reader chose in the extension, as the shared state names it; null when
+   * it names none (the page then follows the app's language). The locale of the email sign-in's
+   * requests (add-lingua-app-email-signin D3).
+   */
+  sharedLanguage: InterfaceLanguage | null;
   /** The extension's last snapshot of the account's online-translation access (add-lingua-review-translation-fallback D9). */
   onlineAccess: boolean;
 }
@@ -79,10 +85,16 @@ function readLocal(local: AppSessionDeps["local"]): Record<string, unknown> {
   }
 }
 
+/** The interface language the shared state names, or null when it names none. */
+export function sharedInterfaceLanguage(state: SharedState): InterfaceLanguage | null {
+  const shared = state.prefs[INTERFACE_LANGUAGE_KEY];
+  return isInterfaceLanguage(shared) ? shared : null;
+}
+
 /** The extension's interface language as the shared state names it, else the app's, else French. */
 export function sessionLanguage(state: SharedState, fallback: string | undefined): InterfaceLanguage {
-  const shared = state.prefs[INTERFACE_LANGUAGE_KEY];
-  if (isInterfaceLanguage(shared)) return shared;
+  const shared = sharedInterfaceLanguage(state);
+  if (shared) return shared;
   return isInterfaceLanguage(fallback) ? fallback : DEFAULT_INTERFACE_LANGUAGE;
 }
 
@@ -152,6 +164,7 @@ export async function openAppSession(deps: AppSessionDeps): Promise<AppSession |
     prefs,
     savedAt: state.savedAt,
     interfaceLanguage,
+    sharedLanguage: sharedInterfaceLanguage(state),
     onlineAccess: state.onlineAccess,
   };
 }
