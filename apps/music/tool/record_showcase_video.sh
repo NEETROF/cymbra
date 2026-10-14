@@ -17,9 +17,12 @@
 #
 #   tool/record_showcase_video.sh fr
 #
-# 1. `flutter drive` runs integration_test/showcase_test.dart on the iPad
-#    simulator: the real app plays a bundled piece in Wait Mode, drawn frame by
-#    frame on a virtual clock, every sound command logged on that same clock.
+# 1. `flutter drive` runs integration_test/showcase_test.dart — on macOS by
+#    default, laid out as the iPad 13" (the frames come from the app's own layer
+#    tree, so no simulator is needed; `CAPTURE_DEVICE="iPad Pro 13-inch (M4)"`
+#    runs it there instead): the real app plays a bundled piece in Wait Mode,
+#    drawn frame by frame on a virtual clock, every sound command logged on that
+#    same clock.
 # 2. `showcase-render` (apps/music/rust) replays the log through the app's own
 #    mixer and SoundFont into a WAV — the app's sound, to the sample.
 # 3. ffmpeg assembles H.264 + AAC (`+faststart`) under the site's 4 MB budget,
@@ -41,7 +44,7 @@ for tool in ffmpeg ffprobe cargo python3; do
   command -v "$tool" >/dev/null || { echo "missing: $tool" >&2; exit 1; }
 done
 
-device="${CAPTURE_DEVICE:-iPad Pro 13-inch (M4)}"
+device="${CAPTURE_DEVICE:-macos}"
 budget_bytes=$((4 * 1024 * 1024))
 max_seconds=30
 poster_second=6

@@ -36,7 +36,7 @@ Future<void> main() => integrationDriver(
     final source = Directory(showcase['framesDir'] as String);
     await for (final entry in source.list()) {
       if (entry is File) {
-        await entry.copy('${frames.path}/${entry.uri.pathSegments.last}');
+        await _copy(entry, '${frames.path}/${entry.uri.pathSegments.last}');
       }
     }
     showcase['framesDir'] = frames.absolute.path;
@@ -45,3 +45,16 @@ Future<void> main() => integrationDriver(
     ).writeAsString(jsonEncode(showcase));
   },
 );
+
+/// Copies [file] to [to], retrying when a signal interrupts the copy
+/// (`EINTR`, errno 4 — seen on macOS while `flutter drive` winds the app down).
+Future<void> _copy(File file, String to) async {
+  for (var attempt = 1; ; attempt++) {
+    try {
+      await file.copy(to);
+      return;
+    } on FileSystemException catch (e) {
+      if (e.osError?.errorCode != 4 || attempt == 5) rethrow;
+    }
+  }
+}

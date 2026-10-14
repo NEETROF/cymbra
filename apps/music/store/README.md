@@ -83,9 +83,11 @@ locale, never filmed by hand:
 cd apps/music && tool/record_showcase_video.sh fr
 ```
 
-Equivalently, from the repo root: `melos run showcase-video -- fr`. Needs the iPad
-simulator (`iPad Pro 13-inch (M4)`, or `CAPTURE_DEVICE=…`), `ffmpeg`/`ffprobe` and
-`cargo`.
+Equivalently, from the repo root: `melos run showcase-video -- fr`. Runs on macOS by
+default — the frames are drawn by the app itself on the iPad 13" layout, so no
+simulator is needed (`CAPTURE_DEVICE="iPad Pro 13-inch (M4)"` runs it on the iPad
+simulator instead, for the same sound and almost the same picture, plus the iPad's
+status-bar inset). Needs `ffmpeg`/`ffprobe` and `cargo`.
 
 How it is made, and why it never drifts:
 
