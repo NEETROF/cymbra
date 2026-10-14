@@ -92,6 +92,8 @@ export interface AppSession {
    * request (add-lingua-comeback-hints D11). Nothing is awaited: the app answers nothing.
    */
   sessionFinished: () => void;
+  /** A session started: told to the app, which then drops a request the last end scheduled (D11). */
+  sessionStarted: () => void;
 }
 
 function pick(items: Record<string, unknown>, keys: string | string[] | null): Record<string, unknown> {
@@ -214,5 +216,6 @@ export async function openAppSession(deps: AppSessionDeps): Promise<AppSession |
     },
     discardPending,
     sessionFinished: () => void deps.send({ type: "review.sessionFinished" }).catch(() => {}),
+    sessionStarted: () => void deps.send({ type: "review.sessionStarted" }).catch(() => {}),
   };
 }

@@ -138,6 +138,11 @@ export interface ReviewPageOptions {
    * StoreKit's own request (add-lingua-comeback-hints D11).
    */
   onSessionFinished?: () => void;
+  /**
+   * A session started — « Réviser », « Encore 10 », « S'entraîner quand même »: the Cymbra Lingua app
+   * drops a StoreKit request the last end scheduled (add-lingua-comeback-hints D11).
+   */
+  onSessionStarted?: () => void;
 }
 
 export interface ReviewPage {
@@ -252,6 +257,12 @@ export function mountReview(
     });
     void noteSeen();
   };
+
+  /** A session starts: the app is told (D11), and the end it leaves is over. */
+  function sessionStarts(): void {
+    opts.onSessionStarted?.();
+    newSession();
+  }
 
   /** A new session, or none: the next complete end is counted, and no request stays on screen. */
   function newSession(): void {
@@ -537,13 +548,13 @@ export function mountReview(
     // A session starts with the focus in the card, so the keys answer it at once.
     start: () => {
       warm();
-      newSession();
+      sessionStarts();
       void run(() => session.start(only()), false).then(() => review.focus({ preventScroll: true }));
     },
     // Nothing due: practise the cards already reviewed, no schedule moved (add-lingua-review-practice).
     practice: () => {
       warm();
-      newSession();
+      sessionStarts();
       void run(() => session.start(only(), true), false).then(() => review.focus({ preventScroll: true }));
     },
     reveal: () => void run(() => session.reveal(), false, false),

@@ -18,6 +18,8 @@ export type AppMessage =
    * ask StoreKit for a review — never a prompt of its own (add-lingua-comeback-hints D11).
    */
   | { type: "review.sessionFinished" }
+  /** A review session started: a StoreKit request the last end scheduled is not made (D11). */
+  | { type: "review.sessionStarted" }
   /**
    * The app's own session (add-lingua-review-translation-fallback D8): open the app's Apple / Google
    * sheet and answer `{provider, idToken}`, or `{}` when the reader closed it or it failed.

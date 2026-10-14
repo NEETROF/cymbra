@@ -214,24 +214,37 @@ class ViewController: PlatformViewController, WKNavigationDelegate, WKScriptMess
             return
         }
         replyHandler(
-            AppBridgeMessage.reply(to: message.body, store: store) { [weak self] in self?.sessionFinished() },
+            AppBridgeMessage.reply(
+                to: message.body,
+                store: store,
+                onSessionFinished: { [weak self] in self?.sessionFinished() },
+                onSessionStarted: { [weak self] in self?.reviewRequests.sessionStarted() }
+            ),
             nil
         )
     }
 
     /// « Séance terminée » in the review (add-lingua-comeback-hints D11): counted, and from the fifth
     /// session, once per version of the app, StoreKit is asked two seconds after the end shows, as
-    /// Apple's sample does. The system decides whether its prompt appears; the app draws nothing.
+    /// Apple's sample does — unless the reader started another session meanwhile. The system decides
+    /// whether its prompt appears; the app draws nothing.
     private func sessionFinished() {
-        guard reviewRequests.sessionFinished() else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in self?.requestReview() }
+        guard let ticket = reviewRequests.sessionFinished() else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in self?.requestReview(ticket) }
     }
 
-    private func requestReview() {
+    /// The request, made only while still due and with the app's window on screen: then, and only
+    /// then, this version of the app counts as having asked. A request with no window to show in is
+    /// made at the next finished session instead.
+    private func requestReview(_ ticket: Int) {
+        guard reviewRequests.stillDue(ticket) else { return }
 #if os(iOS)
-        guard let scene = view.window?.windowScene else { return }
+        guard let scene = view.window?.windowScene, scene.activationState == .foregroundActive else { return }
+        reviewRequests.asked()
         AppStore.requestReview(in: scene)
 #elseif os(macOS)
+        guard view.window?.isVisible == true else { return }
+        reviewRequests.asked()
         if #available(macOS 13.0, *) {
             AppStore.requestReview(in: self)
         } else {

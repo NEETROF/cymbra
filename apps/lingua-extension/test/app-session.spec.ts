@@ -73,6 +73,16 @@ describe("the app opens on the extension's state (add-lingua-apple-review)", () 
     expect(() => session!.sessionFinished()).not.toThrow();
   });
 
+  it("tells the app each session's start, which drops a StoreKit request still waiting (D11)", async () => {
+    const { send } = bridge(shared());
+    const session = await openAppSession({ send, port: () => fakePort().port, now: () => 5_500 });
+    send.mockClear();
+    session!.sessionStarted();
+    expect(send.mock.calls).toEqual([[{ type: "review.sessionStarted" }]]);
+    send.mockRejectedValueOnce(new Error("no handler"));
+    expect(() => session!.sessionStarted()).not.toThrow();
+  });
+
   it("restores the shared backup, in an engine built for it", async () => {
     const { port, calls } = fakePort();
     const built: string[] = [];

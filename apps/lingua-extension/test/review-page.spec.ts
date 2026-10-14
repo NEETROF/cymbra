@@ -116,6 +116,7 @@ interface Host {
   onScreen?: (element: HTMLElement) => boolean;
   openPage?: (url: string) => void;
   onSessionFinished?: () => void;
+  onSessionStarted?: () => void;
 }
 
 function mount(port: LinguaPort, area: Area = fakeArea(), host: Host = {}) {
@@ -137,6 +138,7 @@ function mount(port: LinguaPort, area: Area = fakeArea(), host: Host = {}) {
     onScreen: host.onScreen,
     openPage: host.openPage ?? (() => {}),
     onSessionFinished: host.onSessionFinished,
+    onSessionStarted: host.onSessionStarted,
   });
   return { page, container, area, prefs };
 }
@@ -1593,5 +1595,38 @@ describe("Révision — the rating request, seen and kept (review findings)", ()
     expect(m.fake.calls.grades.every((g) => g === "again")).toBe(true);
     expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, shown: 1 });
     expect(request(m.container)).not.toBeNull();
+  });
+});
+
+describe("Révision — the app told of each session's start (add-lingua-comeback-hints D11)", () => {
+  it("« Réviser », « Encore 10 » and « S'entraîner quand même » each say a session started", async () => {
+    const started = vi.fn();
+    const cards: FakeCard[] = Array.from({ length: 11 }, (_, i) => ({
+      headword: "s" + i,
+      surface: "s" + i,
+      sentence: "",
+      gloss: null,
+    }));
+    const m = mount(makeFakePort(cards).port, fakeArea(), { askRating: false, onSessionStarted: started });
+    await m.page.refresh();
+    const answerAll = async () => {
+      while (m.container.querySelector(".review-reveal")) {
+        button(m.container, "Afficher la réponse").click();
+        await settle();
+        button(m.container, "Su").click();
+        await settle();
+      }
+    };
+    button(m.container, "Réviser").click();
+    await settle();
+    expect(started).toHaveBeenCalledTimes(1);
+    await answerAll();
+    button(m.container, "Encore 10").click();
+    await settle();
+    expect(started).toHaveBeenCalledTimes(2);
+    await answerAll();
+    button(m.container, "S'entraîner quand même").click();
+    await settle();
+    expect(started).toHaveBeenCalledTimes(3);
   });
 });

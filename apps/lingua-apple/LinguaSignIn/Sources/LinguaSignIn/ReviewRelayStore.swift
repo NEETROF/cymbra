@@ -87,16 +87,22 @@ public enum AppBridgeMessage {
     /// - `review.sessionFinished` → `{}`, after `onSessionFinished` is told: a review session ended
     ///   saying it was complete, which the app counts for StoreKit's own review request
     ///   (add-lingua-comeback-hints D11, `ReviewRequestPolicy`);
+    /// - `review.sessionStarted` → `{}`, after `onSessionStarted` is told: a session started, so a
+    ///   request the last end scheduled is not made;
     /// - anything else → `{error: "unknownMessage"}`.
     public static func reply(
         to message: Any?,
         store: ReviewRelayStore?,
-        onSessionFinished: (() -> Void)? = nil
+        onSessionFinished: (() -> Void)? = nil,
+        onSessionStarted: (() -> Void)? = nil
     ) -> [String: Any] {
         let body = message as? [String: Any]
         switch body?["type"] as? String {
         case "review.sessionFinished":
             onSessionFinished?()
+            return [:]
+        case "review.sessionStarted":
+            onSessionStarted?()
             return [:]
         case "review.state":
             guard let state = store?.state() else { return [:] }
