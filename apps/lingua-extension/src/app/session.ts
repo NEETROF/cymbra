@@ -59,6 +59,8 @@ export interface AppSession {
   /** When the extension saved the state shown (epoch millis; 0 when it did not say). */
   savedAt: number;
   interfaceLanguage: InterfaceLanguage;
+  /** The extension's last snapshot of the account's online-translation access (add-lingua-review-translation-fallback D9). */
+  onlineAccess: boolean;
 }
 
 function pick(items: Record<string, unknown>, keys: string | string[] | null): Record<string, unknown> {
@@ -150,5 +152,6 @@ export async function openAppSession(deps: AppSessionDeps): Promise<AppSession |
     prefs,
     savedAt: state.savedAt,
     interfaceLanguage,
+    onlineAccess: state.onlineAccess,
   };
 }

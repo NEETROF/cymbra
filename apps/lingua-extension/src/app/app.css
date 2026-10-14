@@ -124,3 +124,33 @@ h1 {
     margin-top: auto;
   }
 }
+
+/* « Traduction étendue » and « Traduction en ligne » in the app (add-lingua-review-translation-fallback
+   D7, D8, D10): one quiet line each under the views, small text buttons, no transition. */
+.app-models,
+.app-account {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 12px;
+  margin: 16px 0 0;
+  color: var(--cymbra-lingua-muted);
+  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+.app-models[hidden],
+.app-account[hidden] {
+  display: none;
+}
+
+.app-link {
+  cursor: pointer;
+  padding: 6px 2px;
+  border: none;
+  background: none;
+  color: var(--cymbra-lingua-accent);
+  font-family: inherit;
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
