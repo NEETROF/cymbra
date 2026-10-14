@@ -169,6 +169,10 @@ describe("WasmAnalyzerPort language views", () => {
       reviewIgnore(...args: unknown[]): void {
         received.push(["reviewIgnore", args]);
       }
+      keepGloss(...args: unknown[]): boolean {
+        received.push(["keepGloss", args]);
+        return true;
+      }
       reviewSummary(): string {
         return '{"reviewed":3,"recovered":1,"holding":1,"known":0,"hidden":1}';
       }
@@ -192,6 +196,18 @@ describe("WasmAnalyzerPort language views", () => {
       ["gloss", ["city", "en"]],
       ["exportStatusOps", []],
       ["languages", []],
+    ]);
+  });
+
+  it("keeps a gloss on the view's language, the clock last (add-lingua-review-translation-fallback D5)", async () => {
+    const glue = recordingGlue();
+    const port = new WasmAnalyzerPort(glue.load, ["en-fr", "es-fr"]);
+
+    expect(await port.for("es").keepGloss("faro", "lumière", 1_770_000_000)).toBe(true);
+
+    expect(glue.received).toEqual([
+      ["addPack", []],
+      ["keepGloss", ["faro", "lumière", "es", 1_770_000_000]],
     ]);
   });
 

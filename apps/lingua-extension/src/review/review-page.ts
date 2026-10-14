@@ -23,9 +23,16 @@ import {
 } from "../state/storage.ts";
 import { watchBackup } from "../state/store.ts";
 import type { TranslatorSource } from "../translate/create-port.ts";
+import type { OnlineTranslationRequest, OnlineTranslationResult } from "../translate/online.ts";
 import { ReviewController } from "./session.ts";
-import { type ReviewTranslation, reviewTranslationRequest, translateBounded } from "./translation.ts";
-import { type ReviewActions, renderReview, reviewCopy } from "./view.ts";
+import {
+  cardTranslationRequest,
+  onlineReviewRequest,
+  type ReviewTranslation,
+  type ReviewTranslationRequest,
+  translateBounded,
+} from "./translation.ts";
+import { type ReviewActions, type ReviewOnlineOffer, renderReview, reviewCopy } from "./view.ts";
 
 // The Révision page — the language filter, the due count and the FSRS review card — built as
 // plain DOM into a container so ONE implementation serves both hosts: the native side panel and
@@ -33,6 +40,16 @@ import { type ReviewActions, renderReview, reviewCopy } from "./view.ts";
 // the host's port and persists via saveBackup, so every other surface reacts through
 // storage.onChanged. Backup, restore and the pack's sources live in Réglages › Données
 // (refine-lingua-review-session D9).
+
+/**
+ * « Traduction en ligne » as a review host has it (add-lingua-review-translation-fallback D2): whether
+ * it is offered right now — the setting ticked on this device and the account's access — and what
+ * sends a request. In the extension, the runtime-message client the selection card uses.
+ */
+export interface ReviewOnlineSource {
+  offered(): boolean;
+  translate(request: OnlineTranslationRequest): Promise<OnlineTranslationResult>;
+}
 
 export interface ReviewPageOptions {
   /** Epoch-seconds clock (Date.now()/1000 in production). */
@@ -52,6 +69,11 @@ export interface ReviewPageOptions {
    * where a model is ready (add-lingua-review-translation D4). Without one, the review is today's.
    */
   translator?: TranslatorSource;
+  /**
+   * « Traduction en ligne » in review (add-lingua-review-translation-fallback D2). Without one, no
+   * card offers it.
+   */
+  online?: ReviewOnlineSource;
   /**
    * Beside a book, how many words looked up in it are still to sort (add-lingua-chapter-recap D6);
    * none, or 0, away from one: no count is shown.
@@ -139,35 +161,118 @@ export function mountReview(
    * comes back included — is a new arrival, and an answer for an earlier one is dropped (D2).
    */
   let arrival = 0;
-  let translation: ReviewTranslation | undefined;
+  let assist: Assist = { mine: 0, request: null, asked: false, kept: false };
   const render = (view: ReturnType<ReviewController["view"]>): void => {
     spoken = view.card?.language ?? language ?? spoken;
     renderReview(review, view, actions, {
       showLanguage: languages.length > 1,
       interfaceLanguage,
       speaker,
-      translation: view.card ? translation : undefined,
+      ...(view.card ? assisted(view.card) : {}),
     });
   };
+
+  /** Whether `card` has a gloss — the reader's, the pack's or its own (add-lingua-review-translation-fallback D1). */
+  const glossed = (card: NonNullable<ReturnType<ReviewController["view"]>["card"]>): boolean => !!card.gloss;
+
+  /**
+   * What the revealed card's answer offers beside its gloss (add-lingua-review-translation-fallback
+   * D1–D3): the translation once asked — at once without a gloss, on the link with one —, the online
+   * button under its rule, the link while one of the two could answer, the keep action under a
+   * translation, until the reader kept one.
+   */
+  function assisted(card: NonNullable<ReturnType<ReviewController["view"]>["card"]>): {
+    translation?: ReviewTranslation;
+    online?: ReviewOnlineOffer;
+    askTranslation?: () => void;
+    keep?: (gloss: string) => void;
+  } {
+    const { request } = assist;
+    const asked = assist.asked || !glossed(card);
+    const offered = !!request && !!opts.online?.offered();
+    const engine = !!request && !!opts.translator?.(request.request.language);
+    return {
+      ...(asked && assist.translation ? { translation: assist.translation } : {}),
+      ...(asked && offered ? { online: onlineOffer() } : {}),
+      ...(!asked && (offered || engine) ? { askTranslation: () => ask() } : {}),
+      ...(assist.kept ? {} : { keep: (gloss: string) => keep(gloss) }),
+    };
+  }
+
+  /** The engine asked for the current card's translation; its answer repaints only a revealed card. */
+  function translate(mine: number, asked: ReviewTranslationRequest): void {
+    const translator = opts.translator?.(asked.request.language);
+    if (!translator) return;
+    assist.translation = { state: "pending" };
+    void translateBounded(translator, asked.request).then((answer) => {
+      // Its card was answered: shown nowhere. An online answer already shown stays.
+      if (mine !== arrival || (assist.translation?.state === "translated" && assist.translation.online)) return;
+      assist.translation = answer
+        ? { state: "translated", translation: answer, alone: asked.alone }
+        : { state: "none" };
+      const view = session.view();
+      if (view.card?.revealed) render(view);
+    });
+  }
 
   /**
    * A card came up, or none did: a card without a gloss has its translation asked at once, before
    * the reveal, so it is there when the reader looks (D2). Its answer repaints only a revealed
-   * card: before the reveal, nothing of it shows.
+   * card: before the reveal, nothing of it shows. A card with a gloss waits for the reader's tap.
    */
   function arrive(card: ReturnType<ReviewController["view"]>["card"]): void {
     const mine = ++arrival;
-    translation = undefined;
-    const asked = card ? reviewTranslationRequest(card) : null;
-    const translator = asked ? opts.translator?.(asked.request.language) : null;
-    if (!asked || !translator) return;
-    translation = { state: "pending" };
-    void translateBounded(translator, asked.request).then((answer) => {
-      if (mine !== arrival) return; // its card was answered: shown nowhere
-      translation = answer ? { state: "translated", translation: answer, alone: asked.alone } : { state: "none" };
-      const view = session.view();
-      if (view.card?.revealed) render(view);
-    });
+    const request = card ? cardTranslationRequest(card) : null;
+    assist = { mine, request, asked: false, kept: false };
+    if (card && request && !glossed(card)) translate(mine, request);
+  }
+
+  /** « Traduire la phrase »: the engine asked where a model is ready, the online button shown (D1). */
+  function ask(): void {
+    if (assist.asked || !assist.request) return;
+    assist.asked = true;
+    translate(assist.mine, assist.request);
+    render(session.view());
+  }
+
+  /** The online button's state for the current card: one press per card per review (D2). */
+  function onlineOffer(): ReviewOnlineOffer {
+    const { online } = assist;
+    return { state: online?.state ?? "offered", ...(online?.resetsAt ? { resetsAt: online.resetsAt } : {}), press };
+  }
+
+  function press(): void {
+    const { mine, request } = assist;
+    if (assist.online || !request || !opts.online) return;
+    assist.online = { state: "asking" };
+    render(session.view());
+    const send = opts.online.translate;
+    void new Promise<OnlineTranslationResult>((resolve) => resolve(send(onlineReviewRequest(request))))
+      .catch((): OnlineTranslationResult => ({ kind: "unavailable" }))
+      .then((result) => {
+        if (mine !== arrival) return; // its card was answered: shown nowhere
+        if (result.kind === "translated") {
+          assist.translation = {
+            state: "translated",
+            translation: result.translation,
+            alone: request.alone,
+            online: true,
+          };
+          assist.online = { state: "answered" };
+        } else {
+          assist.online =
+            result.kind === "limit" ? { state: "limit", resetsAt: result.resetsAt } : { state: "unavailable" };
+        }
+        render(session.view());
+      });
+  }
+
+  /** Keep `gloss` as the card's gloss (D3): written, the backup saved, the answer showing it, the action gone. */
+  function keep(gloss: string): void {
+    if (assist.kept) return;
+    assist.kept = true;
+    assist.asked = true; // the translation stays under the gloss it gave
+    void run(() => session.keep(gloss), true, false);
   }
 
   /** A session starts: the route of its language warmed, so its first card does not wait on a cold engine. */
@@ -335,6 +440,21 @@ export function mountReview(
       alive.abort();
     },
   };
+}
+
+/** What the current card's answer holds beyond its gloss, for one arrival. */
+interface Assist {
+  /** The arrival it belongs to. */
+  mine: number;
+  /** What the card's translation asks — engine and online alike —, or null when it asks nothing. */
+  request: ReviewTranslationRequest | null;
+  /** The reader tapped « Traduire la phrase » (a card without a gloss needs no tap). */
+  asked: boolean;
+  /** The reader kept a translation: the action is gone. */
+  kept: boolean;
+  translation?: ReviewTranslation;
+  /** The online request, once pressed: never sent twice for this arrival. */
+  online?: { state: "asking" | "answered" | "unavailable" | "limit"; resetsAt?: number };
 }
 
 function bold(text: string): HTMLElement {

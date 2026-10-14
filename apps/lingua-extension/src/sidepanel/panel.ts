@@ -3,7 +3,7 @@ import { sidepanel as enSidepanel } from "../i18n/en/sidepanel.ts";
 import { sidepanel as esSidepanel } from "../i18n/es/sidepanel.ts";
 import { sidepanel as frSidepanel } from "../i18n/fr/sidepanel.ts";
 import { fillPageInLanguage, type InterfaceLanguage } from "../i18n/index.ts";
-import { mountReview, type ReviewPage } from "../review/review-page.ts";
+import { mountReview, type ReviewOnlineSource, type ReviewPage } from "../review/review-page.ts";
 import type { AsyncStorageArea } from "../state/storage.ts";
 import type { TranslatorSource } from "../translate/create-port.ts";
 import { mountStats } from "../stats/view.ts";
@@ -34,6 +34,8 @@ export interface PanelDeps {
   pageLanguage?: () => Promise<string | null>;
   /** The translator Révision answers a card without a gloss with (add-lingua-review-translation D4). */
   translator?: TranslatorSource;
+  /** « Traduction en ligne » in Révision: the selection card's offer and client (add-lingua-review-translation-fallback D2). */
+  online?: ReviewOnlineSource;
   /** The words of the book beside still to sort, and opening their list (add-lingua-chapter-recap D6). */
   toSort?: () => Promise<number>;
   openToSort?: () => void;
@@ -73,6 +75,7 @@ export function start(document: Document, deps: PanelDeps): PanelViews {
           pageLanguage: deps.pageLanguage,
           interfaceLanguage: language,
           translator: deps.translator,
+          online: deps.online,
           toSort: deps.toSort,
           openToSort: deps.openToSort,
         }),

@@ -33,6 +33,25 @@ export const review = {
   translationLabel: "Dans votre phrase — traduction automatique",
   translationAloneLabel: "Traduction automatique",
   translating: "Traduction en cours…",
+  /**
+   * A card with a gloss: the link asking the translation of its sentence on demand, and
+   * « Traduction en ligne » in review (add-lingua-review-translation-fallback D1, D2).
+   */
+  translateSentence: "Traduire la phrase",
+  onlineTranslate: "Traduction en ligne",
+  onlineTranslating: "Traduction en ligne…",
+  onlineTranslationLabel: "Dans votre phrase — traduction automatique en ligne",
+  onlineTranslationAloneLabel: "Traduction automatique en ligne",
+  onlineUnavailable: "Traduction en ligne indisponible pour le moment.",
+  /** `time` is the reset time, already formatted in the interface language. */
+  onlineLimit: (time: string) => `Limite quotidienne atteinte — de nouveau disponible à ${time}.`,
+  /** Keeping a machine translation as the card's gloss (D3): what it keeps, named before it is kept. */
+  keep: (candidate: string) => `Garder « ${candidate} »`,
+  keepOther: "Garder une traduction…",
+  keepEdit: "Modifier",
+  keepFieldLabel: "Traduction à garder",
+  keepSave: "Enregistrer",
+  keepCancel: "Annuler",
   /** The end of a session: its title, then one line per count, its figure in bold. */
   sessionDone: "Séance terminée",
   reviewed: pluralForms({

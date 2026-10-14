@@ -190,6 +190,53 @@
   text-underline-offset: 2px;
 }
 
+/* « Traduire la phrase », « Traduction en ligne » and keeping a translation in the answer
+   (add-lingua-review-translation-fallback D10): small text controls, sized from the UI scale,
+   coloured from the tokens, never a transition — every repaint follows a tap on e-ink. */
+.review-answer .review-link {
+  color: var(--cymbra-lingua-muted);
+}
+
+.review-online,
+.review-keep {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 12px;
+  margin-top: 4px;
+}
+
+.review-link:disabled {
+  cursor: default;
+  text-decoration: none;
+  color: var(--cymbra-lingua-faint);
+}
+
+.review-online-note {
+  color: var(--cymbra-lingua-muted);
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+.review-keep-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 8px;
+  margin-top: 4px;
+}
+
+.review-keep-input {
+  flex: 1 1 calc(160px * var(--cymbra-lingua-ui-scale, 1));
+  min-width: 0;
+  padding: 4px 6px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  border-radius: 6px;
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-text);
+  font-family: inherit;
+  font-size: calc(14px * var(--cymbra-lingua-ui-scale, 1));
+}
+
 .review-btn {
   cursor: pointer;
   width: 100%;
