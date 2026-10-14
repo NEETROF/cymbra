@@ -126,10 +126,13 @@ Under a translation (engine or online) the review shows one action. Its candidat
   (« remettait … à plus tard »);
 - for an expression translated alone, the whole translation.
 
-When the candidate is non-empty and at most 80 UTF-16 code units, the action names it (French UI
-copy: « Garder « se relâcher » ») and one tap keeps it: the reader sees exactly what is kept, so a
-mark the engine placed badly is visible before it is kept. Otherwise — no mark (the engine dropped
-the tag, or a pair whose marks are not measured), marks out of range, a candidate too long — the
+When the candidate is non-empty, at most 80 UTF-16 code units and drawn from a single mark (or is
+an expression translated alone), the action names it (French UI copy: « Garder « se relâcher » »)
+and one tap keeps it: the reader sees exactly what is kept, so a mark the engine placed badly is
+visible before it is kept. Otherwise — no mark (the engine dropped the tag, or a pair whose marks
+are not measured), several marks (a split translation, or a spurious second mark: on the iPhone
+spike Bergamot answered « Ce phénomène est <b>facilitamment appelé</b> une ruée <b>vers</b> le
+sucre » for « colloquially referred to as »), marks out of range, a candidate too long — the
 action reads « Garder une traduction… » and opens a one-line field, prefilled with the candidate
 when there is one, empty otherwise, with « Enregistrer » disabled while the trimmed field is empty;
 the same 80-unit bound applies. The field is also reachable from the one-tap action's neighbour
