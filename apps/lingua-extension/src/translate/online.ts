@@ -117,6 +117,19 @@ export type OnlineSend = (message: OnlineTranslateMessage) => Promise<unknown>;
 const runtimeSend: OnlineSend = (message) => chrome.runtime.sendMessage(message);
 
 /**
+ * The message `request` becomes, or null for one that must not leave the page: the footnote calls
+ * removed first (the selection moves with its text), then a sentence that is empty, over
+ * MAX_SENTENCE_CHARS, or a selection outside it, refused. The Cymbra Lingua app answers the message
+ * itself (`answerOnlineTranslation`, add-lingua-review-translation-fallback D8).
+ */
+export function onlineMessage(request: OnlineTranslationRequest): OnlineTranslateMessage | null {
+  const { sentence, selection } = withoutFootnotes(request.sentence, request.selection);
+  if (!sentence.trim() || characters(sentence) > MAX_SENTENCE_CHARS) return null;
+  if (!spanWithin(selection, sentence.length)) return null;
+  return { type: ONLINE_TRANSLATE_TYPE, sentence, selection, source: request.source };
+}
+
+/**
  * Ask the background for the online translation of `request`. Never throws. The footnote calls go
  * first, as for the engine (the selection moves with its text); then a sentence that is empty, over
  * MAX_SENTENCE_CHARS, or a selection outside it, answers unavailable WITHOUT a message: nothing the
@@ -126,11 +139,10 @@ export async function translateOnline(
   request: OnlineTranslationRequest,
   send: OnlineSend = runtimeSend,
 ): Promise<OnlineTranslationResult> {
-  const { sentence, selection } = withoutFootnotes(request.sentence, request.selection);
-  if (!sentence.trim() || characters(sentence) > MAX_SENTENCE_CHARS) return ONLINE_UNAVAILABLE;
-  if (!spanWithin(selection, sentence.length)) return ONLINE_UNAVAILABLE;
+  const message = onlineMessage(request);
+  if (!message) return ONLINE_UNAVAILABLE;
   try {
-    return asResult(await send({ type: ONLINE_TRANSLATE_TYPE, sentence, selection, source: request.source }));
+    return asResult(await send(message));
   } catch {
     // A torn-down background, a closed port: no translation right now.
     return ONLINE_UNAVAILABLE;

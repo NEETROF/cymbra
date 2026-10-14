@@ -29,6 +29,7 @@ import {
   TRANSLATION_WAIT_MS,
 } from "@/reading/selection-card.ts";
 import type { TranslationRequest, TranslationResult, TranslatorPort } from "@/translate/port.ts";
+import { captureSelection, classifySelection } from "@/reading/selection.ts";
 import { type WordPopupContent, gestureKey } from "@/reading/wordpopup.ts";
 
 // The scenarios of specs/lingua-browser-extension/spec.md, driven through fakes: a card
@@ -2076,5 +2077,99 @@ describe("a word card names the forms of its document's language (add-lingua-spa
     english.cards.openForToken(hitOf(pageToken({ surface: "went", lemma: "go", class: "Unknown", gloss: "Aller" })));
     await settle();
     expect(english.shows.some((shown) => "language" in shown)).toBe(false);
+  });
+});
+
+// fix-lingua-selection-card-punctuation D2: the cards read the capture trimmed of its edge
+// punctuation — the headword, the form "+ Deck" stores, what the pack and the translation are asked.
+describe("a selection is read without its edge punctuation", () => {
+  /** The capture of `selected`, the first occurrence of it in a paragraph holding `full`, as the
+   *  session hands it to the cards. */
+  function captured(full: string, selected: string): SelectionInput {
+    document.body.innerHTML = `<p>${full}</p>`;
+    const node = document.querySelector("p")!.firstChild!;
+    const at = full.indexOf(selected);
+    const range = document.createRange();
+    range.setStart(node, at);
+    range.setEnd(node, at + selected.length);
+    const page = window.getSelection()!;
+    page.removeAllRanges();
+    page.addRange(range);
+    const cap = captureSelection()!;
+    return { text: cap.text, sentence: cap.sentence, selection: cap.selection, rect: RECT };
+  }
+
+  const stood = "They stood in silence. Then they left.";
+
+  it("« stood in silence. »: the whole-selection card is headed and stored without the full stop", async () => {
+    const h = harness();
+    h.cards.openForSelection(captured(stood, "stood in silence."), null);
+    expect(h.phraseGloss[0]!.text).toBe("stood in silence");
+    h.phraseGloss[0]!.resolve({
+      tokens: [
+        tok({ surface: "stood", lemma: "stand", class: "Unknown", gloss: "Se tenir debout" }),
+        tok({ surface: "in", lemma: "in", class: "Known", gloss: "dans", function_word: true }),
+        tok({ surface: "silence", lemma: "silence", class: "Known", gloss: "Silence" }),
+      ],
+    });
+    await settle();
+    expect(h.last()).toMatchObject({ headword: "stood in silence", surface: "stood in silence", expression: true });
+    expect(gesture(h.last())).toMatchObject({ lemma: "stood in silence", surface: "stood in silence" });
+  });
+
+  it("« stood in silence. »: the translation is asked with a span that ends before the full stop", async () => {
+    const asked: TranslationRequest[] = [];
+    const translator: TranslatorPort = {
+      translate: (request) => {
+        asked.push(request);
+        return new Promise<TranslationResult>(() => {});
+      },
+    };
+    const cards = new SelectionCards(fakePorts().ports, fakeSurface().surface, {
+      clock: fakeClock().clock,
+      translator: () => translator,
+    });
+    cards.openForSelection(captured(stood, "stood in silence."), null);
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    expect(asked).toEqual([
+      {
+        sentence: "They stood in silence.",
+        selection: { start: 5, end: 5 + "stood in silence".length },
+        language: "en",
+      },
+    ]);
+  });
+
+  it("« harbour, »: the word card of `harbour`, as for « harbour »", async () => {
+    const input = captured("Ships rest in the harbour, at night.", "harbour,");
+    expect(input.text).toBe("harbour");
+    expect(classifySelection(input.text)).toBe("word");
+    const h = harness();
+    h.cards.openForSelection(input, null);
+    expect(h.phraseGloss[0]!.text).toBe("harbour");
+    h.phraseGloss[0]!.resolve({
+      tokens: [tok({ surface: "harbour", lemma: "harbour", class: "Unknown", gloss: "Port" })],
+    });
+    await settle();
+    expect(h.last()).toMatchObject({ headword: "harbour", surface: "harbour", gloss: "Port" });
+  });
+
+  it("« four-poster bed, »: the pack's expression heads the card with its gloss, as today", async () => {
+    const h = harness();
+    h.cards.openForSelection(captured("He slept in a four-poster bed, alone.", "four-poster bed,"), null);
+    expect(h.phraseGloss[0]!.text).toBe("four-poster bed");
+    h.phraseGloss[0]!.resolve({
+      tokens: [
+        tok({ surface: "four-poster", lemma: "four-poster", class: "Unknown" }),
+        tok({ surface: "bed", lemma: "bed", class: "Known", gloss: "Lit" }),
+      ],
+      expressions: [match({ start: 0, end: 2, key: "four-poster bed", gloss: "Lit à baldaquin" })],
+    });
+    await settle();
+    expect(h.last()).toMatchObject({
+      headword: "four-poster bed",
+      surface: "four-poster bed",
+      gloss: "Lit à baldaquin",
+    });
   });
 });

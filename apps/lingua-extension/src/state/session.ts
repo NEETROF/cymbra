@@ -20,8 +20,8 @@ import { type AsyncStorageArea, REFRESH_FAILURES_KEY, SESSION_LOST_KEY } from ".
 // Every failure is rethrown as an AccountError carrying a category (design D7): no
 // caller ever sees — or can display — a raw gRPC/Connect message.
 
-const ACCESS_KEY = "cymbra-lingua-access"; // chrome.storage.local, with its expiry
-const REFRESH_KEY = "cymbra-lingua-refresh"; // chrome.storage.local
+export const ACCESS_KEY = "cymbra-lingua-access"; // chrome.storage.local, with its expiry
+export const REFRESH_KEY = "cymbra-lingua-refresh"; // chrome.storage.local
 /** Refresh this long before the access token expires, rather than on the failing call. */
 const EXPIRY_SKEW_MS = 30_000;
 /**

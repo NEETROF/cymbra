@@ -1,5 +1,5 @@
 import { createTranslatorPort, type TranslatorSource } from "../translate/create-port.ts";
-import { createOnlineOffer } from "../translate/online.ts";
+import { createOnlineOffer, translateOnline } from "../translate/online.ts";
 import { acceptedLanguages, DEFAULT_LANGUAGE } from "../analyzer/pairs.ts";
 import type { LanguagePort, LinguaPort } from "../analyzer/port.ts";
 import type { CefrLevel, NativeLanguage, StudiedLanguage, TokenClass } from "../analyzer/types.ts";
@@ -480,6 +480,8 @@ export class ReadingSession {
     // surface gets its module and the language at construction, so its first paint is the catalogue's.
     const interfaceLanguage = opts.language ?? DEFAULT_INTERFACE_LANGUAGE;
     const copy = opts.copy ?? readingCopy(interfaceLanguage);
+    // « Traduction en ligne »: one offer for the cards and Révision (add-lingua-review-translation-fallback D2).
+    const online = opts.online ?? createOnlineOffer(this.lifetime.signal);
     this.popup = new WordPopup({
       css: opts.css.popup,
       onGesture: (g) => void this.onGesture(g),
@@ -510,7 +512,7 @@ export class ReadingSession {
         // In the document's language: its route, and nothing while its models are missing.
         translator: () => this.translator(this.language),
         // « Traduction en ligne »: offered on a card for several words, whatever the engine.
-        online: opts.online ?? createOnlineOffer(this.lifetime.signal),
+        online,
         language: () => this.language,
         interfaceLanguage,
         copy: copy.selection,
@@ -536,6 +538,8 @@ export class ReadingSession {
       language: interfaceLanguage,
       copy: copy.drawer,
       translator: this.translator,
+      // The selection card's runtime-message client: the background owns the session (D2).
+      online: { offered: online, translate: (request) => translateOnline(request) },
     });
     const actions: HudActions = {
       onReview: () => this.openReviewSurface("review"),

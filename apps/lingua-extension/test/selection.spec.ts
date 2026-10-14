@@ -6,6 +6,7 @@ import {
   SelectionWatcher,
   sentenceAndSelection,
   sentenceForRange,
+  withoutEdgePunctuation,
   withoutSoftHyphens,
 } from "@/reading/selection.ts";
 
@@ -182,6 +183,114 @@ describe("withoutSoftHyphens", () => {
   it("drops every soft hyphen and nothing else", () => {
     expect(withoutSoftHyphens(`${SHY}vi${SHY}${SHY}da${SHY}`)).toBe("vida");
     expect(withoutSoftHyphens("repo-wide l’homme  x")).toBe("repo-wide l’homme  x");
+  });
+});
+
+// fix-lingua-selection-card-punctuation D1: the same table of cases pins the core's
+// `without_edge_punctuation` (crates/lingua-core/src/decks/card.rs).
+const EDGE_CASES: ReadonlyArray<readonly [string, string]> = [
+  ["four-poster bed,", "four-poster bed"],
+  ["\u2018four-poster bed,\u2019", "four-poster bed"],
+  ["\u00AB Bonjour \u00BB", "Bonjour"],
+  ["d'abord,", "d'abord"],
+  ["d\u2019abord,", "d\u2019abord"],
+  ["dit-il.", "dit-il"],
+  ["rock 'n' roll", "rock 'n' roll"],
+  ["dogs'", "dogs"],
+  ["cafe\u0301", "cafe\u0301"],
+  ["(harbour", "harbour"],
+  ["stood in silence.", "stood in silence"],
+  ["1984.", "1984"],
+  ["\u2014", ""],
+  ["", ""],
+  ["harbour", "harbour"],
+];
+
+describe("withoutEdgePunctuation", () => {
+  it("trims what is neither a letter, a mark nor a digit at both ends, and nothing inside", () => {
+    for (const [text, trimmed] of EDGE_CASES) expect(withoutEdgePunctuation(text), text).toBe(trimmed);
+  });
+
+  it("keeps a letter outside the Basic Multilingual Plane at an edge", () => {
+    expect(withoutEdgePunctuation("\u{1D400}x.")).toBe("\u{1D400}x");
+  });
+});
+
+describe("captureSelection without edge punctuation (fix-lingua-selection-card-punctuation D2)", () => {
+  /** Select the first occurrence of `selected` in a paragraph holding `full`, and capture it. */
+  function capture(full: string, selected: string) {
+    document.body.innerHTML = `<p>${full}</p>`;
+    const node = document.querySelector("p")!.firstChild!;
+    const at = full.indexOf(selected);
+    const range = document.createRange();
+    range.setStart(node, at);
+    range.setEnd(node, at + selected.length);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+    return { cap: captureSelection(), node, at };
+  }
+
+  it("reads every case of the table as the core does, the reader's selection left alone", () => {
+    for (const [text, trimmed] of EDGE_CASES.filter(([text, trimmed]) => trimmed && text !== "")) {
+      const full = `Before ${text} after.`;
+      const { cap } = capture(full, text);
+      expect(cap?.text, text).toBe(trimmed);
+      expect(cap?.selected.toString(), text).toBe(text);
+      expect(String(window.getSelection()), text).toBe(text);
+    }
+  });
+
+  it("« four-poster bed, »: the text, and a span that ends before the comma", () => {
+    const { cap } = capture("He slept in a four-poster bed, alone.", "four-poster bed,");
+    expect(cap!.text).toBe("four-poster bed");
+    expect(cap!.sentence).toBe("He slept in a four-poster bed, alone.");
+    const span = cap!.selection!;
+    expect(cap!.sentence.slice(span.start, span.end)).toBe("four-poster bed");
+    expect(cap!.sentence.charAt(span.end)).toBe(",");
+    expect(cap!.range.toString()).toBe("four-poster bed");
+  });
+
+  it("« (harbour »: the word is hit-tested from its first letter", () => {
+    const full = "Ships rest (harbour of the town).";
+    const { cap, node } = capture(full, "(harbour");
+    expect(cap!.text).toBe("harbour");
+    expect(cap!.range.startContainer).toBe(node);
+    expect(full.charAt(cap!.range.startOffset)).toBe("h");
+    expect(cap!.selected.toString()).toBe("(harbour");
+  });
+
+  it("« — »: punctuation alone captures nothing", () => {
+    expect(capture("one \u2014 two", "\u2014").cap).toBeNull();
+    expect(capture("one \u00AB \u00BB two", "\u00AB \u00BB").cap).toBeNull();
+  });
+
+  it("moves each end within its own text node only", () => {
+    document.body.innerHTML = `<p>He said <em>\u00ABhello</em> there\u00BB now.</p>`;
+    const [em, tail] = [document.querySelector("em")!.firstChild!, document.querySelector("p")!.lastChild!];
+    const range = document.createRange();
+    range.setStart(em, 0);
+    range.setEnd(tail, " there\u00BB".length);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+    const cap = captureSelection()!;
+    expect(cap.text).toBe("hello there");
+    expect(cap.range.startContainer).toBe(em);
+    expect(cap.range.startOffset).toBe(1);
+    expect(cap.range.endContainer).toBe(tail);
+    expect(cap.range.endOffset).toBe(" there".length);
+    expect(cap.sentence.slice(cap.selection!.start, cap.selection!.end)).toBe("hello there");
+  });
+
+  it("captures a selection without edge punctuation exactly as before", () => {
+    const full = "They seldom ship on Friday.";
+    const { cap, node, at } = capture(full, "seldom ship");
+    expect(cap!.text).toBe("seldom ship");
+    expect(cap!.selection).toEqual({ start: 5, end: 16 });
+    expect(cap!.range.startContainer).toBe(node);
+    expect(cap!.range.startOffset).toBe(at);
+    expect(cap!.range.endOffset).toBe(at + "seldom ship".length);
   });
 });
 

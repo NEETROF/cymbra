@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="tokens.css" />
     <link rel="stylesheet" href="review.css" />
     <link rel="stylesheet" href="stats.css" />
+    <link rel="stylesheet" href="account.css" />
     <link rel="stylesheet" href="app.css" />
   </head>
   <body>
@@ -33,7 +34,18 @@
         <div id="review-root"></div>
       </section>
       <section id="view-stats" hidden></section>
+
+      <!-- « Traduction étendue » in the app: the offer to download its own models, made once. -->
+      <p class="app-models" id="model-offer" role="status" hidden></p>
+      <!-- « Traduction en ligne » in the app: its own session, or why it needs one. -->
+      <p class="app-account" id="account-line" hidden></p>
     </main>
+    <!-- The email sign-in (add-lingua-app-email-signin D2): the extension's own account flow, in its app
+         scope, over the review — opened when the app's sheet answers « Continuer avec un email ». -->
+    <dialog class="app-email" id="email-panel">
+      <div id="email-root"></div>
+      <button type="button" class="app-link app-email-cancel" id="email-cancel" data-copy="emailCancel"></button>
+    </dialog>
     <script type="module" src="app.js"></script>
   </body>
 </html>

@@ -38,6 +38,22 @@ const SOFT_HYPHENS = /\u00AD/g;
  *  them: the core reads them away and its spans index the text as written. */
 export const withoutSoftHyphens = (text: string): string => text.replace(SOFT_HYPHENS, "");
 
+/** The run of characters at either end of a text that are neither letters, combining marks nor
+ *  digits: punctuation of every kind, quotes, brackets, dashes, apostrophes, hyphens, symbols and
+ *  whitespace (fix-lingua-selection-card-punctuation D1). */
+const EDGE_RUNS = /^[^\p{L}\p{M}\p{N}]+|[^\p{L}\p{M}\p{N}]+$/gu;
+
+/** One edge character, read one UTF-16 unit at a time: a surrogate is half of a character this
+ *  test cannot see whole, so it is never taken for an edge (a letter outside the BMP stays). */
+const isEdgeUnit = (unit: string): boolean => !/[\uD800-\uDFFF]/.test(unit) && /[^\p{L}\p{M}\p{N}]/u.test(unit);
+
+/** A selection read without its edge punctuation (fix-lingua-selection-card-punctuation D1):
+ *  `four-poster bed,` reads `four-poster bed`, `« Bonjour »` reads `Bonjour`, `—` reads empty.
+ *  Nothing inside is touched — `l’homme`, `d'abord`, `dit-il`, `rock 'n' roll` read as written.
+ *  The core reads a card's lemma with the same class (`Card::lookup_lemma`), pinned by the same
+ *  table of cases; the review's front reads a card's word through it. */
+export const withoutEdgePunctuation = (text: string): string => text.replace(EDGE_RUNS, "");
+
 /** Collapse runs of whitespace WITHOUT trimming, the soft hyphens dropped first: every offset
  *  below counts on this text, and the block, the text before the range and the range are all
  *  read this way, so the selection's offsets stay right in a sentence holding none. */
@@ -170,23 +186,65 @@ function snapRangeToWords(range: Range): void {
   }
 }
 
+/** Move a range's ends inward past the edge characters they sit beside, each within its own
+ *  text node (as the snap moves them outward), so a word is hit-tested from a letter rather than
+ *  from a leading « or ( (fix-lingua-selection-card-punctuation D2). */
+function trimRangeEdges(range: Range): void {
+  const start = range.startContainer;
+  if (start.nodeType === Node.TEXT_NODE) {
+    const t = start.textContent ?? "";
+    const limit = range.endContainer === start ? range.endOffset : t.length;
+    let i = range.startOffset;
+    while (i < limit && isEdgeUnit(t.charAt(i))) i++;
+    if (i !== range.startOffset) range.setStart(start, i);
+  }
+  const end = range.endContainer;
+  if (end.nodeType === Node.TEXT_NODE) {
+    const t = end.textContent ?? "";
+    const limit = range.startContainer === end ? range.startOffset : 0;
+    let j = range.endOffset;
+    while (j > limit && isEdgeUnit(t.charAt(j - 1))) j--;
+    if (j !== range.endOffset) range.setEnd(end, j);
+  }
+}
+
+/** A selection's span in its sentence, shrunk past the edge characters at its two ends, as its
+ *  text is (fix-lingua-selection-card-punctuation D2). */
+function trimSpanEdges(sentence: string, span: SentenceSelection["selection"]): SentenceSelection["selection"] {
+  if (!span) return null;
+  let { start, end } = span;
+  while (start < end && isEdgeUnit(sentence.charAt(start))) start++;
+  while (end > start && isEdgeUnit(sentence.charAt(end - 1))) end--;
+  return end > start ? { start, end } : null;
+}
+
 /**
- * Read a selection into a Capture, or null when there is nothing usable (empty, or longer
- * than a phrase). Whitespace is collapsed, soft hyphens dropped and both ends are snapped to
- * whole words. The snap stays internal: the page's own selection is left exactly as the reader
- * made it.
+ * Read a selection into a Capture, or null when there is nothing usable (empty, punctuation
+ * alone, or longer than a phrase). Whitespace is collapsed, soft hyphens dropped and both ends
+ * are snapped to whole words, then trimmed of their edge punctuation — the text, its span in
+ * its sentence and the widened range alike (fix-lingua-selection-card-punctuation D1, D2). The
+ * snap stays internal: the page's own selection, and `selected`, are left exactly as the reader
+ * made them.
  */
 export function captureFrom(sel: Selection | null, maxLength: number = MAX_SELECTION_LENGTH): Capture | null {
   if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
   const selected = sel.getRangeAt(0).cloneRange();
   const range = selected.cloneRange();
   snapRangeToWords(range);
-  const text = withoutSoftHyphens(range.toString()).trim().replace(/\s+/g, " ");
+  const text = withoutEdgePunctuation(withoutSoftHyphens(range.toString()).replace(/\s+/g, " "));
   if (!text || text.length > maxLength) return null;
+  trimRangeEdges(range);
   const box = typeof range.getBoundingClientRect === "function" ? range.getBoundingClientRect() : null;
   const rect = { left: box?.left ?? 0, top: box?.top ?? 0, bottom: box?.bottom ?? 0 };
-  const { sentence, selection } = sentenceAndSelection(range);
-  return { text, sentence, selection, rect, range, selected };
+  const found = sentenceAndSelection(range);
+  return {
+    text,
+    sentence: found.sentence,
+    selection: trimSpanEdges(found.sentence, found.selection),
+    rect,
+    range,
+    selected,
+  };
 }
 
 /** The selection of a window — the page's by default, or a book section's — captured. */

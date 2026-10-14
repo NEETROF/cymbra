@@ -632,6 +632,129 @@ LOCUTIONS = {
     "four-poster bed": "Lit à baldaquin",
 }
 
+# Word glosses written and reviewed by a person (fix-lingua-en-fr-modal-glosses): lemma -> its
+# senses, in order, each with its part of speech. The French Wiktionary glosses the English modal
+# auxiliaries by their grammar (« Subjonctif passé du verbe auxiliaire will »), by a fringe sense, or
+# behind a noun, and no cleaning rule recovers a meaning the source does not state. An entry replaces
+# the lemma's gloss AND its part-of-speech runs, and nothing else: it can only rewrite a gloss the
+# source already gave (`apply_word_glosses`). The modal meaning comes first; a source sense that
+# already says it is reused word for word; a noun or a name the source gives is kept after it.
+# A gloss here is never generated. Editing it is a rule change: the tables are reduced again.
+WORD_GLOSSES = {
+    "would": [
+        ("VERB", "Conditionnel : would come = viendrait"),
+        ("VERB", "Futur dans le passé : he said he would come = il a dit qu’il viendrait"),
+        ("VERB", "Habitude passée : he would walk = il marchait, il avait l’habitude de marcher"),
+        ("VERB", "Demande polie : would you… ? = voudriez-vous… ?"),
+    ],
+    "could": [
+        ("VERB", "Pouvoir, au passé : pouvait, a pu (I could swim = je savais nager)"),
+        ("VERB", "Pouvoir, au conditionnel : pourrait (could you… ? = pourriez-vous… ?)"),
+    ],
+    "should": [
+        ("VERB", "Devrait, conseil ou obligation : you should go = tu devrais y aller"),
+        ("VERB", "Devrait, attente : it should work = ça devrait marcher"),
+        ("VERB", "Si jamais : should you need help = si jamais vous avez besoin d’aide"),
+    ],
+    "might": [
+        ("VERB", "Pourrait, il se peut que : it might rain = il se peut qu’il pleuve"),
+        ("VERB", "Passé de may : pouvait"),
+        ("NOUN", "Force, puissance"),
+    ],
+    "must": [
+        ("VERB", "Devoir, obligation : you must go = tu dois partir"),
+        ("VERB", "Devoir, déduction : it must be late = il doit être tard"),
+        ("NOUN", "Incontournable, chose à ne pas manquer"),
+        ("NOUN", "Moût"),
+        ("NOUN", "Moisi, moisissure"),
+    ],
+    "shall": [
+        ("VERB", "Futur, surtout à la 1re personne : I shall go = j’irai"),
+        ("VERB", "Proposition : shall we go? = on y va ?"),
+        ("VERB", "Obligation, dans un texte de loi ou un règlement : devoir"),
+    ],
+    "shalt": [
+        ("VERB", "Forme ancienne de shall avec thou : thou shalt not kill = tu ne tueras point"),
+    ],
+    "can": [
+        ("VERB", "Pouvoir, savoir, avoir la capacité de"),
+        ("VERB", "Pouvoir, avoir le droit de"),
+        ("VERB", "Pouvoir, avoir la possibilité de"),
+        ("VERB", "Mettre en boite de conserve"),
+        ("NOUN", "Boîte de conserve"),
+        ("NOUN", "Canette métal, souvent cylindrique"),
+        ("NOUN", "Bidon"),
+        ("NOUN", "Pot de chambre"),
+    ],
+    "may": [
+        ("VERB", "Pouvoir, avoir le droit de"),
+        ("VERB", "Il se peut que, peut-être : it may rain = il se peut qu’il pleuve"),
+        ("VERB", "Souhait : may you be happy = puisses-tu être heureux"),
+        ("PROPN", "Mois de mai"),
+        ("PROPN", "Nom de famille anglais"),
+        ("PROPN", "Nom féminin anglais, diminutif de Mary et Margaret"),
+    ],
+    "will": [
+        ("VERB", "Futur : she will come = elle viendra"),
+        ("VERB", "Vouloir, dans le sens d’un acte délibéré ou d’un souhait intense"),
+        ("VERB", "Léguer (par testament)"),
+        ("NOUN", "Volonté"),
+        ("NOUN", "Testament"),
+        ("PROPN", "Prénom masculin"),
+    ],
+}
+
+# The parts of speech a gloss's runs may name: those the shared rules give an entry.
+_UPOS = frozenset(common._KAIKKI_UPOS.values()) | {"CCONJ", "SCONJ", "X"}
+_SENSE_SEPARATOR = "; "
+
+
+def apply_word_glosses(glosses, runs, table=None, *, maxlen=800, per_sense=300, max_senses=8):
+    """`(glosses, runs)` with each lemma of `table` (`WORD_GLOSSES` by default) glossed by its entry —
+    new dictionaries.
+
+    The gloss is the entry's senses joined by "; ", its runs counted from the senses' parts of
+    speech, so `senses.tsv` agrees with `gloss.tsv` by construction. Every other key is the same
+    object as before. Raises ValueError, naming the lemma, for an entry whose lemma the source does
+    not gloss (the glossed set, so forms and dictionary words, cannot change), or that breaks the
+    limits every word gloss obeys: more than `max_senses` senses, a sense over `per_sense`
+    characters or a gloss over `maxlen`, a separator inside a sense, a part of speech in two runs,
+    an unknown part of speech, or proper-noun senses alone (which would drop the lemma from the
+    dictionary words).
+    """
+    table = WORD_GLOSSES if table is None else table
+    glosses = dict(glosses)
+    runs = dict(runs)
+    for lemma, senses in table.items():
+        if lemma not in glosses:
+            raise ValueError(f"WORD_GLOSSES: {lemma!r} is not glossed by the source")
+        if not senses or len(senses) > max_senses:
+            raise ValueError(f"WORD_GLOSSES: {lemma!r} holds {len(senses)} senses (1 to {max_senses})")
+        word_runs = []
+        for pos, sense in senses:
+            if pos not in _UPOS:
+                raise ValueError(f"WORD_GLOSSES: {lemma!r} has an unknown part of speech {pos!r}")
+            if not sense.strip() or sense != sense.strip():
+                raise ValueError(f"WORD_GLOSSES: {lemma!r} has an empty or padded sense {sense!r}")
+            if len(sense) > per_sense:
+                raise ValueError(f"WORD_GLOSSES: {lemma!r} has a sense over {per_sense} characters")
+            if ";" in sense or "\t" in sense or "\n" in sense:
+                raise ValueError(f"WORD_GLOSSES: {lemma!r} has a separator inside a sense {sense!r}")
+            if word_runs and word_runs[-1][0] == pos:
+                word_runs[-1][1] += 1
+            elif any(p == pos for p, _ in word_runs):
+                raise ValueError(f"WORD_GLOSSES: {lemma!r} splits its {pos} senses across two runs")
+            else:
+                word_runs.append([pos, 1])
+        if all(pos == "PROPN" for pos, _ in word_runs):
+            raise ValueError(f"WORD_GLOSSES: {lemma!r} is glossed by proper-noun senses alone")
+        gloss = _SENSE_SEPARATOR.join(sense for _, sense in senses)
+        if len(gloss) > maxlen:
+            raise ValueError(f"WORD_GLOSSES: {lemma!r} has a gloss over {maxlen} characters")
+        glosses[lemma] = gloss
+        runs[lemma] = [tuple(run) for run in word_runs]
+    return glosses, runs
+
 
 def grammar_rows(readings, forms, lemmas, meanings, targets, cefr):
     """The lines of `grammar.tsv`: (form, lemma, tag, "other"|"-"), sorted.
@@ -771,6 +894,10 @@ def main():
         edition=EDITION,
         locutions=LOCUTIONS,
         word_gloss={"maxlen": a.max_word_gloss_len, "per_sense": a.max_word_sense_len, "max_senses": a.max_word_senses},
+    )
+    # The word glosses a person wrote replace the source's, before anything reads them.
+    glosses, runs = apply_word_glosses(
+        glosses, runs, maxlen=a.max_word_gloss_len, per_sense=a.max_word_sense_len, max_senses=a.max_word_senses
     )
     forms = resolve_forms(pairs, ranks, targets, set(glosses))
     levels = reduce_levels(cefr, lemmas)

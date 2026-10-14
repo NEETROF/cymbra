@@ -164,6 +164,9 @@ class MessagingLanguagePort implements LanguagePort {
   retireCard(lemma: string, now: number): Promise<void> {
     return this.rpc("retireCard", [lemma, now]);
   }
+  keepGloss(lemma: string, gloss: string, now: number): Promise<boolean> {
+    return this.rpc("keepGloss", [lemma, gloss, now]);
+  }
   notice(): Promise<string> {
     return this.rpc("notice");
   }
