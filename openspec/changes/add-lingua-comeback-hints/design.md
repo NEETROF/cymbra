@@ -406,6 +406,15 @@ request's state start at their defaults. Rollback is the previous version: the k
 
 ## Open Questions
 
+**Answered by the owner on 2026-10-14: every question below takes its recommended answer.** The
+count is on by default with its switch (1); summed across the studied languages, the title naming
+each (2); the dash « — » goes (3); the count shows where highlighting is off (4); one figure
+everywhere — the popup's « Réviser (N) » and the review's summary count what a review would hold
+today (5); the rating request comes after the fifth finished session on the third distinct day or
+later, « Plus tard » asks again after ten more sessions, at most twice (6); Safari shows no request
+in the extension, the app uses StoreKit, Réglages carry a plain write-review link (7); the request's
+state is not synced (8); the background's start-time sync stays as it is (9, D9).
+
 1. **Is the count on by default, for everyone?** *Recommended: yes*, for new and existing readers,
    with the switch in « Rythme de révision ». Off by default, almost nobody would discover it, and
    the icon already carries a figure.

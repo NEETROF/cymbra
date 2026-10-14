@@ -37,6 +37,7 @@ use lingua_core::decks::card::{
     Card, EncounterSource, FRENCH, Provenance, gloss_language_or_french,
 };
 use lingua_core::decks::fsrs::{Rating, ReviewState};
+use lingua_core::decks::outlook::ReviewOutlook;
 use lingua_core::decks::review::{NewCardAllowance, ReviewSession, SessionOptions};
 use lingua_core::engine::{
     analyse_page_json, french_expression_key, gloss_phrase_json, reading_expression_key,
@@ -254,6 +255,30 @@ pub fn reprofile_backup(
     studied: Vec<String>,
 ) -> Result<String, JsError> {
     reprofile(backup, native, &studied).map_err(|e| JsError::new(&e))
+}
+
+/// The review outlook of `backup` at `now` (Unix-epoch seconds), `day_start` being the reader's
+/// local midnight then, as JSON (add-lingua-comeback-hints D2): per studied language, in the
+/// reader's order, the reviewed cards due, the next due times, the new words waiting and those let
+/// in today. Refused on a backup that does not restore. Pure: no pack is read, so the store's owner
+/// works it out without an engine.
+fn outlook(backup: &str, now: i64, day_start: i64) -> Result<String, String> {
+    let state = LinguaState::from_backup(backup).map_err(|e| e.to_string())?;
+    Ok(ReviewOutlook::of(
+        &state.deck,
+        &state.profile.studied_languages,
+        now,
+        day_start,
+    )
+    .to_json())
+}
+
+/// What the extension's background keeps to count, on every event, the cards a review would hold
+/// (add-lingua-comeback-hints D2) — worked out after each change of the reader's data, with no
+/// engine. Errors as `outlook` refuses.
+#[wasm_bindgen(js_name = reviewOutlook)]
+pub fn review_outlook(backup: &str, now: f64, day_start: f64) -> Result<String, JsError> {
+    outlook(backup, now as i64, day_start as i64).map_err(|e| JsError::new(&e))
 }
 
 #[wasm_bindgen]
@@ -1139,6 +1164,30 @@ impl LinguaEngine {
             .due_count_for(now as i64, &known_languages(languages))
     }
 
+    /// Number of cards a review started at `now` (Unix-epoch seconds) would hold in `languages`
+    /// (ISO 639-1 tags), or in every language when absent or naming none the core knows: the
+    /// reviewed cards due and, with `newPerDay` and `dayStart` (the reader's local midnight), the
+    /// never-reviewed cards within each language's allowance left today — every one without
+    /// `newPerDay` (add-lingua-comeback-hints D1). What `startReview` with the same allowance and
+    /// no limit returns.
+    #[wasm_bindgen(js_name = reviewableCount)]
+    pub fn reviewable_count(
+        &self,
+        now: f64,
+        languages: Option<Vec<String>>,
+        new_per_day: Option<u32>,
+        day_start: Option<f64>,
+    ) -> usize {
+        self.state.deck.reviewable_count_for(
+            now as i64,
+            &known_languages(languages),
+            new_per_day.map(|per_day| NewCardAllowance {
+                per_day: per_day as usize,
+                day_start: day_start.map_or(i64::MIN, |t| t as i64),
+            }),
+        )
+    }
+
     // --- Review session ---
 
     /// Starts a review session over the cards due at `now`, in `languages` (ISO 639-1 tags)
@@ -1587,6 +1636,27 @@ mod tests {
         assert_eq!(back, LinguaState::default().to_backup());
         assert!(back.starts_with("{\n  \"schema_version\": 1,"));
         assert!(!back.contains("\"profile\""));
+    }
+
+    #[test]
+    fn an_outlook_names_the_studied_languages_in_order_and_refuses_a_bad_backup() {
+        let mut state = LinguaState::default();
+        state
+            .profile
+            .set_studied_languages(vec![StudiedLanguage::Spanish, StudiedLanguage::English])
+            .expect("two languages");
+        let json = outlook(&backup(&state), 1_000, 900).expect("it reads");
+        let value: serde_json::Value = serde_json::from_str(&json).expect("JSON");
+        assert_eq!(value["version"], 1);
+        assert_eq!(value["computedAt"], 1_000);
+        assert_eq!(value["dayStart"], 900);
+        assert_eq!(value["languages"][0]["language"], "es");
+        assert_eq!(value["languages"][1]["language"], "en");
+        assert!(
+            outlook("{ not json", 0, 0)
+                .expect_err("malformed")
+                .starts_with("malformed backup: ")
+        );
     }
 
     #[test]

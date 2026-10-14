@@ -208,6 +208,44 @@ impl Deck {
             .count()
     }
 
+    /// The number of cards a review started at `now` would hold in `languages` — every language
+    /// when it is empty — with no cap (add-lingua-comeback-hints D1): the reviewed cards due,
+    /// and in each language the never-reviewed cards due within what is left of that language's
+    /// `allowance` today, every one of them without an allowance. Exactly the length of the
+    /// queue [`ReviewSession::start_with`] builds with no `limit`: a reviewed card is one with a
+    /// memory, as the session sorts it.
+    pub fn reviewable_count_for(
+        &self,
+        now: i64,
+        languages: &[StudiedLanguage],
+        allowance: Option<NewCardAllowance>,
+    ) -> usize {
+        self.cards
+            .iter()
+            .filter(|(language, _)| languages.is_empty() || languages.contains(language))
+            .map(|(&language, per_language)| {
+                let (reviewed, fresh) = per_language
+                    .values()
+                    .filter(|card| card.review.is_due(now))
+                    .fold((0, 0), |(reviewed, fresh), card| {
+                        if card.review.memory.is_some() {
+                            (reviewed + 1, fresh)
+                        } else {
+                            (reviewed, fresh + 1)
+                        }
+                    });
+                let admitted = allowance.map_or(fresh, |allowance| {
+                    fresh.min(
+                        allowance
+                            .per_day
+                            .saturating_sub(self.introduced_since(language, allowance.day_start)),
+                    )
+                });
+                reviewed + admitted
+            })
+            .sum()
+    }
+
     /// The cards of `language` first answered at or after `day_start` (Unix-epoch seconds):
     /// those with one review, made today (refine-lingua-review-session D2). Each language has
     /// its own allowance, so each counts its own. A session grades a card once, so a card
@@ -1089,6 +1127,117 @@ mod tests {
         let both = ReviewSession::start_with(&deck, &params, later, &[], eleven);
         let in_language = |language| both.queue.iter().filter(|(l, _)| *l == language).count();
         assert_eq!((in_language(EN), in_language(ES)), (1, 11));
+    }
+
+    /// English and Spanish cards of every kind: reviewed and due, reviewed and due later,
+    /// never reviewed, retired after review, retired before any.
+    fn mixed_deck(day_start: i64) -> Deck {
+        const ES: StudiedLanguage = StudiedLanguage::Spanish;
+        let mut deck = Deck::new();
+        for (language, prefix) in [(EN, "e"), (ES, "s")] {
+            for i in 0..4 {
+                let due = day_start - DAY + i;
+                deck.upsert(
+                    language,
+                    reviewed(&format!("{prefix}due{i}"), 3.0, due - 3 * DAY, due),
+                );
+            }
+            for i in 0..3 {
+                let due = day_start + (i + 2) * 3_600;
+                deck.upsert(
+                    language,
+                    reviewed(&format!("{prefix}later{i}"), 3.0, due - 3 * DAY, due),
+                );
+            }
+            for i in 0..14 {
+                deck.upsert(
+                    language,
+                    captured(&format!("{prefix}new{i:02}"), day_start - DAY + i),
+                );
+            }
+            let mut known = reviewed(&format!("{prefix}known"), 9.0, day_start - DAY, day_start);
+            known.review.retire(day_start);
+            deck.upsert(language, known);
+            let mut hidden = captured(&format!("{prefix}hidden"), day_start - DAY);
+            hidden.review.retire(day_start);
+            deck.upsert(language, hidden);
+        }
+        deck
+    }
+
+    /// `reviewable_count_for` against the queue a session would build, for every option.
+    fn assert_reviewable_counts_match_sessions(deck: &Deck, now: i64, day_start: i64) {
+        const ES: StudiedLanguage = StudiedLanguage::Spanish;
+        let params = FsrsParams::default();
+        for languages in [&[][..], &[EN], &[ES], &[EN, ES]] {
+            for allowance in [
+                None,
+                Some(NewCardAllowance {
+                    per_day: 10,
+                    day_start,
+                }),
+                Some(NewCardAllowance {
+                    per_day: 5,
+                    day_start,
+                }),
+                Some(NewCardAllowance {
+                    per_day: 0,
+                    day_start,
+                }),
+            ] {
+                let options = SessionOptions {
+                    practice: false,
+                    limit: None,
+                    new_cards: allowance,
+                };
+                let session = ReviewSession::start_with(deck, &params, now, languages, options);
+                assert_eq!(
+                    deck.reviewable_count_for(now, languages, allowance),
+                    session.remaining(),
+                    "at {now}, in {languages:?}, with {allowance:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn spec_the_count_is_what_a_review_would_hold_today() {
+        let day_start = 100 * DAY;
+        let mut deck = mixed_deck(day_start);
+        let morning = day_start + 3_600;
+        // 4 reviewed cards due, 14 new words of which the allowance lets 10 in: 14 a language.
+        let allowance = Some(NewCardAllowance {
+            per_day: 10,
+            day_start,
+        });
+        assert_eq!(deck.reviewable_count_for(morning, &[EN], allowance), 14);
+        assert_eq!(deck.reviewable_count_for(morning, &[], allowance), 28);
+        assert_eq!(deck.reviewable_count_for(morning, &[EN], None), 18);
+        assert_eq!(deck.due_count_for(morning, &[EN]), 18, "the old figure");
+        for now in [morning, day_start + 5 * 3_600, day_start + DAY - 1] {
+            assert_reviewable_counts_match_sessions(&deck, now, day_start);
+        }
+
+        // A session of six English cards this morning: the four reviewed ones due and two new
+        // words (the 4th and the 6th places), all recalled.
+        let params = FsrsParams::default();
+        let six = SessionOptions {
+            practice: false,
+            limit: Some(6),
+            new_cards: allowance,
+        };
+        let mut session = ReviewSession::start_with(&deck, &params, morning, &[EN], six);
+        while session.current_key().is_some() {
+            session.grade(&mut deck, &params, Rating::Good, morning);
+        }
+        assert_eq!(deck.introduced_since(EN, day_start), 2);
+        // Nothing reviewed is due a minute later, and 8 of English's allowance are left.
+        let after = morning + 60;
+        assert_eq!(deck.reviewable_count_for(after, &[EN], allowance), 8);
+        for now in [after, day_start + 5 * 3_600, day_start + DAY + 3_600] {
+            assert_reviewable_counts_match_sessions(&deck, now, day_start);
+            assert_reviewable_counts_match_sessions(&deck, now, day_start + DAY);
+        }
     }
 
     #[test]
