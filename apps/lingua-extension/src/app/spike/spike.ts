@@ -58,6 +58,13 @@ async function env(): Promise<void> {
   } catch (e) {
     log("ko", "storage.persisted", err(e));
   }
+  try {
+    const granted = await navigator.storage?.persist?.();
+    log(granted ? "ok" : "info", "storage.persist()", granted);
+    log("info", "storage.persisted.after", await navigator.storage?.persisted?.());
+  } catch (e) {
+    log("ko", "storage.persist()", err(e));
+  }
 }
 
 async function estimate(key: string): Promise<void> {

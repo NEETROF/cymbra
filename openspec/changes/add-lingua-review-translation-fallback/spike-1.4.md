@@ -133,6 +133,40 @@ does, and the POST itself reaches tonic (`grpc-status: 16`, `missing bearer toke
 matches origins exactly (`AllowOrigin::list`, `backend/server/src/main.rs`), and
 `lingua-app://app` is a valid `HeaderValue`.
 
+## Real iPhone 15 Pro Max (iPhone16,2, 8 GB, iOS 27.2) — 2026-10-14
+
+Built for the device (`Cymbra Lingua (iOS)`, Debug, automatic signing, team NEETROF), installed
+over the App Store app with `xcrun devicectl device install app`, launched with
+`devicectl device process launch --console` (no trust or certificate prompt). The page now also
+calls `navigator.storage.persist()`.
+
+| | Launch 1 (empty) | Launch 2 (process killed by `--terminate-existing`, relaunched) |
+|---|---|---|
+| `storage.estimate()` quota | 9 830 MiB | 9 830 MiB |
+| `persisted()` / `persist()` | false / **false** (refused, no prompt) | false / false |
+| 64 MiB IndexedDB fill | 578 ms | — |
+| en-fr model download + verify + store | 1.3 s (Wi-Fi) | — |
+| `idb.relaunch` | — | **survived, verified, 64.0 MiB**; model `complete` |
+| probe worker | importScripts ok, wasm `200 application/wasm`, compiled in 18 ms, IDB ok | same, 22 ms |
+| engine cold `load` | 107 ms | 172 ms |
+| first translation | 129 ms | 136 ms |
+| warm translations | 25–30 ms | 25–29 ms; 40 in 786 ms (≈ 20 ms each) |
+| `net.httpbin` Origin | `lingua-app://app` | `lingua-app://app` |
+| `net.prod` | `Load failed` (CORS, as on the simulators) | same |
+
+The `<b>` marks came back exactly as on the Mac and simulators. `navigator.hardwareConcurrency`
+reads 4.
+
+Memory (Instruments **Activity Monitor**, `xcrun xctrace record --device … --all-processes`,
+one sample a second, launch 2 with 40 translations): the WebContent process (pid 4017) was at
+**347 MiB** footprint at the first sample after the translations started (the peak may have been
+slightly higher between samples), **289–292 MiB settled** with the engine and model held (real
+memory 387 MiB); the app process itself 10–16 MiB. No jetsam kill. The echo-server lines fail on
+the device by construction (`127.0.0.1` is the phone itself).
+
+**Not yet done on the device:** survival across a device restart (needs Guillaume), an older
+iPhone (4 GB) for the memory limit, and the iPad (unavailable).
+
 ## Recommendations
 
 - **D7 — IndexedDB, in the page's origin, as designed.** No native download, no `AppPageResource`
