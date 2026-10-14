@@ -371,3 +371,47 @@ button.primary:hover {
   font-weight: 600;
   margin-bottom: 6px;
 }
+
+/* The anonymous counts' first-run sentence (add-lingua-usage-counts D7), above the main panel. On
+   Chromium, its two answers are the same size and weight: neither is the default. */
+.usage-notice {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: var(--cymbra-lingua-radius);
+  background: var(--cymbra-lingua-panel);
+  border: 1px solid var(--cymbra-lingua-border);
+  color: var(--cymbra-lingua-muted);
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+.usage-notice[hidden],
+.usage-notice-answers[hidden] {
+  display: none;
+}
+
+.usage-notice-text,
+.usage-notice-done {
+  margin: 0 0 6px;
+}
+
+.usage-notice-privacy {
+  color: var(--cymbra-lingua-accent);
+}
+
+.usage-notice-answers {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.usage-notice-answer {
+  flex: 1 1 0;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-text);
+  font-family: inherit;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
+}

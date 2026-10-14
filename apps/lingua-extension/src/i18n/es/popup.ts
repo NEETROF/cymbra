@@ -35,4 +35,12 @@ export const popup: typeof fr = {
   syncOn: "Sincronización activada",
   beginner: "Principiante",
   handle: (handle) => `@${handle}`,
+  // — The anonymous counts' first-run sentence (add-lingua-usage-counts D7) —
+  usageInform: "Lingua cuenta de forma anónima algunos pasos —instalación, primeros pasos, regresos—, sin ningún identificador; nada de lo que lees sale de tu dispositivo. Puedes desactivar estos recuentos en Ajustes → Datos.",
+  usageAsk: "¿Permites que Lingua cuente de forma anónima algunos pasos —instalación, primeros pasos, regresos—, sin ningún identificador? Nada de lo que lees sale de tu dispositivo, y podrás cambiar de opinión en Ajustes → Datos.",
+  usageYes: "Sí, contar",
+  usageNo: "No, gracias",
+  usageYesDone: "¡Gracias! Puedes desactivar estos recuentos en cualquier momento en Ajustes → Datos.",
+  usageNoDone: "Anotado: no se contará nada.",
+  usagePrivacy: "Política de privacidad",
 };

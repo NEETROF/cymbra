@@ -46,7 +46,7 @@ const TEXTS: Array<[string, string]> = [
   ["#account-section h2", "Retrouve tes mots partout (facultatif)"],
   [
     "#account-section p.muted",
-    "Avec un compte Cymbra — le même que dans Cymbra Music — tes mots, ton deck et tes statistiques se synchronisent entre tes appareils. Sans compte, tout reste sur cet appareil.",
+    "Avec un compte Cymbra — le même que dans Cymbra Music — tes mots, ton deck et tes statistiques se synchronisent entre tes appareils. Sans compte, tes mots, ton deck et tes statuts restent sur cet appareil.",
   ],
   ["#account-create", "Créer un compte"],
   ["#account-later", "Plus tard"],

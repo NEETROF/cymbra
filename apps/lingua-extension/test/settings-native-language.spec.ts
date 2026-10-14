@@ -125,7 +125,10 @@ describe("Réglages › Langue maternelle", () => {
     block.querySelector<HTMLButtonElement>("button")!.click();
     await settle();
 
-    expect(sent).toEqual([{ type: "lingua-native-language", native: "en" }]);
+    // The anonymous counts' switch asks the background its state too (add-lingua-usage-counts).
+    expect(sent.filter((m) => !(m as { type: string }).type.startsWith("usage:"))).toEqual([
+      { type: "lingua-native-language", native: "en" },
+    ]);
     // No engine is rebuilt here for a page about to reload, or a session about to be built anew (D3).
     expect(r.fake.calls.restored).toEqual([]);
   });

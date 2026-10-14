@@ -88,6 +88,16 @@ import { isFlagsMessage } from "./flags/messages.ts";
 import { answerOnlineTranslation, isOnlineTranslateMessage, ONLINE_UNAVAILABLE } from "./translate/online.ts";
 import { PAGE_INTERVAL_MS, SURFACE_INTERVAL_MS, SyncScheduler } from "./sync/scheduler.ts";
 import { getOrCreateDeviceId, SyncEngine } from "./sync/sync.ts";
+import { createUsageClient, type UsageClient } from "./usage/client.ts";
+import {
+  dataCollectionOf,
+  type FirefoxPermissions,
+  grantConsent,
+  switchConsent,
+  touchesDataCollection,
+} from "./usage/consent.ts";
+import { UsageHost } from "./usage/host.ts";
+import { isUsageMessage } from "./usage/messages.ts";
 // Static import of the wasm-pack glue (esbuild bundles it into the background). The
 // engine hosted here must NOT dynamic-import: a Chromium service worker forbids
 // `import()` (HTML spec). A static loader sidesteps that; it is harmless on the Firefox
@@ -187,6 +197,44 @@ const settingsArea: AsyncStorageArea = {
   get: (keys) => chrome.storage.local.get(keys),
   set: (items) => chrome.storage.local.set(items),
 };
+
+// The anonymous usage counts (add-lingua-usage-counts): steps recorded on the wake-ups this page
+// already has — an installation, a page analysed in a studied language, a surface opened, a level
+// saved — and sent in one report while it is awake, through a transport with no account on it. No
+// alarm, no timer. Each browser's consent decides (D6): Firefox's own data-collection consent,
+// elsewhere the switch's key; Chromium asks first (`__USAGE_COUNTS_DEFAULT__`, D7).
+const firefoxPermissions = chrome.permissions as unknown as FirefoxPermissions;
+let usageClient: UsageClient | null = null;
+const usage = new UsageHost({
+  area: settingsArea,
+  mode: __USAGE_COUNTS_DEFAULT__,
+  browser: __TARGET__,
+  version: chrome.runtime.getManifest().version,
+  consent: () => (__TARGET__ === "firefox" ? grantConsent(firefoxPermissions) : switchConsent(settingsArea)),
+  client: () => (usageClient ??= createUsageClient()),
+  now: () => new Date(),
+  language: () => interfaceLanguage(settingsArea),
+  // Safari ignores the uninstall address: the call is not even in its bundle (check_variants).
+  setUninstallURL: __TARGET__ === "safari" ? null : (url) => chrome.runtime.setUninstallURL(url),
+  dataCollection: __TARGET__ === "firefox" ? dataCollectionOf(firefoxPermissions) : undefined,
+});
+// The leaving page follows the consent and the interface language, from every start (D12).
+void usage.registerLeavingPage();
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && INTERFACE_LANGUAGE_KEY in changes) void usage.registerLeavingPage();
+});
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (!isUsageMessage(message)) return undefined;
+  void usage.handle(message).then(sendResponse, () => sendResponse(undefined));
+  return true; // async response
+});
+// A surface the reader opened is a use; a page that loaded, a wake that sends what waits. The sync's
+// own listener answers the message.
+chrome.runtime.onMessage.addListener((message: unknown) => {
+  if (!isSyncMessage(message) || message.force) return undefined;
+  void (message.reason === "surface" ? usage.used() : usage.wake());
+  return undefined;
+});
 
 let storeRev = 0;
 
@@ -939,6 +987,8 @@ chrome.runtime.onInstalled.addListener((details) => {
   // An installed extension is never asked its native language (add-lingua-native-language-choice
   // D4, M22): an update marks the choice as made (state/native-language.ts).
   void onExtensionInstalled(details.reason, settingsArea).catch(() => {});
+  // A new installation is day 0 of the anonymous counts; an update starts nothing (D4).
+  void usage.installed(details.reason);
   // Best-effort first-run welcome (Chromium/Firefox). The popup's level CTA is the
   // portable equivalent, so failures here are swallowed (e.g. Safari, where opening a
   // tab from install is unreliable).
@@ -950,11 +1000,16 @@ chrome.runtime.onInstalled.addListener((details) => {
     }
   }
 });
-chrome.runtime.onStartup.addListener(() => void syncReaderRegistration());
+chrome.runtime.onStartup.addListener(() => {
+  void syncReaderRegistration();
+  void usage.wake();
+});
 
 // When the user grants "always highlight", register the reader and light up the
 // current tab immediately so the grant has a visible effect without a reload.
 chrome.permissions.onAdded.addListener((perms) => {
+  // Firefox's data-collection consent given in about:addons or from the switch (usage counts, D6).
+  if (__TARGET__ === "firefox" && touchesDataCollection(perms)) void usage.consentChanged();
   if (!perms.origins?.includes(ALL_URLS)) return;
   void syncReaderRegistration().then(async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -963,5 +1018,7 @@ chrome.permissions.onAdded.addListener((perms) => {
   });
 });
 chrome.permissions.onRemoved.addListener((perms) => {
+  // Withdrawn: the device forgets what it had not sent, and the leaving page goes (D6).
+  if (__TARGET__ === "firefox" && touchesDataCollection(perms)) void usage.consentChanged();
   if (perms.origins?.includes(ALL_URLS)) void syncReaderRegistration();
 });

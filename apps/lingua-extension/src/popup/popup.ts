@@ -34,6 +34,9 @@ import { requestSync } from "../sync/messages.ts";
 import { isReaderUrl, READER_PAGE } from "../reader/locate.ts";
 import type { OpenPageMessage } from "../state/open-page.ts";
 import { followSurfaceLook } from "../reading/surface-look.ts";
+import { PRIVACY_POLICY_URLS } from "../translate/online.ts";
+import { runtimeNoticeControls } from "../usage/messages.ts";
+import { mountUsageNotice, noticeCopyOf } from "../usage/notice.ts";
 
 // This page is a surface: it follows the reader's colours and text size (add-lingua-colour-settings D8, D9).
 followSurfaceLook(document.documentElement);
@@ -290,6 +293,14 @@ async function main(): Promise<void> {
     reloadOnNativeLanguageChange(language);
     if (firstRun) mountNativeCta(document, language, store);
   }
+  // The anonymous counts' first-run sentence (add-lingua-usage-counts D7): Safari's way in, and
+  // Chromium's when the welcome tab did not open — on Chromium, asked again at each opening until the
+  // reader answers. Inside the popup only, never over a page.
+  void mountUsageNotice($("usage-notice"), {
+    copy: noticeCopyOf(copy),
+    controls: runtimeNoticeControls(),
+    privacyUrl: PRIVACY_POLICY_URLS[language],
+  });
 
   // Settings view (gear icon), also reached from the main panel's level call-to-action and
   // « Modifier ». Leaving it re-reads the page's stats: a level or a calibration chosen there

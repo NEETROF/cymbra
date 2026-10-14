@@ -754,7 +754,14 @@ describe("Réglages — sub-tabs", () => {
       ["Langues étudiées", "Niveau d'anglais", "Traduction", "Lecture à voix haute", "Rythme de révision"],
       ["Affichage", "Couleurs"],
       ["Barre sur la page", "Livres", "Raccourcis & gestes"],
-      ["Compte", "Synchronisation", "Fichier de sauvegarde", "Sources et confidentialité", "Réinitialisation"],
+      [
+        "Compte",
+        "Synchronisation",
+        "Fichier de sauvegarde",
+        "Sources et confidentialité",
+        "Comptages anonymes",
+        "Réinitialisation",
+      ],
     ]);
     // The book's size and theme come with Affichage, under Apparence; its page turn joins the
     // continuous flow in Livres, under Pages & livres.
@@ -783,7 +790,14 @@ describe("Réglages — sub-tabs", () => {
 
     tabs(container)[3].click();
     expect(shown(container).map(titles)).toEqual([
-      ["Compte", "Synchronisation", "Fichier de sauvegarde", "Sources et confidentialité", "Réinitialisation"],
+      [
+        "Compte",
+        "Synchronisation",
+        "Fichier de sauvegarde",
+        "Sources et confidentialité",
+        "Comptages anonymes",
+        "Réinitialisation",
+      ],
     ]);
     expect(tabs(container)[3].classList.contains("active")).toBe(true);
     expect(tabs(container)[0].classList.contains("active")).toBe(false);

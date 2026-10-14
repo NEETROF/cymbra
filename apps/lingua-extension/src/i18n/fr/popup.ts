@@ -38,4 +38,12 @@ export const popup = {
   syncOn: "Synchronisation activée",
   beginner: "Débutant",
   handle: (handle: string) => `@${handle}`,
+  // — The anonymous counts' first-run sentence (add-lingua-usage-counts D7) —
+  usageInform: "Lingua compte de façon anonyme quelques étapes — installation, premiers pas, retours —, sans aucun identifiant ; rien de ce que tu lis ne quitte ton appareil. Tu peux couper ces comptages dans Réglages → Données.",
+  usageAsk: "Autorises-tu Lingua à compter de façon anonyme quelques étapes — installation, premiers pas, retours —, sans aucun identifiant ? Rien de ce que tu lis ne quitte ton appareil, et tu pourras changer d'avis dans Réglages → Données.",
+  usageYes: "Oui, compter",
+  usageNo: "Non merci",
+  usageYesDone: "Merci ! Tu peux couper ces comptages à tout moment dans Réglages → Données.",
+  usageNoDone: "C'est noté : rien ne sera compté.",
+  usagePrivacy: "Politique de confidentialité",
 };
