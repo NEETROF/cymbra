@@ -326,6 +326,35 @@ the two archives second rewrites its delta on the first's archived text, keeping
 (task 1.2). The two deltas already agree on the mark and the precedence. Once both exist, a kept sentence translation's mark can feed this
 change's keep action without asking any engine.
 
+### D12 — A card nothing can translate says how (dogfood follow-up)
+
+On a real iPhone a glossless card showed « Pas de traduction pour ce mot. » and nothing else when
+neither the engine nor the online button could answer: the reader was stuck, not knowing a setting
+would fix it. In that exact case — no gloss, no model ready for the card's language, online
+translation not offered, and a request something could answer (`cardTranslationRequest` not null: a
+single word its sentence does not hold gets no hint, since nothing would translate it) — the
+no-translation note goes on, in the same line, with how to get a translation. The host says which
+(`ReviewPageOptions.translationHint(language)`, a `ReviewTranslationHint`), the review page decides
+when:
+- **The extension** (drawer, side panel, EPUB reader, every browser): « Activez la traduction
+  étendue dans les réglages pour traduire cette carte. » — the setting is « Traduction étendue » in
+  the host's own Réglages tab, where a missing model is downloaded too.
+- **The app, the setting off in Safari** (`openAppTranslation` with `enabled: false`): « Activez la
+  traduction étendue dans l'extension Cymbra Lingua de Safari pour traduire cette carte. »
+- **The app, the setting on, the pair's models absent** (offer declined with « Plus tard », or
+  evicted): « Téléchargez la traduction pour l'app », a small link in the note whose tap re-offers
+  the existing offer (`AppTranslation.reoffer`: the pair's « Plus tard » undone, the offer read
+  again and brought into view). No new download path: the reader still accepts with
+  « Télécharger ». A download under way gives no hint — its progress line says enough — and a pair
+  without a route gives none.
+
+The word / expression distinction stays. The hint is text in the note (the app's a link in it): no
+new block, no transition, nothing before the reveal — quiet on e-ink. When a translation is
+possible, nothing changes.
+
+*Alternative.* A separate line or button under the note: one more block on e-ink for a case the
+note already names.
+
 ## Risks / Trade-offs
 
 - [**The app's second sign-in**: a reader signed in to the Safari extension must sign in again in the

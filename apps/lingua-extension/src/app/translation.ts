@@ -1,5 +1,6 @@
 import { studiedOf } from "../analyzer/pairs.ts";
 import type { TranslatorSource } from "../translate/create-port.ts";
+import type { ReviewTranslationHint } from "../review/view.ts";
 import type { DownloadEvent } from "../translate/host/downloads.ts";
 import type { EngineAccess } from "../translate/host/engine.ts";
 import type { ModelDb } from "../translate/host/model-db.ts";
@@ -64,6 +65,15 @@ export interface AppTranslation {
   accept(): void;
   /** « Plus tard »: not offered again, unless downloaded once and evicted since. */
   decline(): void;
+  /**
+   * How the review's note gets a card in `language` translated when nothing can
+   * (add-lingua-review-translation-fallback D12): « Traduction étendue » off in the extension → turn it
+   * on there; on, the pair's models absent → the download, re-offering this offer. Null when neither
+   * would help: a pair without a route, or a download already running.
+   */
+  hint(language: string): ReviewTranslationHint | null;
+  /** The review's « Téléchargez la traduction pour l'app »: the offer made again, a « Plus tard » undone. */
+  reoffer(): void;
 }
 
 function remembered(local: AppTranslationDeps["local"]): Remembered {
@@ -101,11 +111,20 @@ export async function openAppTranslation(deps: AppTranslationDeps): Promise<AppT
     // Off in the extension: the app keeps no copy (D7). Nothing remembered stays either.
     await deps.db.erase().catch(() => undefined);
     remember(deps.local, { declined: [], downloaded: [] });
-    return { source: () => null, view: () => view, accept: () => {}, decline: () => {} };
+    return {
+      source: () => null,
+      view: () => view,
+      accept: () => {},
+      decline: () => {},
+      hint: () => ({ kind: "extension" }),
+      reoffer: () => {},
+    };
   }
 
   let catalogue: ModelCatalogue | null = null;
   let offered: string[] = [];
+  /** The reader's pairs this catalogue has a route for, as last read. */
+  let routed: string[] = [];
   /** A download is running: its progress is the view, whatever a reading finds meanwhile. */
   let downloading = false;
 
@@ -114,6 +133,7 @@ export async function openAppTranslation(deps: AppTranslationDeps): Promise<AppT
     try {
       catalogue ??= await deps.catalogue();
       const pairs = (await deps.pairs()).filter((pair) => routeOf(catalogue!, pair).length > 0);
+      routed = pairs;
       ready.clear();
       for (const pair of pairs) {
         const complete = await Promise.all(routeOf(catalogue, pair).map((m) => deps.db.complete(m)));
@@ -136,8 +156,17 @@ export async function openAppTranslation(deps: AppTranslationDeps): Promise<AppT
     } catch (e: unknown) {
       console.warn("[Cymbra Lingua] the app's models could not be read:", e);
       ready.clear();
+      routed = [];
       set({ phase: "none" });
     }
+  }
+
+  function reoffer(): void {
+    if (downloading) return;
+    const memory = remembered(deps.local);
+    const lacking = routed.filter((pair) => !ready.has(pair));
+    remember(deps.local, { declined: without(memory.declined, lacking), downloaded: memory.downloaded });
+    void evaluate();
   }
 
   await evaluate();
@@ -164,6 +193,11 @@ export async function openAppTranslation(deps: AppTranslationDeps): Promise<AppT
   return {
     source: (language) => ([...ready].some((pair) => studiedOf(pair) === language) ? port : null),
     view: () => view,
+    hint(language) {
+      const lacking = routed.some((pair) => studiedOf(pair) === language && !ready.has(pair));
+      return lacking && !downloading ? { kind: "download", download: reoffer } : null;
+    },
+    reoffer,
     accept() {
       if (view.phase !== "offer" && view.phase !== "failed") return;
       if (!catalogue || offered.length === 0) return;

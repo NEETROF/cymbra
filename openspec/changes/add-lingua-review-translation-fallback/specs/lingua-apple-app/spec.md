@@ -42,7 +42,10 @@ The app SHALL offer the download once per missing pair, quietly in its review, s
 without that acceptance. The models SHALL come from Cymbra's model host and SHALL be checked against
 the catalogue the app carries before use. When « Traduction étendue » is off in the extension, the
 app SHALL delete its copy at its next opening. Without its models, the app's review SHALL be as it
-was before the engine existed.
+was before the engine existed, except that a card without a gloss that nothing can translate SHALL
+say how to get a translation in its no-translation note: turning « Traduction étendue » on in the
+Cymbra Lingua extension of Safari when it is off there, else downloading the translation for the app,
+through a link that offers the app's existing download again and downloads nothing on its own.
 
 #### Scenario: Offered once
 - **WHEN** a reader with « Traduction étendue » on in Safari opens the app's review without the app's models
@@ -51,6 +54,14 @@ was before the engine existed.
 #### Scenario: Setting turned off
 - **WHEN** the reader turns « Traduction étendue » off in Safari and opens the app again
 - **THEN** the app's models are deleted and its review shows no machine translation from the engine
+
+#### Scenario: Nothing can translate the card in the app
+- **WHEN** a card without a gloss is revealed in the app, online translation not offered, and « Traduction étendue » is off in Safari
+- **THEN** its note reads « Pas de traduction pour ce mot. Activez la traduction étendue dans l'extension Cymbra Lingua de Safari pour traduire cette carte. »
+
+#### Scenario: The download declined
+- **WHEN** the same card is revealed with « Traduction étendue » on in Safari after the reader answered « Plus tard » to the app's offer, or its models were evicted
+- **THEN** its note reads « Pas de traduction pour ce mot. » followed by the link « Téléchargez la traduction pour l'app », whose tap shows the app's download offer again, and nothing is downloaded before the reader accepts it
 
 #### Scenario: A model that does not match
 - **WHEN** a downloaded file's checksum differs from the catalogue's
