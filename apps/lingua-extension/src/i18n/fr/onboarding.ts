@@ -23,8 +23,10 @@ export const onboarding = {
   levelSaved: (level: string) => `Niveau enregistré : ${level}. Tu peux fermer cet onglet et commencer à lire.`,
   beginnerSaved: "C'est noté — on part de zéro. Tu peux fermer cet onglet et commencer à lire.",
   // — The anonymous counts' first-run sentence (add-lingua-usage-counts D7) —
-  usageInform: "Lingua compte de façon anonyme quelques étapes — installation, premiers pas, retours —, sans aucun identifiant ; rien de ce que tu lis ne quitte ton appareil. Tu peux couper ces comptages dans Réglages → Données.",
-  usageAsk: "Autorises-tu Lingua à compter de façon anonyme quelques étapes — installation, premiers pas, retours —, sans aucun identifiant ? Rien de ce que tu lis ne quitte ton appareil, et tu pourras changer d'avis dans Réglages → Données.",
+  usageInform:
+    "Lingua compte de façon anonyme quelques étapes — installation, premiers pas, retours —, sans aucun identifiant ; rien de ce que tu lis ne quitte ton appareil. Tu peux couper ces comptages dans Réglages → Données.",
+  usageAsk:
+    "Autorises-tu Lingua à compter de façon anonyme quelques étapes — installation, premiers pas, retours —, sans aucun identifiant ? Rien de ce que tu lis ne quitte ton appareil, et tu pourras changer d'avis dans Réglages → Données.",
   usageYes: "Oui, compter",
   usageNo: "Non merci",
   usageYesDone: "Merci ! Tu peux couper ces comptages à tout moment dans Réglages → Données.",

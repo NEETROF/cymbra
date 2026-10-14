@@ -50,8 +50,10 @@ export const settings = {
   // — Comptages anonymes (add-lingua-usage-counts D6): the switch in Données —
   usageCounts: "Comptages anonymes",
   usageCountsToggle: "Envoyer des comptages anonymes",
-  usageCountsNote: "Six étapes de chaque installation, chacune envoyée une fois : installée, un premier niveau choisi, une première page analysée, un retour le lendemain, entre le 7ᵉ et le 13ᵉ jour, entre le 30ᵉ et le 59ᵉ jour. Avec elles, seulement la semaine d'installation, le navigateur et la version de Lingua — aucun identifiant, même connecté. Rien de ce que tu lis ne quitte ton appareil.",
-  usageCountsFirefoxNote: "Sur Firefox, cet interrupteur est le consentement « Données techniques et d'interaction » de Firefox.",
+  usageCountsNote:
+    "Six étapes de chaque installation, chacune envoyée une fois : installée, un premier niveau choisi, une première page analysée, un retour le lendemain, entre le 7ᵉ et le 13ᵉ jour, entre le 30ᵉ et le 59ᵉ jour. Avec elles, seulement la semaine d'installation, le navigateur et la version de Lingua — aucun identifiant, même connecté. Rien de ce que tu lis ne quitte ton appareil.",
+  usageCountsFirefoxNote:
+    "Sur Firefox, cet interrupteur est le consentement « Données techniques et d'interaction » de Firefox.",
   usageCountsFromToolbar: "Pour les rétablir, ouvre les Réglages depuis le bouton de Lingua dans la barre d'outils.",
   shortcuts: "Raccourcis & gestes",
   /** The keys, as the interface names them. */

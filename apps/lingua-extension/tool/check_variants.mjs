@@ -107,6 +107,16 @@ for (const { file, text } of safariOnly) {
   }
 }
 
+// The anonymous counts' leaving page (add-lingua-usage-counts D12): registered as the uninstall
+// address on Chromium and Firefox; Safari ignores the API, so its bundle does not even call it.
+for (const target of ["chromium", "firefox", "safari"]) {
+  const wanted = target !== "safari";
+  expect(
+    read(target, "background.js").includes("runtime.setUninstallURL(") === wanted,
+    `${target}/background.js: "runtime.setUninstallURL(" should be ${wanted ? "present" : "folded away"}`,
+  );
+}
+
 // A define missing from build.mjs builds fine and type-checks (env.d.ts declares it), then
 // throws a ReferenceError at runtime: no bundle may keep one of env.d.ts's defines.
 const defines = [...readFileSync(join(root, "env.d.ts"), "utf8").matchAll(/declare const (__[A-Z_]+__)/g)].map(

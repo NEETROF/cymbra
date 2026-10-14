@@ -94,7 +94,7 @@ export function localDay(date: Date): number {
 
 /** The Monday that starts the week holding `day` (1970-01-01 was a Thursday). */
 export function mondayOf(day: number): number {
-  return day - (((day - 4) % 7) + 7) % 7;
+  return day - ((((day - 4) % 7) + 7) % 7);
 }
 
 /** A new installation on `today`: day 0, and « installed » waiting. */
@@ -154,7 +154,12 @@ export type ReportOutcome = "accepted" | "invalid" | "retry";
  * The state after reporting `steps`: accepted or refused as malformed, they are done — never sent
  * again, so a bug cannot loop; otherwise they wait, and the next try waits an hour (D5).
  */
-export function afterReport(state: UsageState, steps: readonly UsageStep[], outcome: ReportOutcome, now: number): UsageState {
+export function afterReport(
+  state: UsageState,
+  steps: readonly UsageStep[],
+  outcome: ReportOutcome,
+  now: number,
+): UsageState {
   if (outcome === "retry") return { ...state, lastFailure: now };
   return {
     ...state,
@@ -169,8 +174,7 @@ export function afterReport(state: UsageState, steps: readonly UsageStep[], outc
  * Firefox before 140 (Android 142) does not have — or the switch's key elsewhere.
  */
 export type Consent =
-  | { kind: "grant"; supported: boolean; granted: boolean }
-  | { kind: "switch"; off: boolean | undefined };
+  { kind: "grant"; supported: boolean; granted: boolean } | { kind: "switch"; off: boolean | undefined };
 
 /** Whether steps may be recorded at all (held, on Chromium, until the reader answers). */
 export function recording(consent: Consent): boolean {
