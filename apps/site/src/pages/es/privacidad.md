@@ -166,8 +166,8 @@ lees, las palabras que todavía no conoces en los idiomas que estudias. Además 
 en el §2:
 
 **Lo que se queda en tu dispositivo.** El texto de las páginas se analiza **en tu
-dispositivo** y nunca se envía, salvo la frase que envías tú con la **Traducción en línea**
-(más abajo). También se quedan en el dispositivo: el detalle de tus
+dispositivo** y nunca se envía, salvo la frase que envías tú con la **Traducción en línea** y
+la traducción de una palabra que decides guardar en su tarjeta (más abajo). También se quedan en el dispositivo: el detalle de tus
 lecturas (qué palabras has encontrado, en qué páginas), la **dirección de la página** en la
 que añades una palabra a tu mazo y, si no has iniciado sesión, el conjunto de tus datos de
 Lingua.
@@ -190,19 +190,30 @@ y el texto de las páginas sigue sin enviarse nunca. Estas descargas no contiene
 las páginas, ni datos de Lingua, ni token de cuenta, ni identificador de instalación, y
 Cymbra no las asocia a ninguna cuenta ni a ninguna instalación. Como con cualquier página
 web, el proveedor que aloja estos archivos (Cloudflare) ve la dirección IP del dispositivo
-que los solicita. Desactivar el ajuste elimina los modelos del dispositivo.
+que los solicita. Desactivar el ajuste elimina los modelos del dispositivo. La app Cymbra
+Lingua guarda su propia copia de los modelos: solo la descarga, desde la misma dirección y en
+las mismas condiciones, cuando la aceptas en la app, si el ajuste está activado en la extensión
+de Safari del mismo dispositivo, y la elimina cuando se desactiva.
 
 **Traducción en línea.** Este ajuste, desactivado por defecto y propio de cada dispositivo
 (no se sincroniza), solo se ofrece a las cuentas que tienen acceso a él. Cuando está activado,
-aparece un botón « Traducción en línea » en la traducción de una selección de varias palabras.
-**No se envía nada mientras no pulses ese botón.** Cuando lo pulsas, la frase que contiene tu
-selección, la posición de la selección y el par de idiomas se envían a Cymbra, con tu token de
+aparece un botón « Traducción en línea » en la traducción de una selección de varias palabras,
+y en una tarjeta en repaso. **No se envía nada mientras no pulses ese botón.** Cuando lo pulsas,
+la frase que contiene tu selección —o la frase de la tarjeta repasada, con la palabra localizada
+por su posición—, la posición de la selección y el par de idiomas se envían a Cymbra, con tu token de
 cuenta, y Cymbra los envía a **Google** (API Gemini) para traducirlos, o a **Anthropic** (API
 Claude) cuando Google no responde. Ni Cymbra ni estos proveedores conservan la frase ni su
 traducción, y estos proveedores no la usan para entrenar sus modelos. Para limitar el uso y
 conocer su coste, Cymbra cuenta, para tu cuenta, las traducciones en línea del día (un contador
 que se borra al cabo de un día) y guarda totales diarios por proveedor y par de idiomas, sin
-cuenta ni texto.
+cuenta ni texto. En la app Cymbra Lingua, la Traducción en línea te pide iniciar sesión **en la
+app** (con Apple, Google o tu correo y tu contraseña): la app abre entonces su propia sesión de tu cuenta, distinta de la
+de la extensión, que puedes cerrar desde la app.
+
+**Traducción guardada.** Una traducción automática (en el dispositivo o en línea) solo se
+conserva si, en el repaso, decides guardar la traducción de la palabra como traducción de su
+tarjeta: solo se guarda esa palabra traducida, en la tarjeta, y se sincroniza con ella; la frase
+traducida nunca. Una traducción que no guardas no se conserva en ningún sitio.
 
 **Lectura en voz alta.** La lectura en voz alta utiliza una voz del idioma leído, instalada
 en tu dispositivo: el texto leído no sale de él. Si no hay ninguna voz de ese idioma
@@ -217,7 +228,7 @@ en el dispositivo, se utiliza en su lugar.
 | Dato | Origen | Finalidad |
 |---|---|---|
 | Estado de cada palabra (conocida, en aprendizaje, ignorada) y nivel declarado, para cada idioma que estudias | tú | recuperar tu progreso en tus dispositivos |
-| Mazo de repaso, para cada idioma que estudias: la palabra, la frase en la que la encontraste, su traducción, el idioma de esa traducción y su estado de repaso —**sin** la dirección de la página | tú | repasar en todos tus dispositivos |
+| Mazo de repaso, para cada idioma que estudias: la palabra, la frase en la que la encontraste, su traducción —la del diccionario, o la traducción automática de la palabra que decidiste guardar, nunca una frase traducida—, el idioma de esa traducción y su estado de repaso —**sin** la dirección de la página | tú | repasar en todos tus dispositivos |
 | Estadísticas por día y por idioma que estudias (palabras aprendidas, repasos, número de palabras leídas y, entre ellas, de palabras nuevas), con tu lengua materna de ese día (la de las traducciones) | calculadas en el dispositivo | mostrar tus estadísticas; cifras de uso **agregadas** para hacer funcionar el servicio y, sin nombre ni número de personas, publicadas en los canales de la comunidad Cymbra (véase el §2) |
 | Identificador de instalación aleatorio | generado por la extensión | distinguir dos dispositivos durante la sincronización |
 

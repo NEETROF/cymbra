@@ -31,7 +31,7 @@ use lingua_core::analysis::tokenize::{
 };
 use lingua_core::engine::{
     expression_piece, french_expression_key, holds_french_contraction, reading_expression_key,
-    shared_spans,
+    shared_spans, word_grammar,
 };
 use lingua_core::knowledge::level::{CefrLevel, CefrLevels};
 use lingua_core::knowledge::state::FrequencyRanks;
@@ -263,6 +263,42 @@ fn spec_scenario_english_s_names() {
     assert_eq!(dictionary_words_of("en").len(), 21_753);
     let bill = tsv(&tables().join("en-fr/senses.tsv"))["bill"].clone();
     assert!(bill.contains("PROPN:") && bill.contains("NOUN:"), "{bill}");
+}
+
+/// The parts of speech of a word's grouped gloss on the en-fr word card, and its first group.
+fn en_fr_card(lemma: &str) -> (Vec<&'static str>, String) {
+    let pack = Pack::load(shipped("en-fr")).unwrap();
+    let grammar = word_grammar(lemma, lemma, StudiedLanguage::English, &pack);
+    let poses = grammar
+        .senses
+        .iter()
+        .map(|group| group.tag.as_ref().map_or("-", |tag| tag.pos))
+        .collect();
+    let first = grammar.senses.first().map(|g| g.text.clone());
+    (poses, first.unwrap_or_default())
+}
+
+#[test]
+fn spec_scenario_would_reads_as_the_conditional() {
+    // fix-lingua-en-fr-modal-glosses: the word glosses a person wrote (reduce-en-fr.py
+    // WORD_GLOSSES) replace the French Wiktionary's, gloss and runs together.
+    let (poses, first) = en_fr_card("would");
+    assert_eq!(poses, ["VERB"], "would: {first}");
+    assert!(
+        first.starts_with("Conditionnel : would come = viendrait"),
+        "{first}"
+    );
+    assert!(!first.contains("attrayant"), "{first}");
+}
+
+#[test]
+fn spec_scenario_a_noun_kept_after_the_modal() {
+    let (poses, first) = en_fr_card("must");
+    assert_eq!(poses, ["VERB", "NOUN"], "must: {first}");
+    assert!(first.starts_with("Devoir, obligation"), "{first}");
+    let (poses, first) = en_fr_card("can");
+    assert_eq!(poses, ["VERB", "NOUN"], "can: {first}");
+    assert!(first.starts_with("Pouvoir"), "{first}");
 }
 
 #[test]

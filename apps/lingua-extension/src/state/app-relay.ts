@@ -1,6 +1,9 @@
 import type { CardOp, LinguaPort, StatusOp } from "../analyzer/port.ts";
 import type { NativeLanguage } from "../analyzer/types.ts";
+import { FLAGS_KEY, flagOn, type FlagValues } from "../flags/store.ts";
 import { INTERFACE_LANGUAGE_KEY, isInterfaceLanguage } from "../i18n/language.ts";
+import { ONLINE_TRANSLATION_FLAG } from "../translate/online.ts";
+import { TRANSLATION_HOST_KEY } from "../translate/setting.ts";
 import {
   addDailyCounts,
   DAILY_KEY,
@@ -14,6 +17,7 @@ import {
   ANDROID_VOICES_KEY,
   COLOURS_KEY,
   NEW_WORDS_PER_DAY_KEY,
+  ONLINE_TRANSLATION_KEY,
   READER_DISPLAY_KEY,
   REMOTE_VOICES_KEY,
   REVIEW_LANGUAGE_KEY,
@@ -33,7 +37,12 @@ import {
 /** The payloads' version: a reader of another one ignores what it cannot read. */
 export const RELAY_VERSION = 1;
 
-/** The preferences the app's review reads, carried with the backup (never the session or the account). */
+/**
+ * The preferences the app's review reads, carried with the backup (never the session or the account).
+ * « Traduction étendue »'s setting — not its models' state, which is this device's extension's — and
+ * « Traduction en ligne »'s: the app follows the extension's choices on the device
+ * (add-lingua-review-translation-fallback D7, D9).
+ */
 export const RELAYED_PREFS = [
   INTERFACE_LANGUAGE_KEY,
   NEW_WORDS_PER_DAY_KEY,
@@ -43,6 +52,8 @@ export const RELAYED_PREFS = [
   REMOTE_VOICES_KEY,
   COLOURS_KEY,
   READER_DISPLAY_KEY,
+  TRANSLATION_HOST_KEY,
+  ONLINE_TRANSLATION_KEY,
 ] as const;
 
 /** The store's keys beside the backup the app shows: the daily counts its Statistiques draw. */
@@ -59,7 +70,23 @@ export interface SharedState {
   prefs: Record<string, unknown>;
   /** The relayed store keys the extension holds, by key. */
   storeItems: Record<string, unknown>;
+  /**
+   * The extension's last snapshot of the account's online-translation access — the one flag, never
+   * the session or the account (add-lingua-review-translation-fallback D9). It decides whether the
+   * app shows « Traduction en ligne » before the app has a session of its own; the server stays the
+   * authority. Absent from an older extension: no access.
+   */
+  onlineAccess: boolean;
 }
+
+/** The extension's snapshot of the online-translation flag, as its flag store keeps it (`FLAGS_KEY`). */
+export function onlineAccessOf(snapshot: unknown): boolean {
+  const values = (snapshot as { values?: unknown } | null | undefined)?.values;
+  return values !== null && typeof values === "object" && flagOn(values as FlagValues, ONLINE_TRANSLATION_FLAG);
+}
+
+/** Where the extension keeps that snapshot: chrome.storage.local, beside the relayed preferences. */
+export const RELAYED_FLAGS_KEY = FLAGS_KEY;
 
 /** What a review counts in a day, in one studied language, and the native language it counted under. */
 export interface ReviewCounts {
@@ -113,8 +140,12 @@ function object(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
-export function encodeSharedState(state: Omit<SharedState, "v">): string {
-  return JSON.stringify({ v: RELAY_VERSION, ...state } satisfies SharedState);
+export function encodeSharedState(state: Omit<SharedState, "v" | "onlineAccess"> & { onlineAccess?: boolean }): string {
+  return JSON.stringify({
+    v: RELAY_VERSION,
+    ...state,
+    onlineAccess: state.onlineAccess === true,
+  } satisfies SharedState);
 }
 
 /** The shared state in `raw`, or null for nothing, another version or anything unreadable. */
@@ -127,6 +158,7 @@ export function parseSharedState(raw: unknown): SharedState | null {
     savedAt: typeof r.savedAt === "number" ? r.savedAt : 0,
     prefs: object(r.prefs),
     storeItems: object(r.storeItems),
+    onlineAccess: r.onlineAccess === true,
   };
 }
 

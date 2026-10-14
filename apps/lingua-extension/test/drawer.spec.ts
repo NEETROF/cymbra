@@ -110,4 +110,28 @@ describe("the drawer's Révision (add-lingua-review-translation D4)", () => {
     expect(translator).toHaveBeenCalledWith("en");
     expect(warm).toHaveBeenCalledWith("en");
   });
+
+  it("is handed the reading session's online translation: offered on a card, sent on the press", async () => {
+    const translate = vi.fn(async () => ({ kind: "unavailable" as const }));
+    const { drawer: d, root } = drawer({
+      port: makeFakePort([
+        { headword: "slacken", surface: "slacken", sentence: "He felt his grip slacken.", gloss: null },
+      ]).port,
+      online: { offered: () => true, translate },
+    });
+    await d.openOn("review");
+    const click = async (label: string): Promise<void> => {
+      [...root.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent === label)!.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    };
+    await click("Réviser");
+    await click("Afficher la réponse");
+    await click("Traduction en ligne");
+
+    expect(translate).toHaveBeenCalledWith({
+      sentence: "He felt his grip slacken.",
+      selection: { start: 17, end: 24 },
+      source: "en",
+    });
+  });
 });

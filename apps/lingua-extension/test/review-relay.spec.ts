@@ -95,6 +95,36 @@ describe("the extension hands its state to the app (add-lingua-apple-review D3)"
     expect(state?.storeItems).toEqual({ [DAILY_KEY]: { 1: {} } });
   });
 
+  it("relays the translation settings and the access flag, never the session, a token or the account", async () => {
+    const n = native();
+    const prefs = {
+      "cymbra-lingua-translation-host": "local",
+      "cymbra-lingua-online-translation": true,
+      "cymbra-lingua-model-state": { phase: "ready", models: ["m"], pairs: ["en-fr"] },
+      "cymbra-lingua-flags": { account: "acc-123", values: { "lingua.online_translation.enabled": true } },
+      "cymbra-lingua-access": { token: "header.payload.sig" },
+      "cymbra-lingua-refresh": "refresh-secret",
+    };
+    const r = reviewRelay({
+      send: n.send,
+      store: area(v2("LOCAL")),
+      prefs: area(prefs),
+      port: makeFakePort().port,
+      exclusive: (task) => task(),
+      now: () => 1,
+    });
+    await r.share();
+    const message = n.sent[0];
+    const raw = message.type === "review.saveState" ? message.state : "";
+    expect(parseSharedState(raw)).toMatchObject({
+      onlineAccess: true,
+      prefs: { "cymbra-lingua-translation-host": "local", "cymbra-lingua-online-translation": true },
+    });
+    for (const secret of ["acc-123", "header.payload.sig", "refresh-secret", "model-state"]) {
+      expect(raw, secret).not.toContain(secret);
+    }
+  });
+
   it("sends nothing before a backup exists, and survives a missing handler", async () => {
     const n = native();
     await relay({ send: n.send, store: area() }).r.share();

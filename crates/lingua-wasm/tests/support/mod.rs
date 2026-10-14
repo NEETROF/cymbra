@@ -37,6 +37,7 @@
 
 #![allow(dead_code)]
 
+pub mod committed;
 pub mod english;
 pub mod french;
 pub mod spanish;
@@ -174,7 +175,7 @@ impl Scenario {
     /// The committed tables, `scripts/lingua-data/tables`: a pair's native side in
     /// `<pair>/`, its studied language's side in `<studied>/`.
     pub fn tables_root() -> PathBuf {
-        Self::crate_dir().join("../../scripts/lingua-data/tables")
+        committed::tables_root()
     }
 
     /// A pair's committed native side, `scripts/lingua-data/tables/<pair>`.
@@ -201,9 +202,7 @@ impl Scenario {
     /// The pack the extension ships, built from the committed tables (the build is
     /// deterministic; `lingua-extension-check` holds the tables to `pin.json`).
     pub fn real_pack(pair: &str) -> Vec<u8> {
-        let inputs = lingua_pack::inputs_from_tables(&Self::tables_root(), pair)
-            .unwrap_or_else(|e| panic!("read the committed {pair} tables: {e}"));
-        lingua_pack::build_pack(&inputs).unwrap_or_else(|e| panic!("build the {pair} pack: {e}"))
+        committed::pack(pair)
     }
 
     fn manifest(pair: &str, source: PackSource) -> serde_json::Value {

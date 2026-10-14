@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LinguaPort } from "@/analyzer/port.ts";
-import { mountReview } from "@/review/review-page.ts";
+import { inSettings, mountReview, type ReviewOnlineSource } from "@/review/review-page.ts";
+import type { ReviewTranslationHint } from "@/review/view.ts";
 import { loadDailyStats, utcDay } from "@/state/dailystats.ts";
 import { localDayStart } from "@/review/session.ts";
 import type { SpeechEngine, VoiceInfo } from "@/reading/speech.ts";
@@ -13,6 +14,7 @@ import {
 } from "@/state/storage.ts";
 import { STORE_CHANGED_KEY } from "@/state/store.ts";
 import type { TranslatorSource } from "@/translate/create-port.ts";
+import type { OnlineTranslationRequest, OnlineTranslationResult } from "@/translate/online.ts";
 import { TRANSLATION_WAIT_MS, type TranslationRequest, type TranslationResult } from "@/translate/port.ts";
 import { type FakeCard, makeFakePort, makeFakeSpeech } from "./helpers.ts";
 
@@ -99,6 +101,10 @@ interface Host {
   speech?: SpeechEngine | null;
   /** The translator its host hands it (add-lingua-review-translation D4); none by default. */
   translator?: TranslatorSource;
+  /** Its « Traduction en ligne » (add-lingua-review-translation-fallback D2); none by default. */
+  online?: ReviewOnlineSource;
+  /** How a card nothing can translate gets a translation (add-lingua-review-translation-fallback D12). */
+  translationHint?: (language: string) => ReviewTranslationHint | null;
   /** Beside a book, its words still to sort and opening their list (add-lingua-chapter-recap D6). */
   toSort?: () => Promise<number>;
   openToSort?: () => void;
@@ -114,6 +120,8 @@ function mount(port: LinguaPort, area: Area = fakeArea(), host: Host = {}) {
     pageLanguage: host.pageLanguage,
     speech: host.speech,
     translator: host.translator,
+    online: host.online,
+    translationHint: host.translationHint,
     toSort: host.toSort,
     openToSort: host.openToSort,
   });
@@ -716,6 +724,29 @@ describe("Révision — a card the pack cannot answer (add-lingua-review-transla
     expect(m.container.querySelector(".review-translation, .review-translating")).toBeNull(); // not before the reveal
   });
 
+  it("asks a glossless card captured with its full stop with a span that ends before it (fix-lingua-selection-card-punctuation D4)", async () => {
+    const t = fakeTranslator();
+    const stood: FakeCard = {
+      headword: "stood in silence.",
+      surface: "stood in silence.",
+      sentence: "They stood in silence. Then they left.",
+      gloss: null,
+    };
+    const m = mount(makeFakePort([stood]).port, fakeArea(), { translator: t.source });
+    await m.page.refresh();
+
+    button(m.container, "Réviser").click();
+    await settle();
+
+    expect(t.requests).toEqual([
+      {
+        sentence: "They stood in silence. Then they left.",
+        selection: { start: 5, end: 5 + "stood in silence".length },
+        language: "en",
+      },
+    ]);
+  });
+
   it("warms the route of the review's language when a session starts", async () => {
     const t = fakeTranslator();
     const m = mount(makeFakePort(DECK).port, fakeArea(), { translator: t.source });
@@ -881,6 +912,270 @@ describe("Révision — a card the pack cannot answer (add-lingua-review-transla
 
     expect(m.container.textContent).not.toContain("LATE");
     expect(text(m.container, ".review-translating")).toBe("Traduction en cours…"); // the second card's own
+  });
+});
+
+/**
+ * The host's « Traduction en ligne », a test double (add-lingua-review-translation-fallback D2):
+ * whether it is offered, every request it sent, its answers given by the spec through `answer`.
+ */
+function fakeOnline(offered = true) {
+  const requests: OnlineTranslationRequest[] = [];
+  const pending: ((result: OnlineTranslationResult) => void)[] = [];
+  const source: ReviewOnlineSource = {
+    offered: () => offered,
+    translate: (request) => {
+      requests.push(request);
+      return new Promise<OnlineTranslationResult>((resolve) => pending.push(resolve));
+    },
+  };
+  const answer = (index: number, result: OnlineTranslationResult): void => pending[index](result);
+  return { source, requests, answer };
+}
+
+const SLACKEN: FakeCard = {
+  headword: "slacken",
+  surface: "slacken",
+  sentence: "He felt his grip slacken.",
+  gloss: null,
+};
+
+/** Mount on `deck`, start a session and reveal its first card. */
+async function revealed(deck: FakeCard[], host: Host) {
+  const fake = makeFakePort(deck);
+  const m = mount(fake.port, fakeArea(), host);
+  await m.page.refresh();
+  button(m.container, "Réviser").click();
+  await settle();
+  button(m.container, "Afficher la réponse").click();
+  await settle();
+  return { ...m, calls: fake.calls };
+}
+
+const has = (container: HTMLElement, label: string): boolean =>
+  [...container.querySelectorAll("button")].some((b) => b.textContent === label);
+
+describe("Révision — online translation, « Traduire la phrase » and keeping (add-lingua-review-translation-fallback)", () => {
+  it("offers the button on a card without a gloss only when the setting and the access say so", async () => {
+    for (const offered of [true, false]) {
+      const online = fakeOnline(offered);
+      const m = await revealed([SLACKEN], { online: online.source });
+      expect(has(m.container, "Traduction en ligne"), String(offered)).toBe(offered);
+      expect(online.requests).toEqual([]); // nothing leaves the device before the press
+    }
+  });
+
+  // (card, what is sent — or null for no button)
+  const SENT: [string, FakeCard, OnlineTranslationRequest | null][] = [
+    [
+      "a single word, in its sentence, marked by position",
+      SLACKEN,
+      { sentence: "He felt his grip slacken.", selection: { start: 17, end: 24 }, source: "en" },
+    ],
+    [
+      "an expression its sentence does not hold, alone",
+      { ...EXPRESSION, sentence: "Some other sentence entirely." },
+      { sentence: "such as those made", selection: { start: 0, end: 18 }, source: "en" },
+    ],
+    ["a single word its sentence does not hold: no button", { ...SLACKEN, sentence: "Nothing here." }, null],
+  ];
+
+  it("sends the card's sentence with the word's span, never the word alone", async () => {
+    for (const [name, card, sent] of SENT) {
+      const online = fakeOnline();
+      const m = await revealed([card], { online: online.source });
+      expect(has(m.container, "Traduction en ligne"), name).toBe(sent !== null);
+      if (sent) button(m.container, "Traduction en ligne").click();
+      await settle();
+      expect(online.requests, name).toEqual(sent ? [sent] : []);
+    }
+  });
+
+  it("sends once per card, shows the answer in place of the engine's, marked, labelled online", async () => {
+    const online = fakeOnline();
+    const t = fakeTranslator();
+    const m = await revealed([SLACKEN], { online: online.source, translator: t.source });
+    const b = button(m.container, "Traduction en ligne");
+    b.click();
+    b.click();
+    await settle();
+    expect(text(m.container, ".review-online-note")).toBe("Traduction en ligne…");
+    online.answer(0, {
+      kind: "translated",
+      translation: { sentence: "Il sentit sa prise se relâcher.", marks: [{ start: 19, end: 30 }] },
+    });
+    await settle();
+    t.answer(0, "LATE ENGINE"); // the engine's, later: the online answer stays
+    await settle();
+
+    expect(online.requests).toHaveLength(1);
+    expect(text(m.container, ".review-translation-label")).toBe("Dans votre phrase — traduction automatique en ligne");
+    expect(text(m.container, ".review-translation mark")).toBe("se relâcher");
+    expect(m.container.textContent).not.toContain("LATE ENGINE");
+    expect(button(m.container, "Traduction en ligne").disabled).toBe(true);
+  });
+
+  // (the service's answer, the note)
+  const REFUSED: [OnlineTranslationResult, string][] = [
+    [{ kind: "unavailable" }, "Traduction en ligne indisponible pour le moment."],
+    [{ kind: "limit", resetsAt: Date.UTC(2026, 9, 15, 0, 0) }, "Limite quotidienne atteinte — de nouveau disponible à"],
+  ];
+
+  it("reads « unavailable » and the daily limit as the selection card does, keeping what it shows", async () => {
+    for (const [result, note] of REFUSED) {
+      const online = fakeOnline();
+      const m = await revealed([SLACKEN], { online: online.source });
+      button(m.container, "Traduction en ligne").click();
+      await settle();
+      online.answer(0, result);
+      await settle();
+      expect(text(m.container, ".review-online-note")).toContain(note);
+      expect(text(m.container, ".review-no-gloss")).toBe("Pas de traduction pour ce mot.");
+    }
+  });
+
+  it("drops an online answer that lands after its card was answered", async () => {
+    const online = fakeOnline();
+    const m = await revealed([SLACKEN, { ...SLACKEN, headword: "thole", surface: "thole", sentence: "thole it" }], {
+      online: online.source,
+    });
+    button(m.container, "Traduction en ligne").click();
+    await settle();
+    button(m.container, "Su").click();
+    await settle();
+    online.answer(0, { kind: "translated", translation: { sentence: "LATE", marks: [] } });
+    await settle();
+    expect(m.container.textContent).not.toContain("LATE");
+  });
+
+  // (engine ready, online offered, the link shown)
+  const LINK: [boolean, boolean, boolean][] = [
+    [true, false, true],
+    [false, true, true],
+    [false, false, false],
+  ];
+
+  it("A word the pack glosses: the link only where the engine or online can answer, nothing asked", async () => {
+    for (const [ready, offered, shown] of LINK) {
+      const t = fakeTranslator(() => ready);
+      const online = fakeOnline(offered);
+      const m = await revealed(DECK, { translator: t.source, online: online.source });
+      expect(has(m.container, "Traduire la phrase"), `${ready} ${offered}`).toBe(shown);
+      expect(has(m.container, "Traduction en ligne")).toBe(false); // not before the tap
+      expect(t.requests).toEqual([]);
+    }
+  });
+
+  it("A useless gloss: the tap asks the engine with the word marked and shows the online button", async () => {
+    const t = fakeTranslator();
+    const online = fakeOnline();
+    const would: FakeCard = { headword: "would", surface: "would", sentence: "I would go.", gloss: "Subjonctif passé" };
+    const m = await revealed([would], { translator: t.source, online: online.source });
+    button(m.container, "Traduire la phrase").click();
+    await settle();
+    expect(t.requests).toEqual([{ sentence: "I would go.", selection: { start: 2, end: 7 }, language: "en" }]);
+    expect(has(m.container, "Traduire la phrase")).toBe(false);
+    expect(has(m.container, "Traduction en ligne")).toBe(true);
+    t.answer(0, "J'irais.", [{ start: 0, end: 7 }]);
+    await settle();
+    expect(text(m.container, ".review-gloss")).toBe("Subjonctif passé");
+    expect(text(m.container, ".review-translation mark")).toBe("J'irais");
+  });
+
+  it("Replacing a useless gloss: kept through the port, shown at once, saved, the action gone", async () => {
+    const t = fakeTranslator();
+    const would: FakeCard = {
+      headword: "would",
+      surface: "would",
+      sentence: "He would go.",
+      gloss: "Subjonctif passé",
+    };
+    const m = await revealed([would], { translator: t.source });
+    button(m.container, "Traduire la phrase").click();
+    await settle();
+    t.answer(0, "Il aurait dit.", [{ start: 3, end: 9 }]);
+    await settle();
+    button(m.container, "Garder « aurait »").click();
+    await settle();
+
+    expect(m.calls.kept).toEqual([{ lemma: "would", gloss: "aurait", language: "en" }]);
+    expect(text(m.container, ".review-gloss")).toBe("aurait");
+    expect(m.container.querySelector(".review-keep")).toBeNull();
+    expect(m.container.querySelector(".review-translation")).not.toBeNull(); // the translation it came from stays
+    expect(m.area.raw).toHaveProperty(ROOT_KEY); // the backup was saved
+  });
+});
+
+describe("Révision — a card nothing can translate (add-lingua-review-translation-fallback D12)", () => {
+  const SETTINGS = "Activez la traduction étendue dans les réglages pour traduire cette carte.";
+  const WORD = "Pas de traduction pour ce mot.";
+
+  // (case, card, engine ready, online offered, the note)
+  const CASES: [string, FakeCard, boolean, boolean, string][] = [
+    ["nothing can translate a word", SLACKEN, false, false, `${WORD} ${SETTINGS}`],
+    [
+      "nothing can translate an expression",
+      EXPRESSION,
+      false,
+      false,
+      `Pas de traduction pour cette expression. ${SETTINGS}`,
+    ],
+    ["online offered: the button is the way", SLACKEN, false, true, WORD],
+    [
+      "a single word its sentence does not hold: nothing would help",
+      { ...SLACKEN, sentence: "Nothing here." },
+      false,
+      false,
+      WORD,
+    ],
+  ];
+
+  it("says how to get a translation only when nothing can translate the card, and something could", async () => {
+    for (const [name, card, ready, offered, note] of CASES) {
+      const asked: string[] = [];
+      const t = fakeTranslator(() => ready);
+      const m = await revealed([card], {
+        translator: t.source,
+        online: fakeOnline(offered).source,
+        translationHint: (language) => (asked.push(language), inSettings()),
+      });
+      expect(text(m.container, ".review-no-gloss"), name).toBe(note);
+      if (note !== WORD) expect(asked, name).toContain("en");
+    }
+  });
+
+  it("a model ready: the translation comes, and an engine with nothing to say leaves the note alone", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const t = fakeTranslator();
+    const m = mount(makeFakePort([SLACKEN]).port, fakeArea(), { translator: t.source, translationHint: inSettings });
+    await m.page.refresh();
+    button(m.container, "Réviser").click();
+    await vi.advanceTimersByTimeAsync(0);
+    button(m.container, "Afficher la réponse").click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(m.container.querySelector(".review-no-gloss")).toBeNull();
+    expect(text(m.container, ".review-translating")).toBe("Traduction en cours…");
+
+    await vi.advanceTimersByTimeAsync(TRANSLATION_WAIT_MS);
+
+    expect(text(m.container, ".review-no-gloss")).toBe(WORD);
+  });
+
+  it("a glossed card, or a host without a hint: nothing changes", async () => {
+    const glossed = await revealed(DECK, { translationHint: inSettings });
+    expect(glossed.container.querySelector(".review-no-gloss")).toBeNull();
+    expect(glossed.container.textContent).not.toContain(SETTINGS);
+    const bare = await revealed([SLACKEN], {});
+    expect(text(bare.container, ".review-no-gloss")).toBe(WORD);
+  });
+
+  it("the app's download link re-offers the download, on the reader's tap only", async () => {
+    const download = vi.fn();
+    const m = await revealed([SLACKEN], { translationHint: () => ({ kind: "download", download }) });
+    expect(text(m.container, ".review-no-gloss")).toBe(`${WORD} Téléchargez la traduction pour l'app`);
+    expect(download).not.toHaveBeenCalled();
+    button(m.container, "Téléchargez la traduction pour l'app").click();
+    expect(download).toHaveBeenCalledOnce();
   });
 });
 

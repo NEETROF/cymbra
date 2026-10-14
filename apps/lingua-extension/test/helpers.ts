@@ -51,6 +51,8 @@ export interface FakeCalls {
   markKnown: number;
   /** « Ne plus me le montrer » answers (refine-lingua-review-session). */
   ignored: number;
+  /** Glosses kept in review, in order (add-lingua-review-translation-fallback D3). */
+  kept: { lemma: string; gloss: string; language: StudiedLanguage }[];
   restored: string[];
   /** The languages each due count and each review start were asked for (none: every language). */
   reviewLanguages: (StudiedLanguage[] | undefined)[];
@@ -74,6 +76,7 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
     reveals: 0,
     markKnown: 0,
     ignored: 0,
+    kept: [],
     restored: [],
     reviewLanguages: [],
     reviewOptions: [],
@@ -131,6 +134,14 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
     trackedCount: async () => calls.setStatus.length + calls.addCard.length,
     addCard: async (c) => void calls.addCard.push(c),
     retireCard: async () => {},
+    // The card's gloss becomes the kept text, as the engine's reader's gloss wins in review.
+    async keepGloss(this: FakePort, lemma, gloss) {
+      calls.kept.push({ lemma, gloss, language: this.language });
+      const card = deck.find((c) => c.headword === lemma && (c.language ?? "en") === this.language);
+      if (!card) return false;
+      card.gloss = gloss;
+      return true;
+    },
     // The deck's cards in those languages (refine-lingua-review-language D4), and every card added since.
     deckCount: async (languages) => deck.filter(within(languages)).length + calls.addCard.length,
     dueCount: async (_now, languages) => {

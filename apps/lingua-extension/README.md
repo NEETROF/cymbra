@@ -249,6 +249,16 @@ another session would hold cards. Keys: Space reveals, ← and → answer. The c
 before and after the reveal (« ▶ Mot » or « ▶ Expression », « ▶ Phrase », then the dictionary
 form), with the word card's voices, in the card's language.
 
+A selection is read without the punctuation at its two ends before it opens a card
+(`fix-lingua-selection-card-punctuation`): `four-poster bed,` is captured as `four-poster bed`,
+`« Bonjour »` as `Bonjour` — its headword, the form stored, what the pack and the translation are
+asked, its place in its sentence — while an elision, a compound or an inner apostrophe (`l’homme`,
+`dit-il`, `rock 'n' roll`) stays as written, and punctuation alone opens no card. A card captured
+with that punctuation before is answered at review without being rewritten: a card without a
+gloss is looked up in the pack of its language, at its lemma without edge punctuation, and the
+front marks, heads, compares and reads aloud that trimmed form; the stored lemma, form and
+history, the backup and the card operations keep their bytes.
+
 A card the pack cannot answer — an expression, or a word without a gloss —
 (`add-lingua-review-translation`) is translated on the device where « Traduction étendue » has
 the models of its language: its sentence, the word's place marked, asked the moment the card
@@ -256,9 +266,33 @@ comes up (the route warmed when the session starts) and shown once revealed, und
 phrase — traduction automatique ». An expression its sentence does not hold is translated alone,
 under « Traduction automatique »; a single word never is. A translation still on its way at the
 reveal says « Traduction en cours… »; none within 15 s leaves « Pas de traduction… ». A card with
-a gloss is never translated. The translation is never stored — not on the card, not in a backup,
-not synced. The drawer uses the reading session's translator, the side panel its own messaging
-port.
+a gloss is not translated on its own. The drawer uses the reading session's translator, the side
+panel its own messaging port.
+
+The gloss a revealed card shows is, for every card (`add-lingua-review-translation-fallback`), the
+one the reader chose, else the current pack's for its lemma, else the text stored at capture —
+display only, so a pack fixed since the capture reaches cards already in the deck. Under a gloss,
+« Traduire la phrase » asks for the card's translation on demand; it is shown only when a model is
+ready for the card's language or online translation is offered. « Traduction en ligne » is offered on
+a revealed card — without a gloss, or after « Traduire la phrase » — when the setting is ticked on
+this device and the account has access, the selection card's rule; unlike the selection card a single
+word is allowed, always sent in its sentence with its place marked (an expression its sentence does
+not hold is sent alone). One press per card per review; a late answer is dropped; « indisponible » and
+the daily limit read as on the selection card. The drawer, the EPUB reader (through its drawer) and
+the side panel hand Révision the runtime-message client the selection card uses: the background owns
+the session.
+A card without a gloss that nothing can translate — no model ready, no online button — says how in
+its note's line: « Activez la traduction étendue dans les réglages pour traduire cette carte. » in the
+extension; in the app, the same in « l'extension Cymbra Lingua de Safari » when the setting is off
+there, else « Téléchargez la traduction pour l'app », a link re-offering the app's download.
+
+Under any machine translation the reader can keep the word's part as the card's gloss: one mark that
+fits in 80 UTF-16 code units is named and kept in one tap (« Garder « se relâcher » », « Modifier »
+beside it); no mark, several marks or a longer one go through « Garder une traduction… », a one-line
+field prefilled with the candidate. A kept gloss is written by `keepGloss`, in the native language,
+marked `gloss_by_reader`: it wins over the pack, survives a re-capture of the word and syncs with the
+card. A translation not kept is discarded with the card — never in a backup, never synced; the
+translated sentence is never kept.
 
 Lossless **backup** (download) / **restore** (re-import) and the pack's sources live in
 Réglages › Données, in every host; the toolbar popup offers the download and points to the
@@ -350,6 +384,13 @@ bundle folds away the other variants' branches:
   (`state/app-relay.ts`). The day's reviews and words learned counted in the app ride with them, the
   whole of each opening's under its id: the background adds only what it has not added yet for that
   opening, so the statistics count them once. Nothing leaves the device for this.
+  « Traduction en ligne » in the app runs under a session of the app's own (`app/account.ts`),
+  opened from the app's native sheet: Apple or Google hand an id_token back; « Continuer avec un
+  email » (add-lingua-app-email-signin) shows this extension's own email sign-in in the page
+  (`app/email-panel.ts`: `AccountFlow` and `renderAccount` with `scope: "app"`, answered by
+  `handleAccountMessage` over the app's `Session`) — sign-in, the code step, « Mot de passe oublié ? »;
+  no account creation, no provider buttons, no handle step. The password goes from the page to Cymbra
+  ID only, never to the bridge or any storage; the app keeps only the refresh token, in its Keychain.
 
 ## Release
 

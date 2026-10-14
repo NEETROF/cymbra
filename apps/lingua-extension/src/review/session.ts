@@ -123,6 +123,18 @@ export class ReviewController {
     return this.view();
   }
 
+  /**
+   * Keep `gloss` as the current card's gloss, the reader's choice (add-lingua-review-translation-fallback
+   * D3): the card read again, its new gloss shown, its showing not counted again.
+   */
+  async keep(gloss: string): Promise<ReviewView> {
+    const card = this.card;
+    if (!card) return this.view();
+    await this.port.for(card.language ?? "en").keepGloss(card.headword, gloss, this.now());
+    this.card = await this.port.reviewCurrent();
+    return this.view();
+  }
+
   view(): ReviewView {
     const phase: ReviewPhase = !this.started ? "idle" : this.card ? "reviewing" : "done";
     const showing = this.card ? (this.showings.get(showingKey(this.card)) ?? 1) : 0;

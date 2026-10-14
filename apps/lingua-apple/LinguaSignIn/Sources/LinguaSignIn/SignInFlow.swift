@@ -71,10 +71,20 @@ public struct SignInCopy: Sendable {
 
     public var heading: String { table.heading }
     public var lede: String { table.lede }
+    /**
+     * The lede of the sheet the app opens for its own session (add-lingua-review-translation-fallback
+     * D8): online translation in its review, not the extension's sign-in.
+     */
+    public var appLede: String { table.appLede }
     public var done: String { table.done }
     public var browserWaiting: String { table.browserWaiting }
     public var close: String { table.close }
     public var cancel: String { table.cancel }
+    /**
+     * The third entry of the app's own sheet (add-lingua-app-email-signin D2): sign in with an email and
+     * a password, in the app's page. « email », the spelling of the extension's account copy.
+     */
+    public var emailButton: String { table.emailButton }
 
     public func button(_ provider: SignInProvider) -> String {
         Self.name(provider, in: table.button)
@@ -110,10 +120,12 @@ public struct SignInCopy: Sendable {
     private struct Table: Sendable {
         let heading: String
         let lede: String
+        let appLede: String
         let done: String
         let browserWaiting: String
         let close: String
         let cancel: String
+        let emailButton: String
         let button: String
         let failure: String
         let unavailable: String
@@ -122,11 +134,13 @@ public struct SignInCopy: Sendable {
     private static let fr = Table(
         heading: "Connexion à Cymbra Lingua",
         lede: "Connecte-toi pour retrouver tes mots et tes révisions sur tous tes appareils.",
+        appLede: "Connecte-toi pour utiliser la traduction en ligne dans l'app. Ta connexion dans Safari ne change pas.",
         done: "C'est fait ! Retourne dans Safari : Cymbra Lingua termine la connexion.",
         browserWaiting:
             "Termine la connexion dans la fenêtre de ton navigateur. Si rien ne s'ouvre, annule, quitte ton navigateur et réessaie.",
         close: "Fermer",
         cancel: "Annuler",
+        emailButton: "Continuer avec un email",
         button: "Continuer avec {provider}",
         failure: "La connexion avec {provider} n'a pas abouti. Réessaie dans un instant.",
         unavailable: "La connexion avec {provider} n'est pas encore disponible dans cette version."
@@ -136,11 +150,13 @@ public struct SignInCopy: Sendable {
     private static let en = Table(
         heading: "Sign in to Cymbra Lingua",
         lede: "Sign in to find your words and your reviews on all your devices.",
+        appLede: "Sign in to use online translation in the app. Your sign-in in Safari does not change.",
         done: "Done! Go back to Safari: Cymbra Lingua is finishing the sign-in.",
         browserWaiting:
             "Finish signing in, in your browser window. If nothing opens, cancel, quit your browser, and try again.",
         close: "Close",
         cancel: "Cancel",
+        emailButton: "Continue with email",
         button: "Continue with {provider}",
         failure: "Signing in with {provider} did not go through. Try again in a moment.",
         unavailable: "Signing in with {provider} is not available in this version yet."
@@ -150,11 +166,13 @@ public struct SignInCopy: Sendable {
     private static let es = Table(
         heading: "Inicia sesión en Cymbra Lingua",
         lede: "Inicia sesión para encontrar tus palabras y tus repasos en todos tus dispositivos.",
+        appLede: "Inicia sesión para usar la traducción en línea en la app. Tu sesión en Safari no cambia.",
         done: "¡Listo! Vuelve a Safari: Cymbra Lingua está terminando de iniciar sesión.",
         browserWaiting:
             "Termina de iniciar sesión en la ventana de tu navegador. Si no se abre nada, cancela, cierra tu navegador y vuelve a intentarlo.",
         close: "Cerrar",
         cancel: "Cancelar",
+        emailButton: "Continuar con un correo",
         button: "Continuar con {provider}",
         failure: "No se pudo iniciar sesión con {provider}. Vuelve a intentarlo en un momento.",
         unavailable: "Iniciar sesión con {provider} todavía no está disponible en esta versión."

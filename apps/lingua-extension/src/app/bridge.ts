@@ -12,7 +12,18 @@ export type AppMessage =
   /** Replace the changes waiting for the extension with `ops`. */
   | { type: "review.writeOps"; ops: string }
   /** The page cannot show the state it was given: the app shows how to turn the extension on. */
-  | { type: "review.unavailable" };
+  | { type: "review.unavailable" }
+  /**
+   * The app's own session (add-lingua-review-translation-fallback D8): open the app's Apple / Google
+   * sheet and answer `{provider, idToken}`, or `{}` when the reader closed it or it failed.
+   */
+  | { type: "auth.signIn" }
+  /** The refresh token the app's Keychain holds: `{refresh}`, or `{}`. */
+  | { type: "auth.readRefresh" }
+  /** Keep `refresh` in the app's Keychain, replacing the one kept. */
+  | { type: "auth.writeRefresh"; refresh: string }
+  /** Forget the refresh token: signed out, or the session refused. */
+  | { type: "auth.clear" };
 
 export type AppSend = (message: AppMessage) => Promise<unknown>;
 

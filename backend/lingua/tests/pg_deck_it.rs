@@ -15,6 +15,9 @@
 //! row "written before it" is one written by SQL that names no label, and what that
 //! proves is the column's default, not a rewrite — see `every_stored_gloss_today`.
 //!
+//! Since add-lingua-review-translation-fallback a card also says whether the reader chose
+//! its gloss (migration 0008, `DEFAULT false`), stored and returned as received.
+//!
 //! Run: `CYMBRA_LINGUA_DATABASE_URL=… cargo test -p cymbra-lingua --test pg_deck_it -- --ignored`
 
 use cymbra_lingua::{Card, DeckRepo, PgDeckRepo};
@@ -41,6 +44,7 @@ fn card(language: &str, id: &str, gloss: &str, ts: i64) -> Card {
         source_sentence: "…".into(),
         gloss: gloss.into(),
         gloss_language: "fr".into(),
+        gloss_by_reader: false,
         fsrs_state: "{}".into(),
         deleted: false,
         updated_at: ts,
@@ -295,5 +299,70 @@ async fn a_pull_without_any_gloss_language_withholds_a_non_french_gloss() {
         1,
         "from the cursor the old client stopped at, the withheld card is delivered"
     );
+    wipe(&pool, user).await;
+}
+
+#[tokio::test]
+#[ignore = "needs CYMBRA_LINGUA_DATABASE_URL"]
+async fn the_readers_mark_round_trips_and_defaults_to_false() {
+    // add-lingua-review-translation-fallback D6: migration 0008's column, its SQL applied a
+    // second time as a no-op, a row written without it reading `false`, and the mark
+    // travelling with the write that wins.
+    let pool = pool().await;
+    let sql = &cymbra_lingua::MIGRATOR
+        .iter()
+        .find(|m| m.version == 8)
+        .expect("migration 0008 in the migrator")
+        .sql;
+    sqlx::raw_sql(sql)
+        .execute(&pool)
+        .await
+        .expect("0008's SQL applies twice");
+    let user = uuid::Uuid::new_v4();
+    let u = user.to_string();
+    sqlx::query(
+        "INSERT INTO lingua.cards (user_id, client_id, lemma, gloss, updated_at, seq) \
+         VALUES ($1, 'seldom', 'seldom', 'rarement', 1, nextval('lingua.change_seq'))",
+    )
+    .bind(user)
+    .execute(&pool)
+    .await
+    .expect("seed a card written without the mark");
+    let repo = PgDeckRepo::new(pool.clone());
+    let en = vec!["en".to_string()];
+    let marks = |cards: Vec<Card>| {
+        cards
+            .into_iter()
+            .map(|c| (c.client_id, c.gloss, c.gloss_by_reader))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        marks(repo.changes_since(&u, 0, &en, false).await.unwrap()),
+        [("seldom".to_owned(), "rarement".to_owned(), false)]
+    );
+    let kept = |gloss: &str, mark: bool, ts: i64| Card {
+        gloss_by_reader: mark,
+        ..card("en", "seldom", gloss, ts)
+    };
+    for (write, wins, expected) in [
+        (
+            kept("se faire rare", true, 100),
+            true,
+            ("se faire rare", true),
+        ),
+        (kept("rarement", false, 50), false, ("se faire rare", true)),
+        (
+            kept("se faire rare", false, 200),
+            true,
+            ("se faire rare", false),
+        ),
+    ] {
+        assert_eq!(repo.apply_card(&u, &write).await.unwrap(), wins);
+        let (gloss, mark) = expected;
+        assert_eq!(
+            marks(repo.changes_since(&u, 0, &en, false).await.unwrap()),
+            [("seldom".to_owned(), gloss.to_owned(), mark)]
+        );
+    }
     wipe(&pool, user).await;
 }
