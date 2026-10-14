@@ -15,13 +15,14 @@
 #[cfg(target_os = "android")]
 mod android_output;
 pub mod audio;
-mod audio_core;
+// `pub(crate)` for the offline showcase render (`crate::showcase`), not the bridge.
+pub(crate) mod audio_core;
 pub mod audio_input;
 mod audio_input_core;
 pub mod midi;
 mod midi_core;
 pub mod musicxml;
 mod platform_log;
-mod renderer;
+pub(crate) mod renderer;
 pub mod score;
 pub mod simple;

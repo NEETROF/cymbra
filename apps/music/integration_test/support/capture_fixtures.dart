@@ -67,6 +67,7 @@ const int kCaptureCompletedLessons = 7;
 List<Override> captureOverrides({
   required String locale,
   required CaptureMidiService midi,
+  AudioService audio = const CaptureAudioService(),
 }) => [
   // --- Language (D2) --------------------------------------------------------
   deviceLocaleProvider.overrideWithValue(Locale(locale)),
@@ -114,8 +115,9 @@ List<Override> captureOverrides({
   midiServiceProvider.overrideWithValue(midi),
   // Silent audio: a capture needs no sound, and the real service extracts a
   // ~50 MB SoundFont and opens an output device — slow, and unavailable on some
-  // simulators.
-  audioServiceProvider.overrideWithValue(const CaptureAudioService()),
+  // simulators. The showcase video passes a recording double instead, whose log
+  // is rendered offline (change: add-site-music-showcase, D6).
+  audioServiceProvider.overrideWithValue(audio),
 ];
 
 /// In-memory [PreferencesService] seeded so the app boots straight into its

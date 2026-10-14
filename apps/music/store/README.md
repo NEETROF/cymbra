@@ -19,6 +19,9 @@ store/
 │   └── desktop_1440x900/<locale>/NN_<surface>.png
 ├── android/
 │   └── phone_16x9/<locale>/NN_<surface>.png   # 1920×1080 landscape
+├── video/<locale>/                    # the site's showcase video (see below)
+│   ├── showcase.mp4                   # ≤ 30 s, ≤ 4 MB, H.264 + AAC, the app's own sound
+│   └── poster.jpg                     # its still image, before it plays
 └── copy/                              # listing text (description, keywords, …)
 ```
 
@@ -69,6 +72,39 @@ match it, or that carries the alpha channel Apple rejects:
 ```bash
 cd apps/music && dart run tool/check_store_assets.dart
 ```
+
+## The showcase video
+
+The Music page on cymbra.app shows a short video of the app being played (change:
+`add-site-music-showcase`). Like the screenshots it is **generated**, one command per
+locale, never filmed by hand:
+
+```bash
+cd apps/music && tool/record_showcase_video.sh fr
+```
+
+Equivalently, from the repo root: `melos run showcase-video -- fr`. Needs the iPad
+simulator (`iPad Pro 13-inch (M4)`, or `CAPTURE_DEVICE=…`), `ffmpeg`/`ffprobe` and
+`cargo`.
+
+How it is made, and why it never drifts:
+
+- **Drawn, not filmed.** `integration_test/showcase_test.dart` opens a bundled piece in
+  Wait Mode on the iPad 13" layout, stops the app's tickers, then moves time itself:
+  30 times a second it advances the player one frame, lets the faked keyboard play the
+  keys the playhead waits on, and renders the frame from the app's own layer tree.
+  Halfway it switches from the staff to the falling notes.
+- **The app's own sound.** The run's audio service is a recorder: it logs every command
+  the app sends to its sound engine on the same clock as the frames. The
+  `showcase-render` tool (`rust/src/bin/showcase_render/`) replays that log through the
+  app's mixer and SoundFont into a WAV — the sound a user hears, landing on the frame
+  that shows the note. No background music.
+- **Within the site's budget.** ffmpeg raises the compression until the file fits 4 MB;
+  the script refuses a video over 30 s or without sound, and writes nothing unless every
+  step succeeded.
+
+Then copy it to the site: `cd apps/site && yarn sync:music-media` (the site's
+`test/music-media.spec.ts` fails until you do).
 
 ## Surfaces covered
 

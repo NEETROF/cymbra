@@ -14,6 +14,8 @@
 
 pub mod api;
 mod frb_generated;
+/// Offline sound for the store showcase video — tooling, outside the FFI surface.
+pub mod showcase;
 
 /// JNI entry point called automatically when the Android JVM loads the lib
 /// (`System.loadLibrary`). We initialize `ndk_context` with the `JavaVM` so that

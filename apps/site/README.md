@@ -18,6 +18,8 @@ the legal texts with the rest of the repo.
 | `yarn test` | vitest: the `unit` project (islands' logic + components, jsdom) and the `astro` project (`.astro` pages rendered through Astro's Container API, `test/astro/`) |
 | `yarn build` | production build → `dist/` |
 | `yarn preview` | preview the build |
+| `yarn sync:music-media` | copy the Music page's captures and video from `apps/music/store/` |
+| `yarn gen:music-share` | regenerate the Music pages' share previews (1200×630) |
 
 ## Pages
 
@@ -185,6 +187,24 @@ boundary that falls on a source-line break — on **either** side, so both
 `word\n<a>…` and `</a>\nword` lose their space in the build. Keep a sentence
 containing inline links on one source line, and check the rendered HTML rather than
 the source.
+
+## The Music page's media (change: add-site-music-showcase)
+
+The Music page (fr/en/es) shows a video of the app being played and a gallery of five
+iPad captures, in the page's language, and declares a share preview so a link pasted in
+a chat shows a picture. None of it is made by hand:
+
+- **Captures and video** come from the Music capture harness (`apps/music/store/`, see
+  its README). `yarn sync:music-media` copies them into `src/assets/music/<lang>/`; which
+  files, and their captions and alt texts, are declared once in `src/lib/music-media.ts`.
+  `test/music-media.spec.ts` fails when a copy differs from its source, when a video is
+  over 4 MB or 30 s or has no sound, or when a text is missing in a language. CI's `site`
+  filter watches `apps/music/store/**`, so a refreshed capture that was not synced fails
+  the pull request.
+- **Share previews** (`src/assets/music/<lang>/share.png`) are generated from the staff
+  capture by `yarn gen:music-share` and committed. `Base.astro`'s optional `share` prop
+  emits the Open Graph and Twitter card tags; `test/post-build/share-preview.spec.ts`
+  checks every Music page has one, at 1200×630, on an absolute URL.
 
 ## Routes shipped clients depend on
 

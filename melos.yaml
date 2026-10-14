@@ -89,6 +89,15 @@ scripts:
       with CAPTURE_DEVICE).
     run: bash apps/music/tool/capture_store_screenshots.sh
 
+  showcase-video:
+    description: >
+      Record the Music showcase video for the site, one locale per run:
+      `melos run showcase-video -- fr`. Draws the real app frame by frame on
+      the iPad 13" layout, renders its own piano sound offline and writes
+      apps/music/store/video/<locale>/ (showcase.mp4 + poster.jpg). Needs the
+      iPad simulator (override with CAPTURE_DEVICE), ffmpeg and cargo.
+    run: bash apps/music/tool/record_showcase_video.sh
+
   check-store-assets:
     description: Verify the committed store screenshots against the declared manifest (dimensions, no alpha, none missing). Cheap — reads PNG headers, boots nothing.
     run: melos exec -- dart run tool/check_store_assets.dart
