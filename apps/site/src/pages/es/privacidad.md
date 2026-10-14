@@ -228,6 +228,44 @@ navegador** al proveedor de esas voces (Google, en el caso de Chrome), según la
 de ese proveedor. Cymbra no recibe ese texto. En cuanto haya una voz de ese idioma instalada
 en el dispositivo, se utiliza en su lugar.
 
+**Recuentos anónimos.** Para saber si Lingua es realmente útil a quienes la instalan, la
+extensión puede enviar a Cymbra seis recuentos, cada uno una vez por instalación: Lingua está
+**instalada**; está **lista** (un primer nivel elegido); se **analiza una primera página** en un
+idioma que estudias; vuelves a usarla **al día siguiente** de instalarla; de nuevo **entre el
+día 7 y el 13**; de nuevo **entre el día 30 y el 59**. Cada envío solo contiene tres datos: la **semana** de la
+instalación, la **familia del navegador** (Chromium, Firefox o Safari) y la **versión** de la
+extensión (por ejemplo, 1.10).
+
+- **Ningún identificador** de ningún tipo —ni identificador de instalación o de dispositivo, ni
+  cuenta, aunque hayas iniciado sesión— y **nada de lo que lees**: ni dirección, ni sitio, ni
+  texto de la página, ni palabra, ni idioma estudiado, ni nivel.
+- **Ninguna dirección IP conservada.** Como excepción a los registros técnicos del §2 y del §5,
+  Cymbra no guarda la dirección de red de estos envíos ni en su base de datos, ni en sus
+  registros, ni en los del servidor que le transmite las solicitudes (su « proxy inverso »).
+  Solo sirve para rechazar los envíos masivos, únicamente en memoria y de forma ilegible, y se
+  olvida al cabo de una hora.
+- **En tu dispositivo**, el día de la instalación se guarda **60 días como máximo**, para saber
+  cuándo vuelves, y después se olvida; solo sale de él su semana. En Cymbra, los recuentos son
+  totales semanales, sin rastro de cada envío, y **se borran a los 25 meses**.
+- **Cómo pregunta cada navegador.** Chrome y los demás navegadores Chromium (Edge…): no se envía
+  nada hasta que pulsas « Sí, contar ». Firefox: decide el propio consentimiento de Firefox a los
+  « Datos técnicos y de interacción », que se ofrece al instalar la extensión (Firefox 140 o
+  posterior de escritorio, 142 o posterior en Android; las versiones anteriores no cuentan nada).
+  Safari: activados por defecto, una vez mostrada la frase que los presenta.
+- **Desactivarlos.** El interruptor « Recuentos anónimos », en Ajustes → Datos, los desactiva en
+  cualquier momento, en todos los navegadores (en Firefox, actúa sobre ese mismo
+  consentimiento). Al desactivarlos se olvida lo que aún no se había enviado.
+- **Base legal**: en Chrome y los demás navegadores Chromium, tu **consentimiento**; en los
+  demás, el **interés legítimo** de Cymbra en medir la audiencia de Lingua. El interruptor es la
+  forma de oponerte, o de retirar tu consentimiento, en cualquier momento.
+
+**La página de despedida.** En Chrome y Firefox, mientras los recuentos están activados,
+desinstalar Lingua abre una página de cymbra.app con una sola pregunta —por qué te vas— y seis
+respuestas fijas, sin campo libre. Abrir la página no envía nada; solo se cuenta la respuesta que
+pulsas, de la misma forma anónima: la semana en que llega, la familia del navegador y la versión
+de la extensión, los únicos datos que lleva la dirección de la página. Con los recuentos
+desactivados, no se abre ninguna página.
+
 **Lo que se sincroniza si has iniciado sesión** con tu cuenta Cymbra:
 
 | Dato | Origen | Finalidad |

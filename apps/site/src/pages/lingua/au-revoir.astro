@@ -1,0 +1,22 @@
+---
+// The Lingua leaving page, French (change: add-lingua-usage-counts, D12): the page Chrome and
+// Firefox open when Lingua is removed with its anonymous counts on, `?b=&v=` appended. A
+// pinned route (`src/lib/pinned-routes.ts`): shipped builds compile it in.
+import Base from '../../layouts/Base.astro';
+import LeaveReasonIsland from '../../components/LeaveReasonIsland.vue';
+import { config } from '../../lib/config';
+import { t } from '../../lib/i18n';
+---
+
+<Base
+  title="Au revoir — Cymbra Lingua"
+  description="Une question à celles et ceux qui quittent Cymbra Lingua."
+  lang="fr"
+  noindex
+  alternates={{ fr: '/lingua/au-revoir', en: '/en/lingua/goodbye', es: '/es/lingua/adios' }}
+>
+  <section class="container narrow">
+    <h1>{t('fr', 'leaveQuestion')}</h1>
+    <LeaveReasonIsland client:load lang="fr" communityUrl={config.discordUrl} />
+  </section>
+</Base>

@@ -239,3 +239,11 @@ a:hover { text-decoration: underline; }
 .downloads { margin-top: 2rem; }
 .downloads h3 { font-size: 1.05rem; margin-bottom: 0.5rem; }
 .cta-row.left { justify-content: flex-start; }
+/* Lingua leaving page: six full-width answers; the tapped one stays marked once all are disabled. */
+.leave-answers { display: grid; gap: 0.6rem; margin: 1rem 0 0; }
+.leave-answers .btn { font: inherit; font-weight: 600; text-align: left; color: var(--text); background: transparent; cursor: pointer; }
+.leave-answers .btn:hover:not(:disabled) { border-color: var(--muted); }
+.leave-answers .btn:disabled { cursor: default; }
+.leave-answers .btn[aria-pressed="true"] { border-color: var(--accent); opacity: 1; }
+.leave .outcome { margin-top: 1.2rem; }
+.leave .outcome p + p { margin-top: 0.6rem; }

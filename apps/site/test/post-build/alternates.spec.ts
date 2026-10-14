@@ -43,6 +43,8 @@ describe("each page names its translations", () => {
     deletion: { fr: "/suppression-compte", en: "/en/delete-account", es: "/es/eliminar-cuenta" },
     home: { fr: "/", en: "/en/", es: "/es/" },
     music: { fr: "/music", en: "/en/music", es: "/es/music" },
+    // The Lingua leaving page (change: add-lingua-usage-counts, D12).
+    leaving: { fr: "/lingua/au-revoir", en: "/en/lingua/goodbye", es: "/es/lingua/adios" },
   };
 
   for (const [page, byLang] of Object.entries(twins)) {

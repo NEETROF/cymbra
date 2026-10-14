@@ -167,7 +167,7 @@ const fr: LinguaTable = {
     {
       key: "account",
       title: "🪪 Compte optionnel",
-      body: "Sans compte, tout reste local. Connecté à Cymbra ID, votre deck et vos statuts suivent d'un appareil à l'autre.",
+      body: "Sans compte, vos mots, votre deck et vos statuts restent sur votre appareil. Connecté à Cymbra ID, ils vous suivent d'un appareil à l'autre.",
     },
   ],
   genderCard: " En {inStudied}, la carte nomme aussi le temps et le genre.",
@@ -283,7 +283,7 @@ const en: LinguaTable = {
     {
       key: "account",
       title: "🪪 Optional account",
-      body: "Signed out, everything stays local. Signed in to Cymbra ID, your deck and word statuses follow you across devices.",
+      body: "Signed out, your words, your deck and your statuses stay on your device. Signed in to Cymbra ID, they follow you across devices.",
     },
   ],
   genderCard: " In {inStudied}, the card also names the tense and the gender.",
@@ -395,7 +395,7 @@ const es: LinguaTable = {
     {
       key: "account",
       title: "🪪 Cuenta opcional",
-      body: "Sin cuenta, todo se queda en tu dispositivo. Con la sesión iniciada en Cymbra ID, tu mazo y tus estados te siguen de un dispositivo a otro.",
+      body: "Sin cuenta, tus palabras, tu mazo y tus estados se quedan en tu dispositivo. Con la sesión iniciada en Cymbra ID, te siguen de un dispositivo a otro.",
     },
   ],
   genderCard: " En {inStudied}, la tarjeta también indica el tiempo verbal y el género.",

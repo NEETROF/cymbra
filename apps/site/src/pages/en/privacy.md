@@ -217,6 +217,42 @@ device): the text read is then sent by **your browser** to the provider of those
 (Google, for Chrome), under that provider's terms. Cymbra does not receive this text. As soon
 as a voice of that language is installed on the device, it is used instead.
 
+**Anonymous usage counts.** To know whether Lingua actually helps the people who install it,
+the extension may send Cymbra six counts, each once per installation: Lingua is **installed**;
+it is **set up** (a first level chosen); a **first page is analysed** in a language you study;
+you use it again **the day after** installing it; again **between day 7 and day 13**; again
+**between day 30 and day 59**. Each report carries three things only: the **week** of the installation, the
+**browser family** (Chromium, Firefox or Safari) and the extension's **version** (for example
+1.10).
+
+- **No identifier of any kind** — no installation or device identifier, no account, even when
+  you are signed in — and **nothing of what you read**: no address, no site, no page text, no
+  word, no studied language, no level.
+- **No IP address kept.** As an exception to the technical logs of §2 and §5, Cymbra keeps the
+  network address of these reports neither in its database, nor in its logs, nor in the logs of
+  the server that passes requests on to it (its "reverse proxy"). The address serves only to
+  refuse floods of reports, in memory only, in a scrambled form forgotten within the hour.
+- **On your device**, the day of the installation is kept for **60 days at most**, to tell when
+  you come back, then forgotten; only its week leaves the device. At Cymbra, the counts are
+  weekly totals, with no trace of each report, **deleted after 25 months**.
+- **How each browser asks.** Chrome and the other Chromium browsers (Edge…): nothing is sent
+  until you press « Yes, count ». Firefox: Firefox's own consent to « Technical and interaction
+  data », offered when you install the extension, decides (Firefox 140 or later on desktop, 142
+  or later on Android; older versions count nothing). Safari: on by default, once the sentence
+  that presents them has been shown.
+- **Turning them off.** The « Anonymous usage counts » switch, in Settings → Data, turns them off
+  at any time, in every browser (on Firefox, it changes that same consent). Turning them off
+  forgets what had not been sent yet.
+- **Legal basis**: on Chrome and the other Chromium browsers, your **consent**; elsewhere,
+  Cymbra's **legitimate interest** in measuring Lingua's audience. The switch is how you object,
+  or withdraw your consent, at any time.
+
+**The leaving page.** On Chrome and Firefox, while the counts are on, removing Lingua opens a
+cymbra.app page that asks one question — why you are leaving — with six fixed answers and no
+free text. Opening the page sends nothing; only the answer you press is counted, in the same
+anonymous way: the week it arrives, the browser family and the extension's version, the only
+things the page's address carries. With the counts off, no page opens.
+
 **What is synced when you are signed in** to your Cymbra account:
 
 | Data | Source | Purpose |
