@@ -191,8 +191,11 @@ many cards a review would hold today, worked out on the device from the reader's
 permission the add-on did not already have, and asks for none: it is worked out after a change of
 the reader's data and read again when the browser starts, a tab is activated or a window is
 focused — `runtime.onStartup`, `runtime.onInstalled`, `tabs.onActivated` (which gives tab ids
-only) and `windows.onFocusChanged`. There is no `alarms`, `idle` or `notifications` permission, no
-timer and no notification; working out the count makes no request. A setting turns it off.
+only) and `windows.onFocusChanged`. `tabs.onUpdated` is listened to for its `status` alone (with a
+`status` filter on Firefox), which needs no `tabs` permission: a page's percentage is withdrawn
+when its tab starts loading, and a page that stays is asked to say it again when the load ends.
+There is no `alarms`, `idle`, `tabs` or `notifications` permission, no timer and no notification;
+working out the count makes no request. A setting turns it off.
 
 **The rating request.** At the end of a review session that says it is complete, from the fifth
 such session on the reader's third day of review, the review shows one sentence and three buttons
@@ -201,6 +204,7 @@ most twice on a device, ever; nothing is offered in exchange; no rating is chose
 written in advance; nothing depends on how the session went. The store's page — the add-on's
 listing on addons.mozilla.org, or its Chrome Web Store reviews — opens in a new tab only when the
 reader presses « Noter Cymbra Lingua », through the background, so that no address of a page
-being read is sent with it (`src/state/store-links.ts`). Settings carry the same link. What the
+being read is sent with it (`src/state/store-links.ts`). It counts as shown only once it was on
+the reader's screen, and it never shows in the book reader. Settings carry the same link. What the
 request remembers stays in the browser's local storage: it is not synchronised. The Safari build
 shows no request.

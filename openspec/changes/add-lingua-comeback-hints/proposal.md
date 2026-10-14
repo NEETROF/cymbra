@@ -44,9 +44,11 @@ page while reading, nothing about what is read leaving the device.
   No alarm, no timer, no new permission, and working out the count sends nothing. **So the count can
   be behind:** a card that comes due at 14:00 while you are away from the browser shows at your next
   tab switch, not at 14:00; cards reviewed on your phone still count until this browser syncs.
-- **The synchronisation is not changed.** On Chrome the icon now wakes the extension at the first
-  tab switch after half a minute of quiet, and the extension's start already syncs a signed-in
-  reader: more exchanges with the server than today, counted in the dogfood. Changing when the
+- **The synchronisation is not changed.** On every browser — Chrome, Firefox and Safari, whose
+  background pages all stop or unload when idle — the icon now wakes the extension at the first tab
+  switch, window focus or page load after half a minute of quiet, and the extension's start already
+  syncs a signed-in reader: more exchanges with the server than today, counted in the dogfood on all
+  three. Changing when the
   start syncs is left to a separate change if that count is too high (design, *Follow-up*).
 - **A switch in Réglages** (French UI copy: « Afficher les cartes à réviser sur l'icône »), in
   « Rythme de révision », on by default, kept on the device.
@@ -109,8 +111,8 @@ _None._
 - Cymbra ID, Music, Live and the back office are untouched. No backend, no `.proto`, no flag, no
   new browser permission (so no new consent prompt on update). The backup format and the sync's
   code are unchanged; two new device-only preferences and one derived key live in
-  `chrome.storage.local`. On Chromium the background starts more often (tab switches, window
-  focus), and its existing start-time sync with it.
+  `chrome.storage.local`. On every browser the background starts more often (tab switches, window
+  focus, tab loads), and its existing start-time sync with it.
 
 **Order.** No open change modifies the two requirements this change modifies (*Page percentage
 always visible*, *Review present right next to the reading*), checked against `main` on 2026-10-14:

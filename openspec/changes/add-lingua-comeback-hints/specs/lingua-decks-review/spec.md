@@ -30,7 +30,7 @@ Review SHALL be reachable without leaving the browser: the count of cards to rev
 ## ADDED Requirements
 
 ### Requirement: The end of a session asks for a rating of the extension, at most twice
-At the end of a session that says it is complete (French UI copy: « Séance terminée »), the review in the side panel and in the injected panel of the Chromium and Firefox builds SHALL ask the reader to rate the extension, from the reader's fifth finished session on this device and no earlier than the third distinct day on which the reader finished a session: one sentence (French UI copy: « Une note sur la boutique de ton navigateur aide d'autres lecteurs à trouver Cymbra Lingua. ») and three actions (French UI copy: « Noter Cymbra Lingua », « Plus tard », « Ne plus demander »), placed below the end's own actions, which stay as they were. A finished session SHALL be one whose end says it is complete, a practice session included; an end that says nothing was due SHALL NOT count and SHALL NOT ask. Once shown, the request SHALL count as made; « Plus tard », or leaving without answering, SHALL ask again after ten more finished sessions; the request SHALL be shown at most twice on a device, ever; « Noter Cymbra Lingua » and « Ne plus demander » SHALL end it. Rating SHALL open, in a new tab, the review page of the store the build is distributed by, through the extension's background, so that no address of a page being read is sent with it; nothing SHALL be sent before the reader chooses to rate. The request SHALL offer nothing in exchange, SHALL select no rating and write no text in advance, SHALL NOT depend on the session's results nor on any question of satisfaction, and SHALL never appear in the popup, the word card, the page bar or the book reader. What it remembers — sessions finished, days, showings, the answer — SHALL stay on the device: it SHALL NOT be synchronised and SHALL NOT be part of the backup file. The Safari extension SHALL show no such request.
+At the end of a session that says it is complete (French UI copy: « Séance terminée »), the review in the side panel and in the injected panel of the Chromium and Firefox builds SHALL ask the reader to rate the extension, from the reader's fifth finished session on this device and no earlier than the third distinct day on which the reader finished a session: one sentence (French UI copy: « Une note sur la boutique de ton navigateur aide d'autres lecteurs à trouver Cymbra Lingua. ») and three actions (French UI copy: « Noter Cymbra Lingua », « Plus tard », « Ne plus demander »), placed below the end's own actions, which stay as they were. A finished session SHALL be one whose end says it is complete, a practice session and a session whose cards were all marked known or hidden included; an end that says nothing was due SHALL NOT count and SHALL NOT ask. Once seen — shown on the reader's screen, or answered — the request SHALL count as made; a request drawn where the reader could not see it (a closed panel, another of its tabs, a page in the background) SHALL NOT count, and the next qualifying end SHALL ask again. While the end is shown, a change of the reader's data made elsewhere that leaves their cards and studied languages as they were (what they read on the page beside) SHALL leave the end and its request on screen; « Plus tard », or leaving without answering, SHALL ask again after ten more finished sessions; the request SHALL be shown at most twice on a device, ever; « Noter Cymbra Lingua » and « Ne plus demander » SHALL end it. Rating SHALL open, in a new tab, the review page of the store the build is distributed by, through the extension's background, so that no address of a page being read is sent with it; nothing SHALL be sent before the reader chooses to rate. The request SHALL offer nothing in exchange, SHALL select no rating and write no text in advance, SHALL NOT depend on the session's results nor on any question of satisfaction, and SHALL never appear in the popup, the word card, the page bar or the book reader, the injected panel shown over a book included; a session finished there SHALL still count. What it remembers — sessions finished, days, showings, the answer — SHALL stay on the device: it SHALL NOT be synchronised and SHALL NOT be part of the backup file. The Safari extension SHALL show no such request.
 
 #### Scenario: The fifth session, on the third day
 - **WHEN** a reader on Chrome finishes their fifth session, having finished sessions on two earlier days
@@ -53,8 +53,24 @@ At the end of a session that says it is complete (French UI copy: « Séance ter
 - **THEN** the request never shows again on that device
 
 #### Scenario: A hard session
-- **WHEN** the qualifying session ended with most cards missed
+- **WHEN** the qualifying session ended with every card missed (French UI copy: « Pas su »)
 - **THEN** the request is shown all the same
+
+#### Scenario: A practice session
+- **WHEN** the qualifying session was started with « S'entraîner quand même » and finished
+- **THEN** it counts as a finished session, and the request is shown at its end
+
+#### Scenario: Reading beside the end
+- **WHEN** the request is shown in the side panel beside a page the reader goes on reading, which saves what is read every few seconds
+- **THEN** the end and its request stay on screen until the reader answers or starts another session, and the request counts as shown once
+
+#### Scenario: Never seen
+- **WHEN** the qualifying end is reached in a panel the reader has hidden, and the reader starts another session without coming back to it
+- **THEN** the request does not count as shown, and the next qualifying end asks
+
+#### Scenario: In the book reader
+- **WHEN** a reader on Firefox finishes their fifth session in the injected panel over a book in the book reader
+- **THEN** the end shows no request, the session counts, and the request comes at the next qualifying end beside a web page or in the side panel
 
 #### Scenario: Nothing due
 - **WHEN** the review opens and says nothing is due

@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Page percentage always visible
-The icon badge SHALL show the percentage of known words for the active tab when its page has been analysed, refreshed on every state change. Where the active tab shows no percentage — a page not analysed, a page with nothing to count, a tab where the reader is switched off — the badge SHALL show the count of cards waiting for review that *The toolbar icon counts the cards waiting for review* describes, or nothing; it SHALL NOT show a percentage carried over from another page, except in a browser that keeps one badge for every tab (Safari before 18), where the badge SHALL keep showing the last percentage set, as before. The icon popup SHALL break the percentage down: percentage known, words analysed, unknown words (occurrences and distinct words), and the reader's setting — the declared CEFR level when the studied language has CEFR data, otherwise the frequency calibration.
+The icon badge SHALL show the percentage of known words for the active tab when its page has been analysed, refreshed on every state change. Where the active tab shows no percentage — a page not analysed, a page with nothing to count, a tab where the reader is switched off — the badge SHALL show the count of cards waiting for review that *The toolbar icon counts the cards waiting for review* describes, or nothing; it SHALL NOT show a percentage carried over from another page, except in a browser that keeps one badge for every tab (Safari before 18), where the badge SHALL keep showing the last percentage set, as before. A tab's percentage SHALL be withdrawn when its tab starts loading, whatever the browser does with a tab's badge on a navigation, and a page that stays through the load — a link within it — SHALL show its percentage again once the load ends. The icon popup SHALL break the percentage down: percentage known, words analysed, unknown words (occurrences and distinct words), and the reader's setting — the declared CEFR level when the studied language has CEFR data, otherwise the frequency calibration.
 
 #### Scenario: Badge on an analysed page
 - **WHEN** a page at 94% known tokens is active
@@ -13,7 +13,11 @@ The icon badge SHALL show the percentage of known words for the active tab when 
 
 #### Scenario: Leaving an analysed page
 - **WHEN** the reader follows a link from a page at 94% to a page the reader does not analyse
-- **THEN** the badge no longer shows "94%"
+- **THEN** the badge no longer shows "94%", in Safari 18 as in Chrome and Firefox
+
+#### Scenario: A link within the page
+- **WHEN** the reader follows a link to another part of a page at 94%, and the page stays
+- **THEN** the badge shows "94%" again once the tab's load is over
 
 #### Scenario: Popup shows the declared level
 - **WHEN** English (which has CEFR data) is the studied language and the user has declared B2
@@ -22,7 +26,7 @@ The icon badge SHALL show the percentage of known words for the active tab when 
 ## ADDED Requirements
 
 ### Requirement: The toolbar icon counts the cards waiting for review
-Where the toolbar icon shows no page percentage, its badge SHALL show how many cards a review would hold today across the reader's studied languages — the reviewed cards due and, in each language, the never-reviewed cards within that language's daily allowance left today — as the number, as « 99+ » above 99, and as nothing at 0. The count SHALL carry no « % »; where the browser lets the extension colour the badge, it SHALL have a colour of its own, distinct from the percentage's and from the colours of word statuses, and black on the e-ink colour presets. The icon's title SHALL say the count in words, naming each language when several hold cards (French UI copy: « Cymbra Lingua — 12 carte(s) à revoir »). The count SHALL be worked out on the device from the reader's own data, only when an event happens — the browser starting, the extension installed or updated, a tab activated, a browser window focused, the reader's data changing (an answer, a capture, a synchronisation applied, a restore, a review made in the Cymbra Lingua app) or a setting it depends on changing — and never from a timer or an alarm; between two events the badge SHALL keep the count worked out at the last one. Working out the count SHALL need no new permission and SHALL make no network request; the synchronisation SHALL keep its own triggers, this count adding none and removing none. A setting (French UI copy: « Afficher les cartes à réviser sur l'icône »), on by default and kept on the device only, SHALL turn the count off; off, the badge SHALL show page percentages only. In a browser that keeps one badge for every tab (Safari before 18), the count SHALL NOT be shown and the setting SHALL NOT be offered.
+Where the toolbar icon shows no page percentage, its badge SHALL show how many cards a review would hold today across the reader's studied languages — the reviewed cards due and, in each language, the never-reviewed cards within that language's daily allowance left today — as the number, as « 99+ » above 99, and as nothing at 0. The count SHALL carry no « % »; where the browser lets the extension colour the badge, it SHALL have a colour of its own, distinct from the percentage's and from the colours of word statuses, and black on the e-ink colour presets. The icon's title SHALL say the count in words, naming each language when several hold cards (French UI copy: « Cymbra Lingua — 12 carte(s) à revoir »). The count SHALL be worked out on the device from the reader's own data, only when an event happens — the browser starting, the extension installed or updated, a tab activated, a browser window focused, a tab's load starting or ending, the reader's data changing (an answer, a capture, a synchronisation applied, a restore, a review made in the Cymbra Lingua app) or a setting it depends on changing — and never from a timer or an alarm; between two events the badge SHALL keep the count worked out at the last one. A change of the reader's data that leaves their cards and studied languages as they were — what they read on a page — SHALL NOT make the count be worked out again from their data. A count SHALL never be read from data worked out at a later time than the device's clock now says, nor on a later day: it SHALL be worked out again first. When the setting is turned on, the count SHALL be worked out anew at once. Working out the count SHALL need no new permission and SHALL make no network request; the synchronisation SHALL keep its own triggers, this count adding none and removing none. A setting (French UI copy: « Afficher les cartes à réviser sur l'icône »), on by default and kept on the device only, SHALL turn the count off; off, the badge SHALL show page percentages only. In a browser that keeps one badge for every tab (Safari before 18), the count SHALL NOT be shown and the setting SHALL NOT be offered.
 
 #### Scenario: Coming back to the browser
 - **WHEN** a reader with 12 English cards due and no new word waiting switches to a tab they did not analyse
@@ -63,6 +67,18 @@ Where the toolbar icon shows no page percentage, its badge SHALL show how many c
 #### Scenario: A review made on another device
 - **WHEN** a signed-in reader reviews on their phone, then switches tabs in a browser that has not synced since
 - **THEN** the badge may still count those cards, and stops counting them once that browser's next synchronisation applies the answers
+
+#### Scenario: Reading a page
+- **WHEN** the reader reads a page for a minute and captures no word
+- **THEN** the reading saved along the way does not make the count be worked out again from the deck, and a word captured then does
+
+#### Scenario: The clock set back
+- **WHEN** the device's clock is set back to before the count was last worked out
+- **THEN** at the next event the count is worked out again for the time the clock says, and never counts cards that are not due yet at that time
+
+#### Scenario: Turned on again
+- **WHEN** the reader turns the setting off, reviews on the phone while the browser syncs, then turns the setting on
+- **THEN** the badge shows the count worked out from the data as it is when the setting is turned on
 
 #### Scenario: E-ink colours
 - **WHEN** the reader chose an e-ink colour preset

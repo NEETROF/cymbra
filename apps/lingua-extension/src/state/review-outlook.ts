@@ -3,8 +3,8 @@ import type { AsyncStorageArea } from "./storage.ts";
 // The review outlook (add-lingua-comeback-hints D2): what the toolbar icon and the popup read to
 // count the cards a review would hold, without an engine. The background works it out after each
 // change of the reader's data — lingua-wasm's `reviewOutlook` over the backup, which needs no pack —
-// and keeps it in chrome.storage.local; every event only reads it. Counts and timestamps only: no
-// word, no page. Reading it repeats one line of the core's allowance rule (`ReviewOutlook::count_at`
+// and keeps it in chrome.storage.local; every event only reads it. Counts, timestamps and a digest
+// of what it read only: no word, no page. Reading it repeats one line of the core's allowance rule (`ReviewOutlook::count_at`
 // in crates/lingua-core/src/decks/outlook.rs), held to the engine's `reviewableCount` by a test
 // (test/review-outlook.spec.ts), so the two cannot drift apart unnoticed.
 
