@@ -23,13 +23,13 @@
 
 ## 4. Extension review
 
-- [ ] 4.1 (D2) `src/review/review-page.ts`: an optional `online` source in `ReviewPageOptions` (offered + translate), the button's state per card, one request per card per review, a late answer dropped, « unavailable » and « limit » mapped as the selection card maps them; the request built by `review/translation.ts` (single word allowed, never alone). Verify with `test/review-page.spec.ts`, the source a test double: offered only when set and accessible; not offered for a glossed card before « Traduire la phrase »; a single word sent with its span; an expression its sentence does not hold sent alone; no second request on a second press.
-- [ ] 4.2 (D1) The « Traduire la phrase » link on a revealed glossed card, shown only when a model is ready or the online button is offered; tapping it asks the engine and shows the online button. Verify with `test/review-page.spec.ts` and `test/view.spec.ts` for « A word the pack glosses », « A useless gloss » and « No model ».
-- [ ] 4.3 (D3) The keep action in `src/review/view.ts`: the candidate (marks in range joined by « … », or the whole translation for an expression alone), the one-tap « Garder « … » » with « Modifier », the field path « Garder une traduction… » with « Enregistrer » disabled while empty or too long; on save `keepGloss` through the port, the gloss shown in place, the action gone; all text nodes. Verify with `test/view.spec.ts` for « One tap », « No mark », « A split mark » and « Replacing a useless gloss », and a translation holding markup shown as text.
-- [ ] 4.4 (D10) `src/styles/review.css`: link, button, action and field from `tokens.css`, sizes from `--cymbra-lingua-ui-scale`, no transition. Verify with `yarn lint` (tokens and scale lints).
-- [ ] 4.5 (D2) Hosts: the drawer, the side panel and the EPUB reader hand `mountReview` the runtime-message online client the selection card uses. Verify with the drawer and side-panel specs and `test/lint-translator-placement.spec.ts` unchanged.
-- [ ] 4.6 Copy in every interface language (fr, en, es), aligned. Verify with the i18n alignment test.
-- [ ] 4.7 The review section of `apps/lingua-extension/README.md`: online translation in review, « Traduire la phrase », keeping a translation, the precedence. Verify by reading it against the specs.
+- [x] 4.1 (D2) `src/review/review-page.ts`: an optional `online` source in `ReviewPageOptions` (offered + translate), the button's state per card, one request per card per review, a late answer dropped, « unavailable » and « limit » mapped as the selection card maps them; the request built by `review/translation.ts` (single word allowed, never alone). Verify with `test/review-page.spec.ts`, the source a test double: offered only when set and accessible; not offered for a glossed card before « Traduire la phrase »; a single word sent with its span; an expression its sentence does not hold sent alone; no second request on a second press.
+- [x] 4.2 (D1) The « Traduire la phrase » link on a revealed glossed card, shown only when a model is ready or the online button is offered; tapping it asks the engine and shows the online button. Verify with `test/review-page.spec.ts` and `test/view.spec.ts` for « A word the pack glosses », « A useless gloss » and « No model ».
+- [x] 4.3 (D3) The keep action in `src/review/view.ts`: the candidate (marks in range joined by « … », or the whole translation for an expression alone), the one-tap « Garder « … » » with « Modifier », the field path « Garder une traduction… » with « Enregistrer » disabled while empty or too long; on save `keepGloss` through the port, the gloss shown in place, the action gone; all text nodes. Verify with `test/view.spec.ts` for « One tap », « No mark », « A split mark » and « Replacing a useless gloss », and a translation holding markup shown as text.
+- [x] 4.4 (D10) `src/styles/review.css`: link, button, action and field from `tokens.css`, sizes from `--cymbra-lingua-ui-scale`, no transition. Verify with `yarn lint` (tokens and scale lints).
+- [x] 4.5 (D2) Hosts: the drawer, the side panel and the EPUB reader hand `mountReview` the runtime-message online client the selection card uses. Verify with the drawer and side-panel specs and `test/lint-translator-placement.spec.ts` unchanged.
+- [x] 4.6 Copy in every interface language (fr, en, es), aligned. Verify with the i18n alignment test.
+- [x] 4.7 The review section of `apps/lingua-extension/README.md`: online translation in review, « Traduire la phrase », keeping a translation, the precedence. Verify by reading it against the specs.
 
 ## 5. Relay and the Cymbra Lingua app
 
@@ -42,12 +42,12 @@
 
 ## 6. Privacy
 
-- [ ] 6.1 (D11) The Lingua annex in `apps/site/src/pages/confidentialite.md`, `en/privacy.md` and `es/privacidad.md`: the deck row (a gloss may be a machine translation of the word the reader chose to keep, synced, never a translated sentence), the « Traduction étendue » paragraph (the app's own download, on acceptance), the « Traduction en ligne » paragraph (a review card's sentence, and sign-in inside the app). Verify with `site-check` and by reading the three against « Lingua's privacy disclosures match what it collects ».
+- [x] 6.1 (D11) The Lingua annex in `apps/site/src/pages/confidentialite.md`, `en/privacy.md` and `es/privacidad.md`: the deck row (a gloss may be a machine translation of the word the reader chose to keep, synced, never a translated sentence), the « Traduction étendue » paragraph (the app's own download, on acceptance), the « Traduction en ligne » paragraph (a review card's sentence, and sign-in inside the app). Verify with `site-check` and by reading the three against « Lingua's privacy disclosures match what it collects ».
 - [ ] 6.2 The App Store privacy answers recorded with the Apple app: check that the declared categories still cover the app's own session and requests. Verify by noting the result in the pull request.
 
 ## 7. Integration and dogfood
 
-- [ ] 7.1 Gates in `apps/lingua-extension`: `yarn typecheck && yarn lint && yarn format:check && yarn test && yarn build && yarn check:variants`. Verify all pass.
+- [x] 7.1 Gates in `apps/lingua-extension`: `yarn typecheck && yarn lint && yarn format:check && yarn test && yarn build && yarn check:variants`. Verify all pass.
 - [ ] 7.2 Dogfood in Chrome's side panel: « slacken » with extended translation on (engine), then « Traduction en ligne », keep « se relâcher »; « would » with « Traduire la phrase », keep; « colloquially referred to as » alone. Verify by noting the results in the pull request.
 - [ ] 7.3 Dogfood in the app on an iPhone and a Mac: the download offer, an engine translation, the first online press with the Apple sheet, a kept gloss reaching Safari and then the Mac's side panel after sync. Verify by noting the results in the pull request.
 - [ ] 7.4 Dogfood on the e-ink reader (Firefox for Android): a glossed card reveals in one repaint with only the link added; the keep action repaints only on tap. Verify by noting the result in the pull request.
