@@ -142,6 +142,10 @@ describe("where the count can show (D4)", () => {
     "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1";
   const IPAD_17 =
     "Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
+  // An iPad on iPadOS 18 asking for its mobile site (Réglages › Safari › « Demander le site pour
+  // ordinateur » off): it says iPad and its Safari version.
+  const IPAD_18 =
+    "Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
   // An iPad's Safari asks for desktop sites by default: it presents itself as a Mac.
   const IPAD_26_AS_MAC =
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15";
@@ -152,8 +156,8 @@ describe("where the count can show (D4)", () => {
     for (const ua of [MAC_17, IPHONE_17, IPAD_17]) expect(countSupported(ua, "safari"), ua).toBe(false);
   });
 
-  it("Safari 18 and later: the count, on the Mac, the iPhone and an iPad presenting itself as a Mac", () => {
-    for (const ua of [MAC_18, IPHONE_18, IPAD_26_AS_MAC]) expect(countSupported(ua, "safari"), ua).toBe(true);
+  it("Safari 18 and later: the count, on the Mac, the iPhone and the iPad, as an iPad or as a Mac", () => {
+    for (const ua of [MAC_18, IPHONE_18, IPAD_18, IPAD_26_AS_MAC]) expect(countSupported(ua, "safari"), ua).toBe(true);
   });
 
   it("a Safari that names no version is taken for an old one", () => {
