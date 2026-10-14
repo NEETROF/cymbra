@@ -145,7 +145,9 @@ day refills the allowance). So the background computes, after each change of the
 - `upcoming`: the due times of the next reviewed cards to come due, ascending — at most 100, enough
   to tell 99 from more;
 - `fresh`: the never-reviewed cards (due, not retired);
-- `introduced`: the cards first answered since the local midnight of `dayStart`.
+- `introduced`: the cards first answered since the local midnight of `dayStart`;
+- `cards`: every card of the language — the « Deck (en cours) » the popup shows away from a page
+  (D8; added during implementation, a count like the others).
 
 Count at `t` = `due` + `upcoming` ≤ `t` + min(`fresh`, `perDay` − (`introduced` if `t` is still on
 `dayStart`'s day, else 0)). The outlook is computed by `reviewOutlook(backup, now, dayStart)`, a
@@ -274,7 +276,9 @@ that Safari shows no badge text there.
 highlighting on or off. On an analysed tab N is the page's language's count, from the page; away
 from one, it is the count of the language the review would open in away from a page (the last one
 chosen in the review on this device, else the first studied), from the outlook — the popup needs no
-engine. « Réviser » opens the side panel on Chromium; on Firefox and Safari it opens the drawer when
+engine. Where no outlook is kept — the count turned off (D7), or none worked out yet — the popup
+works one out itself with the same standalone function over the stored backup, still with no engine
+and no pack. « Réviser » opens the side panel on Chromium; on Firefox and Safari it opens the drawer when
 the tab has the reader, and otherwise `sidepanel.html` in a tab, as the background's `openPanel`
 already does when the side panel cannot open.
 
