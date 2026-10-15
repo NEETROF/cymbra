@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Six anonymous steps, each reported once per installation
-The extension SHALL record, for each installation, six steps counted from the local calendar day the installation was made (day 0), and SHALL report each at most once, filed under the week of day 0 (the Monday that starts day 0's local week):
+The extension SHALL record, for each installation, six steps counted from the local calendar day the installation was made (day 0), and SHALL report each at most once, filed under day 0:
 - **Installed:** the browser reported a new installation (not an update).
 - **Set up:** the reader made a first level decision for any studied language, « Débutant » included, wherever it was made.
 - **First page analysed:** the first page analysed in a studied language.
@@ -9,11 +9,11 @@ The extension SHALL record, for each installation, six steps counted from the lo
 - **Back in days 7–13:** the first use on a day from 7 to 13.
 - **Back in days 30–59:** the first use on a day from 30 to 59.
 
-A use SHALL be a page analysed in a studied language or a Lingua surface the reader opened (popup, side panel, drawer, review, book reader); the welcome tab opening by itself at installation SHALL NOT be a use. After day 59 the device SHALL record no step; at the end of the week that follows day 59's week (73 days after day 0 at most) it SHALL forget day 0 and every step it still holds, and report nothing more for that installation. Every change to the device's counts — a wake, the first-run sentence shown, an answer, the switch — SHALL first apply that expiry. An installation that predates the first release carrying this requirement SHALL report nothing, SHALL never be asked about the counts, and SHALL register no leaving page.
+A use SHALL be a page analysed in a studied language or a Lingua surface the reader opened (popup, side panel, drawer, review, book reader); the welcome tab opening by itself at installation SHALL NOT be a use. After day 59 the device SHALL record and send no step; at day 60 it SHALL forget day 0 and every step it still holds, sent or not, and report nothing more for that installation. Every change to the device's counts — a wake, the first-run sentence shown, an answer, the switch — SHALL first apply that expiry. An installation that predates the first release carrying this requirement SHALL report nothing, SHALL never be asked about the counts, and SHALL register no leaving page.
 
 #### Scenario: A reader who sets up and reads on day 0
 - **WHEN** a reader installs Lingua on Wednesday 21 October, chooses B1 on the welcome tab and opens a Spanish page the same day
-- **THEN** installed, set up and first page analysed are reported once each, under the week of Monday 19 October, from Monday 26 October
+- **THEN** installed, set up and first page analysed are reported once each, filed under Wednesday 21 October, at the wakes that record them
 
 #### Scenario: A weekend reader
 - **WHEN** a reader installed on a Monday uses Lingua again only on day 8
@@ -23,8 +23,8 @@ A use SHALL be a page analysed in a studied language or a Lingua surface the rea
 - **WHEN** a reader's only use after day 0 is on day 200
 - **THEN** no return is reported, and the device holds no day 0 for that installation any more
 
-#### Scenario: Past the installation's last week
-- **WHEN** a Chrome reader installed on a Wednesday never answered, and on day 70 presses « Oui, compter », or a Safari reader sees the sentence for the first time on day 70
+#### Scenario: Past day 59
+- **WHEN** a Chrome reader who never answered presses « Oui, compter » on day 60, or a Safari reader sees the sentence for the first time on day 60
 - **THEN** no step is reported, and the device holds no day 0 for that installation any more
 
 #### Scenario: An update, not an installation
@@ -36,7 +36,7 @@ A use SHALL be a page analysed in a studied language or a Lingua surface the rea
 - **THEN** back on day 1 is not reported
 
 ### Requirement: A report carries no identifier and nothing of what is read
-A count report SHALL carry only the week of day 0, the browser family (`chromium`, `firefox` or `safari`, taken from the build, never from the User-Agent), the extension's version as major.minor, and the steps it reports. It SHALL carry no identifier of any kind — no installation id, no device id, no account id even for a signed-in reader, no hash or derivative of one — and nothing about what the reader reads: no address, site, page text, word, studied language or level. Reports SHALL go through a transport that attaches no account token, to a service mounted with no authentication, so that no report can be tied to an account.
+A count report SHALL carry only day 0 (the installation's local calendar day, as a day number), the browser family (`chromium`, `firefox` or `safari`, taken from the build, never from the User-Agent), the extension's version as major.minor, and the steps it reports. It SHALL carry no identifier of any kind — no installation id, no device id, no account id even for a signed-in reader, no hash or derivative of one — and nothing about what the reader reads: no address, site, page text, word, studied language or level. Reports SHALL go through a transport that attaches no account token, to a service mounted with no authentication, so that no report can be tied to an account.
 
 #### Scenario: A signed-in reader
 - **WHEN** a signed-in reader's device reports a step
@@ -44,7 +44,7 @@ A count report SHALL carry only the week of day 0, the browser family (`chromium
 
 #### Scenario: Inspecting the contract
 - **WHEN** the report message of `usage_counts.proto` is reviewed
-- **THEN** its fields are the week of day 0, the browser family, the version and the steps, and the privacy allow-list test passes on it
+- **THEN** its fields are day 0, the browser family, the version and the steps, and the privacy allow-list test passes on it
 
 #### Scenario: The sync's installation id
 - **WHEN** a signed-in device that holds a sync installation id reports a step
@@ -81,11 +81,11 @@ The extension SHALL start counting as each browser's store requires, and SHALL o
 
 #### Scenario: Chrome, agreed on the welcome tab
 - **WHEN** a Chrome reader installs Lingua on a Wednesday, chooses a level, then presses the button agreeing to the counts on the welcome tab
-- **THEN** installed and set up leave in one report at the first wake on or after the following Monday, and none before that press
+- **THEN** installed and set up leave in one report at that press, and none before it
 
 #### Scenario: Chrome, never answered
 - **WHEN** a Chrome reader closes the welcome tab and never answers the question in the popup either
-- **THEN** no step is ever reported, and the held steps are forgotten at the end of the week that follows day 59's week
+- **THEN** no step is ever reported, and the held steps are forgotten at day 60
 
 #### Scenario: Chrome, declined
 - **WHEN** a Chrome reader presses the button declining the counts
@@ -107,26 +107,30 @@ The extension SHALL send no report before it has shown the reader, once, one sen
 - **THEN** the sentence does not count as shown, and no step is reported
 
 ### Requirement: Reports ride the extension's own wake-ups
-The extension SHALL send a step only at the first wake on or after the Monday, on the device's local calendar, that follows the week in which the step happened — never in the week it happened in — so that the moment a report arrives does not tell the day. At each wake — an installation, a browser start, a page analysis, a surface opening, a surface's message — it SHALL send, in one report, every step whose Monday has come, at most once an hour after a failure. It SHALL use no alarm and no timer to send. A step recorded offline SHALL be sent when the network returns, still filed under the week of day 0. A report the server accepted or refused as malformed SHALL NOT be sent again; only a refusal for too many requests, or a transport failure, SHALL be retried. Delivery SHALL be at least once: a report the server counted but whose outcome the device could not save is sent again.
+The extension SHALL send a step as soon as it happens: at the wake that records it, once the browser's consent allows, or — when it cannot leave then — at a later wake. At each wake — an installation, a browser start, a page analysis, a surface opening, a surface's message — it SHALL send, in one report, every step waiting, at most once an hour after a failure; a failure the device's clock dates in the future SHALL NOT hold the steps back. It SHALL use no alarm and no timer to send. Days SHALL be the device's local calendar days, a day with a daylight-saving change being one day. A step recorded offline SHALL be sent when the network returns, still filed under day 0, as long as day 60 has not come. A report the server accepted or refused as malformed SHALL NOT be sent again; only a refusal for too many requests, or a transport failure, SHALL be retried. Delivery SHALL be at least once: a report the server counted but whose outcome the device could not save is sent again.
 
-#### Scenario: Sunday night and Monday morning
-- **WHEN** a reader installed on a Wednesday chooses a level on the following Sunday at 23:59, then the browser wakes at 23:59 that Sunday and again at 00:00 on Monday
-- **THEN** nothing is sent at 23:59, and installed and set up leave together at 00:00, filed under the week of day 0
+#### Scenario: Sent as it happens
+- **WHEN** a Safari reader who was shown the sentence chooses a level on day 0, then comes back on day 8
+- **THEN** set up is sent at the wake the level is saved, back in days 7–13 at the wake of day 8, and both are filed under day 0
 
-#### Scenario: A daylight-saving week
-- **WHEN** the week a step happened in is the one the device's clock leaves summer time
-- **THEN** the step leaves at the first wake on or after the next local Monday 00:00, as in any other week
+#### Scenario: Midnight
+- **WHEN** a reader installs at 23:50, opens Lingua at 23:59 and again at 00:00
+- **THEN** back on day 1 is not recorded at 23:59, and is sent at 00:00
 
-#### Scenario: A return waits for the end of its week
-- **WHEN** a reader installed on a Monday comes back on day 8, a Tuesday
-- **THEN** back in days 7–13 is not sent before day 14, the next Monday
+#### Scenario: A daylight-saving day
+- **WHEN** day 0 is the day the device's clock leaves summer time, a 25-hour day, and the reader comes back the next calendar day
+- **THEN** back on day 1 is sent, filed under that day 0
+
+#### Scenario: A clock set back
+- **WHEN** the device's clock is set back three days after the installation and the reader analyses a page
+- **THEN** no step is recorded, the reports already sent keep day 0 as it was, and a report that failed is tried again without waiting for the clock to catch up
 
 #### Scenario: Offline for days
 - **WHEN** a reader sets up offline on a Wednesday (day 0) and is online again only on the Thursday of the following week
-- **THEN** the waiting steps are sent that Thursday, filed under the week of day 0
+- **THEN** the waiting steps are sent that Thursday, filed under day 0
 
 #### Scenario: Several steps at once
-- **WHEN** three steps are waiting and their Monday has come
+- **WHEN** a Chrome reader's device holds three steps and the reader presses « Oui, compter »
 - **THEN** they leave in one report
 
 #### Scenario: The server is down
@@ -137,20 +141,16 @@ The extension SHALL send a step only at the first wake on or after the Monday, o
 - **WHEN** the server counts a report and the browser stops the extension's background before it saves the steps as sent
 - **THEN** the same steps are sent again at the next wake
 
-### Requirement: The server keeps week counters and nothing else
-The Lingua backend SHALL add one to a counter keyed by the week of day 0, step, browser family and version for each step of an accepted report, and SHALL keep no row per report and no time of day, network address, header or account. It SHALL accept a report only when its values are bounded: steps among the six, one to six distinct steps, a browser family among the three, a version of the form major.minor with no leading zero, and a week that starts on a Monday. A week starting more than 18 weeks before the server's UTC day, or after the day after it, SHALL be acknowledged and not counted; any other malformed report SHALL be refused as invalid. A counter SHALL name a version only when it has the major of the latest released version — a runtime setting, `lingua.usage_counts.latest_version` — and a minor at most three past it; any other well-formed version SHALL be counted under `other`, so the versions a week holds stay bounded. Counters whose week is more than 25 months old SHALL be deleted once a day, whether counting is on or off and whether any report arrives. The service SHALL be mounted only when the Lingua database is configured, and a runtime flag (`lingua.usage_counts.enabled`, on by default) SHALL let an operator stop counting without a release: with it off, reports SHALL be acknowledged and not counted.
+### Requirement: The server keeps day counters and nothing else
+The Lingua backend SHALL add one to a counter keyed by day 0, step, browser family and version for each step of an accepted report, and SHALL keep no row per report and no time of day, network address, header or account. It SHALL accept a report only when its values are bounded: steps among the six, one to six distinct steps, a browser family among the three, and a version of the form major.minor with no leading zero; any day number is a well-formed day 0. A day 0 more than 90 days before the server's UTC day, or after the day after it, SHALL be acknowledged and not counted; any other malformed report SHALL be refused as invalid. A counter SHALL name a version only when it has the major of the latest released version — a runtime setting, `lingua.usage_counts.latest_version` — and a minor at most three past it; any other well-formed version SHALL be counted under `other`, so the versions a day holds stay bounded. Counters whose day (or, for the leaving answers, week) is more than 25 months old SHALL be deleted once a day, whether counting is on or off and whether any report arrives. The service SHALL be mounted only when the Lingua database is configured, and a runtime flag (`lingua.usage_counts.enabled`, on by default) SHALL let an operator stop counting without a release: with it off, reports SHALL be acknowledged and not counted.
 
 #### Scenario: A report counted
-- **WHEN** a Firefox 1.10 device reports installed and set up for the week of Monday 19 October
-- **THEN** two counters for that week, Firefox, 1.10 each increase by one, and no other row is written
+- **WHEN** a Firefox 1.10 device reports installed and set up for an installation made on Wednesday 21 October
+- **THEN** two counters for that day, Firefox, 1.10 each increase by one, and no other row is written
 
-#### Scenario: A week too old
-- **WHEN** a report names a week that started 200 days ago
+#### Scenario: A day too old
+- **WHEN** a report names an installation day 200 days ago
 - **THEN** it is acknowledged and nothing is counted
-
-#### Scenario: Not a week
-- **WHEN** a report names a day that is not a Monday
-- **THEN** it is refused as invalid and nothing is counted
 
 #### Scenario: An unknown step
 - **WHEN** a report names a step outside the six
@@ -161,7 +161,7 @@ The Lingua backend SHALL add one to a counter keyed by the week of day 0, step, 
 - **THEN** reports are acknowledged and no counter changes, and extensions keep working
 
 #### Scenario: Old counters
-- **WHEN** a counter's week is 26 months old, counting has been off for months and no report arrives
+- **WHEN** a counter's day is 26 months old, counting has been off for months and no report arrives
 - **THEN** it is no longer in the database the next day
 
 #### Scenario: A forged version
@@ -173,7 +173,7 @@ The Lingua backend SHALL add one to a counter keyed by the week of day 0, step, 
 - **THEN** no network address, `Origin` value or `User-Agent` value appears in it
 
 ### Requirement: Floods are refused without keeping addresses
-The count service and the leaving-reason route SHALL refuse more than 60 requests a clock hour from one network address — an IPv6 address counted by its /64 prefix — holding only a keyed hash of it, in the server process's memory, under a key drawn at start-up and never written, forgetting it when the clock hour ends, and holding a bounded number of entries: when the table is full, a request from an address it does not hold SHALL be refused as too many requests. Each request SHALL cost the guard a constant amount of work, whatever the table holds, and a request whose body cannot be read SHALL count against the limit like any other. The address SHALL NOT be written to the database, the cache, a log, a metric or a trace, and the public reverse proxy's logs SHALL NOT carry a client address or request headers either. A week's counter for one step (or reason) and one browser family, every version summed, SHALL stop growing at a ceiling an operator can change at runtime (`lingua.usage_counts.ceiling`, 5 000 by default), and a request past the ceiling SHALL be acknowledged.
+The count service and the leaving-reason route SHALL refuse more than 60 requests a clock hour from one network address — an IPv6 address counted by its /64 prefix — holding only a keyed hash of it, in the server process's memory, under a key drawn at start-up and never written, forgetting it when the clock hour ends, and holding a bounded number of entries: when the table is full, a request from an address it does not hold SHALL be refused as too many requests. Each request SHALL cost the guard a constant amount of work, whatever the table holds, and a request whose body cannot be read SHALL count against the limit like any other. The address SHALL NOT be written to the database, the cache, a log, a metric or a trace, and the public reverse proxy's logs SHALL NOT carry a client address or request headers either. An installation day's counter for one step, or a week's counter for one leaving reason, and one browser family, every version summed, SHALL stop growing at a ceiling an operator can change at runtime (`lingua.usage_counts.ceiling`, 5 000 by default), and a request past the ceiling SHALL be acknowledged.
 
 #### Scenario: A flood from one address
 - **WHEN** one address sends 61 reports within a clock hour
@@ -200,8 +200,8 @@ The count service and the leaving-reason route SHALL refuse more than 60 request
 - **THEN** it is refused as too many requests, the device keeps its steps, and it tries again an hour later
 
 #### Scenario: A counter at its ceiling
-- **WHEN** a week's Firefox counter for one step, its versions summed, has reached the ceiling and another report for it arrives, from any version
-- **THEN** the report is acknowledged, no counter of that week, step and browser changes, and the console marks the week as capped
+- **WHEN** an installation day's Firefox counter for one step, its versions summed, has reached the ceiling and another report for it arrives, from any version
+- **THEN** the report is acknowledged, no counter of that day, step and browser changes, and the console marks the day as capped
 
 #### Scenario: The backend fails behind the reverse proxy
 - **WHEN** the server is down and a report reaches the reverse proxy, which answers with an error

@@ -187,13 +187,14 @@ follow people across sites or apps, and share nothing with third parties; it rec
 lifetime of 13 months at most and keeping the collected information 25 months at most
 ("Cookies : solutions pour les outils de mesure d'audience", cnil.fr; the page refused automated
 reading on 2026-10-14, so these conditions are taken from its published 2020–2025 guidance as
-summarised by search results, to be re-read by the owner). Day 0 lives 73 days at most (D4); counters are
+summarised by search results, to be re-read by the owner). Day 0 lives 60 days at most (D4); counters are
 deleted after 25 months (D9).
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Six figures per installation week and browser, true enough to compare one week with the next.
+- Six figures per installation day and browser, true enough to compare one day — or one week, the
+  days summed — with the next, and available as soon as the steps happen (owner, 2026-10-16).
 - A report that cannot identify an installation, a person or what they read, and a server — reverse
   proxy included — that keeps nothing that could be turned into one.
 - Counting that starts as each store requires and that the reader can turn off in one place, told
@@ -228,12 +229,12 @@ tab opening by itself at install is not a use.
 | `RETURNED_DAYS_7_13` | the first use on a day from 7 to 13 |
 | `RETURNED_DAYS_30_59` | the first use on a day from 30 to 59 |
 
-After day 59 nothing more is recorded. The steps still held then leave the week after (D5), and at
-the end of that week — the Monday two weeks after the one that starts day 59's week, 67 to 73 days
-after day 0 — the device forgets day 0 and the step list; that installation never reports again.
-Every change to the state goes through that expiry first, whichever message woke the background:
-a wake, the first-run sentence shown, an answer, the switch (review of #958: it was applied only
-when a step was recorded).
+After day 59 nothing more is recorded or sent: at day 60 the device forgets day 0 and the step
+list, sent or not, and that installation never reports again (owner, 2026-10-16; the week delay of
+2026-10-15 had kept them until the end of the week after day 59's, 73 days at most). Every change to
+the state goes through that expiry first, whichever message woke the background: a wake, the
+first-run sentence shown, an answer, the switch (review of #958: it was applied only when a step
+was recorded).
 `SET_UP` comes from a one-line message (`usage:step`) sent by `level-row.ts` and `settings-view.ts`
 after a level is saved; the background records the rest from messages it already receives.
 
@@ -247,39 +248,41 @@ after a level is saved; the background records the rest from messages it already
   (`tool/manifests.mjs`, static content script), so `page` requests fire on pages in no studied
   language: that would measure browser use, not Lingua use.
 
-### D2. Filed under the installation's week, with no identifier
+### D2. Filed under the installation's day, with no identifier
 
-A report says: the week of day 0 (the day number of the Monday that starts day 0's local week),
-browser family, version, and the steps it carries. The server adds one to a counter per (week,
-step, browser, version) and keeps nothing else. Filing a step under the installation's week — not
-under the moment it happened — is what makes « 40 installations this week, 8 came back at D+7 » a
-true sentence: the 8 belong to the 40. The device still computes the return windows from the exact
-day 0; only the week leaves it.
+A report says: day 0 — the installation's local calendar day, as a day number (days since
+1970-01-01) —, browser family, version, and the steps it carries. The server adds one to a counter
+per (day, step, browser, version) and keeps nothing else. Filing a step under the installation's
+day — not under the moment it happened — is what makes « 40 installations this week, 8 came back at
+D+7 » a true sentence, the week's days summed: the 8 belong to the 40.
 
-Why this is not an identifier: many installations share each week/browser/version tuple, the tuple
-is never stored with a report (there is no report row), and two reports from one installation look
-exactly like reports from two installations made the same week.
+Why this is not an identifier: many installations can share each day/browser/version tuple, the
+tuple is never stored with a report (there is no report row), and two reports from one installation
+look exactly like reports from two installations made the same day.
 
-What it still allows: at today's scale a cell can hold one installation ("one Firefox 1.10
-installation of the week of 19 October came back in its second week"). Nobody can be identified from
-the counters alone; but someone who already knows that a given person installed Lingua on Firefox
-on a given day could, with a **day** grain, read whether that person came back. The week grain makes
-that seven times harder and costs the funnel nothing, since the console reads weeks anyway (D13).
+What it still allows, and the owner accepts (2026-10-16): at today's scale a cell often holds one
+installation ("one Firefox 1.10 installation of 21 October came back in its second week"). For an
+installation alone on its day and browser, its day of installation can be inferred from the
+counters, and someone who already knows that a given person installed Lingua on Firefox that day can
+read whether that person came back. Nobody can be identified from the counters alone. The privacy
+annex says this plainly (D14). The week grain made that seven times harder; the owner wants the
+figures as fast as possible, and a day's figure is the one to read the morning after a store or
+welcome-tab change.
 
 *Rejected:*
-- **The installation's day** (the first draft of this change). It adds nothing the console shows,
-  and the exact day is the most precise of the three dimensions — the one that turns a small cell
-  into a person for someone who knows when they installed.
+- **The installation's week** (Q2's recommended answer, accepted on 2026-10-14, reversed on
+  2026-10-16). Seven times harder to single an installation out, but every figure then waits for
+  its week to end, and the console could not show a day.
 - **Suppressing small cells** (showing "< 5") in the console. At today's scale it would blank the
-  whole section, and the only reader of the console is the owner; the week grain and the absence of
-  any finer view (D13) do the same work without hiding the figures.
+  whole section, and the only reader of the console is the owner; the annex states what a small cell
+  allows instead of hiding the figures.
 - **An installation id**, or reusing the sync's (`getOrCreateDeviceId`). Excluded by the owner's
   rule; reusing the sync's would also tie counts to accounts on the server.
 - **`backend/analytics`'s period-salted `user_bucket`.** It is pseudonymous — the same person maps
   to the same bucket for a month — which is exactly what "no identifier, no hash of one" rules out.
   Its ingestion is authenticated and its raw events carry the bucket for 180 days.
-- **Filing steps under the week they happened.** Simpler, but a week's "8 came back at D+7" would
-  then come from installations of the week before, so no percentage could be computed.
+- **Filing steps under the day they happened.** Simpler, but a day's "8 came back at D+7" would
+  then come from installations of a week before, so no percentage could be computed.
 
 ### D3. Two dimensions: browser family and version
 
@@ -297,20 +300,19 @@ excludes. If the mobile/desktop split is wanted, it is one more enum in a later 
 ### D4. What the device keeps, and for how long
 
 One `chrome.storage.local` key, `cymbra-lingua-usage-counts`: day 0, the steps already sent, the
-steps waiting to be sent (each with the Monday it may leave from, never its day), whether the
-first-run sentence was shown (and, on Chromium, answered), the time of the last failed attempt, and
-whether the installation was made by a counting release (`countable`, below). It is not in the
-backup, not in the exported file, not synced.
+steps waiting to be sent, whether the first-run sentence was shown (and, on Chromium, answered), the
+time of the last failed attempt, and whether the installation was made by a counting release
+(`countable`, below). It is not in the backup, not in the exported file, not synced.
 
-- **Lifetime.** Day 0 and the steps are deleted at the end of the week that follows day 59's week
-  (73 days at most, D1), or when the switch is turned off — far below the 13 months the CNIL
-  accepts for an audience-measurement tracker, and never extended. Only `countable` and whether
+- **Lifetime.** Day 0 and the steps are deleted at day 60 (D1), or when the switch is turned off —
+  far below the 13 months the CNIL accepts for an audience-measurement tracker, and never
+  extended. Only `countable` and whether
   the sentence was shown outlive them: facts about the installation, not counts.
 - **A full reset** in Settings deletes it too, so the installation stops being counted; the switch
   keeps its position.
 - **Installations made before the first counting release** receive `onInstalled` with `update`, so
   they have no day 0 and never report. The funnel starts clean with that release. They could be
-  given a fake day 0, but their steps would be counted against a week in which they were not
+  given a fake day 0, but their steps would be counted against a day on which they were not
   installed. (This also means Chrome's rule on practices introduced after installation never comes
   into play: nothing changes for an existing installation.) **Owner decision B (2026-10-15):** such
   an installation is never asked either — no question on Chromium, neither on the welcome tab nor
@@ -324,26 +326,26 @@ backup, not in the exported file, not synced.
 - **Several devices** count as several installations, and so do several browser profiles. Counts
   never ride the sync.
 
-### D5. Reports go the week after, at the extension's own wake-ups
+### D5. Reports go as soon as a step happens, at the extension's own wake-ups
 
-**Owner decision A (2026-10-15): send the following week.** A step is sent only at the first wake
-on or after the Monday (local) that follows the ISO week in which it happened — never earlier — so
-a report's arrival cannot reveal the day. A return in days 7–13 or 30–59 likewise waits for the end
-of the week it happened in. The device keeps, for each held step, only that Monday.
+**Owner decision of 2026-10-16: send immediately** (it reverses decision A of 2026-10-15, "send the
+following week"; reason: know as fast as possible). A step is sent at the wake that records it — the
+installation, the level saved, the page analysed, the surface opened — as soon as the browser's
+consent allows (D6, D7); one that cannot leave then waits for a later wake.
 
-At every wake, the background sends in one report every step whose Monday has come. A failure keeps
-them waiting; the next wake-up tries again, at most once an hour after a failure. The wake-ups are
-`onInstalled`, `onStartup`, a `stats` message, a `sync:request` and the surfaces' own messages
+At every wake, the background sends in one report every step waiting. A failure keeps them waiting;
+a later wake tries again, at most once an hour after a failure — and a failure the device clock now
+dates in the future (a clock set back) does not hold them until the clock catches up. The wake-ups
+are `onInstalled`, `onStartup`, a `stats` message, a `sync:request` and the surfaces' own messages
 (`src/usage/wiring.ts`). No alarm and no timer are used. Offline readers' steps leave when they are
-back online, still under the week of day 0. The day is the device's local calendar day
-(`localDay`), so a daylight-saving change does not move the boundary: Sunday 23:59 is still the
-step's week, Monday 00:00 is the first moment it may leave.
+back online, still under day 0, as long as it is before day 60 (D1). The day is the device's local
+calendar day (`localDay`), so a daylight-saving change does not move a boundary: a 23- or 25-hour
+day is one day, 23:59 is still that day, 00:00 the next.
 
-The back office's latest installation week is therefore incomplete until the following week, and a
-return's figure is final only from the Monday after the week holding the window's last day for a
-Sunday installation (D13).
+The back office's figures are therefore current: a return's figure is final the day after its
+window closes — day 0 + 2, + 14 and + 60 (D13).
 
-The server answers "OK" to everything it can parse, counted or not: flag off, week out of range,
+The server answers "OK" to everything it can parse, counted or not: flag off, day out of range,
 or a ceiling reached. A client therefore never retries a dropped report. An unparseable report gets
 `INVALID_ARGUMENT`; the client also drops those steps, so a bug cannot loop. Only
 `RESOURCE_EXHAUSTED` and transport errors are retried.
@@ -355,13 +357,14 @@ later wake. This is rare and only inflates; preventing it would need a report id
 the rule excludes. The privacy annex says so (`test/usage-host.spec.ts` covers the resend).
 
 *Rejected:*
-- **Sending as soon as a step is recorded** (the first implementation). A report arriving minutes
-  after an installation, or after a return, would date it to the day, or the hour, for anyone who
-  could see the requests arrive; a week of delay costs the funnel nothing, since it reads weeks.
-- **One batch a day.** It still dates a step to the day, and needs a timer.
+- **Sending the week after** (owner decision A, 2026-10-15, reversed on 2026-10-16). It hid the day
+  a step happened from anyone who could see the requests arrive, at the cost of a week's delay on
+  every figure; the owner wants the figures as fast as possible, and the report carries the day of
+  installation anyway (D2). No time of arrival is kept (D11).
+- **One batch a day.** It needs a timer, and delays the figures for nothing the report does not
+  already say.
 - **A random delay** before sending. It needs a timer the extension does not have, and a suspended
-  service worker would lose delayed reports; the week boundary is deterministic and survives a
-  suspension.
+  service worker would lose delayed reports.
 - **`chrome.alarms`.** A new permission, and against the product's line of no timers.
 
 ### D6. When counting starts, per browser, and the switch
@@ -448,7 +451,8 @@ extension, and no `buf` gate on a contract that installed clients cannot update.
 
 ### D9. A module in `backend/lingua`, two counter tables in the `lingua` schema
 
-`usage_counts_core.rs` holds the pure rules: validation, bounds, the closed sets, the week check.
+`usage_counts_core.rs` holds the pure rules: validation, bounds, the closed sets, the window of
+installation days.
 `usage_counts.rs` holds the module and the ports it declares — the consumer declares them, as
 `plans/src/ports.rs` and `OnlineTranslationPolicy` do:
 - `UsageCountsRepo`;
@@ -462,13 +466,13 @@ migration takes the next free number at implementation time (`0008` is planned b
 `add-lingua-card-edit`), named `00NN_lingua_usage_counts.sql`:
 
 ```sql
-CREATE TABLE IF NOT EXISTS lingua.usage_counts_weekly (
-  install_week INTEGER NOT NULL,  -- day number (days since 1970-01-01) of the Monday of day 0's local week
-  step         TEXT    NOT NULL,  -- installed | set_up | first_analysis | returned_day_1 | …
-  browser      TEXT    NOT NULL,  -- chromium | firefox | safari
-  version      TEXT    NOT NULL,  -- major.minor
-  count        BIGINT  NOT NULL DEFAULT 0,
-  PRIMARY KEY (install_week, step, browser, version)
+CREATE TABLE IF NOT EXISTS lingua.usage_counts_daily (
+  install_day INTEGER NOT NULL,  -- day number (days since 1970-01-01) of day 0, the installation's local day
+  step        TEXT    NOT NULL,  -- installed | set_up | first_analysis | returned_day_1 | …
+  browser     TEXT    NOT NULL,  -- chromium | firefox | safari
+  version     TEXT    NOT NULL,  -- major.minor | other
+  count       BIGINT  NOT NULL DEFAULT 0,
+  PRIMARY KEY (install_day, step, browser, version)
 );
 CREATE TABLE IF NOT EXISTS lingua.leave_reasons_weekly (
   week    INTEGER NOT NULL,       -- Monday of the UTC week the answer arrived in
@@ -481,14 +485,16 @@ CREATE TABLE IF NOT EXISTS lingua.leave_reasons_weekly (
 ```
 
 **No column for a time of day, an address, a header or a report.** Counters are upserted with
-`count = count + 1` only while the week's counter for that step (or reason) and browser, every
-version summed, is under the ceiling (D10).
+`count = count + 1` only while the day's counter for that step (or the week's for that reason) and
+browser, every version summed, is under the ceiling (D10). The installation table was weekly
+(`usage_counts_weekly`, `install_week`) until the owner's decision of 2026-10-16; nothing had been
+deployed, so migration `0010` changed in place.
 
 **Retention: 25 months.** The counters are anonymous aggregates, but the CNIL's figure for
 audience-measurement data is 25 months, and a funnel older than two years answers no question. A
 daily job of the worker, `lingua_usage_prune` (`backend/jobs/src/registry.rs`, scheduled by
 `backend/jobs/migrations/0022_seed_lingua_usage_prune_schedule.sql`, 04:15 UTC), deletes the rows
-whose week is more than 25 months old, over the worker's `lingua_svc` pool
+whose day (or, for the leaving answers, week) is more than 25 months old, over the worker's `lingua_svc` pool
 (`CYMBRA_LINGUA_DATABASE_URL`, already read by the worker for the Discord Lingua report). It reads
 neither the kill switch nor any request, so retention holds with counting off and with no traffic
 (review of #958: the first implementation pruned from the report path, after the switch's check).
@@ -516,17 +522,17 @@ costly and visible, not impossible.
 
 - **Bounded values.** A step is one of six, a browser one of three, and `version` is `major.minor`,
   one to three digits each, **with no leading zero** (`1.09` or `007.0` would name a release
-  twice). A report holds one to six distinct steps. The week must be a Monday
-  (`install_week % 7 == 4`); one that is not is `INVALID_ARGUMENT`. A Monday more than 18 weeks
-  before the server's UTC day (day 72, and time offline), or later than the day after it (time
-  zones ahead of UTC), is dropped and answered OK.
+  twice). A report holds one to six distinct steps. Any day number is a well-formed day 0 (until
+  2026-10-16 it had to be a Monday). A day more than 90 days before the server's UTC day — a device
+  sends its last step on day 59, and the rest is room for a device clock up to a month behind — or
+  later than the day after it (time zones ahead of UTC), is dropped and answered OK.
 - **Bounded versions.** The version is part of a counter's key, so an open pattern (about 1.2
   million strings) meant unbounded rows (review of #958). A runtime setting,
   `lingua.usage_counts.latest_version` (`cfg`, default `1.10`), names the latest released
   `major.minor`; the counters name it, the releases before it in its major, and up to three minors
   past it (a release that ships before the setting is moved). Any other well-formed version is
   counted under `other`, never dropped: a forgotten setting loses no count, and a forged `999.999`
-  adds no row of its own. At most `minor + 5` names per week, step and browser.
+  adds no row of its own. At most `minor + 5` names per day, step and browser.
 - **Floods from one address.** At most 60 reports a clock hour per address, enforced by an
   in-memory `FloodGuard` in the server process:
   - **Key.** An IPv4 address, or an IPv6 address's /64 prefix — one home or one phone holds a whole
@@ -554,12 +560,21 @@ costly and visible, not impossible.
     school, an office or a mobile carrier's shared address. The address is resolved with
     `client_addr::resolve` and passed to the guard alone. The platform limiter is not used, because
     it writes its subject into a Redis key.
-- **A ceiling per counter.** At most `lingua.usage_counts.ceiling` per (week, step, browser), every
-  version summed — the grain the console shows — 5 000 by default (runtime config, `cfg` in the
-  flag registry). A week shows as capped in the console when one browser's sum reached it, so the
-  mark is true of the figure shown (review of #958: the first ceiling held per version, while the
-  console summed versions). The ceiling is soft: two reports in flight may each read the sum just
-  under it.
+- **A ceiling per counter.** At most `lingua.usage_counts.ceiling` per (day, step, browser) — per
+  (week, reason, browser) for the leaving answers —, every version summed — the grain the console
+  shows — 5 000 by default (runtime config, `cfg` in the flag registry). A day shows as capped in the
+  console when one browser's sum reached it, so the mark is true of the figure shown (review of
+  #958: the first ceiling held per version, while the console summed versions); a week in the week
+  view is capped when one of its days is. The ceiling is soft: two reports in flight may each read
+  the sum just under it.
+  - **Why per day, not per week (2026-10-16).** The ceiling bounds what a flood can add; it does
+    not measure. Lingua's real installations are a handful a day, orders of magnitude under 5 000,
+    so a per-day ceiling never caps a real day and still caps a flood; it keeps the capped mark
+    true of the row the console shows, and a flood capped on one day leaves the other days of its
+    week intact. A weekly ceiling over a daily table would need a second, weekly sum on every
+    write for no gain. The default stays 5 000: a week can now hold at most 35 000 per step and
+    browser, still far above any real figure, still bounded, and an operator can lower it at
+    runtime.
 
 The same flag, guard, ceiling and retention apply to the leaving route (D12). Its bounds are the
 reason (one of six), and the browser family and version as above, where `unknown` is also accepted:
@@ -656,35 +671,36 @@ mint either, at real cost to the code).
 
 `LinguaAdminService` gains two RPCs, behind the same `admin`-in-`lingua` guard and the same
 "aggregates only" rule:
-- `AdminGetUsageFunnel(window, browser)` — for each installation week in the window: installed, set
+- `AdminGetUsageFunnel(window, browser)` — for each installation day in the window: installed, set
   up, first analysis and the three returns, and whether a counter hit the ceiling;
 - `AdminGetLeaveReasons(window, browser)` — the total for each reason.
 
-Both answer per week and per browser family at the finest; versions are summed. `/lingua/overview`
-gains an "Installations" section:
-- a table by installation week, with each step as a count and as a share of "installed";
+The funnel answers per installation day and the reasons per arrival week, each per browser family at
+the finest; versions are summed. `/lingua/overview` gains an "Installations" section:
+- a table by installation day, latest first, with each step as a count and as a share of
+  "installed", and a week view that sums the same days without another read (owner, 2026-10-16);
 - a browser filter;
-- a return cell reads "not yet" until its window has closed for every day of the week and the
-  devices have sent it — the Monday after the week holding the window's last day for a Sunday
-  installation (D5): the week's Monday + 14, + 21 and + 70 days — so a young week never looks like
-  a bad week;
+- a return cell reads "not yet" until its window has closed: from the day after day 1, 13 or 59 of
+  the installation day — day + 2, + 14 and + 60 —, and for a week row, of the week's last day — so
+  a young day never looks like a bad day;
 - the leaving reasons as a list of totals;
 - a note that these are anonymous counts from installations that count — on Chromium, only those
   whose reader said yes, so Chromium's absolute numbers are not comparable with Firefox's and
-  Safari's, while its percentages within a week are; installations from before the first counting
-  release never — that reinstalls and several devices each count as one, and that the latest week
-  stays incomplete until the following week, since devices send each step the week after it
-  happens (owner decision A).
+  Safari's, while its percentages within a day or a week are; installations from before the first
+  counting release never — that reinstalls and several devices each count as one, that devices send
+  each step as it happens, filed by installation day, and that no figure is finer than a day and a
+  browser family.
 
 The store keeps the existing `Async<T>` union; strings are in en and fr. The section reuses the
-console's window. Its one chart is the existing series component, plotting installations per week.
+console's window. Its one chart is the existing series component, plotting installations per day
+(per week in the week view).
 
 ### D14. Disclosures and store forms, per browser — every text that changes
 
 | Where | What changes | Evidence |
 |---|---|---|
-| Privacy policy, Annex B (fr/en/es) | a paragraph on the counts and the leaving page: what is counted, the three things sent with it (week, browser family, version), no identifier, no address kept — **not even in the technical logs of §2**, which otherwise keep IP addresses 7 days —, each count sent the week after it happens and possibly counted twice (D5), day 0 kept on the device for at most 73 days, counters deleted after 25 months, installations from before the counts never counted, the switch, how each browser asks, and that opening the leaving page is an ordinary visit to the site's host; legal basis legitimate interest (audience measurement) where no consent is asked, objection through the switch | `apps/site/src/pages/confidentialite.md`, `en/privacy.md`, `es/privacidad.md` |
-| Privacy policy, general part (fr/en/es) | the Chrome Web Store Limited Use statement | User Data FAQ, *Limited uses*, question 1; Limited Use policy, item 6 |
+| Privacy policy, Annex B (fr/en/es) | a paragraph on the counts and the leaving page: what is counted, the three things sent with it (day of installation, browser family, version), no identifier, no address kept — **not even in the technical logs of §2**, which otherwise keep IP addresses 7 days —, each count sent as it happens and possibly counted twice (D5), counted by day of installation, so that an installation alone on its day can be recognised and its day of installation inferred (D2), day 0 kept on the device for at most 60 days, counters deleted after 25 months, installations from before the counts never counted, the switch, how each browser asks, and that opening the leaving page is an ordinary visit to the site's host; legal basis legitimate interest (audience measurement) where no consent is asked, objection through the switch | `apps/site/src/pages/confidentialite.md`, `en/privacy.md`, `es/privacidad.md` |
+| Privacy policy, Annex B's Limited Use paragraph (fr/en/es) | the Chrome Web Store Limited Use statement (added by its own pull request, #953, Q12) names the anonymous counts among the information it covers | User Data FAQ, *Limited uses*, question 1; Limited Use policy, item 6 |
 | Firefox manifest | `technicalAndInteraction` stays in `optional` with `required: ["none"]`, and the comment names the counts | Extension Workshop, built-in consent; Add-on Policies 6.2.1 |
 | `REVIEWERS.md` | "Where the add-on reaches the network" names the report, the leaving page, Firefox's consent and the versions below 140/142 that count nothing | — |
 | Chrome Web Store privacy practices | "User activity" ticked, with the counts described, and "only after the reader agrees" said; the three certifications unchanged | Q7 |
@@ -722,19 +738,25 @@ The back office ships with step 1.
   variant moves to `ask` with a define (D7).
 - **Inflation.** Anyone can add counts within the limits of D10, and a lost answer can count a step
   twice (D5), so the figures are a trend, not an audit. The console says "anonymous counts" and marks
-  capped weeks.
+  capped days.
 - **Undercounting.** Readers who turn counting off, Chromium readers who do not say yes, old Firefox
   versions, Safari readers who never open the popup, and installations made before the release are
-  all missing. Percentages within a counted week stay meaningful; absolute numbers are a floor, and
+  all missing. Percentages within a counted day or week stay meaningful; absolute numbers are a floor, and
   Chromium's floor is much lower than the others'.
-- **One person in a cell.** At today's scale a weekly Firefox cell may hold one installation. No
-  identity can be drawn from it alone; the week grain (D2) and the absence of any finer view in the
-  console limit what side knowledge can add.
+- **One person in a cell.** At today's scale a daily Firefox cell will often hold one
+  installation: its day of installation can be inferred from the counters, and someone who already
+  knows when a person installed Lingua can read whether they came back. No identity can be drawn
+  from the counters alone. The owner accepts this for figures as fast as possible (2026-10-16), and
+  the annex says it plainly (D2, D14).
+- **Arrival time.** A step is sent as it happens (D5), so whoever sees the requests arrive — the
+  server process, the reverse proxy — learns when it happened. Nothing keeps that time: no row per
+  report, no access log, no address (D9, D11).
 - **Caddy's filter applies to every route.** A future debugging session will not find client
   addresses in Caddy's error log. That is intended; the policy's general "technical logs" sentence
   may be narrowed accordingly in a later change.
-- **Device clock.** Day 0 comes from the device clock; a clock far off produces a week the server
-  drops.
+- **Device clock.** Day 0 comes from the device clock; a clock far off produces a day the server
+  drops. A clock set back before day 0 records nothing until it is right again, and does not hold
+  a retry back (D5).
 - **Archive order.** `add-lingua-youtube-captions` has no task done yet; this change's archive waits
   for it, for its planned split, and for `add-lingua-review-translation-fallback` (Q8).
 
@@ -759,11 +781,9 @@ stay on by default, with the switch in Réglages. Every other question takes its
 Q12 (the Limited Use statement) is handled in a change of its own, ahead of this one.
 
 **Owner's decisions (2026-10-15), after the first review of the implementation (#958):**
-- **A. Send the following week.** A step is sent only at the first wake on or after the Monday
-  (local) following the ISO week in which it happened, never earlier, so a report's arrival cannot
-  reveal the day; returns in days 7–13 or 30–59 likewise wait for the end of their week. The back
-  office's latest week is therefore incomplete until the following week, and its note says so. See
-  D1, D4, D5, D13.
+- **A. Send the following week** — *reversed on 2026-10-16, see below.* A step was to be sent only
+  at the first wake on or after the Monday (local) following the ISO week in which it happened, so a
+  report's arrival could not reveal the day.
 - **B. Installations from before the first counting release are never asked on Chrome** — no
   question on the welcome tab or in the popup, no counting, no leaving page registered — and on
   Firefox likewise get no leaving page (their steps were never counted). They are identified as
@@ -772,6 +792,20 @@ Q12 (the Limited Use statement) is handled in a change of its own, ahead of this
 The same review also moved retention to a worker job (D9), bounded the versions and the flood
 guard's cost, made the ceiling hold across versions (D10), reworded what opening the leaving page
 sends and gave the page a form that works without JavaScript (D12).
+
+**Owner's decisions (2026-10-16): know as fast as possible.** The owner wants the figures as soon as
+they exist, and reverses two earlier answers:
+- **Send immediately** (reverses decision A). A step leaves at the first opportunity after it
+  happens — the wake that records it, or a later wake after a failure — with no alarm and no timer.
+  The device forgets everything at day 60. Delivery stays at least once; Chrome's yes, Firefox's
+  consent and Safari's sentence still gate it; decision B stands. See D1, D4, D5.
+- **Count by installation day** (reverses Q2's week). A report carries day 0, the browser family,
+  the version (still bounded by `lingua.usage_counts.latest_version`) and the steps; the server
+  keeps counters per day, with the ceiling per (day, step, browser), versions summed; the console
+  shows days, latest first, with a week view that sums them. For an installation alone on its day,
+  its day of installation can be inferred, and the owner accepts that; the annex says so. See D2,
+  D9, D10, D13, D14, *Risks*. Retention stays 25 months; the leaving answers keep their arrival
+  week.
 
 Each has a recommended answer; the design above assumes it. Q1 comes first because it changes
 something you decided.
@@ -796,7 +830,8 @@ something you decided.
 - **Q2. A week, not a day, for "when was this installed".** The first draft sent the exact day.
   With a handful of readers, the exact day could let someone who knows when a friend installed
   Lingua see whether that friend came back. The back office shows weeks anyway. *Recommended:* send
-  the week only.
+  the week only. **Reversed by the owner on 2026-10-16:** the day, with what it allows stated in the
+  annex (D2).
 - **Q3. Firefox before 140 (desktop) and 142 (Android):** no built-in consent there.
   *Recommended:* count nothing on those versions. Do not build a consent screen of our own. Whether
   to raise `strict_min_version` is a separate decision.
@@ -812,7 +847,7 @@ something you decided.
   - es: « Lo que lees nunca sale de tu dispositivo. Lingua puede enviar recuentos anónimos
     — instalación, primeros pasos, regresos —, sin ningún identificador; un interruptor en los
     Ajustes los desactiva. »
-- **Q6. How long the server keeps the weekly counters.** They hold no identifier, but France's data
+- **Q6. How long the server keeps the counters.** They hold no identifier, but France's data
   regulator recommends keeping audience-measurement data 25 months at most. *Recommended:* delete
   them after 25 months, automatically.
 - **Q7. Chrome privacy practices: tick "User activity"?** The dashboard's description of the
