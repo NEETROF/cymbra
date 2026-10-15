@@ -218,6 +218,7 @@ __metadata:
     fake-indexeddb: "npm:^6.2.5"
     globals: "npm:^15.0.0"
     jsdom: "npm:^25.0.1"
+    playwright-core: "npm:1.62.0"
     prettier: "npm:^3.9.6"
     typescript: "npm:~5.6.3"
     typescript-eslint: "npm:^8.65.0"
@@ -4057,6 +4058,15 @@ __metadata:
   bin:
     pino: bin.js
   checksum: 10c0/2b43de21fac267ef4b7267e14b4dbf207509f16cb81755c3bf54d325c45028a88457a369b7e2118fe534cbf2b313f28cf29cc0caa54dce60ea66c8b6084c8b6c
+  languageName: node
+  linkType: hard
+
+"playwright-core@npm:1.62.0":
+  version: 1.62.0
+  resolution: "playwright-core@npm:1.62.0"
+  bin:
+    playwright-core: cli.js
+  checksum: 10c0/bc7c770cc4118a7ea65d2c357fc271aaef49af6b5b8964aa19d765d4ea3473e56af926f693123fd63ed6e580830059905722ac68fbf22a31a5b1533e11600228
   languageName: node
   linkType: hard
 

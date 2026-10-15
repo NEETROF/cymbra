@@ -1,0 +1,57 @@
+/* The capture fixtures' page: neutral, readable, no brand of anyone (tool/capture/fixtures/README.md). */
+:root {
+  color-scheme: light;
+}
+body {
+  margin: 0;
+  background: #fbfaf7;
+  color: #1d1d1f;
+  font:
+    19px/1.65 Georgia,
+    "Times New Roman",
+    serif;
+}
+article {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 56px 24px 96px;
+}
+.section {
+  margin: 0 0 8px;
+  font:
+    600 13px/1.4 -apple-system,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6b6b6b;
+}
+h1 {
+  margin: 0 0 16px;
+  font-size: 40px;
+  line-height: 1.15;
+  font-weight: 700;
+}
+.standfirst {
+  margin: 0 0 32px;
+  font-size: 21px;
+  color: #4a4a4a;
+}
+p {
+  margin: 0 0 20px;
+}
+/* The pointer drawn for the demo video only (`?pointer`): a recorded video shows none. */
+#capture-pointer {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
+  z-index: 2147483647;
+  background: #111;
+  clip-path: polygon(0 0, 0 100%, 28% 74%, 48% 100%, 62% 92%, 44% 66%, 80% 66%);
+  filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff);
+  transition: transform 40ms linear;
+}

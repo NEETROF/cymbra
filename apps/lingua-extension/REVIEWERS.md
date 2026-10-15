@@ -33,6 +33,10 @@ The add-on lives in a larger repository. This archive is cut from it by
 `apps/lingua-extension/tool/make_source_archive.sh`, and every pull request rebuilds the
 add-on from the archive alone, with the commands below, so that they keep working.
 
+The archive also holds `apps/lingua-extension/tool/capture/`, a development tool that makes the
+store screenshots and the website's images (`yarn capture`, with its fixture pages, books and
+seeds, and the `playwright-core` dev dependency): nothing under it is built into the add-on.
+
 ## Build it
 
 Requires Node 22, Yarn (via Corepack), a stable Rust toolchain with the
