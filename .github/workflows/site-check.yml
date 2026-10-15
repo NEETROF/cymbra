@@ -36,6 +36,13 @@ jobs:
               # ...and a site test holds lingua-coverage.json's pairs to the shipped ones: a
               # pair added to packs.json without its figures fails here.
               - 'apps/lingua-extension/packs.json'
+              # The Music pages' share images are Music's own macOS store captures (change:
+              # add-site-lingua-showcase, D12): a refreshed capture moves the built site.
+              - 'apps/music/store/macos/desktop_1440x900/**'
+              # The site's tests read the capture plan and the extension's interface labels the
+              # captures show (src/lib/lingua-text.ts's alt texts quote them).
+              - 'apps/lingua-extension/tool/capture/plan.mjs'
+              - 'apps/lingua-extension/src/i18n/**'
               - 'packages/web-auth/**'
               - '.github/workflows/site-check.yml'
 

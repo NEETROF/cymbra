@@ -16,14 +16,26 @@
 // pair is glossed in one language, one column per pair — today's markup, untouched; once in
 // two, one row per pair, the pair its row's header, inside a box that scrolls on its own
 // (`.table-scroll`, `global.css`) so that a phone's page never scrolls sideways.
+//
+// The extension at work (change: add-site-lingua-showcase, D10): the hero capture right under the
+// store buttons (its phone close-up below 640 px) — the hero note follows it, so that a 1280×800
+// window shows most of the capture — then « En images »: the demo video and five captures, lazy,
+// each a link to its larger size, all made by `yarn capture` in apps/lingua-extension, in the
+// page's interface language (`src/lib/lingua-media.ts`). The store buttons mark the visitor's
+// browser's store primary (`StoreChoice.astro`, D11). The page's share image is its own capture (D12).
 import Base from '../layouts/Base.astro';
 import Community from './Community.astro';
+import DemoVideo from './DemoVideo.astro';
+import Shot from './Shot.astro';
 import StoreButtons from './StoreButtons.astro';
+import StoreChoice from './StoreChoice.astro';
+import { getImage } from 'astro:assets';
 import { linguaStores } from '../lib/stores';
+import { linguaMedia } from '../lib/lingua-media';
 import { config } from '../lib/config';
 import type { Lang } from '../lib/i18n';
 import { linguaAlternates, shippedPairs } from '../lib/lingua-pairs';
-import { linguaPageText } from '../lib/lingua-text';
+import { linguaPageText, SHOT_KEYS } from '../lib/lingua-text';
 
 interface Props {
   lang: Lang;
@@ -32,15 +44,59 @@ interface Props {
 const { lang } = Astro.props;
 const shipped = shippedPairs();
 const t = linguaPageText(lang, shipped, { discordUrl: config.discordUrl });
+const media = linguaMedia(lang);
+const poster = await getImage({ src: media.poster, width: 1280, format: 'webp', quality: 70 });
+/** The figures' width: two columns of the 900 px container on a computer, the whole width on a phone. */
+const FIGURE_SIZES = '(max-width: 760px) calc(100vw - 2.5rem), 430px';
+/**
+ * The statistics, cropped to their ladder, sit alone on their row, centred at most 600 px wide, so
+ * that the e-ink reader sits beside the reader.
+ */
+const CENTRED = new Set(['stats']);
+const CENTRED_SIZES = '(max-width: 640px) calc(100vw - 2.5rem), 600px';
 ---
 
-<Base title={t.title} description={t.description} lang={lang} alternates={linguaAlternates(shipped.pairs)}>
-  <section class="hero container">
+<Base
+  title={t.title}
+  description={t.description}
+  lang={lang}
+  alternates={linguaAlternates(shipped.pairs)}
+  image={{ src: media.share, alt: t.showcase.shareAlt }}
+>
+  <section class="hero hero-with-shot container">
     <p class="kicker" set:html={t.kicker} />
     <h1 set:html={t.headline} />
     <p class="tagline" set:html={t.tagline} />
-    <StoreButtons links={linguaStores(lang)} />
-    <p class="muted small hero-note" set:html={t.heroNote} />
+    <StoreButtons links={linguaStores(lang)} choose />
+    <StoreChoice hints={t.hints} />
+  </section>
+
+  <figure class="hero-shot shot">
+    <Shot
+      src={media.card}
+      closeUp={media.closeUp}
+      alt={t.showcase.hero.alt}
+      sizes="(max-width: 1140px) calc(100vw - 2.5rem), 1100px"
+      wide
+      eager
+    />
+  </figure>
+  <p class="muted small hero-note hero-note-after container" set:html={t.heroNote} />
+
+  <section class="showcase container">
+    <h2 set:html={t.showcase.heading} />
+    <div class="shots">
+      <figure class="shot shot-wide">
+        <DemoVideo src={media.video} poster={poster.src} label={t.showcase.video.label} width={1280} height={800} />
+        <figcaption set:html={t.showcase.video.caption} />
+      </figure>
+      {SHOT_KEYS.map((key) => (
+        <figure class={CENTRED.has(key) ? 'shot shot-wide shot-centred' : 'shot'}>
+          <Shot src={media.shots[key]} alt={t.showcase.shots[key].alt} sizes={CENTRED.has(key) ? CENTRED_SIZES : FIGURE_SIZES} zoom />
+          <figcaption set:html={t.showcase.shots[key].caption} />
+        </figure>
+      ))}
+    </div>
   </section>
 
   <section id={t.featuresId} class="features container">

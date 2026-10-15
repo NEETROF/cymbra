@@ -1,8 +1,10 @@
 // @ts-check
-import { copyFileSync, existsSync } from 'node:fs';
+import { copyFileSync, existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
 import vue from '@astrojs/vue';
+import { sitemapEntries, sitemapXml } from './src/lib/sitemap.ts';
 
 // French at the root, English under `/en/`, Spanish under `/es/` (change:
 // add-site-spanish-locale) — each language with its own slugs, and each page naming its
@@ -33,12 +35,43 @@ function localised404() {
   };
 }
 
+// `sitemap.xml` from the built pages (change: add-site-lingua-showcase, D13): every page without
+// `noindex`, at its canonical address, with the translations it names (`src/lib/sitemap.ts`). It
+// runs after `localised404`, whose copies are `noindex` like their originals. `public/robots.txt`
+// names it.
+function sitemap() {
+  return {
+    name: 'cymbra:sitemap',
+    hooks: {
+      /** @param {{ dir: URL }} ctx */
+      'astro:build:done': ({ dir }) => {
+        const root = fileURLToPath(dir);
+        /** @param {string} at @returns {string[]} */
+        const pages = (at) =>
+          readdirSync(at, { withFileTypes: true }).flatMap((entry) => {
+            const path = join(at, entry.name);
+            if (entry.isDirectory()) return pages(path);
+            return entry.name.endsWith('.html') ? [path] : [];
+          });
+        const entries = sitemapEntries(pages(root).map((file) => ({ file: relative(root, file), html: readFileSync(file, 'utf8') })));
+        writeFileSync(join(root, 'sitemap.xml'), sitemapXml(entries));
+      },
+    },
+  };
+}
+
 // https://astro.build/config
 export default defineConfig({
   site: 'https://cymbra.app',
   // Interactive islands (sign-in, code redemption, account, checkout — change:
   // add-site-account-pages) are Vue components; the rest stays static.
-  integrations: [vue(), localised404()],
+  integrations: [vue(), localised404(), sitemap()],
+  image: {
+    // The one SVG the build rasterises is the site's own share image, the name « Cymbra » drawn as
+    // paths (`src/assets/brand-share.svg`, change: add-site-lingua-showcase, D12) — never a file
+    // from elsewhere.
+    dangerouslyProcessSVG: true,
+  },
   vite: {
     resolve: {
       // `@cymbra/web-auth` is a source-only portal package whose composables import

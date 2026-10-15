@@ -86,6 +86,33 @@ interface LinguaTable {
   throughEnglish: string;
   closingHeading: string;
   closingBody: string;
+  /** The captures of the extension (change: add-site-lingua-showcase, D10). */
+  showcase: ShowcaseText;
+  /** The line the store buttons add for a browser Lingua does not run in there (D11). */
+  hints: Record<StoreHintKey, string>;
+}
+
+/** The captures the « En images » section shows after the video, in its order (D5, D10). */
+export const SHOT_KEYS = ["second", "review", "stats", "reader", "reader-eink"] as const;
+export type ShotKey = (typeof SHOT_KEYS)[number];
+
+/** The store buttons' hints (`src/lib/store-choice.ts`, `StoreHint`). */
+export type StoreHintKey = "ios" | "android";
+
+/**
+ * The section's words: its heading, the hero capture's alt text, the video's label and caption, and
+ * each capture's alt text and caption — what each capture shows, in the page's language, quoting no
+ * figure the seed could change. The captures are `yarn capture`'s (apps/lingua-extension/tool/capture/):
+ * each table describes its own interface language's set — the languages its reader studies are
+ * `plan.mjs`'s `STUDIED`, which `test/lingua-text.spec.ts` holds the texts to.
+ */
+export interface ShowcaseText {
+  heading: string;
+  hero: { alt: string };
+  video: { label: string; caption: string };
+  shots: Record<ShotKey, { alt: string; caption: string }>;
+  /** The share image's alt text (`og:image:alt`), the hero capture cropped. */
+  shareAlt: string;
 }
 
 const fr: LinguaTable = {
@@ -99,7 +126,7 @@ const fr: LinguaTable = {
   tagline:
     "Une extension navigateur qui surligne les mots {ofStudied} que vous ne connaissez pas encore, directement sur la page. Pas d'appli à ouvrir, pas de session de révision à caler : vous lisez, vous apprenez.",
   platforms:
-    "Disponible sur Chrome, Edge et les navigateurs Chromium, sur Firefox (ordinateur) et sur Safari (iPhone, iPad, Mac).",
+    "Disponible sur Chrome, Edge et les navigateurs Chromium, sur Firefox (ordinateur et Android) et sur Safari (iPhone, iPad, Mac).",
   forReaders: "Conçue pour les {speakers} qui apprennent {learnStudied}.",
   madeFor: "Conçue pour les {speakers} qui apprennent {learnStudied} : l'interface et les traductions sont en {native}.",
   alsoFor: "Aussi pour les {speakers} qui apprennent {learnStudied} : l'interface et les traductions sont en {native}.",
@@ -162,6 +189,46 @@ const fr: LinguaTable = {
   closingHeading: "Et la musique&nbsp;?",
   closingBody:
     'Lingua partage son compte, sa philosophie et son respect de vos données avec <a href="{music}">Cymbra Music</a>, disponible sur l\'App Store et Google Play.',
+  // The French reader studies English, then Spanish; the book is Pride and Prejudice.
+  showcase: {
+    heading: "En images",
+    hero: {
+      alt: "Une page en anglais lue avec Cymbra Lingua : les mots inconnus sont surlignés, la pastille donne la part de mots connus, et la carte d'un verbe est ouverte avec sa forme du dictionnaire, son temps et sa traduction.",
+    },
+    video: {
+      label: "Démonstration de Cymbra Lingua, sans son",
+      caption:
+        "Une page lue, la carte d'un mot, un mot ajouté au deck, un autre marqué « Je connais », puis les statistiques.",
+    },
+    shots: {
+      second: {
+        alt: "Une page en espagnol, l'interface en français : la carte d'un nom donne son genre et sa traduction.",
+        caption: "Une deuxième langue étudiée, sur sa propre page.",
+      },
+      review: {
+        alt: "Le panneau de révision ouvert sur la page : une carte révélée, avec la phrase où le mot a été rencontré, sa traduction et les deux réponses « Pas su » et « Su ».",
+        caption: "La révision, dans un panneau ouvert sur la page.",
+      },
+      stats: {
+        alt: "La page des statistiques : le vocabulaire estimé et l'échelle des niveaux CEFR, de A1 à C2, pour l'anglais.",
+        caption: "Votre niveau, sur l'échelle CEFR.",
+      },
+      reader: {
+        alt: "Le lecteur de livres EPUB de l'extension, ouvert sur le premier chapitre d'Orgueil et Préjugés en anglais, les mots inconnus surlignés.",
+        caption: "Vos livres EPUB, surlignés de la même façon.",
+      },
+      "reader-eink": {
+        alt: "La même page du lecteur avec le préréglage « E-ink contrasté » : noir sur blanc, les mots soulignés d'un trait épais.",
+        caption: "Un préréglage pour les tablettes à encre électronique.",
+      },
+    },
+    shareAlt:
+      "Cymbra Lingua sur une page en anglais : les mots inconnus surlignés et la carte d'un verbe ouverte.",
+  },
+  hints: {
+    ios: "Sur iPhone et iPad, Lingua s'utilise dans Safari.",
+    android: "Sur Android, Lingua s'utilise dans Firefox.",
+  },
 };
 
 const en: LinguaTable = {
@@ -175,7 +242,7 @@ const en: LinguaTable = {
   tagline:
     "A browser extension that highlights the {ofStudied} words you do not know yet, right on the page. No app to open, no revision session to schedule: you read, you learn.",
   platforms:
-    "Available on Chrome, Edge and other Chromium browsers, on Firefox (desktop) and on Safari (iPhone, iPad, Mac).",
+    "Available on Chrome, Edge and other Chromium browsers, on Firefox (desktop and Android) and on Safari (iPhone, iPad, Mac).",
   forReaders: "Made for {speakers} learning {learnStudied}.",
   madeFor: "Made for {speakers} learning {learnStudied}: the interface and the translations are in {native}.",
   alsoFor: "Also for {speakers} learning {learnStudied}: the interface and the translations are in {native}.",
@@ -235,6 +302,44 @@ const en: LinguaTable = {
   closingHeading: "What about music?",
   closingBody:
     'Lingua shares its account, its philosophy and its respect for your data with <a href="{music}">Cymbra Music</a>, available on the App Store and Google Play.',
+  // The English reader studies Spanish, then French; the book is Marianela.
+  showcase: {
+    heading: "See it at work",
+    hero: {
+      alt: "A Spanish page read with Cymbra Lingua: unknown words are highlighted, the pill shows the share of words known, and a verb's card is open with its dictionary form, its tense and its meaning.",
+    },
+    video: {
+      label: "Cymbra Lingua demo, no sound",
+      caption: "A page read, a word's card, a word added to the deck, another marked “I know it”, then the statistics.",
+    },
+    shots: {
+      second: {
+        alt: "A French page, the interface in English: a noun's card gives its gender and its meaning.",
+        caption: "A second language studied, on its own page.",
+      },
+      review: {
+        alt: "The review panel open on the page: a revealed card with the sentence the word was met in, its meaning and the two answers “Didn't know” and “Knew it”.",
+        caption: "Review, in a panel opened on the page.",
+      },
+      stats: {
+        alt: "The statistics page: the estimated vocabulary and the CEFR ladder, A1 to C2, for Spanish.",
+        caption: "Your level, on the CEFR scale.",
+      },
+      reader: {
+        alt: "The extension's EPUB reader open on the first chapter of Marianela, in Spanish, unknown words highlighted.",
+        caption: "Your EPUB books, highlighted the same way.",
+      },
+      "reader-eink": {
+        alt: "The same reader page in the “High-contrast e-ink” preset: black on white, words underlined with a thick line.",
+        caption: "A preset for e-ink tablets.",
+      },
+    },
+    shareAlt: "Cymbra Lingua on a Spanish page: unknown words highlighted and a verb's card open.",
+  },
+  hints: {
+    ios: "On iPhone and iPad, Lingua runs in Safari.",
+    android: "On Android, Lingua runs in Firefox.",
+  },
 };
 
 const es: LinguaTable = {
@@ -248,7 +353,7 @@ const es: LinguaTable = {
   tagline:
     "Una extensión para el navegador que resalta las palabras {ofStudied} que todavía no conoces, directamente en la página. Sin aplicación que abrir ni sesión de repaso que programar: lees y aprendes.",
   platforms:
-    "Disponible en Chrome, Edge y otros navegadores Chromium, en Firefox (escritorio) y en Safari (iPhone, iPad, Mac).",
+    "Disponible en Chrome, Edge y otros navegadores Chromium, en Firefox (escritorio y Android) y en Safari (iPhone, iPad, Mac).",
   forReaders: "Pensada para {speakers} que aprenden {learnStudied}.",
   // The Spanish page is built only once a pair glossed in Spanish ships (D3): it always has readers.
   madeFor: null,
@@ -311,6 +416,45 @@ const es: LinguaTable = {
   closingHeading: "¿Y la música?",
   closingBody:
     'Lingua comparte su cuenta, su filosofía y su respeto por tus datos con <a href="{music}">Cymbra Music</a>, disponible en el App Store y en Google Play.',
+  // The Spanish reader studies English, then French; the book is Pride and Prejudice.
+  showcase: {
+    heading: "Míralo en acción",
+    hero: {
+      alt: "Una página en inglés leída con Cymbra Lingua: las palabras desconocidas aparecen resaltadas, la pastilla indica la proporción de palabras conocidas y está abierta la tarjeta de un verbo, con su forma de diccionario, su tiempo verbal y su traducción.",
+    },
+    video: {
+      label: "Demostración de Cymbra Lingua, sin sonido",
+      caption:
+        "Una página leída, la tarjeta de una palabra, una palabra añadida al mazo, otra marcada con «La conozco» y, después, las estadísticas.",
+    },
+    shots: {
+      second: {
+        alt: "Una página en francés, con la interfaz en español: la tarjeta de un sustantivo indica su género y su traducción.",
+        caption: "Un segundo idioma estudiado, en su propia página.",
+      },
+      review: {
+        alt: "El panel de repaso abierto sobre la página: una tarjeta revelada, con la frase en la que apareció la palabra, su traducción y las dos respuestas «No la sabía» y «La sabía».",
+        caption: "El repaso, en un panel abierto sobre la página.",
+      },
+      stats: {
+        alt: "La página de estadísticas: el vocabulario estimado y la escala de niveles MCER, de A1 a C2, para el inglés.",
+        caption: "Tu nivel, en la escala MCER.",
+      },
+      reader: {
+        alt: "El lector de libros EPUB de la extensión, abierto en el primer capítulo de Orgullo y prejuicio en inglés, con las palabras desconocidas resaltadas.",
+        caption: "Tus libros EPUB, resaltados de la misma manera.",
+      },
+      "reader-eink": {
+        alt: "La misma página del lector con el ajuste «Tinta electrónica contrastada»: negro sobre blanco, palabras subrayadas con un trazo grueso.",
+        caption: "Un ajuste para tabletas de tinta electrónica.",
+      },
+    },
+    shareAlt: "Cymbra Lingua en una página en inglés: las palabras desconocidas resaltadas y la tarjeta de un verbo abierta.",
+  },
+  hints: {
+    ios: "En iPhone y iPad, Lingua funciona en Safari.",
+    android: "En Android, Lingua funciona en Firefox.",
+  },
 };
 
 export const LINGUA_TEXT: Record<Lang, LinguaTable> = { fr, en, es };
@@ -470,6 +614,10 @@ export interface LinguaPageText {
    */
   coverage: { heading: string; caption: string; perPair: boolean; head: string[]; rows: string[][]; note: string };
   closing: { heading: string; body: string };
+  /** The captures' words (change: add-site-lingua-showcase, D10): attributes and captions. */
+  showcase: ShowcaseText;
+  /** The store buttons' hints (D11), shown by the page's script alone. */
+  hints: Record<StoreHintKey, string>;
 }
 
 export interface LinguaPageOptions {
@@ -585,11 +733,37 @@ export function linguaPageText(lang: Lang, shipped: ShippedPairs, options: Lingu
       note,
     },
     closing: { heading: t.closingHeading, body: fill(t.closingBody, { music: MUSIC_HREF[lang] }) },
+    showcase: t.showcase,
+    hints: t.hints,
   };
 }
 
+// The Lingua card of the French home page (change: add-site-lingua-showcase, D15). It said « Lisez le
+// web en anglais » while French speakers study English and Spanish: its languages now come from the
+// shipped pairs glossed in French, in `packs.json`'s order, as the English and Spanish homes' do.
+const HOME_FR =
+  "Lisez le web {inStudied}, les mots que vous ne connaissez pas encore sont surlignés sur place. Un pourcentage honnête par page, un clic pour la traduction, et votre vocabulaire qui se construit tout seul.";
+
+/**
+ * The French home page's Lingua card, from the shipped pairs: the languages read with a French gloss
+ * (« en anglais ou en espagnol »); the button opens `/lingua`, which always exists.
+ */
+export function frenchHomeLinguaCard(pairs: LinguaPair[]): HomeLinguaCard {
+  const t = LINGUA_TEXT.fr;
+  const studied: string[] = [];
+  for (const p of pairs) if (p.native === "fr" && !studied.includes(p.studied)) studied.push(p.studied);
+  if (studied.length === 0) throw new Error("lingua-text.ts: no shipped pair is glossed in French (M22)");
+  const name = (code: string): string => {
+    if (!Object.hasOwn(t.names, code)) throw new Error(`lingua-text.ts: the fr table has no name for the language "${code}"`);
+    return t.names[code];
+  };
+  const body = fill(HOME_FR, { inStudied: GRAMMAR.fr.or(studied.map((code) => `en ${name(code)}`)) });
+  return { body, href: linguaHref("fr", pairs) };
+}
+
 // The Lingua card of the Spanish home page (change: extend-site-spanish-locale, D3). The
-// French home's card is literal markup and says « en anglais »: true for its readers.
+// French home's card was literal markup and said « en anglais » (it is built since
+// add-site-lingua-showcase, `frenchHomeLinguaCard`, above).
 // Translated as it stands, the Spanish card would tell Spanish speakers that Lingua explains
 // English words in Spanish before any pair does, so its words come from the shipped pairs, as
 // the Lingua page's do, with the Spanish table's names, speakers and grammar: the languages

@@ -3,6 +3,8 @@ import Base from '../../layouts/Base.astro';
 import Community from '../../components/Community.astro';
 import StoreButtons from '../../components/StoreButtons.astro';
 import { musicStores } from '../../lib/stores';
+// The page's share image: Music's own macOS store capture in Spanish (change: add-site-lingua-showcase, D12).
+import library from '../../../../music/store/macos/desktop_1440x900/es/01_library.png';
 
 // Cymbra Music's Spanish page (change: extend-site-spanish-locale): the French page
 // translated (tú, neutral), static, no island, in the app's own Spanish terms
@@ -17,6 +19,7 @@ import { musicStores } from '../../lib/stores';
   description="Conecta tu teclado MIDI y toca: Cymbra Music sigue la partitura en tiempo real, te da una respuesta inmediata y te hace progresar lección a lección."
   lang="es"
   alternates={{ fr: '/music', en: '/en/music', es: '/es/music' }}
+  image={{ src: library, alt: 'Cymbra Music en un Mac: la biblioteca de partituras, un curso en marcha y piezas ordenadas por nivel.' }}
 >
   <section class="hero container">
     <p class="kicker">Cymbra Music</p>

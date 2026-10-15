@@ -1,0 +1,39 @@
+---
+// The store of the visitor's browser (change: add-site-lingua-showcase, D11): the hints under the
+// Lingua page's store buttons, hidden, and a few lines of script that mark the button of the
+// browser's store primary (`src/lib/store-choice.ts`), point Firefox at its Android listing on
+// Android, and reveal the hint that is due. The choice is made in the browser from what it says of
+// itself; nothing is stored, sent or logged. Without script the buttons stay alike and no hint shows.
+import type { StoreHintKey } from '../lib/lingua-text';
+
+interface Props {
+  hints: Record<StoreHintKey, string>;
+}
+
+const { hints } = Astro.props;
+---
+
+<p class="muted small store-hint" data-store-hint="ios" hidden set:html={hints.ios} />
+<p class="muted small store-hint" data-store-hint="android" hidden set:html={hints.android} />
+
+<script>
+  import { pickStore } from '../lib/store-choice';
+
+  const row = document.querySelector<HTMLElement>('[data-store-choice]');
+  if (row) {
+    const nav = navigator as Navigator & { userAgentData?: { brands?: { brand: string }[] } };
+    const { store, hint } = pickStore({
+      userAgent: navigator.userAgent,
+      brands: nav.userAgentData?.brands,
+      platform: navigator.platform,
+      maxTouchPoints: navigator.maxTouchPoints,
+    });
+    const key = store === 'firefox-android' ? 'firefox' : store;
+    const button = key ? row.querySelector<HTMLAnchorElement>(`a[data-store="${key}"]`) : null;
+    if (button) {
+      button.classList.replace('btn-ghost', 'btn-primary');
+      if (store === 'firefox-android' && button.dataset.androidHref) button.href = button.dataset.androidHref;
+    }
+    if (hint) document.querySelector<HTMLElement>(`[data-store-hint="${hint}"]`)?.removeAttribute('hidden');
+  }
+</script>
