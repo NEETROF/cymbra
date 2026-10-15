@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.10.0](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.9.0...lingua-extension-v1.10.0) (2026-10-15)
+
+
+### Features
+
+* **lingua:** count installations anonymously and ask leavers why ([#958](https://github.com/NEETROF/cymbra/issues/958)) ([23344cf](https://github.com/NEETROF/cymbra/commit/23344cf91fccf46fa1d2531379cf41b037b4e331))
+* **lingua:** let the reader edit the card under review ([#962](https://github.com/NEETROF/cymbra/issues/962)) ([83d023c](https://github.com/NEETROF/cymbra/commit/83d023c268a1de263303fda5fe9837668197c2f7))
+* **lingua:** let the reader end a review session in progress ([#956](https://github.com/NEETROF/cymbra/issues/956)) ([efcb1f9](https://github.com/NEETROF/cymbra/commit/efcb1f9d8a316d6484a52a44732b4ca64acd425a))
+* **lingua:** show the cards waiting on the toolbar icon and ask, at most twice, for a store rating ([#959](https://github.com/NEETROF/cymbra/issues/959)) ([88dff73](https://github.com/NEETROF/cymbra/commit/88dff73b4fa7135ce45df7a72056b6ea75503768))
+* **lingua:** sign in to the app with an email and a password ([#952](https://github.com/NEETROF/cymbra/issues/952)) ([12021dd](https://github.com/NEETROF/cymbra/commit/12021dd55e7692ba228bee2a11d8e099a214d63b))
+* **lingua:** the Cymbra Lingua app synchronises its own reviews ([#957](https://github.com/NEETROF/cymbra/issues/957)) ([1ef7838](https://github.com/NEETROF/cymbra/commit/1ef7838b1435f33ba90d9243adf095034a21b7e2))
+* **lingua:** translate review cards the pack cannot answer, and keep the translation ([#948](https://github.com/NEETROF/cymbra/issues/948)) ([58ae075](https://github.com/NEETROF/cymbra/commit/58ae07596d9ff29f7bc89f19ca09e2ddbc1761db))
+
+
+### Bug Fixes
+
+* **lingua:** gloss the English modals by their meaning in en-fr ([#943](https://github.com/NEETROF/cymbra/issues/943)) ([0e6192b](https://github.com/NEETROF/cymbra/commit/0e6192b958fd29ee970511b8a71e01b315fe8792))
+* **lingua:** read a selection and a review card without edge punctuation ([#944](https://github.com/NEETROF/cymbra/issues/944)) ([48bd75d](https://github.com/NEETROF/cymbra/commit/48bd75d8b43834ac73046ea30aba91bbe744c862))
+* **lingua:** tell the reader how to translate a card nothing can translate ([#949](https://github.com/NEETROF/cymbra/issues/949)) ([e5af79e](https://github.com/NEETROF/cymbra/commit/e5af79e4239bed7cff56e93d19c8aa951b7962a5))
+
 ## [1.9.0](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.8.0...lingua-extension-v1.9.0) (2026-10-13)
 
 

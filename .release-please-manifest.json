@@ -1,8 +1,8 @@
 {
-  "apps/music": "1.36.0",
-  "backend": "0.38.0",
-  "apps/back-office": "0.26.0",
-  "apps/site": "0.15.0",
-  "apps/lingua-extension": "1.9.0",
-  "apps/lingua-apple": "1.7.0"
+  "apps/music": "1.37.0",
+  "backend": "0.39.0",
+  "apps/back-office": "0.27.0",
+  "apps/site": "0.16.0",
+  "apps/lingua-extension": "1.10.0",
+  "apps/lingua-apple": "1.8.0"
 }

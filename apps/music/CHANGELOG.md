@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.37.0](https://github.com/NEETROF/cymbra/compare/music-v1.36.0...music-v1.37.0) (2026-10-15)
+
+
+### Features
+
+* **site:** show Cymbra Music in action on its page ([#938](https://github.com/NEETROF/cymbra/issues/938)) ([2f38078](https://github.com/NEETROF/cymbra/commit/2f38078df90126509e9559f017c55f0d34362945))
+
 ## [1.36.0](https://github.com/NEETROF/cymbra/compare/music-v1.35.0...music-v1.36.0) (2026-10-03)
 
 
