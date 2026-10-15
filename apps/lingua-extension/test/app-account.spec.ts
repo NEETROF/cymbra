@@ -416,3 +416,26 @@ describe("the account the app is signed in to (add-lingua-app-email-signin D9)",
     warn.mockRestore();
   });
 });
+
+describe("the account's id for the synchronisation (add-lingua-app-deck-sync D7)", () => {
+  it("reuses the GetAccount the name read, and reads it again only when that failed or after a sign-out", async () => {
+    const s = account({ sheet: { provider: "google", idToken: "g" } });
+    s.c.user.getAccount.mockResolvedValue({ handle: "alice", userId: "user-1" } as { handle?: string });
+    await s.a.signIn();
+    expect(await s.a.userId()).toBe("user-1");
+    expect(s.c.user.getAccount).toHaveBeenCalledOnce();
+    await s.a.signOut();
+    expect(await s.a.userId()).toBe("user-1");
+    expect(s.c.user.getAccount).toHaveBeenCalledTimes(2);
+  });
+
+  it("a name read that failed: the id is asked on its own", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const s = account({ sheet: { provider: "google", idToken: "g" } });
+    s.c.user.getAccount.mockRejectedValueOnce(new Error("down"));
+    await s.a.signIn();
+    s.c.user.getAccount.mockResolvedValue({ handle: "alice", userId: "user-2" } as { handle?: string });
+    expect(await s.a.userId()).toBe("user-2");
+    warn.mockRestore();
+  });
+});

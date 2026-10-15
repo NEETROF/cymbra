@@ -129,6 +129,11 @@ export interface AppAccount {
   signIn(): Promise<boolean>;
   /** End the app's session (revoked server-side, best effort) — the extension's is untouched. */
   signOut(): Promise<void>;
+  /**
+   * The account's id (add-lingua-app-deck-sync D7): the one `GetAccount` the line's name already read
+   * this session, else read now. Never stored.
+   */
+  userId(): Promise<string>;
   /** « Traduction en ligne » in the review, under the selection card's rule. */
   online: ReviewOnlineSource;
 }
@@ -201,6 +206,8 @@ export function appAccount(deps: AppAccountDeps): AppAccount {
   let accountName: AppAccountName | null = null;
   /** The address an email sign-in used: the email fallback without another request. */
   let signedInEmail: string | null = null;
+  /** The account's id as the name's `GetAccount` read it, this session (add-lingua-app-deck-sync D7). */
+  let idRead: Promise<string> | null = null;
   const signedIn = (): boolean => session.state().signedIn;
   const signedOut = (): boolean => {
     try {
@@ -240,7 +247,10 @@ export function appAccount(deps: AppAccountDeps): AppAccount {
   async function readName(): Promise<void> {
     try {
       const user = deps.clients().user;
-      const handle = (await user.getAccount({})).handle || null;
+      const reading = user.getAccount({});
+      idRead = reading.then((a) => a.userId);
+      idRead.catch(() => undefined);
+      const handle = (await reading).handle || null;
       let email = signedInEmail;
       if (!handle && !email) {
         const local = (await user.listIdentities({})).identities.find((i) => i.provider === "local");
@@ -336,6 +346,11 @@ export function appAccount(deps: AppAccountDeps): AppAccount {
     },
     signedIn,
     name: () => (signedIn() && accountName ? { ...accountName } : null),
+    async userId() {
+      const read = await idRead?.catch(() => null);
+      if (read) return read;
+      return (await deps.clients().user.getAccount({})).userId;
+    },
     signedOut,
     signIn,
     async signOut() {
@@ -343,6 +358,7 @@ export function appAccount(deps: AppAccountDeps): AppAccount {
       ownAccess = null;
       accountName = null;
       signedInEmail = null;
+      idRead = null;
       markSignedOut(true);
       deps.onChange?.();
     },

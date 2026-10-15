@@ -8,8 +8,9 @@
 // Firefox and Safari.
 import { build } from "esbuild";
 import { existsSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join, sep } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { distDirProblem } from "./tool/dist-dir.mjs";
 import { engineFiles, engineProblems } from "./tool/engine_pin.mjs";
 import { bundledCatalogue, readCatalogue } from "./tool/model-catalogue.mjs";
 import { LOCALES_DIR, readLocales } from "./tool/locales.mjs";
@@ -29,6 +30,19 @@ for (const t of wanted) {
   }
 }
 const targets = wanted.filter((t) => t !== APP);
+
+// Where a variant is written: `dist-<target>/` unless LINGUA_DIST_DIR names another folder (relative
+// to this app, or absolute). The capture tool (tool/capture/, add-site-lingua-showcase D1) builds into
+// `dist-capture/` so that it never rewrites the `dist-chromium/` a dogfood browser has loaded. One
+// folder holds one variant: the option takes one browser target. The build empties the folder
+// first, so it must be called `dist-…` and never be this app's folder or one holding it.
+const DIST_DIR = process.env.LINGUA_DIST_DIR ?? "";
+if (DIST_DIR && (targets.length !== 1 || wanted.includes(APP))) {
+  throw new Error(`LINGUA_DIST_DIR (${DIST_DIR}) takes one browser target — got ${wanted.join(", ")}.`);
+}
+const distDirRefused = DIST_DIR ? distDirProblem(root, DIST_DIR) : null;
+if (distDirRefused) throw new Error(distDirRefused);
+const distDirOf = (target) => DIST_DIR || `dist-${target}`;
 
 // The pairs every package ships (packs.json, generalise-lingua-pack-build); the first gives the
 // default studied language, the engine's first pack.
@@ -214,7 +228,7 @@ const staticCopies = [
 ];
 
 for (const target of targets) {
-  const dist = join(root, `dist-${target}`);
+  const dist = resolve(root, distDirOf(target));
   rmSync(dist, { recursive: true, force: true });
   mkdirSync(join(dist, "wasm"), { recursive: true });
   mkdirSync(join(dist, "assets", "packs"), { recursive: true });
@@ -331,7 +345,7 @@ for (const target of targets) {
     filter: (src) => !src.endsWith("icon-1024.png"),
   });
 
-  console.log(`Built ${target} → dist-${target}/`);
+  console.log(`Built ${target} → ${distDirOf(target)}/`);
 }
 
 if (wanted.includes(APP)) {

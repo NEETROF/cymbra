@@ -3,10 +3,11 @@
 ### Requirement: The app reviews the deck the extension keeps
 The Cymbra Lingua app SHALL open on the review of the deck the extension keeps on the same device: the extension's own Révision page — its language filter and due count, its sessions, answers, read-aloud, machine translations and end summary — laid out for the screen it is on. The app SHALL obtain the deck through the container it shares with the extension and, when the reader is signed in inside the app to the account the extension is signed in to, SHALL also synchronise it with Cymbra's server under the app's own session, merging the three — the extension's shared state, the app's changes not yet taken by the extension, and the server's — by last-write-wins per card and per word. Until the extension has shared its state, the app SHALL say how to turn the extension on.
 The only network requests the app SHALL make are the download of translation models the reader
-accepted, from Cymbra's model host; the reader's sign-in; the sentence sent when the reader presses
-« Traduction en ligne »; and, while signed in inside the app to the extension's account, the
-synchronisation of the reader's statuses and cards with Cymbra's server. No other request SHALL carry
-the deck.
+accepted, from Cymbra's model host; the reader's sign-in — for an email account, with its
+verification code and password reset — and the reading of the signed-in account's access and name;
+the sentence sent when the reader presses « Traduction en ligne »; and, while signed in inside the app
+to the extension's account, the synchronisation of the reader's statuses and cards with Cymbra's
+server. No other request SHALL carry the deck.
 
 #### Scenario: A review on the train
 - **WHEN** a reader who captured words in Safari opens the app on their iPhone
@@ -94,7 +95,7 @@ The app SHALL NOT send daily statistics itself. Its review counts SHALL keep rea
 - **THEN** the app's review introduces at most four more today
 
 ### Requirement: The app offers its sign-in on opening
-When the extension is signed in and the app is not, the app SHALL offer its sign-in in a quiet line as soon as it opens (French UI copy: « Connecte-toi pour synchroniser tes révisions et utiliser la traduction en ligne. » with « Se connecter »), with no dialog, and SHALL let the reader set it aside for a while (French UI copy: « Plus tard »). Signed in and synchronising, the line SHALL say so (French UI copy: « Connecté à Cymbra : tes révisions se synchronisent ») with « Se déconnecter ». The sign-in sheet SHALL say that the session serves synchronisation and online translation and asks for the account used in Safari (French UI copy: « Connecte-toi pour synchroniser les révisions faites dans l'app et utiliser la traduction en ligne. Utilise le même compte que dans Safari. »). The copy SHALL exist in every interface language (French, English, Spanish).
+When the extension is signed in and the app is not, the app SHALL offer its sign-in in a quiet line as soon as it opens (French UI copy: « Connecte-toi pour synchroniser tes révisions et utiliser la traduction en ligne. » with « Se connecter »), with no dialog, and SHALL let the reader set it aside for a while (French UI copy: « Plus tard »). Signed in and synchronising, the line SHALL say so, naming the account when it is known as the signed-in line does (French UI copy: « Connecté en tant que @handle : tes révisions se synchronisent », else « Connecté à Cymbra : tes révisions se synchronisent ») with « Se déconnecter ». « Se connecter » opens the app's sign-in sheet, with every way it offers to sign in, email and password included. The sign-in sheet SHALL say that the session serves synchronisation and online translation and asks for the account used in Safari (French UI copy: « Connecte-toi pour synchroniser les révisions faites dans l'app et utiliser la traduction en ligne. Utilise le même compte que dans Safari. »). The copy SHALL exist in every interface language (French, English, Spanish).
 
 #### Scenario: First opening after this change
 - **WHEN** a reader signed in to Safari's extension opens the app, not signed in inside it

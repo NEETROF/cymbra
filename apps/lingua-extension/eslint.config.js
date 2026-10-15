@@ -31,10 +31,27 @@ export default tseslint.config(
     },
   },
   {
+    // The capture fixtures' page script (tool/capture/fixtures/pages/pointer.js): it runs in the page.
+    name: "ext/capture-fixture-pages",
+    files: ["tool/capture/fixtures/pages/*.js"],
+    languageOptions: {
+      globals: { ...globals.browser },
+    },
+  },
+  {
     name: "ext/node-tooling",
     files: ["build.mjs", "tool/**/*.mjs", "*.config.ts", "vitest.config.ts"],
     languageOptions: {
       globals: { ...globals.node },
+    },
+  },
+  {
+    // The capture tool (tool/capture/) hands functions to Playwright's `page.evaluate`, which run in
+    // the page or in an extension page: they name the browser's and the extension's globals.
+    name: "ext/capture-tool",
+    files: ["tool/capture/*.mjs"],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.browser, ...globals.webextensions },
     },
   },
 );

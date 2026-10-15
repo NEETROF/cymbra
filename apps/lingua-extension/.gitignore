@@ -12,6 +12,10 @@ dist/
 dist-chromium/
 dist-firefox/
 dist-safari/
+# The capture tool's build and the store captures it writes (tool/capture/, add-site-lingua-showcase):
+# never published, never committed — the owner uploads the captures by hand.
+dist-capture/
+store-captures/
 # The Cymbra Lingua app's page (add-lingua-apple-review), bundled by apps/lingua-apple.
 dist-app/
 web-ext-artifacts/

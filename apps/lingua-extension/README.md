@@ -352,6 +352,79 @@ Réglages view (drawer and side panel); a second opening brings the open reader 
 - **Position** — kept per book on the device after every move; the address
   (`reader.html#book=<hash>`) reopens the book there. Not synchronised.
 
+## Captures
+
+`yarn capture` (`tool/capture/`, change `add-site-lingua-showcase`) makes the site's images, share
+images and demo videos, and the Chrome Web Store / addons.mozilla.org screenshots, from the real
+extension, in each interface language (fr, en, es). It runs on a developer's machine, never in CI.
+
+Prerequisites: `yarn gen:wasm`, `yarn gen:pack:real` (the captures read with the real packs),
+`yarn fetch:engine`, ffmpeg (`brew install ffmpeg`; the tool checks for it first), and Playwright's
+Chromium — Chrome for Testing, not branded Chrome, which ignores `--load-extension`:
+`npx playwright-core install chromium` (`playwright-core` is a dev dependency, at the back office's
+Playwright version, so both use one cached browser). `LINGUA_EXT_KEY` must be unset (or a key): a
+store build's empty value leaves the manifest without the key that pins the extension's id, and the
+tool stops, saying so.
+
+```bash
+yarn capture                  # every interface language, stills and videos (a few minutes)
+yarn capture --only=fr,en     # some of them
+yarn capture --no-video       # the stills alone
+yarn capture --headed         # watch it in a window
+yarn capture --record-seed    # re-record tool/capture/fixtures/state/<language>.json first
+yarn capture --keep-work      # keep the raw 3× screenshots (the log says where)
+```
+
+What it does:
+
+- **Builds `dist-capture/`** (git-ignored): the Chromium variant with the reader declared on every
+  page (`LINGUA_ALL_URLS=1`, the development switch above) through `build.mjs`'s output-folder option
+  (`LINGUA_DIST_DIR`, which takes a folder named `dist-…` and never the app's folder or one holding
+  it: the build empties it first) — never `dist-chromium/`, which a dogfood browser may have loaded.
+  It builds a plain Chromium variant with the same settings into a temporary folder and refuses to go
+  on unless every file but `manifest.json` is identical and the manifests differ by that content
+  script alone (`tool/capture/build.mjs`).
+- **Loads it unpacked** in Playwright's Chromium (`channel: 'chromium'`, headless by default) on a fresh
+  temporary profile, with Chrome's field trials left on (`--disable-field-trial-config` removed: it
+  once hid a blank EPUB reader), and prints `chrome://version`'s command line. The tool and the
+  browser read their clock in `Europe/Paris` (`TIME_ZONE`), whoever runs it; the text is drawn with
+  the fonts of the Mac it runs on, so another machine's captures can differ by a few pixels.
+- **Serves the fixtures** (`tool/capture/fixtures/`, see its README) from a local server, under the
+  reserved name `reading.example` mapped to `127.0.0.1` (a card keeps the host it was met on): one
+  article per studied language written for the purpose, and a public-domain chapter per studied
+  language assembled into an EPUB.
+- **Restores the reader's state** through Réglages › Données › Restaurer — a backup the product
+  itself recorded (`--record-seed`: the install's welcome page, level B1 in each language, words
+  marked known and added to the deck on the fixture pages, a short review, the book's names marked
+  « Ignorer » in the EPUB reader, then Réglages › Données › Sauvegarder), its dates first moved by
+  the whole days between the recording and the run (`tool/capture/seed.mjs`) so that every run finds
+  the same cards due — and writes the thirty days ending on the run's under `cymbra-lingua-daily-v4`
+  through the store's own message (`tool/capture/days.mjs`): the statistics' default range, full.
+- **Drives the pages as a reader would**: a word is found from the page's text, a control of the
+  card, the pill or the in-page panel inside its closed shadow root through DevTools' `DOM.getDocument`
+  (`pierce: true`), and both are clicked with the mouse (`tool/capture/drive.mjs`); the review is the
+  in-page panel, opened with the `openDrawer` message the Firefox background sends.
+- **Refuses a capture that would mislead**, naming the shot and the word: a card without a
+  translation (the hero's, the second page's), a second card or a revealed review card whose gloss
+  reads as a dictionary's list rather than a translation (`glossProblems`: longer than 60
+  characters, a parenthesis, a first name's sense), a name of the book still highlighted, a
+  statistics page without its language picker, a demo whose pill does not rise after « Je
+  connais », or whose last frame shows the closing note on agent sessions.
+
+Where the outputs land (`tool/capture/plan.mjs` holds the plan):
+
+| Output                                                                                                                                                                                           | Where                                           | Committed             |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------- | --------------------- |
+| The site's captures — `card` (hero), `reader`, `reader-eink`, WebP at 2×; `card-closeup` (phones), `second` and `review` (portrait crops) and `stats` (cut below its ladder), at full resolution | `apps/site/src/assets/lingua/<lang>/`           | yes                   |
+| The share image, 1200×630 JPEG, and the video's poster                                                                                                                                           | same folder                                     | yes                   |
+| The demo video, ~30 s, H.264, no audio track                                                                                                                                                     | `apps/site/public/media/lingua/<lang>/demo.mp4` | yes                   |
+| The store screenshots, 1280×800 RGB PNG (no alpha, checked), whole windows: `1-card`, `2-second`, `3-review`, `4-stats`, `5-reader`; the 440×280 promo tile                                      | `store-captures/<lang>/`                        | no — uploaded by hand |
+
+The French set reads English (then Spanish), the English set Spanish (then French), the Spanish set
+English (then French). Safari and App Store captures stay manual: they are the Safari app's, not
+Chromium's rendering (`apps/lingua-apple/STORE-LISTING.md`). The site's weight budget for these files
+is `apps/site/test/post-build/media-budget.spec.ts`.
+
 ## Browser variants
 
 The build produces one artefact per browser from a single source. What differs is chosen
@@ -391,6 +464,23 @@ bundle folds away the other variants' branches:
   `handleAccountMessage` over the app's `Session`) — sign-in, the code step, « Mot de passe oublié ? »;
   no account creation, no provider buttons, no handle step. The password goes from the page to Cymbra
   ID only, never to the bridge or any storage; the app keeps only the refresh token, in its Keychain.
+
+  Signed in inside the app as well (`add-lingua-app-deck-sync`), the app synchronises the reviews made
+  in it itself (`app/deck-sync.ts`), with this package's `SyncEngine` and the app's options: it pushes
+  only what its openings changed — the same ops it relays (`ops`) —, never the day's statistics
+  (`pushStats: false`, the extension keeps counting the relayed counts once and sends them under its
+  device id) and never a declared level (`pushLevels: false`); a full exchange restores and applies on
+  the review's engine only between sessions (`idle`). It pulls at opening (waited at most 3 s, then
+  applied once no session runs) and on return to the foreground (one exchange per 10 s), pushes 5 s
+  after a run of answers, at a session's end and when the app goes to the background
+  (`window.linguaBackground`). The app is a device of its own: its device id and cursors live in the
+  page's `localStorage`, keyed by the account. It synchronises only when Safari's extension is signed
+  in to the same account: the relayed state names the extension's account by a digest of its id
+  (`account`, SHA-256 of `cymbra-lingua-relay:` + the user id, never a token; null signed out) and
+  the erasure mark its store acted on (`erasedAt`); a newer mark on the server makes the app drop the
+  snapshot and its pending changes from before it (`hostErasedAt`, `onErased`). A change the app
+  cannot push stays in the App Group and leaves at a later opening; the relay to the extension is
+  unchanged.
 
 ## Release
 
