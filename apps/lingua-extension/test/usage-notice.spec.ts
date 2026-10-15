@@ -7,7 +7,7 @@ import { popup as esPopup } from "@/i18n/es/popup.ts";
 import { popup as frPopup } from "@/i18n/fr/popup.ts";
 import type { NoticeKind } from "@/usage/counts.ts";
 import type { NoticeControls } from "@/usage/messages.ts";
-import { mountUsageNotice, noticeCopyOf } from "@/usage/notice.ts";
+import { mountUsageNotice, noticeCopyOf, whenVisible } from "@/usage/notice.ts";
 
 // The reader is told before any report leaves (add-lingua-usage-counts D7): one sentence on the
 // welcome tab or in the popup — with two equal buttons on Chromium — never over a page.
@@ -84,6 +84,54 @@ describe("The reader is told before any report leaves", () => {
     expect(el.querySelector(".usage-notice-text")?.textContent).toBe(esPopup.usageInform);
     expect(el.querySelectorAll("button")).toHaveLength(0);
     expect(c.shown).toHaveBeenCalledTimes(1);
+  });
+
+  it("the popup opened on Réglages › Données: the sentence is told as shown only once it is on screen", async () => {
+    // Review of #958: the main view — and the sentence in it — is hidden when the popup opens on
+    // a settings tab; Safari's gate must not open on a sentence nobody saw.
+    const el = container();
+    const c = controls("inform");
+    let onScreen!: () => void;
+    const visible = vi.fn(() => new Promise<void>((resolve) => (onScreen = resolve)));
+    const mounted = mountUsageNotice(el, { copy: noticeCopyOf(frPopup), controls: c, privacyUrl: PRIVACY, visible });
+    await settle();
+    expect(visible).toHaveBeenCalledWith(el);
+    expect(c.shown).not.toHaveBeenCalled();
+    // The reader goes back to the main view: the sentence is on screen.
+    onScreen();
+    expect(await mounted).toBe("inform");
+    expect(c.shown).toHaveBeenCalledTimes(1);
+  });
+
+  it("on screen means intersecting the viewport, observed once", async () => {
+    const observed: Element[] = [];
+    let report!: (entries: { isIntersecting: boolean }[]) => void;
+    const disconnect = vi.fn();
+    class FakeObserver {
+      constructor(callback: (entries: { isIntersecting: boolean }[]) => void) {
+        report = callback;
+      }
+      observe(el: Element): void {
+        observed.push(el);
+      }
+      disconnect = disconnect;
+    }
+    vi.stubGlobal("IntersectionObserver", FakeObserver);
+    try {
+      const el = container();
+      let resolved = false;
+      const seen = whenVisible(el).then(() => (resolved = true));
+      expect(observed).toEqual([el]);
+      // Hidden behind the settings view: not yet.
+      report([{ isIntersecting: false }]);
+      await settle();
+      expect(resolved).toBe(false);
+      report([{ isIntersecting: true }]);
+      await seen;
+      expect(disconnect).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("nothing due: nothing shown, nothing said", async () => {

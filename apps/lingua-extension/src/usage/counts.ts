@@ -29,7 +29,7 @@ export const USAGE_STEPS = [
 ] as const;
 export type UsageStep = (typeof USAGE_STEPS)[number];
 
-/** The last day an installation counts: after it, the device forgets day 0. */
+/** The last day a step is recorded on: after it, the installation records nothing more. */
 export const LAST_DAY = 59;
 
 /** After a failed report, the next attempt waits this long (D5). */
@@ -41,6 +41,18 @@ export type BrowserFamily = "chromium" | "firefox" | "safari";
 /** What a variant's first-run sentence does (D7): `ask` on Chromium, `on` elsewhere. */
 export type CountsMode = "on" | "ask";
 
+/**
+ * A step recorded and not yet sent, with the day it may leave on: the Monday after the week it
+ * happened in (owner decision 2026-10-15). Sending it the following week means the moment a
+ * report arrives says nothing about the day the step happened. Only that Monday is kept, never
+ * the step's day.
+ */
+export interface HeldStep {
+  step: UsageStep;
+  /** The day number of the Monday from which the step may leave. */
+  from: number;
+}
+
 export interface UsageState {
   /** The local day number the installation was made on, or null: nothing is ever recorded. */
   day0: number | null;
@@ -48,12 +60,19 @@ export interface UsageState {
   week: number | null;
   /** Steps reported (or refused as malformed): never recorded again. */
   sent: UsageStep[];
-  /** Steps recorded and not yet reported. */
-  waiting: UsageStep[];
+  /** Steps recorded and not yet reported, each with the Monday it may leave from. */
+  waiting: HeldStep[];
   /** Whether the first-run sentence was shown (Safari's gate; on Chromium, with the answer). */
   noticeShown: boolean;
   /** When the last report failed (epoch ms), or null. */
   lastFailure: number | null;
+  /**
+   * Whether this installation was made by a release that counts (`onInstalled` with `install`).
+   * One that predates the counts arrived by an update and never has it: it is never asked,
+   * counted or sent to the leaving page (owner decision 2026-10-15). Kept when everything else
+   * is forgotten: it is a fact about the installation, not a count.
+   */
+  countable: boolean;
 }
 
 export const EMPTY_STATE: UsageState = {
@@ -63,10 +82,23 @@ export const EMPTY_STATE: UsageState = {
   waiting: [],
   noticeShown: false,
   lastFailure: null,
+  countable: false,
 };
 
 const isStep = (s: unknown): s is UsageStep => (USAGE_STEPS as readonly unknown[]).includes(s);
 const isInt = (n: unknown): n is number => typeof n === "number" && Number.isInteger(n);
+
+function heldSteps(v: unknown): HeldStep[] {
+  if (!Array.isArray(v)) return [];
+  const out: HeldStep[] = [];
+  for (const item of v) {
+    const h = item as Partial<HeldStep> | null;
+    if (h && isStep(h.step) && isInt(h.from) && !out.some((o) => o.step === h.step)) {
+      out.push({ step: h.step, from: h.from });
+    }
+  }
+  return out;
+}
 
 /** The stored state, or the empty one: a malformed value never throws. */
 export function parseState(raw: unknown): UsageState {
@@ -78,9 +110,10 @@ export function parseState(raw: unknown): UsageState {
     day0,
     week: day0 === null ? null : mondayOf(day0),
     sent: steps(r.sent),
-    waiting: steps(r.waiting),
+    waiting: heldSteps(r.waiting),
     noticeShown: r.noticeShown === true,
     lastFailure: isInt(r.lastFailure) ? r.lastFailure : null,
+    countable: r.countable === true,
   };
 }
 
@@ -97,28 +130,57 @@ export function mondayOf(day: number): number {
   return day - ((((day - 4) % 7) + 7) % 7);
 }
 
-/** A new installation on `today`: day 0, and « installed » waiting. */
+/** The Monday from which a step that happened on `day` may leave: the one after its week. */
+export function leavesFrom(day: number): number {
+  return mondayOf(day) + 7;
+}
+
+/**
+ * The first day this installation keeps nothing: the Monday two weeks after the one that starts
+ * day 59's week. The last steps are recorded in day 59's week and leave the week after it, which
+ * gives each of them a whole week for a wake to send it; then everything goes (73 days at most).
+ */
+export function forgetsOn(day0: number): number {
+  return mondayOf(day0 + LAST_DAY) + 14;
+}
+
+/** A new installation on `today`: day 0, and « installed » waiting for the next Monday. */
 export function install(state: UsageState, today: number): UsageState {
-  return { ...state, day0: today, week: mondayOf(today), sent: [], waiting: ["installed"], lastFailure: null };
+  return {
+    ...state,
+    day0: today,
+    week: mondayOf(today),
+    sent: [],
+    waiting: [{ step: "installed", from: leavesFrom(today) }],
+    lastFailure: null,
+    countable: true,
+  };
 }
 
-/** Everything this installation recorded, forgotten: it never reports again. The notice stays shown. */
+/**
+ * Everything this installation recorded, forgotten: it never reports again. The notice stays
+ * shown, and an installation made by a counting release stays one.
+ */
 export function forget(state: UsageState): UsageState {
-  return { ...EMPTY_STATE, noticeShown: state.noticeShown };
+  return { ...EMPTY_STATE, noticeShown: state.noticeShown, countable: state.countable };
 }
 
-/** Past day 59 the device forgets day 0 (D4): `state` as it is on `today`. */
+/**
+ * `state` as it is on `today` (D4): from {@link forgetsOn} the device forgets day 0 and every
+ * step it still holds. Every path that changes the state goes through this first.
+ */
 export function expire(state: UsageState, today: number): UsageState {
-  if (state.day0 === null || today - state.day0 <= LAST_DAY) return state;
+  if (state.day0 === null || today < forgetsOn(state.day0)) return state;
   return forget(state);
 }
 
-/** Record `step` once, if this installation still counts on `today`. */
+/** Record `step` once, if this installation still records on `today` (days 0 to 59). */
 export function record(state: UsageState, step: UsageStep, today: number): UsageState {
   const s = expire(state, today);
   if (s.day0 === null || today < s.day0) return s; // a clock set back before day 0 records nothing
-  if (s.sent.includes(step) || s.waiting.includes(step)) return s;
-  return { ...s, waiting: [...s.waiting, step] };
+  if (today - s.day0 > LAST_DAY) return s;
+  if (s.sent.includes(step) || s.waiting.some((w) => w.step === step)) return s;
+  return { ...s, waiting: [...s.waiting, { step, from: leavesFrom(today) }] };
 }
 
 /** The return a use on `day` of the installation counts as, if any (D1). */
@@ -142,9 +204,20 @@ export function recordAnalysis(state: UsageState, today: number): UsageState {
   return recordUse(record(state, "first_analysis", today), today);
 }
 
-/** Whether the waiting steps may be tried at `now` (none waiting, or an hour since a failure: no). */
-export function due(state: UsageState, now: number): boolean {
-  return state.waiting.length > 0 && (state.lastFailure === null || now - state.lastFailure >= RETRY_AFTER_MS);
+/**
+ * The steps that may leave on `today`: those whose Monday has come — never one in the week it
+ * happened in, so a report's arrival cannot tell the day.
+ */
+export function ready(state: UsageState, today: number): UsageStep[] {
+  return state.waiting.filter((w) => w.from <= today).map((w) => w.step);
+}
+
+/**
+ * Whether a report may be tried on `today` at `now` (epoch ms): a step is ready, and an hour has
+ * passed since a failure.
+ */
+export function due(state: UsageState, today: number, now: number): boolean {
+  return ready(state, today).length > 0 && (state.lastFailure === null || now - state.lastFailure >= RETRY_AFTER_MS);
 }
 
 /** How a report ended (usage/client.ts). */
@@ -153,6 +226,9 @@ export type ReportOutcome = "accepted" | "invalid" | "retry";
 /**
  * The state after reporting `steps`: accepted or refused as malformed, they are done — never sent
  * again, so a bug cannot loop; otherwise they wait, and the next try waits an hour (D5).
+ *
+ * Delivery is at least once: if the background is stopped after the server counted a report and
+ * before this state is saved, the steps are still waiting and are sent again at the next wake.
  */
 export function afterReport(
   state: UsageState,
@@ -164,7 +240,7 @@ export function afterReport(
   return {
     ...state,
     sent: [...new Set([...state.sent, ...steps])],
-    waiting: state.waiting.filter((s) => !steps.includes(s)),
+    waiting: state.waiting.filter((w) => !steps.includes(w.step)),
     lastFailure: null,
   };
 }
@@ -194,10 +270,25 @@ export function countingOn(mode: CountsMode, consent: Consent): boolean {
   return mode === "ask" ? consent.off === false : consent.off !== true;
 }
 
+/**
+ * Whether the leaving page is registered (D12): counting is on, for an installation made by a
+ * release that counts — never for one that predates the counts, whose steps were never counted
+ * (owner decision 2026-10-15).
+ */
+export function leavingPageOn(mode: CountsMode, consent: Consent, state: UsageState): boolean {
+  return state.countable && countingOn(mode, consent);
+}
+
 /** What the first-run sentence must do now: nothing, inform, or ask (two buttons). */
 export type NoticeKind = "none" | "inform" | "ask";
 
+/**
+ * Nothing for an installation that has nothing to count — one that predates the counts (owner
+ * decision 2026-10-15: never asked, on any surface), or whose days have run out; otherwise, on a
+ * build that asks, the question until it is answered, and elsewhere the sentence once.
+ */
 export function noticeKind(mode: CountsMode, consent: Consent, state: UsageState): NoticeKind {
+  if (!state.countable || state.day0 === null) return "none";
   if (consent.kind === "switch" && mode === "ask") return consent.off === undefined ? "ask" : "none";
   return countingOn(mode, consent) && !state.noticeShown ? "inform" : "none";
 }

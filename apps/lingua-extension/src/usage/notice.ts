@@ -53,6 +53,28 @@ export interface NoticeOptions {
   controls: NoticeControls;
   /** The privacy policy in the interface language. */
   privacyUrl: string;
+  /** Resolves once the sentence is on screen ({@link whenVisible} by default; tests inject it). */
+  visible?: (el: HTMLElement) => Promise<void>;
+}
+
+/**
+ * Resolves once `el` is actually on screen: laid out, inside the viewport, with no hidden
+ * ancestor. The popup can open straight on Réglages › Données, with the main view — and the
+ * sentence in it — hidden; telling the background then would open Safari's gate on a sentence
+ * nobody saw (review of #958). Where the page has no layout to observe (no
+ * `IntersectionObserver`), it resolves at once.
+ */
+export function whenVisible(el: HTMLElement): Promise<void> {
+  const Observer = el.ownerDocument.defaultView?.IntersectionObserver;
+  if (typeof Observer !== "function") return Promise.resolve();
+  return new Promise((resolve) => {
+    const observer = new Observer((entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      observer.disconnect();
+      resolve();
+    });
+    observer.observe(el);
+  });
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(
@@ -87,6 +109,8 @@ export async function mountUsageNotice(container: HTMLElement, opts: NoticeOptio
   container.append(text, privacy);
 
   if (kind === "inform") {
+    // Counted as shown only once it is on screen: in Safari, that is what opens the gate (D7).
+    await (opts.visible ?? whenVisible)(container);
     await controls.shown();
     return kind;
   }

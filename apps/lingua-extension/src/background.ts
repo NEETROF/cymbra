@@ -89,15 +89,9 @@ import { answerOnlineTranslation, isOnlineTranslateMessage, ONLINE_UNAVAILABLE }
 import { PAGE_INTERVAL_MS, SURFACE_INTERVAL_MS, SyncScheduler } from "./sync/scheduler.ts";
 import { getOrCreateDeviceId, SyncEngine } from "./sync/sync.ts";
 import { createUsageClient, type UsageClient } from "./usage/client.ts";
-import {
-  dataCollectionOf,
-  type FirefoxPermissions,
-  grantConsent,
-  switchConsent,
-  touchesDataCollection,
-} from "./usage/consent.ts";
+import { dataCollectionOf, type FirefoxPermissions, grantConsent, switchConsent } from "./usage/consent.ts";
 import { UsageHost } from "./usage/host.ts";
-import { isUsageMessage } from "./usage/messages.ts";
+import { attachUsage } from "./usage/wiring.ts";
 // Static import of the wasm-pack glue (esbuild bundles it into the background). The
 // engine hosted here must NOT dynamic-import: a Chromium service worker forbids
 // `import()` (HTML spec). A static loader sidesteps that; it is harmless on the Firefox
@@ -218,22 +212,17 @@ const usage = new UsageHost({
   setUninstallURL: __TARGET__ === "safari" ? null : (url) => chrome.runtime.setUninstallURL(url),
   dataCollection: __TARGET__ === "firefox" ? dataCollectionOf(firefoxPermissions) : undefined,
 });
-// The leaving page follows the consent and the interface language, from every start (D12).
-void usage.registerLeavingPage();
-chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && INTERFACE_LANGUAGE_KEY in changes) void usage.registerLeavingPage();
-});
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (!isUsageMessage(message)) return undefined;
-  void usage.handle(message).then(sendResponse, () => sendResponse(undefined));
-  return true; // async response
-});
-// A surface the reader opened is a use; a page that loaded, a wake that sends what waits. The sync's
-// own listener answers the message.
-chrome.runtime.onMessage.addListener((message: unknown) => {
-  if (!isSyncMessage(message) || message.force) return undefined;
-  void (message.reason === "surface" ? usage.used() : usage.wake());
-  return undefined;
+// Its wake-ups (usage/wiring.ts, tested there): an installation, a browser start, a page analysed
+// in a studied language, a surface opened, the surfaces' own messages, the interface language
+// (the leaving page follows it), and on Firefox its data-collection consent. Registered before the
+// install listener below, so day 0 is recorded before the welcome tab asks for the sentence.
+attachUsage(usage, {
+  onMessage: chrome.runtime.onMessage,
+  onInstalled: chrome.runtime.onInstalled,
+  onStartup: chrome.runtime.onStartup,
+  onStorageChanged: chrome.storage.onChanged,
+  onPermissionsAdded: __TARGET__ === "firefox" ? chrome.permissions.onAdded : undefined,
+  onPermissionsRemoved: __TARGET__ === "firefox" ? chrome.permissions.onRemoved : undefined,
 });
 
 let storeRev = 0;
@@ -987,8 +976,6 @@ chrome.runtime.onInstalled.addListener((details) => {
   // An installed extension is never asked its native language (add-lingua-native-language-choice
   // D4, M22): an update marks the choice as made (state/native-language.ts).
   void onExtensionInstalled(details.reason, settingsArea).catch(() => {});
-  // A new installation is day 0 of the anonymous counts; an update starts nothing (D4).
-  void usage.installed(details.reason);
   // Best-effort first-run welcome (Chromium/Firefox). The popup's level CTA is the
   // portable equivalent, so failures here are swallowed (e.g. Safari, where opening a
   // tab from install is unreliable).
@@ -1000,16 +987,11 @@ chrome.runtime.onInstalled.addListener((details) => {
     }
   }
 });
-chrome.runtime.onStartup.addListener(() => {
-  void syncReaderRegistration();
-  void usage.wake();
-});
+chrome.runtime.onStartup.addListener(() => void syncReaderRegistration());
 
 // When the user grants "always highlight", register the reader and light up the
 // current tab immediately so the grant has a visible effect without a reload.
 chrome.permissions.onAdded.addListener((perms) => {
-  // Firefox's data-collection consent given in about:addons or from the switch (usage counts, D6).
-  if (__TARGET__ === "firefox" && touchesDataCollection(perms)) void usage.consentChanged();
   if (!perms.origins?.includes(ALL_URLS)) return;
   void syncReaderRegistration().then(async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -1018,7 +1000,5 @@ chrome.permissions.onAdded.addListener((perms) => {
   });
 });
 chrome.permissions.onRemoved.addListener((perms) => {
-  // Withdrawn: the device forgets what it had not sent, and the leaving page goes (D6).
-  if (__TARGET__ === "firefox" && touchesDataCollection(perms)) void usage.consentChanged();
   if (perms.origins?.includes(ALL_URLS)) void syncReaderRegistration();
 });
