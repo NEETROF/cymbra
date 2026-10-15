@@ -12,6 +12,8 @@ export default defineConfig({
     __NATIVE_PROVIDERS__: "false",
     __SECTIONS_FROM_WORKER__: "false",
     __APP__: "false",
+    // The Chromium variant's, as __TARGET__ is: its first-run sentence asks (add-lingua-usage-counts D7).
+    __USAGE_COUNTS_DEFAULT__: JSON.stringify("ask"),
     // The shipped pairs, read from packs.json as the build reads them.
     __LINGUA_PACKS__: JSON.stringify(shippedPairs().join(",")),
     // The native language's choice is built, so its views are tested; each one still shows only

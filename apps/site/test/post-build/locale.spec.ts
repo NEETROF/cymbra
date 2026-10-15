@@ -42,6 +42,47 @@ describe("each locale's pages say their language", () => {
     });
   }
 
+  // The Lingua leaving page (change: add-lingua-usage-counts, D12): the question in the
+  // page's language, its island told the same language, and kept out of search results like
+  // the site's other utility pages. The answers are fixed: no field to type in.
+  const LEAVING: Record<Lang, string> = { fr: "/lingua/au-revoir/", en: "/en/lingua/goodbye/", es: "/es/lingua/adios/" };
+  const QUESTION: Record<Lang, string> = {
+    fr: "Pourquoi quittez-vous Cymbra Lingua ?",
+    en: "Why are you leaving Cymbra Lingua?",
+    es: "¿Por qué dejas Cymbra Lingua?",
+  };
+  /** The block the plain form is sent back to (`thanks_path` in backend/server/src/web_lingua.rs). */
+  const THANKS: Record<Lang, string> = { fr: "merci", en: "thanks", es: "gracias" };
+  for (const lang of LANGS) {
+    it(`${lang}: the leaving page asks its question in ${lang}, with six answers and no field`, () => {
+      const html = read(outputFileFor(LEAVING[lang]));
+      expect(html).toContain(`<html lang="${lang}"`);
+      expect(html).toContain('<meta name="robots" content="noindex">');
+      expect(html).toContain(`<h1>${QUESTION[lang]}</h1>`);
+      const islands = [...html.matchAll(/<astro-island [^>]*>/g)].map((m) => m[0]);
+      expect(islands, `${LEAVING[lang]} islands`).toHaveLength(1);
+      expect(islands[0]).toContain("LeaveReasonIsland");
+      expect(islands[0]).toContain(`&quot;lang&quot;:[0,&quot;${lang}&quot;]`);
+      // Rendered as a plain form, so the answers work without JavaScript (review of #958).
+      expect([...html.matchAll(/<button type="submit" name="reason" value="([a-z_]+)"/g)].map((m) => m[1])).toEqual([
+        "not_using",
+        "highlighting",
+        "missing_language",
+        "slow",
+        "unclear",
+        "other",
+      ]);
+      expect(html).toMatch(/<form method="post" action="[^"]+\/web\/lingua\/leave"/);
+      // No field to type in: the only input is the page's language, hidden.
+      expect(html).not.toMatch(/<textarea\b/);
+      expect([...html.matchAll(/<input\b[^>]*\bname=[^>]*>/g)].map((m) => m[0])).toEqual([
+        `<input type="hidden" name="lang" value="${lang}">`,
+      ]);
+      // The thanks the plain form is sent back to, hidden until targeted.
+      expect(html).toContain(`<section id="${THANKS[lang]}" class="card leave-done" role="status">`);
+    });
+  }
+
   // The Spanish home and Music pages (change: extend-site-spanish-locale, D1): static
   // pages, in Spanish, mounting no island.
   for (const path of ["/es/", "/es/music"]) {

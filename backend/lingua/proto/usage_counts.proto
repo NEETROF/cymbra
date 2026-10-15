@@ -1,0 +1,60 @@
+// Copyright 2026 NEETROF
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+// this file except in compliance with the License. You may obtain a copy of the
+// License at http://www.apache.org/licenses/LICENSE-2.0
+
+syntax = "proto3";
+
+package cymbra.lingua.v1;
+
+// Anonymous usage counts (change: add-lingua-usage-counts, spec `lingua-usage-counts`).
+// An installation reports each of six steps at most once, as soon as it happens, filed
+// under the day it was installed on. The service is mounted WITHOUT authentication: a
+// report carries no account, no installation or device identifier and nothing the reader
+// read, and the server keeps only day counters — no row per report, no address, no header.
+//
+// A report is acknowledged (an empty response) whenever it can be parsed, counted or
+// not: flag off, day out of range, counter at its ceiling. A malformed report is
+// INVALID_ARGUMENT; too many requests from one network is RESOURCE_EXHAUSTED (the only
+// answer, with a transport failure, a client retries).
+service UsageCountsService {
+  rpc Report(ReportRequest) returns (ReportResponse);
+}
+
+// The browser family a build targets, from the build itself, never the User-Agent.
+enum BrowserFamily {
+  BROWSER_FAMILY_UNSPECIFIED = 0;
+  BROWSER_FAMILY_CHROMIUM = 1;
+  BROWSER_FAMILY_FIREFOX = 2;
+  BROWSER_FAMILY_SAFARI = 3;
+}
+
+// The six steps of an installation (design D1). Day 0 is the local day of the installation.
+enum UsageStep {
+  USAGE_STEP_UNSPECIFIED = 0;
+  // The browser reported a new installation (not an update).
+  USAGE_STEP_INSTALLED = 1;
+  // A first level decision, for any studied language.
+  USAGE_STEP_SET_UP = 2;
+  // A first page analysed in a studied language.
+  USAGE_STEP_FIRST_ANALYSIS = 3;
+  // A use on day 1.
+  USAGE_STEP_RETURNED_DAY_1 = 4;
+  // A use on a day from 7 to 13.
+  USAGE_STEP_RETURNED_DAYS_7_13 = 5;
+  // A use on a day from 30 to 59.
+  USAGE_STEP_RETURNED_DAYS_30_59 = 6;
+}
+
+message ReportRequest {
+  // Day 0: days since 1970-01-01 of the local calendar day the installation was made on.
+  int32 install_day = 1;
+  BrowserFamily browser = 2;
+  // The extension's version as major.minor (`1.10`).
+  string version = 3;
+  // One to six distinct steps.
+  repeated UsageStep steps = 4;
+}
+
+message ReportResponse {}

@@ -9,6 +9,9 @@ import { type AsyncStorageArea, hydrateEngine, saveBackup } from "../state/stora
 import { messagedArea } from "../state/store.ts";
 import { followSurfaceLook } from "../reading/surface-look.ts";
 import { mountNativeStep, presetThenStart } from "./native-step.ts";
+import { PRIVACY_POLICY_URLS } from "../translate/online.ts";
+import { runtimeNoticeControls } from "../usage/messages.ts";
+import { mountUsageNotice, noticeCopyOf } from "../usage/notice.ts";
 
 // This page is a surface: it follows the reader's colours and text size (add-lingua-colour-settings D8, D9).
 followSurfaceLook(document.documentElement);
@@ -67,6 +70,13 @@ async function main(): Promise<void> {
     onboardingCopy,
   );
   void showAccountOffer();
+  // The anonymous counts' first-run sentence, before anything leaves (add-lingua-usage-counts D7):
+  // two equal buttons on Chromium, a sentence elsewhere.
+  void mountUsageNotice($("usage-notice"), {
+    copy: noticeCopyOf(onboardingCopy(interfaceLanguage)),
+    controls: runtimeNoticeControls(),
+    privacyUrl: PRIVACY_POLICY_URLS[interfaceLanguage],
+  });
   const port = createLinguaPort();
   await hydrateEngine(port, store);
   const persist = async (): Promise<void> => saveBackup(store, await port.backup());

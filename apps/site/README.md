@@ -258,6 +258,23 @@ action for a web subscription opens `/account`. The site sets no CSP today (a
 follow-up with the reverse proxy / `_headers`); the checkout page loads Paddle.js
 from `cdn.paddle.com`, Google/Apple sign-in load their SDKs on demand.
 
+## The Lingua leaving page (change: add-lingua-usage-counts)
+
+`/lingua/au-revoir/`, `/en/lingua/goodbye/` and `/es/lingua/adios/` (`noindex`, pinned):
+Chrome and Firefox open the page of Lingua's interface language when the extension is removed
+while its anonymous counts are on, with `?b=<browser>&v=<major.minor>` and nothing else. The
+island, `LeaveReasonIsland`, asks one question with six fixed answers and no free text. Loading
+the page sends nothing to the backend (it is an ordinary page load from Cloudflare Pages); one tap
+sends one `POST /web/lingua/leave` `{ reason, browser, version }` (no cookie, no `Authorization`),
+disables the answers and thanks the reader whatever the backend answers — a failure is never
+shown. A missing or malformed `b`/`v` is sent as `unknown`. State and call:
+`src/composables/useLeaveReason.ts`, behind the client seam of `src/lib/lingua-leave.ts`
+(`setLinguaLeaveClientForTest`). Without JavaScript the same answers are a plain form
+(`leaveFormAction()`, hidden `lang`): the backend counts the answer and sends the browser back to
+the page's `#merci` / `#thanks` / `#gracias` block (`src/components/LeaveThanks.astro`, shown by
+`.leave-done:target`). Backend side: `https://cymbra.app` in `CYMBRA_WEB_ORIGINS`, as for the
+account pages, and **first** in that list: it is where the plain form is sent back to.
+
 ## Deploy
 
 `.github/workflows/site-deploy.yml`: on a `site-vX.Y.Z` tag (release-please) or a

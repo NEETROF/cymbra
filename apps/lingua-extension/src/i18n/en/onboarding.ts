@@ -15,10 +15,20 @@ export const onboarding: typeof fr = {
   stepClick: "Click a highlighted word to translate it or add it to your deck.",
   accountTitle: "Find your words everywhere (optional)",
   accountLead:
-    "With a Cymbra account — the same as in Cymbra Music — your words, your deck and your statistics sync between your devices. Without an account, everything stays on this device.",
+    "With a Cymbra account — the same as in Cymbra Music — your words, your deck and your statistics sync between your devices. Without an account, your words, your deck and your statuses stay on this device.",
   createAccount: "Create an account",
   later: "Later",
   beginnerChip: "Beginner — starting from scratch",
   levelSaved: (level) => `Level saved: ${level}. You can close this tab and start reading.`,
   beginnerSaved: "Noted — starting from scratch. You can close this tab and start reading.",
+  // — The anonymous counts' first-run sentence (add-lingua-usage-counts D7) —
+  usageInform:
+    "Lingua counts a few steps anonymously — install, first steps, returns — with no identifier of any kind; nothing you read leaves your device. You can turn these counts off in Settings → Data.",
+  usageAsk:
+    "May Lingua count a few steps anonymously — install, first steps, returns — with no identifier of any kind? Nothing you read leaves your device, and you can change your mind in Settings → Data.",
+  usageYes: "Yes, count",
+  usageNo: "No, thanks",
+  usageYesDone: "Thank you! You can turn these counts off at any time in Settings → Data.",
+  usageNoDone: "Noted: nothing will be counted.",
+  usagePrivacy: "Privacy policy",
 };

@@ -52,7 +52,7 @@ character inside the block or after `> `, line breaks included — and equals th
 | Name | 30 | `Cymbra Lingua` (13) | `Cymbra Lingua` (13) | `Cymbra Lingua` (13) |
 | Subtitle | 30 | `Anglais et espagnol en lisant` (29) | `Spanish and French as you read` (30) | with fr-es `Inglés y francés mientras lees` (30); without, `Aprende inglés mientras lees` (28) |
 | Promotional text | 170 | 154 characters, below | 130 characters, below | with fr-es 146 characters; without, 133 — below |
-| Description | 4000 | 3061 characters, below | 2923 characters, below | with fr-es 3317 characters; without, 2905 — below |
+| Description | 4000 | 3186 characters, below | 3037 characters, below | with fr-es 3427 characters; without, 3015 — below |
 | Keywords | 100 | 92 characters, below | 99 characters, below | with fr-es 90 characters (94 bytes); without, 89 (92 bytes) — below |
 | Support URL | — | `https://cymbra.app/support/` | `https://cymbra.app/en/support/` | `https://cymbra.app/es/soporte/` or `https://cymbra.app/en/support/` — the owner chooses, below |
 | Marketing URL | — | `https://cymbra.app/lingua/` | `https://cymbra.app/en/lingua/` | `https://cymbra.app/es/lingua/` |
@@ -130,7 +130,15 @@ inglés,vocabulario,lectura,traducción,extensión,aprender,repaso,MCER,tarjetas
 
 ## Description
 
-### fr-FR (3061 / 4000)
+Each description's « VOTRE LECTURE RESTE À VOUS » paragraph and its translations carry the sentence
+of add-lingua-usage-counts (design Q5, accepted by the owner on 2026-10-14) where they promised
+that, without an account or extended translation, nothing reached the network — the anonymous
+counts make that false. Its subject is « l'extension », as everywhere in these texts, and its switch
+is in « les Réglages de l'extension », kept apart from step 1's, the system's, as step 3 does; the
+account paragraph says the counts leave the device too. Each count below was re-measured then
+(+125 fr-FR, +114 en, +110 for each Spanish text).
+
+### fr-FR (3186 / 4000)
 
 ```
 Cymbra Lingua est une extension Safari qui surligne, sur la page que vous lisez, les mots d'anglais ou d'espagnol que vous ne connaissez pas encore — sans rien changer à la mise en page. Une pastille vous dit quelle part du texte vous est familière, calculée sur ce que vous avez réellement marqué, pas sur une estimation.
@@ -155,10 +163,10 @@ TRADUCTION ÉTENDUE (FACULTATIVE)
 Votre sélection est traduite dans sa phrase, sur votre appareil, par le moteur de Firefox Translations, inclus dans l'app ; l'espagnol passe par l'anglais. L'activer télécharge une fois les modèles de traduction depuis Cymbra (25,8 Mo pour l'anglais, 52,0 Mo avec l'espagnol) ; le texte des pages ne quitte toujours pas votre appareil. La désactiver supprime les modèles.
 
 VOTRE LECTURE RESTE À VOUS
-Les dictionnaires et les moteurs d'analyse et de traduction sont dans l'app. Aucune page que vous lisez n'est envoyée nulle part, et tout fonctionne hors ligne. Sans compte ni traduction étendue, l'extension ne fait aucune requête réseau.
+Les dictionnaires et les moteurs d'analyse et de traduction sont dans l'app, et tout fonctionne hors ligne. Ce que vous lisez ne quitte jamais votre appareil. L'extension peut envoyer des comptages anonymes — installation, premiers pas, retours —, sans aucun identifiant ; un interrupteur dans les Réglages de l'extension les coupe.
 
 UN COMPTE, SI VOUS EN VOULEZ UN
-Créez un compte Cymbra si — et seulement si — vous voulez retrouver vos mots et vos cartes sur vos autres appareils. C'est la seule chose qui quitte votre machine, et vous pouvez effacer ces données depuis les réglages sans supprimer votre compte.
+Créez un compte Cymbra si — et seulement si — vous voulez retrouver vos mots et vos cartes sur vos autres appareils. Hormis les comptages anonymes, c'est la seule chose qui quitte votre machine, et vous pouvez effacer ces données depuis les réglages sans supprimer votre compte.
 
 Pour l'espagnol, le dictionnaire français est un peu moins complet que pour l'anglais : nos chiffres sont sur cymbra.app/lingua.
 
@@ -175,7 +183,7 @@ keeps the extension's Réglages apart from step 1's, the system's. Both are past
 release, not before. A French speaker cannot study French, so nothing else in the French texts
 moves.
 
-### en-US, en-GB (2923 / 4000)
+### en-US, en-GB (3037 / 4000)
 
 The same plan as the French — the activation first, because installing is not enabling — written
 for a reader of English who studies Spanish and French. Its step 3 follows the host app's English
@@ -209,10 +217,10 @@ EXTENDED TRANSLATION (OPTIONAL)
 Your selection is translated into English within its sentence, straight from Spanish or French, on your device, by the Firefox Translations engine, included in the app. Turning it on downloads from Cymbra, once, the translation model of each language you study (26.2 MB each); the text of the pages you read still never leaves your device. Turning it off deletes the models.
 
 YOUR READING STAYS YOURS
-The dictionaries and the analysis and translation engines are in the app. No page you read is sent anywhere, and everything works offline. Without an account or extended translation, the extension makes no network requests.
+The dictionaries and the analysis and translation engines are in the app, and everything works offline. What you read never leaves your device. The extension may send anonymous counts — install, first steps, returns — with no identifier of any kind; one switch in the extension's Settings turns them off.
 
 AN ACCOUNT, IF YOU WANT ONE
-Create a Cymbra account if — and only if — you want your words and cards on your other devices. That is the only thing that leaves your device, and you can erase it from the settings without deleting your account.
+Create a Cymbra account if — and only if — you want your words and cards on your other devices. Apart from the anonymous counts, that is the only thing that leaves your device, and you can erase it from the settings without deleting your account.
 
 How many Spanish and French words our dictionary explains in English: our figures are at cymbra.app/en/lingua.
 
@@ -226,7 +234,7 @@ language is ticked, never a line about price — and that line has left the exte
 M15 is settled: extended translation opens with each pair. Should change 52 not offer fr-en's, its
 clause goes from each text and every count only falls; recount before pasting.
 
-### es-ES, es-MX, with fr-es (3317 / 4000)
+### es-ES, es-MX, with fr-es (3427 / 4000)
 
 The same plan again, written for a reader of Spanish who studies English and French. Its steps
 follow the host app's Spanish page as change 52 rewrites it with fr-es (`copy.js`, `es.step1` to
@@ -268,17 +276,17 @@ TRADUCCIÓN AMPLIADA (OPCIONAL)
 Tu selección se traduce al español dentro de su frase, directamente desde el inglés y, desde el francés, pasando por el inglés, en tu dispositivo, con el motor de Firefox Translations, incluido en la app. Al activarla se descargan una vez los modelos de traducción desde Cymbra (25,4 MB para el inglés, 51,6 MB con el francés); el texto de las páginas que lees sigue sin salir de tu dispositivo. Al desactivarla se eliminan los modelos.
 
 TU LECTURA ES SOLO TUYA
-Los diccionarios y los motores de análisis y de traducción están en la app. Ninguna de las páginas que lees se envía a ningún sitio, y todo funciona sin conexión. Sin cuenta ni traducción ampliada, la extensión no hace ninguna solicitud de red.
+Los diccionarios y los motores de análisis y de traducción están en la app, y todo funciona sin conexión. Lo que lees nunca sale de tu dispositivo. La extensión puede enviar recuentos anónimos —instalación, primeros pasos, regresos—, sin ningún identificador; un interruptor en los Ajustes de la extensión los desactiva.
 
 UNA CUENTA, SI LA QUIERES
-Crea una cuenta de Cymbra si —y solo si— quieres recuperar tus palabras y tus tarjetas en tus otros dispositivos. Es lo único que sale de tu dispositivo, y puedes borrar esos datos desde los ajustes sin eliminar tu cuenta.
+Crea una cuenta de Cymbra si —y solo si— quieres recuperar tus palabras y tus tarjetas en tus otros dispositivos. Aparte de los recuentos anónimos, es lo único que sale de tu dispositivo, y puedes borrar esos datos desde los ajustes sin eliminar tu cuenta.
 
 Para el francés, nuestro diccionario en español es algo menos completo que para el inglés: nuestras cifras están en cymbra.app/es/lingua.
 
 La interfaz está en español para los hispanohablantes, que aprenden inglés y francés; en francés para los francohablantes, que aprenden inglés y español; y en inglés para los anglohablantes, que aprenden español y francés.
 ```
 
-### es-ES, es-MX, without fr-es (2905 / 4000)
+### es-ES, es-MX, without fr-es (3015 / 4000)
 
 If change 52 lists fr-en alone: change 37's text, its last line alone made true — English speakers
 learn Spanish and French. Its steps follow the host app's Spanish page, which change 52 leaves as it
@@ -307,10 +315,10 @@ TRADUCCIÓN AMPLIADA (OPCIONAL)
 Tu selección se traduce al español dentro de su frase, directamente desde el inglés, en tu dispositivo, con el motor de Firefox Translations, incluido en la app. Al activarla se descarga una vez el modelo de traducción desde Cymbra (25,4 MB); el texto de las páginas que lees sigue sin salir de tu dispositivo. Al desactivarla se elimina el modelo.
 
 TU LECTURA ES SOLO TUYA
-Los diccionarios y los motores de análisis y de traducción están en la app. Ninguna de las páginas que lees se envía a ningún sitio, y todo funciona sin conexión. Sin cuenta ni traducción ampliada, la extensión no hace ninguna solicitud de red.
+Los diccionarios y los motores de análisis y de traducción están en la app, y todo funciona sin conexión. Lo que lees nunca sale de tu dispositivo. La extensión puede enviar recuentos anónimos —instalación, primeros pasos, regresos—, sin ningún identificador; un interruptor en los Ajustes de la extensión los desactiva.
 
 UNA CUENTA, SI LA QUIERES
-Crea una cuenta de Cymbra si —y solo si— quieres recuperar tus palabras y tus tarjetas en tus otros dispositivos. Es lo único que sale de tu dispositivo, y puedes borrar esos datos desde los ajustes sin eliminar tu cuenta.
+Crea una cuenta de Cymbra si —y solo si— quieres recuperar tus palabras y tus tarjetas en tus otros dispositivos. Aparte de los recuentos anónimos, es lo único que sale de tu dispositivo, y puedes borrar esos datos desde los ajustes sin eliminar tu cuenta.
 
 Cuántas palabras inglesas explica nuestro diccionario en español: nuestras cifras están en cymbra.app/es/lingua.
 
@@ -431,7 +439,9 @@ before.
 The field is **one, in English, for every locale, within 4,000 characters**. The block before
 `add-lingua-english-listings` measured 4,042, over it; that change cut it to 3,973,
 `add-lingua-spanish-audience-listings` added the Spanish path (3,976), and
-`add-lingua-french-listings` adds French and measures **3976** with fr-es, **3935** without it. A
+`add-lingua-french-listings` added French (3976 with fr-es, 3935 without), the correction for
+« Traduction en ligne » (below) measured 3988 and 3947, and `add-lingua-usage-counts` names the
+anonymous counts on top of it and measures **3984** with fr-es, **3943** without it. A
 reviewer's device that is not in French or Spanish gets the English interface studying Spanish (the
 native language is preset from the browser's language: `add-lingua-native-language-choice`, D4;
 Spanish stays an English reader's first language once change 52 lists fr-en after es-en), so the
@@ -481,15 +491,32 @@ lists » « frequencies »; the `https://` of models.cymbra.app and api.cymbra.a
 Safari sentence was reworded. Every step, the deletion path, every external service and every
 source are still there: **3988** with fr-es, **3947** without it.
 
-### English, for every locale, with fr-es (3988 / 4000)
+To name the anonymous counts (add-lingua-usage-counts, written on 2026-10-14 and applied on
+2026-10-16 on top of the correction above), "External services" no longer says « none by
+default » or « no analytics »: it says the counts are on by default under a legitimate interest
+once the popup has said so, that they are sent as they happen, gives their six steps, the three
+things sent with them (install day, browser, version), no identifier and no page text, and where
+they are turned off (+281). Wording was cut, and no step a reviewer needs: the account paragraph
+lost « (iPhone, iPad, Mac) », its progress list became « (words, deck, level, statistics) » and
+its test path « To test it: panel > Settings > Data > Account, … » (−67); the IMPORTANT line says
+« Enable the extension in Safari first. » (−20); step 2 lost « the engine assumes zero known
+words: », the reason for what it shows (−37); "OPTIONAL" lost « - then the selected sentence is
+translated on the device », which "External services" says, and gives the models' sizes as one
+range, « 25.4-26.2 MB each » (−109); "Purpose & audience" lost « (A1-C2) », which step 5 gives
+(−8); "External services" lost « the » before « level estimate » and says « No payment processor,
+no in-app purchase » (−7); "Third-party material" lost « (definitions and translation tables) »
+(−37). Every step, the deletion path, every external service and every source are still there:
+**3984** with fr-es, **3943** without it.
+
+### English, for every locale, with fr-es (3984 / 4000)
 
 ```
-No account is needed to review this app. An optional Cymbra account saves progress - known words, deck, level and statistics - across reinstalls and devices (iPhone, iPad, Mac). To test it, create one from the extension (panel > Settings > Data > Account) with Sign in with Apple or Google - no invitation needed.
+No account is needed to review this app. An optional Cymbra account saves progress (words, deck, level, statistics) across reinstalls and devices. To test it: panel > Settings > Data > Account, Sign in with Apple or Google - no invitation needed.
 
-IMPORTANT - this app is a Safari extension host: its own screen only explains. Nothing happens until the extension is enabled in Safari.
+IMPORTANT - this app is a Safari extension host: its own screen only explains. Enable the extension in Safari first.
 
 1. Settings > Apps > Safari > Extensions (macOS: Safari > Settings > Extensions): enable "Cymbra Lingua", then set "Other Websites" to Allow.
-2. In SAFARI (not in the app), open the extension from the address-bar menu, keep English as your language and pick a Spanish level, e.g. B1. With no level, the engine assumes zero known words: every word is highlighted and the pill reads 0%.
+2. In SAFARI (not in the app), open the extension from the address-bar menu, keep English as your language and pick a Spanish level, e.g. B1. With no level, every word is highlighted and the pill reads 0%.
 3. Open a Spanish page. Reload any tab opened BEFORE the extension was enabled or the level picked.
 4. Words above your level are highlighted; the pill shows the share of the page you know. Tap a highlighted word: a card gives its English translation, dictionary form and frequency, with "I know it", "+ Deck", "Ignore".
 5. Tap the pill to open the panel: Review, Stats (estimated vocabulary, A1 to C2), Settings (four tabs).
@@ -497,26 +524,26 @@ IMPORTANT - this app is a Safari extension host: its own screen only explains. N
 
 Account deletion: panel > Settings > Data, signed in > "Manage my data" opens the account page. "Erase my Lingua data…" erases it on the server and every device, keeping the account. "Delete my Cymbra account" opens https://cymbra.app/en/delete-account/, where the account (shared by Cymbra's apps) is deleted after signing in.
 
-OPTIONAL - "Extended translation", off by default (Settings > Language). Its engine (Mozilla's Firefox Translations, WebAssembly) ships inside the app. Turning it on downloads data only - a model per pair studied (Spanish or French to English 26.2 MB each, English to Spanish 25.4 MB; French to Spanish chains two) from models.cymbra.app, checked against a pinned sha256 - then the selected sentence is translated on the device. No page text, account or device identifier is sent. Turning it off deletes the models.
+OPTIONAL - "Extended translation", off by default (Settings > Language). Its engine (Mozilla's Firefox Translations, WebAssembly) ships inside the app. Turning it on downloads data only - a model per pair studied (25.4-26.2 MB each; French to Spanish chains two) from models.cymbra.app, checked against a pinned sha256. No page text, account or device identifier is sent. Turning it off deletes the models.
 
-Purpose & audience: Cymbra Lingua helps people learn a language by reading web pages and their own DRM-free EPUB books: unknown words are highlighted in place, looked up offline, captured into a deck reviewed with spaced repetition, and their CEFR level (A1-C2) is estimated from the words they marked. English speakers learn Spanish and French, Spanish speakers English and French, French speakers English and Spanish.
+Purpose & audience: Cymbra Lingua helps people learn a language by reading web pages and their own DRM-free EPUB books: unknown words are highlighted in place, looked up offline, captured into a deck reviewed with spaced repetition, and their CEFR level is estimated from the words they marked. English speakers learn Spanish and French, Spanish speakers English and French, French speakers English and Spanish.
 
-External services: none by default - highlighting, lookup, the level estimate and translation run on the device; no analytics, no ads. Only on the reader's action: models.cymbra.app serves the models above; api.cymbra.app (our backend) syncs the word list when signed in and, for accounts we grant it, relays the AI-based "Online translation" (off by default): each button press sends one sentence to Google Gemini, else Anthropic Claude, kept by no one; Sign in with Apple / Google authenticate (the app never sees a password). No payment processor and no in-app purchase.
+External services: highlighting, lookup, level estimate and translation run on the device; no ads. By default (legitimate interest), once the popup has said so, anonymous counts go to api.cymbra.app (our backend) as they happen: install, level chosen, first page analysed, return on day 1, 7-13, 30-59 - each once, with install day, browser, version; no identifier, no page text. Off: Settings > Data > "Anonymous usage counts". Only on the reader's action: models.cymbra.app serves the models above; the backend syncs the word list when signed in and, for accounts we grant it, relays the AI-based "Online translation" (off by default): each button press sends one sentence to Google Gemini, else Anthropic Claude, kept by no one; Sign in with Apple / Google authenticate (the app never sees a password). No payment processor, no in-app purchase.
 
 Regional differences: none. The interface follows the device's language (French, Spanish, else English); Settings > Language switches. A device in Spanish runs steps 2-5 on an English page: "Elige tu nivel de inglés", "La conozco", "+ Mazo", "Ignorar", "Repaso", "Ajustes".
 
-Third-party material: the bundled dictionaries use sources licensed for commercial use - ESDB (SCOWL) inflections, CEFR-J and Octanove level lists for English; the UD Spanish-GSD and French-GSD treebanks; wordfreq frequencies; kaikki.org extracts of the English, French and Spanish Wiktionaries (definitions and translation tables) for the glosses - credited in the extension's "Sources & privacy" panel. The translation models are Mozilla's (MPL 2.0). The app does not operate in a regulated industry.
+Third-party material: the bundled dictionaries use sources licensed for commercial use - ESDB (SCOWL) inflections, CEFR-J and Octanove level lists for English; the UD Spanish-GSD and French-GSD treebanks; wordfreq frequencies; kaikki.org extracts of the English, French and Spanish Wiktionaries for the glosses - credited in the extension's "Sources & privacy" panel. The translation models are Mozilla's (MPL 2.0). The app does not operate in a regulated industry.
 ```
 
-### English, for every locale, without fr-es (3947 / 4000)
+### English, for every locale, without fr-es (3943 / 4000)
 
 ```
-No account is needed to review this app. An optional Cymbra account saves progress - known words, deck, level and statistics - across reinstalls and devices (iPhone, iPad, Mac). To test it, create one from the extension (panel > Settings > Data > Account) with Sign in with Apple or Google - no invitation needed.
+No account is needed to review this app. An optional Cymbra account saves progress (words, deck, level, statistics) across reinstalls and devices. To test it: panel > Settings > Data > Account, Sign in with Apple or Google - no invitation needed.
 
-IMPORTANT - this app is a Safari extension host: its own screen only explains. Nothing happens until the extension is enabled in Safari.
+IMPORTANT - this app is a Safari extension host: its own screen only explains. Enable the extension in Safari first.
 
 1. Settings > Apps > Safari > Extensions (macOS: Safari > Settings > Extensions): enable "Cymbra Lingua", then set "Other Websites" to Allow.
-2. In SAFARI (not in the app), open the extension from the address-bar menu, keep English as your language and pick a Spanish level, e.g. B1. With no level, the engine assumes zero known words: every word is highlighted and the pill reads 0%.
+2. In SAFARI (not in the app), open the extension from the address-bar menu, keep English as your language and pick a Spanish level, e.g. B1. With no level, every word is highlighted and the pill reads 0%.
 3. Open a Spanish page. Reload any tab opened BEFORE the extension was enabled or the level picked.
 4. Words above your level are highlighted; the pill shows the share of the page you know. Tap a highlighted word: a card gives its English translation, dictionary form and frequency, with "I know it", "+ Deck", "Ignore".
 5. Tap the pill to open the panel: Review, Stats (estimated vocabulary, A1 to C2), Settings (four tabs).
@@ -524,15 +551,15 @@ IMPORTANT - this app is a Safari extension host: its own screen only explains. N
 
 Account deletion: panel > Settings > Data, signed in > "Manage my data" opens the account page. "Erase my Lingua data…" erases it on the server and every device, keeping the account. "Delete my Cymbra account" opens https://cymbra.app/en/delete-account/, where the account (shared by Cymbra's apps) is deleted after signing in.
 
-OPTIONAL - "Extended translation", off by default (Settings > Language). Its engine (Mozilla's Firefox Translations, WebAssembly) ships inside the app. Turning it on downloads data only - a model per pair studied (Spanish or French to English 26.2 MB each, English to Spanish 25.4 MB) from models.cymbra.app, checked against a pinned sha256 - then the selected sentence is translated on the device. No page text, account or device identifier is sent. Turning it off deletes the models.
+OPTIONAL - "Extended translation", off by default (Settings > Language). Its engine (Mozilla's Firefox Translations, WebAssembly) ships inside the app. Turning it on downloads data only - a model per pair studied (25.4-26.2 MB each) from models.cymbra.app, checked against a pinned sha256. No page text, account or device identifier is sent. Turning it off deletes the models.
 
-Purpose & audience: Cymbra Lingua helps people learn a language by reading web pages and their own DRM-free EPUB books: unknown words are highlighted in place, looked up offline, captured into a deck reviewed with spaced repetition, and their CEFR level (A1-C2) is estimated from the words they marked. English speakers learn Spanish and French, Spanish speakers English, French speakers English and Spanish.
+Purpose & audience: Cymbra Lingua helps people learn a language by reading web pages and their own DRM-free EPUB books: unknown words are highlighted in place, looked up offline, captured into a deck reviewed with spaced repetition, and their CEFR level is estimated from the words they marked. English speakers learn Spanish and French, Spanish speakers English, French speakers English and Spanish.
 
-External services: none by default - highlighting, lookup, the level estimate and translation run on the device; no analytics, no ads. Only on the reader's action: models.cymbra.app serves the models above; api.cymbra.app (our backend) syncs the word list when signed in and, for accounts we grant it, relays the AI-based "Online translation" (off by default): each button press sends one sentence to Google Gemini, else Anthropic Claude, kept by no one; Sign in with Apple / Google authenticate (the app never sees a password). No payment processor and no in-app purchase.
+External services: highlighting, lookup, level estimate and translation run on the device; no ads. By default (legitimate interest), once the popup has said so, anonymous counts go to api.cymbra.app (our backend) as they happen: install, level chosen, first page analysed, return on day 1, 7-13, 30-59 - each once, with install day, browser, version; no identifier, no page text. Off: Settings > Data > "Anonymous usage counts". Only on the reader's action: models.cymbra.app serves the models above; the backend syncs the word list when signed in and, for accounts we grant it, relays the AI-based "Online translation" (off by default): each button press sends one sentence to Google Gemini, else Anthropic Claude, kept by no one; Sign in with Apple / Google authenticate (the app never sees a password). No payment processor, no in-app purchase.
 
 Regional differences: none. The interface follows the device's language (French, Spanish, else English); Settings > Language switches. A device in Spanish runs steps 2-5 on an English page: "Elige tu nivel de inglés", "La conozco", "+ Mazo", "Ignorar", "Repaso", "Ajustes".
 
-Third-party material: the bundled dictionaries use sources licensed for commercial use - ESDB (SCOWL) inflections, CEFR-J and Octanove level lists for English; the UD Spanish-GSD and French-GSD treebanks; wordfreq frequencies; kaikki.org extracts of the English, French and Spanish Wiktionaries (definitions and translation tables) for the glosses - credited in the extension's "Sources & privacy" panel. The translation models are Mozilla's (MPL 2.0). The app does not operate in a regulated industry.
+Third-party material: the bundled dictionaries use sources licensed for commercial use - ESDB (SCOWL) inflections, CEFR-J and Octanove level lists for English; the UD Spanish-GSD and French-GSD treebanks; wordfreq frequencies; kaikki.org extracts of the English, French and Spanish Wiktionaries for the glosses - credited in the extension's "Sources & privacy" panel. The translation models are Mozilla's (MPL 2.0). The app does not operate in a regulated industry.
 ```
 
 ### As submitted with 1.5.0 (3950 / 4000)

@@ -39,15 +39,19 @@ the first build that sends.
 - **Six counts per installation, each sent once.** Installed; set up (a first level chosen, the
   only "setup done" every browser shares); first page analysed in a studied language; back on the
   next day; back during days 7–13; back during days 30–59. "Back" means a page analysed in a studied
-  language or a Lingua surface opened. Each count is filed under the **week** the installation was
-  made, so the back office can say how many of one week's installations reached each step. The week,
-  not the day: with a handful of readers, an exact day could tell someone who knows when a friend
-  installed whether that friend came back (Q2).
-- **No identifier, nothing read.** A report carries the installation's week, the browser family
+  language or a Lingua surface opened. Each count is filed under the **day** the installation was
+  made, so the back office can say how many of one day's — or, summed, one week's — installations
+  reached each step. The day, not the week (owner, 2026-10-16, reversing Q2): the figures as fast as
+  possible, accepting that, with a handful of readers, an installation alone on its day can be
+  recognised in the counters — the privacy annex says so.
+- **No identifier, nothing read.** A report carries the installation's day, the browser family
   (Chromium, Firefox, Safari), the extension's version (major.minor) and the steps it reports —
   nothing else. It never carries the account's token, even for a signed-in reader, and the server
   service is mounted with no authentication at all, so it could not resolve an account if it tried.
-  The device keeps the installation's day for at most 60 days, then forgets it.
+  Each step leaves the device as soon as it happens (owner, 2026-10-16, reversing the week's delay
+  decided on 2026-10-15). The device keeps the installation's day for at most 60 days, then forgets
+  it.
+  An installation made before the first counting release is never asked and never counted.
 - **Each store's rule, one switch to turn it off** — « Comptages anonymes » in Settings → Data
   (fr/en/es). Safari: on by default. Firefox 140+ (Android 142+): the switch is Firefox's own
   "technical and interaction data" consent, which Firefox shows ticked at install and lets the
@@ -62,16 +66,16 @@ the first build that sends.
   "Why are you leaving?", and six fixed answers. Nothing is sent until the reader taps one; the
   answer is counted the same anonymous way. No free-text box. Safari ignores this API.
 - **Counters only on the server.** A new unauthenticated `UsageCountsService.Report` in
-  `backend/lingua` adds one to week counters in the `lingua` schema; the leaving page posts to a
-  JSON route under `/web/` that does the same for reasons. No row per report, no IP address, no
-  header kept, and counters deleted after 25 months (Q6). Values are bounded, floods from one
+  `backend/lingua` adds one to counters per installation day in the `lingua` schema; the leaving
+  page posts to a JSON route under `/web/` that does the same for reasons. No row per report,
+  no IP address, no header kept, and counters deleted after 25 months (Q6). Values are bounded, floods from one
   address (or one IPv6 network) are refused by a bounded in-memory guard that never writes the
   address, and a runtime flag stops collection server-side without a release.
 - **Caddy stops logging addresses.** Caddy keeps no access log, but its error log today records the
   client's address and every header whenever the backend answers with an error (a deploy, a crash).
   A log filter removes them, for every route, so "no address kept" is true end to end.
-- **A funnel in the back office.** The Lingua console gains a section: installations by week and
-  browser, how many reached each step, and why readers left. Aggregates only, like the rest of the
+- **A funnel in the back office.** The Lingua console gains a section: installations by day
+  (latest first, with a week view) and browser, how many reached each step, and why readers left. Aggregates only, like the rest of the
   console.
 - **Disclosures.** The privacy policy's Lingua annex (fr/en/es) describes the counts, the leaving
   page and the switch, and the policy gains the Chrome Web Store "Limited Use" statement it lacks

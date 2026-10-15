@@ -88,6 +88,10 @@ import { isFlagsMessage } from "./flags/messages.ts";
 import { answerOnlineTranslation, isOnlineTranslateMessage, ONLINE_UNAVAILABLE } from "./translate/online.ts";
 import { PAGE_INTERVAL_MS, SURFACE_INTERVAL_MS, SyncScheduler } from "./sync/scheduler.ts";
 import { getOrCreateDeviceId, SyncEngine } from "./sync/sync.ts";
+import { createUsageClient, type UsageClient } from "./usage/client.ts";
+import { dataCollectionOf, type FirefoxPermissions, grantConsent, switchConsent } from "./usage/consent.ts";
+import { UsageHost } from "./usage/host.ts";
+import { attachUsage } from "./usage/wiring.ts";
 // Static import of the wasm-pack glue (esbuild bundles it into the background). The
 // engine hosted here must NOT dynamic-import: a Chromium service worker forbids
 // `import()` (HTML spec). A static loader sidesteps that; it is harmless on the Firefox
@@ -187,6 +191,39 @@ const settingsArea: AsyncStorageArea = {
   get: (keys) => chrome.storage.local.get(keys),
   set: (items) => chrome.storage.local.set(items),
 };
+
+// The anonymous usage counts (add-lingua-usage-counts): steps recorded on the wake-ups this page
+// already has — an installation, a page analysed in a studied language, a surface opened, a level
+// saved — and sent in one report while it is awake, through a transport with no account on it. No
+// alarm, no timer. Each browser's consent decides (D6): Firefox's own data-collection consent,
+// elsewhere the switch's key; Chromium asks first (`__USAGE_COUNTS_DEFAULT__`, D7).
+const firefoxPermissions = chrome.permissions as unknown as FirefoxPermissions;
+let usageClient: UsageClient | null = null;
+const usage = new UsageHost({
+  area: settingsArea,
+  mode: __USAGE_COUNTS_DEFAULT__,
+  browser: __TARGET__,
+  version: chrome.runtime.getManifest().version,
+  consent: () => (__TARGET__ === "firefox" ? grantConsent(firefoxPermissions) : switchConsent(settingsArea)),
+  client: () => (usageClient ??= createUsageClient()),
+  now: () => new Date(),
+  language: () => interfaceLanguage(settingsArea),
+  // Safari ignores the uninstall address: the call is not even in its bundle (check_variants).
+  setUninstallURL: __TARGET__ === "safari" ? null : (url) => chrome.runtime.setUninstallURL(url),
+  dataCollection: __TARGET__ === "firefox" ? dataCollectionOf(firefoxPermissions) : undefined,
+});
+// Its wake-ups (usage/wiring.ts, tested there): an installation, a browser start, a page analysed
+// in a studied language, a surface opened, the surfaces' own messages, the interface language
+// (the leaving page follows it), and on Firefox its data-collection consent. Registered before the
+// install listener below, so day 0 is recorded before the welcome tab asks for the sentence.
+attachUsage(usage, {
+  onMessage: chrome.runtime.onMessage,
+  onInstalled: chrome.runtime.onInstalled,
+  onStartup: chrome.runtime.onStartup,
+  onStorageChanged: chrome.storage.onChanged,
+  onPermissionsAdded: __TARGET__ === "firefox" ? chrome.permissions.onAdded : undefined,
+  onPermissionsRemoved: __TARGET__ === "firefox" ? chrome.permissions.onRemoved : undefined,
+});
 
 let storeRev = 0;
 

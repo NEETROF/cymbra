@@ -2,6 +2,7 @@ import { estimatedLevelsNote, levelName, levelQuestion } from "../analyzer/langu
 import type { LanguagePort } from "../analyzer/port.ts";
 import { CEFR_LEVELS, type CefrLevel, type StudiedLanguage } from "../analyzer/types.ts";
 import type { InterfaceLanguage } from "../i18n/index.ts";
+import { reportSetUp } from "../usage/messages.ts";
 import { onboardingCopy } from "./copy.ts";
 
 // Onboarding's level question for one language, apart from the page's wiring so a test mounts it
@@ -21,6 +22,8 @@ export function levelRow(
   estimated: boolean,
   persist: () => Promise<void>,
   interfaceLanguage: InterfaceLanguage,
+  /** Said once a level is saved — the anonymous counts' « set up » (add-lingua-usage-counts D1). */
+  onSaved: () => Promise<void> | void = reportSetUp,
 ): HTMLElement {
   const copy = onboardingCopy(interfaceLanguage);
   const row = document.createElement("div");
@@ -51,6 +54,7 @@ export function levelRow(
       // With a declared level, presumption comes only from it (option B).
       await view.setCalibration(0);
       await persist();
+      void onSaved();
       mark(level);
       confirm.hidden = false;
       confirm.textContent = level

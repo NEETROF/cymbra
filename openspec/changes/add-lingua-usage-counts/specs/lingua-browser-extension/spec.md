@@ -5,7 +5,8 @@ The extension SHALL issue no network request unless the anonymous usage counts a
 - **Anonymous usage counts on** (`lingua-usage-counts`: on by default in Safari; on Firefox, as
   the reader left the browser's "technical and interaction data" consent, ticked at installation;
   on Chromium, only after the reader agrees): the count reports to the Cymbra backend — each step at most once per
-  installation, with no identifier and nothing of what is read — and, on Chromium and Firefox, the
+  installation, sent as it happens and filed under the installation's day, with no identifier and nothing of what is read —
+  and, on Chromium and Firefox, for an installation made since the counts exist, the
   leaving page registered as the uninstall address. Turning the counts off stops both.
 - **Signed in:** the requests of signing in, and those to the Cymbra backend for the account and
   the synchronisation of what `lingua-privacy` lists as synced.

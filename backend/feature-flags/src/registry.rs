@@ -79,6 +79,18 @@ pub const LINGUA_ONLINE_TRANSLATION_PRICE_ANTHROPIC_INPUT: &str =
 pub const LINGUA_ONLINE_TRANSLATION_PRICE_ANTHROPIC_OUTPUT: &str =
     "lingua.online_translation.price.anthropic.output_usd_per_mtok";
 
+/// Anonymous usage counts (change: add-lingua-usage-counts): the server-side kill switch. On by
+/// default; off, every report and leaving answer is acknowledged and nothing is counted, and
+/// extensions keep working — no release needed.
+pub const LINGUA_USAGE_COUNTS_ENABLED: &str = "lingua.usage_counts.enabled";
+/// The value an installation day's usage counter for one step (or a week's for one leaving
+/// reason) and one browser family stops growing at, versions summed.
+pub const LINGUA_USAGE_COUNTS_CEILING: &str = "lingua.usage_counts.ceiling";
+/// The latest released Lingua extension version (`major.minor`): the counters name it, the
+/// releases before it in its major and three minors past it; any other version is counted
+/// under `other`, so the rows a day can hold stay bounded.
+pub const LINGUA_USAGE_COUNTS_LATEST_VERSION: &str = "lingua.usage_counts.latest_version";
+
 // Config tunables (the scattered straw-man values live here).
 pub const RATING_REVIEW_MIN_VOTES: &str = "rating.review.min_votes";
 pub const RATING_REVIEW_THRESHOLD: &str = "rating.review.threshold";
@@ -860,6 +872,29 @@ pub fn builtin() -> Vec<KeyDef> {
             false,
             "Anthropic output price in dollars per million tokens, for the online translation cost estimate.",
         ),
+        // Anonymous usage counts: on by default (the counts are the funnel the console
+        // shows); off stops counting server-side without a release.
+        flag(
+            LINGUA_USAGE_COUNTS_ENABLED,
+            APP_LINGUA,
+            true,
+            false,
+            "Anonymous Lingua usage counts (installations, first steps, returns, leaving answers): on by default; off acknowledges every report and counts nothing, without a release.",
+        ),
+        cfg(
+            LINGUA_USAGE_COUNTS_CEILING,
+            APP_LINGUA,
+            FlagValue::Int(5_000),
+            false,
+            "The value an installation day's anonymous usage counter for one step (or a week's for one leaving reason) and one browser family stops growing at, versions summed, so a flood cannot inflate a day past it.",
+        ),
+        cfg(
+            LINGUA_USAGE_COUNTS_LATEST_VERSION,
+            APP_LINGUA,
+            FlagValue::String("1.10".into()),
+            false,
+            "The latest released Lingua extension version (major.minor). The usage counters name it, the releases before it in its major and up to three minors past it; any other version is counted under \"other\". Move it when a release ships.",
+        ),
     ]
 }
 
@@ -1133,6 +1168,23 @@ mod tests {
                 .default,
             FlagValue::Int(180)
         );
+    }
+
+    #[test]
+    fn lingua_usage_counts_ship_on_with_a_ceiling() {
+        // The kill switch defaults ON (the counts are opt-out per browser, decided on the
+        // device), so it is intentionally NOT in `feature_flags_default_off_and_are_safe`.
+        let r = Registry::default();
+        let enabled = r.get(APP_LINGUA, LINGUA_USAGE_COUNTS_ENABLED).unwrap();
+        assert_eq!(enabled.default, FlagValue::Bool(true));
+        assert_eq!(enabled.value_type, ValueType::Bool);
+        let ceiling = r.get(APP_LINGUA, LINGUA_USAGE_COUNTS_CEILING).unwrap();
+        assert_eq!(ceiling.default, FlagValue::Int(5_000));
+        let latest = r
+            .get(APP_LINGUA, LINGUA_USAGE_COUNTS_LATEST_VERSION)
+            .unwrap();
+        assert_eq!(latest.default, FlagValue::String("1.10".into()));
+        assert!(r.get(APP_MUSIC, LINGUA_USAGE_COUNTS_ENABLED).is_none());
     }
 
     #[test]

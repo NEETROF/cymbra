@@ -219,7 +219,7 @@ used for tracking.
 | Identifiers → User ID | the Cymbra account and its handle | yes | App Functionality, Analytics |
 | Identifiers → Device ID | the random installation id used by sync | yes | App Functionality |
 | User Content → Other User Content | word statuses and level, each under the studied language it belongs to; deck (word, sentence, gloss and the language of that gloss, review state), each card under its studied language | yes | App Functionality |
-| Usage Data → Product Interaction | daily counts (words learned, reviews, words met), per day and studied language, with the native language of the day | yes | App Functionality, Analytics (aggregated back-office figures) |
+| Usage Data → Product Interaction | daily counts (words learned, reviews, words met), per day and studied language, with the native language of the day; and the anonymous usage counts — six steps per installation (installed, set up, first page analysed, back on day 1, in days 7–13, in days 30–59), each sent once, when it happens, with the day of installation, the browser family and the version, with no identifier and nothing read (not linked themselves) | yes | App Functionality, Analytics (aggregated back-office figures) |
 
 Not collected: browsing history, search history, location, contacts, purchases, diagnostics,
 financial or health data. The language Lingua sends to the Cymbra account (the interface's or
@@ -243,6 +243,16 @@ type**. Signed in inside the app, the app sends the statuses and cards of its re
 Content → Other User Content) under its own random installation id (Identifiers → Device ID), on
 the same account (User ID) — all already declared, linked, for App Functionality. It sends no daily
 statistics (Product Interaction stays the extension's).
+
+Reviewed for the anonymous usage counts (add-lingua-usage-counts, 2026-10-14): **no new type or
+purpose**. The Safari extension's six counts — each step sent once, with the day of installation,
+the browser family and the version, no identifier and nothing read — are Usage Data → Product
+Interaction, already declared for Analytics. App Store Connect asks once per data type whether it
+is linked to the user: this type stays linked for the synced daily counts, and counts that are not
+linked change no answer. The address a report comes from serves an in-memory flood limit and is not
+kept, so it is not collected in Apple's sense. App Store Connect needs no edit. In Safari the counts
+are on by default under a legitimate interest, told once in the popup, and « Comptages anonymes »
+in Réglages → Données turns them off; the App Review notes say so ([STORE-LISTING.md](STORE-LISTING.md)).
 
 ## Known issue — popup title on iOS 27
 

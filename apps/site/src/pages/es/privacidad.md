@@ -3,7 +3,7 @@ layout: ../../layouts/Legal.astro
 title: Política de privacidad
 description: Qué datos personales tratan los servicios Cymbra, por qué, con quién se comparten y cuáles son tus derechos.
 lang: es
-updated: 15/10/2026
+updated: 16/10/2026
 alternates:
   fr: /confidentialite
   en: /en/privacy
@@ -228,6 +228,61 @@ navegador** al proveedor de esas voces (Google, en el caso de Chrome), según la
 de ese proveedor. Cymbra no recibe ese texto. En cuanto haya una voz de ese idioma instalada
 en el dispositivo, se utiliza en su lugar.
 
+**Recuentos anónimos.** Para saber si Lingua es realmente útil a quienes la instalan, la
+extensión puede enviar a Cymbra seis recuentos, cada uno una vez por instalación: Lingua está
+**instalada**; está **lista** (un primer nivel elegido); se **analiza una primera página** en un
+idioma que estudias; vuelves a usarla **al día siguiente** de instalarla; de nuevo **entre el
+día 7 y el 13**; de nuevo **entre el día 30 y el 59**. Cada envío solo contiene tres datos: el
+**día** de la instalación (su fecha en tu dispositivo), la **familia del navegador** (Chromium,
+Firefox o Safari) y la **versión** de la extensión (por ejemplo, 1.10).
+
+- **Ningún identificador** de ningún tipo —ni identificador de instalación o de dispositivo, ni
+  cuenta, aunque hayas iniciado sesión— y **nada de lo que lees**: ni dirección, ni sitio, ni
+  texto de la página, ni palabra, ni idioma estudiado, ni nivel.
+- **Ninguna dirección IP conservada.** Como excepción a los registros técnicos del §2 y del §5,
+  Cymbra no guarda la dirección de red de estos envíos ni en su base de datos, ni en sus
+  registros, ni en los del servidor que le transmite las solicitudes (su « proxy inverso »).
+  Solo sirve para rechazar los envíos masivos, únicamente en memoria y de forma ilegible, y se
+  olvida al cabo de una hora.
+- **Enviados en cuanto ocurren.** Cada recuento sale de tu dispositivo en el momento en que
+  ocurre —o, si no pudo salir, al siguiente inicio o uso de la extensión—. Su llegada dice, por
+  tanto, el día en que ocurrió; Cymbra no guarda ni la hora ni rastro de él, solo un total. Si la
+  extensión se detiene justo cuando Cymbra recibe un envío, ese envío vuelve a salir más tarde y
+  cuenta dos veces: los totales solo pueden quedar un poco altos, nunca vinculados a ti.
+- **Contados por día de instalación.** En Cymbra, los recuentos son totales por día de
+  instalación, familia del navegador y versión, sin rastro de cada envío, y **se borran a los
+  25 meses**. Una instalación que es la única de su día (en su navegador) se reconoce, por tanto,
+  en esos totales: de ellos se deduce su día de instalación y se ve si volvió. Nada en ellos dice
+  de quién es; pero alguien que ya supiera que instalaste Lingua ese día podría ver en ellos si
+  volviste.
+- **En tu dispositivo**, el día de la instalación se guarda **60 días como máximo**, para saber
+  cuándo vuelves, y después se olvida, junto con lo que aún no había podido salir.
+- **Instalaciones anteriores a los recuentos.** Una instalación hecha antes de la versión de
+  Lingua que introdujo los recuentos nunca se cuenta, nunca se le pregunta y no abre ninguna
+  página de despedida.
+- **Cómo pregunta cada navegador.** Chrome y los demás navegadores Chromium (Edge…): no se envía
+  nada hasta que pulsas « Sí, contar ». Firefox: decide el propio consentimiento de Firefox a los
+  « Datos técnicos y de interacción », que se ofrece al instalar la extensión (Firefox 140 o
+  posterior de escritorio, 142 o posterior en Android; las versiones anteriores no cuentan nada).
+  Safari: activados por defecto, una vez mostrada la frase que los presenta.
+- **Desactivarlos.** El interruptor « Recuentos anónimos », en Ajustes → Datos, los desactiva en
+  cualquier momento, en todos los navegadores (en Firefox, actúa sobre ese mismo
+  consentimiento). Al desactivarlos se olvida lo que aún no se había enviado.
+- **Base legal**: en Chrome y los demás navegadores Chromium, tu **consentimiento**; en los
+  demás, el **interés legítimo** de Cymbra en medir la audiencia de Lingua. El interruptor es la
+  forma de oponerte, o de retirar tu consentimiento, en cualquier momento.
+
+**La página de despedida.** En Chrome y Firefox, mientras los recuentos están activados,
+desinstalar Lingua abre una página de cymbra.app con una sola pregunta —por qué te vas— y seis
+respuestas fijas, sin campo libre. Abrirla es una visita normal al sitio: como en cualquiera de
+sus páginas, el proveedor que lo aloja (Cloudflare) recibe la dirección IP de tu dispositivo y la
+dirección de la página, con sus dos parámetros (la familia del navegador y la versión); Cymbra no
+añade nada a esa visita ni recibe nada de ella. Solo la respuesta que pulsas se envía a Cymbra y
+se cuenta, de la misma forma anónima: la semana en que llega, la familia del navegador y la
+versión de la extensión, los únicos datos que lleva la dirección de la página (sin JavaScript, la
+página no envía ninguno de los dos, y se cuentan como desconocidos). Con los recuentos
+desactivados, no se abre ninguna página.
+
 **Lo que se sincroniza si has iniciado sesión** con tu cuenta Cymbra:
 
 | Dato | Origen | Finalidad |
@@ -266,8 +321,9 @@ incluidos los requisitos de Uso Limitado (*Limited Use*). Para Cymbra Lingua, es
 es: el texto de las páginas que lees, analizado en tu dispositivo; tu cuenta Cymbra (dirección
 de correo electrónico, identificador de inicio de sesión, sesiones, idioma de la cuenta); lo
 que se sincroniza si has iniciado sesión (estados y niveles de las palabras, mazo de repaso,
-estadísticas diarias, identificador de instalación); y la frase enviada con la **Traducción en
-línea**, solo cuando pulsas su botón. Cymbra solo usa estos datos para los fines descritos en
+estadísticas diarias, identificador de instalación); los **recuentos anónimos**, si los aceptaste
+(véase más arriba); y la frase enviada con la **Traducción en línea**, solo cuando pulsas su
+botón. Cymbra solo usa estos datos para los fines descritos en
 esta política, solo los comparte con los encargados del tratamiento citados en el §4 y para
 esos fines, no los vende y no los usa para publicidad. El equipo de Cymbra solo ve tus datos de
 Lingua como totales, sin cuenta, salvo para ayudarte a petición tuya, por seguridad o para

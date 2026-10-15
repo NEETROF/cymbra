@@ -16,7 +16,7 @@ use cymbra_platform::{AppError, Result};
 use sqlx::{PgPool, Row};
 
 use crate::admin::LinguaAdminRepo;
-use crate::admin_core::{LanguageUsage, OnlineUsageRow, SeriesMetric, Usage};
+use crate::admin_core::{FunnelRow, LanguageUsage, OnlineUsageRow, ReasonRow, SeriesMetric, Usage};
 
 fn internal(e: sqlx::Error) -> AppError {
     AppError::Internal(anyhow::anyhow!("lingua db: {e}"))
@@ -158,6 +158,77 @@ impl LinguaAdminRepo for PgLinguaAdminRepo {
                 input_tokens: r.get("input_tokens"),
                 output_tokens: r.get("output_tokens"),
                 cost_micro_usd: r.get("cost"),
+            })
+            .collect())
+    }
+
+    async fn usage_funnel(
+        &self,
+        from_day: i32,
+        to_day: i32,
+        browser: Option<&str>,
+        ceiling: i64,
+    ) -> Result<Vec<FunnelRow>> {
+        // Versions summed; the finest grain is installation day × step × browser family. The
+        // ceiling holds per day × step × browser, versions summed (the write's own bound), so
+        // a day is capped when one browser's sum reached it.
+        let rows = sqlx::query(
+            "SELECT install_day, step, COALESCE(SUM(total), 0)::bigint AS total, \
+                    bool_or(total >= $4) AS capped \
+             FROM (SELECT install_day, step, browser, SUM(count) AS total \
+                   FROM lingua.usage_counts_daily \
+                   WHERE install_day >= $1 AND install_day <= $2 \
+                     AND ($3::text IS NULL OR browser = $3) \
+                   GROUP BY install_day, step, browser) per_browser \
+             GROUP BY install_day, step ORDER BY install_day, step",
+        )
+        .bind(from_day)
+        .bind(to_day)
+        .bind(browser)
+        .bind(ceiling)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(internal)?;
+        Ok(rows
+            .iter()
+            .map(|r| FunnelRow {
+                day: r.get("install_day"),
+                step: r.get("step"),
+                count: r.get("total"),
+                capped: r.get::<Option<bool>, _>("capped").unwrap_or(false),
+            })
+            .collect())
+    }
+
+    async fn leave_reasons(
+        &self,
+        from_week: i32,
+        to_day: i32,
+        browser: Option<&str>,
+        ceiling: i64,
+    ) -> Result<Vec<ReasonRow>> {
+        let rows = sqlx::query(
+            "SELECT reason, COALESCE(SUM(total), 0)::bigint AS total, \
+                    bool_or(total >= $4) AS capped \
+             FROM (SELECT week, reason, browser, SUM(count) AS total \
+                   FROM lingua.leave_reasons_weekly \
+                   WHERE week >= $1 AND week <= $2 AND ($3::text IS NULL OR browser = $3) \
+                   GROUP BY week, reason, browser) per_browser \
+             GROUP BY reason ORDER BY reason",
+        )
+        .bind(from_week)
+        .bind(to_day)
+        .bind(browser)
+        .bind(ceiling)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(internal)?;
+        Ok(rows
+            .iter()
+            .map(|r| ReasonRow {
+                reason: r.get("reason"),
+                count: r.get("total"),
+                capped: r.get::<Option<bool>, _>("capped").unwrap_or(false),
             })
             .collect())
     }

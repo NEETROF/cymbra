@@ -578,6 +578,51 @@ impl cymbra_lingua::online_translation::OnlineTranslationPolicy for FlagOnlineTr
     }
 }
 
+/// The anonymous usage counts' runtime knobs (change: add-lingua-usage-counts, D9, D10): the
+/// kill switch `lingua.usage_counts.enabled` and the counters' ceiling, both plain Lingua
+/// values evaluated with no caller (the service is unauthenticated). Read on every request, so
+/// a change needs no redeploy.
+pub struct FlagUsageCountsPolicy {
+    flags: Arc<FlagService>,
+}
+
+impl FlagUsageCountsPolicy {
+    pub fn new(flags: Arc<FlagService>) -> Self {
+        Self { flags }
+    }
+}
+
+impl cymbra_lingua::usage_counts::UsageCountsPolicy for FlagUsageCountsPolicy {
+    fn enabled(&self) -> bool {
+        use cymbra_feature_flags::registry;
+        let ctx = cymbra_feature_flags::EvalContext::anonymous(registry::APP_LINGUA);
+        self.flags
+            .bool(registry::LINGUA_USAGE_COUNTS_ENABLED, true, &ctx)
+    }
+
+    fn ceiling(&self) -> i64 {
+        use cymbra_feature_flags::registry;
+        let ctx = cymbra_feature_flags::EvalContext::anonymous(registry::APP_LINGUA);
+        self.flags
+            .int(
+                registry::LINGUA_USAGE_COUNTS_CEILING,
+                cymbra_lingua::usage_counts::DEFAULT_CEILING,
+                &ctx,
+            )
+            .max(0)
+    }
+
+    fn latest_version(&self) -> String {
+        use cymbra_feature_flags::registry;
+        let ctx = cymbra_feature_flags::EvalContext::anonymous(registry::APP_LINGUA);
+        self.flags.string(
+            registry::LINGUA_USAGE_COUNTS_LATEST_VERSION,
+            cymbra_lingua::usage_counts_core::DEFAULT_LATEST_VERSION,
+            &ctx,
+        )
+    }
+}
+
 /// The product whose plan and betas a flag evaluation for `app` reads: each app scope
 /// is its own product; anything else (the site's `web`, the back office) has none.
 pub(crate) fn product_of_app(app: &str) -> Option<&'static str> {
@@ -946,6 +991,53 @@ mod tests {
         assert_eq!(on.daily_limit().await, 100);
         assert_eq!(on.prices("gemini").await, (0.25, 1.50));
         assert_eq!(on.prices("anthropic").await, (0.10, 0.50));
+    }
+
+    /// The usage counts' kill switch and ceiling are plain Lingua values: on and 5 000 until
+    /// an operator overrides them (change: add-lingua-usage-counts).
+    #[tokio::test]
+    async fn usage_counts_policy_reads_the_switch_and_the_ceiling() {
+        use cymbra_lingua::usage_counts::UsageCountsPolicy;
+        let lingua = |key: &str, value: FlagValue| StoredOverride {
+            app: "lingua".into(),
+            key: key.into(),
+            value_type: value.value_type(),
+            value,
+            rollout: RolloutScope::Global,
+            sensitive: false,
+            updated_by: "op".into(),
+            updated_at: chrono::Utc::now(),
+        };
+        let defaults = FlagUsageCountsPolicy::new(service(vec![]).await);
+        assert!(defaults.enabled());
+        assert_eq!(defaults.ceiling(), 5_000);
+        assert_eq!(defaults.latest_version(), "1.10");
+        let overridden = FlagUsageCountsPolicy::new(
+            service(vec![
+                lingua(
+                    registry::LINGUA_USAGE_COUNTS_ENABLED,
+                    FlagValue::Bool(false),
+                ),
+                lingua(registry::LINGUA_USAGE_COUNTS_CEILING, FlagValue::Int(300)),
+                lingua(
+                    registry::LINGUA_USAGE_COUNTS_LATEST_VERSION,
+                    FlagValue::String("1.12".into()),
+                ),
+            ])
+            .await,
+        );
+        assert!(!overridden.enabled());
+        assert_eq!(overridden.ceiling(), 300);
+        assert_eq!(overridden.latest_version(), "1.12");
+        // A negative ceiling counts nothing rather than misbehaving.
+        let negative = FlagUsageCountsPolicy::new(
+            service(vec![lingua(
+                registry::LINGUA_USAGE_COUNTS_CEILING,
+                FlagValue::Int(-1),
+            )])
+            .await,
+        );
+        assert_eq!(negative.ceiling(), 0);
     }
 
     #[tokio::test]

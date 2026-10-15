@@ -7,7 +7,7 @@
 // build_client(false): nothing in the workspace calls this module over gRPC — the
 // boundary next door is a Rust trait (a port), and the .proto is only the external
 // contract the clients (extension, Apple app) generate their own stubs from. All
-// three files share one package, so they compile in a single call.
+// the files share one package, so they compile in a single call.
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     tonic_build::configure()
         .build_client(false)
@@ -19,6 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "proto/lingua_admin.proto",
                 "proto/lingua_data.proto",
                 "proto/online_translation.proto",
+                "proto/usage_counts.proto",
             ],
             &["proto"],
         )?;

@@ -1,0 +1,25 @@
+---
+// The Lingua leaving page's thanks for a browser that ran no JavaScript (change:
+// add-lingua-usage-counts, review of #958): the answers' plain form posts to the backend, which
+// counts the answer and sends the reader back to `<page>#<THANKS_ID>`. Hidden until targeted
+// (`.leave-done:target` in global.css), when it also hides the answers. With JavaScript the
+// island thanks the reader itself and this block is never targeted.
+import { t, type Lang } from '../lib/i18n';
+import { SUPPORT_HREF, THANKS_ID } from '../lib/lingua-leave';
+
+interface Props {
+  lang: Lang;
+  communityUrl: string | null;
+}
+const { lang, communityUrl } = Astro.props;
+---
+
+<section id={THANKS_ID[lang]} class="card leave-done" role="status">
+  <h2>{t(lang, 'leaveThanksTitle')}</h2>
+  <p>{t(lang, 'leaveThanksBody')}</p>
+  <p class="muted">{t(lang, 'leaveMore')}</p>
+  <p class="cta-row left">
+    <a class="btn btn-ghost" href={SUPPORT_HREF[lang]}>{t(lang, 'leaveSupport')}</a>
+    {communityUrl && <a class="btn btn-discord" href={communityUrl} rel="noopener">{t(lang, 'leaveCommunity')}</a>}
+  </p>
+</section>

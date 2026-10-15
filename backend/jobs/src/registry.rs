@@ -106,6 +106,12 @@ pub const DISCORD_NOTIFY: &str = "discord_notify";
 /// ledger keys every report by period, so a retry or a re-delivery never posts
 /// one twice.
 pub const DISCORD_DIGEST: &str = "discord_digest";
+/// Stable name of the Lingua usage counters' retention (change: add-lingua-usage-counts,
+/// D9). No payload. Scheduled daily: deletes the anonymous counters (installation days,
+/// leaving weeks) more than 25 months old, whatever the counts' kill switch says and whether
+/// any report arrives.
+/// Idempotent (a second run finds nothing to delete).
+pub const LINGUA_USAGE_PRUNE: &str = "lingua_usage_prune";
 
 /// Static description of one job type.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -293,6 +299,13 @@ pub fn builtin() -> Vec<JobSpec> {
             // their claim. Stays well inside the day it is due.
             RetryPolicy::new(5, Duration::from_secs(120), Duration::from_secs(3600)),
         ),
+        JobSpec::new(
+            LINGUA_USAGE_PRUNE,
+            // Maintenance sweep; dedup'd per scheduled occurrence and idempotent —
+            // parallel so it never head-of-line blocks.
+            Channel::parallel("lingua", "maintenance"),
+            RetryPolicy::new(3, Duration::from_secs(60), Duration::from_secs(3600)),
+        ),
     ]
 }
 
@@ -386,6 +399,25 @@ mod tests {
         assert_eq!(s.channel().name(), "music.maintenance");
         assert!(!s.channel().is_ordered());
         assert_eq!(s.default_retry().max_attempts(), 3);
+    }
+
+    #[test]
+    fn lingua_usage_prune_is_parallel_maintenance_on_lingua() {
+        let s = spec(LINGUA_USAGE_PRUNE).unwrap();
+        assert_eq!(s.channel().name(), "lingua.maintenance");
+        assert!(!s.channel().is_ordered());
+        assert_eq!(s.default_retry().max_attempts(), 3);
+        assert!(s.cancellable());
+    }
+
+    /// The retention of the usage counters is scheduled once a day, enabled, by a
+    /// migration of its own (applied migrations are immutable).
+    #[test]
+    fn lingua_usage_prune_is_scheduled_daily() {
+        let seed = include_str!("../migrations/0022_seed_lingua_usage_prune_schedule.sql");
+        assert!(seed.contains("'lingua_usage_prune_daily', 'lingua', 'lingua_usage_prune'"));
+        assert!(seed.contains("* * *', 'UTC', TRUE"));
+        assert!(seed.contains("ON CONFLICT (name) DO NOTHING"));
     }
 
     #[test]

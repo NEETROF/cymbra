@@ -81,6 +81,10 @@ pub struct WorkerCtx {
     /// notifications). `None` when no `DISCORD_WEBHOOK_*` is configured — the job
     /// then completes as a no-op.
     pub discord: Option<Arc<crate::discord::Announcer>>,
+    /// The Lingua usage counters, over the `lingua_svc` pool, for the
+    /// `lingua_usage_prune` job (change: add-lingua-usage-counts). `None` when
+    /// `CYMBRA_LINGUA_DATABASE_URL` is unset — the job then completes as a no-op.
+    pub lingua_usage: Option<Arc<dyn cymbra_lingua::usage_counts::UsageCountsRepo>>,
 }
 
 /// Payload of the `score_preview_render` job (change: add-score-daily-access-rewards).
@@ -272,6 +276,31 @@ pub async fn play_detail_prune(mut job: CurrentJob, ctx: WorkerCtx) -> Result<()
             cymbra_worker::prune_play_detail(&ctx.admin_pool, ctx.play_detail_retention_days)
                 .await?;
         tracing::info!(pruned, "play-detail retention prune complete");
+        job.complete().await?;
+        Ok(())
+    })
+    .instrument(span)
+    .await
+}
+
+/// Delete the Lingua usage counters more than 25 months old (change:
+/// add-lingua-usage-counts, D9). Scheduled (`lingua_usage_prune_daily`), so retention
+/// holds whether the counts' kill switch is on or off and whether any report arrives.
+/// Idempotent; inert without the Lingua database.
+#[sqlxmq::job("lingua_usage_prune")]
+pub async fn lingua_usage_prune(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
+    let span = tracing::info_span!("job.lingua_usage_prune", job_id = %job.id());
+    let (pool, id, name) = (job.pool().clone(), job.id(), job.name().to_owned());
+    tracked(&pool, id, &name, async move {
+        match &ctx.lingua_usage {
+            Some(repo) => {
+                let now = chrono::Utc::now().timestamp().max(0) as u64;
+                let kept_from =
+                    cymbra_lingua::usage_counts::prune_expired(repo.as_ref(), now).await?;
+                tracing::info!(kept_from, "lingua usage counters retention prune complete");
+            }
+            None => tracing::info!("lingua usage prune skipped: lingua database unconfigured"),
+        }
         job.complete().await?;
         Ok(())
     })
@@ -706,7 +735,7 @@ pub async fn discord_digest(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), B
 /// Every handler the worker runs — one list for the registry and for the test that
 /// pins it to `cymbra_jobs::registry::builtin()`, so a kind the console lists always
 /// has a handler, and a handler always has a kind (change: add-admin-jobs-console).
-fn all_jobs() -> [&'static sqlxmq::NamedJob; 18] {
+fn all_jobs() -> [&'static sqlxmq::NamedJob; 19] {
     [
         verification_email,
         orphan_reap,
@@ -726,6 +755,7 @@ fn all_jobs() -> [&'static sqlxmq::NamedJob; 18] {
         plans_withdraw,
         discord_notify,
         discord_digest,
+        lingua_usage_prune,
     ]
 }
 

@@ -173,6 +173,11 @@ function capabilities(target) {
     __SECTIONS_FROM_WORKER__: JSON.stringify(target === "chromium"),
     __TRANSLATION_HOST__: JSON.stringify(translationHost(target)),
     __APP__: "false",
+    // What the anonymous counts' first-run sentence does (add-lingua-usage-counts D7): Chromium
+    // asks, with two equal buttons, and sends nothing before "yes"; Safari counts by default once it
+    // was shown; Firefox informs, its gate being the browser's own data-collection consent (D6).
+    // Moving a variant to "ask" is this line, not a redesign.
+    __USAGE_COUNTS_DEFAULT__: JSON.stringify(target === "chromium" ? "ask" : "on"),
   };
 }
 
@@ -378,6 +383,8 @@ if (wanted.includes(APP)) {
       __SECTIONS_FROM_WORKER__: "false",
       __TRANSLATION_HOST__: JSON.stringify("none"),
       __APP__: "true",
+      // The app's page counts nothing: it never runs the extension's background.
+      __USAGE_COUNTS_DEFAULT__: JSON.stringify("on"),
       __GRPC_WEB_URL__: JSON.stringify(GRPC_WEB_URL),
       __GOOGLE_CLIENT_ID__: JSON.stringify(""),
       __APPLE_CLIENT_ID__: JSON.stringify(""),

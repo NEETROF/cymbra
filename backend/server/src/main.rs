@@ -793,6 +793,8 @@ async fn main() -> anyhow::Result<()> {
         lingua_admin_svc,
         lingua_data_svc,
         online_translation_svc,
+        usage_counts_svc,
+        usage_counts,
     ) = match cfg.lingua_database_url.as_deref() {
         Some(db_url) => {
             let pool = db::connect(db_url, 5).await?;
@@ -814,11 +816,31 @@ async fn main() -> anyhow::Result<()> {
                 marks,
             ));
             let data = std::sync::Arc::new(cymbra_lingua::DataModule::new(data_repo));
+            // Anonymous usage counts (change: add-lingua-usage-counts): counters by installation
+            // day in `lingua`, the kill switch and ceiling from runtime flags, floods refused by an
+            // in-memory guard keyed by an HMAC under a key drawn here and never written.
+            let usage_counts_policy: std::sync::Arc<
+                dyn cymbra_lingua::usage_counts::UsageCountsPolicy,
+            > = std::sync::Arc::new(cymbra_server::FlagUsageCountsPolicy::new(
+                flag_service.clone(),
+            ));
+            let usage_counts =
+                std::sync::Arc::new(cymbra_lingua::usage_counts::UsageCountsModule::new(
+                    std::sync::Arc::new(cymbra_lingua::pg_usage_counts::PgUsageCountsRepo::new(
+                        pool.clone(),
+                    )),
+                    usage_counts_policy.clone(),
+                    std::sync::Arc::new(cymbra_lingua::usage_counts::SystemClock),
+                    cymbra_lingua::usage_counts::FloodGuard::new()?,
+                ));
             // Ops console (change: add-lingua-back-office): gated by `admin` in the
             // `lingua` scope.
-            let admin = std::sync::Arc::new(cymbra_lingua::LinguaAdminModule::new(
-                std::sync::Arc::new(cymbra_lingua::PgLinguaAdminRepo::new(pool.clone())),
-            ));
+            let admin = std::sync::Arc::new(
+                cymbra_lingua::LinguaAdminModule::new(std::sync::Arc::new(
+                    cymbra_lingua::PgLinguaAdminRepo::new(pool.clone()),
+                ))
+                .with_usage_policy(usage_counts_policy),
+            );
             // « Traduction en ligne » (change: add-lingua-online-translation): providers from
             // the environment (primary first), access/limit/prices from runtime flags with the
             // caller's Lingua betas, the day's count in the cache, daily totals in `lingua`.
@@ -873,12 +895,29 @@ async fn main() -> anyhow::Result<()> {
                     cymbra_lingua::online_translation_grpc::OnlineTranslationGrpc::new(online_translation),
                     strict.clone(),
                 )),
+                // Deliberately WITHOUT an interceptor (neither `strict` nor `optional`): an
+                // `Authorization` header is never even verified, so a report cannot resolve
+                // an account (add-lingua-usage-counts, D8).
+                Some(cymbra_lingua::proto::usage_counts_service_server::UsageCountsServiceServer::new(
+                    cymbra_lingua::usage_counts_grpc::UsageCountsGrpc::new(usage_counts.clone()),
+                )),
+                Some(usage_counts),
             )
         }
         None => {
             tracing::info!("lingua services disabled (CYMBRA_LINGUA_DATABASE_URL unset)");
-            (None, None, None, None, None, None)
+            (None, None, None, None, None, None, None, None)
         }
+    };
+
+    // The Lingua leaving page's answer (change: add-lingua-usage-counts, D12): one JSON route
+    // under `/web/`, the site's origins only, no credentials. Mounted with the Lingua module.
+    let http = match usage_counts {
+        Some(module) => http.merge(cymbra_server::web_lingua_router(
+            module,
+            cfg.web_origins.clone(),
+        )),
+        None => http,
     };
 
     // Browser transport for the back office (change: add-moderation-back-office):
@@ -953,6 +992,9 @@ async fn main() -> anyhow::Result<()> {
     }
     if let Some(online_translation_svc) = online_translation_svc {
         router = router.add_service(online_translation_svc);
+    }
+    if let Some(usage_counts_svc) = usage_counts_svc {
+        router = router.add_service(usage_counts_svc);
     }
     if let Some(jobs_admin_svc) = jobs_admin_svc {
         router = router.add_service(jobs_admin_svc);
