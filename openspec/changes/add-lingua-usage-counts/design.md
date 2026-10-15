@@ -452,8 +452,8 @@ extension, and no `buf` gate on a contract that installed clients cannot update.
 `usage_counts.rs` holds the module and the ports it declares — the consumer declares them, as
 `plans/src/ports.rs` and `OnlineTranslationPolicy` do:
 - `UsageCountsRepo`;
-- `UsageCountsPolicy` — the flag and the ceiling, implemented in `backend/server/src/flags.rs` like
-  `OnlineTranslationPolicy`;
+- `UsageCountsPolicy` — the flag, the ceiling and the latest released version (D10), implemented
+  in `backend/server/src/flags.rs` like `OnlineTranslationPolicy`;
 - `FloodGuard` — see D10.
 
 `usage_counts_grpc.rs` and `pg_usage_counts.rs` are thin glue, excluded from the coverage gate like
