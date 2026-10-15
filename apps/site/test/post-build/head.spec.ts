@@ -120,7 +120,7 @@ describe("share previews", () => {
     const imageOf = (page: string) => new URL(meta(headOf(read(page)), "og:image")!).pathname;
     for (const page of ["lingua/index.html", "en/lingua/index.html"]) expect(imageOf(page)).toMatch(/^\/_astro\/share\./);
     for (const page of ["music/index.html", "en/music/index.html", "es/music/index.html"]) {
-      expect(imageOf(page)).toMatch(/^\/_astro\/01_library\./);
+      expect(imageOf(page)).toMatch(/^\/_astro\/share\./);
     }
     expect(imageOf("es/privacidad/index.html")).toMatch(/^\/_astro\/brand-share\./);
     expect(imageOf("index.html")).toMatch(/^\/_astro\/brand-share\./);
@@ -145,7 +145,7 @@ describe("share previews", () => {
       },
       music: {
         pages: { fr: "music/index.html", en: "en/music/index.html", es: "es/music/index.html" },
-        source: (lang: string) => resolve(site, `../music/store/macos/desktop_1440x900/${lang}/01_library.png`),
+        source: (lang: string) => resolve(site, `src/assets/music/${lang}/share.png`),
       },
     };
     for (const [name, { pages: byLang, source }] of Object.entries(sets)) {

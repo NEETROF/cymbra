@@ -14,7 +14,9 @@
     "test": "vitest run",
     "check:routes": "vitest run --config vitest.build.config.ts",
     "test:watch": "vitest",
-    "typecheck": "vue-tsc --noEmit -p tsconfig.vue.json"
+    "typecheck": "vue-tsc --noEmit -p tsconfig.vue.json",
+    "sync:music-media": "node scripts/sync-music-media.ts",
+    "gen:music-share": "node scripts/music-share-images.ts"
   },
   "dependencies": {
     "@astrojs/vue": "^7.0.2",

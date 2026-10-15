@@ -18,6 +18,8 @@ the legal texts with the rest of the repo.
 | `yarn test` | vitest: the `unit` project (islands' logic + components, jsdom) and the `astro` project (`.astro` pages rendered through Astro's Container API, `test/astro/`) |
 | `yarn build` | production build → `dist/` |
 | `yarn preview` | preview the build |
+| `yarn sync:music-media` | copy the Music page's captures and video from `apps/music/store/` |
+| `yarn gen:music-share` | regenerate the Music pages' share previews (1200×630) |
 
 ## Pages
 
@@ -105,8 +107,8 @@ path with its trailing slash — for every `hreflang`, and for the canonical lin
 every page that is not `noindex` (a personal page names none); the switch keeps the declared
 paths. Every page carries a 1200×630 JPEG `og:image` at its absolute address, its alt text in the
 page's language, `og:site_name` and `twitter:card` `summary_large_image`: `Base.astro`'s `image`
-prop — the Lingua pages their capture, the Music pages Music's own macOS store capture
-(`apps/music/store/macos/desktop_1440x900/<lang>/01_library.png`, cropped), every other page the
+prop — the Lingua pages their capture, the Music pages their share preview
+(`src/assets/music/<lang>/share.png`, see below), every other page the
 brand image, the name « Cymbra » drawn as paths (`src/assets/brand-share.svg`, the one SVG the
 build rasterises: `image.dangerouslyProcessSVG` in `astro.config.mjs`). After the build,
 `astro.config.mjs` writes `sitemap.xml` from the built pages (`src/lib/sitemap.ts`): every page
@@ -185,6 +187,24 @@ boundary that falls on a source-line break — on **either** side, so both
 `word\n<a>…` and `</a>\nword` lose their space in the build. Keep a sentence
 containing inline links on one source line, and check the rendered HTML rather than
 the source.
+
+## The Music page's media (change: add-site-music-showcase)
+
+The Music page (fr/en/es) shows a video of the app being played and a gallery of five
+iPad captures, in the page's language, and declares a share preview so a link pasted in
+a chat shows a picture. None of it is made by hand:
+
+- **Captures and video** come from the Music capture harness (`apps/music/store/`, see
+  its README). `yarn sync:music-media` copies them into `src/assets/music/<lang>/`; which
+  files, and their captions and alt texts, are declared once in `src/lib/music-media.ts`.
+  `test/music-media.spec.ts` fails when a copy differs from its source, when a video is
+  over 4 MB or 30 s or has no sound, or when a text is missing in a language. CI's `site`
+  filter watches `apps/music/store/**`, so a refreshed capture that was not synced fails
+  the pull request.
+- **Share previews** (`src/assets/music/<lang>/share.png`) are generated from the staff
+  capture by `yarn gen:music-share` and committed, and passed as `Base.astro`'s `image`
+  prop; `test/post-build/share-preview.spec.ts` checks every Music page's is in the build,
+  on an absolute URL, and `head.spec.ts` that it is its own language's, at 1200×630.
 
 ## Routes shipped clients depend on
 

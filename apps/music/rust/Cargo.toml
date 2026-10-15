@@ -10,7 +10,14 @@ authors.workspace = true
 publish = false
 
 [lib]
-crate-type = ["cdylib", "staticlib"]
+# `rlib` lets the `showcase-render` tool (src/bin) link the crate; the app still
+# ships the cdylib/staticlib only.
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[[bin]]
+# Offline sound for the store showcase video (change: add-site-music-showcase).
+name = "showcase-render"
+path = "src/bin/showcase_render/main.rs"
 
 [dependencies]
 flutter_rust_bridge = "=2.12.0"

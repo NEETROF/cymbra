@@ -3,8 +3,9 @@ import Base from '../layouts/Base.astro';
 import Community from '../components/Community.astro';
 import StoreButtons from '../components/StoreButtons.astro';
 import { musicStores } from '../lib/stores';
-// The page's share image: Music's own macOS store capture in French (change: add-site-lingua-showcase, D12).
-import library from '../../../music/store/macos/desktop_1440x900/fr/01_library.png';
+import MusicShowcase from '../components/MusicShowcase.astro';
+import { SHARE_COPY } from '../lib/music-media';
+import shareImage from '../assets/music/fr/share.png';
 ---
 
 <Base
@@ -12,7 +13,7 @@ import library from '../../../music/store/macos/desktop_1440x900/fr/01_library.p
   description="Branchez votre clavier MIDI et jouez : Cymbra Music suit la partition en temps réel, vous donne un retour immédiat et vous fait progresser leçon par leçon."
   lang="fr"
   alternates={{ fr: '/music', en: '/en/music', es: '/es/music' }}
-  image={{ src: library, alt: 'Cymbra Music sur Mac : la bibliothèque de partitions, un cours commencé et des morceaux classés par niveau.' }}
+  image={{ src: shareImage, alt: SHARE_COPY.fr.alt }}
 >
   <section class="hero container">
     <p class="kicker">Cymbra Music</p>
@@ -23,6 +24,8 @@ import library from '../../../music/store/macos/desktop_1440x900/fr/01_library.p
     </p>
     <StoreButtons links={musicStores('fr')} primary />
   </section>
+
+  <MusicShowcase lang="fr" />
 
   <section id="fonctionnalites" class="features container">
     <div class="card">
