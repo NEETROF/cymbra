@@ -7,7 +7,9 @@ import {
   viewFromHash,
   wantsConnected,
 } from "@/account/flow.ts";
+import { errorCopy } from "@/account/copy.ts";
 import type { AccountMessage, AccountReply } from "@/account/messages.ts";
+import type { AuthErrorKind } from "@/state/auth-errors.ts";
 
 type Replies = Partial<Record<AccountMessage["type"], AccountReply | null>>;
 
@@ -718,5 +720,186 @@ describe("AccountFlow — Comptes connectés (add-lingua-connected-accounts)", (
     const s = await flow.signOut();
     expect(s).toMatchObject({ view: "signin", identities: null, passwordStep: "closed", passwordEmail: "" });
     expect(pendingPasswordWrites).toContain(null);
+  });
+});
+
+// The Cymbra Lingua app's email sign-in (add-lingua-app-email-signin D3): the same flow in its app
+// scope — sign-in, the code step, the reset; no account creation, no provider, no profile.
+type Answer = (message: AccountMessage) => AccountReply | null;
+
+function setupApp(replies: Replies | Answer = {}, pendingSeed: string | null = null, language?: "fr" | "en" | "es") {
+  const sent: AccountMessage[] = [];
+  let pending = pendingSeed;
+  const pendingWrites: (string | null)[] = [];
+  const onSignedIn = vi.fn();
+  const send = vi.fn(async (message: AccountMessage): Promise<AccountReply | null> => {
+    sent.push(message);
+    if (typeof replies === "function") return replies(message);
+    if (message.type in replies) return replies[message.type] ?? null;
+    return { ok: true };
+  });
+  const flow = new AccountFlow({
+    send,
+    pending: {
+      get: async () => pending,
+      set: async (email: string | null) => {
+        pendingWrites.push(email);
+        pending = email;
+      },
+    },
+    pendingPassword: { get: async () => null, set: async () => {} },
+    locale: "fr-FR",
+    language,
+    clearPersistedError: vi.fn(async () => {}),
+    scope: "app",
+    onSignedIn,
+  });
+  return { flow, sent, pendingWrites, onSignedIn };
+}
+
+describe("AccountFlow in the app scope (add-lingua-app-email-signin D3)", () => {
+  it("opens on sign-in without asking for providers or the state, and marks the scope", async () => {
+    const { flow, sent } = setupApp();
+    const s = await flow.init("#signup");
+    expect(s.view).toBe("signin");
+    expect(s.scope).toBe("app");
+    expect(s.providers).toEqual({ google: false, apple: false });
+    expect(sent).toEqual([]);
+  });
+
+  it("reopens on the code step of an address still waiting for its code", async () => {
+    const { flow } = setupApp({}, "me@example.com");
+    const s = await flow.init("");
+    expect(s.view).toBe("verify");
+    expect(s.email).toBe("me@example.com");
+  });
+
+  it("An email account signs in: the callback, no profile, the password not kept", async () => {
+    const { flow, sent, onSignedIn } = setupApp();
+    await flow.init("");
+    const s = await flow.signInEmail(" me@example.com ", PASSWORD);
+    expect(types(sent)).toEqual(["account:signInLocal"]);
+    expect(sent[0]).toEqual({ type: "account:signInLocal", email: "me@example.com", password: PASSWORD });
+    expect(onSignedIn).toHaveBeenCalledOnce();
+    expect(s.view).toBe("signin");
+    expect(JSON.stringify(s)).not.toContain(PASSWORD);
+    // A later verify finds no password held: nothing signs in with it.
+    await flow.verify("123456");
+    expect(types(sent)).not.toContain("account:profile");
+    expect(sent.filter((m) => m.type === "account:signInLocal")).toHaveLength(1);
+  });
+
+  // (error kind, the French copy) — the extension's own wording.
+  const FAILURES: [AuthErrorKind, string][] = [
+    ["unauthenticated", "Email ou mot de passe incorrect."],
+    ["rateLimited", "Trop de tentatives. Réessaie dans quelques minutes."],
+    ["unavailable", errorCopy("signInEmail", "unavailable")],
+  ];
+
+  it("Wrong password, too many attempts, Cymbra unreachable: the extension's copy, the form kept", async () => {
+    for (const [kind, copy] of FAILURES) {
+      const { flow, onSignedIn, pendingWrites } = setupApp({ "account:signInLocal": { ok: false, error: kind } });
+      await flow.init("");
+      const s = await flow.signInEmail("me@example.com", PASSWORD);
+      expect(s.view, kind).toBe("signin");
+      expect(s.error, kind).toBe(copy);
+      expect(s.error, kind).not.toMatch(/Error|code \d|grpc|connect/i);
+      expect(onSignedIn).not.toHaveBeenCalled();
+      expect(pendingWrites).toEqual([]);
+    }
+  });
+
+  it("an unreachable dispatch (no reply) reads as Cymbra unreachable", async () => {
+    const { flow } = setupApp({ "account:signInLocal": null });
+    await flow.init("");
+    expect((await flow.signInEmail("me@example.com", PASSWORD)).error).toBe(errorCopy("signInEmail", "unavailable"));
+  });
+
+  it("the failures are worded in the interface language", async () => {
+    const { flow } = setupApp({ "account:signInLocal": { ok: false, error: "unauthenticated" } }, null, "es");
+    await flow.init("");
+    expect((await flow.signInEmail("me@example.com", PASSWORD)).error).toBe(
+      errorCopy("signInEmail", "unauthenticated", "es"),
+    );
+  });
+
+  it("An address not yet verified: the code step, a new code, and a valid code signs in without the password again", async () => {
+    let signIns = 0;
+    // First sign-in: unverified; the one after the code: signed in.
+    const { flow, sent, onSignedIn, pendingWrites } = setupApp((m) => {
+      if (m.type === "account:signInLocal")
+        return signIns++ === 0 ? { ok: false, error: "failedPrecondition" } : { ok: true };
+      if (m.type === "account:verifyEmail" && m.code === "000000") return { ok: false, error: "invalidArgument" };
+      return { ok: true };
+    });
+    await flow.init("");
+    let s = await flow.signInEmail("me@example.com", PASSWORD);
+    expect(s.view).toBe("verify");
+    expect(s.notice).toBe("Ton adresse email n'est pas encore vérifiée. Saisis le code reçu par email.");
+    expect(pendingWrites).toEqual(["me@example.com"]);
+
+    s = await flow.resend();
+    expect(sent.at(-1)).toEqual({ type: "account:resendVerification", email: "me@example.com", locale: "fr-FR" });
+    expect(s.notice).toBe("Un nouveau code a été envoyé.");
+
+    s = await flow.verify("000000");
+    expect(s.view).toBe("verify");
+    expect(s.error).toBe(errorCopy("verify", "invalidArgument"));
+    expect(onSignedIn).not.toHaveBeenCalled();
+
+    await flow.verify("123456");
+    expect(types(sent).slice(-2)).toEqual(["account:verifyEmail", "account:signInLocal"]);
+    expect(sent.at(-1)).toEqual({ type: "account:signInLocal", email: "me@example.com", password: PASSWORD });
+    expect(onSignedIn).toHaveBeenCalledOnce();
+    expect(types(sent)).not.toContain("account:profile");
+    expect(pendingWrites).toEqual(["me@example.com", null, null]);
+    expect(JSON.stringify(pendingWrites)).not.toContain(PASSWORD);
+  });
+
+  it("drops the password once the code step ends, even when the sign-in after it fails", async () => {
+    let signIns = 0;
+    const { flow, sent, onSignedIn } = setupApp((m) => {
+      if (m.type === "account:signInLocal")
+        return signIns++ === 0 ? { ok: false, error: "failedPrecondition" } : { ok: false, error: "unavailable" };
+      return { ok: true };
+    });
+    await flow.init("");
+    await flow.signInEmail("me@example.com", PASSWORD);
+    let s = await flow.verify("123456");
+    expect(s.view).toBe("signin");
+    expect(onSignedIn).not.toHaveBeenCalled();
+    // Back on the code step by hand: no password held, so no sign-in is attempted with it.
+    expect(flow.go("verify").view).toBe("verify");
+    s = await flow.verify("123456");
+    expect(sent.filter((m) => m.type === "account:signInLocal")).toHaveLength(2);
+    expect(s.notice).toBe("Adresse vérifiée. Connecte-toi.");
+  });
+
+  it("A forgotten password: the code announced either way, the password changed, back at sign-in told so", async () => {
+    const { flow, sent, onSignedIn } = setupApp();
+    await flow.init("");
+    let s = flow.go("forgot");
+    expect(s.view).toBe("forgot");
+    s = await flow.requestReset(" me@example.com ");
+    expect(sent.at(-1)).toEqual({ type: "account:requestPasswordReset", email: "me@example.com", locale: "fr-FR" });
+    expect(s.view).toBe("reset");
+    expect(s.notice).toBe("Si un compte existe pour me@example.com, un code vient d'y être envoyé.");
+    s = await flow.resetPassword("654321", "new-password");
+    expect(sent.at(-1)).toEqual({ type: "account:resetPassword", code: "654321", newPassword: "new-password" });
+    expect(s.view).toBe("signin");
+    expect(s.notice).toBe("Mot de passe modifié. Connecte-toi avec le nouveau.");
+    expect(onSignedIn).not.toHaveBeenCalled();
+    // Then signing in with the new password ends with the callback.
+    await flow.signInEmail("me@example.com", "new-password");
+    expect(onSignedIn).toHaveBeenCalledOnce();
+  });
+
+  it("No account creation: sign-up, providers and the handle step are out of reach", async () => {
+    const { flow, sent } = setupApp();
+    await flow.init("");
+    expect(flow.go("signup").view).toBe("signin");
+    expect((await flow.signUp("new@example.com", PASSWORD)).view).toBe("signin");
+    expect((await flow.signInWith("apple")).view).toBe("signin");
+    expect(sent).toEqual([]);
   });
 });

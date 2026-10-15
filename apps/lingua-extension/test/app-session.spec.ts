@@ -61,6 +61,28 @@ describe("the app opens on the extension's state (add-lingua-apple-review)", () 
     expect(await openAppSession({ send: bridge(null).send, port: () => port, now: () => 0 })).toBeNull();
   });
 
+  it("tells the app each « Séance terminée », for StoreKit's own request (add-lingua-comeback-hints D11)", async () => {
+    const { send } = bridge(shared());
+    const session = await openAppSession({ send, port: () => fakePort().port, now: () => 5_500 });
+    send.mockClear();
+    session!.sessionFinished();
+    session!.sessionFinished();
+    expect(send.mock.calls).toEqual([[{ type: "review.sessionFinished" }], [{ type: "review.sessionFinished" }]]);
+    // An app that cannot answer it loses nothing of the review.
+    send.mockRejectedValueOnce(new Error("no handler"));
+    expect(() => session!.sessionFinished()).not.toThrow();
+  });
+
+  it("tells the app each session's start, which drops a StoreKit request still waiting (D11)", async () => {
+    const { send } = bridge(shared());
+    const session = await openAppSession({ send, port: () => fakePort().port, now: () => 5_500 });
+    send.mockClear();
+    session!.sessionStarted();
+    expect(send.mock.calls).toEqual([[{ type: "review.sessionStarted" }]]);
+    send.mockRejectedValueOnce(new Error("no handler"));
+    expect(() => session!.sessionStarted()).not.toThrow();
+  });
+
   it("restores the shared backup, in an engine built for it", async () => {
     const { port, calls } = fakePort();
     const built: string[] = [];
@@ -163,6 +185,10 @@ describe("the app opens on the extension's state (add-lingua-apple-review)", () 
     expect((await open({ "cymbra-lingua-interface-language": "es" }, "en"))?.interfaceLanguage).toBe("es");
     expect((await open({}, "en"))?.interfaceLanguage).toBe("en");
     expect((await open({}, "xx"))?.interfaceLanguage).toBe("fr");
+    // The language the extension names, apart (add-lingua-app-email-signin D3): the email requests' locale.
+    expect((await open({ "cymbra-lingua-interface-language": "es" }, "en"))?.sharedLanguage).toBe("es");
+    expect((await open({ "cymbra-lingua-interface-language": "xx" }, "en"))?.sharedLanguage).toBeNull();
+    expect((await open({}, "en"))?.sharedLanguage).toBeNull();
     const session = await open({}, "en");
     expect(await session?.prefs.get("cymbra-lingua-interface-language")).toEqual({
       "cymbra-lingua-interface-language": "en",
@@ -234,5 +260,92 @@ describe("the app's home", () => {
 
   it("speaks each interface language", () => {
     expect(appCopy("es").review).toBe("Repaso");
+  });
+});
+
+describe("the opening serves the app's synchronisation (add-lingua-app-deck-sync)", () => {
+  const status = (updated_at: number, lemma = "dog") => ({
+    language: "en",
+    lemma,
+    status: "known",
+    provenance: "srs",
+    updated_at,
+  });
+
+  it("names the extension's account and erasure mark as the state carries them", async () => {
+    const { port } = fakePort();
+    const withAccount = encodeSharedState({
+      backup: "SHARED",
+      savedAt: 1,
+      prefs: {},
+      storeItems: {},
+      account: "digest",
+      erasedAt: 42,
+    });
+    const session = await openAppSession({ send: bridge(withAccount).send, port: () => port, now: () => 0 });
+    expect(session?.sharedAccount).toBe("digest");
+    expect(session?.sharedErasedAt).toBe(42);
+    const older = await openAppSession({ send: bridge(shared()).send, port: () => fakePort().port, now: () => 0 });
+    expect(older?.sharedAccount).toBeUndefined();
+    expect(older?.sharedErasedAt).toBe(0);
+  });
+
+  it("pushes what it hands over: the changes since the opening began, and says each save", async () => {
+    const { port } = fakePort();
+    port.exportCardOps = async () => [card(1000, "before"), card(6000, "graded")];
+    port.exportStatusOps = async () => [status(1000, "before"), status(7000, "known")];
+    const onSaved = vi.fn();
+    const b = bridge(shared());
+    const session = await openAppSession({ send: b.send, port: () => port, now: () => 5_500, onSaved });
+    expect(session?.since).toBe(5000);
+    const ops = await session!.pendingOps();
+    expect(ops.cards.map((c) => c.lemma)).toEqual(["graded"]);
+    expect(ops.statuses.map((s) => s.lemma)).toEqual(["known"]);
+    await session!.store.set({ "cymbra-lingua-status-cursor": 1 });
+    expect(onSaved).not.toHaveBeenCalled();
+    await session!.store.set({ lingua: { v: 2, backup: "X" } });
+    expect(onSaved).toHaveBeenCalledOnce();
+    // The daily payload as before: the app's counts still travel to the extension.
+    expect(parseAppOps(b.written[0])).toHaveProperty("daily");
+  });
+
+  it("after an erasure, keeps only the changes made after its mark, and the earlier openings' counts are gone", async () => {
+    const day = 20000;
+    const earlier = { first: { [day]: { en: { reviews: 2, wordsLearned: 0, native: "fr" as const } } } };
+    const pending = encodeAppOps({
+      since: 1000,
+      cardOps: [card(1000, "before"), card(9000, "after")],
+      statusOps: [status(1000, "old")],
+      daily: earlier,
+    });
+    const { port, calls } = fakePort();
+    let exported: CardOp[] = [];
+    port.applyCardOps = async (ops) => {
+      calls.appliedCards.push(ops);
+      exported = ops;
+      return ops.length;
+    };
+    port.exportCardOps = async () => exported;
+    const b = bridge(shared(), pending);
+    const session = await openAppSession({ send: b.send, port: () => port, now: () => 10_000, openingId: "now" });
+    calls.appliedCards.length = 0;
+    exported = [];
+    await session!.discardPending(5000);
+    expect(calls.appliedCards.map((ops) => ops.map((c) => c.lemma))).toEqual([["after"]]);
+    const written = parseAppOps(b.written.at(-1));
+    expect(written?.cardOps.map((c) => c.lemma)).toEqual(["after"]);
+    expect(written?.statusOps).toEqual([]);
+    expect(written?.daily).toEqual({ now: {} });
+  });
+
+  it("after an erasure with nothing newer, writes an empty payload", async () => {
+    const { port } = fakePort();
+    port.exportCardOps = async () => [];
+    const b = bridge(shared(), encodeAppOps({ since: 1000, cardOps: [card(1000, "before")], statusOps: [] }));
+    const session = await openAppSession({ send: b.send, port: () => port, now: () => 10_000 });
+    await session!.discardPending(5000);
+    const written = parseAppOps(b.written.at(-1));
+    expect(written?.cardOps).toEqual([]);
+    expect(written?.statusOps).toEqual([]);
   });
 });

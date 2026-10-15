@@ -22,10 +22,12 @@ use crate::admin_core::iso_day;
 use crate::grpc_util::identity;
 use crate::proto::lingua_admin_service_server::LinguaAdminService;
 use crate::proto::{
-    AdminGetLinguaUsageRequest, AdminGetLinguaUsageResponse, AdminGetLinguaUsageSeriesRequest,
+    AdminGetLeaveReasonsRequest, AdminGetLeaveReasonsResponse, AdminGetLinguaUsageRequest,
+    AdminGetLinguaUsageResponse, AdminGetLinguaUsageSeriesRequest,
     AdminGetLinguaUsageSeriesResponse, AdminGetOnlineTranslationUsageRequest,
-    AdminGetOnlineTranslationUsageResponse, LinguaLanguageUsage, LinguaSeriesPoint,
-    OnlineTranslationUsageRow,
+    AdminGetOnlineTranslationUsageResponse, AdminGetUsageFunnelRequest,
+    AdminGetUsageFunnelResponse, LeaveReasonTotal, LinguaLanguageUsage, LinguaSeriesPoint,
+    OnlineTranslationUsageRow, UsageFunnelDay,
 };
 
 pub struct LinguaAdminGrpc {
@@ -140,6 +142,55 @@ impl LinguaAdminService for LinguaAdminGrpc {
             cost_micro_usd: totals.cost_micro_usd,
         }))
     }
+
+    async fn admin_get_usage_funnel(
+        &self,
+        req: Request<AdminGetUsageFunnelRequest>,
+    ) -> Result<Response<AdminGetUsageFunnelResponse>, Status> {
+        require_admin_in_scope(&identity(&req)?, LINGUA_SCOPE)?;
+        let r = req.into_inner();
+        let (from, to) = window(r.window)?;
+        let days = self.module.get_usage_funnel(&from, &to, &r.browser).await?;
+        Ok(Response::new(AdminGetUsageFunnelResponse {
+            days: days
+                .into_iter()
+                .map(|w| UsageFunnelDay {
+                    day: iso_day(w.day),
+                    installed: w.installed,
+                    set_up: w.set_up,
+                    first_analysis: w.first_analysis,
+                    returned_day_1: w.returned_day_1,
+                    returned_days_7_to_13: w.returned_days_7_13,
+                    returned_days_30_to_59: w.returned_days_30_59,
+                    capped: w.capped,
+                })
+                .collect(),
+        }))
+    }
+
+    async fn admin_get_leave_reasons(
+        &self,
+        req: Request<AdminGetLeaveReasonsRequest>,
+    ) -> Result<Response<AdminGetLeaveReasonsResponse>, Status> {
+        require_admin_in_scope(&identity(&req)?, LINGUA_SCOPE)?;
+        let r = req.into_inner();
+        let (from, to) = window(r.window)?;
+        let totals = self
+            .module
+            .get_leave_reasons(&from, &to, &r.browser)
+            .await?;
+        Ok(Response::new(AdminGetLeaveReasonsResponse {
+            reasons: totals
+                .reasons
+                .into_iter()
+                .map(|(reason, count)| LeaveReasonTotal {
+                    reason: reason.to_string(),
+                    count,
+                })
+                .collect(),
+            capped: totals.capped,
+        }))
+    }
 }
 
 #[cfg(test)]
@@ -176,10 +227,137 @@ mod tests {
         ) -> Result<Vec<crate::admin_core::OnlineUsageRow>> {
             Ok(vec![])
         }
+        async fn usage_funnel(
+            &self,
+            from_day: i32,
+            _to_day: i32,
+            browser: Option<&str>,
+            _ceiling: i64,
+        ) -> Result<Vec<crate::admin_core::FunnelRow>> {
+            // One Firefox day and one Chromium day, so the filter is visible.
+            let rows = [("firefox", from_day, 3), ("chromium", from_day + 1, 5)];
+            Ok(rows
+                .into_iter()
+                .filter(|(b, _, _)| browser.is_none_or(|f| f == *b))
+                .map(|(_, day, count)| crate::admin_core::FunnelRow {
+                    day,
+                    step: "installed".into(),
+                    count,
+                    capped: false,
+                })
+                .collect())
+        }
+        async fn leave_reasons(
+            &self,
+            _from_week: i32,
+            _to_day: i32,
+            _browser: Option<&str>,
+            _ceiling: i64,
+        ) -> Result<Vec<crate::admin_core::ReasonRow>> {
+            Ok(vec![crate::admin_core::ReasonRow {
+                reason: "unclear".into(),
+                count: 2,
+                capped: false,
+            }])
+        }
     }
 
     fn grpc() -> LinguaAdminGrpc {
         LinguaAdminGrpc::new(Arc::new(LinguaAdminModule::new(Arc::new(QuietRepo))))
+    }
+
+    fn with_identity<T>(mut req: Request<T>, scopes: &[(&str, &[&str])]) -> Request<T> {
+        let ident = scoped(scopes).extensions().get::<AuthIdentity>().cloned();
+        if let Some(i) = ident {
+            req.extensions_mut().insert(i);
+        }
+        req
+    }
+
+    fn funnel_request(browser: &str) -> Request<AdminGetUsageFunnelRequest> {
+        Request::new(AdminGetUsageFunnelRequest {
+            window: Some(crate::proto::LinguaWindow {
+                from_day: "2026-10-21".into(),
+                to_day: "2026-11-01".into(),
+            }),
+            browser: browser.into(),
+        })
+    }
+
+    fn reasons_request() -> Request<AdminGetLeaveReasonsRequest> {
+        Request::new(AdminGetLeaveReasonsRequest {
+            window: Some(crate::proto::LinguaWindow {
+                from_day: "2026-10-21".into(),
+                to_day: "2026-11-01".into(),
+            }),
+            browser: String::new(),
+        })
+    }
+
+    #[tokio::test]
+    async fn the_funnel_answers_days_from_the_window_and_the_filter() {
+        let admin: &[(&str, &[&str])] = &[("lingua", &["admin"])];
+        let all = grpc()
+            .admin_get_usage_funnel(with_identity(funnel_request(""), admin))
+            .await
+            .unwrap()
+            .into_inner();
+        // The window's first day and the day after it: installation days, not weeks.
+        assert_eq!(
+            all.days.iter().map(|d| d.day.as_str()).collect::<Vec<_>>(),
+            ["2026-10-21", "2026-10-22"]
+        );
+        let firefox = grpc()
+            .admin_get_usage_funnel(with_identity(funnel_request("firefox"), admin))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(firefox.days.len(), 1);
+        assert_eq!(firefox.days[0].installed, 3);
+        let bad = grpc()
+            .admin_get_usage_funnel(with_identity(funnel_request("opera"), admin))
+            .await
+            .unwrap_err();
+        assert_eq!(bad.code(), Code::InvalidArgument);
+    }
+
+    #[tokio::test]
+    async fn the_leave_reasons_list_the_six_answers() {
+        let r = grpc()
+            .admin_get_leave_reasons(with_identity(reasons_request(), &[("lingua", &["admin"])]))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(r.reasons.len(), 6);
+        assert_eq!(
+            (r.reasons[4].reason.as_str(), r.reasons[4].count),
+            ("unclear", 2)
+        );
+    }
+
+    #[tokio::test]
+    async fn the_usage_counts_are_refused_to_non_lingua_admins() {
+        for scopes in [
+            &[("music", &["admin"][..])][..],
+            &[("lingua", &["moderator"][..])][..],
+            &[][..],
+        ] {
+            let err = grpc()
+                .admin_get_usage_funnel(with_identity(funnel_request(""), scopes))
+                .await
+                .unwrap_err();
+            assert_eq!(err.code(), Code::PermissionDenied);
+            let err = grpc()
+                .admin_get_leave_reasons(with_identity(reasons_request(), scopes))
+                .await
+                .unwrap_err();
+            assert_eq!(err.code(), Code::PermissionDenied);
+        }
+        let err = grpc()
+            .admin_get_usage_funnel(funnel_request(""))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), Code::Unauthenticated);
     }
 
     /// A request carrying an identity with the given `scope -> roles`.

@@ -27,8 +27,9 @@ yarn build        # bundle every browser variant → dist-chromium/, dist-firefo
 ## Account sync (Cymbra ID)
 
 Signing in (icon popup → **Continuer avec Google / Apple** or email/password) turns on
-cross-device sync of the deck, word statuses and stats; signed out, the extension stays
-purely local. Account creation, email verification (emailed code) and password reset live
+cross-device sync of the deck, word statuses and stats; signed out, the deck, the word
+statuses and the stats stay on the device (the anonymous usage counts carry none of them —
+see **Permissions** below). Account creation, email verification (emailed code) and password reset live
 on the **account page** (`account.html`, a tab opened from the popup or onboarding — the
 popup is destroyed when the reader leaves for their mailbox). The transport is gRPC-web
 bearer (Connect-ES), tokens split by volatility — access in `chrome.storage.session`,
@@ -193,8 +194,13 @@ yarn lint && yarn format:check && yarn typecheck && yarn test
 - **Permissions** — on Chromium, `activeTab` by default (the popup's _Analyser cette
   page_) with `<all_urls>` optional (_Toujours surligner_, granted once); on Firefox and
   Safari the reader is a static content script on every page (see the injection note
-  above). No network request unless the reader signs in or turns on « Traduction étendue »
-  (its model, once); the pack, the glosses and the translation engine are local assets.
+  above). A reader who neither signs in nor turns on « Traduction étendue » (its model, once)
+  makes one kind of request only, the anonymous usage counts (`src/usage/`): six steps per
+  installation, each sent once, when it happens, with the day of installation, the browser
+  family and the version — no identifier, no account token, nothing read. Chromium sends them only after
+  « Oui, compter », Firefox only under its built-in data consent (never below 140, or 142 on
+  Android), Safari by default; « Comptages anonymes » in Réglages → Données turns them off.
+  The pack, the glosses and the translation engine are local assets.
 - **Identity** — one token sheet (`src/styles/tokens.css`) mirrors the Cymbra
   "Sonic Luminescence" palette; no colour literal lives anywhere else (lint-enforced).
 
@@ -249,6 +255,16 @@ another session would hold cards. Keys: Space reveals, ← and → answer. The c
 before and after the reveal (« ▶ Mot » or « ▶ Expression », « ▶ Phrase », then the dictionary
 form), with the word card's voices, in the card's language.
 
+A selection is read without the punctuation at its two ends before it opens a card
+(`fix-lingua-selection-card-punctuation`): `four-poster bed,` is captured as `four-poster bed`,
+`« Bonjour »` as `Bonjour` — its headword, the form stored, what the pack and the translation are
+asked, its place in its sentence — while an elision, a compound or an inner apostrophe (`l’homme`,
+`dit-il`, `rock 'n' roll`) stays as written, and punctuation alone opens no card. A card captured
+with that punctuation before is answered at review without being rewritten: a card without a
+gloss is looked up in the pack of its language, at its lemma without edge punctuation, and the
+front marks, heads, compares and reads aloud that trimmed form; the stored lemma, form and
+history, the backup and the card operations keep their bytes.
+
 A card the pack cannot answer — an expression, or a word without a gloss —
 (`add-lingua-review-translation`) is translated on the device where « Traduction étendue » has
 the models of its language: its sentence, the word's place marked, asked the moment the card
@@ -256,9 +272,33 @@ comes up (the route warmed when the session starts) and shown once revealed, und
 phrase — traduction automatique ». An expression its sentence does not hold is translated alone,
 under « Traduction automatique »; a single word never is. A translation still on its way at the
 reveal says « Traduction en cours… »; none within 15 s leaves « Pas de traduction… ». A card with
-a gloss is never translated. The translation is never stored — not on the card, not in a backup,
-not synced. The drawer uses the reading session's translator, the side panel its own messaging
-port.
+a gloss is not translated on its own. The drawer uses the reading session's translator, the side
+panel its own messaging port.
+
+The gloss a revealed card shows is, for every card (`add-lingua-review-translation-fallback`), the
+one the reader chose, else the current pack's for its lemma, else the text stored at capture —
+display only, so a pack fixed since the capture reaches cards already in the deck. Under a gloss,
+« Traduire la phrase » asks for the card's translation on demand; it is shown only when a model is
+ready for the card's language or online translation is offered. « Traduction en ligne » is offered on
+a revealed card — without a gloss, or after « Traduire la phrase » — when the setting is ticked on
+this device and the account has access, the selection card's rule; unlike the selection card a single
+word is allowed, always sent in its sentence with its place marked (an expression its sentence does
+not hold is sent alone). One press per card per review; a late answer is dropped; « indisponible » and
+the daily limit read as on the selection card. The drawer, the EPUB reader (through its drawer) and
+the side panel hand Révision the runtime-message client the selection card uses: the background owns
+the session.
+A card without a gloss that nothing can translate — no model ready, no online button — says how in
+its note's line: « Activez la traduction étendue dans les réglages pour traduire cette carte. » in the
+extension; in the app, the same in « l'extension Cymbra Lingua de Safari » when the setting is off
+there, else « Téléchargez la traduction pour l'app », a link re-offering the app's download.
+
+Under any machine translation the reader can keep the word's part as the card's gloss: one mark that
+fits in 80 UTF-16 code units is named and kept in one tap (« Garder « se relâcher » », « Modifier »
+beside it); no mark, several marks or a longer one go through « Garder une traduction… », a one-line
+field prefilled with the candidate. A kept gloss is written by `keepGloss`, in the native language,
+marked `gloss_by_reader`: it wins over the pack, survives a re-capture of the word and syncs with the
+card. A translation not kept is discarded with the card — never in a backup, never synced; the
+translated sentence is never kept.
 
 Lossless **backup** (download) / **restore** (re-import) and the pack's sources live in
 Réglages › Données, in every host; the toolbar popup offers the download and points to the
@@ -318,6 +358,79 @@ Réglages view (drawer and side panel); a second opening brings the open reader 
 - **Position** — kept per book on the device after every move; the address
   (`reader.html#book=<hash>`) reopens the book there. Not synchronised.
 
+## Captures
+
+`yarn capture` (`tool/capture/`, change `add-site-lingua-showcase`) makes the site's images, share
+images and demo videos, and the Chrome Web Store / addons.mozilla.org screenshots, from the real
+extension, in each interface language (fr, en, es). It runs on a developer's machine, never in CI.
+
+Prerequisites: `yarn gen:wasm`, `yarn gen:pack:real` (the captures read with the real packs),
+`yarn fetch:engine`, ffmpeg (`brew install ffmpeg`; the tool checks for it first), and Playwright's
+Chromium — Chrome for Testing, not branded Chrome, which ignores `--load-extension`:
+`npx playwright-core install chromium` (`playwright-core` is a dev dependency, at the back office's
+Playwright version, so both use one cached browser). `LINGUA_EXT_KEY` must be unset (or a key): a
+store build's empty value leaves the manifest without the key that pins the extension's id, and the
+tool stops, saying so.
+
+```bash
+yarn capture                  # every interface language, stills and videos (a few minutes)
+yarn capture --only=fr,en     # some of them
+yarn capture --no-video       # the stills alone
+yarn capture --headed         # watch it in a window
+yarn capture --record-seed    # re-record tool/capture/fixtures/state/<language>.json first
+yarn capture --keep-work      # keep the raw 3× screenshots (the log says where)
+```
+
+What it does:
+
+- **Builds `dist-capture/`** (git-ignored): the Chromium variant with the reader declared on every
+  page (`LINGUA_ALL_URLS=1`, the development switch above) through `build.mjs`'s output-folder option
+  (`LINGUA_DIST_DIR`, which takes a folder named `dist-…` and never the app's folder or one holding
+  it: the build empties it first) — never `dist-chromium/`, which a dogfood browser may have loaded.
+  It builds a plain Chromium variant with the same settings into a temporary folder and refuses to go
+  on unless every file but `manifest.json` is identical and the manifests differ by that content
+  script alone (`tool/capture/build.mjs`).
+- **Loads it unpacked** in Playwright's Chromium (`channel: 'chromium'`, headless by default) on a fresh
+  temporary profile, with Chrome's field trials left on (`--disable-field-trial-config` removed: it
+  once hid a blank EPUB reader), and prints `chrome://version`'s command line. The tool and the
+  browser read their clock in `Europe/Paris` (`TIME_ZONE`), whoever runs it; the text is drawn with
+  the fonts of the Mac it runs on, so another machine's captures can differ by a few pixels.
+- **Serves the fixtures** (`tool/capture/fixtures/`, see its README) from a local server, under the
+  reserved name `reading.example` mapped to `127.0.0.1` (a card keeps the host it was met on): one
+  article per studied language written for the purpose, and a public-domain chapter per studied
+  language assembled into an EPUB.
+- **Restores the reader's state** through Réglages › Données › Restaurer — a backup the product
+  itself recorded (`--record-seed`: the install's welcome page, level B1 in each language, words
+  marked known and added to the deck on the fixture pages, a short review, the book's names marked
+  « Ignorer » in the EPUB reader, then Réglages › Données › Sauvegarder), its dates first moved by
+  the whole days between the recording and the run (`tool/capture/seed.mjs`) so that every run finds
+  the same cards due — and writes the thirty days ending on the run's under `cymbra-lingua-daily-v4`
+  through the store's own message (`tool/capture/days.mjs`): the statistics' default range, full.
+- **Drives the pages as a reader would**: a word is found from the page's text, a control of the
+  card, the pill or the in-page panel inside its closed shadow root through DevTools' `DOM.getDocument`
+  (`pierce: true`), and both are clicked with the mouse (`tool/capture/drive.mjs`); the review is the
+  in-page panel, opened with the `openDrawer` message the Firefox background sends.
+- **Refuses a capture that would mislead**, naming the shot and the word: a card without a
+  translation (the hero's, the second page's), a second card or a revealed review card whose gloss
+  reads as a dictionary's list rather than a translation (`glossProblems`: longer than 60
+  characters, a parenthesis, a first name's sense), a name of the book still highlighted, a
+  statistics page without its language picker, a demo whose pill does not rise after « Je
+  connais », or whose last frame shows the closing note on agent sessions.
+
+Where the outputs land (`tool/capture/plan.mjs` holds the plan):
+
+| Output                                                                                                                                                                                           | Where                                           | Committed             |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------- | --------------------- |
+| The site's captures — `card` (hero), `reader`, `reader-eink`, WebP at 2×; `card-closeup` (phones), `second` and `review` (portrait crops) and `stats` (cut below its ladder), at full resolution | `apps/site/src/assets/lingua/<lang>/`           | yes                   |
+| The share image, 1200×630 JPEG, and the video's poster                                                                                                                                           | same folder                                     | yes                   |
+| The demo video, ~30 s, H.264, no audio track                                                                                                                                                     | `apps/site/public/media/lingua/<lang>/demo.mp4` | yes                   |
+| The store screenshots, 1280×800 RGB PNG (no alpha, checked), whole windows: `1-card`, `2-second`, `3-review`, `4-stats`, `5-reader`; the 440×280 promo tile                                      | `store-captures/<lang>/`                        | no — uploaded by hand |
+
+The French set reads English (then Spanish), the English set Spanish (then French), the Spanish set
+English (then French). Safari and App Store captures stay manual: they are the Safari app's, not
+Chromium's rendering (`apps/lingua-apple/STORE-LISTING.md`). The site's weight budget for these files
+is `apps/site/test/post-build/media-budget.spec.ts`.
+
 ## Browser variants
 
 The build produces one artefact per browser from a single source. What differs is chosen
@@ -350,6 +463,30 @@ bundle folds away the other variants' branches:
   (`state/app-relay.ts`). The day's reviews and words learned counted in the app ride with them, the
   whole of each opening's under its id: the background adds only what it has not added yet for that
   opening, so the statistics count them once. Nothing leaves the device for this.
+  « Traduction en ligne » in the app runs under a session of the app's own (`app/account.ts`),
+  opened from the app's native sheet: Apple or Google hand an id_token back; « Continuer avec un
+  email » (add-lingua-app-email-signin) shows this extension's own email sign-in in the page
+  (`app/email-panel.ts`: `AccountFlow` and `renderAccount` with `scope: "app"`, answered by
+  `handleAccountMessage` over the app's `Session`) — sign-in, the code step, « Mot de passe oublié ? »;
+  no account creation, no provider buttons, no handle step. The password goes from the page to Cymbra
+  ID only, never to the bridge or any storage; the app keeps only the refresh token, in its Keychain.
+
+  Signed in inside the app as well (`add-lingua-app-deck-sync`), the app synchronises the reviews made
+  in it itself (`app/deck-sync.ts`), with this package's `SyncEngine` and the app's options: it pushes
+  only what its openings changed — the same ops it relays (`ops`) —, never the day's statistics
+  (`pushStats: false`, the extension keeps counting the relayed counts once and sends them under its
+  device id) and never a declared level (`pushLevels: false`); a full exchange restores and applies on
+  the review's engine only between sessions (`idle`). It pulls at opening (waited at most 3 s, then
+  applied once no session runs) and on return to the foreground (one exchange per 10 s), pushes 5 s
+  after a run of answers, at a session's end and when the app goes to the background
+  (`window.linguaBackground`). The app is a device of its own: its device id and cursors live in the
+  page's `localStorage`, keyed by the account. It synchronises only when Safari's extension is signed
+  in to the same account: the relayed state names the extension's account by a digest of its id
+  (`account`, SHA-256 of `cymbra-lingua-relay:` + the user id, never a token; null signed out) and
+  the erasure mark its store acted on (`erasedAt`); a newer mark on the server makes the app drop the
+  snapshot and its pending changes from before it (`hostErasedAt`, `onErased`). A change the app
+  cannot push stays in the App Group and leaves at a later opening; the relay to the extension is
+  unchanged.
 
 ## Release
 

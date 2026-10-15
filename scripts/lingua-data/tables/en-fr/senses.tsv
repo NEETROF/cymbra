@@ -3340,7 +3340,7 @@ campion	NOUN:1
 campsite	NOUN:1
 campus	NOUN:1
 campy	ADJ:1
-can	NOUN:4	VERB:4
+can	VERB:4	NOUN:4
 canada	PROPN:1
 canadian	NOUN:1	ADJ:1
 canal	NOUN:2
@@ -5120,7 +5120,7 @@ cottrell	PROPN:1
 couch	NOUN:1	VERB:2
 cougar	NOUN:2
 cough	VERB:1	NOUN:1
-could	VERB:1
+could	VERB:2
 coulter	PROPN:2	NOUN:1
 council	NOUN:3
 councillor	NOUN:1
@@ -13841,7 +13841,7 @@ maximize	VERB:1
 maximum	NOUN:1
 maxine	PROPN:1
 maxwell	NOUN:1	PROPN:1
-may	PROPN:3	VERB:3
+may	VERB:3	PROPN:3
 maya	NOUN:3
 mayan	ADJ:1
 maybe	ADV:1	INTJ:1
@@ -14177,7 +14177,7 @@ midwife	NOUN:1
 midwifery	NOUN:1
 midwinter	NOUN:2
 mien	NOUN:1
-might	NOUN:1	VERB:1
+might	VERB:2	NOUN:1
 mightily	ADV:1
 mighty	ADJ:1
 migraine	NOUN:1
@@ -14791,7 +14791,7 @@ musketeers	NOUN:1
 muslim	NOUN:1
 muslin	NOUN:1
 mussel	NOUN:1
-must	VERB:1	NOUN:3
+must	VERB:2	NOUN:3
 mustache	NOUN:1
 mustard	NOUN:1	ADJ:1
 muster	NOUN:3	VERB:5
@@ -19836,10 +19836,10 @@ shakespeare	PROPN:4
 shakespearean	ADJ:1
 shaky	ADJ:4
 shale	NOUN:1
-shall	VERB:2
+shall	VERB:3
 shallots	NOUN:1
 shallow	ADJ:2	NOUN:1	VERB:1
-shalt	VERB:2
+shalt	VERB:1
 sham	NOUN:3
 shaman	NOUN:1
 shamble	VERB:1
@@ -20005,7 +20005,7 @@ shortsighted	ADJ:2
 shortstop	NOUN:1
 shorty	NOUN:2
 shotgun	NOUN:2
-should	VERB:4
+should	VERB:3
 shoulder	NOUN:3	VERB:5
 shout	NOUN:1	VERB:1
 shove	VERB:2	NOUN:2
@@ -24351,7 +24351,7 @@ wilfully	ADV:1
 wilkerson	PROPN:1
 wilkes	PROPN:1
 wilkinson	PROPN:2
-will	NOUN:2	VERB:3	PROPN:1
+will	VERB:3	NOUN:2	PROPN:1
 willey	PROPN:2
 willful	ADJ:1
 william	PROPN:1
@@ -24547,7 +24547,7 @@ worthington	PROPN:2
 worthless	ADJ:2
 worthwhile	ADJ:1
 worthy	ADJ:1	NOUN:1
-would	VERB:1	INTJ:1
+would	VERB:4
 wow	INTJ:1	NOUN:1	VERB:1
 wp	INTJ:1
 wrack	NOUN:1	VERB:2

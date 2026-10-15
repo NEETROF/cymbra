@@ -3,6 +3,7 @@ import { DEFAULT_LANGUAGE } from "../analyzer/pairs.ts";
 import type { CefrLevel, StudiedLanguage } from "../analyzer/types.ts";
 import type { popup as frPopup } from "../i18n/fr/popup.ts";
 import { formatCount, formatPercent, type InterfaceLanguage, NODE_SLOT, renderAround } from "../i18n/index.ts";
+import type { DeckFigure } from "./deck.ts";
 
 // The popup's main panel, rendered from a tab's stats — apart from popup.ts, the entry that reads
 // the tab and wires the page, so a test mounts popup.html and renders it in every interface
@@ -76,8 +77,7 @@ export function renderStats(
   }
 
   $("tracked").textContent = formatCount(language, stats.trackedCount);
-  $("deck").textContent = formatCount(language, stats.deckCount);
-  $("review").textContent = copy.review(formatCount(language, stats.dueCount));
+  renderDeck(doc, language, copy, stats);
 
   // With CEFR data, the reader declares a level in Réglages; the main panel gets a compact
   // reminder, or a call-to-action until a level has been chosen (asked at first use).
@@ -93,4 +93,16 @@ export function renderStats(
     copy.levelLine(levelTitle(language, studied, stats.levelsEstimated ?? false), NODE_SLOT),
     level,
   );
+}
+
+/**
+ * Write the deck and « Réviser (N) », shown on every tab (add-lingua-comeback-hints D8): the page's
+ * figures where it answered, the outlook's elsewhere (popup/deck.ts).
+ */
+export function renderDeck(doc: Document, language: InterfaceLanguage, copy: PopupCopy, figure: DeckFigure): void {
+  const deck = doc.getElementById("deck");
+  const review = doc.getElementById("review");
+  if (!deck || !review) throw new Error("missing #deck or #review");
+  deck.textContent = formatCount(language, figure.deckCount);
+  review.textContent = copy.review(formatCount(language, figure.dueCount));
 }

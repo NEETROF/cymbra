@@ -3,6 +3,7 @@ import {
   LINGUA_APP_STORE,
   LINGUA_CHROME_WEB_STORE,
   LINGUA_FIREFOX_ADDONS,
+  LINGUA_FIREFOX_ANDROID,
   linguaStores,
   musicStores,
   MUSIC_APP_STORE,
@@ -27,10 +28,10 @@ describe("store links", () => {
 
   it("labels the channels in each site language", () => {
     // The Spanish labels (change: add-site-lingua-matrix-pages); the store names do not move.
-    expect(linguaStores("es").map((l) => l.label)).toEqual(["Chrome", "Firefox (escritorio)", "Safari (iPhone, iPad, Mac)"]);
+    expect(linguaStores("es").map((l) => l.label)).toEqual(["Chrome", "Firefox (escritorio y Android)", "Safari (iPhone, iPad, Mac)"]);
     expect(musicStores("es")[2].label).toBe("Windows / Linux — próximamente");
-    expect(linguaStores("fr")[1].label).toBe("Firefox (ordinateur)");
-    expect(linguaStores("en")[1].label).toBe("Firefox (desktop)");
+    expect(linguaStores("fr")[1].label).toBe("Firefox (ordinateur et Android)");
+    expect(linguaStores("en")[1].label).toBe("Firefox (desktop and Android)");
   });
 
   it("points Lingua at its three published listings, Safari's App Store record among them", () => {
@@ -38,5 +39,16 @@ describe("store links", () => {
     expect(links.every((l) => l.live)).toBe(true);
     expect(links.map((l) => l.href)).toEqual([LINGUA_CHROME_WEB_STORE, LINGUA_FIREFOX_ADDONS, LINGUA_APP_STORE]);
     expect(links[2].label).toContain("Safari");
+  });
+
+  it("names Firefox for Android, and says each Lingua button's store for the page's choice (change: add-site-lingua-showcase, D11)", () => {
+    for (const lang of ["fr", "en", "es"] as const) {
+      const links = linguaStores(lang);
+      expect(links.map((l) => l.store)).toEqual(["chrome", "firefox", "safari"]);
+      expect(links[1].label).toContain("Android");
+      expect(links[1].androidHref).toBe(LINGUA_FIREFOX_ANDROID);
+    }
+    // Music's buttons choose nothing.
+    expect(musicStores("fr").every((l) => l.store === undefined && l.androidHref === undefined)).toBe(true);
   });
 });

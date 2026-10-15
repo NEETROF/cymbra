@@ -33,6 +33,10 @@ The add-on lives in a larger repository. This archive is cut from it by
 `apps/lingua-extension/tool/make_source_archive.sh`, and every pull request rebuilds the
 add-on from the archive alone, with the commands below, so that they keep working.
 
+The archive also holds `apps/lingua-extension/tool/capture/`, a development tool that makes the
+store screenshots and the website's images (`yarn capture`, with its fixture pages, books and
+seeds, and the `playwright-core` dev dependency): nothing under it is built into the add-on.
+
 ## Build it
 
 Requires Node 22, Yarn (via Corepack), a stable Rust toolchain with the
@@ -153,8 +157,10 @@ teaches them French.
 The analysis is local: the pack and the WebAssembly engines run in the browser, and no page
 content leaves the machine — with one exception, « Traduction en ligne » below, which sends one
 sentence when the reader presses its button. A reader who never signs in and never turns on
-« Traduction étendue » makes no request at all. The book reader (`reader.html`) opens the reader's own files
-from the device and requests nothing.
+« Traduction étendue » makes one kind of request only: the anonymous usage counts below, which carry
+no identifier and nothing of what is read, which Firefox's own data consent gates, and which
+Firefox below 140 (desktop) or 142 (Android) never sends. The book reader (`reader.html`) opens the
+reader's own files from the device and requests nothing.
 
 There are four origins, all of them in the source:
 
@@ -171,10 +177,65 @@ There are four origins, all of them in the source:
   by default and per device, it sends the sentence holding the reader's selection, the
   selection's position and the language pair, **only when the reader presses its button** on the
   card (`src/translate/online.ts`). The server translates it through a provider and keeps
-  neither the sentence nor the translation.
+  neither the sentence nor the translation. The same origin also receives the **anonymous usage
+  counts**, signed in or not:
+  `cymbra.lingua.v1.UsageCountsService/Report` (gRPC-web, `src/usage/client.ts`), sent through a
+  transport with no interceptor, so it never carries the account's token, to a service the server
+  mounts with no authentication. A report carries the day of installation (its local date, as a
+  day number), the browser family, the version (major.minor) and the steps it reports, each sent
+  once per installation — installed; set up (a first level chosen); first page analysed in a
+  studied language; back on day 1; back during days 7–13; back during days 30–59 — and nothing
+  else: no identifier of any kind, nothing of the page. A step is sent when it happens, or at the
+  add-on's next start or use if it could not leave (at most one retry an hour), so the server
+  counts it by installation day; an installation alone on its day can be recognised in those
+  totals, and the privacy policy says so (`src/usage/counts.ts`, `src/usage/host.ts`). No alarm
+  and no timer are used; the device forgets the installation's day at day 60. An
+  installation made before the release that introduced the counts — one Firefox reports as an
+  `update` — is never counted and never gets the leaving page below. On Firefox they are governed by Firefox's built-in
+  data consent: the manifest declares `technicalAndInteraction` as optional, with
+  `required: ["none"]` (`tool/manifests.mjs`); Firefox ticks it at install, and the add-on sends
+  nothing unless `permissions.getAll()` lists it under `data_collection`. Unticking it in the
+  install prompt or in `about:addons`, or turning off « Comptages anonymes » in Réglages → Données
+  (which calls `permissions.remove`), stops them and deletes what was waiting. Firefox below 140
+  (desktop) or 142 (Android) has no built-in consent, so there the add-on counts nothing and the
+  switch is not shown.
 - `https://accounts.google.com` and `https://appleid.apple.com` — the sign-in pages, opened in
   the browser by the reader's own click (`src/state/oidc.ts`). The add-on receives the
   provider's token through the redirect and exchanges it with the backend; it never sees a
   password.
 - `https://cymbra.app` — a link in the account screen to the account-deletion page
-  (`src/account/locale.ts`). A link, not a request.
+  (`src/account/locale.ts`). A link, not a request. And, only while the counts are on for an
+  installation made since they exist, the leaving page the browser opens when the add-on is
+  removed: `runtime.setUninstallURL` registers `https://cymbra.app/lingua/au-revoir/`
+  (`/en/lingua/goodbye/`, `/es/lingua/adios/`, in the interface language) with
+  `?b=<browser>&v=<major.minor>` and nothing else, and registers `""` as soon as they are off (and
+  always for an installation updated from a release that did not count). The add-on sends nothing
+  there itself: loading the page is an ordinary visit to the site's static host, and the page asks
+  one question with six fixed answers, no free text, and posts only the answer the reader taps
+  (as a plain form when the page runs without JavaScript), counted the same anonymous way.
+
+## The toolbar icon's count and the rating request
+
+**The count on the icon.** Where the toolbar icon shows no page percentage, its badge shows how
+many cards a review would hold today, worked out on the device from the reader's own data
+(`src/state/badge-host.ts`, `src/state/badge.ts`, `src/state/review-outlook.ts`). It needs no
+permission the add-on did not already have, and asks for none: it is worked out after a change of
+the reader's data and read again when the browser starts, a tab is activated or a window is
+focused — `runtime.onStartup`, `runtime.onInstalled`, `tabs.onActivated` (which gives tab ids
+only) and `windows.onFocusChanged`. `tabs.onUpdated` is listened to for its `status` alone (with a
+`status` filter on Firefox), which needs no `tabs` permission: a page's percentage is withdrawn
+when its tab starts loading, and a page that stays is asked to say it again when the load ends.
+There is no `alarms`, `idle`, `tabs` or `notifications` permission, no timer and no notification;
+working out the count makes no request. A setting turns it off.
+
+**The rating request.** At the end of a review session that says it is complete, from the fifth
+such session on the reader's third day of review, the review shows one sentence and three buttons
+— rate, later, never again (`src/review/rating.ts`, `src/review/review-page.ts`). It is shown at
+most twice on a device, ever; nothing is offered in exchange; no rating is chosen and no text is
+written in advance; nothing depends on how the session went. The store's page — the add-on's
+listing on addons.mozilla.org, or its Chrome Web Store reviews — opens in a new tab only when the
+reader presses « Noter Cymbra Lingua », through the background, so that no address of a page
+being read is sent with it (`src/state/store-links.ts`). It counts as shown only once it was on
+the reader's screen, and it never shows in the book reader. Settings carry the same link. What the
+request remembers stays in the browser's local storage: it is not synchronised. The Safari build
+shows no request.

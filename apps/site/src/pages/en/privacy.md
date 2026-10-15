@@ -6,7 +6,7 @@ alternates:
   fr: /confidentialite
   en: /en/privacy
   es: /es/privacidad
-updated: 11/10/2026
+updated: 16/10/2026
 ---
 
 This policy explains what personal data the **Cymbra services** (published by
@@ -157,10 +157,16 @@ addition to §2, we process:
 the words you do not know yet in the languages you study. In addition to §2:
 
 **What stays on your device.** Page text is analysed **on your device** and is never sent,
-except the sentence you send yourself with **Online translation** (below).
+except the sentence you send yourself with **Online translation** and the translation of a word
+you choose to keep on its card (below).
 Also kept on the device: the detail of your reading (which words you met, on which pages),
 the **address of the page** where you add a word to your deck and, when you are not signed
-in, all of your Lingua data.
+in, all of your Lingua data. Also kept on the device, neither synchronised nor written in the
+backup file, is what the request for a rating remembers: the number of review sessions you
+finished, the number of days on which you finished one, the date of the last one, the number of
+times the request was shown to you and your answer — and, in the Cymbra Lingua app, the number of
+sessions finished in the app and the version of the app for which a rating was requested; the
+store page opens only if you choose to rate Cymbra Lingua.
 
 **Your languages.** Your language settings stay on the device: the languages you study and
 your native language are not stored as such. Each synced status, level, card and day of
@@ -179,19 +185,30 @@ device**, and page text is still never sent. These downloads carry no page text,
 data, no account token and no installation identifier, and Cymbra does not associate them
 with an account or an installation. As with any web page, the host of these files
 (Cloudflare) sees the IP address of the device asking for them. Turning the setting off
-deletes the models from the device.
+deletes the models from the device. The Cymbra Lingua app keeps its own copy of the models: it
+downloads it, from the same address and on the same terms, only once you accept it in the app,
+while the setting is on in the Safari extension of the same device, and deletes it when the
+setting is turned off.
 
 **Online translation.** This setting, off by default and specific to each device (it is not
 synced), is offered only to accounts that have access to it. When it is on, an « Online
-translation » button appears on the translation of a selection of several words. **Nothing is
-sent until you press that button.** When you press it, the sentence your selection is in, the
+translation » button appears on the translation of a selection of several words, and on a card
+under review. **Nothing is sent until you press that button.** When you press it, the sentence
+your selection is in — or the reviewed card's sentence, its word located by position —, the
 selection's position and the language pair are sent to Cymbra, with your account token, then
 by Cymbra to **Google** (Gemini API) to be translated, or to **Anthropic** (Claude API) when
 Google does not answer. Neither Cymbra nor these providers keep the sentence or its
 translation, and these providers do not use it to train their models. To limit use and know
 its cost, Cymbra counts, for your account, the day's online translations (a counter erased
 after a day) and keeps daily totals per provider and language pair, with no account and no
-text.
+text. In the Cymbra Lingua app, Online translation asks you to sign in **inside the app** (with
+Apple, Google or your email and password): the app then opens its own session of your account, separate from the
+extension's, which you can end from the app.
+
+**A kept translation.** A machine translation (on the device or online) is kept only if, in
+review, you choose to keep the translation of the word as its card's translation: only that
+translated word is kept, on the card, and synced with it; the translated sentence never is. A
+translation you do not keep is stored nowhere.
 
 **Read aloud.** Read aloud uses a voice of the language being read, installed on your device:
 the text read does not leave it. If no voice of that language is installed there, you can turn
@@ -200,14 +217,71 @@ device): the text read is then sent by **your browser** to the provider of those
 (Google, for Chrome), under that provider's terms. Cymbra does not receive this text. As soon
 as a voice of that language is installed on the device, it is used instead.
 
+**Anonymous usage counts.** To know whether Lingua actually helps the people who install it,
+the extension may send Cymbra six counts, each once per installation: Lingua is **installed**;
+it is **set up** (a first level chosen); a **first page is analysed** in a language you study;
+you use it again **the day after** installing it; again **between day 7 and day 13**; again
+**between day 30 and day 59**. Each report carries three things only: the **day** of the
+installation (its date on your device), the **browser family** (Chromium, Firefox or Safari) and
+the extension's **version** (for example 1.10).
+
+- **No identifier of any kind** — no installation or device identifier, no account, even when
+  you are signed in — and **nothing of what you read**: no address, no site, no page text, no
+  word, no studied language, no level.
+- **No IP address kept.** As an exception to the technical logs of §2 and §5, Cymbra keeps the
+  network address of these reports neither in its database, nor in its logs, nor in the logs of
+  the server that passes requests on to it (its "reverse proxy"). The address serves only to
+  refuse floods of reports, in memory only, in a scrambled form forgotten within the hour.
+- **Sent as they happen.** Each count leaves your device when it happens — or, if it could not
+  leave, at the extension's next start or use. Its arrival therefore tells the day it happened;
+  Cymbra keeps neither the time nor any trace of it, only a total. Should the extension be stopped
+  just as Cymbra receives a report, that report is sent again later and counted twice: the totals
+  can only be slightly too high, never tied to you.
+- **Counted by day of installation.** At Cymbra, the counts are totals per day of installation,
+  browser family and version, with no trace of each report, **deleted after 25 months**. An
+  installation alone on its day (on its browser) can therefore be recognised in these totals: its
+  day of installation can be inferred from them, and whether it came back can be read there.
+  Nothing in them says whose it is; but someone who already knew that you installed Lingua that day
+  could read there whether you came back.
+- **On your device**, the day of the installation is kept **60 days at most**, to tell when you
+  come back, then forgotten, with anything that could not be sent yet.
+- **Installations from before the counts.** An installation made before the version of Lingua
+  that introduced the counts is never counted, never asked, and opens no leaving page.
+- **How each browser asks.** Chrome and the other Chromium browsers (Edge…): nothing is sent
+  until you press « Yes, count ». Firefox: Firefox's own consent to « Technical and interaction
+  data », offered when you install the extension, decides (Firefox 140 or later on desktop, 142
+  or later on Android; older versions count nothing). Safari: on by default, once the sentence
+  that presents them has been shown.
+- **Turning them off.** The « Anonymous usage counts » switch, in Settings → Data, turns them off
+  at any time, in every browser (on Firefox, it changes that same consent). Turning them off
+  forgets what had not been sent yet.
+- **Legal basis**: on Chrome and the other Chromium browsers, your **consent**; elsewhere,
+  Cymbra's **legitimate interest** in measuring Lingua's audience. The switch is how you object,
+  or withdraw your consent, at any time.
+
+**The leaving page.** On Chrome and Firefox, while the counts are on, removing Lingua opens a
+cymbra.app page that asks one question — why you are leaving — with six fixed answers and no
+free text. Opening it is an ordinary visit to the site: as for any of its pages, its host
+(Cloudflare) receives your device's IP address and the page's address, with its two parameters
+(the browser family and the version); Cymbra adds nothing to that visit and receives nothing
+from it. Only the answer you press is sent to Cymbra and counted, in the same anonymous way: the
+week it arrives, the browser family and the extension's version, the only things the page's
+address carries (without JavaScript, the page sends neither, and they are counted as unknown).
+With the counts off, no page opens.
+
 **What is synced when you are signed in** to your Cymbra account:
 
 | Data | Source | Purpose |
 |---|---|---|
 | Each word's status (known, learning, ignored) and your declared level, for each language you study | you | find your progress on all your devices |
-| Review deck, for each language you study: the word, the sentence you found it in, its translation, the language of that translation, and its review state — **without** the page address | you | review on all your devices |
+| Review deck, for each language you study: the word, the sentence you found it in, its translation — the dictionary's, or the machine translation of the word that you chose to keep, never a translated sentence —, the language of that translation, and its review state — **without** the page address | you | review on all your devices |
 | Daily statistics, per day and language you study (words learned, reviews, number of words read and, among them, of new words), with your native language that day (the one the translations are in) | computed on the device | show your statistics; **aggregated** usage figures to run the service and, with no name and no number of people, published in the Cymbra community channels (see §2) |
-| Random installation identifier | generated by the extension | tell two devices apart during sync |
+| Random installation identifier | generated by the extension, and by the Cymbra Lingua app for itself | tell two devices apart during sync |
+
+The extension syncs this data. If you **also sign in inside the Cymbra Lingua app**, with the
+account Safari's extension uses, the app itself syncs the statuses and cards of the reviews done
+in the app, under its own session and its own installation identifier, with the same content (no
+page address); the daily statistics still go through the extension. Nothing more is collected.
 
 - **Legal basis**: performance of a contract (providing sync); legitimate interest for
   publishing aggregate figures (see §2).
@@ -223,3 +297,14 @@ as a voice of that language is installed on the device, it is used instead.
 a password from Lingua, the extension tells Cymbra a language — Lingua's interface language or
 your browser's — which your account keeps as its language: Cymbra writes to you in it
 (verification, password reset), and your other Cymbra apps may adopt it.
+
+**Chrome Web Store User Data Policy.** The use of information received from Google APIs will
+adhere to the Chrome Web Store User Data Policy, including the Limited Use requirements. For
+Cymbra Lingua, this information is: the text of the pages you read, analysed on your device;
+your Cymbra account (email address, sign-in identifier, sessions, account language); what is
+synced when you are signed in (word statuses and levels, review deck, daily statistics,
+installation identifier); the **anonymous usage counts**, if you agreed to them (see above); and
+the sentence sent with **Online translation**, only when you press its button. Cymbra uses this data only for the purposes set out in this policy, shares it
+only with the processors named in §4 and for those purposes, does not sell it and does not use
+it for advertising. Cymbra's team sees your Lingua data only as aggregates, with no account,
+except to help you at your request, for security, or to comply with the law.

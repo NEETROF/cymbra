@@ -12,9 +12,13 @@ import {
   renderAround,
 } from "../i18n/index.ts";
 import { browserSpeechEngine, createSpeaker, type SpeechEngine } from "../reading/speech.ts";
+import { type OpenPage, openPageViaBackground } from "../state/open-page.ts";
+import { outlookInputs } from "../state/review-outlook.ts";
+import { STORE_REVIEW_PAGE } from "../state/store-links.ts";
 import { dailyRecorder } from "../state/dailystats.ts";
 import {
   type AsyncStorageArea,
+  DEFAULT_NEW_WORDS_PER_DAY,
   loadNewWordsPerDay,
   loadReviewLanguage,
   saveBackup,
@@ -23,9 +27,35 @@ import {
 } from "../state/storage.ts";
 import { watchBackup } from "../state/store.ts";
 import type { TranslatorSource } from "../translate/create-port.ts";
-import { ReviewController } from "./session.ts";
-import { type ReviewTranslation, reviewTranslationRequest, translateBounded } from "./translation.ts";
-import { type ReviewActions, renderReview, reviewCopy } from "./view.ts";
+import type { OnlineTranslationRequest, OnlineTranslationResult } from "../translate/online.ts";
+import {
+  afterSession,
+  answer as answerRequest,
+  loadRating,
+  localDay,
+  markShown,
+  type RatingChoice,
+  ratingDue,
+  type RatingState,
+  ratingOffered,
+  saveRating,
+} from "./rating.ts";
+import { localDayStart, ReviewController } from "./session.ts";
+import {
+  cardTranslationRequest,
+  onlineReviewRequest,
+  type ReviewTranslation,
+  type ReviewTranslationRequest,
+  translateBounded,
+} from "./translation.ts";
+import {
+  type ReviewActions,
+  type ReviewOnlineOffer,
+  type ReviewTranslationHint,
+  renderReview,
+  reviewCopy,
+  sessionCompleted,
+} from "./view.ts";
 
 // The Révision page — the language filter, the due count and the FSRS review card — built as
 // plain DOM into a container so ONE implementation serves both hosts: the native side panel and
@@ -33,6 +63,22 @@ import { type ReviewActions, renderReview, reviewCopy } from "./view.ts";
 // the host's port and persists via saveBackup, so every other surface reacts through
 // storage.onChanged. Backup, restore and the pack's sources live in Réglages › Données
 // (refine-lingua-review-session D9).
+
+/**
+ * « Traduction en ligne » as a review host has it (add-lingua-review-translation-fallback D2): whether
+ * it is offered right now — the setting ticked on this device and the account's access — and what
+ * sends a request. In the extension, the runtime-message client the selection card uses.
+ */
+export interface ReviewOnlineSource {
+  offered(): boolean;
+  translate(request: OnlineTranslationRequest): Promise<OnlineTranslationResult>;
+}
+
+/**
+ * The extension's hint (add-lingua-review-translation-fallback D12): « Traduction étendue » is in the
+ * host's own Réglages — off, or its models not on this device.
+ */
+export const inSettings = (): ReviewTranslationHint => ({ kind: "settings" });
 
 export interface ReviewPageOptions {
   /** Epoch-seconds clock (Date.now()/1000 in production). */
@@ -53,12 +99,50 @@ export interface ReviewPageOptions {
    */
   translator?: TranslatorSource;
   /**
+   * « Traduction en ligne » in review (add-lingua-review-translation-fallback D2). Without one, no
+   * card offers it.
+   */
+  online?: ReviewOnlineSource;
+  /**
+   * How the reader gets a translation for a card in `language` that nothing can translate — no
+   * gloss, no model ready, no online button (add-lingua-review-translation-fallback D12) — or null
+   * when nothing they could do would help. Without one, the no-translation note stands alone.
+   */
+  translationHint?: (language: string) => ReviewTranslationHint | null;
+  /**
    * Beside a book, how many words looked up in it are still to sort (add-lingua-chapter-recap D6);
    * none, or 0, away from one: no count is shown.
    */
   toSort?: () => Promise<number>;
   /** Open the book's list of words to sort, in the reader page beside. */
   openToSort?: () => void;
+  /**
+   * Whether the end of a session may ask for a rating (add-lingua-comeback-hints D10): the build's —
+   * Chromium and Firefox, never the Safari extension nor the Cymbra Lingua app (D11) — unless given.
+   */
+  askRating?: boolean;
+  /**
+   * Whether this host shows the request: not the drawer of the book reader, where the spec never
+   * asks (D10) — a session finished there still counts. True unless given.
+   */
+  requestRating?: boolean;
+  /**
+   * Whether the review is on the reader's screen now: the request counts as made only once it was
+   * (D10). Its container, every ancestor and its document not hidden, unless given.
+   */
+  onScreen?: (element: HTMLElement) => boolean;
+  /** Opens the store page when the reader chooses to rate: the background does it, unless given. */
+  openPage?: OpenPage;
+  /**
+   * A session's end said it was complete (« Séance terminée »): the Cymbra Lingua app counts it for
+   * StoreKit's own request (add-lingua-comeback-hints D11).
+   */
+  onSessionFinished?: () => void;
+  /**
+   * A session started — « Réviser », « Encore 10 », « S'entraîner quand même »: the Cymbra Lingua app
+   * drops a StoreKit request the last end scheduled (add-lingua-comeback-hints D11).
+   */
+  onSessionStarted?: () => void;
 }
 
 export interface ReviewPage {
@@ -139,35 +223,216 @@ export function mountReview(
    * comes back included — is a new arrival, and an answer for an earlier one is dropped (D2).
    */
   let arrival = 0;
-  let translation: ReviewTranslation | undefined;
+  let assist: Assist = { mine: 0, request: null, asked: false, kept: false };
+  // The rating request (add-lingua-comeback-hints D10): each complete end counted once, the request
+  // shown at the end that qualifies until the reader answers or starts another session, and
+  // counted as made only once the reader could see it.
+  const askRating = opts.askRating ?? ratingOffered(__TARGET__, __APP__);
+  const requestRating = opts.requestRating ?? true;
+  const onScreen = opts.onScreen ?? shownOnScreen;
+  let endCounted = false;
+  /** The request belongs to this end: drawn under it while the end is on screen. */
+  let ratingShown = false;
+  /** The request was seen, and counted as made. */
+  let ratingSeen = false;
+  /**
+   * What the review's end was reached with in the backup — the deck and the languages
+   * (`outlookInputs`) — or null: a write elsewhere that leaves them as they were (a page's reading
+   * saved beside the panel every two seconds) keeps the end, and its request, on screen.
+   */
+  let endInputs: string | null = null;
+  const ratingActions = {
+    rate: () => void answerRating("rate"),
+    later: () => void answerRating("later"),
+    never: () => void answerRating("never"),
+  };
   const render = (view: ReturnType<ReviewController["view"]>): void => {
     spoken = view.card?.language ?? language ?? spoken;
     renderReview(review, view, actions, {
       showLanguage: languages.length > 1,
       interfaceLanguage,
       speaker,
-      translation: view.card ? translation : undefined,
+      ...(view.card ? assisted(view.card) : {}),
+      ...(ratingShown && view.phase === "done" ? { rating: ratingActions } : {}),
     });
+    void noteSeen();
   };
+
+  /** A session starts: the app is told (D11), and the end it leaves is over. */
+  function sessionStarts(): void {
+    opts.onSessionStarted?.();
+    newSession();
+  }
+
+  /** A new session, or none: the next complete end is counted, and no request stays on screen. */
+  function newSession(): void {
+    endCounted = false;
+    ratingShown = false;
+    ratingSeen = false;
+    endInputs = null;
+  }
+
+  /**
+   * An end that says the session is complete — practice included, never « Rien à réviser » — is
+   * counted once; the request shows when this end qualifies, and counts as made from then on (D10).
+   * A session the reader ended before its last card (« Terminer », add-lingua-review-stop-session)
+   * is not a finished one: it neither counts nor asks, here or in the app (D10, D11).
+   * Nothing is sent anywhere: the state stays in the preferences of this device.
+   */
+  async function countEnd(view: ReturnType<ReviewController["view"]>): Promise<void> {
+    if (endCounted || view.phase !== "done" || view.ended || !sessionCompleted(view.summary)) return;
+    endCounted = true;
+    opts.onSessionFinished?.();
+    if (!askRating) return;
+    const state = await updateRating((s) => afterSession(s, localDay(opts.now())));
+    // Drawn now; counted as made once seen (`noteSeen`). Never in the book reader, where the
+    // session still counts toward the next end elsewhere.
+    ratingShown = requestRating && ratingDue(state);
+  }
+
+  /** The request's state changed, one change at a time: none is lost to another read before it. */
+  let ratingChain: Promise<unknown> = Promise.resolve();
+  function updateRating(change: (state: RatingState) => RatingState): Promise<RatingState> {
+    const next = ratingChain.then(async () => {
+      const state = change(await loadRating(opts.prefs));
+      await saveRating(opts.prefs, state);
+      return state;
+    });
+    ratingChain = next.catch(() => {});
+    return next;
+  }
+
+  /**
+   * The request is on the reader's screen: it counts as made from now on, answered or not (D10) —
+   * never before, so a request drawn in a closed drawer or a hidden tab is not used up unseen.
+   */
+  async function noteSeen(): Promise<void> {
+    if (!ratingShown || ratingSeen || session.view().phase !== "done" || !onScreen(review)) return;
+    ratingSeen = true;
+    await updateRating(markShown).catch(() => {});
+  }
+
+  /** The reader's answer: « Noter » opens the store page through the background, and only then. */
+  async function answerRating(choice: RatingChoice): Promise<void> {
+    if (!ratingShown) return;
+    // Answered, it was seen: counted as made first, if no check saw it yet.
+    if (!ratingSeen) {
+      ratingSeen = true;
+      void updateRating(markShown).catch(() => {});
+    }
+    ratingShown = false;
+    // The app has no extension API and asks no rating of its own (D11): its bundle folds this away.
+    if (choice === "rate" && !__APP__) (opts.openPage ?? openPageViaBackground)(STORE_REVIEW_PAGE);
+    render(session.view());
+    await updateRating((state) => answerRequest(state, choice));
+  }
+
+  /** Whether `card` has a gloss — the reader's, the pack's or its own (add-lingua-review-translation-fallback D1). */
+  const glossed = (card: NonNullable<ReturnType<ReviewController["view"]>["card"]>): boolean => !!card.gloss;
+
+  /**
+   * What the revealed card's answer offers beside its gloss (add-lingua-review-translation-fallback
+   * D1–D3): the translation once asked — at once without a gloss, on the link with one —, the online
+   * button under its rule, the link while one of the two could answer, the keep action under a
+   * translation, until the reader kept one.
+   */
+  function assisted(card: NonNullable<ReturnType<ReviewController["view"]>["card"]>): {
+    translation?: ReviewTranslation;
+    online?: ReviewOnlineOffer;
+    askTranslation?: () => void;
+    keep?: (gloss: string) => void;
+    hint?: ReviewTranslationHint;
+  } {
+    const { request } = assist;
+    const asked = assist.asked || !glossed(card);
+    const offered = !!request && !!opts.online?.offered();
+    const engine = !!request && !!opts.translator?.(request.request.language);
+    // Nothing can translate this card, though something could (D12): the note says what.
+    const hint =
+      request && !glossed(card) && !engine && !offered ? opts.translationHint?.(request.request.language) : null;
+    return {
+      ...(hint ? { hint } : {}),
+      ...(asked && assist.translation ? { translation: assist.translation } : {}),
+      ...(asked && offered ? { online: onlineOffer() } : {}),
+      ...(!asked && (offered || engine) ? { askTranslation: () => ask() } : {}),
+      ...(assist.kept ? {} : { keep: (gloss: string) => keep(gloss) }),
+    };
+  }
+
+  /** The engine asked for the current card's translation; its answer repaints only a revealed card. */
+  function translate(mine: number, asked: ReviewTranslationRequest): void {
+    const translator = opts.translator?.(asked.request.language);
+    if (!translator) return;
+    assist.translation = { state: "pending" };
+    void translateBounded(translator, asked.request).then((answer) => {
+      // Its card was answered: shown nowhere. An online answer already shown stays.
+      if (mine !== arrival || (assist.translation?.state === "translated" && assist.translation.online)) return;
+      assist.translation = answer
+        ? { state: "translated", translation: answer, alone: asked.alone }
+        : { state: "none" };
+      const view = session.view();
+      if (view.card?.revealed) render(view);
+    });
+  }
 
   /**
    * A card came up, or none did: a card without a gloss has its translation asked at once, before
    * the reveal, so it is there when the reader looks (D2). Its answer repaints only a revealed
-   * card: before the reveal, nothing of it shows.
+   * card: before the reveal, nothing of it shows. A card with a gloss waits for the reader's tap.
    */
   function arrive(card: ReturnType<ReviewController["view"]>["card"]): void {
     const mine = ++arrival;
-    translation = undefined;
-    const asked = card ? reviewTranslationRequest(card) : null;
-    const translator = asked ? opts.translator?.(asked.request.language) : null;
-    if (!asked || !translator) return;
-    translation = { state: "pending" };
-    void translateBounded(translator, asked.request).then((answer) => {
-      if (mine !== arrival) return; // its card was answered: shown nowhere
-      translation = answer ? { state: "translated", translation: answer, alone: asked.alone } : { state: "none" };
-      const view = session.view();
-      if (view.card?.revealed) render(view);
-    });
+    const request = card ? cardTranslationRequest(card) : null;
+    assist = { mine, request, asked: false, kept: false };
+    if (card && request && !glossed(card)) translate(mine, request);
+  }
+
+  /** « Traduire la phrase »: the engine asked where a model is ready, the online button shown (D1). */
+  function ask(): void {
+    if (assist.asked || !assist.request) return;
+    assist.asked = true;
+    translate(assist.mine, assist.request);
+    render(session.view());
+  }
+
+  /** The online button's state for the current card: one press per card per review (D2). */
+  function onlineOffer(): ReviewOnlineOffer {
+    const { online } = assist;
+    return { state: online?.state ?? "offered", ...(online?.resetsAt ? { resetsAt: online.resetsAt } : {}), press };
+  }
+
+  function press(): void {
+    const { mine, request } = assist;
+    if (assist.online || !request || !opts.online) return;
+    assist.online = { state: "asking" };
+    render(session.view());
+    const send = opts.online.translate;
+    void new Promise<OnlineTranslationResult>((resolve) => resolve(send(onlineReviewRequest(request))))
+      .catch((): OnlineTranslationResult => ({ kind: "unavailable" }))
+      .then((result) => {
+        if (mine !== arrival) return; // its card was answered: shown nowhere
+        if (result.kind === "translated") {
+          assist.translation = {
+            state: "translated",
+            translation: result.translation,
+            alone: request.alone,
+            online: true,
+          };
+          assist.online = { state: "answered" };
+        } else {
+          assist.online =
+            result.kind === "limit" ? { state: "limit", resetsAt: result.resetsAt } : { state: "unavailable" };
+        }
+        render(session.view());
+      });
+  }
+
+  /** Keep `gloss` as the card's gloss (D3): written, the backup saved, the answer showing it, the action gone. */
+  function keep(gloss: string): void {
+    if (assist.kept) return;
+    assist.kept = true;
+    assist.asked = true; // the translation stays under the gloss it gave
+    void run(() => session.keep(gloss), true, false);
   }
 
   /** A session starts: the route of its language warmed, so its first card does not wait on a cold engine. */
@@ -245,8 +510,14 @@ export function mountReview(
     await saveBackup(area, backup);
   }
 
+  // What a review would hold today, new words beyond the day's allowance left out: the figure the
+  // popup and the toolbar icon show too (add-lingua-comeback-hints D1).
   async function refreshSummary(): Promise<void> {
-    const [deck, due] = [await port.deckCount(only()), await port.dueCount(opts.now(), only())];
+    const now = opts.now();
+    // Preferences that cannot be read (a page torn down) count with the default allowance.
+    const newPerDay = await loadNewWordsPerDay(opts.prefs).catch(() => DEFAULT_NEW_WORDS_PER_DAY);
+    const allowance = { newPerDay, dayStart: localDayStart(now) };
+    const [deck, due] = [await port.deckCount(only()), await port.reviewableCount(now, only(), allowance)];
     summary.replaceChildren(...counted(deck, copy.deckCards), copy.summarySeparator, ...counted(due, copy.dueCards));
   }
 
@@ -264,9 +535,13 @@ export function mountReview(
   ): Promise<void> {
     const view = await produce();
     if (arrives) arrive(view.card);
+    // Preferences that cannot be read never hold the end back: no request then.
+    await countEnd(view).catch(() => {});
     if (changed) {
       await persist();
       await refreshSummary();
+      // The end, as the deck and the languages stand at it.
+      if (view.phase === "done" && lastBackup !== null) endInputs = outlookInputs(lastBackup);
     }
     render(view);
   }
@@ -275,22 +550,28 @@ export function mountReview(
     // A session starts with the focus in the card, so the keys answer it at once.
     start: () => {
       warm();
+      sessionStarts();
       void run(() => session.start(only()), false).then(() => review.focus({ preventScroll: true }));
     },
     // Nothing due: practise the cards already reviewed, no schedule moved (add-lingua-review-practice).
     practice: () => {
       warm();
+      sessionStarts();
       void run(() => session.start(only(), true), false).then(() => review.focus({ preventScroll: true }));
     },
     reveal: () => void run(() => session.reveal(), false, false),
     grade: (rating) => void run(() => session.grade(rating), true),
     markKnown: () => void run(() => session.markKnown(), true),
     ignore: () => void run(() => session.ignore(), true),
+    // Ending the session (add-lingua-review-stop-session D4): the end every session has — the backup
+    // saved and the counts read with no session under way, what a host's end-of-session save expects.
+    end: () => void run(() => session.end(), true),
   };
 
   /** A fresh controller over the engine as it now is: the idle card and the counts. */
   async function restart(): Promise<void> {
     session = controller();
+    newSession();
     arrive(null);
     // The profile came with the state: a language may have joined or left the filter.
     await readLanguages();
@@ -304,6 +585,9 @@ export function mountReview(
   // page (Réglages › Données beside the review) drops the session it was walking.
   // The Cymbra Lingua app has no other surface writing its store (add-lingua-apple-review D1).
   const watch = __APP__ ? () => () => {} : watchBackup;
+  // At a session's end, a write that leaves the deck and the languages as they were — a page's
+  // reading saved beside the panel or under the drawer — is taken on without leaving the end: it
+  // and its rating request stay on screen (add-lingua-comeback-hints D10).
   const unwatch = watch(area, (backup) => {
     if (backup === lastBackup) return;
     void (async () => {
@@ -313,9 +597,12 @@ export function mountReview(
         return;
       }
       await port.restore(backup);
+      if (session.view().phase === "done" && endInputs !== null && outlookInputs(backup) === endInputs) return;
       await restart();
     })();
   });
+  // A request drawn while the page was in the background is seen when it comes back.
+  document.addEventListener("visibilitychange", () => void noteSeen(), { signal: alive.signal });
 
   return {
     refresh: async () => {
@@ -335,6 +622,33 @@ export function mountReview(
       alive.abort();
     },
   };
+}
+
+/** What the current card's answer holds beyond its gloss, for one arrival. */
+interface Assist {
+  /** The arrival it belongs to. */
+  mine: number;
+  /** What the card's translation asks — engine and online alike —, or null when it asks nothing. */
+  request: ReviewTranslationRequest | null;
+  /** The reader tapped « Traduire la phrase » (a card without a gloss needs no tap). */
+  asked: boolean;
+  /** The reader kept a translation: the action is gone. */
+  kept: boolean;
+  translation?: ReviewTranslation;
+  /** The online request, once pressed: never sent twice for this arrival. */
+  online?: { state: "asking" | "answered" | "unavailable" | "limit"; resetsAt?: number };
+}
+
+/**
+ * Whether `element` is on the reader's screen: its document shown, and neither it nor any
+ * ancestor — across a shadow root, to the drawer's host — hidden.
+ */
+export function shownOnScreen(element: HTMLElement): boolean {
+  if (!element.isConnected || element.ownerDocument.visibilityState === "hidden") return false;
+  for (let node: Node | null = element; node; node = node.parentNode ?? (node as ShadowRoot).host ?? null) {
+    if ((node as HTMLElement).hidden === true) return false;
+  }
+  return true;
 }
 
 function bold(text: string): HTMLElement {

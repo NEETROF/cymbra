@@ -2729,6 +2729,7 @@ __metadata:
     "@vue/test-utils": "npm:^2.4.11"
     astro: "npm:^7.2.8"
     jsdom: "npm:^30.0.1"
+    sharp: "npm:^0.35.4"
     typescript: "npm:^5.9"
     vitest: "npm:^4.1.10"
     vue: "npm:^3.5.41"

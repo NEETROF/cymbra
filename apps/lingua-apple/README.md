@@ -70,6 +70,53 @@ extension (see `openspec/changes/add-lingua-apple`).
   read it — the app shows the activation page, as before. On a Mac the window becomes resizable
   and grows to a review column.
 
+- **Translation in the app's review** (`openspec/changes/add-lingua-review-translation-fallback`,
+  D7–D9; measured in `spike-1.4.md` of that change on a real iPhone 15 Pro Max, the simulators and a
+  Mac).
+  - *Engine.* The extension's own engine worker and model worker run as classic workers of the page.
+    Their files — `engine-worker.js`, `model-worker.js`, `engine/` and `model-manifest.json` — are
+    the Safari extension's, served by `AppPageResource` from the embedded `.appex` under
+    `lingua-app://app/`, so they are in the app once and `dist-app` carries none. Measured on the
+    iPhone: cold load 107–172 ms, first translation 129–136 ms, then 25–30 ms; the web content process
+    peaks near 347 MiB and settles near 290 MiB with one model.
+  - *Models.* The app keeps its own copy in the page's IndexedDB (`lingua-model`), downloaded by the
+    extension's download code from `models.cymbra.app` and checked against the bundled catalogue. It
+    follows the extension's « Traduction étendue » on the device (relayed): on, the review offers the
+    download once, with its size, and fetches nothing before the reader accepts; off, the app deletes
+    its copy at its next opening. WebKit refuses `navigator.storage.persist()` to the custom scheme,
+    so the copy is evictable: a pair downloaded once and missing since is offered again. The copy
+    survives relaunch and a device restart. **`models.cymbra.app` must keep answering
+    `access-control-allow-origin: *`**: the page reads the models cross-origin.
+  - *Session.* « Traduction en ligne » in the app uses a Cymbra session of the app's own, never the
+    extension's. The first press opens `AppSignInView` (Apple first, then Google) through the page's
+    `auth.signIn`; the page exchanges the id_token through `SignInOidc` (`lingua` audience) and keeps
+    the access token in memory, the refresh token in the Keychain (`KeychainRefreshTokenStore`, the
+    page's `auth.readRefresh` / `auth.writeRefresh` / `auth.clear`, `AppSessionMessage`). A line under
+    the views shows the session and ends it, or offers to sign in. *Email accounts*
+    (add-lingua-app-email-signin): the sheet's third entry, « Continuer avec un email », closes it and
+    answers `{method: "email"}` (`AppSignInChoice.email`); the page then shows the extension's own
+    email sign-in (`AccountFlow` + `renderAccount` in their app scope, `src/app/email-panel.ts`) —
+    sign-in, the code step of an unverified address, « Mot de passe oublié ? » — over the app's
+    session (`SignInLocal`, `lingua` audience). No account creation in the app (a new reader uses Apple,
+    Google, or the extension's account page), no handle step. The password is typed in the page and
+    sent only to Cymbra ID: it never crosses the bridge and is never stored — only the refresh token,
+    in the Keychain. The app does not reload its page on returning to the foreground while the panel
+    is open, so a code read in Mail finds its step. The page calls the server directly over gRPC-web: WebKit sends `Origin: lingua-app://app`,
+    which production must list in `CYMBRA_ALLOWED_WEB_ORIGINS`.
+
+- **The app synchronises its reviews** (`openspec/changes/add-lingua-app-deck-sync`). Signed in
+  inside the app with the account Safari's extension uses, the page synchronises the reviews made in
+  it with the server itself (`src/app/deck-sync.ts` of `apps/lingua-extension`), as a device of its
+  own, and keeps handing them to the extension through the App Group. A line under the review offers
+  the sign-in on opening (« Plus tard » sets it aside for 30 days); another account in Safari, Safari
+  signed out, or an extension too old to name its account: the app says so and does not synchronise.
+  The day's statistics still go through the extension (one writer per device). `ViewController`
+  calls `window.linguaBackground` when the app goes to the background
+  (`UIApplication.didEnterBackgroundNotification` inside `beginBackgroundTask` on iOS,
+  `NSApplication.willResignActiveNotification` on macOS; `AppPageHooks.background`) so the page
+  pushes what it still holds. **The extension must ship first**: an older extension writes no account
+  digest, and the app then does not synchronise.
+
 The project was scaffolded by `xcrun safari-web-extension-converter` and then changed by
 hand to replace its copied resources with the build phase above.
 
@@ -172,7 +219,7 @@ used for tracking.
 | Identifiers → User ID | the Cymbra account and its handle | yes | App Functionality, Analytics |
 | Identifiers → Device ID | the random installation id used by sync | yes | App Functionality |
 | User Content → Other User Content | word statuses and level, each under the studied language it belongs to; deck (word, sentence, gloss and the language of that gloss, review state), each card under its studied language | yes | App Functionality |
-| Usage Data → Product Interaction | daily counts (words learned, reviews, words met), per day and studied language, with the native language of the day | yes | App Functionality, Analytics (aggregated back-office figures) |
+| Usage Data → Product Interaction | daily counts (words learned, reviews, words met), per day and studied language, with the native language of the day; and the anonymous usage counts — six steps per installation (installed, set up, first page analysed, back on day 1, in days 7–13, in days 30–59), each sent once, when it happens, with the day of installation, the browser family and the version, with no identifier and nothing read (not linked themselves) | yes | App Functionality, Analytics (aggregated back-office figures) |
 
 Not collected: browsing history, search history, location, contacts, purchases, diagnostics,
 financial or health data. The language Lingua sends to the Cymbra account (the interface's or
@@ -190,6 +237,22 @@ provider, is translated and kept by no one: Apple counts as collected only data 
 longer than it takes to service the request in real time, which this is not. The per-account
 count of the day's online translations (erased after a day) and the daily totals per provider
 and pair (no account) fall under Usage Data → Product Interaction, already declared.
+
+Reviewed for the app's own synchronisation (add-lingua-app-deck-sync, 2026-10-14): **no new data
+type**. Signed in inside the app, the app sends the statuses and cards of its reviews (User
+Content → Other User Content) under its own random installation id (Identifiers → Device ID), on
+the same account (User ID) — all already declared, linked, for App Functionality. It sends no daily
+statistics (Product Interaction stays the extension's).
+
+Reviewed for the anonymous usage counts (add-lingua-usage-counts, 2026-10-14): **no new type or
+purpose**. The Safari extension's six counts — each step sent once, with the day of installation,
+the browser family and the version, no identifier and nothing read — are Usage Data → Product
+Interaction, already declared for Analytics. App Store Connect asks once per data type whether it
+is linked to the user: this type stays linked for the synced daily counts, and counts that are not
+linked change no answer. The address a report comes from serves an in-memory flood limit and is not
+kept, so it is not collected in Apple's sense. App Store Connect needs no edit. In Safari the counts
+are on by default under a legitimate interest, told once in the popup, and « Comptages anonymes »
+in Réglages → Données turns them off; the App Review notes say so ([STORE-LISTING.md](STORE-LISTING.md)).
 
 ## Known issue — popup title on iOS 27
 

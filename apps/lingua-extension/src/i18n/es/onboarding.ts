@@ -15,10 +15,20 @@ export const onboarding: typeof fr = {
   stepClick: "Haz clic en una palabra resaltada para traducirla o añadirla a tu mazo.",
   accountTitle: "Recupera tus palabras en todas partes (opcional)",
   accountLead:
-    "Con una cuenta de Cymbra, la misma que en Cymbra Music, tus palabras, tu mazo y tus estadísticas se sincronizan entre tus dispositivos. Sin cuenta, todo se queda en este dispositivo.",
+    "Con una cuenta de Cymbra, la misma que en Cymbra Music, tus palabras, tu mazo y tus estadísticas se sincronizan entre tus dispositivos. Sin cuenta, tus palabras, tu mazo y tus estados se quedan en este dispositivo.",
   createAccount: "Crear una cuenta",
   later: "Más tarde",
   beginnerChip: "Principiante: empiezo de cero",
   levelSaved: (level) => `Nivel guardado: ${level}. Puedes cerrar esta pestaña y empezar a leer.`,
   beginnerSaved: "Anotado: empezamos de cero. Puedes cerrar esta pestaña y empezar a leer.",
+  // — The anonymous counts' first-run sentence (add-lingua-usage-counts D7) —
+  usageInform:
+    "Lingua cuenta de forma anónima algunos pasos —instalación, primeros pasos, regresos—, sin ningún identificador; nada de lo que lees sale de tu dispositivo. Puedes desactivar estos recuentos en Ajustes → Datos.",
+  usageAsk:
+    "¿Permites que Lingua cuente de forma anónima algunos pasos —instalación, primeros pasos, regresos—, sin ningún identificador? Nada de lo que lees sale de tu dispositivo, y podrás cambiar de opinión en Ajustes → Datos.",
+  usageYes: "Sí, contar",
+  usageNo: "No, gracias",
+  usageYesDone: "¡Gracias! Puedes desactivar estos recuentos en cualquier momento en Ajustes → Datos.",
+  usageNoDone: "Anotado: no se contará nada.",
+  usagePrivacy: "Política de privacidad",
 };

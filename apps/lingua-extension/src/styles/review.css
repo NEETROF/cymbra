@@ -190,6 +190,73 @@
   text-underline-offset: 2px;
 }
 
+/* « Traduire la phrase », « Traduction en ligne » and keeping a translation in the answer
+   (add-lingua-review-translation-fallback D10): small text controls, sized from the UI scale,
+   coloured from the tokens, never a transition — every repaint follows a tap on e-ink. */
+.review-answer .review-link {
+  color: var(--cymbra-lingua-muted);
+}
+
+/* The no-translation note's own action (D12): inside the note's line, no taller than its text. */
+.review-no-gloss .review-link {
+  padding: 0;
+}
+
+/* Ending the session (add-lingua-review-stop-session D1, D5): at the end of the head's line, no
+   taller than its text, so the line keeps its height and nothing moves. */
+.review-head .review-end {
+  margin-left: auto;
+  padding: 0;
+  color: var(--cymbra-lingua-muted);
+}
+
+.review-online,
+.review-keep {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 12px;
+  margin-top: 4px;
+}
+
+.review-link:disabled {
+  cursor: default;
+  text-decoration: none;
+  color: var(--cymbra-lingua-faint);
+}
+
+.review-online-note {
+  color: var(--cymbra-lingua-muted);
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+.review-keep-field {
+  /* In place of the keep row's buttons, the field spans that whole row. */
+  flex: 1 0 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 8px;
+  margin-top: 4px;
+}
+
+/* The field takes the card's whole width on its own line — a candidate such as « facilitamment
+   appelé … vers » reads whole — and « Enregistrer » / « Annuler » sit on the line below. */
+.review-keep-input {
+  flex: 1 0 100%;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  margin-bottom: 2px;
+  padding: 4px 6px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  border-radius: 6px;
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-text);
+  font-family: inherit;
+  font-size: calc(14px * var(--cymbra-lingua-ui-scale, 1));
+}
+
 .review-btn {
   cursor: pointer;
   width: 100%;
@@ -223,6 +290,34 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* The rating request (add-lingua-comeback-hints D10): below the end's own actions, set apart by a
+   rule, quieter than « Encore 10 » — a plain button and two links. */
+.review-rating {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--cymbra-lingua-border-2);
+}
+
+.review-rating-ask {
+  color: var(--cymbra-lingua-muted);
+  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+.review-rating-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 16px;
+  color: var(--cymbra-lingua-muted);
+}
+
+.review-rating-actions .review-btn {
+  width: auto;
 }
 
 .review-done-title {

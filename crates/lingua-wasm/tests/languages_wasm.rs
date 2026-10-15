@@ -20,7 +20,7 @@
 #![cfg(target_arch = "wasm32")]
 
 use lingua_core::analysis::language::StudiedLanguage;
-use lingua_wasm::{LinguaEngine, reprofile_backup};
+use lingua_wasm::{LinguaEngine, reprofile_backup, review_outlook};
 use wasm_bindgen::{JsError, JsValue};
 use wasm_bindgen_test::wasm_bindgen_test;
 
@@ -216,6 +216,21 @@ fn spec_scenario_a_refused_native_language_choice_returns_an_error() {
     engine.restore(&reprofiled).unwrap();
     assert_eq!(engine.profile_native_language(), "en");
     assert_eq!(engine.studied_languages(), r#"["es"]"#);
+}
+
+#[wasm_bindgen_test]
+fn a_backup_the_outlook_cannot_read_is_refused() {
+    // add-lingua-comeback-hints D2: the background keeps the outlook it had.
+    let Err(refused) = review_outlook("{ not json", 0.0, 0.0) else {
+        panic!("a malformed backup was read");
+    };
+    assert!(message(refused).contains("malformed backup"));
+    let backup = LinguaEngine::new(PACK).unwrap().backup();
+    assert!(
+        review_outlook(&backup, 0.0, 0.0)
+            .unwrap()
+            .contains(r#""language":"en""#)
+    );
 }
 
 #[wasm_bindgen_test]

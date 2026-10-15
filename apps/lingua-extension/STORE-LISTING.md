@@ -125,6 +125,9 @@ French studied_), and the owner reviews their wording (M9; M10: US English; tú,
 vosotros, the RAE's numbers). Each claim and the file that makes it true are in one table, after the
 texts. Should change 34 or 35 be released before change 52, its text is this file's version before
 add-lingua-french-listings — the English one naming Spanish alone, the Spanish one English alone.
+Each text's count is its length as pasted — paragraphs a blank line apart, each paragraph's lines
+joined, the bold marks dropped — re-measured by script at add-site-lingua-showcase (the counts
+before it predated the « Traduction en ligne » paragraph).
 
 The Spanish text is written twice (add-lingua-french-listings, D1): **with fr-es**, French named
 everywhere a Spanish reader's languages are; **without fr-es**, change 37's text with its last line
@@ -133,7 +136,13 @@ matches the release. The French text names no other audience and is unchanged bu
 « Plusieurs langues à la fois… » is gone, by the owner's decision of 2026-10-10 (no listing text
 speaks of price; change 53b took the line out of the extension and the site).
 
-**FR** — for French speakers (2,442 / 16,000 characters)
+Each text's local-analysis paragraph carries the sentence of add-lingua-usage-counts (design Q5,
+accepted by the owner on 2026-10-14) where it promised that, with no account and no extended
+translation, nothing reached the network — the anonymous counts make that false — and
+its account paragraph names the counts beside « Traduction en ligne ». The four counts were
+re-measured with it, the same way.
+
+**FR** — for French speakers (2,835 / 16,000 characters)
 
 Cymbra Lingua surligne, sur la page que vous lisez, les mots d'anglais ou d'espagnol que vous ne
 connaissez pas encore — sans rien changer à la mise en page. Un pourcentage vous dit quelle part du
@@ -154,12 +163,13 @@ Lisez aussi vos livres : importez vos fichiers EPUB sans DRM dans la bibliothèq
 l'extension et lisez-les, hors ligne, avec le même surlignage, page par page — une tablette à
 encre électronique comprise. Vos livres restent sur votre appareil.
 
-**L'analyse est locale.** Les dictionnaires et le moteur tournent dans votre navigateur : aucune
-page que vous lisez n'est envoyée nulle part, et l'extension fonctionne hors ligne. Sans
-compte ni traduction étendue, elle ne fait aucune requête réseau.
+**L'analyse est locale.** Les dictionnaires et le moteur tournent dans votre navigateur, et
+l'extension fonctionne hors ligne. Ce que vous lisez ne quitte jamais votre appareil. Lingua peut
+envoyer des comptages anonymes — installation, premiers pas, retours —, sans aucun identifiant ; un
+interrupteur dans les Réglages les coupe.
 
-**Traduction étendue** (facultative, désactivée par défaut, sur Chrome, Firefox pour ordinateur
-et Safari) : votre sélection est traduite dans sa phrase, sur votre appareil, par le moteur de
+**Traduction étendue** (facultative, désactivée par défaut, sur Chrome, Firefox (ordinateur et
+Android) et Safari) : votre sélection est traduite dans sa phrase, sur votre appareil, par le moteur de
 Firefox Translations ; l'espagnol passe par l'anglais. L'activer télécharge une fois les modèles de
 traduction depuis Cymbra (25,8 Mo pour l'anglais, 52,0 Mo avec l'espagnol) ; le texte des pages ne
 quitte toujours pas votre appareil. La désactiver supprime les modèles.
@@ -168,17 +178,19 @@ Pour l'espagnol, le dictionnaire français est un peu moins complet que pour l'a
 chiffres sont publiés sur cymbra.app/lingua.
 
 Créez un compte Cymbra si — et seulement si — vous voulez retrouver vos mots et vos cartes sur
-vos autres appareils. Avec la Traduction en ligne ci-dessous, c'est la seule chose qui quitte votre
-machine, et vous pouvez effacer ces données depuis les Réglages sans supprimer votre compte.
+vos autres appareils. Avec la Traduction en ligne ci-dessous et les comptages anonymes, c'est la
+seule chose qui quitte votre machine, et vous pouvez effacer ces données depuis les Réglages sans
+supprimer votre compte.
 
 **Traduction en ligne** (désactivée par défaut, pour les comptes qui y ont accès) : un bouton
 envoie à un service de traduction en ligne la phrase que vous voulez mieux traduire, seulement quand
 vous appuyez dessus ; personne ne la conserve.
 
-Cymbra Lingua est disponible sur Chrome, sur Firefox pour ordinateur et dans l'app Safari (iPhone, iPad, Mac).
+Cymbra Lingua est disponible sur Chrome, sur Firefox (ordinateur et Android) et dans l'app Safari
+(iPhone, iPad, Mac).
 
 **EN** — for English speakers, who study Spanish (es-en, from change 34) and French (fr-en, from
-change 52) (2,579 / 16,000 characters)
+change 52) (2,903 / 16,000 characters)
 
 Cymbra Lingua highlights, right on the page you are reading, the Spanish or French words you don't
 know yet — without changing the layout. A percentage tells you how much of the text is familiar,
@@ -202,11 +214,12 @@ Read your own books too: import your DRM-free EPUB files into the extension's li
 offline with the same highlighting, page by page — on an e-ink tablet as well. Your books stay on
 your device.
 
-**The analysis is local.** The dictionaries and the engine run in your browser: no page you read is
-ever sent anywhere, and the extension works offline. With no account and no extended translation, it
-makes no network request at all.
+**The analysis is local.** The dictionaries and the engine run in your browser, and the extension
+works offline. What you read never leaves your device. Lingua may send anonymous counts — install,
+first steps, returns — with no identifier of any kind; one switch in Settings turns them off.
 
-**Extended translation** (optional, off by default, on Chrome, Firefox for desktop, and Safari):
+**Extended translation** (optional, off by default, on Chrome, Firefox (desktop and Android), and
+Safari):
 your selection is translated into English within its sentence, straight from Spanish or French, on
 your device, by the Firefox Translations engine. Turning it on downloads from Cymbra, once, the
 translation model of each language you study (26.2 MB each); the text of the pages you read still
@@ -216,8 +229,8 @@ How many Spanish and French words our dictionary explains in English: our figure
 cymbra.app/en/lingua.
 
 Create a Cymbra account if — and only if — you want your words and cards on your other devices. With
-Online translation below, that is the only thing that leaves your machine, and you can erase it from
-Settings without deleting your account.
+Online translation below and the anonymous counts, that is the only thing that leaves your machine,
+and you can erase it from Settings without deleting your account.
 
 **Online translation** (off by default, for accounts that have access): a button sends the sentence
 you want translated better to an online translation service, only when you press it; nobody keeps
@@ -226,11 +239,11 @@ it.
 The interface is in English. Cymbra Lingua also teaches English and Spanish to French speakers, in
 French.
 
-Cymbra Lingua is available on Chrome, on Firefox for desktop and as a Safari app (iPhone, iPad,
-Mac).
+Cymbra Lingua is available on Chrome, on Firefox (desktop and Android) and as a Safari app (iPhone,
+iPad, Mac).
 
 **ES, with fr-es** — for Spanish speakers, who study English (en-es, from change 35) and French
-(fr-es, from change 52) (3,062 / 16,000 characters)
+(fr-es, from change 52) (3,416 / 16,000 characters)
 
 Cymbra Lingua resalta, en la misma página que estás leyendo, las palabras en inglés o en francés que
 todavía no conoces, sin cambiar el diseño de la página. Un porcentaje te dice qué parte del texto te
@@ -255,12 +268,13 @@ Lee también tus propios libros: importa tus archivos EPUB sin DRM a la bibliote
 léelos sin conexión con el mismo resaltado, página a página, también en una tableta de tinta
 electrónica. Tus libros se quedan en tu dispositivo.
 
-**El análisis es local.** Los diccionarios y el motor se ejecutan en tu navegador: ninguna de las
-páginas que lees se envía a ningún sitio, y la extensión funciona sin conexión. Sin cuenta ni
-traducción ampliada, no hace ninguna solicitud de red.
+**El análisis es local.** Los diccionarios y el motor se ejecutan en tu navegador, y la extensión
+funciona sin conexión. Lo que lees nunca sale de tu dispositivo. Lingua puede enviar recuentos
+anónimos —instalación, primeros pasos, regresos—, sin ningún identificador; un interruptor en los
+Ajustes los desactiva.
 
-**Traducción ampliada** (opcional, desactivada por defecto, en Chrome, Firefox para escritorio y
-Safari): tu selección se traduce al español dentro de su frase, directamente desde el inglés y,
+**Traducción ampliada** (opcional, desactivada por defecto, en Chrome, Firefox (escritorio y
+Android) y Safari): tu selección se traduce al español dentro de su frase, directamente desde el inglés y,
 desde el francés, pasando por el inglés, en tu dispositivo, con el motor de Firefox Translations. Al
 activarla se descargan una vez los modelos de traducción desde Cymbra (25,4 MB para el inglés, 51,6
 MB con el francés); el texto de las páginas que lees sigue sin salir de tu dispositivo. Al
@@ -271,8 +285,8 @@ publicadas en cymbra.app/es/lingua. Para el francés, el diccionario es algo men
 el inglés.
 
 Crea una cuenta de Cymbra si —y solo si— quieres recuperar tus palabras y tus tarjetas en tus otros
-dispositivos. Con la Traducción en línea de más abajo, es lo único que sale de tu dispositivo, y
-puedes borrar esos datos desde los Ajustes sin eliminar tu cuenta.
+dispositivos. Con la Traducción en línea de más abajo y los recuentos anónimos, es lo único que sale
+de tu dispositivo, y puedes borrar esos datos desde los Ajustes sin eliminar tu cuenta.
 
 **Traducción en línea** (desactivada por defecto, para las cuentas que tienen acceso): un botón envía
 a un servicio de traducción en línea la frase que quieres traducir mejor, solo cuando lo pulsas;
@@ -281,12 +295,12 @@ nadie la conserva.
 La interfaz está en español. Cymbra Lingua también enseña inglés y español a los francohablantes, en
 francés, y español y francés a los anglohablantes, en inglés.
 
-Cymbra Lingua está disponible en Chrome, en Firefox para escritorio y como app de Safari (iPhone,
-iPad, Mac).
+Cymbra Lingua está disponible en Chrome, en Firefox (escritorio y Android) y como app de Safari
+(iPhone, iPad, Mac).
 
 **ES, without fr-es** — for Spanish speakers, who study English (en-es, from change 35), if change 52
 lists fr-en alone: change 37's text, its last line naming what English speakers study
-(2,586 / 16,000 characters)
+(2,940 / 16,000 characters)
 
 Cymbra Lingua resalta, en la misma página que estás leyendo, las palabras en inglés que todavía no
 conoces, sin cambiar el diseño de la página. Un porcentaje te dice qué parte del texto te resulta
@@ -307,12 +321,13 @@ Lee también tus propios libros: importa tus archivos EPUB sin DRM a la bibliote
 léelos sin conexión con el mismo resaltado, página a página, también en una tableta de tinta
 electrónica. Tus libros se quedan en tu dispositivo.
 
-**El análisis es local.** Los diccionarios y el motor se ejecutan en tu navegador: ninguna de las
-páginas que lees se envía a ningún sitio, y la extensión funciona sin conexión. Sin cuenta ni
-traducción ampliada, no hace ninguna solicitud de red.
+**El análisis es local.** Los diccionarios y el motor se ejecutan en tu navegador, y la extensión
+funciona sin conexión. Lo que lees nunca sale de tu dispositivo. Lingua puede enviar recuentos
+anónimos —instalación, primeros pasos, regresos—, sin ningún identificador; un interruptor en los
+Ajustes los desactiva.
 
-**Traducción ampliada** (opcional, desactivada por defecto, en Chrome, Firefox para escritorio y
-Safari): tu selección se traduce al español dentro de su frase, directamente desde el inglés, en tu
+**Traducción ampliada** (opcional, desactivada por defecto, en Chrome, Firefox (escritorio y
+Android) y Safari): tu selección se traduce al español dentro de su frase, directamente desde el inglés, en tu
 dispositivo, con el motor de Firefox Translations. Al activarla se descarga una vez el modelo de
 traducción desde Cymbra (25,4 MB); el texto de las páginas que lees sigue sin salir de tu
 dispositivo. Al desactivarla se elimina el modelo.
@@ -321,8 +336,8 @@ Cuántas palabras inglesas explica nuestro diccionario en español: nuestras cif
 en cymbra.app/es/lingua.
 
 Crea una cuenta de Cymbra si —y solo si— quieres recuperar tus palabras y tus tarjetas en tus otros
-dispositivos. Con la Traducción en línea de más abajo, es lo único que sale de tu dispositivo, y
-puedes borrar esos datos desde los Ajustes sin eliminar tu cuenta.
+dispositivos. Con la Traducción en línea de más abajo y los recuentos anónimos, es lo único que sale
+de tu dispositivo, y puedes borrar esos datos desde los Ajustes sin eliminar tu cuenta.
 
 **Traducción en línea** (desactivada por defecto, para las cuentas que tienen acceso): un botón envía
 a un servicio de traducción en línea la frase que quieres traducir mejor, solo cuando lo pulsas;
@@ -331,8 +346,8 @@ nadie la conserva.
 La interfaz está en español. Cymbra Lingua también enseña inglés y español a los francohablantes, en
 francés, y español y francés a los anglohablantes, en inglés.
 
-Cymbra Lingua está disponible en Chrome, en Firefox para escritorio y como app de Safari (iPhone,
-iPad, Mac).
+Cymbra Lingua está disponible en Chrome, en Firefox (escritorio y Android) y como app de Safari
+(iPhone, iPad, Mac).
 
 What the English and Spanish texts check against, so that they promise nothing the packages do not
 do — each claim and the file that makes it true once change 52 lists fr-en (and fr-es) in
@@ -354,10 +369,11 @@ do — each claim and the file that makes it true once change 52 lists fr-en (an
 | Spanish's and French's levels estimated from word frequency, no freely licensed CEFR list (M7)                                                                        | EN                | `levels_estimated` in every Spanish pack (`tables/es-en/NOTICE`) and every French one (change 46, D5; `reduce-fr-en.py`); the interface's own reason (`estimatedLevelsNote`, `src/i18n/en/languages.ts`), "Estimated French level" (`levelTitleEstimated`)                                                                                                                                                                                                                    |
 | Statistics A1 to C2, MCER; English's levels not estimated, French's estimated                                                                                         | ES                | the scale's Spanish name (`levelScale`, `src/i18n/es/languages.ts`, M19); English's levels are CEFR-J's and Octanove's (`levels_estimated: false`, `reduce-en-es.py`); French's estimated (`reduce-fr-es.py`), « Nivel de francés estimado » (`levelTitleEstimated`)                                                                                                                                                                                                          |
 | Books: DRM-free EPUB, offline, on the device, e-ink                                                                                                                   | EN, ES            | the books note (`booksNote`, `src/i18n/{en,es}/settings.ts`); the reader is every pair's (`src/reader/`)                                                                                                                                                                                                                                                                                                                                                                      |
-| Local analysis; no request without an account or translation                                                                                                          | EN, ES            | as the French text (_Remote code_, _Data usage disclosures_)                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Local analysis; what is read never leaves the device; anonymous counts, no identifier, one switch in Settings                                                         | EN, ES            | as the French text (_Remote code_, _Data usage disclosures_); the counts and their switch, "Anonymous usage counts" / « Recuentos anónimos » in Settings → Data (`src/usage/`, `src/i18n/{en,es}/settings.ts`; add-lingua-usage-counts)                                                                                                                                                                                                                                       |
 | Extended translation straight from Spanish or French: 26.2 MB each                                                                                                    | EN                | routes `es-en` = `es-en/base-memory/2.0`, 23,288,494 + 2,543,246 + 409,312 B, and `fr-en` = `fr-en/base-memory/2.0`, 23,175,075 + 2,649,934 + 409,706 B = 26,234,715 B (`model-manifest.json`), "26.2 MB" each as the setting rounds them (`megabytes`, `src/reading/translation-setting.ts`); the setting adds the models of every language the reader studies (`modelsFor`, `src/translate/host/model-manifest.ts`, called by `model-controller.ts`): 52,475,767 B for both |
 | Directly from English, through English from French: « 25,4 MB para el inglés, 51,6 MB con el francés »                                                                | ES with fr-es     | route `en-es` = `en-es/base-memory/2.1`, 22,698,792 + 2,265,250 + 409,312 = 25,373,354 B; route `fr-es` = fr-en 2.0 then en-es 2.1, 26,234,715 + 25,373,354 = 51,608,069 B — French needs both models whether or not English is studied, as Spanish does for a French speaker (« 52,0 Mo avec l'espagnol »)                                                                                                                                                                   |
-| Extended translation on Chrome, Firefox for desktop and Safari; the models deleted when off                                                                           | EN, ES            | « Traducción ampliada » / "Extended translation" (`toggle`, `src/i18n/{en,es}/translation.ts`); the platforms are the French text's, the owner's wording                                                                                                                                                                                                                                                                                                                      |
+| Extended translation on Chrome, Firefox (desktop and Android) and Safari; the models deleted when off                                                                 | EN, ES            | « Traducción ampliada » / "Extended translation" (`toggle`, `src/i18n/{en,es}/translation.ts`); the platforms are the French text's, the owner's wording                                                                                                                                                                                                                                                                                                                      |
+| Available on Firefox for Android                                                                                                                                      | FR, EN, ES        | the Firefox package declares `browser_specific_settings.gecko_android` (`firefoxManifest`, `tool/manifests.mjs`, since #599): addons.mozilla.org lists the one zip for desktop and Android; extended translation runs in its event page there too (`TRANSLATION.md`)                                                                                                                                                                                                          |
 | The coverage figures at cymbra.app/en/lingua and cymbra.app/es/lingua                                                                                                 | EN, ES            | change 52 writes fr-en's (and fr-es's) figures into `apps/site/src/data/lingua-coverage.json` (`gloss_coverage.py --write`); change 30's pages lead with the reader's pairs                                                                                                                                                                                                                                                                                                   |
 | « Para el francés, el diccionario es algo menos completo que para el inglés » (M6)                                                                                    | ES with fr-es     | fr-es 83.2 / 70.8 / 56.8 % of the 5,000 / 10,000 / 20,000 commonest lemmas glossed (change 49) against en-es's 93.0 / 85.0 / 71.7 % (change 22), re-measured at change 52's commit — the French text's sentence about Spanish (es-fr 87.6 / 77.2 / 63.7 against en-fr 95.1 / 90.1 / 78.9), transposed. fr-en (93.6 / 86.9 / 76.3, change 48) stands beside es-en's 93.0 / 86.5 / 76.5: the English text says nothing of it                                                    |
 | The account: optional, erasable from Settings without deleting it                                                                                                     | EN, ES            | "Manage my data" / « Gestionar mis datos » (`manageData`, `src/i18n/{en,es}/settings.ts`), "Erase my Lingua data…" / « Borrar mis datos de Lingua… » (`erase`, `src/i18n/{en,es}/account.ts`)                                                                                                                                                                                                                                                                                 |
@@ -372,69 +388,56 @@ clause goes from each text and every count only falls; recount before pasting.
 
 ## Graphics
 
-| Asset            | Requirement                                                             | Where it is                  |
-| ---------------- | ----------------------------------------------------------------------- | ---------------------------- |
-| Store icon       | 128×128                                                                 | `icons/icon-128.png`         |
-| Screenshots      | 1280×800 or 640×400, JPEG or 24-bit PNG **without alpha**, at least one | captured by hand — see below |
-| Small promo tile | 440×280, no alpha                                                       | optional                     |
-| Marquee          | 1400×560, no alpha                                                      | optional                     |
+| Asset            | Requirement                                                                                            | Where it is                                                                 |
+| ---------------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| Store icon       | 128×128                                                                                                | `icons/icon-128.png`                                                        |
+| Screenshots      | 1280×800 or 640×400, JPEG or 24-bit PNG **without alpha**, at least one (five on the Chrome Web Store) | `store-captures/<lang>/1-card.png` … `5-reader.png`, made by `yarn capture` |
+| Small promo tile | 440×280, no alpha                                                                                      | `store-captures/<lang>/promo-tile-440x280.png` (optional)                   |
+| Marquee          | 1400×560, no alpha                                                                                     | optional                                                                    |
 
-Screenshots cannot be generated from the repository: they need the extension loaded in a
-browser, reading a real page. Load `dist-chromium` unpacked, open an article in a studied language,
-click the popup's analyse button, and capture the highlighted page, the word popup, the review panel
-and the stats. Any capture can then be conformed to 1280×800 without alpha.
+The screenshots come from the repository (add-site-lingua-showcase): `yarn capture` (README,
+"Captures") builds the Chromium package with the reader declared on every page, loads it in Chrome
+for Testing, restores a reader's state the extension itself recorded, and captures the real
+extension on the articles and books committed under `tool/capture/fixtures/` — one set per listing
+language, each in its interface language. Prerequisites: `yarn gen:wasm`, `yarn gen:pack:real`,
+`yarn fetch:engine`, ffmpeg. The files land in `store-captures/<lang>/`, git-ignored: the owner
+uploads them by hand, under each listing language on the Chrome Web Store, and the same files to
+addons.mozilla.org (1280×800 is its recommended size). The tool refuses a PNG with an alpha channel,
+naming it. The App Store's are not these: see `apps/lingua-apple/STORE-LISTING.md`.
 
-One set per listing language, captured by the owner:
+Each set holds the same five, in this order:
 
-| Language | Build                                                                                                                        | Interface and page                                                                                                                    |
-| -------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `fr`     | the released package                                                                                                         | French (« Analyser cette page »), an English article                                                                                  |
-| `en`     | a build of change 34 (`packs.json` lists es-en), the browser in English; the fifth from a build of change 52 (fr-en)         | English ("Analyze this page"), a Spanish article, a Spanish level chosen; the fifth on a French article, a French level chosen        |
-| `es`     | a build of change 35 (`packs.json` lists en-es), the browser in Spanish; the fifth, if change 52 lists fr-es, from its build | Spanish (« Analizar esta página »), an English article, an English level chosen; the fifth on a French article, a French level chosen |
+| #   | File           | What it shows                                                                                                                                            |
+| --- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `1-card.png`   | The first studied language's article, highlighted, the pill showing the share of the page known, the word card open on a verb whose card names its tense |
+| 2   | `2-second.png` | The second studied language's article, highlighted, a noun's card open with its gender                                                                   |
+| 3   | `3-review.png` | The first article with the review panel the extension draws in the page, on a revealed card: its sentence, its translation and the review's two answers  |
+| 4   | `4-stats.png`  | The statistics page: the estimated vocabulary and the ladder, A1 to C2                                                                                   |
+| 5   | `5-reader.png` | The EPUB reader on a public-domain chapter in the first studied language, highlighted                                                                    |
 
-The `en` set, in this order:
+| Set  | Interface | Studied, first then second | The review's two answers (`src/i18n/<lang>/review.ts`) | The book                         |
+| ---- | --------- | -------------------------- | ------------------------------------------------------ | -------------------------------- |
+| `fr` | French    | English, then Spanish      | « Pas su » and « Su »                                  | _Pride and Prejudice_, chapter I |
+| `en` | English   | Spanish, then French       | "Didn't know" and "Knew it"                            | _Marianela_, chapter I           |
+| `es` | Spanish   | English, then French       | « No la sabía » and « La sabía »                       | _Pride and Prejudice_, chapter I |
 
-1. **Reading** — a Spanish article (a Spanish Wikipedia page reads well), highlighted, the pill
-   showing the share of the page known.
-2. **The word card** — open on a verb form whose card names a tense: « dijo » reads "third-person
-   singular preterite indicative of decir" (`test/baseline/word-card-es-en.txt`), its English
-   gloss below, "I know it", "+ Deck" and "Ignore".
-3. **Review** — Chrome's side panel ("Review") on a card, its sentence shown, the four answers
-   ("Again", "Hard", "Good", "Easy").
-4. **Statistics** — the ladder "My estimated Spanish level", A1 to C2, with its note that the
-   levels are estimated from word frequency.
-5. **French** (from change 52) — a French article (a French Wikipedia page reads well), highlighted,
-   the card open on « fut »: "third-person singular past historic (passé simple) of être"
-   (`test/baseline/word-card-fr-en.txt`), its English gloss below.
+The review shot is the panel the extension draws in the page — Firefox's only review panel, and
+Chrome's on Alt+Shift+D — rather than Chrome's side panel, which is browser UI a page capture
+cannot show; both hold the same card and the same two answers. The fifth slot is the book reader:
+the second slot already shows the second studied language. The site shows these captures too, with
+the reader in « E-ink contrasté » beside the reader; the stores do not carry that one.
 
-The `es` set, in this order:
-
-1. **Reading** — an English article (an English Wikipedia page reads well), highlighted, the pill
-   showing the share of the page known.
-2. **The word card** — open on a past form: « went » reads « pasado simple de go »
-   (`src/i18n/es/grammar.ts`, pinned by `test/word-grammar-es.spec.ts`; change 24's snapshot of the
-   Spanish card, `test/baseline/word-card-en-es.txt`, gives the real readings once merged), its
-   Spanish gloss below, « La conozco », « + Mazo » and « Ignorar ».
-3. **Review** — Chrome's side panel (« Repaso ») on a card, its sentence shown, the four answers
-   (« Otra vez », « Difícil », « Bien », « Fácil »).
-4. **Statistics** — the ladder « Mi nivel de inglés », A1 to C2 (MCER), English's levels not
-   estimated.
-5. **French** (if change 52 lists fr-es) — the same French page, the card open on « fut »:
-   « tercera persona del singular del pretérito perfecto simple de indicativo de être »
-   (`test/baseline/word-card-fr-es.txt`), its Spanish gloss below.
-
-Where a dashboard takes screenshots per language, the `en` set goes under its English listing and
-the `es` set under its Spanish one; where it keeps one set for every language, the owner chooses
-which set it keeps. The Chrome Web Store takes five, so the French capture is the last it holds;
-each is taken by the owner from a build of the release that ships it.
+Where a dashboard takes screenshots per language, the `fr` set goes under the French listing, the
+`en` set under the English one and the `es` set under the Spanish one; where it keeps one set for
+every language, the owner chooses which set it keeps.
 
 ## Extra fields
 
-| Field          | Value                                                                                                                                                                                              |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Homepage URL   | `https://cymbra.app/lingua/` — **only once the site is deployed**; the live site predates that page, and an unknown path there serves the home page rather than a 404, so it looks fine and is not |
-| Support URL    | `https://cymbra.app/support/`                                                                                                                                                                      |
-| Mature content | no                                                                                                                                                                                                 |
+| Field          | Value                                                                                                   |
+| -------------- | ------------------------------------------------------------------------------------------------------- |
+| Homepage URL   | `https://cymbra.app/lingua/` (EN: `https://cymbra.app/en/lingua/`, ES: `https://cymbra.app/es/lingua/`) |
+| Support URL    | `https://cymbra.app/support/`                                                                           |
+| Mature content | no                                                                                                      |
 
 ## Test instructions (for the reviewer)
 
@@ -557,12 +560,16 @@ pages) » in French) for readers who want highlighting on every page without cli
 each time. It is requested by `chrome.permissions.request` from a user gesture, the click on that button
 (`src/popup/popup.ts`), and can be revoked at any time. The extension is fully usable without it.
 
-**`https://api.cymbra.app/*` (host permission)** — Only for the optional account: signing in,
+**`https://api.cymbra.app/*` (host permission)** — For the optional account: signing in,
 then what a signed-in reader synchronizes across their own devices — word statuses, declared levels, cards
 with their review history, and daily learning statistics (`SyncEngine`, `src/sync/sync.ts`).
+And, only once the reader has pressed "Yes, count" (« Sí, contar » in Spanish, « Oui, compter » in
+French), the anonymous usage counts (`cymbra.lingua.v1.UsageCountsService/Report`,
+`src/usage/client.ts`): sent without the account's token, carrying only the day of installation,
+the browser family and the version — see _Data usage disclosures_.
 The origin is set at build time (`LINGUA_GRPC_WEB_URL`, `src/net/transport.ts`) and
-granted by the build (`tool/manifests.mjs`, `hostPattern`). A reader who does not sign in never
-sends it a request.
+granted by the build (`tool/manifests.mjs`, `hostPattern`). A reader who neither signs in nor
+agrees to the counts never sends it a request.
 
 ## Remote code
 
@@ -588,14 +595,14 @@ matches the hash the package carries (`model-manifest.json`,
 
 ## Data usage disclosures (Chrome Web Store)
 
-Answer **yes** to collecting _"Personally identifiable information"_ and _"Website content"_ — but
-only in the narrow senses below — and **no** to every other category (health, financial,
-authentication information, personal communications, location, web history, user activity).
+Answer **yes** to collecting _"Personally identifiable information"_, _"Website content"_ and
+_"User activity"_ — but only in the narrow senses below — and **no** to every other category
+(health, financial, authentication information, personal communications, location, web history).
 
 What is collected, and only for a signed-in reader: the email address used to create the
 account, and the reader's own vocabulary state (word statuses, cards, review history) sent to
-`https://api.cymbra.app` so their devices agree. Reading activity, page content and browsing
-history are **not** collected — the analysis never leaves the browser. Nor are the books a
+`https://api.cymbra.app` so their devices agree. What the reader reads — page content, browsing
+history — is **not** collected: the analysis never leaves the browser. Nor are the books a
 reader imports, their text or where the reader is in them: they stay on the device. Turning on
 « Traduction étendue » downloads models from Cymbra; those requests carry nothing of the
 reader's (no cookie, no identifier, no page text) and are not tied to an account.
@@ -606,6 +613,30 @@ selection's position and the language pair, is sent to `https://api.cymbra.app` 
 the translation provider (Google, or Anthropic as a fallback), translated, and kept by no one —
 not by Cymbra, not by the provider, and not used for training. Nothing is sent without that
 press.
+
+User activity, **only after the reader agrees**: the anonymous usage counts. The extension asks
+once, on the welcome tab or in the popup, in one sentence with two equal buttons, "Yes, count" and
+"No, thanks" (« Sí, contar » / « No, gracias », « Oui, compter » / « Non merci »); nothing is sent
+before "Yes, count", and "No, thanks" turns counting off. Six steps are then counted, each sent
+once per installation: installed; set up (a first level chosen); first page analysed in a studied
+language; back on day 1; back during days 7–13; back during days 30–59. A report carries those
+steps, the day of installation, the browser family and the extension's version (major.minor) —
+**no identifier** of any kind (no installation, device or account id, even for a signed-in reader)
+and nothing about what is read. It goes to `https://api.cymbra.app` without the account's token, to
+a service that authenticates no one; the server adds one to a counter per installation day, keeps
+no network address and deletes the counters after 25 months. Each step is sent when it happens (or
+at the extension's next start or use, if it could not leave), so an installation alone on its day
+can be recognised in the totals, as the privacy policy says. The device keeps the day of
+installation for at most 60 days. An installation made before the release that introduced the counts
+is never asked and never counted. Turning "Anonymous usage counts" off in Settings → Data stops the
+counts for good on that installation. While counting is on, removing the extension opens a cymbra.app page that asks
+why, with six fixed answers and no free text; only an answer the reader taps is sent, counted the
+same anonymous way. The figures are read only as aggregates, in Cymbra's own back office.
+
+Google's documentation does not publish what the dashboard means by _"User activity"_ (read on
+2026-10-14): read its description in the dashboard when ticking it (add-lingua-usage-counts, Q7).
+It is ticked because each counted step is interaction with the extension: declaring it costs
+nothing, while a declaration that does not match what the extension does can get it removed.
 
 Tick the three certifications: the data is not sold to third parties, it is not used or
 transferred for a purpose unrelated to the item's single purpose, and it is not used or

@@ -61,17 +61,25 @@ export function firefoxManifest(base) {
   // Firefox requires an add-on id; it has no "sidePanel" permission.
   //
   // data_collection_permissions mirrors the privacy policy's Annex B (cymbra.app/confidentialite):
-  // everything here is OPTIONAL because signing in is optional (offline/anonymous use sends
-  // nothing at all — see REVIEWERS.md, "Where the add-on reaches the network"). Once signed in
-  // and syncing: authenticationInfo (the Cymbra account/session), personallyIdentifyingInfo (its
-  // email), websiteContent (the deck's stored source sentence — no URL, but still page text — and
-  // the one sentence « Traduction en ligne » sends when the reader presses its button), and
-  // technicalAndInteraction (daily stats, the random install id; Mozilla requires this one to be
-  // optional regardless). No location/health/financial/communications/search/bookmarks data, and
-  // no browsingActivity — the page address never leaves the device (Annex B). Firefox only shows
-  // this consent UI from version 140; strict_min_version stays 128.0 for now (AMO currently only
-  // warns, not blocks, on a missing key), so this key alone isn't yet a full compliance story for
-  // Firefox 128–139 — see https://mzl.la/firefox-builtin-data-consent, "older Firefox versions".
+  // nothing is collected unasked, so everything here is OPTIONAL (see REVIEWERS.md, "Where the
+  // add-on reaches the network").
+  // - authenticationInfo (the Cymbra account/session), personallyIdentifyingInfo (its email) and
+  //   websiteContent (the deck's stored source sentence — no URL, but still page text — and the one
+  //   sentence « Traduction en ligne » sends when the reader presses its button) come with the
+  //   account the reader chose to sign in to — as do the synced daily stats and the sync's random
+  //   installation id, which belong to that account, not to technicalAndInteraction.
+  // - technicalAndInteraction gates the anonymous usage counts alone (src/usage/): six steps per
+  //   installation (installed, set up, first page analysed, back on day 1, in days 7–13, in days
+  //   30–59), each sent once, when it happens, with the day of installation, the browser family and the version —
+  //   no identifier of any kind, no account token, nothing read. Mozilla requires this type to be
+  //   optional (an opt-out): Firefox ticks it at install, the add-on sends nothing unless
+  //   permissions.getAll() lists it, and « Comptages anonymes » in Réglages → Données requests or
+  //   removes it. While it is granted, removing the add-on opens cymbra.app's leaving page.
+  // No location/health/financial/communications/search/bookmarks data, and no browsingActivity —
+  // the page address never leaves the device (Annex B). Firefox only shows this consent UI from
+  // version 140 (Android 142); below that the counts never start, as Mozilla's guidance for older
+  // versions allows. strict_min_version stays 128.0 for now (AMO currently only warns, not blocks,
+  // on a missing key) — see https://mzl.la/firefox-builtin-data-consent, "older Firefox versions".
   m.browser_specific_settings = {
     gecko: {
       id: "lingua@cymbra.app",

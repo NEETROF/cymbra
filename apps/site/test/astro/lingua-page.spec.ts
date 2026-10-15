@@ -5,6 +5,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { Coverage, Routes } from "../../src/lib/lingua-pairs";
 import takenWith from "../fixtures/lingua/taken-with.json";
 import { MATRIX, ROUTES, SIX_PAIRS, TODAY } from "../support/lingua";
+import { pinnedMain } from "../support/media.mjs";
 
 // The Lingua pages rendered as the build renders them, through Astro's Container API, on a
 // committed pair list (change: add-site-lingua-matrix-pages, D1–D3). The test stands in for
@@ -50,7 +51,9 @@ const shipTheMatrix = () => ship(MATRIX, ROUTES);
 const shipSixPairs = () => ship(SIX_PAIRS, ROUTES);
 
 const fixture = (lang: string) => readFileSync(resolve(__dirname, `../fixtures/lingua/main.${lang}.html`), "utf8");
-const main = (html: string) => html.match(/<main>(.*?)<\/main>/s)?.[1];
+// The page's `<main>`, its image addresses and script bodies left aside: the Container names them
+// by their source path on this machine, the build by a hash (`test/support/media.mjs`).
+const main = (html: string) => pinnedMain(html);
 const navLingua = (html: string) => html.match(/<nav class="nav-links">.*?<a href="([^"]+)">Lingua<\/a>/s)?.[1];
 const footerLingua = (html: string) => html.match(/<footer class="site-footer">.*?<a href="([^"]+)">Lingua<\/a>/s)?.[1];
 const hreflangs = (html: string) => [...html.matchAll(/<link rel="alternate" hreflang="([a-z]+)" href="([^"]+)">/g)].map((m) => [m[1], m[2]]);
@@ -86,8 +89,8 @@ describe("today's pairs", () => {
     expect(footerLingua(notFound)).toBe("/en/lingua");
     expect(notFound).toContain('<a class="btn btn-ghost" href="/en/lingua">Cymbra Lingua</a>');
     expect(hreflangs(await render(FrenchPage))).toEqual([
-      ["fr", "https://cymbra.app/lingua"],
-      ["en", "https://cymbra.app/en/lingua"],
+      ["fr", "https://cymbra.app/lingua/"],
+      ["en", "https://cymbra.app/en/lingua/"],
     ]);
   });
 });
@@ -110,9 +113,9 @@ describe("the matrix: a pair glossed in Spanish ships", () => {
     expect(navLingua(html)).toBe("/es/lingua");
     expect(footerLingua(html)).toBe("/es/lingua");
     expect(hreflangs(html)).toEqual([
-      ["fr", "https://cymbra.app/lingua"],
-      ["en", "https://cymbra.app/en/lingua"],
-      ["es", "https://cymbra.app/es/lingua"],
+      ["fr", "https://cymbra.app/lingua/"],
+      ["en", "https://cymbra.app/en/lingua/"],
+      ["es", "https://cymbra.app/es/lingua/"],
     ]);
   });
 

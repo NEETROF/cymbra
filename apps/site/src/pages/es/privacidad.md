@@ -3,7 +3,7 @@ layout: ../../layouts/Legal.astro
 title: Política de privacidad
 description: Qué datos personales tratan los servicios Cymbra, por qué, con quién se comparten y cuáles son tus derechos.
 lang: es
-updated: 11/10/2026
+updated: 16/10/2026
 alternates:
   fr: /confidentialite
   en: /en/privacy
@@ -166,11 +166,16 @@ lees, las palabras que todavía no conoces en los idiomas que estudias. Además 
 en el §2:
 
 **Lo que se queda en tu dispositivo.** El texto de las páginas se analiza **en tu
-dispositivo** y nunca se envía, salvo la frase que envías tú con la **Traducción en línea**
-(más abajo). También se quedan en el dispositivo: el detalle de tus
+dispositivo** y nunca se envía, salvo la frase que envías tú con la **Traducción en línea** y
+la traducción de una palabra que decides guardar en su tarjeta (más abajo). También se quedan en el dispositivo: el detalle de tus
 lecturas (qué palabras has encontrado, en qué páginas), la **dirección de la página** en la
 que añades una palabra a tu mazo y, si no has iniciado sesión, el conjunto de tus datos de
-Lingua.
+Lingua. También se queda en el dispositivo, sin sincronizarse ni guardarse en el archivo de copia
+de seguridad, lo que recuerda la petición de valoración: el número de sesiones de repaso que has
+terminado, el número de días en que terminaste alguna, la fecha de la última, el número de veces
+que se te mostró la petición y tu respuesta — y, en la app Cymbra Lingua, el número de sesiones
+terminadas en la app y la versión de la app para la que se pidió la valoración; la página de la
+tienda solo se abre si decides valorar Cymbra Lingua.
 
 **Tus idiomas.** Tus ajustes de idiomas se quedan en el dispositivo: los idiomas que estudias y
 tu lengua materna no se guardan como tales. Cada estado, nivel, tarjeta y día de estadísticas
@@ -190,19 +195,30 @@ y el texto de las páginas sigue sin enviarse nunca. Estas descargas no contiene
 las páginas, ni datos de Lingua, ni token de cuenta, ni identificador de instalación, y
 Cymbra no las asocia a ninguna cuenta ni a ninguna instalación. Como con cualquier página
 web, el proveedor que aloja estos archivos (Cloudflare) ve la dirección IP del dispositivo
-que los solicita. Desactivar el ajuste elimina los modelos del dispositivo.
+que los solicita. Desactivar el ajuste elimina los modelos del dispositivo. La app Cymbra
+Lingua guarda su propia copia de los modelos: solo la descarga, desde la misma dirección y en
+las mismas condiciones, cuando la aceptas en la app, si el ajuste está activado en la extensión
+de Safari del mismo dispositivo, y la elimina cuando se desactiva.
 
 **Traducción en línea.** Este ajuste, desactivado por defecto y propio de cada dispositivo
 (no se sincroniza), solo se ofrece a las cuentas que tienen acceso a él. Cuando está activado,
-aparece un botón « Traducción en línea » en la traducción de una selección de varias palabras.
-**No se envía nada mientras no pulses ese botón.** Cuando lo pulsas, la frase que contiene tu
-selección, la posición de la selección y el par de idiomas se envían a Cymbra, con tu token de
+aparece un botón « Traducción en línea » en la traducción de una selección de varias palabras,
+y en una tarjeta en repaso. **No se envía nada mientras no pulses ese botón.** Cuando lo pulsas,
+la frase que contiene tu selección —o la frase de la tarjeta repasada, con la palabra localizada
+por su posición—, la posición de la selección y el par de idiomas se envían a Cymbra, con tu token de
 cuenta, y Cymbra los envía a **Google** (API Gemini) para traducirlos, o a **Anthropic** (API
 Claude) cuando Google no responde. Ni Cymbra ni estos proveedores conservan la frase ni su
 traducción, y estos proveedores no la usan para entrenar sus modelos. Para limitar el uso y
 conocer su coste, Cymbra cuenta, para tu cuenta, las traducciones en línea del día (un contador
 que se borra al cabo de un día) y guarda totales diarios por proveedor y par de idiomas, sin
-cuenta ni texto.
+cuenta ni texto. En la app Cymbra Lingua, la Traducción en línea te pide iniciar sesión **en la
+app** (con Apple, Google o tu correo y tu contraseña): la app abre entonces su propia sesión de tu cuenta, distinta de la
+de la extensión, que puedes cerrar desde la app.
+
+**Traducción guardada.** Una traducción automática (en el dispositivo o en línea) solo se
+conserva si, en el repaso, decides guardar la traducción de la palabra como traducción de su
+tarjeta: solo se guarda esa palabra traducida, en la tarjeta, y se sincroniza con ella; la frase
+traducida nunca. Una traducción que no guardas no se conserva en ningún sitio.
 
 **Lectura en voz alta.** La lectura en voz alta utiliza una voz del idioma leído, instalada
 en tu dispositivo: el texto leído no sale de él. Si no hay ninguna voz de ese idioma
@@ -212,14 +228,75 @@ navegador** al proveedor de esas voces (Google, en el caso de Chrome), según la
 de ese proveedor. Cymbra no recibe ese texto. En cuanto haya una voz de ese idioma instalada
 en el dispositivo, se utiliza en su lugar.
 
+**Recuentos anónimos.** Para saber si Lingua es realmente útil a quienes la instalan, la
+extensión puede enviar a Cymbra seis recuentos, cada uno una vez por instalación: Lingua está
+**instalada**; está **lista** (un primer nivel elegido); se **analiza una primera página** en un
+idioma que estudias; vuelves a usarla **al día siguiente** de instalarla; de nuevo **entre el
+día 7 y el 13**; de nuevo **entre el día 30 y el 59**. Cada envío solo contiene tres datos: el
+**día** de la instalación (su fecha en tu dispositivo), la **familia del navegador** (Chromium,
+Firefox o Safari) y la **versión** de la extensión (por ejemplo, 1.10).
+
+- **Ningún identificador** de ningún tipo —ni identificador de instalación o de dispositivo, ni
+  cuenta, aunque hayas iniciado sesión— y **nada de lo que lees**: ni dirección, ni sitio, ni
+  texto de la página, ni palabra, ni idioma estudiado, ni nivel.
+- **Ninguna dirección IP conservada.** Como excepción a los registros técnicos del §2 y del §5,
+  Cymbra no guarda la dirección de red de estos envíos ni en su base de datos, ni en sus
+  registros, ni en los del servidor que le transmite las solicitudes (su « proxy inverso »).
+  Solo sirve para rechazar los envíos masivos, únicamente en memoria y de forma ilegible, y se
+  olvida al cabo de una hora.
+- **Enviados en cuanto ocurren.** Cada recuento sale de tu dispositivo en el momento en que
+  ocurre —o, si no pudo salir, al siguiente inicio o uso de la extensión—. Su llegada dice, por
+  tanto, el día en que ocurrió; Cymbra no guarda ni la hora ni rastro de él, solo un total. Si la
+  extensión se detiene justo cuando Cymbra recibe un envío, ese envío vuelve a salir más tarde y
+  cuenta dos veces: los totales solo pueden quedar un poco altos, nunca vinculados a ti.
+- **Contados por día de instalación.** En Cymbra, los recuentos son totales por día de
+  instalación, familia del navegador y versión, sin rastro de cada envío, y **se borran a los
+  25 meses**. Una instalación que es la única de su día (en su navegador) se reconoce, por tanto,
+  en esos totales: de ellos se deduce su día de instalación y se ve si volvió. Nada en ellos dice
+  de quién es; pero alguien que ya supiera que instalaste Lingua ese día podría ver en ellos si
+  volviste.
+- **En tu dispositivo**, el día de la instalación se guarda **60 días como máximo**, para saber
+  cuándo vuelves, y después se olvida, junto con lo que aún no había podido salir.
+- **Instalaciones anteriores a los recuentos.** Una instalación hecha antes de la versión de
+  Lingua que introdujo los recuentos nunca se cuenta, nunca se le pregunta y no abre ninguna
+  página de despedida.
+- **Cómo pregunta cada navegador.** Chrome y los demás navegadores Chromium (Edge…): no se envía
+  nada hasta que pulsas « Sí, contar ». Firefox: decide el propio consentimiento de Firefox a los
+  « Datos técnicos y de interacción », que se ofrece al instalar la extensión (Firefox 140 o
+  posterior de escritorio, 142 o posterior en Android; las versiones anteriores no cuentan nada).
+  Safari: activados por defecto, una vez mostrada la frase que los presenta.
+- **Desactivarlos.** El interruptor « Recuentos anónimos », en Ajustes → Datos, los desactiva en
+  cualquier momento, en todos los navegadores (en Firefox, actúa sobre ese mismo
+  consentimiento). Al desactivarlos se olvida lo que aún no se había enviado.
+- **Base legal**: en Chrome y los demás navegadores Chromium, tu **consentimiento**; en los
+  demás, el **interés legítimo** de Cymbra en medir la audiencia de Lingua. El interruptor es la
+  forma de oponerte, o de retirar tu consentimiento, en cualquier momento.
+
+**La página de despedida.** En Chrome y Firefox, mientras los recuentos están activados,
+desinstalar Lingua abre una página de cymbra.app con una sola pregunta —por qué te vas— y seis
+respuestas fijas, sin campo libre. Abrirla es una visita normal al sitio: como en cualquiera de
+sus páginas, el proveedor que lo aloja (Cloudflare) recibe la dirección IP de tu dispositivo y la
+dirección de la página, con sus dos parámetros (la familia del navegador y la versión); Cymbra no
+añade nada a esa visita ni recibe nada de ella. Solo la respuesta que pulsas se envía a Cymbra y
+se cuenta, de la misma forma anónima: la semana en que llega, la familia del navegador y la
+versión de la extensión, los únicos datos que lleva la dirección de la página (sin JavaScript, la
+página no envía ninguno de los dos, y se cuentan como desconocidos). Con los recuentos
+desactivados, no se abre ninguna página.
+
 **Lo que se sincroniza si has iniciado sesión** con tu cuenta Cymbra:
 
 | Dato | Origen | Finalidad |
 |---|---|---|
 | Estado de cada palabra (conocida, en aprendizaje, ignorada) y nivel declarado, para cada idioma que estudias | tú | recuperar tu progreso en tus dispositivos |
-| Mazo de repaso, para cada idioma que estudias: la palabra, la frase en la que la encontraste, su traducción, el idioma de esa traducción y su estado de repaso —**sin** la dirección de la página | tú | repasar en todos tus dispositivos |
+| Mazo de repaso, para cada idioma que estudias: la palabra, la frase en la que la encontraste, su traducción —la del diccionario, o la traducción automática de la palabra que decidiste guardar, nunca una frase traducida—, el idioma de esa traducción y su estado de repaso —**sin** la dirección de la página | tú | repasar en todos tus dispositivos |
 | Estadísticas por día y por idioma que estudias (palabras aprendidas, repasos, número de palabras leídas y, entre ellas, de palabras nuevas), con tu lengua materna de ese día (la de las traducciones) | calculadas en el dispositivo | mostrar tus estadísticas; cifras de uso **agregadas** para hacer funcionar el servicio y, sin nombre ni número de personas, publicadas en los canales de la comunidad Cymbra (véase el §2) |
-| Identificador de instalación aleatorio | generado por la extensión | distinguir dos dispositivos durante la sincronización |
+| Identificador de instalación aleatorio | generado por la extensión, y por la app Cymbra Lingua para sí misma | distinguir dos dispositivos durante la sincronización |
+
+La extensión sincroniza estos datos. Si **también inicias sesión en la app Cymbra Lingua**, con la
+cuenta que usa la extensión de Safari, la propia app sincroniza los estados y las tarjetas de los
+repasos hechos en la app, con su propia sesión y su propio identificador de instalación, con el
+mismo contenido (sin dirección de página); las estadísticas del día siguen pasando por la
+extensión. No se recoge nada más.
 
 - **Base legal**: ejecución del contrato (prestación de la sincronización); interés
   legítimo para la publicación de cifras agregadas (véase el §2).
@@ -235,3 +312,19 @@ en el dispositivo, se utiliza en su lugar.
 una contraseña desde Lingua, la extensión indica a Cymbra un idioma —el de la interfaz de
 Lingua o el de tu navegador— que tu cuenta guarda como su idioma: Cymbra te escribe en él
 (verificación, restablecimiento de la contraseña) y tus otras apps Cymbra pueden adoptarlo.
+
+**Política de Datos de Usuario de Chrome Web Store.** « The use of information received from
+Google APIs will adhere to the Chrome Web Store User Data Policy, including the Limited Use
+requirements. » Es decir: el uso de la información recibida de las API de Google se ajustará a
+la Política de Datos de Usuario de Chrome Web Store (*Chrome Web Store User Data Policy*),
+incluidos los requisitos de Uso Limitado (*Limited Use*). Para Cymbra Lingua, esta información
+es: el texto de las páginas que lees, analizado en tu dispositivo; tu cuenta Cymbra (dirección
+de correo electrónico, identificador de inicio de sesión, sesiones, idioma de la cuenta); lo
+que se sincroniza si has iniciado sesión (estados y niveles de las palabras, mazo de repaso,
+estadísticas diarias, identificador de instalación); los **recuentos anónimos**, si los aceptaste
+(véase más arriba); y la frase enviada con la **Traducción en línea**, solo cuando pulsas su
+botón. Cymbra solo usa estos datos para los fines descritos en
+esta política, solo los comparte con los encargados del tratamiento citados en el §4 y para
+esos fines, no los vende y no los usa para publicidad. El equipo de Cymbra solo ve tus datos de
+Lingua como totales, sin cuenta, salvo para ayudarte a petición tuya, por seguridad o para
+cumplir la ley.

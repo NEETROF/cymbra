@@ -4,6 +4,7 @@ import type {
   LanguagePort,
   LinguaPort,
   NewCard,
+  NewWordAllowance,
   Rating,
   ReviewCard,
   ReviewOptions,
@@ -69,6 +70,11 @@ export class MessagingLinguaPort implements LinguaPort {
   }
   dueCount(now: number, languages?: StudiedLanguage[]): Promise<number> {
     return this.rpc("dueCount", languages ? [now, languages] : [now]);
+  }
+  reviewableCount(now: number, languages?: StudiedLanguage[], allowance?: NewWordAllowance): Promise<number> {
+    // Undefined becomes null on the wire; the engine reads a null as "every language".
+    if (allowance) return this.rpc("reviewableCount", [now, languages ?? null, allowance]);
+    return this.rpc("reviewableCount", languages ? [now, languages] : [now]);
   }
   startReview(now: number, languages?: StudiedLanguage[], options?: ReviewOptions): Promise<number> {
     // Undefined becomes null on the wire; the engine reads a null as "every language".
@@ -163,6 +169,9 @@ class MessagingLanguagePort implements LanguagePort {
   }
   retireCard(lemma: string, now: number): Promise<void> {
     return this.rpc("retireCard", [lemma, now]);
+  }
+  keepGloss(lemma: string, gloss: string, now: number): Promise<boolean> {
+    return this.rpc("keepGloss", [lemma, gloss, now]);
   }
   notice(): Promise<string> {
     return this.rpc("notice");

@@ -51,6 +51,8 @@ const TITLE_KEYS = [
   "reviewPace",
   "backupFile",
   "sourcesAndPrivacy",
+  // add-lingua-usage-counts D6: the anonymous counts' switch.
+  "usageCounts",
 ] as const satisfies readonly (keyof typeof settings)[];
 
 /** The surfaces that show Réglages. A new one belongs here. */

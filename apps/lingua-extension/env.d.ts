@@ -22,6 +22,11 @@ declare const __SECTIONS_FROM_WORKER__: boolean;
 // the Apple app's web view, served from its bundle — no browser-extension API, the engine in the page.
 declare const __APP__: boolean;
 
+// What the anonymous usage counts' first-run sentence does (add-lingua-usage-counts D7), per variant
+// (build.mjs `capabilities`): "ask" on Chromium — two equal buttons, nothing sent before "yes" — and
+// "on" on Safari and Firefox, where it informs (Firefox's gate being its own data-collection consent).
+declare const __USAGE_COUNTS_DEFAULT__: "on" | "ask";
+
 // The language pairs the package ships (packs.json, generalise-lingua-pack-build), comma-separated,
 // the default studied language's first: each one's pack is at assets/packs/<pair>.lingua.
 declare const __LINGUA_PACKS__: string;
@@ -75,6 +80,8 @@ declare module "@/wasm/pkg/lingua_wasm.js" {
   export default function init(
     moduleOrPath?: { module_or_path: string | Request | Response | URL } | string | Request | Response | URL,
   ): Promise<unknown>;
+  /** The module instantiated from its bytes at once: the real engine under vitest (test/real-wasm.ts). */
+  export function initSync(module: { module: BufferSource | WebAssembly.Module }): unknown;
 }
 
 // The vendored foliate-js (vendor/foliate-js, add-lingua-reader D2), resolved by build.mjs's

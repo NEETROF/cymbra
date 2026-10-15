@@ -47,6 +47,14 @@ export const settings = {
   onlineTranslationNote:
     "Sur demande, depuis la carte d'une sélection de plusieurs mots : la phrase sélectionnée est envoyée à un service de traduction externe pour être traduite, et n'est conservée par personne. Réglage propre à cet appareil.",
   privacyPolicy: "Politique de confidentialité",
+  // — Comptages anonymes (add-lingua-usage-counts D6): the switch in Données —
+  usageCounts: "Comptages anonymes",
+  usageCountsToggle: "Envoyer des comptages anonymes",
+  usageCountsNote:
+    "Six étapes de chaque installation, chacune envoyée une fois, quand elle a lieu : installée, un premier niveau choisi, une première page analysée, un retour le lendemain, entre le 7ᵉ et le 13ᵉ jour, entre le 30ᵉ et le 59ᵉ jour. Avec elles, seulement le jour d'installation, le navigateur et la version de Lingua — aucun identifiant, même connecté. Rien de ce que tu lis ne quitte ton appareil.",
+  usageCountsFirefoxNote:
+    "Sur Firefox, cet interrupteur est le consentement « Données techniques et d'interaction » de Firefox.",
+  usageCountsFromToolbar: "Pour les rétablir, ouvre les Réglages depuis le bouton de Lingua dans la barre d'outils.",
   shortcuts: "Raccourcis & gestes",
   /** The keys, as the interface names them. */
   keyAlt: "Alt",
@@ -97,6 +105,13 @@ export const settings = {
   tabs: "Réglages",
   /** The review's pace and the reader's data as a file (refine-lingua-review-session D2, D9). */
   reviewPace: "Rythme de révision",
+  /** The toolbar icon's count (add-lingua-comeback-hints D7), under « Nouveaux mots par jour ». */
+  badgeCount: "Afficher les cartes à réviser sur l'icône",
+  badgeCountNote:
+    "Ce qu'une révision contiendrait aujourd'hui, sur les pages où l'icône n'affiche pas de pourcentage. Calculé sur cet appareil.",
+  /** Réglages › Données, under « Sources et confidentialité » (D13). */
+  rate: "Noter Cymbra Lingua",
+  rateNote: "Sur la boutique où tu as installé Cymbra Lingua.",
   newWordsPerDay: "Nouveaux mots par jour",
   newWordsPerDayNote:
     "Pour chaque langue étudiée. Les mots ajoutés au-delà attendent les jours suivants. Une séance compte dix cartes au plus.",

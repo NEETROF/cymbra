@@ -16,9 +16,12 @@ use async_trait::async_trait;
 use cymbra_platform::Result;
 
 use crate::admin_core::{
-    OnlineUsageRow, OnlineUsageTotals, SeriesMetric, SeriesPoint, Usage, online_usage_totals,
+    FunnelDay, FunnelRow, LeaveTotals, OnlineUsageRow, OnlineUsageTotals, ReasonRow, SeriesMetric,
+    SeriesPoint, Usage, browser_filter, funnel_days, leave_totals, online_usage_totals,
     parse_window, series_points,
 };
+use crate::usage_counts::{DEFAULT_CEILING, UsageCountsPolicy};
+use crate::usage_counts_core::monday_of;
 
 /// Storage port for the ops aggregates (consumer-declared). Every method returns
 /// counts only — the SQL groups by day and studied language, never by account.
@@ -42,16 +45,87 @@ pub trait LinguaAdminRepo: Send + Sync {
         from_day: i32,
         to_day: i32,
     ) -> Result<Vec<OnlineUsageRow>>;
+    /// The installation counters (change: add-lingua-usage-counts) of the installation days
+    /// from `from_day` to `to_day`, one row per day × step with the versions summed, and
+    /// whether a summed counter reached `ceiling`; `browser` narrows to one family.
+    async fn usage_funnel(
+        &self,
+        from_day: i32,
+        to_day: i32,
+        browser: Option<&str>,
+        ceiling: i64,
+    ) -> Result<Vec<FunnelRow>>;
+    /// The leaving answers of the weeks starting from `from_week` to `to_day`, one row per
+    /// reason, the same way.
+    async fn leave_reasons(
+        &self,
+        from_week: i32,
+        to_day: i32,
+        browser: Option<&str>,
+        ceiling: i64,
+    ) -> Result<Vec<ReasonRow>>;
 }
 
 /// Orchestrates the ops console over a [`LinguaAdminRepo`].
 pub struct LinguaAdminModule {
     repo: Arc<dyn LinguaAdminRepo>,
+    /// The counters' ceiling, to mark a capped day or week (the default without it).
+    usage_policy: Option<Arc<dyn UsageCountsPolicy>>,
 }
 
 impl LinguaAdminModule {
     pub fn new(repo: Arc<dyn LinguaAdminRepo>) -> Self {
-        Self { repo }
+        Self {
+            repo,
+            usage_policy: None,
+        }
+    }
+
+    /// Read the usage counters' ceiling from the runtime policy (change:
+    /// add-lingua-usage-counts).
+    pub fn with_usage_policy(mut self, policy: Arc<dyn UsageCountsPolicy>) -> Self {
+        self.usage_policy = Some(policy);
+        self
+    }
+
+    fn ceiling(&self) -> i64 {
+        self.usage_policy
+            .as_ref()
+            .map_or(DEFAULT_CEILING, |p| p.ceiling())
+    }
+
+    /// The installation funnel of the installation days in a `yyyy-mm-dd` window, ascending,
+    /// optionally for one browser family (`chromium` | `firefox` | `safari`).
+    pub async fn get_usage_funnel(
+        &self,
+        from: &str,
+        to: &str,
+        browser: &str,
+    ) -> Result<Vec<FunnelDay>> {
+        let (f, t) = parse_window(from, to)?;
+        let browser = browser_filter(browser, false)?;
+        let rows = self
+            .repo
+            .usage_funnel(f, t, browser, self.ceiling())
+            .await?;
+        Ok(funnel_days(rows))
+    }
+
+    /// The leaving reasons' totals over the weeks that meet a `yyyy-mm-dd` window, optionally
+    /// for one browser family or `unknown`.
+    pub async fn get_leave_reasons(
+        &self,
+        from: &str,
+        to: &str,
+        browser: &str,
+    ) -> Result<LeaveTotals> {
+        let (f, t) = parse_window(from, to)?;
+        let browser = browser_filter(browser, true)?;
+        let rows = self
+            .repo
+            .leave_reasons(monday_of(f), t, browser, self.ceiling())
+            .await?;
+        Ok(leave_totals(&rows))
     }
 
     /// Aggregate tiles + breakdown for a `yyyy-mm-dd` window.
@@ -93,12 +167,22 @@ mod tests {
     use cymbra_platform::AppError;
     use std::sync::Mutex;
 
+    /// `(from, to_day, browser, ceiling)` of one usage-count read: the funnel's first
+    /// installation day, or the leaving reasons' first week.
+    type CountsRead = (i32, i32, Option<String>, i64);
+
+    // A recording fake, not a mockall mock: `automock` cannot generate this port's
+    // `Option<&str>` arguments without naming a lifetime the trait does not have.
     #[derive(Default)]
     struct FakeRepo {
         usage: Usage,
         // (day, value) rows the series call should echo back (unsorted on purpose).
         series_rows: Vec<(i32, i64)>,
         seen: Mutex<Vec<(i32, i32, Option<String>)>>, // (from, to, language) of series calls
+        // The usage counts' rows, and (from, to_day, browser, ceiling) of each read.
+        funnel_rows: Vec<FunnelRow>,
+        reason_rows: Vec<ReasonRow>,
+        counts_seen: Mutex<Vec<CountsRead>>,
     }
 
     #[async_trait]
@@ -133,6 +217,148 @@ mod tests {
                 ..Default::default()
             }])
         }
+        async fn usage_funnel(
+            &self,
+            from_day: i32,
+            to_day: i32,
+            browser: Option<&str>,
+            ceiling: i64,
+        ) -> Result<Vec<FunnelRow>> {
+            self.counts_seen.lock().unwrap().push((
+                from_day,
+                to_day,
+                browser.map(str::to_owned),
+                ceiling,
+            ));
+            Ok(self.funnel_rows.clone())
+        }
+        async fn leave_reasons(
+            &self,
+            from_week: i32,
+            to_day: i32,
+            browser: Option<&str>,
+            ceiling: i64,
+        ) -> Result<Vec<ReasonRow>> {
+            self.counts_seen.lock().unwrap().push((
+                from_week,
+                to_day,
+                browser.map(str::to_owned),
+                ceiling,
+            ));
+            Ok(self.reason_rows.clone())
+        }
+    }
+
+    /// 2026-10-19 (a Monday) and the Wednesday after it.
+    const MONDAY: &str = "2026-10-19";
+    const WEDNESDAY: &str = "2026-10-21";
+
+    #[tokio::test]
+    async fn the_funnel_reads_the_installation_days_of_the_window() {
+        let wednesday = parse_iso_day(WEDNESDAY).unwrap();
+        let repo = Arc::new(FakeRepo {
+            funnel_rows: vec![
+                FunnelRow {
+                    day: wednesday,
+                    step: "installed".into(),
+                    count: 40,
+                    capped: false,
+                },
+                FunnelRow {
+                    day: wednesday,
+                    step: "first_analysis".into(),
+                    count: 25,
+                    capped: false,
+                },
+            ],
+            ..Default::default()
+        });
+        let m = LinguaAdminModule::new(repo.clone() as Arc<dyn LinguaAdminRepo>);
+        let days = m
+            .get_usage_funnel(WEDNESDAY, "2026-10-28", "firefox")
+            .await
+            .unwrap();
+        assert_eq!(days.len(), 1);
+        assert_eq!(days[0].day, wednesday);
+        assert_eq!((days[0].installed, days[0].first_analysis), (40, 25));
+        // The window's days exactly — a window starting mid-week no longer reaches back to
+        // its Monday — with the default ceiling.
+        let seen = repo.counts_seen.lock().unwrap();
+        assert_eq!(
+            seen.as_slice(),
+            [(wednesday, wednesday + 7, Some("firefox".to_string()), 5_000)]
+        );
+    }
+
+    #[tokio::test]
+    async fn the_leave_reasons_still_read_the_weeks_that_meet_the_window() {
+        let monday = parse_iso_day(MONDAY).unwrap();
+        let repo = Arc::new(FakeRepo::default());
+        let m = LinguaAdminModule::new(repo.clone() as Arc<dyn LinguaAdminRepo>);
+        m.get_leave_reasons(WEDNESDAY, "2026-10-28", "")
+            .await
+            .unwrap();
+        // Answers are filed under the week they arrived in: a mid-week window reads that week.
+        let seen = repo.counts_seen.lock().unwrap();
+        assert_eq!(seen.as_slice(), [(monday, monday + 9, None, 5_000)]);
+    }
+
+    #[tokio::test]
+    async fn the_ceiling_comes_from_the_policy() {
+        let mut policy = crate::usage_counts::MockUsageCountsPolicy::new();
+        policy.expect_ceiling().return_const(12i64);
+        let repo = Arc::new(FakeRepo {
+            reason_rows: vec![ReasonRow {
+                reason: "slow".into(),
+                count: 12,
+                capped: true,
+            }],
+            ..Default::default()
+        });
+        let m = LinguaAdminModule::new(repo.clone() as Arc<dyn LinguaAdminRepo>)
+            .with_usage_policy(Arc::new(policy));
+        assert!(
+            m.get_usage_funnel(MONDAY, MONDAY, "")
+                .await
+                .unwrap()
+                .is_empty()
+        );
+        let totals = m
+            .get_leave_reasons(MONDAY, MONDAY, "unknown")
+            .await
+            .unwrap();
+        assert_eq!(totals.reasons[3], ("slow", 12));
+        assert!(totals.capped);
+        let monday = parse_iso_day(MONDAY).unwrap();
+        let seen = repo.counts_seen.lock().unwrap();
+        assert_eq!(
+            seen.as_slice(),
+            [
+                (monday, monday, None, 12),
+                (monday, monday, Some("unknown".to_string()), 12)
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_bad_filter_or_window_never_reaches_the_repo() {
+        let repo = Arc::new(FakeRepo::default());
+        let m = LinguaAdminModule::new(repo.clone() as Arc<dyn LinguaAdminRepo>);
+        for (from, to, browser) in [
+            (MONDAY, MONDAY, "netscape"),
+            (MONDAY, MONDAY, "unknown"),
+            (WEDNESDAY, MONDAY, ""),
+        ] {
+            assert!(matches!(
+                m.get_usage_funnel(from, to, browser).await,
+                Err(AppError::InvalidArgument(_))
+            ));
+        }
+        assert!(matches!(
+            m.get_leave_reasons(MONDAY, MONDAY, "edge").await,
+            Err(AppError::InvalidArgument(_))
+        ));
+        assert!(repo.counts_seen.lock().unwrap().is_empty());
     }
 
     #[tokio::test]

@@ -1,8 +1,12 @@
 ---
 import '../styles/global.css';
+import type { ImageMetadata } from 'astro';
+import { getImage } from 'astro:assets';
+import brandShare from '../assets/brand-share.svg';
 import { config } from '../lib/config';
 import { LANGS, type Lang } from '../lib/i18n';
 import { linguaHref } from '../lib/lingua-pairs';
+import { SITE, servedUrl } from '../lib/served-url';
 
 /** The page's address in each language it exists in. */
 type Alternates = Partial<Record<Lang, string>>;
@@ -22,6 +26,11 @@ interface Props {
    * alone: no switch, its own `hreflang`.
    */
   alternates: Alternates;
+  /**
+   * The page's share image (change: add-site-lingua-showcase, D12) and its alt text in the page's
+   * language: the Lingua pages their capture, the Music pages Music's; the brand image otherwise.
+   */
+  image?: { src: ImageMetadata; alt: string };
 }
 
 const {
@@ -30,6 +39,7 @@ const {
   lang = 'fr',
   noindex = false,
   alternates,
+  image,
 } = Astro.props;
 
 // A page that omits its own language from `alternates` would ship no `hreflang` for
@@ -133,9 +143,24 @@ for (const l of LANGS) {
   if (href) hreflangs.push({ lang: l, href });
 }
 const otherLocales: Link[] = hreflangs.filter((a) => a.lang !== lang).map((a) => ({ href: a.href, label: LABEL[a.lang] }));
-const site = 'https://cymbra.app';
 // The community server, on every page — header and footer — when an invite is set.
 const discordUrl = config.discordUrl;
+
+// The address the host serves for this page (D12): `/lingua` is answered by a 308 to `/lingua/`,
+// so the canonical link, `og:url` and every `hreflang` name the served form (`servedUrl`). A
+// personal page (`noindex`) names no canonical: it is not a page to index.
+const canonical = noindex ? null : servedUrl(alternates[lang]!);
+// The share preview (D12): a 1200×630 JPEG at an absolute address (several link previewers ignore
+// a relative one), with its alt text in the page's language. The brand image is the name « Cymbra »
+// drawn as paths (`src/assets/brand-share.svg`): no font is needed to rasterise it.
+const BRAND_ALT: Record<Lang, string> = {
+  fr: 'Le nom Cymbra sur un dégradé bleu et violet',
+  en: 'The name Cymbra on a blue-to-purple gradient',
+  es: 'El nombre Cymbra sobre un degradado azul y violeta',
+};
+const share = image ?? { src: brandShare, alt: BRAND_ALT[lang] };
+const shareImage = await getImage({ src: share.src, width: 1200, height: 630, fit: 'cover', position: 'top', format: 'jpeg', quality: 82 });
+const shareUrl = new URL(shareImage.src, SITE).href;
 ---
 
 <!doctype html>
@@ -153,7 +178,15 @@ const discordUrl = config.discordUrl;
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
-    {hreflangs.map((a) => <link rel="alternate" hreflang={a.lang} href={`${site}${a.href}`} />)}
+    <meta property="og:site_name" content="Cymbra" />
+    {canonical && <link rel="canonical" href={canonical} />}
+    {canonical && <meta property="og:url" content={canonical} />}
+    <meta property="og:image" content={shareUrl} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={share.alt} />
+    <meta name="twitter:card" content="summary_large_image" />
+    {hreflangs.map((a) => <link rel="alternate" hreflang={a.lang} href={servedUrl(a.href)} />)}
   </head>
   <body>
     <header class="site-header">

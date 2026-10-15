@@ -25,9 +25,9 @@ The landing side is a **hub + one page per product**, fr (default), en and es:
 
 | Page (fr / en / es) | What it holds |
 |---|---|
-| `/`, `/en/`, `/es/` | The Cymbra hub: positioning, one card per product, what both apps share (one account, EU hosting, offline, immediate feedback). The Spanish and English homes' Lingua cards are built from the shipped pairs (see below) |
+| `/`, `/en/`, `/es/` | The Cymbra hub: positioning, one card per product, what both apps share (one account, EU hosting, offline, immediate feedback). The three homes' Lingua cards are built from the shipped pairs (see below) |
 | `/music`, `/en/music`, `/es/music` | Cymbra Music — hero, store buttons, features. The copy mirrors `apps/music/store/copy/{fr,en,es}.md` (and, in Spanish, the app's own terms, `apps/music/lib/l10n/app_es.arb`), so the site, the app and the store listings never claim different things |
-| `/lingua`, `/en/lingua`, (`/es/lingua`) | Cymbra Lingua — one component, `src/components/LinguaPage.astro`, fed by the shipped pairs (`src/lib/lingua-pairs.ts`: `src/data/lingua-coverage.json` for the pairs and their figures, the extension's `model-manifest.json` for the translation routes) and by one text table per site language (`src/lib/lingua-text.ts`); store buttons, the coverage table (one column per pair while every pair is glossed in one language, one row per pair once in two — see below), the community invite when `PUBLIC_DISCORD_URL` is set. Each page leads with the pairs glossed in its language. `/es/lingua` (`src/pages/[locale]/lingua.astro`) is built only once a pair glossed in Spanish ships (change `add-site-lingua-matrix-pages`) |
+| `/lingua`, `/en/lingua`, (`/es/lingua`) | Cymbra Lingua — one component, `src/components/LinguaPage.astro`, fed by the shipped pairs (`src/lib/lingua-pairs.ts`: `src/data/lingua-coverage.json` for the pairs and their figures, the extension's `model-manifest.json` for the translation routes) and by one text table per site language (`src/lib/lingua-text.ts`); store buttons (the visitor's browser's store marked primary, see below), the captures of the extension at work and its demo video (see below), the coverage table (one column per pair while every pair is glossed in one language, one row per pair once in two — see below), the community invite when `PUBLIC_DISCORD_URL` is set. Each page leads with the pairs glossed in its language. `/es/lingua` (`src/pages/[locale]/lingua.astro`) is built only once a pair glossed in Spanish ships (change `add-site-lingua-matrix-pages`) |
 
 Distribution links live in **one** place, `src/lib/stores.ts`, read by the product
 pages and by the post-checkout `Downloads` block. A channel is either `live: true`
@@ -59,7 +59,9 @@ The English home's Lingua card follows the same rule (`englishHomeLinguaCard`, c
 languages read with an English gloss — "Read the web in Spanish…" with es-en, "…in Spanish or
 French…" with fr-en beside it — and until then it is the paragraph written for French
 speakers, « Read the English web… », byte for byte. Its button always opens `/en/lingua`. The
-French home's card is literal: a French speaker studies English and Spanish whatever ships.
+French home's card names the languages read with a French gloss, in `packs.json`'s order —
+« Lisez le web en anglais ou en espagnol… » (`frenchHomeLinguaCard`, change
+`add-site-lingua-showcase`, D15) — and opens `/lingua`.
 
 **What each studied language's card and levels are** is one table, `STUDIED` in
 `src/lib/lingua-text.ts` (change `add-lingua-french-listings`, D7): English's card names no
@@ -96,6 +98,23 @@ locale roots, as before. The French and English pages render as before: the only
 markup differences against the previous build are the `hreflang` / switch entries and
 `&#39;` in one footer label (« Code d'accès », now an expression Astro escapes).
 
+**Every page names its served address and has a share preview** (change
+`add-site-lingua-showcase`, D12, D13). The host answers `/lingua` with a 308 to `/lingua/`, so
+`servedUrl` (`src/lib/served-url.ts`) writes the address it serves — `https://cymbra.app` and the
+path with its trailing slash — for every `hreflang`, and for the canonical link and `og:url` of
+every page that is not `noindex` (a personal page names none); the switch keeps the declared
+paths. Every page carries a 1200×630 JPEG `og:image` at its absolute address, its alt text in the
+page's language, `og:site_name` and `twitter:card` `summary_large_image`: `Base.astro`'s `image`
+prop — the Lingua pages their capture, the Music pages Music's own macOS store capture
+(`apps/music/store/macos/desktop_1440x900/<lang>/01_library.png`, cropped), every other page the
+brand image, the name « Cymbra » drawn as paths (`src/assets/brand-share.svg`, the one SVG the
+build rasterises: `image.dangerouslyProcessSVG` in `astro.config.mjs`). After the build,
+`astro.config.mjs` writes `sitemap.xml` from the built pages (`src/lib/sitemap.ts`): every page
+without `noindex`, at its canonical address, with the translations it names — a new page enters it
+by existing, and an indexable page without a canonical fails the build. `public/robots.txt` allows
+every agent and names it; the personal pages are not disallowed, so that a crawler reads their
+`noindex`. `test/post-build/head.spec.ts` holds all of it to `dist/`.
+
 **The Lingua page's text goes through `set:html`, not `{expressions}`.** An expression
 escapes apostrophes (`'` → `&#39;`) and `&nbsp;`; the French table of
 `src/lib/lingua-text.ts` is the page as it was, byte for byte (change
@@ -119,16 +138,47 @@ blanking the coverage cells once a figure is refreshed and skipping, with a mess
 the shipped pairs or their routes are no longer the fixtures'.
 
 To refresh the fixtures when the page's words move on purpose (a pair ships, a route
-changes, a table is edited): `yarn build` with `PUBLIC_DISCORD_URL` unset, then write
-each page's `<main>` inner HTML, byte for byte, to the fixture —
+changes, a table is edited, the captures' markup moves): `yarn build` with `PUBLIC_DISCORD_URL`
+unset, then
 
 ```sh
-node -e 'const fs=require("fs");for(const[l,f]of[["fr","dist/lingua/index.html"],["en","dist/en/lingua/index.html"]])fs.writeFileSync(`test/fixtures/lingua/main.${l}.html`,fs.readFileSync(f,"utf8").match(/<main>(.*?)<\/main>/s)[1])'
+node test/support/refresh-lingua-fixtures.mjs
 ```
 
-— and copy into `taken-with.json` the `coverage` of `src/data/lingua-coverage.json` and the
-`routes` of its pairs in `apps/lingua-extension/model-manifest.json`. Review the fixtures'
-diff: it is the page's change. A figure refreshed by `lingua-pack-update` needs no refresh.
+— which writes each page's `<main>` inner HTML to the fixture, its image addresses and script
+bodies left aside (`test/support/media.mjs`: the build hashes them, the Container API names them
+by their source path) — and copy into `taken-with.json` the `coverage` of
+`src/data/lingua-coverage.json` and the `routes` of its pairs in
+`apps/lingua-extension/model-manifest.json`. Review the fixtures' diff: it is the page's change. A
+figure refreshed by `lingua-pack-update` needs no refresh.
+
+**The Lingua page shows the extension at work** (change `add-site-lingua-showcase`, D10): the hero
+capture right under the store buttons (a close-up of the word card below 640 px), the hero note
+after it, then « En images » / "See it at work" / « Míralo en acción » — the demo video and five
+captures, lazy, each with its width and height and a link to its larger image
+(`src/components/Shot.astro`: WebP variants made by the build from the committed WebP sources; AVIF
+was measured heavier on these captures and is not served). The captures are the real extension's, in the page's interface
+language, made by `yarn capture` in `apps/lingua-extension` (its README, "Captures") into
+`src/assets/lingua/<lang>/` and `public/media/lingua/<lang>/demo.mp4`; `src/lib/lingua-media.ts`
+reads them, and the build fails on a missing one. Their alt texts and captions are a slot of each
+table of `src/lib/lingua-text.ts` (`showcase`), which quote no figure. To refresh them, run
+`yarn capture` there and rebuild here. The video (`src/components/DemoVideo.astro`) has no audio
+track, a poster, its controls, `preload="none"` and no `autoplay` attribute; a few lines of script
+play it, muted, once half of it is on screen, and pause it when it leaves — only when the visitor
+does not ask for reduced motion and does not save data.
+
+**The weight budget** of these media and of the site lives in one table at the top of
+`test/post-build/media-budget.spec.ts`, run by `yarn check:routes`: each image variant ≤ 250 KB, the
+hero's largest ≤ 200 KB, each share image ≤ 300 KB, each poster ≤ 150 KB, each video ≤ 4 MB, all
+media ≤ 30 MB, no file of 25 MiB or more and fewer than 20,000 files (Cloudflare Pages' limits).
+
+**The store buttons choose the visitor's store** (D11): on the Lingua page only, each button
+carries `data-store`, and `src/components/StoreChoice.astro` marks the one of the visitor's browser
+primary (`src/lib/store-choice.ts`: Safari on a Mac and anything on an iPhone or an iPad → App
+Store; Firefox → Firefox Add-ons, its Android listing on Android, where every other browser gets it
+too with a line saying Lingua runs in Firefox there; Chromium browsers on a computer → Chrome Web
+Store), reveals that line or the iPhone/iPad one, and stores and sends nothing. Without script the
+three buttons are alike, in the same order.
 
 Astro trims the whitespace at a text/element
 boundary that falls on a source-line break — on **either** side, so both
@@ -207,6 +257,23 @@ Store builds of the app never link to `/redeem` (Apple 3.1.1); the app's "manage
 action for a web subscription opens `/account`. The site sets no CSP today (a
 follow-up with the reverse proxy / `_headers`); the checkout page loads Paddle.js
 from `cdn.paddle.com`, Google/Apple sign-in load their SDKs on demand.
+
+## The Lingua leaving page (change: add-lingua-usage-counts)
+
+`/lingua/au-revoir/`, `/en/lingua/goodbye/` and `/es/lingua/adios/` (`noindex`, pinned):
+Chrome and Firefox open the page of Lingua's interface language when the extension is removed
+while its anonymous counts are on, with `?b=<browser>&v=<major.minor>` and nothing else. The
+island, `LeaveReasonIsland`, asks one question with six fixed answers and no free text. Loading
+the page sends nothing to the backend (it is an ordinary page load from Cloudflare Pages); one tap
+sends one `POST /web/lingua/leave` `{ reason, browser, version }` (no cookie, no `Authorization`),
+disables the answers and thanks the reader whatever the backend answers — a failure is never
+shown. A missing or malformed `b`/`v` is sent as `unknown`. State and call:
+`src/composables/useLeaveReason.ts`, behind the client seam of `src/lib/lingua-leave.ts`
+(`setLinguaLeaveClientForTest`). Without JavaScript the same answers are a plain form
+(`leaveFormAction()`, hidden `lang`): the backend counts the answer and sends the browser back to
+the page's `#merci` / `#thanks` / `#gracias` block (`src/components/LeaveThanks.astro`, shown by
+`.leave-done:target`). Backend side: `https://cymbra.app` in `CYMBRA_WEB_ORIGINS`, as for the
+account pages, and **first** in that list: it is where the plain form is sent back to.
 
 ## Deploy
 

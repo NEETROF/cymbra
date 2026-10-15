@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <!-- The site's share image for pages without one of their own (add-site-lingua-showcase D12):
+       the name « Cymbra » drawn as strokes, no font, on the brand gradient. Rasterised by the build. -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#00FCF6"/>
+      <stop offset="1" stop-color="#B412FF"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#g)"/>
+  <g transform="translate(167.0 43.2) scale(0.86)" fill="none" stroke="#0D1633" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M166.9 205.7A100 100 0 1 0 166.9 354.3"/>
+    <path d="M216.9 240L271.9 380M326.9 240L244.9 452"/>
+    <path d="M376.9 240V380M376.9 273A33 33 0 0 1 442.9 273V380M442.9 273A33 33 0 0 1 508.9 273V380"/>
+    <path d="M558.9 180V380M558.9 310A70 70 0 1 0 698.9 310A70 70 0 1 0 558.9 310"/>
+    <path d="M748.9 240V380M748.9 300Q748.9 242 820.9 246"/>
+    <path d="M1006.9 310A70 70 0 1 0 866.9 310A70 70 0 1 0 1006.9 310M1006.9 240V380"/>
+  </g>
+</svg>

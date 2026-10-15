@@ -1,7 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createSpeaker, type VoiceInfo } from "@/reading/speech.ts";
 import type { ReviewView } from "@/review/session.ts";
-import { markWord, type ReviewActions, renderReview, sourceLabel } from "@/review/view.ts";
+import type { InterfaceLanguage } from "@/i18n/index.ts";
+import {
+  markWord,
+  type ReviewActions,
+  type ReviewOnlineOffer,
+  type ReviewTranslationHint,
+  renderReview,
+  sourceLabel,
+} from "@/review/view.ts";
 import { makeFakeSpeech } from "./helpers.ts";
 
 let root: HTMLElement;
@@ -129,6 +137,82 @@ describe("renderReview — practice (add-lingua-review-practice)", () => {
   });
 });
 
+describe("renderReview — ending a session (add-lingua-review-stop-session)", () => {
+  it("offers « Terminer » beside the count on every card of a session, wired to end()", () => {
+    const end = vi.fn();
+    const withEnd = { ...actions, end };
+    for (const view of [
+      reviewing(),
+      reviewing({ revealed: true }),
+      { ...reviewing(), showing: 2 },
+      { ...reviewing(), practice: true },
+    ]) {
+      renderReview(root, view, withEnd, { showLanguage: true });
+      const link = root.querySelector<HTMLButtonElement>(".review-head .review-end");
+      expect(link?.textContent).toBe("Terminer");
+      expect(link?.getAttribute("aria-label")).toBe("Terminer la séance");
+      expect(link?.classList.contains("review-link")).toBe(true);
+      // In the head's own line, after the count: no block of its own.
+      expect(link?.parentElement?.firstElementChild?.classList.contains("remaining")).toBe(true);
+    }
+    root.querySelector<HTMLButtonElement>(".review-end")?.click();
+    expect(end).toHaveBeenCalledOnce();
+  });
+
+  it("offers none before a session starts, at its end, or in a host without the action", () => {
+    const end = vi.fn();
+    renderReview(root, { phase: "idle", card: null, summary: null, moreDue: false }, { ...actions, end });
+    expect(root.querySelector(".review-end")).toBeNull();
+    renderReview(root, done({ reviewed: 2, recovered: 0, holding: 0, known: 0, hidden: 0 }, true), {
+      ...actions,
+      end,
+    });
+    expect(root.querySelector(".review-end")).toBeNull();
+    renderReview(root, reviewing(), actions);
+    expect(root.querySelector(".review-end")).toBeNull();
+  });
+
+  it("speaks the interface language", () => {
+    const end = vi.fn();
+    const cases: [InterfaceLanguage, string, string][] = [
+      ["en", "End", "End the session"],
+      ["es", "Terminar", "Terminar la sesión"],
+    ];
+    for (const [interfaceLanguage, text, aria] of cases) {
+      renderReview(root, reviewing(), { ...actions, end }, { interfaceLanguage });
+      const link = root.querySelector(".review-end");
+      expect([link?.textContent, link?.getAttribute("aria-label")]).toEqual([text, aria]);
+    }
+  });
+
+  it("is not a key: Escape on the card does nothing", () => {
+    const end = vi.fn();
+    renderReview(root, reviewing(), { ...actions, end });
+    expect(key(root, "Escape").defaultPrevented).toBe(false);
+    expect(end).not.toHaveBeenCalled();
+  });
+
+  it("ended before any answer: says the session ended, never that nothing is due, and offers more", () => {
+    const empty = { reviewed: 0, recovered: 0, holding: 0, known: 0, hidden: 0 };
+    renderReview(root, { ...done(empty, true), ended: true }, actions);
+    expect(root.querySelector(".review-done-title")?.textContent).toBe("Séance terminée");
+    expect(root.textContent).not.toContain("Rien à réviser");
+    expect(root.querySelector(".review-done-stats")).toBeNull();
+    expect(root.querySelector(".review-more")?.textContent).toBe("Encore 10");
+  });
+
+  it("ended after some answers: the usual end with its counts", () => {
+    renderReview(
+      root,
+      { ...done({ reviewed: 3, recovered: 0, holding: 1, known: 0, hidden: 0 }, true), ended: true },
+      actions,
+    );
+    expect(root.querySelector(".review-done-title")?.textContent).toBe("Séance terminée");
+    expect(root.querySelector(".review-done-stats")?.textContent).toContain("3 mots revus");
+    expect(root.querySelector(".review-more")).not.toBeNull();
+  });
+});
+
 describe("renderReview — the card (refine-lingua-review-session)", () => {
   it("idle shows a start button wired to start()", () => {
     renderReview(root, { phase: "idle", card: null, summary: null, moreDue: false }, actions);
@@ -207,6 +291,88 @@ describe("renderReview — the card (refine-lingua-review-session)", () => {
     expect(root.querySelector(".review-no-gloss")?.textContent).toBe("Pas de traduction pour cette expression.");
   });
 
+  // add-lingua-review-translation-fallback D12: a card nothing can translate says how, in the note's
+  // own line. (interface language, hint, word or expression, the note)
+  const HINTS: [InterfaceLanguage, ReviewTranslationHint["kind"], boolean, string][] = [
+    [
+      "fr",
+      "settings",
+      false,
+      "Pas de traduction pour ce mot. Activez la traduction étendue dans les réglages pour traduire cette carte.",
+    ],
+    [
+      "fr",
+      "settings",
+      true,
+      "Pas de traduction pour cette expression. Activez la traduction étendue dans les réglages pour traduire cette carte.",
+    ],
+    [
+      "fr",
+      "extension",
+      false,
+      "Pas de traduction pour ce mot. Activez la traduction étendue dans l'extension Cymbra Lingua de Safari pour traduire cette carte.",
+    ],
+    ["fr", "download", true, "Pas de traduction pour cette expression. Téléchargez la traduction pour l'app"],
+    [
+      "en",
+      "settings",
+      false,
+      "No translation for this word. Turn on Extended translation in Settings to translate this card.",
+    ],
+    [
+      "en",
+      "extension",
+      true,
+      "No translation for this expression. Turn on Extended translation in the Cymbra Lingua extension in Safari to translate this card.",
+    ],
+    ["en", "download", false, "No translation for this word. Download translation for the app"],
+    [
+      "es",
+      "settings",
+      true,
+      "No hay traducción para esta expresión. Activa la traducción ampliada en Ajustes para traducir esta tarjeta.",
+    ],
+    [
+      "es",
+      "extension",
+      false,
+      "No hay traducción para esta palabra. Activa la traducción ampliada en la extensión Cymbra Lingua de Safari para traducir esta tarjeta.",
+    ],
+    ["es", "download", false, "No hay traducción para esta palabra. Descarga la traducción para la app"],
+  ];
+
+  it("scenario: nothing can translate the card — the note says how, per host and language", () => {
+    for (const [language, kind, expression, expected] of HINTS) {
+      const download = vi.fn();
+      const hint: ReviewTranslationHint = kind === "download" ? { kind, download } : { kind };
+      const words = expression ? { headword: "such as those made", surface: "such as those made" } : {};
+      renderReview(root, reviewing({ ...words, gloss: null, revealed: true }), actions, {
+        interfaceLanguage: language,
+        hint,
+      });
+      const missing = root.querySelectorAll(".review-no-gloss");
+      expect(missing, `${language} ${kind}`).toHaveLength(1);
+      expect(missing[0]!.textContent, `${language} ${kind}`).toBe(expected);
+      const link = missing[0]!.querySelector("button");
+      expect(link !== null, `${language} ${kind}`).toBe(kind === "download");
+      link?.click();
+      expect(download).toHaveBeenCalledTimes(kind === "download" ? 1 : 0);
+    }
+  });
+
+  it("a hint changes nothing before the reveal, on a glossed card, or under a translation", () => {
+    const hint: ReviewTranslationHint = { kind: "settings" };
+    renderReview(root, reviewing({ gloss: null, revealed: false }), actions, { hint });
+    expect(root.textContent).not.toContain("réglages");
+    renderReview(root, reviewing({ gloss: "rarement", revealed: true }), actions, { hint });
+    expect(root.textContent).not.toContain("réglages");
+    renderReview(root, reviewing({ gloss: null, revealed: true }), actions, {
+      hint,
+      translation: { state: "pending" },
+    });
+    expect(root.textContent).not.toContain("réglages");
+  });
+
   it("scenario: remembered and forgotten — two answers on a revealed card, left « Pas su », right « Su »", () => {
     renderReview(root, reviewing({ revealed: true }), actions);
     const answers = [...root.querySelectorAll(".review-actions button")].map((b) => b.textContent);
@@ -240,6 +406,64 @@ describe("renderReview — the card (refine-lingua-review-session)", () => {
   });
 });
 
+// fix-lingua-selection-card-punctuation D4: the front reads a card's word without its edge
+// punctuation, and never rewrites the card.
+describe("renderReview — a card's word without its edge punctuation", () => {
+  const comma = {
+    headword: "four-poster bed,",
+    surface: "four-poster bed,",
+    sentence: "He slept in a four-poster bed, alone.",
+    gloss: "Lit à baldaquin",
+  };
+
+  it("scenario: a card captured with its comma — marked without it, no dictionary form beside it", () => {
+    const view = reviewing({ ...comma, revealed: true });
+    renderReview(root, view, actions);
+    expect(root.querySelector("mark.review-word")!.textContent).toBe("four-poster bed");
+    expect(root.querySelector(".review-sentence")!.textContent).toBe("He slept in a four-poster bed, alone.");
+    expect(root.querySelector(".review-dictionary-form")).toBeNull();
+    expect(root.querySelector(".review-gloss")!.textContent).toBe("Lit à baldaquin");
+    expect(view.card!.headword).toBe("four-poster bed,"); // the card keeps its stored headword
+  });
+
+  it("heads a card whose sentence does not hold it by the trimmed headword, and hears it so", () => {
+    const fake = makeFakeSpeech([
+      { name: "Samantha", lang: "en-US", localService: true, default: false, voiceURI: "Samantha" },
+    ]);
+    const speaker = createSpeaker(fake.engine, "en", fake.preference);
+    renderReview(root, reviewing({ ...comma, sentence: "" }), actions, { speaker });
+    expect(root.querySelector(".review-headword")!.textContent).toBe("four-poster bed");
+    button("▶ Expression").click();
+    expect(fake.spoken[0]?.text).toBe("four-poster bed");
+  });
+
+  it("tests the trimmed headword for the no-translation note", () => {
+    renderReview(root, reviewing({ headword: "harbour,", surface: "harbour,", gloss: null, revealed: true }), actions);
+    expect(root.querySelector(".review-no-gloss")?.textContent).toBe("Pas de traduction pour ce mot.");
+    expect(root.querySelector("mark")).toBeNull();
+    expect(root.querySelector(".review-headword")!.textContent).toBe("harbour");
+  });
+
+  it("compares the dictionary form with the form met once both are trimmed", () => {
+    const grin = { headword: "grin.", surface: "grinning,", sentence: "He couldn't stop grinning, then left." };
+    renderReview(root, reviewing({ ...grin, revealed: true }), actions);
+    expect(root.querySelector("mark.review-word")!.textContent).toBe("grinning");
+    expect(root.querySelector(".review-dictionary-form")!.textContent).toBe("grin");
+  });
+
+  it("shows a word of punctuation alone as it is stored", () => {
+    renderReview(root, reviewing({ headword: "—", surface: "—", sentence: "" }), actions);
+    expect(root.querySelector(".review-headword")!.textContent).toBe("—");
+  });
+
+  it("scenario: a card without punctuation — the front is as before", () => {
+    renderReview(root, reviewing({ revealed: true }), actions);
+    expect(root.querySelector("mark.review-word")!.textContent).toBe("seldom");
+    expect(root.querySelector(".review-dictionary-form")).toBeNull();
+    expect(root.querySelector(".review-gloss")!.textContent).toBe("rarement");
+  });
+});
+
 describe("renderReview — the end of a session", () => {
   it("scenario: end of a session says what it did and offers more while cards remain", () => {
     renderReview(root, done({ reviewed: 10, recovered: 2, holding: 3, known: 0, hidden: 1 }, true), actions);
@@ -268,6 +492,48 @@ describe("renderReview — the end of a session", () => {
     renderReview(root, done(null), actions);
     expect(root.textContent).toContain("Rien à réviser");
     expect(root.querySelectorAll("button")).toHaveLength(0);
+  });
+});
+
+describe("renderReview — the rating request (add-lingua-comeback-hints D10)", () => {
+  const summary = { reviewed: 10, recovered: 0, holding: 0, known: 0, hidden: 0 };
+
+  it("renders it below « Encore 10 » when the page asks, each answer wired", () => {
+    const rating = { rate: vi.fn(), later: vi.fn(), never: vi.fn() };
+    renderReview(root, done(summary, true), actions, { rating });
+    const box = root.querySelector(".review-done")!;
+    const buttons = [...box.querySelectorAll("button")].map((b) => b.textContent);
+    expect(buttons).toEqual(["Encore 10", "Noter Cymbra Lingua", "Plus tard", "Ne plus demander"]);
+    expect(box.querySelector(".review-rating-ask")?.textContent).toBe(
+      "Une note sur la boutique de ton navigateur aide d'autres lecteurs à trouver Cymbra Lingua.",
+    );
+    // No stars, nothing chosen in advance, nothing offered: three buttons and a sentence.
+    expect(box.querySelector(".review-rating input, .review-rating select")).toBeNull();
+    button("Noter Cymbra Lingua").click();
+    button("Plus tard").click();
+    button("Ne plus demander").click();
+    expect([rating.rate, rating.later, rating.never].map((fn) => fn.mock.calls.length)).toEqual([1, 1, 1]);
+  });
+
+  it("in the three interface languages", () => {
+    const rating = { rate: vi.fn(), later: vi.fn(), never: vi.fn() };
+    renderReview(root, done(summary), actions, { rating, interfaceLanguage: "en" });
+    expect([...root.querySelectorAll(".review-rating button")].map((b) => b.textContent)).toEqual([
+      "Rate Cymbra Lingua",
+      "Later",
+      "Don't ask again",
+    ]);
+    renderReview(root, done(summary), actions, { rating, interfaceLanguage: "es" });
+    expect([...root.querySelectorAll(".review-rating button")].map((b) => b.textContent)).toEqual([
+      "Valorar Cymbra Lingua",
+      "Más tarde",
+      "No volver a preguntar",
+    ]);
+  });
+
+  it("shows nothing of it without the page's request", () => {
+    renderReview(root, done(summary, true), actions);
+    expect(root.querySelector(".review-rating")).toBeNull();
   });
 });
 
@@ -518,5 +784,220 @@ describe("renderReview — a card translated at review (add-lingua-review-transl
       translation: { state: "pending" },
     });
     expect(root.querySelector(".review-translating")?.textContent).toBe("Translating…");
+  });
+});
+
+// add-lingua-review-translation-fallback D1–D3, D10: the link, the online button and keeping.
+describe("renderReview — keeping a translation, the link and the online button", () => {
+  const slacken = {
+    headword: "slacken",
+    surface: "slacken",
+    sentence: "He felt his grip slacken.",
+    gloss: null,
+    revealed: true,
+  };
+  const translated = (sentence: string, marks: { start: number; end: number }[], alone = false) => ({
+    state: "translated" as const,
+    translation: { sentence, marks },
+    alone,
+  });
+  const SE_RELACHER = translated("Il sentit sa prise se relâcher.", [{ start: 19, end: 30 }]);
+  const field = (): HTMLInputElement => root.querySelector<HTMLInputElement>(".review-keep-input")!;
+  const type = (value: string): void => {
+    field().value = value;
+    field().dispatchEvent(new Event("input"));
+  };
+
+  it("One tap: names the marked word and keeps it, « Modifier » beside it", () => {
+    const keep = vi.fn();
+    renderReview(root, reviewing(slacken), actions, { translation: SE_RELACHER, keep });
+    expect(button("Modifier")).toBeTruthy();
+    button("Garder « se relâcher »").click();
+    expect(keep).toHaveBeenCalledWith("se relâcher");
+  });
+
+  // (marks, alone, the action's label) — a candidate named, or the field's path.
+  const CANDIDATES: [string, { start: number; end: number }[], boolean, string][] = [
+    [
+      "Il remettait toujours le travail à plus tard.",
+      [
+        { start: 3, end: 12 },
+        { start: 33, end: 44 },
+      ],
+      false,
+      "Garder une traduction…",
+    ],
+    ["comme celles faites", [], true, "Garder « comme celles faites »"],
+    ["Il sentit sa prise se relâcher.", [], false, "Garder une traduction…"],
+    ["Il sentit sa prise se relâcher.", [{ start: 40, end: 50 }], false, "Garder une traduction…"],
+    [`Il dit ${"très ".repeat(20)}fort.`, [{ start: 7, end: 107 }], false, "Garder une traduction…"],
+  ];
+
+  it("names a one-mark candidate or an expression alone whole; several marks, none or too long: the field", () => {
+    for (const [sentence, marks, alone, label] of CANDIDATES) {
+      renderReview(root, reviewing(slacken), actions, {
+        translation: translated(sentence, marks, alone),
+        keep: vi.fn(),
+      });
+      expect(button(label), sentence).toBeTruthy();
+    }
+  });
+
+  it("No mark: an empty field, « Enregistrer » disabled until a translation is typed, then kept", () => {
+    const keep = vi.fn();
+    renderReview(root, reviewing(slacken), actions, {
+      translation: translated("Il sentit sa prise faiblir.", []),
+      keep,
+    });
+    button("Garder une traduction…").click();
+    expect(field().value).toBe("");
+    for (const [value, enabled] of [
+      ["", false],
+      ["   ", false],
+      ["x".repeat(81), false],
+      [" faiblir ", true],
+    ] as const) {
+      type(value);
+      expect(button("Enregistrer").disabled, JSON.stringify(value)).toBe(!enabled);
+    }
+    button("Enregistrer").click();
+    expect(keep).toHaveBeenCalledWith("faiblir");
+  });
+
+  // (translation, its marks, the field prefilled with) — several marks never kept in one tap.
+  const SPLIT: [string, { start: number; end: number }[], string][] = [
+    [
+      "Il remettait toujours le travail à plus tard.",
+      [
+        { start: 3, end: 12 },
+        { start: 33, end: 44 },
+      ],
+      "remettait … à plus tard",
+    ],
+    // The iPhone spike's answer for « colloquially referred to as »: a non-word and a spurious second mark.
+    [
+      "Ce phénomène est facilitamment appelé une ruée vers le sucre",
+      [
+        { start: 17, end: 37 },
+        { start: 47, end: 51 },
+      ],
+      "facilitamment appelé … vers",
+    ],
+  ];
+
+  it("A split mark: never one tap — « Garder une traduction… » opens the field prefilled, a correction is saved", () => {
+    for (const [sentence, marks, prefilled] of SPLIT) {
+      const keep = vi.fn();
+      renderReview(root, reviewing(slacken), actions, { translation: translated(sentence, marks), keep });
+      expect(root.querySelector(".review-keep-btn"), sentence).toBeNull();
+      expect(root.querySelector(".review-keep-edit"), sentence).toBeNull();
+      button("Garder une traduction…").click();
+      expect(field().value).toBe(prefilled);
+      button("Annuler").click();
+      button("Garder une traduction…").click();
+      type("remettre à plus tard");
+      button("Enregistrer").click();
+      expect(keep).toHaveBeenCalledWith("remettre à plus tard");
+    }
+  });
+
+  it("One mark: « Modifier » opens the field prefilled, « Annuler » comes back", () => {
+    renderReview(root, reviewing(slacken), actions, { translation: SE_RELACHER, keep: vi.fn() });
+    button("Modifier").click();
+    expect(field().value).toBe("se relâcher");
+    button("Annuler").click();
+    expect(button("Garder « se relâcher »")).toBeTruthy();
+  });
+
+  it("lays the field out first, its label said, « Enregistrer » and « Annuler » after it", () => {
+    renderReview(root, reviewing(slacken), actions, { translation: SE_RELACHER, keep: vi.fn() });
+    button("Modifier").click();
+    const form = root.querySelector(".review-keep-field")!;
+    expect([...form.children].map((c) => c.className)).toEqual([
+      "review-keep-input",
+      "review-link review-keep-save",
+      "review-link review-keep-cancel",
+    ]);
+    expect(field().getAttribute("aria-label")).toBe("Traduction à garder");
+  });
+
+  it("typing in the field never answers the card", () => {
+    renderReview(root, reviewing(slacken), actions, { translation: SE_RELACHER, keep: vi.fn() });
+    button("Modifier").click();
+    key(field(), "ArrowLeft");
+    key(field(), "ArrowRight");
+    expect(actions.grade).not.toHaveBeenCalled();
+  });
+
+  it("shows a translation holding markup as text, its candidate too", () => {
+    renderReview(root, reviewing(slacken), actions, {
+      translation: translated("Il <b>se</b> relâche.", [{ start: 3, end: 12 }]),
+      keep: vi.fn(),
+    });
+    expect(root.querySelector(".review-translation b")).toBeNull();
+    expect(root.querySelector(".review-translation mark")?.textContent).toBe("<b>se</b>");
+    expect(button("Garder « <b>se</b> »")).toBeTruthy();
+  });
+
+  it("offers no keep action without a translation shown, nor without the host's keep", () => {
+    renderReview(root, reviewing(slacken), actions, { translation: { state: "pending" }, keep: vi.fn() });
+    expect(root.querySelector(".review-keep")).toBeNull();
+    renderReview(root, reviewing(slacken), actions, { translation: SE_RELACHER });
+    expect(root.querySelector(".review-keep")).toBeNull();
+  });
+
+  it("A word the pack glosses: the link beside the gloss, the asked translation under it", () => {
+    const ask = vi.fn();
+    renderReview(root, reviewing({ revealed: true }), actions, { askTranslation: ask });
+    expect(root.querySelector(".review-gloss")?.textContent).toBe("rarement");
+    button("Traduire la phrase").click();
+    expect(ask).toHaveBeenCalledOnce();
+
+    renderReview(root, reviewing({ revealed: true }), actions, { translation: { state: "pending" } });
+    expect(root.querySelector(".review-translating")?.textContent).toBe("Traduction en cours…");
+    renderReview(root, reviewing({ revealed: true }), actions, { translation: SE_RELACHER });
+    expect(root.querySelector(".review-gloss")?.textContent).toBe("rarement");
+    expect(root.querySelector(".review-translation-label")?.textContent).toBe(
+      "Dans votre phrase — traduction automatique",
+    );
+    renderReview(root, reviewing({ revealed: true }), actions, { translation: { state: "none" } });
+    expect(root.querySelector(".review-translation, .review-translating, .review-no-gloss")).toBeNull();
+  });
+
+  it("No model: no link, as before", () => {
+    renderReview(root, reviewing({ revealed: true }), actions);
+    expect(root.querySelector(".review-ask-translation")).toBeNull();
+  });
+
+  // (state, pressable, the note)
+  const ONLINE: [ReviewOnlineOffer["state"], boolean, string][] = [
+    ["offered", true, ""],
+    ["asking", false, "Traduction en ligne…"],
+    ["answered", false, ""],
+    ["unavailable", false, "Traduction en ligne indisponible pour le moment."],
+    ["limit", false, "Limite quotidienne atteinte — de nouveau disponible à"],
+  ];
+
+  it("the online button: pressable only while offered, its note as the selection card's", () => {
+    for (const [state, pressable, note] of ONLINE) {
+      const press = vi.fn();
+      renderReview(root, reviewing(slacken), actions, { online: { state, resetsAt: Date.now(), press } });
+      const b = button("Traduction en ligne");
+      expect(b.disabled, state).toBe(!pressable);
+      expect(root.querySelector(".review-online-note")?.textContent ?? "").toContain(note);
+      b.click();
+      b.click();
+      expect(press, state).toHaveBeenCalledTimes(pressable ? 1 : 0);
+    }
+  });
+
+  it("labels an online translation as one", () => {
+    for (const [alone, label] of [
+      [false, "Dans votre phrase — traduction automatique en ligne"],
+      [true, "Traduction automatique en ligne"],
+    ] as const) {
+      renderReview(root, reviewing(slacken), actions, { translation: { ...translated("x", [], alone), online: true } });
+      expect(root.querySelector(".review-translation-label")?.textContent).toBe(label);
+    }
   });
 });

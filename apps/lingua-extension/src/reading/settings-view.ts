@@ -14,17 +14,21 @@ import { CEFR_LEVELS, type CefrLevel, type StudiedLanguage } from "../analyzer/t
 import { DEFAULT_INTERFACE_LANGUAGE, fillSlots, formatCount, type InterfaceLanguage, slot } from "../i18n/index.ts";
 import { needsLevelChoice } from "../state/level-choice.ts";
 import { nativeChoiceOffered } from "../state/native-language.ts";
+import { countSupported } from "../state/badge.ts";
 import { type OpenPage, openPageViaBackground } from "../state/open-page.ts";
+import { STORE_REVIEW_PAGE } from "../state/store-links.ts";
 import { saveRestoredBackup } from "../state/store.ts";
 import { hasShortcutEditor } from "../state/platform.ts";
 import {
   type AsyncStorageArea,
+  loadBadgeCount,
   loadHudHidden,
   loadNewWordsPerDay,
   loadReaderFlow,
   NEW_WORDS_PER_DAY_STEPS,
   type NewWordsPerDay,
   saveAndroidVoices,
+  saveBadgeCount,
   saveHudHidden,
   loadOnlineTranslation,
   saveOnlineTranslation,
@@ -48,6 +52,8 @@ import { mountColourSettings } from "./colour-settings-view.ts";
 import { type SettingsModule, settingsCopy } from "./settings-copy.ts";
 import { onFlagsChanged, readFlag } from "../flags/messages.ts";
 import { ONLINE_TRANSLATION_FLAG, PRIVACY_POLICY_URLS } from "../translate/online.ts";
+import type { SwitchView } from "../usage/counts.ts";
+import { reportSetUp, runtimeUsageSwitch, type UsageSwitchControls } from "../usage/messages.ts";
 import { mountNativeLanguage, nativeLanguageCopy } from "./native-language-view.ts";
 import { mountStudiedLanguages } from "./studied-languages-view.ts";
 import { type Speaker, type VoiceInfo, voiceGroups, voiceLabel } from "./speech.ts";
@@ -87,6 +93,10 @@ export interface SettingsOptions {
   account?: AccountControls;
   /** « Traduction en ligne »'s seam: the account's access, from its flags; the background's by default. */
   onlineTranslation?: OnlineTranslationControls;
+  /** « Comptages anonymes »'s seam (add-lingua-usage-counts D6); the background's by default. */
+  usage?: UsageSwitchControls;
+  /** Said when a level is saved — « set up » for the anonymous counts; the background by default. */
+  onLevelSaved?: () => Promise<void> | void;
   /** Safari: a sign-in went on in the host app (the popup closes; its next open collects it). */
   onHandedOff?: () => void;
   /** The pairs the package ships: the bundle's, unless a spec offers others. */
@@ -101,6 +111,12 @@ export interface SettingsOptions {
    * so the popup offers the backup's download and points to the panel for a restore.
    */
   canPickFiles?: boolean;
+  /**
+   * Whether the toolbar icon can show the count of cards to review here (add-lingua-comeback-hints
+   * D4, D7): `countSupported(navigator.userAgent)` unless given — false in Safari before 18, where
+   * the setting is not offered.
+   */
+  badgeCountOffered?: boolean;
 }
 
 /** The key the settings preview speaks under — not a card's, so no card silences it. */
@@ -326,6 +342,8 @@ export function mountSettings(
       await view.setDeclaredLevelAt(level, Date.now());
       await view.setCalibration(0);
       await opts.persist();
+      // A level decision, « Débutant » included, is the counts' « set up » (add-lingua-usage-counts D1).
+      void (opts.onLevelSaved ?? reportSetUp)();
       await refresh();
     }
 
@@ -594,7 +612,19 @@ export function mountSettings(
   paceGroup.append(...paceButtons.map(({ b }) => b));
   const paceRow = el("div", "set-display-row");
   paceRow.append(el("span", undefined, copy.newWordsPerDay), paceGroup);
-  paceBlock.append(paceRow, el("div", "set-note", copy.newWordsPerDayNote));
+  // The toolbar icon's count (add-lingua-comeback-hints D7): on by default, kept on this device,
+  // not offered where the icon cannot show it beside page percentages (D4).
+  const badgeRow = el("label", "set-toggle");
+  const badgeToggle = el("input");
+  badgeToggle.type = "checkbox";
+  badgeToggle.checked = true;
+  badgeRow.append(badgeToggle, el("span", undefined, copy.badgeCount));
+  const badgeNote = el("div", "set-note", copy.badgeCountNote);
+  const badgeOffered = opts.badgeCountOffered ?? countSupported(navigator.userAgent);
+  badgeRow.hidden = !badgeOffered;
+  badgeNote.hidden = !badgeOffered;
+  badgeToggle.addEventListener("change", () => void saveBadgeCount(area, badgeToggle.checked));
+  paceBlock.append(paceRow, el("div", "set-note", copy.newWordsPerDayNote), badgeRow, badgeNote);
   const showPace = (perDay: NewWordsPerDay): void => {
     for (const { step, b } of paceButtons) b.setAttribute("aria-pressed", String(step === perDay));
   };
@@ -652,13 +682,64 @@ export function mountSettings(
   const notice = el("pre", "set-notice");
   const noticeDetails = el("details", "set-notice-details");
   noticeDetails.append(el("summary", undefined, copy.fullNotice), notice);
-  sourcesBlock.append(el("div", "set-note set-privacy", copy.privacy), licences, noticeDetails);
+  // Rating the extension (add-lingua-comeback-hints D13): in every browser, on the store the build is
+  // distributed by, opened by the background so no address of a page being read goes with it.
+  const rateLink = el("button", "linklike", copy.rate);
+  rateLink.type = "button";
+  rateLink.addEventListener("click", () => openPage(STORE_REVIEW_PAGE));
+  sourcesBlock.append(
+    el("div", "set-note set-privacy", copy.privacy),
+    licences,
+    noticeDetails,
+    rateLink,
+    el("div", "set-note", copy.rateNote),
+  );
   async function refreshSources(): Promise<void> {
     const pack = port.for(await readingLanguage(port, pairs));
     const names = await pack.licences();
     licences.textContent = names.length ? copy.sources(names.join(copy.sourceSeparator)) : "";
     notice.textContent = await pack.notice();
   }
+
+  // — Comptages anonymes (add-lingua-usage-counts D6): one switch, wherever Réglages show. On Chromium
+  // and Safari, its key; on Firefox, Firefox's own data-collection consent — absent where Firefox has
+  // none (before 140, Android 142), and then nothing is counted. The note says what is counted, that
+  // nothing read is sent, and links to the policy in the interface language. The background records,
+  // forgets and reports; this only moves the switch.
+  const usage = opts.usage ?? runtimeUsageSwitch();
+  const usageBlock = settingBlock(copy.usageCounts);
+  usageBlock.hidden = true;
+  const usageRow = el("label", "set-toggle");
+  const usageToggle = el("input");
+  usageToggle.type = "checkbox";
+  usageRow.append(usageToggle, el("span", undefined, copy.usageCountsToggle));
+  const usageNote = el(
+    "div",
+    "set-note",
+    __TARGET__ === "firefox" ? `${copy.usageCountsNote} ${copy.usageCountsFirefoxNote}` : copy.usageCountsNote,
+  );
+  const usagePrivacy = el("button", "linklike", copy.privacyPolicy);
+  usagePrivacy.type = "button";
+  usagePrivacy.addEventListener("click", () => openPage(PRIVACY_POLICY_URLS[interfaceLanguage]));
+  const usageMsg = el("div", "set-note");
+  usageMsg.hidden = true;
+  usageBlock.append(usageRow, usageNote, usagePrivacy, usageMsg);
+  const showUsage = (view: SwitchView): void => {
+    usageBlock.hidden = !view.shown;
+    usageToggle.checked = view.on;
+  };
+  // On the click itself: on Firefox, the consent is asked from it, before anything is awaited.
+  usageToggle.addEventListener("click", () => void setUsage(usageToggle.checked));
+  async function setUsage(on: boolean): Promise<void> {
+    const reply = await usage.set(on);
+    showUsage(reply.view);
+    usageMsg.hidden = !reply.fromToolbar;
+    usageMsg.textContent = reply.fromToolbar ? copy.usageCountsFromToolbar : "";
+  }
+  async function refreshUsage(): Promise<void> {
+    showUsage(await usage.state());
+  }
+  const unwatchUsage = usage.watch(() => void refreshUsage());
 
   // — The sub-tabs: the studied language, how things look, Lingua on the pages and books read,
   // the reader's data. The blocks keep their titles; a hidden block (no voice, signed out) leaves
@@ -678,7 +759,11 @@ export function mountSettings(
     },
     { id: "look", label: copy.tabLook, blocks: [displayBlock, coloursBlock] },
     { id: "pages", label: copy.tabPages, blocks: [barBlock, booksBlock, scBlock] },
-    { id: "data", label: copy.tabData, blocks: [accountBlock, syncBlock, fileBlock, sourcesBlock, resetBlock] },
+    {
+      id: "data",
+      label: copy.tabData,
+      blocks: [accountBlock, syncBlock, fileBlock, sourcesBlock, usageBlock, resetBlock],
+    },
   ]);
 
   // — Live wiring —
@@ -820,6 +905,8 @@ export function mountSettings(
     } else {
       await port.reset();
       await clearSyncCursors(opts.store);
+      // The counts' day 0 and unsent steps go too; the switch stays as it is (add-lingua-usage-counts D4).
+      await usage.forget();
     }
     // Every accepted language starts over. A full reset returns the profile to the engine's native
     // language, studying its first pack's language alone — English, for a reader of French
@@ -841,8 +928,16 @@ export function mountSettings(
     renderVoices();
     flowToggle.checked = (await loadReaderFlow(area)) === "scrolled";
     showPace(await loadNewWordsPerDay(area));
+    badgeToggle.checked = await loadBadgeCount(area);
     await Promise.all([bookDisplay.refresh(), colours.refresh()]);
-    await Promise.all([refreshSync(), account.refresh(), translation?.refresh(), refreshOnline(), refreshSources()]);
+    await Promise.all([
+      refreshSync(),
+      account.refresh(),
+      translation?.refresh(),
+      refreshOnline(),
+      refreshSources(),
+      refreshUsage(),
+    ]);
   }
 
   void refresh();
@@ -852,6 +947,7 @@ export function mountSettings(
     destroy: () => {
       unwatchSync?.();
       unwatchOnline?.();
+      unwatchUsage?.();
       translation?.destroy();
     },
   };

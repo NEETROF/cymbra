@@ -70,6 +70,16 @@ export interface ReviewOptions {
   practice?: boolean;
 }
 
+/**
+ * The day's allowance of new words, as a review would apply it (refine-lingua-review-session D2):
+ * at most `newPerDay` never-reviewed cards of each language first answered since `dayStart`, the
+ * reader's local midnight in epoch seconds.
+ */
+export interface NewWordAllowance {
+  newPerDay: number;
+  dayStart: number;
+}
+
 /** What a session did, for its end (refine-lingua-review-session D8). */
 export interface ReviewSummary {
   /** Cards whose first answer in the session updated their FSRS state. */
@@ -165,6 +175,13 @@ export interface LanguagePort extends AnalyzerPort {
   addCard(card: NewCard): Promise<void>;
   /** Retire the card for a lemma if present (keep it, stop it coming due); `now` in epoch seconds. */
   retireCard(lemma: string, now: number): Promise<void>;
+  /**
+   * Keep `gloss` — a machine translation the reader accepted in review — as the gloss of the card
+   * for `lemma`, marked as the reader's choice, `now` in epoch seconds
+   * (add-lingua-review-translation-fallback D3, D5); resolves whether a card was there. Rejects an
+   * empty gloss or one over KEEP_MAX_UNITS UTF-16 code units.
+   */
+  keepGloss(lemma: string, gloss: string, now: number): Promise<boolean>;
   /** The pack's bundled attribution NOTICE. */
   notice(): Promise<string>;
   /** The pack's source licences. */
@@ -228,6 +245,11 @@ export interface LinguaPort {
   /** Cards due at `now` (epoch seconds), in `languages`, or in every language when absent or empty
    *  (add-lingua-language-stats-review). */
   dueCount(now: number, languages?: StudiedLanguage[]): Promise<number>;
+  /** The cards a review started at `now` (epoch seconds) would hold in `languages`, or in every
+   *  language when absent or empty: the reviewed cards due and the never-reviewed ones within each
+   *  language's `allowance` left today — every one without an allowance. What `startReview` with the
+   *  same allowance and no limit holds (add-lingua-comeback-hints D1). */
+  reviewableCount(now: number, languages?: StudiedLanguage[], allowance?: NewWordAllowance): Promise<number>;
   /** Start a review session over the cards due at `now`, in `languages` or in all of them, the
    *  lowest predicted recall first, within `options` (refine-lingua-review-session D1, D2);
    *  returns the count. */

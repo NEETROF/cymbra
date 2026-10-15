@@ -72,6 +72,9 @@ function fakeLinguaClients(opts: { failUsage?: boolean; failOnline?: boolean } =
           costMicroUsd: 2300n,
         };
       },
+      // The Installations section (change: add-lingua-usage-counts) — see lingua-installations.spec.ts.
+      adminGetUsageFunnel: async () => ({ days: [] }),
+      adminGetLeaveReasons: async () => ({ reasons: [], capped: false }),
     },
   } as unknown as Clients;
   return { clients, usageWindows, seriesCalls };

@@ -73,6 +73,39 @@ const codeLines = (text: string) =>
     return !t.startsWith("//") && !t.startsWith("*") && !t.startsWith("/*");
   });
 
+/**
+ * The Cymbra Lingua app's page (add-lingua-review-translation-fallback D7) owns its engine as the
+ * background does: it may reach the host's channel and relay, but it constructs the engine's workers in
+ * one module only, and never pulls in a worker's own code or the engine's glue — which run in the worker.
+ */
+const APP = "src/app/app.ts";
+const APP_WORKERS = join(src, "app", "workers.ts");
+const WORKER_ENTRIES = [join(HOST, "engine-worker.ts"), join(HOST, "model-worker.ts")];
+
+describe("the Cymbra Lingua app's page keeps the engine in a worker", () => {
+  it("reaches its workers' module, and through it the engine's channel", () => {
+    const fromApp = reachable(APP);
+    expect(fromApp.has(APP_WORKERS)).toBe(true);
+    expect(fromApp.has(join(HOST, "channel.ts"))).toBe(true);
+  });
+
+  it("never imports a worker's own code", () => {
+    const offending = [...reachable(APP)].filter((f) => WORKER_ENTRIES.includes(f)).map(rel);
+    expect(offending).toEqual([]);
+  });
+
+  it("constructs workers in app/workers.ts alone, and loads no engine glue", () => {
+    const offending: string[] = [];
+    for (const file of reachable(APP)) {
+      for (const line of codeLines(readFileSync(file, "utf8"))) {
+        if (/\bloadBergamot\b/.test(line) || (/\bnew\s+Worker\s*\(/.test(line) && file !== APP_WORKERS))
+          offending.push(`${rel(file)}: ${line.trim()}`);
+      }
+    }
+    expect(offending).toEqual([]);
+  });
+});
+
 describe("the translation engine never runs on a thread that paints", () => {
   it("walks the import graph for real — the background does reach the engine's host", () => {
     // Without this, a walker that followed nothing would pass every test below.

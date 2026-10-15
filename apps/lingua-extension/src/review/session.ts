@@ -34,6 +34,8 @@ export interface ReviewView {
   practice?: boolean;
   /** Whether a practice session would hold cards, once nothing more is due: offered only then. */
   practiceAvailable?: boolean;
+  /** Whether the reader ended the session before its last card (add-lingua-review-stop-session D3). */
+  ended?: boolean;
 }
 
 /** The reader's local midnight before `nowSecs`, in epoch seconds: where "today" starts. */
@@ -58,6 +60,7 @@ export class ReviewController {
   private showings = new Map<string, number>();
   private practice = false;
   private practiceAvailable = false;
+  private ended = false;
 
   /**
    * `now` supplies epoch-seconds (Date.now()/1000 in production). `record` is an
@@ -85,6 +88,7 @@ export class ReviewController {
     this.moreDue = false;
     this.showings.clear();
     this.practiceAvailable = false;
+    this.ended = false;
     this.practice = practice;
     await this.port.startReview(this.now(), languages, await this.options(practice));
     this.started = true;
@@ -123,6 +127,31 @@ export class ReviewController {
     return this.view();
   }
 
+  /**
+   * Keep `gloss` as the current card's gloss, the reader's choice (add-lingua-review-translation-fallback
+   * D3): the card read again, its new gloss shown, its showing not counted again.
+   */
+  async keep(gloss: string): Promise<ReviewView> {
+    const card = this.card;
+    if (!card) return this.view();
+    await this.port.for(card.language ?? "en").keepGloss(card.headword, gloss, this.now());
+    this.card = await this.port.reviewCurrent();
+    return this.view();
+  }
+
+  /**
+   * End the session under way before its last card (add-lingua-review-stop-session D2): the answers
+   * given stay, the cards not shown are left as they are — no answer, no showing — a missed card
+   * waiting to come back is not asked again and the current card stays unanswered. Then the end, as
+   * after the last answer. Outside a session, nothing happens.
+   */
+  async end(): Promise<ReviewView> {
+    if (!this.card) return this.view();
+    this.ended = true;
+    await this.finish();
+    return this.view();
+  }
+
   view(): ReviewView {
     const phase: ReviewPhase = !this.started ? "idle" : this.card ? "reviewing" : "done";
     const showing = this.card ? (this.showings.get(showingKey(this.card)) ?? 1) : 0;
@@ -134,6 +163,7 @@ export class ReviewController {
       showing,
       practice: this.practice,
       practiceAvailable: this.practiceAvailable,
+      ended: this.ended,
     };
   }
 
@@ -164,6 +194,15 @@ export class ReviewController {
       this.showings.set(key, (this.showings.get(key) ?? 0) + 1);
       return;
     }
+    await this.finish();
+  }
+
+  /**
+   * The end of a session — its last card answered, or the reader ending it — whose next session
+   * replaces the engine's: what is left of its queue is forgotten.
+   */
+  private async finish(): Promise<void> {
+    this.card = null;
     this.summary = await this.port.reviewSummary();
     // After a practice session, practice again — never « Encore 10 » over due cards it did not hold.
     this.moreDue =

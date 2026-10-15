@@ -130,6 +130,30 @@ a:hover { text-decoration: underline; }
 .product p:not(.kicker) { margin: 0; color: var(--muted); }
 .product .btn { margin-top: auto; align-self: flex-start; }
 
+/* The Lingua page's captures (change: add-site-lingua-showcase, D10): the hero capture under the
+   store buttons, wider than the text, then « En images » — the video and the figures, two columns
+   on a computer, one on a phone. Every image keeps its own width and height: nothing scrolls sideways. */
+.hero .store-hint { margin: 0.9rem auto 0; max-width: 540px; }
+/* Less air around a hero followed by its capture, and its note after the capture: on a 1280×800
+   window the capture starts in the top half. */
+.hero.hero-with-shot { padding-block: 2.25rem 1.75rem; }
+.hero-with-shot h1 { margin-bottom: 0.75rem; }
+.hero-with-shot .tagline { max-width: 720px; margin-bottom: 1.25rem; }
+.hero-shot { max-width: 1100px; margin: 0 auto; padding: 0 1.25rem; }
+.hero-note-after { text-align: center; max-width: 620px; margin: 1.25rem auto 0; }
+.shot { margin: 0; }
+.shot-zoom { display: block; }
+.shot img, .shot video {
+  display: block; width: 100%; height: auto;
+  border-radius: 12px; border: 1px solid var(--border); background: var(--surface);
+}
+.shot-centred { justify-self: center; width: 100%; max-width: 600px; }
+.shot figcaption { margin-top: 0.6rem; color: var(--muted); font-size: 0.92rem; text-align: center; }
+.showcase { padding-block: 3rem 0; }
+.showcase h2 { text-align: center; font-size: 1.6rem; margin: 0 0 1.5rem; }
+.shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 2rem 1.25rem; }
+.shot-wide { grid-column: 1 / -1; }
+
 /* Closing block of a product page */
 .closing { padding-block: 1rem 2rem; }
 
@@ -215,3 +239,17 @@ a:hover { text-decoration: underline; }
 .downloads { margin-top: 2rem; }
 .downloads h3 { font-size: 1.05rem; margin-bottom: 0.5rem; }
 .cta-row.left { justify-content: flex-start; }
+/* Lingua leaving page: six full-width answers; the tapped one stays marked once all are disabled. */
+.leave-answers { display: grid; gap: 0.6rem; margin: 1rem 0 0; }
+.leave-answers .btn { font: inherit; font-weight: 600; text-align: left; color: var(--text); background: transparent; cursor: pointer; }
+.leave-answers .btn:hover:not(:disabled) { border-color: var(--muted); }
+.leave-answers .btn:disabled { cursor: default; }
+.leave-answers .btn[aria-pressed="true"] { border-color: var(--accent); opacity: 1; }
+.leave .outcome { margin-top: 1.2rem; }
+.leave .outcome p + p { margin-top: 0.6rem; }
+/* Without JavaScript the answers are a plain form, and the backend sends the reader back to the
+   page's thanks (#merci, #thanks, #gracias): shown only when targeted, in place of the answers. */
+.leave-done { display: none; }
+.leave-done:target { display: block; }
+.leave-done p + p { margin-top: 0.6rem; }
+.container:has(.leave-done:target) .island { display: none; }

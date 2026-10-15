@@ -23,6 +23,7 @@
 //! schema is a stable contract for backup/restore and the future sync.
 
 use serde::{Deserialize, Serialize};
+use unicode_normalization::char::is_combining_mark;
 
 use super::fsrs::ReviewState;
 
@@ -107,6 +108,14 @@ pub struct Card {
         skip_serializing_if = "is_french"
     )]
     pub gloss_language: String,
+    /// Whether the reader chose `gloss` — a machine translation they kept in review, or a
+    /// translation they wrote (add-lingua-review-translation-fallback D5, the mark
+    /// `add-lingua-card-edit` shares). Such a gloss wins over the pack's: review shows it as
+    /// written and a re-capture keeps it. Left out of the backup when `false`, so every backup
+    /// without a chosen gloss keeps its bytes and a build released before the mark reads one
+    /// that carries it.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub gloss_by_reader: bool,
     /// Optional attached media (reserved; unpopulated in this change).
     pub media: Option<Media>,
     /// The FSRS review state (never reviewed until first graded).
@@ -132,6 +141,10 @@ fn is_french(language: &str) -> bool {
     language == FRENCH
 }
 
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
 /// The gloss language a label names: trimmed and lowercased, so `" EN "` is `en`; blank is
 /// [`FRENCH`], the default a label left out means. Any other tag is kept as it is, known to
 /// this build or not: the label says what the gloss is, it does not choose a pack.
@@ -142,6 +155,22 @@ pub fn gloss_language_or_french(label: &str) -> String {
     } else {
         label.to_lowercase()
     }
+}
+
+/// Whether a character is kept at an edge of a text (fix-lingua-selection-card-punctuation D1):
+/// a letter, a combining mark or a digit. Everything else — punctuation of every kind, quotes,
+/// brackets, dashes, apostrophes, hyphens, symbols and whitespace — is an edge character.
+fn is_word_edge(c: char) -> bool {
+    c.is_alphanumeric() || is_combining_mark(c)
+}
+
+/// `text` without the characters that are neither letters, combining marks nor digits at its two
+/// ends (fix-lingua-selection-card-punctuation D1): `four-poster bed,` reads `four-poster bed`,
+/// `« Bonjour »` reads `Bonjour`, `—` reads empty. Nothing inside the text is touched, so
+/// `d'abord`, `dit-il` and `rock 'n' roll` read as written. The extension trims a selection with
+/// the same class (`withoutEdgePunctuation`), pinned by the same table of cases.
+pub fn without_edge_punctuation(text: &str) -> &str {
+    text.trim_matches(|c: char| !is_word_edge(c))
 }
 
 fn read_gloss_language<'de, D: serde::Deserializer<'de>>(
@@ -168,6 +197,7 @@ impl Card {
             provenance,
             gloss,
             gloss_language: gloss_language.to_owned(),
+            gloss_by_reader: false,
             media: None,
             review: ReviewState::new(),
             updated_at,
@@ -198,6 +228,13 @@ impl Card {
     /// Whether the lemma is a multi-word expression.
     pub fn is_expression(&self) -> bool {
         self.lemma.contains(' ')
+    }
+
+    /// The lemma a pack is read at (fix-lingua-selection-card-punctuation D3): the stored lemma
+    /// without its edge punctuation, so a card captured as `four-poster bed,` is looked up at
+    /// `four-poster bed`. The stored lemma is never rewritten.
+    pub fn lookup_lemma(&self) -> &str {
+        without_edge_punctuation(&self.lemma)
     }
 }
 
@@ -266,6 +303,41 @@ mod tests {
         assert_eq!(card.updated_at, 1_700_000_000);
     }
 
+    /// The cases the extension's `withoutEdgePunctuation` is pinned by too (D1).
+    const EDGE_CASES: &[(&str, &str)] = &[
+        ("four-poster bed,", "four-poster bed"),
+        ("\u{2018}four-poster bed,\u{2019}", "four-poster bed"),
+        ("\u{ab} Bonjour \u{bb}", "Bonjour"),
+        ("d'abord,", "d'abord"),
+        ("d\u{2019}abord,", "d\u{2019}abord"),
+        ("dit-il.", "dit-il"),
+        ("rock 'n' roll", "rock 'n' roll"),
+        ("dogs'", "dogs"),
+        ("cafe\u{301}", "cafe\u{301}"),
+        ("(harbour", "harbour"),
+        ("stood in silence.", "stood in silence"),
+        ("1984.", "1984"),
+        ("\u{2014}", ""),
+        ("", ""),
+        ("harbour", "harbour"),
+    ];
+
+    #[test]
+    fn edge_punctuation_is_trimmed_and_inner_characters_are_kept() {
+        for (text, trimmed) in EDGE_CASES {
+            assert_eq!(without_edge_punctuation(text), *trimmed, "{text:?}");
+        }
+    }
+
+    #[test]
+    fn the_lookup_lemma_is_trimmed_and_the_stored_lemma_is_kept() {
+        for (lemma, trimmed) in EDGE_CASES {
+            let card = Card::new(lemma, lemma, web_provenance("", "https://x"), None, "fr");
+            assert_eq!(card.lookup_lemma(), *trimmed, "{lemma:?}");
+            assert_eq!(card.lemma, *lemma);
+        }
+    }
+
     #[test]
     fn card_roundtrips_through_serde() {
         let card = Card::new(
@@ -332,6 +404,41 @@ mod tests {
         assert_eq!(back.gloss.as_deref(), Some("courir"));
         json["unknown_to_this_build"] = "ignored".into();
         assert!(serde_json::from_value::<Card>(json).is_ok());
+    }
+
+    #[test]
+    fn the_readers_mark_is_written_only_when_set() {
+        let card = Card::new(
+            "slacken",
+            "slacken",
+            web_provenance("The ropes slacken.", "https://x"),
+            Some("détendre".to_owned()),
+            "fr",
+        );
+        let unmarked = serde_json::to_string(&card).expect("serialise");
+        assert!(!unmarked.contains("gloss_by_reader"), "{unmarked}");
+        assert!(
+            !serde_json::from_str::<Card>(&unmarked)
+                .unwrap()
+                .gloss_by_reader
+        );
+
+        let mut kept = card;
+        kept.gloss = Some("se relâcher".to_owned());
+        kept.gloss_by_reader = true;
+        let json: serde_json::Value = serde_json::to_value(&kept).expect("serialise");
+        assert_eq!(json["gloss_by_reader"], true);
+        let back: Card = serde_json::from_value(json.clone()).expect("deserialise");
+        assert_eq!(back, kept);
+
+        // A reader that does not know the mark (any deserialiser that denies no unknown
+        // field — every build before it) reads the card with its gloss.
+        #[derive(Deserialize)]
+        struct Older {
+            gloss: Option<String>,
+        }
+        let older: Older = serde_json::from_value(json).expect("an older build reads it");
+        assert_eq!(older.gloss.as_deref(), Some("se relâcher"));
     }
 
     #[test]

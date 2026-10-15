@@ -1,0 +1,2922 @@
+{
+  "schema_version": 3,
+  "knowledge": {
+    "statuses": {
+      "Spanish": {
+        "aerolínea": "Learning",
+        "afirmar": {
+          "Known": "Manual"
+        },
+        "amanecer": "Learning",
+        "autopista": "Learning",
+        "billete": {
+          "Known": "Manual"
+        },
+        "circular": {
+          "Known": "Manual"
+        },
+        "compartimento": "Learning",
+        "convertir": {
+          "Known": "Manual"
+        },
+        "coste": {
+          "Known": "Manual"
+        },
+        "defecto": "Learning",
+        "depender": {
+          "Known": "Manual"
+        },
+        "describir": {
+          "Known": "Manual"
+        },
+        "emisión": {
+          "Known": "Manual"
+        },
+        "estrecho": "Learning",
+        "fabricar": {
+          "Known": "Manual"
+        },
+        "mercancía": "Learning",
+        "notar": {
+          "Known": "Manual"
+        },
+        "operador": {
+          "Known": "Manual"
+        },
+        "panorama": {
+          "Known": "Manual"
+        },
+        "pasajero": {
+          "Known": "Manual"
+        },
+        "quejar": {
+          "Known": "Manual"
+        },
+        "retraso": {
+          "Known": "Manual"
+        },
+        "silencioso": {
+          "Known": "Manual"
+        },
+        "soler": {
+          "Known": "Manual"
+        },
+        "suprimir": {
+          "Known": "Manual"
+        },
+        "tardar": {
+          "Known": "Manual"
+        },
+        "vagón": "Learning",
+        "viajero": {
+          "Known": "Manual"
+        }
+      },
+      "French": {
+        "aube": "Learning",
+        "décennie": {
+          "Known": "Manual"
+        },
+        "dîner": {
+          "Known": "Manual"
+        },
+        "ferroviaire": {
+          "Known": "Manual"
+        },
+        "horaire": {
+          "Known": "Manual"
+        },
+        "marchandise": "Learning",
+        "opérateur": {
+          "Known": "Manual"
+        },
+        "panne": "Learning",
+        "passager": {
+          "Known": "Manual"
+        },
+        "patience": {
+          "Known": "Manual"
+        },
+        "photographie": {
+          "Known": "Manual"
+        },
+        "trajet": {
+          "Known": "Manual"
+        },
+        "voyageur": {
+          "Known": "Manual"
+        },
+        "étroit": "Learning"
+      }
+    },
+    "calibration": {
+      "Spanish": 0,
+      "French": 0
+    },
+    "declared_level": {
+      "Spanish": "B1",
+      "French": "B1"
+    },
+    "declared_level_at": {
+      "Spanish": 1792022443968,
+      "French": 1792022443993
+    },
+    "updated": {
+      "Spanish": {
+        "aerolínea": 1792022466000,
+        "afirmar": 1792022450613,
+        "amanecer": 1792022468000,
+        "autopista": 1792022460000,
+        "billete": 1792022447799,
+        "circular": 1792022453398,
+        "compartimento": 1792022470000,
+        "convertir": 1792022456738,
+        "coste": 1792022448365,
+        "defecto": 1792022464000,
+        "depender": 1792022457290,
+        "describir": 1792022456190,
+        "emisión": 1792022450057,
+        "estrecho": 1792022458000,
+        "fabricar": 1792022452289,
+        "mercancía": 1792022462000,
+        "notar": 1792022451173,
+        "operador": 1792022449491,
+        "panorama": 1792022448932,
+        "pasajero": 1792022453947,
+        "quejar": 1792022454506,
+        "retraso": 1792022455066,
+        "silencioso": 1792022446664,
+        "soler": 1792022455633,
+        "suprimir": 1792022451733,
+        "tardar": 1792022452848,
+        "vagón": 1792022471000,
+        "viajero": 1792022447231
+      },
+      "French": {
+        "aube": 1792022486000,
+        "décennie": 1792022475922,
+        "dîner": 1792022475366,
+        "ferroviaire": 1792022479335,
+        "horaire": 1792022477049,
+        "marchandise": 1792022482000,
+        "opérateur": 1792022476483,
+        "panne": 1792022484000,
+        "passager": 1792022477623,
+        "patience": 1792022478773,
+        "photographie": 1792022478201,
+        "trajet": 1792022479899,
+        "voyageur": 1792022474806,
+        "étroit": 1792022480000
+      }
+    }
+  },
+  "exposure": {
+    "counters": {
+      "Spanish": {
+        "a": {
+          "occurrences": 5,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "abandonar": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "aceptar": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022450,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "aeropuerto": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "ahora": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "aire": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "algo": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "alguno": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022455,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "antes": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "asiento": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022450,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "así": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "aun": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "autobús": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "aventura": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "avión": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022450,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "año": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "bajo": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "buena": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "buscar": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "cada": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "cama": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "cambiar": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "cambio": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022450,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "camino": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "capital": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "caro": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "casi": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "cena": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "centro": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "cita": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "ciudad": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "clima": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022450,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "coche": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "cola": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "como": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "compartir": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "compañía": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "con": {
+          "occurrences": 4,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "continente": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022455,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "control": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "conversación": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "corriente": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022455,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "de": {
+          "occurrences": 5,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "decidir": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "demasiado": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "desaparecer": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "desayuno": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "desconocido": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "desde": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "después": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "detrás": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "dormir": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "dos": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "durante": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "década": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "día": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "el": {
+          "occurrences": 5,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "embargo": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "empresa": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "en": {
+          "occurrences": 5,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "entre": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "entregar": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "este": {
+          "occurrences": 4,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "estudiante": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "existir": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "experiencia": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "familia": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "fiel": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "fotografía": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "frontera": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "funcionar": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "fácil": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "gobierno": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022450,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "gusto": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022450,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "haber": {
+          "occurrences": 5,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "habitual": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "hacer": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "hora": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "horario": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "hoy": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "idea": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "impuesto": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022450,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "inversión": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022455,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "largo": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022450,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "leer": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "llegar": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "lo": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022455,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "lugar": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022455,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "línea": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "mantener": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "menor": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022450,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "mientras": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "mismo": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022450,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "moderno": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "mucho": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "muy": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "más": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "negocio": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "no": {
+          "occurrences": 4,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "noche": {
+          "occurrences": 4,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "nuevo": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "nunca": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "o": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "ofrecer": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "opción": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022455,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "otro": {
+          "occurrences": 4,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "paciencia": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022455,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "paisaje": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "papel": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022450,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "para": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "parecer": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "parte": {
+          "occurrences": 4,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "país": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "pequeño": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "perder": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "poco": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "por": {
+          "occurrences": 4,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "porque": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "precio": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "precisamente": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "preocupación": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022450,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "principio": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "probar": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "producir": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022450,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "que": {
+          "occurrences": 5,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "quien": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "recuerdo": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "recuperar": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "regreso": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "restaurante": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "rueda": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "ruido": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "ruta": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "salir": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022455,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "se": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "seguridad": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "seguro": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022455,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "sencillo": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "ser": {
+          "occurrences": 4,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "servicio": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "si": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "siempre": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "siglo": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "sin": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "sino": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "solo": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "su": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022455,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "subir": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "suerte": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "también": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "temporada": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "tener": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022450,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "trabajo": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "tranquilo": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022455,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "tras": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "tren": {
+          "occurrences": 5,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "tu": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "un": {
+          "occurrences": 5,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "uno": {
+          "occurrences": 5,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "usar": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "varios": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "vender": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "ver": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "vez": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "viajar": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "viaje": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022450,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "vida": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "volver": {
+          "occurrences": 4,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "vuelo": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "vía": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "y": {
+          "occurrences": 5,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022491,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "él": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022453,
+          "last_day": 20741,
+          "distinct_days": 1
+        }
+      },
+      "French": {
+        "abandonner": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "accepter": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "affaire": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "ailleurs": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "année": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "après": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "arriver": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "assez": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "attente": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "aujourd'hui": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "aussi": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "autoroute": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "autre": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "avant": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "avec": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "aventure": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "avion": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "avoir": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "aéroport": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "bas": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "beaucoup": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "billet": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "bord": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "bruit": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "cacher": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "capitale": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "ce": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "celui": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "centre": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "certain": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "chance": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "changer": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "chaque": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "charme": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "cher": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "choix": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "climat": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "comme": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "compagnie": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "construire": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "continent": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "contrôle": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "conversation": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "courant": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "croire": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "dans": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "de": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022483,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "depuis": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "derrière": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "des": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "deux": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "disparaître": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "donc": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "du": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022483,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "début": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "défaut": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "elle": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "elles": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "en": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "entre": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "entreprise": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "et": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "expérience": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "faire": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "famille": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "faute": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "fidèle": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "frontière": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "gouvernement": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "grand": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "heure": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "idée": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "ils": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "inconnu": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "intérêt": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "investissement": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "jamais": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "jouer": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "journée": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "juger": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "laisser": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "le": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022483,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "leur": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "ligne": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "lit": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "long": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "léger": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "mettre": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "moderne": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "monter": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "même": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "ne": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "nouveau": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "nuit": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022483,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "on": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "ordinaire": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "ou": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "par": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "parfois": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "part": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "partager": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "partie": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "pas": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "pays": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "paysage": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "pendant": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "perdre": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "petit": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "peu": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "place": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "plus": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "plusieurs": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "plutôt": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "pour": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "pourtant": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "presque": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "prix": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "produire": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "proposer": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "puis": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "que": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "quelque": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "qui": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "quitter": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "remarquer": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "rendez-vous": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "rendre": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "rester": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "retard": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "retour": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022483,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "revenir": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "revoir": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "rien": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "route": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "rôle": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "saison": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "sans": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "se": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "service": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "seul": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "si": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "simple": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "siècle": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "soir": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "son": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "souvenir": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "souvent": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "supprimer": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "sur": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "sécurité": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "taxe": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "tenter": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "toujours": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "tout": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "train": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022483,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "tranquille": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "transformer": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "travail": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "trop": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "un": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "vendre": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "vie": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "ville": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "voie": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "vol": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "voyage": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "à": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "échange": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "émission": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "étudiant": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022476,
+          "last_day": 20741,
+          "distinct_days": 1
+        },
+        "être": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1792022480,
+          "last_day": 20741,
+          "distinct_days": 1
+        }
+      }
+    }
+  },
+  "deck": {
+    "cards": {
+      "Spanish": {
+        "aerolínea": {
+          "lemma": "aerolínea",
+          "encountered_form": "aerolíneas",
+          "provenance": {
+            "sentence": "Las aerolíneas de bajo coste ofrecían billetes por el precio de una cena, las autopistas se alargaban y las compañías ferroviarias decidieron que mantener los servicios nocturnos costaba demasiado.",
+            "source": {
+              "Web": {
+                "url": "http://reading.example:58356/es.html"
+              }
+            },
+            "captured_at": 1792022466
+          },
+          "gloss": "airline",
+          "gloss_language": "en",
+          "media": null,
+          "review": {
+            "memory": null,
+            "due": null,
+            "last_review": null,
+            "reps": 0,
+            "lapses": 0
+          },
+          "updated_at": 1792022466
+        },
+        "amanecer": {
+          "lemma": "amanecer",
+          "encountered_form": "amanecer",
+          "provenance": {
+            "sentence": "Muchos describen la experiencia como una pequeña aventura: el ruido de las ruedas, el paisaje que cambia al amanecer, las conversaciones en el vagón restaurante con desconocidos a los que nunca volverán a ver.",
+            "source": {
+              "Web": {
+                "url": "http://reading.example:58356/es.html"
+              }
+            },
+            "captured_at": 1792022468
+          },
+          "gloss": "to dawn; to get light (become light in the morning); to wake up (cease to sleep); to see the morning, be seen by the morning (be in a given state when the sun rises); to awake, wake up (rouse from sleep); to waken, awaken (cease to sleep); to stay awake all night; dawn (the morning period of twilight)",
+          "gloss_language": "en",
+          "media": null,
+          "review": {
+            "memory": null,
+            "due": null,
+            "last_review": null,
+            "reps": 0,
+            "lapses": 0
+          },
+          "updated_at": 1792022468
+        },
+        "autopista": {
+          "lemma": "autopista",
+          "encountered_form": "autopistas",
+          "provenance": {
+            "sentence": "Las aerolíneas de bajo coste ofrecían billetes por el precio de una cena, las autopistas se alargaban y las compañías ferroviarias decidieron que mantener los servicios nocturnos costaba demasiado.",
+            "source": {
+              "Web": {
+                "url": "http://reading.example:58356/es.html"
+              }
+            },
+            "captured_at": 1792022460
+          },
+          "gloss": "motorway, freeway",
+          "gloss_language": "en",
+          "media": null,
+          "review": {
+            "memory": {
+              "stability": 0.40255,
+              "difficulty": 7.1949
+            },
+            "due": 1792108890,
+            "last_review": 1792022490,
+            "reps": 1,
+            "lapses": 0
+          },
+          "updated_at": 1792022490
+        },
+        "compartimento": {
+          "lemma": "compartimento",
+          "encountered_form": "compartimentos",
+          "provenance": {
+            "sentence": "Los pasajeros se quejan a veces de retrasos, de un aire acondicionado averiado o de compartimentos más pequeños de lo que prometían las fotografías.",
+            "source": {
+              "Web": {
+                "url": "http://reading.example:58356/es.html"
+              }
+            },
+            "captured_at": 1792022470
+          },
+          "gloss": "compartment",
+          "gloss_language": "en",
+          "media": null,
+          "review": {
+            "memory": null,
+            "due": null,
+            "last_review": null,
+            "reps": 0,
+            "lapses": 0
+          },
+          "updated_at": 1792022470
+        },
+        "defecto": {
+          "lemma": "defecto",
+          "encountered_form": "defecto",
+          "provenance": {
+            "sentence": "Para ellos, la lentitud no es un defecto, sino precisamente lo que buscan.",
+            "source": {
+              "Web": {
+                "url": "http://reading.example:58356/es.html"
+              }
+            },
+            "captured_at": 1792022464
+          },
+          "gloss": "defect, fault, deficiency; flaw, imperfection; default",
+          "gloss_language": "en",
+          "media": null,
+          "review": {
+            "memory": {
+              "stability": 3.173,
+              "difficulty": 5.282434422319005
+            },
+            "due": 1792281691,
+            "last_review": 1792022491,
+            "reps": 1,
+            "lapses": 0
+          },
+          "updated_at": 1792022491
+        },
+        "estrecho": {
+          "lemma": "estrecho",
+          "encountered_form": "estrecha",
+          "provenance": {
+            "sentence": "Cada noche, los coches cama cruzaban fronteras con estudiantes, familias y viajeros de negocios que preferían una litera estrecha a un vuelo de madrugada.",
+            "source": {
+              "Web": {
+                "url": "http://reading.example:58356/es.html"
+              }
+            },
+            "captured_at": 1792022458
+          },
+          "gloss": "narrow; tight; close, kin; close, intimate, strong; prudish, uptight, strict; strait",
+          "gloss_language": "en",
+          "media": null,
+          "review": {
+            "memory": {
+              "stability": 3.173,
+              "difficulty": 5.282434422319005
+            },
+            "due": 1792281689,
+            "last_review": 1792022489,
+            "reps": 1,
+            "lapses": 0
+          },
+          "updated_at": 1792022489
+        },
+        "mercancía": {
+          "lemma": "mercancía",
+          "encountered_form": "mercancías",
+          "provenance": {
+            "sentence": "Las vías se comparten con trenes de mercancías que también circulan de noche, así que los horarios se negocian país por país.",
+            "source": {
+              "Web": {
+                "url": "http://reading.example:58356/es.html"
+              }
+            },
+            "captured_at": 1792022462
+          },
+          "gloss": "ware, merchandise; goods, wares (commodity offered for sale, an article of commerce)",
+          "gloss_language": "en",
+          "media": null,
+          "review": {
+            "memory": {
+              "stability": 3.173,
+              "difficulty": 5.282434422319005
+            },
+            "due": 1792281690,
+            "last_review": 1792022490,
+            "reps": 1,
+            "lapses": 0
+          },
+          "updated_at": 1792022490
+        },
+        "vagón": {
+          "lemma": "vagón",
+          "encountered_form": "vagón",
+          "provenance": {
+            "sentence": "Muchos describen la experiencia como una pequeña aventura: el ruido de las ruedas, el paisaje que cambia al amanecer, las conversaciones en el vagón restaurante con desconocidos a los que nunca volverán a ver.",
+            "source": {
+              "Web": {
+                "url": "http://reading.example:58356/es.html"
+              }
+            },
+            "captured_at": 1792022471
+          },
+          "gloss": "train car, railroad car, railway carriage",
+          "gloss_language": "en",
+          "media": null,
+          "review": {
+            "memory": null,
+            "due": null,
+            "last_review": null,
+            "reps": 0,
+            "lapses": 0
+          },
+          "updated_at": 1792022471
+        }
+      },
+      "French": {
+        "aube": {
+          "lemma": "aube",
+          "encountered_form": "aube",
+          "provenance": {
+            "sentence": "Beaucoup décrivent l’expérience comme une petite aventure : le bruit des roues, le paysage qui change à l’aube, les conversations au wagon-restaurant avec des inconnus que l’on ne reverra jamais.",
+            "source": {
+              "Web": {
+                "url": "http://reading.example:58356/fr.html"
+              }
+            },
+            "captured_at": 1792022486
+          },
+          "gloss": "dawn, sunrise, daybreak; alb; paddle, blade; beginning; vane (of windmill); small plank; Aube (a department of Grand Est, France); Aube (a right tributary of the Seine in the departments of Haute-Marne, Côte-d'Or, Aube and Marne in northeastern France)",
+          "gloss_language": "en",
+          "media": null,
+          "review": {
+            "memory": null,
+            "due": null,
+            "last_review": null,
+            "reps": 0,
+            "lapses": 0
+          },
+          "updated_at": 1792022486
+        },
+        "marchandise": {
+          "lemma": "marchandise",
+          "encountered_form": "marchandises",
+          "provenance": {
+            "sentence": "Les voies sont partagées avec des trains de marchandises qui roulent eux aussi la nuit : les horaires se négocient donc pays par pays.",
+            "source": {
+              "Web": {
+                "url": "http://reading.example:58356/fr.html"
+              }
+            },
+            "captured_at": 1792022482
+          },
+          "gloss": "merchandise",
+          "gloss_language": "en",
+          "media": null,
+          "review": {
+            "memory": null,
+            "due": null,
+            "last_review": null,
+            "reps": 0,
+            "lapses": 0
+          },
+          "updated_at": 1792022482
+        },
+        "panne": {
+          "lemma": "panne",
+          "encountered_form": "panne",
+          "provenance": {
+            "sentence": "Les passagers se plaignent parfois de retards, d’une climatisation en panne ou de compartiments plus petits que ne le laissaient croire les photographies.",
+            "source": {
+              "Web": {
+                "url": "http://reading.example:58356/fr.html"
+              }
+            },
+            "captured_at": 1792022484
+          },
+          "gloss": "plush velvet; breakdown (state of no longer functioning); purlin",
+          "gloss_language": "en",
+          "media": null,
+          "review": {
+            "memory": null,
+            "due": null,
+            "last_review": null,
+            "reps": 0,
+            "lapses": 0
+          },
+          "updated_at": 1792022484
+        },
+        "étroit": {
+          "lemma": "étroit",
+          "encountered_form": "étroite",
+          "provenance": {
+            "sentence": "Chaque soir, des voitures-lits traversaient les frontières avec à leur bord des étudiants, des familles et des voyageurs d’affaires qui préféraient une couchette étroite à un vol matinal.",
+            "source": {
+              "Web": {
+                "url": "http://reading.example:58356/fr.html"
+              }
+            },
+            "captured_at": 1792022480
+          },
+          "gloss": "narrow",
+          "gloss_language": "en",
+          "media": null,
+          "review": {
+            "memory": null,
+            "due": null,
+            "last_review": null,
+            "reps": 0,
+            "lapses": 0
+          },
+          "updated_at": 1792022480
+        }
+      }
+    }
+  },
+  "fsrs": {
+    "w": [
+      0.40255,
+      1.18385,
+      3.173,
+      15.69105,
+      7.1949,
+      0.5345,
+      1.4604,
+      0.0046,
+      1.54575,
+      0.1192,
+      1.01925,
+      1.9395,
+      0.11,
+      0.29605,
+      2.2698,
+      0.2315,
+      2.9898,
+      0.51655,
+      0.6621
+    ],
+    "request_retention": 0.9,
+    "maximum_interval_days": 36500
+  },
+  "profile": {
+    "native_language": "English",
+    "studied_languages": [
+      "Spanish",
+      "French"
+    ]
+  }
+}

@@ -14,6 +14,16 @@ import {
 import { currentLocale } from "@/i18n";
 import { languageLabel } from "@/i18n/language-label";
 import UsageLineChart from "@/components/UsageLineChart.vue";
+import {
+  BROWSER_FAMILIES,
+  FUNNEL_GRAINS,
+  FUNNEL_STEPS,
+  type BrowserFilter,
+  type FunnelCell,
+  type FunnelView,
+  type InstallationFunnel,
+  type LeaveReasons,
+} from "@/lib/linguaFunnel";
 
 // The back-office "Lingua" screen (change: add-lingua-back-office, task 5.3). OPS only:
 // aggregates, never a per-account view. It NEVER calls the
@@ -112,6 +122,65 @@ const languageOptions = computed(() => studiedLanguageOptions(vm.value.data.byLa
 function apply() {
   void store.load();
 }
+
+// Installations (change: add-lingua-usage-counts, design D13): anonymous counts, by installation
+// day and browser family — never finer — or summed by week. Two unions of their own, so a failed
+// read leaves the rest of the console standing.
+const emptyView: FunnelView = { rows: [], series: { labels: [], installed: [] } };
+const emptyFunnel: InstallationFunnel = { day: emptyView, week: emptyView };
+const funnelVm = computed(() =>
+  match(store.funnel)
+    .with({ status: "idle" }, () => ({ loading: true, error: null as string | null, data: emptyFunnel }))
+    .with({ status: "loading" }, () => ({ loading: true, error: null, data: emptyFunnel }))
+    .with({ status: "error" }, ({ error }) => ({ loading: false, error, data: emptyFunnel }))
+    .with({ status: "success" }, ({ data }) => ({ loading: false, error: null, data }))
+    .exhaustive(),
+);
+/** The view the toggle picked — by day or by week — of the same read. */
+const funnelView = computed(() => funnelVm.value.data[store.funnelGrain]);
+const emptyReasons: LeaveReasons = { reasons: [], capped: false };
+const reasonsVm = computed(() =>
+  match(store.reasons)
+    .with({ status: "idle" }, () => ({ loading: true, error: null as string | null, data: emptyReasons }))
+    .with({ status: "loading" }, () => ({ loading: true, error: null, data: emptyReasons }))
+    .with({ status: "error" }, ({ error }) => ({ loading: false, error, data: emptyReasons }))
+    .with({ status: "success" }, ({ data }) => ({ loading: false, error: null, data }))
+    .exhaustive(),
+);
+
+/** The browser filter re-reads the section alone, funnel and leaving reasons alike. */
+const browser = computed<BrowserFilter>({
+  get: () => store.filters.browser,
+  set: (b) => {
+    void store.loadInstallations({ browser: b });
+  },
+});
+
+/** A whole percent (63) in the console's locale: "63%", « 63 % ». */
+const percent = (whole: number) =>
+  (whole / 100).toLocaleString(currentLocale(), { style: "percent", maximumFractionDigits: 0 });
+
+/** A step as "25 (63%)", or "not yet" while its return window is open. */
+function cellText(cell: FunnelCell): string {
+  return match(cell)
+    .with({ kind: "notYet" }, () => t("lingua.installations.notYet"))
+    .with({ kind: "count" }, ({ count, share }) => (share === null ? num(count) : `${num(count)} (${percent(share)})`))
+    .exhaustive();
+}
+
+/** A leaving reason's label, or its code for an answer this console has no label for yet. */
+function reasonLabel(code: string): string {
+  const key = `lingua.installations.reasons.${code}`;
+  return te(key) ? t(key) : code;
+}
+
+// A week is capped when one of its days is: the day rows tell for both views.
+const anyCapped = computed(() => funnelVm.value.data.day.rows.some((r) => r.capped) || reasonsVm.value.data.capped);
+
+const installationsChart = computed(() => ({
+  labels: funnelView.value.series.labels,
+  datasets: [{ label: t("lingua.installations.installed"), values: funnelView.value.series.installed }],
+}));
 </script>
 
 <template>
@@ -298,6 +367,108 @@ function apply() {
         </template>
       </div>
     </template>
+
+    <!-- Installations: anonymous counts by installation day (or summed by week) and browser family,
+         and why readers left (change: add-lingua-usage-counts). Outside the report's gate: other
+         counters. -->
+    <div class="panel" data-testid="installations">
+      <div class="panel-head">
+        <h2>{{ t("lingua.installations.title") }}</h2>
+        <div class="controls">
+          <div class="toggle" role="group" :aria-label="t('lingua.installations.grainLabel')">
+            <button
+              v-for="g in FUNNEL_GRAINS"
+              :key="g"
+              type="button"
+              :aria-pressed="store.funnelGrain === g"
+              :data-testid="`grain-${g}`"
+              @click="store.funnelGrain = g"
+            >
+              {{ t(`lingua.installations.grains.${g}`) }}
+            </button>
+          </div>
+          <label class="inline">
+            <span>{{ t("lingua.installations.browser") }}</span>
+            <select v-model="browser" data-testid="browser">
+              <option value="">{{ t("lingua.installations.anyBrowser") }}</option>
+              <option v-for="b in BROWSER_FAMILIES" :key="b" :value="b">
+                {{ t(`lingua.installations.browsers.${b}`) }}
+              </option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <p class="muted" data-testid="installations-note">{{ t("lingua.installations.note") }}</p>
+
+      <p v-if="funnelVm.error" class="state error" data-testid="funnel-error">{{ funnelVm.error }}</p>
+      <template v-else>
+        <h3>{{ t(`lingua.installations.chartTitle.${store.funnelGrain}`) }}</h3>
+        <UsageLineChart
+          :labels="installationsChart.labels"
+          :datasets="installationsChart.datasets"
+          :y-label="t('lingua.installations.installed')"
+        />
+        <table>
+          <thead>
+            <tr>
+              <th>{{ t(`lingua.installations.period.${store.funnelGrain}`) }}</th>
+              <th class="n">{{ t("lingua.installations.installed") }}</th>
+              <th v-for="s in FUNNEL_STEPS" :key="s" class="n">{{ t(`lingua.installations.${s}`) }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="r in funnelView.rows" :key="r.period" data-testid="funnel-row" :data-period="r.period">
+              <td class="mono">
+                {{ r.period }}
+                <span v-if="r.capped" class="badge" data-testid="capped" :title="t('lingua.installations.cappedHint')">
+                  {{ t("lingua.installations.capped") }}
+                </span>
+              </td>
+              <td class="n" data-testid="installed">{{ num(r.installed) }}</td>
+              <td
+                v-for="s in FUNNEL_STEPS"
+                :key="s"
+                class="n"
+                :class="{ muted: r.cells[s].kind === 'notYet' }"
+                :data-testid="`step-${s}`"
+              >
+                {{ cellText(r.cells[s]) }}
+              </td>
+            </tr>
+            <tr v-if="funnelView.rows.length === 0">
+              <td :colspan="2 + FUNNEL_STEPS.length" class="muted">
+                {{ funnelVm.loading ? t("lingua.installations.loading") : t("lingua.noData") }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="muted" data-testid="not-yet-note">{{ t("lingua.installations.notYetNote") }}</p>
+      </template>
+
+      <h3>
+        {{ t("lingua.installations.reasonsTitle") }}
+        <span
+          v-if="reasonsVm.data.capped"
+          class="badge"
+          data-testid="reasons-capped"
+          :title="t('lingua.installations.cappedHint')"
+        >
+          {{ t("lingua.installations.capped") }}
+        </span>
+      </h3>
+      <p v-if="reasonsVm.error" class="state error" data-testid="reasons-error">{{ reasonsVm.error }}</p>
+      <p v-else-if="reasonsVm.loading" class="muted">{{ t("lingua.installations.loading") }}</p>
+      <table v-else class="reasons">
+        <tbody>
+          <tr v-for="r in reasonsVm.data.reasons" :key="r.reason" data-testid="reason-row" :data-reason="r.reason">
+            <th scope="row" class="reason">{{ reasonLabel(r.reason) }}</th>
+            <td class="n">{{ num(r.count) }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="muted">{{ t("lingua.installations.reasonsNote") }}</p>
+      <p v-if="anyCapped" class="muted" data-testid="capped-note">{{ t("lingua.installations.cappedHint") }}</p>
+    </div>
   </section>
 </template>
 
@@ -368,6 +539,59 @@ function apply() {
   margin: 0 0 0.75rem;
   font-size: 1rem;
 }
+.panel h3 {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.9rem;
+}
+.panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.inline {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.8rem;
+}
+.inline select {
+  padding: 0.3rem 0.5rem;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+/* The Day / Week toggle, drawn like the Jobs console's period buttons: the pressed one in the accent. */
+.toggle {
+  display: flex;
+  gap: 0.35rem;
+}
+.toggle button {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.8rem;
+}
+.toggle button[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.badge {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0 0.4rem;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-family: inherit;
+  opacity: 0.8;
+}
+table.reasons {
+  width: auto;
+  min-width: 50%;
+}
 table {
   width: 100%;
   border-collapse: collapse;
@@ -383,6 +607,10 @@ th.n,
 td.n {
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+/* A leaving reason heads its row: it reads like the cells beside it. */
+th.reason {
+  font-weight: normal;
 }
 .muted {
   opacity: 0.6;

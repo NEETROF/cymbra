@@ -1,0 +1,25 @@
+---
+// The Lingua leaving page, Spanish (change: add-lingua-usage-counts, D12): the page Chrome and
+// Firefox open when Lingua is removed with its anonymous counts on, `?b=&v=` appended. A
+// pinned route (`src/lib/pinned-routes.ts`): shipped builds compile it in. Built whatever the
+// shipped pairs, unlike `/es/lingua/` (`[locale]/lingua.astro`): a Spanish interface opens it.
+import Base from '../../../layouts/Base.astro';
+import LeaveReasonIsland from '../../../components/LeaveReasonIsland.vue';
+import LeaveThanks from '../../../components/LeaveThanks.astro';
+import { config } from '../../../lib/config';
+import { t } from '../../../lib/i18n';
+---
+
+<Base
+  title="Adiós — Cymbra Lingua"
+  description="Una pregunta para quienes dejan Cymbra Lingua."
+  lang="es"
+  noindex
+  alternates={{ fr: '/lingua/au-revoir', en: '/en/lingua/goodbye', es: '/es/lingua/adios' }}
+>
+  <section class="container narrow">
+    <h1>{t('es', 'leaveQuestion')}</h1>
+    <LeaveThanks lang="es" communityUrl={config.discordUrl} />
+    <LeaveReasonIsland client:load lang="es" communityUrl={config.discordUrl} />
+  </section>
+</Base>

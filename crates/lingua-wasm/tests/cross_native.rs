@@ -675,3 +675,59 @@ fn seeding_follows_each_packs_glosses() {
     assert!(!carded(&ops_es, "part"));
     assert_eq!(es_pack.level("part"), Some(CefrLevel::A1), "its level kept");
 }
+
+/// add-lingua-review-translation-fallback D5, through every native language: a card made on the
+/// reference pack's engine and pulled into the other's shows, at review, the other pack's gloss
+/// for its lemma — the current pack wins over the stored text — unless the reader kept a gloss,
+/// which shows as written, whatever its language.
+#[test]
+fn a_gloss_the_reader_chose_wins_through_every_native_language() {
+    // (reference pair, other pair, studied language, a lemma both packs gloss)
+    let cases = [
+        ("en-fr", "en-es", "en", "house"),
+        ("es-fr", "es-en", "es", "casa"),
+        ("fr-en", "fr-es", "fr", "maison"),
+    ];
+    for (reference, other, language, lemma) in cases {
+        let reference_pack = Scenario::real_pack(reference);
+        let other_pack = Scenario::real_pack(other);
+        let other_gloss = Pack::load(&other_pack)
+            .unwrap()
+            .gloss(lemma)
+            .unwrap_or_else(|| panic!("{other} glosses {lemma}"))
+            .to_owned();
+        let language = Some(language.to_owned());
+        for kept in [false, true] {
+            let mut made = Scenario::engine(&[(reference, reference_pack.clone())]);
+            made.add_card(
+                lemma,
+                lemma,
+                "",
+                "",
+                Some("stored".to_owned()),
+                0.0,
+                language.clone(),
+            )
+            .unwrap();
+            if kept {
+                assert!(
+                    made.keep_gloss(lemma, "mine", language.clone(), 0.0)
+                        .unwrap()
+                );
+            }
+            let mut reviewing = Scenario::engine(&[(other, other_pack.clone())]);
+            assert_eq!(
+                reviewing.apply_card_ops(&made.export_card_ops()).unwrap(),
+                1
+            );
+            assert_eq!(reviewing.start_review(1.0, None, None, None, None, None), 1);
+            let view: serde_json::Value =
+                serde_json::from_str(&reviewing.review_current().unwrap()).unwrap();
+            let expected = if kept { "mine" } else { other_gloss.as_str() };
+            assert_eq!(
+                view["gloss"], expected,
+                "{reference} to {other}, kept: {kept}"
+            );
+        }
+    }
+}

@@ -18,6 +18,30 @@
 # Caddy obtains + renews the TLS cert automatically for $API_DOMAIN. The apps
 # connect with ChannelCredentials.secure() to $API_DOMAIN:443.
 
+# No client address and no request header in Caddy's output (change:
+# add-lingua-usage-counts, D11). The site block below has NO `log` directive on purpose:
+# Caddy then writes no access log at all — do not add one without reading this. Caddy
+# still logs a request whose handler failed (`http.log.error`: a 502 while the server
+# deploys or restarts), and that entry carries the request: the client's address and
+# port, and every header — `User-Agent`, `Origin` (a Firefox or Safari extension's
+# origin is a per-installation id), `Authorization`. This filter on the default logger
+# deletes those fields from every entry, for every route, before they are written; the
+# message, status, method, path and duration stay, so a 502 can still be diagnosed.
+# The privacy policy promises it for the anonymous Lingua counts (Annex B).
+{
+	log {
+		format filter {
+			wrap json
+			fields {
+				request>remote_ip delete
+				request>client_ip delete
+				request>remote_port delete
+				request>headers delete
+			}
+		}
+	}
+}
+
 {$API_DOMAIN} {
 	# Axum HTTP surface — every non-gRPC route the server mounts:
 	#   /.well-known/*   JWKS

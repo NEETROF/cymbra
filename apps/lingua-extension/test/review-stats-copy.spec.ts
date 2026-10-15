@@ -264,7 +264,7 @@ describe("An English-native reader's review", () => {
 
   it("the page: each count of the summary in bold, grouped as English groups it, in its own form", async () => {
     const { port } = makeFakePort();
-    const m = mount({ ...port, deckCount: async () => 1, dueCount: async () => 12_345 });
+    const m = mount({ ...port, deckCount: async () => 1, reviewableCount: async () => 12_345 });
     await m.refresh();
     expect(text(m.container, ".summary")).toBe("1 card · 12,345 to review");
     expect([...m.container.querySelectorAll(".summary b")].map((b) => b.textContent)).toEqual(["1", "12,345"]);
@@ -749,6 +749,26 @@ describe("the side panel hands review and statistics the language it read (panel
     await panel.stats(doc.getElementById("view-stats")!);
     expect(text(doc, "#view-stats .scope")).toBe("This device");
     expect(text(doc, "#view-stats .seed .mlabel")).toBe("Strengthen a level");
+  });
+
+  it("hands Révision the panel's online translation (add-lingua-review-translation-fallback D2)", async () => {
+    const doc = load(HTML);
+    const port = makeFakePort([
+      { headword: "slacken", surface: "slacken", sentence: "He felt his grip slacken.", gloss: null },
+    ]).port;
+    const panel = startPanel(doc, {
+      ...deps(pageArea({ [INTERFACE_LANGUAGE_KEY]: "en" }) as AsyncStorageArea),
+      port,
+      online: { offered: () => true, translate: async () => ({ kind: "unavailable" as const }) },
+    });
+    const container = doc.getElementById("view-review")!;
+    const review = await panel.review(container);
+    await review.refresh();
+    for (const label of ["Review", "Show the answer"]) {
+      [...container.querySelectorAll("button")].find((b) => b.textContent === label)!.click();
+      await settle();
+    }
+    expect(buttons(container)).toContain("Online translation");
   });
 
   it("Révision asked for before the language has answered waits for it, and is mounted once, in English", async () => {

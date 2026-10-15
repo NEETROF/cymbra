@@ -12,6 +12,8 @@ export default defineConfig({
     __NATIVE_PROVIDERS__: "false",
     __SECTIONS_FROM_WORKER__: "false",
     __APP__: "false",
+    // The Chromium variant's, as __TARGET__ is: its first-run sentence asks (add-lingua-usage-counts D7).
+    __USAGE_COUNTS_DEFAULT__: JSON.stringify("ask"),
     // The shipped pairs, read from packs.json as the build reads them.
     __LINGUA_PACKS__: JSON.stringify(shippedPairs().join(",")),
     // The native language's choice is built, so its views are tested; each one still shows only
@@ -55,6 +57,9 @@ export default defineConfig({
         "src/stats/stats.ts",
         // The Cymbra Lingua app's page (add-lingua-apple-review): its session and home are measured.
         "src/app/app.ts",
+        // Its two workers' construction (add-lingua-review-translation-fallback D7): glue over the
+        // channel and the download host, measured on their own.
+        "src/app/workers.ts",
         "src/onboarding/onboarding.ts",
         "src/reading/drawer.ts",
         "src/analyzer/engine.ts",

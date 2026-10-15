@@ -117,9 +117,9 @@ describe("/es/music/", () => {
     expect(html).toContain('<html lang="es">');
     expect(html).toContain("<title>Cymbra Music — práctica y cursos de música conectados</title>");
     expect(hreflangs(html)).toEqual([
-      ["fr", "https://cymbra.app/music"],
-      ["en", "https://cymbra.app/en/music"],
-      ["es", "https://cymbra.app/es/music"],
+      ["fr", "https://cymbra.app/music/"],
+      ["en", "https://cymbra.app/en/music/"],
+      ["es", "https://cymbra.app/es/music/"],
     ]);
     expect(switchTo(html)).toEqual([
       ["FR", "/music"],

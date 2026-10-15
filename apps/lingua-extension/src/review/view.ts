@@ -6,15 +6,17 @@ import { review as frReview } from "../i18n/fr/review.ts";
 import {
   DEFAULT_INTERFACE_LANGUAGE,
   formatCount,
+  formatTime,
   type InterfaceLanguage,
   NODE_SLOT,
   plural,
   type PluralForms,
   renderAround,
 } from "../i18n/index.ts";
+import { withoutEdgePunctuation } from "../reading/selection.ts";
 import { sameSpokenText, type Speaker } from "../reading/speech.ts";
 import { type ReviewView, SESSION_CARDS } from "./session.ts";
-import type { ReviewTranslation } from "./translation.ts";
+import { keepable, keepCandidate, KEEP_MAX_UNITS, type ReviewTranslation } from "./translation.ts";
 
 // The review render — one function every review host (the side panel and the injected drawer)
 // calls to paint a ReviewView, wiring its controls to the given actions. Pure DOM, no styling of
@@ -50,6 +52,8 @@ export interface ReviewActions {
   grade(rating: Rating): void;
   markKnown(): void;
   ignore(): void;
+  /** End the session under way (add-lingua-review-stop-session); a host without it offers no link. */
+  end?(): void;
 }
 
 /** How a host has the review painted. */
@@ -70,6 +74,59 @@ export interface ReviewRenderOptions {
    * is today's.
    */
   translation?: ReviewTranslation;
+  /**
+   * « Traduction en ligne » on the revealed card (add-lingua-review-translation-fallback D2): its
+   * button and where its request stands. Absent: no button.
+   */
+  online?: ReviewOnlineOffer;
+  /**
+   * On a revealed card with a gloss, the « Traduire la phrase » link asks for its translation
+   * (add-lingua-review-translation-fallback D1). Absent: no link.
+   */
+  askTranslation?: () => void;
+  /**
+   * Keep a machine translation's word as the card's gloss (add-lingua-review-translation-fallback D3):
+   * offered under a translation shown. Absent: no action.
+   */
+  keep?: (gloss: string) => void;
+  /**
+   * On a revealed card without a gloss that nothing can translate — no model ready, no online
+   * button —, how the reader gets a translation, said in the no-translation note itself
+   * (add-lingua-review-translation-fallback D12). Absent: the note alone.
+   */
+  hint?: ReviewTranslationHint;
+  /**
+   * The rating request at the end of a session (add-lingua-comeback-hints D10): one sentence and
+   * three actions, below the end's own, which stay first. Absent: none — the review page decides.
+   */
+  rating?: ReviewRatingRequest;
+}
+
+/** The rating request's three answers: rate, later, never again. */
+export interface ReviewRatingRequest {
+  rate(): void;
+  later(): void;
+  never(): void;
+}
+
+/**
+ * How the reader gets a translation for a card nothing can translate (D12), per host: turn on
+ * « Traduction étendue » in Réglages (the extension), turn it on in the Safari extension (the app,
+ * the setting off there), or download the app's copy of the models (the app, the setting on and its
+ * models absent) — `download` re-offering the app's own offer.
+ */
+export type ReviewTranslationHint =
+  { kind: "settings" } | { kind: "extension" } | { kind: "download"; download: () => void };
+
+/**
+ * The review's « Traduction en ligne » button, as the selection card's
+ * (add-lingua-online-translation D8): offered, asking, answered, unavailable, or the daily limit
+ * reached with when it resets (epoch milliseconds).
+ */
+export interface ReviewOnlineOffer {
+  state: "offered" | "asking" | "answered" | "unavailable" | "limit";
+  resetsAt?: number;
+  press: () => void;
 }
 
 /** One listen button: what it speaks, under which key, and how it is labelled. */
@@ -119,7 +176,7 @@ export function renderReview(
 
   const rows: ListenRow[] = [];
   if (view.phase === "idle") root.append(button(copy.start, "review-btn primary review-start", () => actions.start()));
-  else if (view.phase === "done" || !card) root.append(ending(view, actions, language, copy));
+  else if (view.phase === "done" || !card) root.append(ending(view, actions, language, copy, opts.rating));
   else root.append(cardView(card, view.showing ?? 1, view.practice ?? false, actions, opts, language, copy, rows));
 
   const speaker = opts.speaker;
@@ -139,6 +196,8 @@ export function renderReview(
 function onKey(e: KeyboardEvent, root: HTMLElement, view: ReviewView, actions: ReviewActions): void {
   const card = view.phase === "reviewing" ? view.card : null;
   if (!card || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  // The keep field's own keys: typing never answers the card.
+  if ((e.target as HTMLElement | null)?.tagName === "INPUT") return;
   let act: (() => void) | null = null;
   if (!card.revealed && (e.key === " " || e.key === "Enter")) {
     // A link or another button keeps its own Space and Enter.
@@ -183,6 +242,14 @@ function cardView(
   );
   // The card's language, when the reader studies several (add-lingua-language-stats-review D2).
   if (opts.showLanguage && card.language) head.append(note(languageName(language, card.language), "review-language"));
+  // Ending the session, a link at the end of the same line (add-lingua-review-stop-session D1): no
+  // block of its own, so nothing moves on an e-ink screen.
+  if (actions.end) {
+    const end = actions.end;
+    const link = button(copy.end, "review-link review-end", () => end());
+    link.setAttribute("aria-label", copy.endLabel);
+    head.append(link);
+  }
   main.append(head);
 
   const source = sourceLabel(card.source);
@@ -190,7 +257,8 @@ function cardView(
   const sentence = card.sentence.trim();
   const marked = markedIn(card);
   // No sentence (a word seeded from a level), or none holding the word: the word itself.
-  if (!marked) main.append(studiedLine("headword", card.headword, studied));
+  const headword = cardHeadword(card);
+  if (!marked) main.append(studiedLine("headword", headword, studied));
   if (sentence) main.append(sentenceView(sentence, marked, studied));
   // What there is to hear stays the same once revealed, so the reveal moves nothing here (D11).
   const listen = (listens: Listen[]): HTMLElement[] => {
@@ -205,11 +273,27 @@ function cardView(
   const answer = div("review-answer");
   answer.setAttribute("aria-live", "polite");
   if (card.revealed) {
-    // The dictionary form, when the sentence shows another one.
-    const otherForm = marked !== null && marked.text.toLowerCase() !== card.headword.toLowerCase();
-    if (otherForm) answer.append(studiedLine("dictionary-form", card.headword, studied));
-    answer.append(card.gloss ? line("gloss", card.gloss) : missingGloss(card, opts.translation, copy));
-    if (otherForm) answer.append(...listen([headwordListen(card.headword, copy)]));
+    // The dictionary form, when the sentence shows another one — both read without their edge
+    // punctuation, so `four-poster bed,` is not offered as the form of `four-poster bed`.
+    const otherForm = marked !== null && marked.text.toLowerCase() !== headword.toLowerCase();
+    if (otherForm) answer.append(studiedLine("dictionary-form", headword, studied));
+    if (card.gloss) {
+      answer.append(line("gloss", card.gloss));
+      // Under the gloss: the translation the reader asked for, else the link asking it (D1).
+      const asked = opts.translation ? askedTranslation(opts.translation, copy) : null;
+      if (asked) answer.append(asked);
+      else if (opts.askTranslation) {
+        const ask = opts.askTranslation;
+        answer.append(button(copy.translateSentence, "review-link review-ask-translation", () => ask()));
+      }
+    } else {
+      answer.append(missingGloss(card, opts.translation, opts.hint, copy));
+    }
+    if (opts.online) answer.append(onlineRow(opts.online, language, copy));
+    if (opts.keep && opts.translation?.state === "translated") {
+      answer.append(keepRow(opts.translation.translation, opts.translation.alone, opts.keep, copy));
+    }
+    if (otherForm) answer.append(...listen([headwordListen(headword, copy)]));
   }
   main.append(answer);
 
@@ -235,12 +319,33 @@ function cardView(
   return wrap;
 }
 
-/** The end of a session: what it did, and « Encore 10 » while another session would hold cards. */
-function ending(view: ReviewView, actions: ReviewActions, language: InterfaceLanguage, copy: ReviewCopy): HTMLElement {
+/**
+ * Whether a session's end says what it did (« Séance terminée » and its counts): it answered at least
+ * one card, a practice session included. An end that says nothing was due is not one
+ * (add-lingua-comeback-hints D10); nor, for the rating request, is a session the reader ended before
+ * its last card, which the review page leaves out (`ReviewView.ended`).
+ */
+export function sessionCompleted(summary: ReviewSummary | null): boolean {
+  return !!summary && summary.reviewed + summary.known + summary.hidden > 0;
+}
+
+/**
+ * The end of a session: what it did, and « Encore 10 » while another session would hold cards — then,
+ * when the review page asks for it, the rating request below them.
+ */
+function ending(
+  view: ReviewView,
+  actions: ReviewActions,
+  language: InterfaceLanguage,
+  copy: ReviewCopy,
+  rating?: ReviewRatingRequest,
+): HTMLElement {
   const box = div("review-done");
   const s: ReviewSummary | null = view.summary;
-  if (!s || s.reviewed + s.known + s.hidden === 0) {
-    box.append(note(copy.nothingDue));
+  if (!s || !sessionCompleted(s)) {
+    // Ended before any answer: it ended, nothing to count — never « nothing due » above « Encore 10 »
+    // (add-lingua-review-stop-session D3).
+    box.append(view.ended ? line("done-title", copy.sessionDone) : note(copy.nothingDue));
   } else {
     box.append(line("done-title", copy.sessionDone));
     const list = document.createElement("ul");
@@ -269,25 +374,101 @@ function ending(view: ReviewView, actions: ReviewActions, language: InterfaceLan
     const practise = actions.practice;
     box.append(button(copy.practice, "review-btn primary review-practice", () => practise()));
   }
+  if (rating) box.append(ratingRequest(rating, copy));
   return box;
 }
 
-/** The card's word as its sentence shows it, or null without a sentence holding it. */
-function markedIn(card: ReviewCard): MarkedWord | null {
+/**
+ * « Une note sur la boutique de ton navigateur aide d'autres lecteurs à trouver Cymbra Lingua. »
+ * and its three actions (add-lingua-comeback-hints D10): no stars, nothing chosen in advance,
+ * nothing offered.
+ */
+function ratingRequest(rating: ReviewRatingRequest, copy: ReviewCopy): HTMLElement {
+  const box = div("review-rating");
+  box.setAttribute("role", "group");
+  box.setAttribute("aria-label", copy.ratingRate);
+  const actions = div("review-rating-actions");
+  actions.append(
+    button(copy.ratingRate, "review-btn review-rating-rate", () => rating.rate()),
+    button(copy.ratingLater, "review-link review-rating-later", () => rating.later()),
+    button(copy.ratingNever, "review-link review-rating-never", () => rating.never()),
+  );
+  box.append(note(copy.ratingAsk, "review-rating-ask"), actions);
+  return box;
+}
+
+/**
+ * A card's word read without its edge punctuation (fix-lingua-selection-card-punctuation D4): a card
+ * captured as `four-poster bed,` is shown, heard and compared as `four-poster bed`, and never
+ * rewritten. A word of punctuation alone is shown as it is stored.
+ */
+const readWord = (word: string): string => withoutEdgePunctuation(word) || word.trim();
+
+/** The card's headword as the front reads it: without its edge punctuation. */
+export function cardHeadword(card: ReviewCard): string {
+  return readWord(card.headword);
+}
+
+/**
+ * The card's word as its sentence shows it — the form met, then the dictionary form, each without
+ * its edge punctuation, so the mark leaves a captured comma outside — or null without a sentence
+ * holding it. The review's translation marks the same place.
+ */
+export function markedIn(card: ReviewCard): MarkedWord | null {
   const sentence = card.sentence.trim();
-  return sentence ? markWord(sentence, card.surface, card.headword) : null;
+  return sentence ? markWord(sentence, readWord(card.surface), cardHeadword(card)) : null;
 }
 
 /**
  * In the place of a missing gloss: the machine translation that came, « Traduction en cours… » while
- * it is on its way, else the no-translation note (add-lingua-review-translation D2, D5).
+ * it is on its way, else the no-translation note (add-lingua-review-translation D2, D5) — saying, when
+ * nothing can translate the card, how to get a translation (add-lingua-review-translation-fallback D12).
  */
-function missingGloss(card: ReviewCard, translation: ReviewTranslation | undefined, copy: ReviewCopy): HTMLElement {
+function missingGloss(
+  card: ReviewCard,
+  translation: ReviewTranslation | undefined,
+  hint: ReviewTranslationHint | undefined,
+  copy: ReviewCopy,
+): HTMLElement {
   if (translation?.state === "pending") return note(copy.translating, "review-translating");
-  if (translation?.state !== "translated") return note(noGloss(card, copy), "review-no-gloss");
-  const { translation: t, alone } = translation;
+  if (translation?.state === "translated") return translationBlock(translation, copy);
+  const missing = note(noGloss(card, copy), "review-no-gloss");
+  if (hint?.kind === "download") {
+    // The same line, its action a small text control: nothing moves but the line itself.
+    const { download } = hint;
+    missing.append(
+      " ",
+      button(copy.hintDownload, "review-link review-hint-download", () => download()),
+    );
+  } else if (hint) {
+    missing.append(" ", hint.kind === "settings" ? copy.hintSettings : copy.hintExtension);
+  }
+  return missing;
+}
+
+/** Under a gloss, what the reader asked: the translation, or that it is on its way; nothing when none came. */
+function askedTranslation(translation: ReviewTranslation, copy: ReviewCopy): HTMLElement | null {
+  if (translation.state === "pending") return note(copy.translating, "review-translating");
+  return translation.state === "translated" ? translationBlock(translation, copy) : null;
+}
+
+/** A machine translation under its label — the engine's or the online service's — its marks in `<mark>`s. */
+function translationBlock(
+  translation: Extract<ReviewTranslation, { state: "translated" }>,
+  copy: ReviewCopy,
+): HTMLElement {
+  const { translation: t, alone, online } = translation;
   const block = div("review-translation");
-  const label = line("translation-label", alone ? copy.translationAloneLabel : copy.translationLabel);
+  const label = line(
+    "translation-label",
+    online
+      ? alone
+        ? copy.onlineTranslationAloneLabel
+        : copy.onlineTranslationLabel
+      : alone
+        ? copy.translationAloneLabel
+        : copy.translationLabel,
+  );
   // Text nodes only: the sentence came from a page and through the engine.
   const sentence = div("review-translation-sentence");
   let at = 0;
@@ -303,9 +484,96 @@ function missingGloss(card: ReviewCard, translation: ReviewTranslation | undefin
   return block;
 }
 
+/**
+ * The « Traduction en ligne » button and its note, as the selection card shows them: pressable only
+ * while offered — one press per card — then what became of the request. Text nodes only.
+ */
+function onlineRow(offer: ReviewOnlineOffer, language: InterfaceLanguage, copy: ReviewCopy): HTMLElement {
+  const row = div("review-online");
+  const b = button(copy.onlineTranslate, "review-link review-online-btn", () => {
+    if (b.disabled) return;
+    b.disabled = true;
+    offer.press();
+  });
+  b.disabled = offer.state !== "offered";
+  const status = div("review-online-note");
+  status.setAttribute("role", "status");
+  status.textContent =
+    offer.state === "asking"
+      ? copy.onlineTranslating
+      : offer.state === "unavailable"
+        ? copy.onlineUnavailable
+        : offer.state === "limit"
+          ? copy.onlineLimit(formatTime(language, new Date(offer.resetsAt ?? Date.now())))
+          : "";
+  status.hidden = !status.textContent;
+  row.append(b, status);
+  return row;
+}
+
+/**
+ * Keeping the translation's word as the card's gloss (add-lingua-review-translation-fallback D3). A
+ * candidate of one mark that may be kept is named — « Garder « se relâcher » » — and kept in one tap,
+ * « Modifier » beside it; otherwise — no mark, several marks, too long — « Garder une traduction… »
+ * opens the field, prefilled with the candidate or empty. The field replaces the row in place, on the
+ * reader's tap only.
+ */
+function keepRow(
+  translation: { sentence: string; marks: { start: number; end: number }[] },
+  alone: boolean,
+  keep: (gloss: string) => void,
+  copy: ReviewCopy,
+): HTMLElement {
+  const row = div("review-keep");
+  const candidate = keepCandidate(translation, alone);
+  const openField = (): void => row.replaceChildren(keepField(candidate?.text ?? "", keep, copy, () => fill()));
+  const fill = (): void => {
+    if (candidate && !candidate.split && keepable(candidate.text)) {
+      const { text } = candidate;
+      row.replaceChildren(
+        button(copy.keep(text), "review-link review-keep-btn", () => keep(text)),
+        button(copy.keepEdit, "review-link review-keep-edit", openField),
+      );
+    } else {
+      row.replaceChildren(button(copy.keepOther, "review-link review-keep-other", openField));
+    }
+  };
+  fill();
+  return row;
+}
+
+/** The one-line field: « Enregistrer » disabled while the trimmed text is empty or too long. */
+function keepField(prefill: string, keep: (gloss: string) => void, copy: ReviewCopy, cancel: () => void): HTMLElement {
+  const form = document.createElement("form");
+  form.className = "review-keep-field";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "review-keep-input";
+  input.value = prefill;
+  input.setAttribute("aria-label", copy.keepFieldLabel);
+  // Room to correct a candidate over the bound, never past it unnoticed: « Enregistrer » says so.
+  input.maxLength = KEEP_MAX_UNITS * 2;
+  const save = document.createElement("button");
+  save.type = "submit";
+  save.className = "review-link review-keep-save";
+  save.textContent = copy.keepSave;
+  const update = (): void => {
+    save.disabled = !keepable(input.value);
+  };
+  input.addEventListener("input", update);
+  update();
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (keepable(input.value)) keep(input.value.trim());
+  });
+  form.append(input, save, button(copy.keepCancel, "review-link review-keep-cancel", cancel));
+  queueMicrotask(() => input.focus({ preventScroll: true }));
+  return form;
+}
+
 /** An expression is not a word: its missing translation says so. */
 function noGloss(card: ReviewCard, copy: ReviewCopy): string {
-  return /\s/u.test(card.headword.trim()) ? copy.noGlossExpression : copy.noGloss;
+  return /\s/u.test(cardHeadword(card)) ? copy.noGlossExpression : copy.noGloss;
 }
 
 /**
@@ -313,7 +581,7 @@ function noGloss(card: ReviewCard, copy: ReviewCopy): string {
  * shows it — marked in its sentence, else above it — then the sentence, unless it is the word.
  */
 function frontListens(card: ReviewCard, copy: ReviewCopy): Listen[] {
-  const word = (markedIn(card)?.text ?? card.headword).trim();
+  const word = (markedIn(card)?.text ?? cardHeadword(card)).trim();
   if (!word) return [];
   const listens: Listen[] = [
     /\s/u.test(word)
@@ -339,7 +607,7 @@ function headwordListen(headword: string, copy: ReviewCopy): Listen {
 
 /** Every text the card may be reading: one that is not is stopped when the card changes. */
 function listensOf(card: ReviewCard, copy: ReviewCopy): Listen[] {
-  return [...frontListens(card, copy), headwordListen(card.headword, copy)];
+  return [...frontListens(card, copy), headwordListen(cardHeadword(card), copy)];
 }
 
 /**

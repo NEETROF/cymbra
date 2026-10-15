@@ -188,6 +188,23 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
+    // The Lingua schema over its own role (`lingua_svc`): the Discord Lingua report reads
+    // the ops aggregate, and the usage counters' retention job deletes old counters (change:
+    // add-lingua-usage-counts). The worker never migrates that schema (the server owns it).
+    let lingua_pool = match cfg.lingua_database_url.as_deref() {
+        Some(url) => Some(db::connect(url, 2).await?),
+        None => {
+            tracing::info!(
+                "discord Lingua report and usage-counts retention inert (CYMBRA_LINGUA_DATABASE_URL unset)"
+            );
+            None
+        }
+    };
+    let lingua_usage = lingua_pool.clone().map(|pool| {
+        Arc::new(cymbra_lingua::pg_usage_counts::PgUsageCountsRepo::new(pool))
+            as Arc<dyn cymbra_lingua::usage_counts::UsageCountsRepo>
+    });
+
     // Discord announcements (change: add-discord-notifications). Wired only when a
     // webhook is configured; the `discord.enabled` flag (default off) still gates
     // every post, so configuring webhooks alone publishes nothing.
@@ -195,17 +212,6 @@ async fn main() -> anyhow::Result<()> {
         match cymbra_discord::webhook::WebhookDiscordSender::new(cfg.discord_webhooks.0.clone())? {
             Some(sender) => {
                 tracing::info!(channels = ?cfg.discord_webhooks, "discord announcements wired");
-                // The Lingua report reads the ops aggregate over its own role; the
-                // worker never migrates that schema (the server owns it).
-                let lingua_pool = match cfg.lingua_database_url.as_deref() {
-                    Some(url) => Some(db::connect(url, 2).await?),
-                    None => {
-                        tracing::info!(
-                            "discord Lingua report inert (CYMBRA_LINGUA_DATABASE_URL unset)"
-                        );
-                        None
-                    }
-                };
                 Some(Arc::new(discord::Announcer::new(
                     sender,
                     cymbra_discord::Locale::parse(&cfg.discord_locale),
@@ -238,6 +244,7 @@ async fn main() -> anyhow::Result<()> {
         web_cancel,
         rc_erase,
         discord,
+        lingua_usage,
     };
 
     // --- sqlxmq runner: executes queued jobs (event-driven; design D7) ---

@@ -181,3 +181,50 @@ html[data-copy-pending] body {
 .onboarding #native-section [hidden] {
   display: none;
 }
+
+/* The anonymous counts' first-run sentence (add-lingua-usage-counts D7). On Chromium, its two answers
+   are the same size and weight: neither is the default. */
+.onboarding .usage-notice-text {
+  margin: 0 0 8px;
+}
+
+.onboarding .usage-notice-privacy {
+  color: var(--cymbra-lingua-accent);
+  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+.onboarding .usage-notice-answers {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.onboarding .usage-notice-answers[hidden] {
+  display: none;
+}
+
+.onboarding .usage-notice-answer {
+  flex: 1 1 0;
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-text);
+  font-family: inherit;
+  font-size: calc(14px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+.onboarding .usage-notice-answer:hover {
+  background: var(--cymbra-lingua-panel-3);
+}
+
+.onboarding .usage-notice-answer:focus-visible {
+  outline: 2px solid var(--cymbra-lingua-accent);
+  outline-offset: 2px;
+}
+
+.onboarding .usage-notice-done {
+  margin: 14px 0 0;
+  color: var(--cymbra-lingua-muted);
+}

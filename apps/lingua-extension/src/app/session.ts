@@ -1,4 +1,4 @@
-import type { LinguaPort } from "../analyzer/port.ts";
+import type { CardOp, LinguaPort, StatusOp } from "../analyzer/port.ts";
 import {
   DEFAULT_INTERFACE_LANGUAGE,
   INTERFACE_LANGUAGE_KEY,
@@ -48,6 +48,11 @@ export interface AppSessionDeps {
    * language and colours meanwhile.
    */
   onState?: (state: SharedState, interfaceLanguage: InterfaceLanguage) => void;
+  /**
+   * The backup or the day's counts were saved, and the pending changes written (add-lingua-app-deck-sync
+   * D5): the app's synchronisation pushes them, debounced.
+   */
+  onSaved?: () => void;
 }
 
 export interface AppSession {
@@ -59,6 +64,36 @@ export interface AppSession {
   /** When the extension saved the state shown (epoch millis; 0 when it did not say). */
   savedAt: number;
   interfaceLanguage: InterfaceLanguage;
+  /**
+   * The interface language the reader chose in the extension, as the shared state names it; null when
+   * it names none (the page then follows the app's language). The locale of the email sign-in's
+   * requests (add-lingua-app-email-signin D3).
+   */
+  sharedLanguage: InterfaceLanguage | null;
+  /** The extension's last snapshot of the account's online-translation access (add-lingua-review-translation-fallback D9). */
+  onlineAccess: boolean;
+  /** The extension's account digest, null signed out, undefined from an older extension (add-lingua-app-deck-sync D7). */
+  sharedAccount: string | null | undefined;
+  /** The erasure mark the extension's state acted on (D8). */
+  sharedErasedAt: number;
+  /** Every change dated from here on (epoch millis) is the app's to hand over — and to push (D3). */
+  since: number;
+  /** What the app hands over now: the changes since `since` (D3). */
+  pendingOps: () => Promise<{ cards: CardOp[]; statuses: StatusOp[] }>;
+  /**
+   * The account was erased after the state this opening started from (add-lingua-app-deck-sync D8),
+   * and the engine reset: keep of the pending changes only those made after the mark `erasedAt`, lay
+   * them on the reset engine, forget the earlier openings' counts, and write what is left — nothing,
+   * as a rule — so the extension finds no change from before the erasure.
+   */
+  discardPending: (erasedAt: number) => Promise<void>;
+  /**
+   * A session's end said it was complete: told to the app, which counts it for StoreKit's own review
+   * request (add-lingua-comeback-hints D11). Nothing is awaited: the app answers nothing.
+   */
+  sessionFinished: () => void;
+  /** A session started: told to the app, which then drops a request the last end scheduled (D11). */
+  sessionStarted: () => void;
 }
 
 function pick(items: Record<string, unknown>, keys: string | string[] | null): Record<string, unknown> {
@@ -77,10 +112,16 @@ function readLocal(local: AppSessionDeps["local"]): Record<string, unknown> {
   }
 }
 
+/** The interface language the shared state names, or null when it names none. */
+export function sharedInterfaceLanguage(state: SharedState): InterfaceLanguage | null {
+  const shared = state.prefs[INTERFACE_LANGUAGE_KEY];
+  return isInterfaceLanguage(shared) ? shared : null;
+}
+
 /** The extension's interface language as the shared state names it, else the app's, else French. */
 export function sessionLanguage(state: SharedState, fallback: string | undefined): InterfaceLanguage {
-  const shared = state.prefs[INTERFACE_LANGUAGE_KEY];
-  if (isInterfaceLanguage(shared)) return shared;
+  const shared = sharedInterfaceLanguage(state);
+  if (shared) return shared;
   return isInterfaceLanguage(fallback) ? fallback : DEFAULT_INTERFACE_LANGUAGE;
 }
 
@@ -103,8 +144,8 @@ export async function openAppSession(deps: AppSessionDeps): Promise<AppSession |
 
   // The day's counts as the extension shared them, with what earlier openings counted and the
   // extension has not taken yet: the statistics show them, and this opening counts from there.
-  const earlier = pending?.daily ?? {};
-  const opened = withReviewCounts(await sharedDailyStats(state.storeItems), ...Object.values(earlier));
+  let earlier = pending?.daily ?? {};
+  let opened = withReviewCounts(await sharedDailyStats(state.storeItems), ...Object.values(earlier));
   const openingId = deps.openingId ?? crypto.randomUUID();
 
   let items: Record<string, unknown> = {
@@ -126,9 +167,23 @@ export async function openAppSession(deps: AppSessionDeps): Promise<AppSession |
           type: "review.writeOps",
           ops: encodeAppOps({ ...ops, daily: { ...earlier, [openingId]: counted } }),
         });
+        deps.onSaved?.();
       }
     },
   };
+
+  async function discardPending(erasedAt: number): Promise<void> {
+    const kept = {
+      v: pending?.v ?? 1,
+      since,
+      cardOps: (pending?.cardOps ?? []).filter((op) => op.client_ts > erasedAt),
+      statusOps: (pending?.statusOps ?? []).filter((op) => op.updated_at > erasedAt),
+    } as const;
+    if (kept.cardOps.length > 0 || kept.statusOps.length > 0) await applyAppOps(port, kept);
+    earlier = {};
+    opened = await loadDailyStats(store);
+    await store.set({ [ROOT_KEY]: { v: STORAGE_VERSION, backup: await port.backup() } });
+  }
 
   // The interface language is the extension's, never one the app chose: it follows the reader's
   // native language, which only the extension changes.
@@ -150,5 +205,17 @@ export async function openAppSession(deps: AppSessionDeps): Promise<AppSession |
     prefs,
     savedAt: state.savedAt,
     interfaceLanguage,
+    sharedLanguage: sharedInterfaceLanguage(state),
+    onlineAccess: state.onlineAccess,
+    sharedAccount: state.account,
+    sharedErasedAt: state.erasedAt,
+    since,
+    pendingOps: async () => {
+      const ops = await appOpsSince(port, since);
+      return { cards: ops.cardOps, statuses: ops.statusOps };
+    },
+    discardPending,
+    sessionFinished: () => void deps.send({ type: "review.sessionFinished" }).catch(() => {}),
+    sessionStarted: () => void deps.send({ type: "review.sessionStarted" }).catch(() => {}),
   };
 }

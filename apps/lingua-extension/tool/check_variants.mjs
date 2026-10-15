@@ -107,6 +107,16 @@ for (const { file, text } of safariOnly) {
   }
 }
 
+// The anonymous counts' leaving page (add-lingua-usage-counts D12): registered as the uninstall
+// address on Chromium and Firefox; Safari ignores the API, so its bundle does not even call it.
+for (const target of ["chromium", "firefox", "safari"]) {
+  const wanted = target !== "safari";
+  expect(
+    read(target, "background.js").includes("runtime.setUninstallURL(") === wanted,
+    `${target}/background.js: "runtime.setUninstallURL(" should be ${wanted ? "present" : "folded away"}`,
+  );
+}
+
 // A define missing from build.mjs builds fine and type-checks (env.d.ts declares it), then
 // throws a ReferenceError at runtime: no bundle may keep one of env.d.ts's defines.
 const defines = [...readFileSync(join(root, "env.d.ts"), "utf8").matchAll(/declare const (__[A-Z_]+__)/g)].map(
@@ -403,9 +413,10 @@ for (const target of ["chromium", "firefox", "safari"]) {
 
 // The Cymbra Lingua app's page (add-lingua-apple-review D1): the extension's Révision and
 // Statistiques for the Apple app, which serves it from its bundle. It reaches no browser-extension
-// API — the app has none to give it — and hosts the analysis engine in the page, never the
-// translation engine; its glue is bundled, not fetched, and it carries no pack: the app serves the
-// Safari extension's (AppPageResource.swift), so the packs are in the app once.
+// API — the app has none to give it — and hosts the analysis engine in the page; its glue is bundled,
+// not fetched. It carries no pack and none of the translation engine's files: the app serves the
+// Safari extension's (AppPageResource.swift), so they are in the app once — the engine then runs in a
+// worker of the page (add-lingua-review-translation-fallback D7).
 {
   const target = "app";
   for (const file of ["app.html", "app.js", "app.css", "tokens.css", "review.css", "stats.css"]) {
@@ -414,7 +425,7 @@ for (const target of ["chromium", "firefox", "safari"]) {
   expect(has(target, "wasm/lingua_wasm_bg.wasm"), `${target}: the analysis engine should be packaged`);
   expect(!has(target, "manifest.json"), `${target}: is no extension, and carries no manifest`);
   for (const file of ["engine/bergamot-translator.wasm", "engine-worker.js", "model-manifest.json"]) {
-    expect(!has(target, file), `${target}: ${file} must not ship — the app hosts no translation engine`);
+    expect(!has(target, file), `${target}: ${file} must not ship — the app serves the Safari extension's engine files`);
   }
   if (has(target, "app.js")) {
     const bundle = read(target, "app.js");
@@ -425,6 +436,8 @@ for (const target of ["chromium", "firefox", "safari"]) {
       expect(!bundle.includes(name), `${target}/app.js: build define "${name}" was not replaced`);
     }
     expect(bundle.includes("review.writeOps"), `${target}/app.js: should write the review's changes for the extension`);
+    // The engine in a worker of the page, on the extension's files (add-lingua-review-translation-fallback D7).
+    expect(bundle.includes("engine-worker.js"), `${target}/app.js: should start the extension's engine worker`);
     const remote = bundle.match(/["'`]https?:\/\/[^"'`\s]+\.(?:m?js|wasm)(?:[?#][^"'`]*)?["'`]/);
     expect(!remote, `${target}/app.js: names remote code (${remote?.[0]})`);
   }

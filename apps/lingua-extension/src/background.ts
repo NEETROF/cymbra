@@ -1,4 +1,10 @@
-import { type GlueLoader, reprofileBackup, WasmAnalyzerPort, type WasmModule } from "./analyzer/engine.ts";
+import {
+  type GlueLoader,
+  reprofileBackup,
+  reviewOutlookJson,
+  WasmAnalyzerPort,
+  type WasmModule,
+} from "./analyzer/engine.ts";
 import { acceptedLanguages, DEFAULT_NATIVE, readerPairs, SHIPPED_PAIRS } from "./analyzer/pairs.ts";
 import { handleRpc, isRpcRequest } from "./analyzer/rpc-host.ts";
 import { type AccountHostDeps, handleAccountMessage } from "./account/host.ts";
@@ -23,6 +29,8 @@ import {
   runAuthFlow,
 } from "./state/oidc.ts";
 import { isOpenPageMessage } from "./state/open-page.ts";
+import { countSupported, type PageReport } from "./state/badge.ts";
+import { type BadgeAction, badgeHost } from "./state/badge-host.ts";
 import { reviewRelay } from "./state/review-relay.ts";
 import { openOrFocusReader, READER_PAGE, type ReaderWhereMessage } from "./reader/locate.ts";
 import { serveSection } from "./reader/section-server.ts";
@@ -48,8 +56,11 @@ import {
 } from "./state/native-language.ts";
 import {
   type AsyncStorageArea,
+  BADGE_COUNT_KEY,
+  COLOURS_KEY,
   hydrateEngine,
   loadStored,
+  NEW_WORDS_PER_DAY_KEY,
   ROOT_KEY,
   SESSION_LOST_KEY,
   storedNativeLanguage,
@@ -77,6 +88,10 @@ import { isFlagsMessage } from "./flags/messages.ts";
 import { answerOnlineTranslation, isOnlineTranslateMessage, ONLINE_UNAVAILABLE } from "./translate/online.ts";
 import { PAGE_INTERVAL_MS, SURFACE_INTERVAL_MS, SyncScheduler } from "./sync/scheduler.ts";
 import { getOrCreateDeviceId, SyncEngine } from "./sync/sync.ts";
+import { createUsageClient, type UsageClient } from "./usage/client.ts";
+import { dataCollectionOf, type FirefoxPermissions, grantConsent, switchConsent } from "./usage/consent.ts";
+import { UsageHost } from "./usage/host.ts";
+import { attachUsage } from "./usage/wiring.ts";
 // Static import of the wasm-pack glue (esbuild bundles it into the background). The
 // engine hosted here must NOT dynamic-import: a Chromium service worker forbids
 // `import()` (HTML spec). A static loader sidesteps that; it is harmless on the Firefox
@@ -96,13 +111,6 @@ const staticGlue: GlueLoader = async () => wasmGlue as unknown as WasmModule;
 // orchestration. "Always highlight" grants <all_urls>, registering the reader on every
 // page; without it, the popup injects on demand via activeTab. No network.
 
-// Badge colours are set through the chrome.action API (not CSS), so they cannot be a
-// token var; they mirror the Cymbra palette: violet primaryContainer for an analysed
-// page, faint slate for a page with nothing to count.
-const BADGE_ACTIVE = "#7c3aed"; // --cymbra-lingua-accent-strong
-const BADGE_NEUTRAL = "#6a7091"; // --cymbra-lingua-faint
-const BADGE_TEXT = "#ffffff";
-
 const READER_SCRIPT_ID = "lingua-reader";
 const ALL_URLS = "<all_urls>";
 
@@ -120,28 +128,6 @@ function showSessionLost(lost: boolean): void {
 void chrome.storage.local.get(SESSION_LOST_KEY).then((got) => showSessionLost(got[SESSION_LOST_KEY] === true));
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && changes[SESSION_LOST_KEY]) showSessionLost(changes[SESSION_LOST_KEY].newValue === true);
-});
-
-interface StatsMessage {
-  type: "stats";
-  pct: number | null;
-  /** When true the reader is switched off on this tab: clear the badge entirely. */
-  disabled?: boolean;
-}
-
-chrome.runtime.onMessage.addListener((message: unknown, sender) => {
-  const msg = message as Partial<StatsMessage> | null;
-  if (msg?.type !== "stats") return;
-  const tabId = sender.tab?.id;
-  if (tabId == null) return;
-  if (msg.disabled) {
-    void chrome.action.setBadgeText({ tabId, text: "" });
-    return;
-  }
-  const pct = msg.pct ?? null;
-  void chrome.action.setBadgeText({ tabId, text: pct == null ? "—" : `${pct}%` });
-  void chrome.action.setBadgeBackgroundColor({ tabId, color: pct == null ? BADGE_NEUTRAL : BADGE_ACTIVE });
-  chrome.action.setBadgeTextColor?.({ tabId, color: BADGE_TEXT });
 });
 
 // The in-page HUD asks the background to open the Chromium Side Panel on a given view. The
@@ -206,6 +192,39 @@ const settingsArea: AsyncStorageArea = {
   set: (items) => chrome.storage.local.set(items),
 };
 
+// The anonymous usage counts (add-lingua-usage-counts): steps recorded on the wake-ups this page
+// already has — an installation, a page analysed in a studied language, a surface opened, a level
+// saved — and sent in one report while it is awake, through a transport with no account on it. No
+// alarm, no timer. Each browser's consent decides (D6): Firefox's own data-collection consent,
+// elsewhere the switch's key; Chromium asks first (`__USAGE_COUNTS_DEFAULT__`, D7).
+const firefoxPermissions = chrome.permissions as unknown as FirefoxPermissions;
+let usageClient: UsageClient | null = null;
+const usage = new UsageHost({
+  area: settingsArea,
+  mode: __USAGE_COUNTS_DEFAULT__,
+  browser: __TARGET__,
+  version: chrome.runtime.getManifest().version,
+  consent: () => (__TARGET__ === "firefox" ? grantConsent(firefoxPermissions) : switchConsent(settingsArea)),
+  client: () => (usageClient ??= createUsageClient()),
+  now: () => new Date(),
+  language: () => interfaceLanguage(settingsArea),
+  // Safari ignores the uninstall address: the call is not even in its bundle (check_variants).
+  setUninstallURL: __TARGET__ === "safari" ? null : (url) => chrome.runtime.setUninstallURL(url),
+  dataCollection: __TARGET__ === "firefox" ? dataCollectionOf(firefoxPermissions) : undefined,
+});
+// Its wake-ups (usage/wiring.ts, tested there): an installation, a browser start, a page analysed
+// in a studied language, a surface opened, the surfaces' own messages, the interface language
+// (the leaving page follows it), and on Firefox its data-collection consent. Registered before the
+// install listener below, so day 0 is recorded before the welcome tab asks for the sentence.
+attachUsage(usage, {
+  onMessage: chrome.runtime.onMessage,
+  onInstalled: chrome.runtime.onInstalled,
+  onStartup: chrome.runtime.onStartup,
+  onStorageChanged: chrome.storage.onChanged,
+  onPermissionsAdded: __TARGET__ === "firefox" ? chrome.permissions.onAdded : undefined,
+  onPermissionsRemoved: __TARGET__ === "firefox" ? chrome.permissions.onRemoved : undefined,
+});
+
 let storeRev = 0;
 
 /** Hydrates the reading engine, writing a fresh backup into an empty store: set by its block below. */
@@ -223,6 +242,12 @@ let rehydrateReader: () => void = () => {};
  * never interleave (add-lingua-native-language-choice D2).
  */
 let exclusiveOfSync: <T>(task: () => Promise<T>) => Promise<T> = (task) => task();
+
+/**
+ * Set by the badge block: a change to the reader's own data works the toolbar icon's outlook out
+ * again (add-lingua-comeback-hints D2).
+ */
+let onBadgeDataChanged: () => void = () => {};
 
 /**
  * Set by the sync block: a change to the reader's own data schedules an exchange. The
@@ -243,7 +268,10 @@ function announceStoreChange(keys: string[], reason?: StoreChangeReason): void {
   storeRev += 1;
   const change: StoreChange = reason ? { rev: storeRev, keys, reason } : { rev: storeRev, keys };
   void chrome.storage.local.set({ [STORE_CHANGED_KEY]: change }).catch(() => {});
-  if (keys.includes(ROOT_KEY)) onReaderDataChanged?.();
+  if (keys.includes(ROOT_KEY)) {
+    onReaderDataChanged?.();
+    onBadgeDataChanged();
+  }
 }
 
 /**
@@ -315,6 +343,90 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   });
   return true; // async response
 });
+
+// The toolbar icon (add-lingua-comeback-hints): a page's percentage on its own tab, and everywhere
+// else the cards a review would hold today, worked out from the reader's own data on events only —
+// no alarm, no timer, no new permission, no request (state/badge-host.ts, D2–D4). The outlook is
+// worked out by the standalone WASM function over the stored backup, which needs no engine and no
+// pack; every event only reads it. The start-time resume, flag refresh and sync below are untouched
+// (D9): a start this block causes runs them as any other start does.
+{
+  const sessionArea: AsyncStorageArea | null = chrome.storage.session
+    ? { get: (keys) => chrome.storage.session.get(keys), set: (items) => chrome.storage.session.set(items) }
+    : null;
+  // `null` text with a tab clears the tab's own and shows the global one (Chrome 116, Firefox 109,
+  // Safari 18), which the browser's typings do not say.
+  const action: BadgeAction = {
+    setBadgeText: (details) => chrome.action.setBadgeText(details as chrome.action.BadgeTextDetails),
+    setBadgeBackgroundColor: (details) => chrome.action.setBadgeBackgroundColor(details),
+    // Unavailable in Safari, which draws its own badge colours.
+    setBadgeTextColor: chrome.action.setBadgeTextColor
+      ? (details) => chrome.action.setBadgeTextColor(details)
+      : undefined,
+    // A browser without a title for its toolbar entry still shows the count.
+    setTitle: (details) => chrome.action.setTitle?.(details) ?? Promise.resolve(),
+  };
+  const badge = badgeHost({
+    action,
+    prefs: settingsArea,
+    applied: sessionArea,
+    store: ownedStore,
+    computeOutlook: (backup, now, dayStart) => reviewOutlookJson(backup, now, dayStart, staticGlue),
+    now: () => Math.floor(Date.now() / 1000),
+    supported: countSupported(navigator.userAgent),
+    interfaceLanguage: () => interfaceLanguage(settingsArea),
+    // A page that stayed through its tab's load says its figure again (session.ts, `badge:again`).
+    askReport: (tabId) => chrome.tabs.sendMessage(tabId, { type: "badge:again" }),
+  });
+  const show = (): void => void badge.refresh().catch(() => {});
+  onBadgeDataChanged = () => void badge.dataChanged().catch(() => {});
+
+  // A page's figure, sent after every paint (ReadingSession.pushBadge): its own tab's badge.
+  chrome.runtime.onMessage.addListener((message: unknown, sender) => {
+    const msg = message as ({ type?: string } & Partial<PageReport>) | null;
+    if (msg?.type !== "stats") return;
+    const tabId = sender.tab?.id;
+    if (tabId == null) return;
+    void badge.tabReport(tabId, { pct: msg.pct ?? null, disabled: msg.disabled === true }).catch(() => {});
+    show();
+  });
+  // A surface asking for a sync wakes this page too: the count follows (D3).
+  chrome.runtime.onMessage.addListener((message: unknown) => {
+    if (isSyncMessage(message)) show();
+    return undefined;
+  });
+  // The events that read the count (D3): the browser starting, the extension installed or updated,
+  // another tab, back to a browser window — Firefox for Android has no windows API.
+  chrome.runtime.onStartup.addListener(show);
+  chrome.runtime.onInstalled.addListener(show);
+  chrome.tabs.onActivated.addListener(show);
+  chrome.windows?.onFocusChanged?.addListener((windowId) => {
+    if (windowId !== chrome.windows.WINDOW_ID_NONE) show();
+  });
+  // A tab's load (D4): at its start the tab's own percentage goes, so it never outlives its page
+  // whatever the browser does with a tab's values on a navigation; at its end a page that stayed
+  // says it again. `status` needs no permission. Firefox can be told to wake for it alone; Chrome
+  // refuses a filter on this event.
+  const onTabUpdated = (tabId: number, changeInfo: { status?: string }): void => {
+    if (changeInfo.status) void badge.tabUpdated(tabId, changeInfo.status).catch(() => {});
+  };
+  if (__TARGET__ === "firefox") {
+    (chrome.tabs.onUpdated.addListener as (cb: typeof onTabUpdated, filter: { properties: string[] }) => void)(
+      onTabUpdated,
+      { properties: ["status"] },
+    );
+  } else {
+    chrome.tabs.onUpdated.addListener(onTabUpdated);
+  }
+  // A setting the count depends on: the allowance, the colours, the title's language, the switch.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local") return;
+    if (BADGE_COUNT_KEY in changes) void badge.settingChanged().catch(() => {});
+    else if (NEW_WORDS_PER_DAY_KEY in changes || COLOURS_KEY in changes || INTERFACE_LANGUAGE_KEY in changes) show();
+  });
+  // This start: worked out at once when missing or of another version, else read.
+  show();
+}
 
 // Host the WASM engine here and serve the AnalyzerPort RPC. On Firefox (whose
 // content-script CSP always blocks WASM) this is the primary engine; on Chromium it is
@@ -590,7 +702,10 @@ if (__TRANSLATION_HOST__ !== "none") {
     signedIn: () => session.state().signedIn,
     now: () => Date.now(),
     lastSynced: async () => (await loadLastSync(localStore)) ?? 0,
-    onSynced: (at) => localStore.set({ [LAST_SYNC_KEY]: at }),
+    onSynced: async (at) => {
+      await localStore.set({ [LAST_SYNC_KEY]: at });
+      void native?.relay.accountChanged(false);
+    },
     onError: (e) => {
       // Reset the memoised device id + engine so a transient failure (e.g. a storage
       // read error) retries next time instead of wedging for the worker's lifetime.
@@ -639,6 +754,15 @@ if (__TRANSLATION_HOST__ !== "none") {
           port: syncPort,
           exclusive: (task) => scheduler.exclusive(task),
           now: () => Date.now(),
+          // The account by a digest of its id, never a token (add-lingua-app-deck-sync D7): the app
+          // synchronises only on this extension's account. Read once the session has resumed.
+          account: {
+            signedIn: async () => {
+              await resumed.catch(() => false);
+              return session.state().signedIn;
+            },
+            userId: async () => (await api().user.getAccount({})).userId,
+          },
         });
         void storeArea.then(async () => {
           await relay.collect();
@@ -670,6 +794,7 @@ if (__TRANSLATION_HOST__ !== "none") {
     onSignedIn: () => {
       scheduler.schedule(0);
       void flags.refresh({ force: true });
+      void native?.relay.accountChanged(true);
     },
   };
 
@@ -730,6 +855,9 @@ if (__TRANSLATION_HOST__ !== "none") {
           : handleAccountMessage(message, accountDeps);
       // Signed out: no flag of this account may apply to the next one (add-lingua-feature-betas).
       if (message.type === "account:signOut") void reply.then(() => flags.clear());
+      // Signed out (or the account deleted): the app no longer finds this account in the relay (D7).
+      if (message.type === "account:signOut" || message.type === "account:abandon")
+        void reply.then(() => native?.relay.accountChanged(false));
       void reply.then(sendResponse);
       return true;
     }

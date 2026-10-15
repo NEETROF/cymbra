@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LinguaPort } from "@/analyzer/port.ts";
-import { mountReview } from "@/review/review-page.ts";
+import { inSettings, mountReview, type ReviewOnlineSource, shownOnScreen } from "@/review/review-page.ts";
+import type { ReviewTranslationHint } from "@/review/view.ts";
 import { loadDailyStats, utcDay } from "@/state/dailystats.ts";
 import { localDayStart } from "@/review/session.ts";
+import { localDay, RATING_KEY, type RatingState, ratingOffered } from "@/review/rating.ts";
+import { STORE_REVIEW_PAGE } from "@/state/store-links.ts";
 import type { SpeechEngine, VoiceInfo } from "@/reading/speech.ts";
 import {
   type AsyncStorageArea,
@@ -13,6 +16,7 @@ import {
 } from "@/state/storage.ts";
 import { STORE_CHANGED_KEY } from "@/state/store.ts";
 import type { TranslatorSource } from "@/translate/create-port.ts";
+import type { OnlineTranslationRequest, OnlineTranslationResult } from "@/translate/online.ts";
 import { TRANSLATION_WAIT_MS, type TranslationRequest, type TranslationResult } from "@/translate/port.ts";
 import { type FakeCard, makeFakePort, makeFakeSpeech } from "./helpers.ts";
 
@@ -99,9 +103,20 @@ interface Host {
   speech?: SpeechEngine | null;
   /** The translator its host hands it (add-lingua-review-translation D4); none by default. */
   translator?: TranslatorSource;
+  /** Its « Traduction en ligne » (add-lingua-review-translation-fallback D2); none by default. */
+  online?: ReviewOnlineSource;
+  /** How a card nothing can translate gets a translation (add-lingua-review-translation-fallback D12). */
+  translationHint?: (language: string) => ReviewTranslationHint | null;
   /** Beside a book, its words still to sort and opening their list (add-lingua-chapter-recap D6). */
   toSort?: () => Promise<number>;
   openToSort?: () => void;
+  /** The rating request (add-lingua-comeback-hints D10): the build's unless given. */
+  askRating?: boolean;
+  requestRating?: boolean;
+  onScreen?: (element: HTMLElement) => boolean;
+  openPage?: (url: string) => void;
+  onSessionFinished?: () => void;
+  onSessionStarted?: () => void;
 }
 
 function mount(port: LinguaPort, area: Area = fakeArea(), host: Host = {}) {
@@ -114,8 +129,16 @@ function mount(port: LinguaPort, area: Area = fakeArea(), host: Host = {}) {
     pageLanguage: host.pageLanguage,
     speech: host.speech,
     translator: host.translator,
+    online: host.online,
+    translationHint: host.translationHint,
     toSort: host.toSort,
     openToSort: host.openToSort,
+    askRating: host.askRating,
+    requestRating: host.requestRating,
+    onScreen: host.onScreen,
+    openPage: host.openPage ?? (() => {}),
+    onSessionFinished: host.onSessionFinished,
+    onSessionStarted: host.onSessionStarted,
   });
   return { page, container, area, prefs };
 }
@@ -136,23 +159,31 @@ function button(container: HTMLElement, label: string): HTMLButtonElement {
 const text = (container: HTMLElement, selector: string): string => container.querySelector(selector)?.textContent ?? "";
 
 describe("Révision — the page", () => {
-  it("shows the deck and what is due, asked on the injected clock", async () => {
+  it("shows the deck and what a review would hold today, asked on the injected clock", async () => {
     // The clock is a seam precisely so the page never reads Date.now() for the schedule.
-    const asked: number[] = [];
+    const asked: unknown[] = [];
     const { port } = makeFakePort();
-    const m = mount({
-      ...port,
-      deckCount: async () => 12,
-      dueCount: async (now) => {
-        asked.push(now);
-        return 3;
+    const prefs = fakeArea();
+    prefs.raw[NEW_WORDS_PER_DAY_KEY] = 5;
+    const m = mount(
+      {
+        ...port,
+        deckCount: async () => 12,
+        dueCount: async () => 40, // every new word: no longer the figure shown
+        reviewableCount: async (now, _languages, allowance) => {
+          asked.push([now, allowance]);
+          return 3;
+        },
       },
-    });
+      fakeArea(),
+      { prefs },
+    );
 
     await m.page.refresh();
 
+    // add-lingua-comeback-hints D1: the new words beyond the day's allowance are not counted.
     expect(text(m.container, ".summary")).toBe("12 carte(s) · 3 à revoir");
-    expect(asked).toEqual([NOW_SECONDS]);
+    expect(asked).toEqual([[NOW_SECONDS, { newPerDay: 5, dayStart: localDayStart(NOW_SECONDS) }]]);
     expect(button(m.container, "Réviser")).toBeTruthy();
   });
 
@@ -344,6 +375,73 @@ describe("Révision — the page", () => {
     button(m.container, "Encore 10").click();
     await settle();
     expect(text(m.container, ".remaining")).toBe("2 carte(s) à revoir");
+  });
+
+  it("ends a session in progress on « Terminer »: the end, saved, ten more offered (add-lingua-review-stop-session)", async () => {
+    const twelve: FakeCard[] = Array.from({ length: 12 }, (_, i) => ({
+      headword: `w${i}`,
+      surface: `w${i}`,
+      sentence: "",
+      gloss: null,
+    }));
+    const { port, calls } = makeFakePort(twelve);
+    const m = mount(port);
+    await m.page.refresh();
+    button(m.container, "Réviser").click();
+    await settle();
+    button(m.container, "Afficher la réponse").click();
+    await settle();
+    button(m.container, "Su").click();
+    await settle();
+    delete m.area.raw[ROOT_KEY];
+    button(m.container, "Afficher la réponse").click(); // revealed, never answered
+    await settle();
+
+    const end = button(m.container, "Terminer");
+    expect(end.getAttribute("aria-label")).toBe("Terminer la séance");
+    end.click();
+    await settle();
+
+    expect(m.page.reviewing()).toBe(false);
+    expect(calls.grades).toEqual(["good"]);
+    expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+    expect(text(m.container, ".review-done-stats")).toContain("1 mot revu");
+    expect(m.container.querySelector(".review-end")).toBeNull();
+    // The end every session has: the state saved with no session under way.
+    expect(m.area.raw[ROOT_KEY]).toEqual({ v: STORAGE_VERSION, backup: "{}" });
+    // « Encore 10 »: the revealed card and the others not answered come up again.
+    button(m.container, "Encore 10").click();
+    await settle();
+    expect(text(m.container, ".remaining")).toBe("10 carte(s) à revoir");
+    expect(m.container.querySelector(".review-end")).not.toBeNull();
+  });
+
+  it("ends a practice session the same way, practice offered again (add-lingua-review-stop-session)", async () => {
+    const { port, calls } = makeFakePort(DECK);
+    const m = mount(port);
+    await m.page.refresh();
+    button(m.container, "Réviser").click();
+    await settle();
+    for (let i = 0; i < 2; i++) {
+      button(m.container, "Afficher la réponse").click();
+      await settle();
+      button(m.container, "Su").click();
+      await settle();
+    }
+    button(m.container, "S'entraîner quand même").click();
+    await settle();
+    expect(text(m.container, ".remaining")).toBe("Entraînement · 2 carte(s)");
+
+    button(m.container, "Terminer").click();
+    await settle();
+
+    expect(m.page.reviewing()).toBe(false);
+    expect(calls.grades).toEqual(["good", "good"]);
+    // Ended before any practice answer: it ended, nothing counted, never « nothing due » alone.
+    expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+    expect(m.container.textContent).not.toContain("Rien à réviser");
+    expect(m.container.querySelector(".review-more")).toBeNull();
+    expect(button(m.container, "S'entraîner quand même")).toBeTruthy();
   });
 
   it("ends its session when a restore beside it dropped the engine's session", async () => {
@@ -716,6 +814,29 @@ describe("Révision — a card the pack cannot answer (add-lingua-review-transla
     expect(m.container.querySelector(".review-translation, .review-translating")).toBeNull(); // not before the reveal
   });
 
+  it("asks a glossless card captured with its full stop with a span that ends before it (fix-lingua-selection-card-punctuation D4)", async () => {
+    const t = fakeTranslator();
+    const stood: FakeCard = {
+      headword: "stood in silence.",
+      surface: "stood in silence.",
+      sentence: "They stood in silence. Then they left.",
+      gloss: null,
+    };
+    const m = mount(makeFakePort([stood]).port, fakeArea(), { translator: t.source });
+    await m.page.refresh();
+
+    button(m.container, "Réviser").click();
+    await settle();
+
+    expect(t.requests).toEqual([
+      {
+        sentence: "They stood in silence. Then they left.",
+        selection: { start: 5, end: 5 + "stood in silence".length },
+        language: "en",
+      },
+    ]);
+  });
+
   it("warms the route of the review's language when a session starts", async () => {
     const t = fakeTranslator();
     const m = mount(makeFakePort(DECK).port, fakeArea(), { translator: t.source });
@@ -884,6 +1005,270 @@ describe("Révision — a card the pack cannot answer (add-lingua-review-transla
   });
 });
 
+/**
+ * The host's « Traduction en ligne », a test double (add-lingua-review-translation-fallback D2):
+ * whether it is offered, every request it sent, its answers given by the spec through `answer`.
+ */
+function fakeOnline(offered = true) {
+  const requests: OnlineTranslationRequest[] = [];
+  const pending: ((result: OnlineTranslationResult) => void)[] = [];
+  const source: ReviewOnlineSource = {
+    offered: () => offered,
+    translate: (request) => {
+      requests.push(request);
+      return new Promise<OnlineTranslationResult>((resolve) => pending.push(resolve));
+    },
+  };
+  const answer = (index: number, result: OnlineTranslationResult): void => pending[index](result);
+  return { source, requests, answer };
+}
+
+const SLACKEN: FakeCard = {
+  headword: "slacken",
+  surface: "slacken",
+  sentence: "He felt his grip slacken.",
+  gloss: null,
+};
+
+/** Mount on `deck`, start a session and reveal its first card. */
+async function revealed(deck: FakeCard[], host: Host) {
+  const fake = makeFakePort(deck);
+  const m = mount(fake.port, fakeArea(), host);
+  await m.page.refresh();
+  button(m.container, "Réviser").click();
+  await settle();
+  button(m.container, "Afficher la réponse").click();
+  await settle();
+  return { ...m, calls: fake.calls };
+}
+
+const has = (container: HTMLElement, label: string): boolean =>
+  [...container.querySelectorAll("button")].some((b) => b.textContent === label);
+
+describe("Révision — online translation, « Traduire la phrase » and keeping (add-lingua-review-translation-fallback)", () => {
+  it("offers the button on a card without a gloss only when the setting and the access say so", async () => {
+    for (const offered of [true, false]) {
+      const online = fakeOnline(offered);
+      const m = await revealed([SLACKEN], { online: online.source });
+      expect(has(m.container, "Traduction en ligne"), String(offered)).toBe(offered);
+      expect(online.requests).toEqual([]); // nothing leaves the device before the press
+    }
+  });
+
+  // (card, what is sent — or null for no button)
+  const SENT: [string, FakeCard, OnlineTranslationRequest | null][] = [
+    [
+      "a single word, in its sentence, marked by position",
+      SLACKEN,
+      { sentence: "He felt his grip slacken.", selection: { start: 17, end: 24 }, source: "en" },
+    ],
+    [
+      "an expression its sentence does not hold, alone",
+      { ...EXPRESSION, sentence: "Some other sentence entirely." },
+      { sentence: "such as those made", selection: { start: 0, end: 18 }, source: "en" },
+    ],
+    ["a single word its sentence does not hold: no button", { ...SLACKEN, sentence: "Nothing here." }, null],
+  ];
+
+  it("sends the card's sentence with the word's span, never the word alone", async () => {
+    for (const [name, card, sent] of SENT) {
+      const online = fakeOnline();
+      const m = await revealed([card], { online: online.source });
+      expect(has(m.container, "Traduction en ligne"), name).toBe(sent !== null);
+      if (sent) button(m.container, "Traduction en ligne").click();
+      await settle();
+      expect(online.requests, name).toEqual(sent ? [sent] : []);
+    }
+  });
+
+  it("sends once per card, shows the answer in place of the engine's, marked, labelled online", async () => {
+    const online = fakeOnline();
+    const t = fakeTranslator();
+    const m = await revealed([SLACKEN], { online: online.source, translator: t.source });
+    const b = button(m.container, "Traduction en ligne");
+    b.click();
+    b.click();
+    await settle();
+    expect(text(m.container, ".review-online-note")).toBe("Traduction en ligne…");
+    online.answer(0, {
+      kind: "translated",
+      translation: { sentence: "Il sentit sa prise se relâcher.", marks: [{ start: 19, end: 30 }] },
+    });
+    await settle();
+    t.answer(0, "LATE ENGINE"); // the engine's, later: the online answer stays
+    await settle();
+
+    expect(online.requests).toHaveLength(1);
+    expect(text(m.container, ".review-translation-label")).toBe("Dans votre phrase — traduction automatique en ligne");
+    expect(text(m.container, ".review-translation mark")).toBe("se relâcher");
+    expect(m.container.textContent).not.toContain("LATE ENGINE");
+    expect(button(m.container, "Traduction en ligne").disabled).toBe(true);
+  });
+
+  // (the service's answer, the note)
+  const REFUSED: [OnlineTranslationResult, string][] = [
+    [{ kind: "unavailable" }, "Traduction en ligne indisponible pour le moment."],
+    [{ kind: "limit", resetsAt: Date.UTC(2026, 9, 15, 0, 0) }, "Limite quotidienne atteinte — de nouveau disponible à"],
+  ];
+
+  it("reads « unavailable » and the daily limit as the selection card does, keeping what it shows", async () => {
+    for (const [result, note] of REFUSED) {
+      const online = fakeOnline();
+      const m = await revealed([SLACKEN], { online: online.source });
+      button(m.container, "Traduction en ligne").click();
+      await settle();
+      online.answer(0, result);
+      await settle();
+      expect(text(m.container, ".review-online-note")).toContain(note);
+      expect(text(m.container, ".review-no-gloss")).toBe("Pas de traduction pour ce mot.");
+    }
+  });
+
+  it("drops an online answer that lands after its card was answered", async () => {
+    const online = fakeOnline();
+    const m = await revealed([SLACKEN, { ...SLACKEN, headword: "thole", surface: "thole", sentence: "thole it" }], {
+      online: online.source,
+    });
+    button(m.container, "Traduction en ligne").click();
+    await settle();
+    button(m.container, "Su").click();
+    await settle();
+    online.answer(0, { kind: "translated", translation: { sentence: "LATE", marks: [] } });
+    await settle();
+    expect(m.container.textContent).not.toContain("LATE");
+  });
+
+  // (engine ready, online offered, the link shown)
+  const LINK: [boolean, boolean, boolean][] = [
+    [true, false, true],
+    [false, true, true],
+    [false, false, false],
+  ];
+
+  it("A word the pack glosses: the link only where the engine or online can answer, nothing asked", async () => {
+    for (const [ready, offered, shown] of LINK) {
+      const t = fakeTranslator(() => ready);
+      const online = fakeOnline(offered);
+      const m = await revealed(DECK, { translator: t.source, online: online.source });
+      expect(has(m.container, "Traduire la phrase"), `${ready} ${offered}`).toBe(shown);
+      expect(has(m.container, "Traduction en ligne")).toBe(false); // not before the tap
+      expect(t.requests).toEqual([]);
+    }
+  });
+
+  it("A useless gloss: the tap asks the engine with the word marked and shows the online button", async () => {
+    const t = fakeTranslator();
+    const online = fakeOnline();
+    const would: FakeCard = { headword: "would", surface: "would", sentence: "I would go.", gloss: "Subjonctif passé" };
+    const m = await revealed([would], { translator: t.source, online: online.source });
+    button(m.container, "Traduire la phrase").click();
+    await settle();
+    expect(t.requests).toEqual([{ sentence: "I would go.", selection: { start: 2, end: 7 }, language: "en" }]);
+    expect(has(m.container, "Traduire la phrase")).toBe(false);
+    expect(has(m.container, "Traduction en ligne")).toBe(true);
+    t.answer(0, "J'irais.", [{ start: 0, end: 7 }]);
+    await settle();
+    expect(text(m.container, ".review-gloss")).toBe("Subjonctif passé");
+    expect(text(m.container, ".review-translation mark")).toBe("J'irais");
+  });
+
+  it("Replacing a useless gloss: kept through the port, shown at once, saved, the action gone", async () => {
+    const t = fakeTranslator();
+    const would: FakeCard = {
+      headword: "would",
+      surface: "would",
+      sentence: "He would go.",
+      gloss: "Subjonctif passé",
+    };
+    const m = await revealed([would], { translator: t.source });
+    button(m.container, "Traduire la phrase").click();
+    await settle();
+    t.answer(0, "Il aurait dit.", [{ start: 3, end: 9 }]);
+    await settle();
+    button(m.container, "Garder « aurait »").click();
+    await settle();
+
+    expect(m.calls.kept).toEqual([{ lemma: "would", gloss: "aurait", language: "en" }]);
+    expect(text(m.container, ".review-gloss")).toBe("aurait");
+    expect(m.container.querySelector(".review-keep")).toBeNull();
+    expect(m.container.querySelector(".review-translation")).not.toBeNull(); // the translation it came from stays
+    expect(m.area.raw).toHaveProperty(ROOT_KEY); // the backup was saved
+  });
+});
+
+describe("Révision — a card nothing can translate (add-lingua-review-translation-fallback D12)", () => {
+  const SETTINGS = "Activez la traduction étendue dans les réglages pour traduire cette carte.";
+  const WORD = "Pas de traduction pour ce mot.";
+
+  // (case, card, engine ready, online offered, the note)
+  const CASES: [string, FakeCard, boolean, boolean, string][] = [
+    ["nothing can translate a word", SLACKEN, false, false, `${WORD} ${SETTINGS}`],
+    [
+      "nothing can translate an expression",
+      EXPRESSION,
+      false,
+      false,
+      `Pas de traduction pour cette expression. ${SETTINGS}`,
+    ],
+    ["online offered: the button is the way", SLACKEN, false, true, WORD],
+    [
+      "a single word its sentence does not hold: nothing would help",
+      { ...SLACKEN, sentence: "Nothing here." },
+      false,
+      false,
+      WORD,
+    ],
+  ];
+
+  it("says how to get a translation only when nothing can translate the card, and something could", async () => {
+    for (const [name, card, ready, offered, note] of CASES) {
+      const asked: string[] = [];
+      const t = fakeTranslator(() => ready);
+      const m = await revealed([card], {
+        translator: t.source,
+        online: fakeOnline(offered).source,
+        translationHint: (language) => (asked.push(language), inSettings()),
+      });
+      expect(text(m.container, ".review-no-gloss"), name).toBe(note);
+      if (note !== WORD) expect(asked, name).toContain("en");
+    }
+  });
+
+  it("a model ready: the translation comes, and an engine with nothing to say leaves the note alone", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const t = fakeTranslator();
+    const m = mount(makeFakePort([SLACKEN]).port, fakeArea(), { translator: t.source, translationHint: inSettings });
+    await m.page.refresh();
+    button(m.container, "Réviser").click();
+    await vi.advanceTimersByTimeAsync(0);
+    button(m.container, "Afficher la réponse").click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(m.container.querySelector(".review-no-gloss")).toBeNull();
+    expect(text(m.container, ".review-translating")).toBe("Traduction en cours…");
+
+    await vi.advanceTimersByTimeAsync(TRANSLATION_WAIT_MS);
+
+    expect(text(m.container, ".review-no-gloss")).toBe(WORD);
+  });
+
+  it("a glossed card, or a host without a hint: nothing changes", async () => {
+    const glossed = await revealed(DECK, { translationHint: inSettings });
+    expect(glossed.container.querySelector(".review-no-gloss")).toBeNull();
+    expect(glossed.container.textContent).not.toContain(SETTINGS);
+    const bare = await revealed([SLACKEN], {});
+    expect(text(bare.container, ".review-no-gloss")).toBe(WORD);
+  });
+
+  it("the app's download link re-offers the download, on the reader's tap only", async () => {
+    const download = vi.fn();
+    const m = await revealed([SLACKEN], { translationHint: () => ({ kind: "download", download }) });
+    expect(text(m.container, ".review-no-gloss")).toBe(`${WORD} Téléchargez la traduction pour l'app`);
+    expect(download).not.toHaveBeenCalled();
+    button(m.container, "Téléchargez la traduction pour l'app").click();
+    expect(download).toHaveBeenCalledOnce();
+  });
+});
+
 // add-lingua-chapter-recap D6: beside a book, the words looked up in it still to sort.
 describe("Révision — the words of the book beside, to sort", () => {
   it("shows the count beside a book and opens the book's list", async () => {
@@ -912,5 +1297,385 @@ describe("Révision — the words of the book beside, to sort", () => {
       expect(count.textContent).toBe("");
       count.click(); // no list to open: nothing happens
     }
+  });
+});
+
+describe("Révision — the rating request at the end of a session (add-lingua-comeback-hints D10)", () => {
+  /** Twelve cards, so « Encore 10 » is offered after a first session of ten. */
+  const TWELVE: FakeCard[] = Array.from({ length: 12 }, (_, i) => ({
+    headword: `w${i}`,
+    surface: `w${i}`,
+    sentence: "",
+    gloss: null,
+  }));
+  const TODAY = localDay(NOW_SECONDS);
+  /** Four sessions finished on three days, the last today: the next complete end qualifies. */
+  const READY: RatingState = { sessions: 4, days: 3, lastDay: TODAY, shown: 0, shownAt: 0, answer: null };
+
+  /** Mount with the request's state in the preferences, then finish one session of `cards`. */
+  async function finishOne(state: RatingState | null, host: Host = {}, cards: FakeCard[] = TWELVE) {
+    const prefs = host.prefs ?? fakeArea();
+    if (state) prefs.raw[RATING_KEY] = state;
+    const m = mount(makeFakePort(cards).port, fakeArea(), { ...host, prefs });
+    await m.page.refresh();
+    button(m.container, "Réviser").click();
+    await settle();
+    while (m.container.querySelector(".review-reveal")) {
+      button(m.container, "Afficher la réponse").click();
+      await settle();
+      button(m.container, "Su").click();
+      await settle();
+    }
+    return m;
+  }
+
+  const request = (container: HTMLElement) => container.querySelector<HTMLElement>(".review-rating");
+
+  it("The fifth session, on the third day: « Séance terminée », its summary and « Encore 10 », then the request", async () => {
+    const m = await finishOne(READY);
+    expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+    const shown = request(m.container)!;
+    expect(shown.textContent).toContain(
+      "Une note sur la boutique de ton navigateur aide d'autres lecteurs à trouver Cymbra Lingua.",
+    );
+    expect([...shown.querySelectorAll("button")].map((b) => b.textContent)).toEqual([
+      "Noter Cymbra Lingua",
+      "Plus tard",
+      "Ne plus demander",
+    ]);
+    // Below the end's own actions, which stay first.
+    const done = m.container.querySelector(".review-done")!;
+    const order = [...done.children].map((c) => c.className);
+    expect(order.indexOf("review-btn primary review-more")).toBeLessThan(order.indexOf("review-rating"));
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, shown: 1, shownAt: 5, answer: null });
+  });
+
+  it("Five sessions in one evening: not before the third day of review", async () => {
+    const m = await finishOne({ ...READY, days: 1 });
+    expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+    expect(request(m.container)).toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, days: 1, shown: 0 });
+  });
+
+  it("Rating: the store page opens through the background, and the request never shows again", async () => {
+    const opened: string[] = [];
+    const m = await finishOne(READY, { openPage: (url) => opened.push(url) });
+    expect(opened).toEqual([]);
+    button(m.container, "Noter Cymbra Lingua").click();
+    await settle();
+    expect(opened).toEqual([STORE_REVIEW_PAGE]);
+    expect(request(m.container)).toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ answer: "rated" });
+  });
+
+  it("No network before the choice: « Plus tard » sends nothing, and the request goes", async () => {
+    const opened: string[] = [];
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    const m = await finishOne(READY, { openPage: (url) => opened.push(url) });
+    button(m.container, "Plus tard").click();
+    await settle();
+    expect(opened).toEqual([]);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(request(m.container)).toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ shown: 1, answer: null });
+  });
+
+  it("Don't ask again: the answer is kept", async () => {
+    const m = await finishOne(READY);
+    button(m.container, "Ne plus demander").click();
+    await settle();
+    expect(request(m.container)).toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ answer: "never" });
+  });
+
+  it("Later, by starting « Encore 10 » without answering: the request goes, and counts as made", async () => {
+    const m = await finishOne(READY);
+    button(m.container, "Encore 10").click();
+    await settle();
+    expect(request(m.container)).toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, shown: 1, answer: null });
+  });
+
+  it("Nothing due: no session counted, no request", async () => {
+    const m = await finishOne(READY, {}, []);
+    expect(m.container.textContent).toContain("Rien à réviser pour l'instant.");
+    expect(request(m.container)).toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toEqual(READY);
+  });
+
+  it("In Safari and in the app: no request, though the end is counted for the app's own", async () => {
+    const finished = vi.fn();
+    const m = await finishOne(READY, { askRating: false, onSessionFinished: finished });
+    expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+    expect(request(m.container)).toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toEqual(READY);
+    expect(finished).toHaveBeenCalledTimes(1);
+    // A repaint of the same end counts it no second time.
+    await m.page.refresh();
+    expect(finished).toHaveBeenCalledTimes(1);
+  });
+
+  it("Ended with « Terminer » before its last card: not a finished session — no count, no request, nothing told to the app", async () => {
+    const finished = vi.fn();
+    const prefs = fakeArea();
+    prefs.raw[RATING_KEY] = READY;
+    const m = mount(makeFakePort(TWELVE).port, fakeArea(), { prefs, onSessionFinished: finished });
+    await m.page.refresh();
+    button(m.container, "Réviser").click();
+    await settle();
+    button(m.container, "Afficher la réponse").click();
+    await settle();
+    button(m.container, "Su").click();
+    await settle();
+    button(m.container, "Terminer").click();
+    await settle();
+    // The end says what the session did, as add-lingua-review-stop-session wants…
+    expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+    // …but the reader stopped it: the request is not asked there, nor the session counted.
+    expect(request(m.container)).toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toEqual(READY);
+    expect(finished).not.toHaveBeenCalled();
+
+    // The next session played to its end is the fifth finished one, and asks.
+    button(m.container, "Encore 10").click();
+    await settle();
+    while (m.container.querySelector(".review-reveal")) {
+      button(m.container, "Afficher la réponse").click();
+      await settle();
+      button(m.container, "Su").click();
+      await settle();
+    }
+    expect(request(m.container)).not.toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, shown: 1 });
+    expect(finished).toHaveBeenCalledTimes(1);
+  });
+
+  it("Ended with « Terminer » before any answer: « Séance terminée » with no count, and no request", async () => {
+    const prefs = fakeArea();
+    prefs.raw[RATING_KEY] = READY;
+    const m = mount(makeFakePort(TWELVE).port, fakeArea(), { prefs });
+    await m.page.refresh();
+    button(m.container, "Réviser").click();
+    await settle();
+    button(m.container, "Terminer").click();
+    await settle();
+    expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+    expect(request(m.container)).toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toEqual(READY);
+  });
+
+  it("is offered by the Chromium and Firefox builds only", () => {
+    expect(ratingOffered("chromium", false)).toBe(true);
+    expect(ratingOffered("firefox", false)).toBe(true);
+    expect(ratingOffered("safari", false)).toBe(false);
+    expect(ratingOffered("safari", true)).toBe(false);
+  });
+});
+
+describe("Révision — the rating request, seen and kept (review findings)", () => {
+  const CARDS: FakeCard[] = Array.from({ length: 3 }, (_, i) => ({
+    headword: `w${i}`,
+    surface: `w${i}`,
+    sentence: "",
+    gloss: null,
+  }));
+  const TODAY = localDay(NOW_SECONDS);
+  const READY: RatingState = { sessions: 4, days: 3, lastDay: TODAY, shown: 0, shownAt: 0, answer: null };
+  const request = (container: HTMLElement) => container.querySelector<HTMLElement>(".review-rating");
+
+  /** A backup as the engine writes it: one top-level key per line, the deck apart from the reading. */
+  const engineBackup = (deck: string, exposure: number): string =>
+    JSON.stringify(
+      { schema_version: 2, knowledge: {}, exposure: { read: exposure }, deck: { en: deck }, fsrs: {} },
+      null,
+      2,
+    );
+
+  /** Mount on a port whose backups are laid out as the engine's, the request's state given. */
+  function mountRated(state: RatingState | null, host: Host = {}, cards: FakeCard[] = CARDS) {
+    const prefs = host.prefs ?? fakeArea();
+    if (state) prefs.raw[RATING_KEY] = state;
+    const fake = makeFakePort(cards);
+    const port: LinguaPort = { ...fake.port, backup: async () => engineBackup("three cards", 0) };
+    const m = mount(port, fakeArea(), { ...host, prefs });
+    return { ...m, fake };
+  }
+
+  /** Start a session (or practice), then answer every card with `answer` until the end. */
+  async function finish(
+    container: HTMLElement,
+    answer: "Su" | "Pas su" | "Je connais" | "Ne plus me le montrer",
+    start = "Réviser",
+  ) {
+    button(container, start).click();
+    await settle();
+    while (container.querySelector(".review-reveal")) {
+      if (answer === "Su" || answer === "Pas su") {
+        button(container, "Afficher la réponse").click();
+        await settle();
+      }
+      button(container, answer).click();
+      await settle();
+    }
+  }
+
+  it("Side panel beside a page being read: the page's exposure saves keep the end and its request, shown once", async () => {
+    const m = mountRated(READY);
+    await m.page.refresh();
+    await finish(m.container, "Su");
+    expect(request(m.container)).not.toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, shown: 1 });
+
+    // Reading on, the page saves what it read every two seconds: the deck stays as it was.
+    for (let read = 1; read <= 3; read++) {
+      await m.area.set({ [ROOT_KEY]: { v: STORAGE_VERSION, backup: engineBackup("three cards", read) } });
+      announce([ROOT_KEY]);
+      await settle();
+    }
+    expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+    expect(request(m.container)).not.toBeNull();
+    // Taken on in the engine, so the next answer saves it too.
+    expect(m.fake.calls.restored).toHaveLength(3);
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, shown: 1, answer: null });
+
+    // A word captured on the page changes the deck: the review starts over, as before.
+    await m.area.set({ [ROOT_KEY]: { v: STORAGE_VERSION, backup: engineBackup("four cards", 3) } });
+    announce([ROOT_KEY]);
+    await settle();
+    expect(request(m.container)).toBeNull();
+    expect(button(m.container, "Réviser")).toBeTruthy();
+  });
+
+  it("A request drawn where the reader cannot see it is not used up; seen once shown", async () => {
+    let visible = false;
+    const m = mountRated(READY, { onScreen: () => visible });
+    await m.page.refresh();
+    await finish(m.container, "Su");
+    expect(request(m.container)).not.toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, shown: 0 });
+    // The host shows Révision again (the drawer opened, the panel's tab chosen): it refreshes.
+    visible = true;
+    await m.page.refresh();
+    await settle();
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, shown: 1, shownAt: 5 });
+    await m.page.refresh();
+    await settle();
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ shown: 1 });
+  });
+
+  it("Never seen, then another session: not counted, so the next qualifying end asks", async () => {
+    const m = mountRated(
+      READY,
+      { onScreen: () => false },
+      Array.from({ length: 12 }, (_, i) => ({
+        headword: `x${i}`,
+        surface: `x${i}`,
+        sentence: "",
+        gloss: null,
+      })),
+    );
+    await m.page.refresh();
+    await finish(m.container, "Su");
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, shown: 0 });
+    await finish(m.container, "Su", "Encore 10");
+    expect(request(m.container)).not.toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 6, shown: 0 });
+  });
+
+  it("the default check: a request in a hidden view is not seen, in a shown one it is", () => {
+    const outer = document.createElement("div");
+    const inner = document.createElement("div");
+    outer.append(inner);
+    expect(shownOnScreen(inner)).toBe(false); // not in the document
+    document.body.append(outer);
+    expect(shownOnScreen(inner)).toBe(true);
+    outer.hidden = true;
+    expect(shownOnScreen(inner)).toBe(false);
+    // Across a shadow root, to the drawer's host.
+    outer.hidden = false;
+    const host = document.createElement("div");
+    const shadow = host.attachShadow({ mode: "open" });
+    const drawn = document.createElement("div");
+    shadow.append(drawn);
+    document.body.append(host);
+    expect(shownOnScreen(drawn)).toBe(true);
+    host.hidden = true;
+    expect(shownOnScreen(drawn)).toBe(false);
+  });
+
+  it("In the book reader: the session counts, no request is shown there", async () => {
+    const m = mountRated(READY, { requestRating: false });
+    await m.page.refresh();
+    await finish(m.container, "Su");
+    expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+    expect(request(m.container)).toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, days: 3, shown: 0 });
+  });
+
+  it("« S'entraîner quand même »: a finished practice session counts, and may ask", async () => {
+    const m = mountRated({ ...READY, sessions: 3 });
+    await m.page.refresh();
+    await finish(m.container, "Su");
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 4 });
+    expect(request(m.container)).toBeNull();
+    await finish(m.container, "Su", "S'entraîner quand même");
+    expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, shown: 1 });
+    expect(request(m.container)).not.toBeNull();
+  });
+
+  for (const answer of ["Je connais", "Ne plus me le montrer"] as const) {
+    it(`a session ended only with « ${answer} » is a finished session`, async () => {
+      const m = mountRated(READY);
+      await m.page.refresh();
+      await finish(m.container, answer);
+      expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+      expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, shown: 1 });
+      expect(request(m.container)).not.toBeNull();
+    });
+  }
+
+  it("A hard session — every card « Pas su » — still counts and still asks: nothing depends on the results", async () => {
+    const m = mountRated(READY);
+    await m.page.refresh();
+    await finish(m.container, "Pas su");
+    expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+    expect(m.fake.calls.grades.every((g) => g === "again")).toBe(true);
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, shown: 1 });
+    expect(request(m.container)).not.toBeNull();
+  });
+});
+
+describe("Révision — the app told of each session's start (add-lingua-comeback-hints D11)", () => {
+  it("« Réviser », « Encore 10 » and « S'entraîner quand même » each say a session started", async () => {
+    const started = vi.fn();
+    const cards: FakeCard[] = Array.from({ length: 11 }, (_, i) => ({
+      headword: "s" + i,
+      surface: "s" + i,
+      sentence: "",
+      gloss: null,
+    }));
+    const m = mount(makeFakePort(cards).port, fakeArea(), { askRating: false, onSessionStarted: started });
+    await m.page.refresh();
+    const answerAll = async () => {
+      while (m.container.querySelector(".review-reveal")) {
+        button(m.container, "Afficher la réponse").click();
+        await settle();
+        button(m.container, "Su").click();
+        await settle();
+      }
+    };
+    button(m.container, "Réviser").click();
+    await settle();
+    expect(started).toHaveBeenCalledTimes(1);
+    await answerAll();
+    button(m.container, "Encore 10").click();
+    await settle();
+    expect(started).toHaveBeenCalledTimes(2);
+    await answerAll();
+    button(m.container, "S'entraîner quand même").click();
+    await settle();
+    expect(started).toHaveBeenCalledTimes(3);
   });
 });

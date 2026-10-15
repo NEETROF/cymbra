@@ -36,6 +36,8 @@
     </div>
 
     <div id="main-view">
+      <!-- The anonymous counts' first-run sentence (usage/notice.ts): filled when one is due. -->
+      <div id="usage-notice" class="usage-notice" hidden></div>
       <div id="session-lost" class="session-lost" data-copy="sessionLost" hidden></div>
       <div class="toggle-row">
         <label class="switch">
@@ -74,9 +76,13 @@
           <span id="level-line"><b id="level-current">—</b></span>
           <button id="level-edit" class="linklike" data-copy="edit"></button>
         </div>
+      </div>
 
+      <!-- The deck and « Réviser (3) » on every tab, analysed or not, highlighting on or off
+           (add-lingua-comeback-hints D8): popup.review, rendered by the script with what a review
+           would hold today. -->
+      <div id="review-block">
         <div class="deck"><span data-copy="deck"></span><b id="deck">0</b></div>
-        <!-- « Réviser (3) »: popup.review, rendered by the script with the due count. -->
         <button class="primary" id="review"></button>
       </div>
 

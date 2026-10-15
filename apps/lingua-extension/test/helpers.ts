@@ -5,6 +5,7 @@ import type {
   LanguagePort,
   LinguaPort,
   NewCard,
+  NewWordAllowance,
   Rating,
   ReviewCard,
   ReviewOptions,
@@ -51,11 +52,15 @@ export interface FakeCalls {
   markKnown: number;
   /** « Ne plus me le montrer » answers (refine-lingua-review-session). */
   ignored: number;
+  /** Glosses kept in review, in order (add-lingua-review-translation-fallback D3). */
+  kept: { lemma: string; gloss: string; language: StudiedLanguage }[];
   restored: string[];
   /** The languages each due count and each review start were asked for (none: every language). */
   reviewLanguages: (StudiedLanguage[] | undefined)[];
   /** The options each review start was given. */
   reviewOptions: (ReviewOptions | undefined)[];
+  /** The allowance each count of what a review would hold was asked with (add-lingua-comeback-hints D1). */
+  allowances: (NewWordAllowance | undefined)[];
 }
 
 /**
@@ -74,9 +79,11 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
     reveals: 0,
     markKnown: 0,
     ignored: 0,
+    kept: [],
     restored: [],
     reviewLanguages: [],
     reviewOptions: [],
+    allowances: [],
   };
   let queue: FakeCard[] = [];
   let pos = 0;
@@ -131,10 +138,24 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
     trackedCount: async () => calls.setStatus.length + calls.addCard.length,
     addCard: async (c) => void calls.addCard.push(c),
     retireCard: async () => {},
+    // The card's gloss becomes the kept text, as the engine's reader's gloss wins in review.
+    async keepGloss(this: FakePort, lemma, gloss) {
+      calls.kept.push({ lemma, gloss, language: this.language });
+      const card = deck.find((c) => c.headword === lemma && (c.language ?? "en") === this.language);
+      if (!card) return false;
+      card.gloss = gloss;
+      return true;
+    },
     // The deck's cards in those languages (refine-lingua-review-language D4), and every card added since.
     deckCount: async (languages) => deck.filter(within(languages)).length + calls.addCard.length,
     dueCount: async (_now, languages) => {
       calls.reviewLanguages.push(languages);
+      return queue.slice(pos).filter(within(languages)).length;
+    },
+    // What the queue still holds, as the due count reads it: the fake has no allowance of its own.
+    reviewableCount: async (_now, languages, allowance) => {
+      calls.reviewLanguages.push(languages);
+      calls.allowances.push(allowance);
       return queue.slice(pos).filter(within(languages)).length;
     },
     startReview: async (_now, languages, options) => {
@@ -300,6 +321,27 @@ export function pageArea(items: Record<string, unknown> = {}): { get(key: string
   return {
     async get(key) {
       return key in items ? { [key]: items[key] } : {};
+    },
+  };
+}
+
+/** A storage area in memory, as chrome.storage.local behaves: `raw` is what it holds. */
+export function memoryArea(items: Record<string, unknown> = {}): {
+  raw: Record<string, unknown>;
+  get(keys: string | string[] | null): Promise<Record<string, unknown>>;
+  set(items: Record<string, unknown>): Promise<void>;
+} {
+  const raw: Record<string, unknown> = { ...items };
+  return {
+    raw,
+    async get(keys) {
+      const list = keys == null ? Object.keys(raw) : Array.isArray(keys) ? keys : [keys];
+      const out: Record<string, unknown> = {};
+      for (const k of list) if (k in raw) out[k] = structuredClone(raw[k]);
+      return out;
+    },
+    async set(more) {
+      for (const [k, v] of Object.entries(more)) raw[k] = structuredClone(v);
     },
   };
 }

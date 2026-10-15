@@ -3,6 +3,8 @@ import Base from '../../layouts/Base.astro';
 import Community from '../../components/Community.astro';
 import StoreButtons from '../../components/StoreButtons.astro';
 import { musicStores } from '../../lib/stores';
+// The page's share image: Music's own macOS store capture in English (change: add-site-lingua-showcase, D12).
+import library from '../../../../music/store/macos/desktop_1440x900/en/01_library.png';
 ---
 
 <Base
@@ -10,6 +12,7 @@ import { musicStores } from '../../lib/stores';
   description="Plug in your MIDI keyboard and play: Cymbra Music follows the score in real time, gives immediate feedback, and moves you forward lesson by lesson."
   lang="en"
   alternates={{ fr: '/music', en: '/en/music', es: '/es/music' }}
+  image={{ src: library, alt: 'Cymbra Music on a Mac: the score library, a course under way and pieces sorted by level.' }}
 >
   <section class="hero container">
     <p class="kicker">Cymbra Music</p>

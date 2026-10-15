@@ -4,6 +4,7 @@ import type {
   LanguagePort,
   LinguaPort,
   NewCard,
+  NewWordAllowance,
   Rating,
   ReviewCard,
   ReviewOptions,
@@ -58,8 +59,15 @@ interface WasmEngine {
     language?: string | null,
   ): void;
   retireCard(lemma: string, now: number, language?: string | null): void;
+  keepGloss(lemma: string, gloss: string, language: string | null | undefined, now: number): boolean;
   deckCount(languages?: string[] | null): number;
   dueCount(now: number, languages?: string[] | null): number;
+  reviewableCount(
+    now: number,
+    languages?: string[] | null,
+    newPerDay?: number | null,
+    dayStart?: number | null,
+  ): number;
   startReview(
     now: number,
     languages?: string[] | null,
@@ -116,6 +124,8 @@ export interface WasmModule {
   LinguaEngine: new (packBytes: Uint8Array) => WasmEngine;
   /** A backup with another profile: a pure function of the glue, no engine and no pack (D2). */
   reprofileBackup(backup: string, native: string, studied: string[]): string;
+  /** A backup's review outlook as JSON: a pure function of the glue, no engine and no pack. */
+  reviewOutlook(backup: string, now: number, dayStart: number): string;
 }
 
 /** How the wasm-pack glue module is obtained. */
@@ -186,6 +196,24 @@ export async function reprofileBackup(
   const mod = await loadGlue();
   await initialise(mod);
   return mod.reprofileBackup(backup, native, [...studied]);
+}
+
+/**
+ * The review outlook of `backup` at `now` (epoch seconds), `dayStart` being the reader's local
+ * midnight then — lingua-wasm's `reviewOutlook`, as JSON (add-lingua-comeback-hints D2). Pure, like
+ * `reprofileBackup`: the module initialised, never an engine nor a pack, so the background works it
+ * out after each change of the reader's data without loading a reading engine. Rejects on a backup
+ * it cannot read.
+ */
+export async function reviewOutlookJson(
+  backup: string,
+  now: number,
+  dayStart: number,
+  loadGlue: GlueLoader = dynamicGlue,
+): Promise<string> {
+  const mod = await loadGlue();
+  await initialise(mod);
+  return mod.reviewOutlook(backup, now, dayStart);
 }
 
 /** A pair's pack, read from the package. */
@@ -342,6 +370,15 @@ export class WasmAnalyzerPort implements LinguaPort {
 
   async dueCount(now: number, languages?: StudiedLanguage[]): Promise<number> {
     return (await this.engine()).dueCount(now, languages ?? null);
+  }
+
+  async reviewableCount(now: number, languages?: StudiedLanguage[], allowance?: NewWordAllowance): Promise<number> {
+    return (await this.engine()).reviewableCount(
+      now,
+      languages ?? null,
+      allowance?.newPerDay ?? null,
+      allowance?.dayStart ?? null,
+    );
   }
 
   async startReview(now: number, languages?: StudiedLanguage[], options?: ReviewOptions): Promise<number> {
@@ -533,6 +570,10 @@ class WasmLanguagePort implements LanguagePort {
 
   async retireCard(lemma: string, now: number): Promise<void> {
     (await this.engine()).retireCard(lemma, now, this.language);
+  }
+
+  async keepGloss(lemma: string, gloss: string, now: number): Promise<boolean> {
+    return (await this.engine()).keepGloss(lemma, gloss, this.language, now);
   }
 
   async notice(): Promise<string> {

@@ -1,0 +1,67 @@
+---
+// The Lingua page's demo video (change: add-site-lingua-showcase, D8, D9): self-hosted, silent (the
+// file has no audio track), a poster, the controls, and `preload="none"` with no `autoplay`
+// attribute — without script it is a poster with a play button and nothing is downloaded until it
+// is pressed. A few lines of script play it, muted, once at least half of it is on screen, and pause
+// it when it leaves — only for a visitor who does not ask for reduced motion and does not save data.
+// It plays once; the controls replay it. A visitor's own pause or play ends the script's part.
+interface Props {
+  src: string;
+  poster: string;
+  label: string;
+  width: number;
+  height: number;
+}
+
+const { src, poster, label, width, height } = Astro.props;
+---
+
+<video
+  class="demo-video"
+  data-demo-video
+  muted
+  playsinline
+  controls
+  preload="none"
+  poster={poster}
+  width={width}
+  height={height}
+  aria-label={label}
+>
+  <source src={src} type="video/mp4" />
+</video>
+
+<script>
+  const video = document.querySelector<HTMLVideoElement>('[data-demo-video]');
+  const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+  const welcome = matchMedia('(prefers-reduced-motion: no-preference)').matches && connection?.saveData !== true;
+  if (video && welcome && 'IntersectionObserver' in window) {
+    // Whether the script still drives the video: until it ends, or until the visitor plays or pauses.
+    let driving = true;
+    // The `play` and `pause` events the script's own calls will fire: any other is the visitor's.
+    const expected = { play: 0, pause: 0 };
+    video.addEventListener('ended', () => (driving = false));
+    for (const event of ['play', 'pause'] as const) {
+      video.addEventListener(event, () => {
+        if (expected[event] > 0) expected[event] -= 1;
+        else if (!video.ended) driving = false;
+      });
+    }
+    new IntersectionObserver(
+      ([entry]) => {
+        if (!driving) return;
+        if (entry.intersectionRatio >= 0.5 && video.paused) {
+          video.muted = true;
+          expected.play += 1;
+          video.play().catch(() => {
+            expected.play = 0;
+          });
+        } else if (entry.intersectionRatio < 0.5 && !video.paused) {
+          expected.pause += 1;
+          video.pause();
+        }
+      },
+      { threshold: [0, 0.5] },
+    ).observe(video);
+  }
+</script>

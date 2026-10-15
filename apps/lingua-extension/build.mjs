@@ -8,8 +8,9 @@
 // Firefox and Safari.
 import { build } from "esbuild";
 import { existsSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join, sep } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { distDirProblem } from "./tool/dist-dir.mjs";
 import { engineFiles, engineProblems } from "./tool/engine_pin.mjs";
 import { bundledCatalogue, readCatalogue } from "./tool/model-catalogue.mjs";
 import { LOCALES_DIR, readLocales } from "./tool/locales.mjs";
@@ -29,6 +30,19 @@ for (const t of wanted) {
   }
 }
 const targets = wanted.filter((t) => t !== APP);
+
+// Where a variant is written: `dist-<target>/` unless LINGUA_DIST_DIR names another folder (relative
+// to this app, or absolute). The capture tool (tool/capture/, add-site-lingua-showcase D1) builds into
+// `dist-capture/` so that it never rewrites the `dist-chromium/` a dogfood browser has loaded. One
+// folder holds one variant: the option takes one browser target. The build empties the folder
+// first, so it must be called `dist-…` and never be this app's folder or one holding it.
+const DIST_DIR = process.env.LINGUA_DIST_DIR ?? "";
+if (DIST_DIR && (targets.length !== 1 || wanted.includes(APP))) {
+  throw new Error(`LINGUA_DIST_DIR (${DIST_DIR}) takes one browser target — got ${wanted.join(", ")}.`);
+}
+const distDirRefused = DIST_DIR ? distDirProblem(root, DIST_DIR) : null;
+if (distDirRefused) throw new Error(distDirRefused);
+const distDirOf = (target) => DIST_DIR || `dist-${target}`;
 
 // The pairs every package ships (packs.json, generalise-lingua-pack-build); the first gives the
 // default studied language, the engine's first pack.
@@ -159,6 +173,11 @@ function capabilities(target) {
     __SECTIONS_FROM_WORKER__: JSON.stringify(target === "chromium"),
     __TRANSLATION_HOST__: JSON.stringify(translationHost(target)),
     __APP__: "false",
+    // What the anonymous counts' first-run sentence does (add-lingua-usage-counts D7): Chromium
+    // asks, with two equal buttons, and sends nothing before "yes"; Safari counts by default once it
+    // was shown; Firefox informs, its gate being the browser's own data-collection consent (D6).
+    // Moving a variant to "ask" is this line, not a redesign.
+    __USAGE_COUNTS_DEFAULT__: JSON.stringify(target === "chromium" ? "ask" : "on"),
   };
 }
 
@@ -214,7 +233,7 @@ const staticCopies = [
 ];
 
 for (const target of targets) {
-  const dist = join(root, `dist-${target}`);
+  const dist = resolve(root, distDirOf(target));
   rmSync(dist, { recursive: true, force: true });
   mkdirSync(join(dist, "wasm"), { recursive: true });
   mkdirSync(join(dist, "assets", "packs"), { recursive: true });
@@ -331,12 +350,16 @@ for (const target of targets) {
     filter: (src) => !src.endsWith("icon-1024.png"),
   });
 
-  console.log(`Built ${target} → dist-${target}/`);
+  console.log(`Built ${target} → ${distDirOf(target)}/`);
 }
 
 if (wanted.includes(APP)) {
-  // The app's page runs in WebKit with the engine in the page (as Chromium's extension pages do),
-  // reaches nothing but its own bundle and the app's bridge, and hosts no translation engine.
+  // The app's page runs in WebKit with the analysis engine in the page (as Chromium's extension pages
+  // do) and reaches nothing but its own bundle, the app's bridge and the Lingua server — for « Traduction
+  // en ligne », under its own session (add-lingua-review-translation-fallback D8). The translation
+  // engine runs in a worker of the page; its files — engine-worker.js, model-worker.js, engine/ and
+  // model-manifest.json — are the Safari extension's, served from the extension the app embeds
+  // (AppPageResource.swift, D7), so they are in the app once and never in dist-app.
   const dist = join(root, "dist-app");
   rmSync(dist, { recursive: true, force: true });
   mkdirSync(join(dist, "wasm"), { recursive: true });
@@ -360,7 +383,9 @@ if (wanted.includes(APP)) {
       __SECTIONS_FROM_WORKER__: "false",
       __TRANSLATION_HOST__: JSON.stringify("none"),
       __APP__: "true",
-      __GRPC_WEB_URL__: JSON.stringify(""),
+      // The app's page counts nothing: it never runs the extension's background.
+      __USAGE_COUNTS_DEFAULT__: JSON.stringify("on"),
+      __GRPC_WEB_URL__: JSON.stringify(GRPC_WEB_URL),
       __GOOGLE_CLIENT_ID__: JSON.stringify(""),
       __APPLE_CLIENT_ID__: JSON.stringify(""),
       __LINGUA_PACKS__: JSON.stringify(PAIRS.join(",")),
@@ -373,6 +398,8 @@ if (wanted.includes(APP)) {
     ["src/styles/tokens.css", "tokens.css"],
     ["src/styles/review.css", "review.css"],
     ["src/stats/stats.css", "stats.css"],
+    // The email sign-in's card (add-lingua-app-email-signin D2): the account page's own styles.
+    ["src/account/account.css", "account.css"],
     // No pack: the app serves the ones of the Safari extension it embeds, never a second copy.
     ["src/wasm/pkg/lingua_wasm_bg.wasm", "wasm/lingua_wasm_bg.wasm"],
   ]) {

@@ -41,6 +41,15 @@ export const settings: typeof fr = {
   onlineTranslationNote:
     "A petición, desde la tarjeta de una selección de varias palabras: la frase seleccionada se envía a un servicio de traducción externo para traducirla, y nadie la conserva. Ajuste propio de este dispositivo.",
   privacyPolicy: "Política de privacidad",
+  // — Comptages anonymes (add-lingua-usage-counts D6): the switch in Données —
+  usageCounts: "Recuentos anónimos",
+  usageCountsToggle: "Enviar recuentos anónimos",
+  usageCountsNote:
+    "Seis pasos de cada instalación, cada uno enviado una sola vez, cuando ocurre: instalada, un primer nivel elegido, una primera página analizada, una vuelta al día siguiente, entre el día 7 y el 13, entre el día 30 y el 59. Con ellos, solo el día de instalación, el navegador y la versión de Lingua, sin ningún identificador, aunque hayas iniciado sesión. Nada de lo que lees sale de tu dispositivo.",
+  usageCountsFirefoxNote:
+    "En Firefox, este interruptor es el consentimiento «Datos técnicos y de interacción» del propio Firefox.",
+  usageCountsFromToolbar:
+    "Para volver a activarlos, abre los Ajustes desde el botón de Lingua en la barra de herramientas.",
   shortcuts: "Atajos y gestos",
   keyAlt: "Alt",
   keyShift: "Mayús",
@@ -87,6 +96,11 @@ export const settings: typeof fr = {
   dataErased: "Datos borrados.",
   tabs: "Ajustes",
   reviewPace: "Ritmo de repaso",
+  badgeCount: "Mostrar las tarjetas por repasar en el icono",
+  badgeCountNote:
+    "Lo que tendría un repaso hoy, en las páginas donde el icono no muestra un porcentaje. Calculado en este dispositivo.",
+  rate: "Valorar Cymbra Lingua",
+  rateNote: "En la tienda desde la que instalaste Cymbra Lingua.",
   newWordsPerDay: "Palabras nuevas al día",
   newWordsPerDayNote:
     "Para cada idioma que estudias. Las palabras añadidas de más esperan a los días siguientes. Una sesión tiene diez tarjetas como máximo.",

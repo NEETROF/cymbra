@@ -1,7 +1,7 @@
 import type { LinguaPort } from "../analyzer/port.ts";
 import { drawer as frDrawer } from "../i18n/fr/drawer.ts";
 import { DEFAULT_INTERFACE_LANGUAGE, type InterfaceLanguage } from "../i18n/index.ts";
-import { mountReview, type ReviewPage } from "../review/review-page.ts";
+import { inSettings, mountReview, type ReviewOnlineSource, type ReviewPage } from "../review/review-page.ts";
 import type { TranslatorSource } from "../translate/create-port.ts";
 import { type AsyncStorageArea } from "../state/storage.ts";
 import { mountStats } from "../stats/view.ts";
@@ -53,6 +53,13 @@ export interface DrawerOptions {
    * session's engine host and answer memory, shared with the word cards (add-lingua-review-translation D4).
    */
   translator?: TranslatorSource;
+  /** « Traduction en ligne » in Révision: the reading session's offer and client (add-lingua-review-translation-fallback D2). */
+  online?: ReviewOnlineSource;
+  /**
+   * The drawer of the book reader: its Révision never asks for a rating, though a session finished
+   * there counts (add-lingua-comeback-hints D10).
+   */
+  inBook?: boolean;
 }
 
 export class Drawer {
@@ -190,6 +197,11 @@ export class Drawer {
         pageLanguage: this.opts.pageLanguage,
         interfaceLanguage: this.opts.language,
         translator: this.opts.translator,
+        // « Traduction étendue » lives in this drawer's Réglages (add-lingua-review-translation-fallback D12).
+        ...(this.opts.translator ? { translationHint: inSettings } : {}),
+        online: this.opts.online,
+        // Never in the book reader (D10): the session still counts toward the next end elsewhere.
+        requestRating: !this.opts.inBook,
         toSort: this.opts.toSort,
         // The list opens in the reader page, under the drawer: the drawer steps aside.
         openToSort: this.opts.openToSort

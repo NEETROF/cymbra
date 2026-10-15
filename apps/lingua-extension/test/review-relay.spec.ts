@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { CardOp } from "@/analyzer/port.ts";
 import { DAILY_KEY } from "@/state/dailystats.ts";
-import { encodeAppOps, parseSharedState } from "@/state/app-relay.ts";
+import { accountDigest, encodeAppOps, parseSharedState, RELAYED_ACCOUNT_KEY } from "@/state/app-relay.ts";
 import type { NativeMessage } from "@/state/native-signin.ts";
 import { reviewRelay, SHARE_DEBOUNCE_MS } from "@/state/review-relay.ts";
 import type { AsyncStorageArea } from "@/state/storage.ts";
@@ -95,6 +95,36 @@ describe("the extension hands its state to the app (add-lingua-apple-review D3)"
     expect(state?.storeItems).toEqual({ [DAILY_KEY]: { 1: {} } });
   });
 
+  it("relays the translation settings and the access flag, never the session, a token or the account", async () => {
+    const n = native();
+    const prefs = {
+      "cymbra-lingua-translation-host": "local",
+      "cymbra-lingua-online-translation": true,
+      "cymbra-lingua-model-state": { phase: "ready", models: ["m"], pairs: ["en-fr"] },
+      "cymbra-lingua-flags": { account: "acc-123", values: { "lingua.online_translation.enabled": true } },
+      "cymbra-lingua-access": { token: "header.payload.sig" },
+      "cymbra-lingua-refresh": "refresh-secret",
+    };
+    const r = reviewRelay({
+      send: n.send,
+      store: area(v2("LOCAL")),
+      prefs: area(prefs),
+      port: makeFakePort().port,
+      exclusive: (task) => task(),
+      now: () => 1,
+    });
+    await r.share();
+    const message = n.sent[0];
+    const raw = message.type === "review.saveState" ? message.state : "";
+    expect(parseSharedState(raw)).toMatchObject({
+      onlineAccess: true,
+      prefs: { "cymbra-lingua-translation-host": "local", "cymbra-lingua-online-translation": true },
+    });
+    for (const secret of ["acc-123", "header.payload.sig", "refresh-secret", "model-state"]) {
+      expect(raw, secret).not.toContain(secret);
+    }
+  });
+
   it("sends nothing before a backup exists, and survives a missing handler", async () => {
     const n = native();
     await relay({ send: n.send, store: area() }).r.share();
@@ -186,5 +216,91 @@ describe("the extension takes back the app's review", () => {
     const [a, b] = [r.collect(), r.collect()];
     expect(a).toBe(b);
     await a;
+  });
+});
+
+describe("the extension names its account to the app by a digest (add-lingua-app-deck-sync D7, D8)", () => {
+  function signed(over: { signedIn?: boolean; userId?: () => Promise<string>; store?: ReturnType<typeof area> } = {}) {
+    const n = native();
+    const prefs = area({ "cymbra-lingua-refresh": "refresh-secret" });
+    let signedIn = over.signedIn ?? true;
+    const userId = vi.fn(over.userId ?? (async () => "user-1"));
+    const r = reviewRelay({
+      send: n.send,
+      store: over.store ?? area(v2("LOCAL")),
+      prefs,
+      port: makeFakePort().port,
+      exclusive: (task) => task(),
+      now: () => 1,
+      account: { signedIn: async () => signedIn, userId },
+    });
+    const shared = () => {
+      const last = n.sent.filter((m) => m.type === "review.saveState").at(-1);
+      return {
+        raw: last?.type === "review.saveState" ? last.state : "",
+        state: parseSharedState(last?.type === "review.saveState" ? last.state : null),
+      };
+    };
+    return { r, n, prefs, userId, shared, signOut: () => void (signedIn = false) };
+  }
+
+  it("shares the digest after sign-in, null after sign-out, and never a token", async () => {
+    const { r, prefs, userId, shared, signOut } = signed();
+    await r.accountChanged(true);
+    expect(userId).toHaveBeenCalledOnce();
+    expect(prefs.items[RELAYED_ACCOUNT_KEY]).toBe(await accountDigest("user-1"));
+    expect(shared().state?.account).toBe(await accountDigest("user-1"));
+    expect(shared().raw).not.toContain("user-1");
+    expect(shared().raw).not.toContain("refresh-secret");
+    signOut();
+    await r.accountChanged(false);
+    expect(prefs.items[RELAYED_ACCOUNT_KEY]).toBeNull();
+    expect(shared().state?.account).toBeNull();
+  });
+
+  it("asks the account once: a sync with a digest recorded asks nothing, a sign-in asks again", async () => {
+    const { r, userId, n } = signed();
+    await r.accountChanged(false);
+    await r.accountChanged(false);
+    expect(userId).toHaveBeenCalledOnce();
+    await r.accountChanged(true);
+    expect(userId).toHaveBeenCalledTimes(2);
+    // Same account: nothing handed over again.
+    expect(n.sent.filter((m) => m.type === "review.saveState")).toHaveLength(1);
+  });
+
+  it("names no account while signed out, even with a digest left recorded", async () => {
+    const { r, prefs, shared, signOut } = signed();
+    await prefs.set({ [RELAYED_ACCOUNT_KEY]: "stale" });
+    signOut();
+    await r.share();
+    expect(shared().state?.account).toBeNull();
+  });
+
+  it("survives an account it cannot read", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { r, prefs, n } = signed({ userId: async () => Promise.reject(new Error("offline")) });
+    await r.accountChanged(true);
+    expect(prefs.items[RELAYED_ACCOUNT_KEY]).toBeUndefined();
+    expect(n.sent).toEqual([]);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("shares the erasure mark the store acted on, 0 when none", async () => {
+    const { r, shared } = signed({ store: area({ ...v2("LOCAL"), "cymbra-lingua-erased-at": 1234 }) });
+    await r.share();
+    expect(shared().state?.erasedAt).toBe(1234);
+    const fresh = signed();
+    await fresh.r.share();
+    expect(fresh.shared().state?.erasedAt).toBe(0);
+  });
+
+  it("an extension built without the account names none at all", async () => {
+    const n = native();
+    await relay({ send: n.send }).r.share();
+    const message = n.sent[0];
+    expect(parseSharedState(message.type === "review.saveState" ? message.state : null)).not.toHaveProperty("account");
+    await relay({ send: n.send }).r.accountChanged(true); // nothing to do
   });
 });
