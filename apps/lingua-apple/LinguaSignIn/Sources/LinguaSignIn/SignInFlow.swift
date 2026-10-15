@@ -134,7 +134,7 @@ public struct SignInCopy: Sendable {
     private static let fr = Table(
         heading: "Connexion à Cymbra Lingua",
         lede: "Connecte-toi pour retrouver tes mots et tes révisions sur tous tes appareils.",
-        appLede: "Connecte-toi pour utiliser la traduction en ligne dans l'app. Ta connexion dans Safari ne change pas.",
+        appLede: "Connecte-toi pour synchroniser les révisions faites dans l'app et utiliser la traduction en ligne. Utilise le même compte que dans Safari.",
         done: "C'est fait ! Retourne dans Safari : Cymbra Lingua termine la connexion.",
         browserWaiting:
             "Termine la connexion dans la fenêtre de ton navigateur. Si rien ne s'ouvre, annule, quitte ton navigateur et réessaie.",
@@ -150,7 +150,7 @@ public struct SignInCopy: Sendable {
     private static let en = Table(
         heading: "Sign in to Cymbra Lingua",
         lede: "Sign in to find your words and your reviews on all your devices.",
-        appLede: "Sign in to use online translation in the app. Your sign-in in Safari does not change.",
+        appLede: "Sign in to sync the reviews you do in the app and use online translation. Use the same account as in Safari.",
         done: "Done! Go back to Safari: Cymbra Lingua is finishing the sign-in.",
         browserWaiting:
             "Finish signing in, in your browser window. If nothing opens, cancel, quit your browser, and try again.",
@@ -166,7 +166,7 @@ public struct SignInCopy: Sendable {
     private static let es = Table(
         heading: "Inicia sesión en Cymbra Lingua",
         lede: "Inicia sesión para encontrar tus palabras y tus repasos en todos tus dispositivos.",
-        appLede: "Inicia sesión para usar la traducción en línea en la app. Tu sesión en Safari no cambia.",
+        appLede: "Inicia sesión para sincronizar los repasos que haces en la app y usar la traducción en línea. Usa la misma cuenta que en Safari.",
         done: "¡Listo! Vuelve a Safari: Cymbra Lingua está terminando de iniciar sesión.",
         browserWaiting:
             "Termina de iniciar sesión en la ventana de tu navegador. Si no se abre nada, cancela, cierra tu navegador y vuelve a intentarlo.",

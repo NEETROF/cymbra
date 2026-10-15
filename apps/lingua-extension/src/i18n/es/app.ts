@@ -21,4 +21,13 @@ export const app: typeof fr = {
   signOut: "Cerrar sesión",
   signIn: "Iniciar sesión para la traducción en línea",
   emailCancel: "Cancelar",
+  syncOffer: "Inicia sesión para sincronizar tus repasos y usar la traducción en línea.",
+  syncSignIn: "Iniciar sesión",
+  syncLater: "Ahora no",
+  syncOn: "Sesión iniciada en Cymbra: tus repasos se sincronizan",
+  syncOnAs: (account: string) => `Sesión iniciada como ${account}: tus repasos se sincronizan`,
+  syncOtherAccount: "Safari tiene otra cuenta conectada: tus repasos pasarán por Safari.",
+  syncSafariSignedOut: "Conecta también Safari a esta cuenta para sincronizar desde la app.",
+  syncOlderExtension: "Actualiza la extensión de Safari para sincronizar desde la app.",
+  syncFailed: "No se puede sincronizar por ahora: tus repasos se enviarán más tarde.",
 };

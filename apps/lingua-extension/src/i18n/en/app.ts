@@ -21,4 +21,13 @@ export const app: typeof fr = {
   signOut: "Sign out",
   signIn: "Sign in for online translation",
   emailCancel: "Cancel",
+  syncOffer: "Sign in to sync your reviews and use online translation.",
+  syncSignIn: "Sign in",
+  syncLater: "Not now",
+  syncOn: "Signed in to Cymbra: your reviews sync",
+  syncOnAs: (account: string) => `Signed in as ${account}: your reviews sync`,
+  syncOtherAccount: "Safari is signed in to another account: your reviews will go through Safari.",
+  syncSafariSignedOut: "Sign Safari in to this account too to sync from the app.",
+  syncOlderExtension: "Update the Safari extension to sync from the app.",
+  syncFailed: "Sync isn't possible right now: your reviews will go later.",
 };

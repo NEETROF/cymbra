@@ -1,6 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppModelView } from "@/app/translation.ts";
-import { type AccountLineState, accountLabel, renderAccountLine, renderModelOffer } from "@/app/view.ts";
+import {
+  type AccountLineState,
+  accountLabel,
+  renderAccountLine,
+  renderModelOffer,
+  setSyncOfferAside,
+  SYNC_OFFER_LATER_KEY,
+  SYNC_OFFER_LATER_MS,
+  syncOfferSetAside,
+} from "@/app/view.ts";
 
 // The Cymbra Lingua app's own lines beside the extension's Révision (add-lingua-review-translation-fallback
 // D7, D8): the models' offer and the app's session line, text nodes and small buttons only.
@@ -150,5 +159,100 @@ describe("the account named on the session line (add-lingua-app-email-signin D9)
     expect(accountLabel({ handle: null, email: "me@example.com" })).toBe("me@example.com");
     expect(accountLabel({ handle: null, email: null })).toBeNull();
     expect(accountLabel(undefined)).toBeNull();
+  });
+});
+
+describe("the app's synchronisation line (add-lingua-app-deck-sync D6, D7, D11)", () => {
+  const base = { relevant: false, signedIn: true, signedOut: false };
+  const CASES: [AccountLineState, string][] = [
+    [{ ...base, sync: "synced" }, "Connecté à Cymbra : tes révisions se synchronisent — Se déconnecter"],
+    [
+      { ...base, sync: "synced", name: { handle: "lea", email: null } },
+      "Connecté en tant que @lea : tes révisions se synchronisent — Se déconnecter",
+    ],
+    [
+      { ...base, sync: "otherAccount" },
+      "Safari est connecté à un autre compte : tes révisions passeront par Safari. — Se déconnecter",
+    ],
+    [
+      { ...base, sync: "safariSignedOut" },
+      "Connecte aussi Safari à ce compte pour synchroniser depuis l'app. — Se déconnecter",
+    ],
+    [
+      { ...base, sync: "olderExtension" },
+      "Mets à jour l'extension Safari pour synchroniser depuis l'app. — Se déconnecter",
+    ],
+    [
+      { ...base, sync: "failed" },
+      "Synchronisation impossible pour l'instant : tes révisions partiront plus tard. — Se déconnecter",
+    ],
+    [{ ...base, sync: "checking" }, "Connecté à Cymbra pour la traduction en ligne — Se déconnecter"],
+    [
+      { ...base, sync: "checking", name: { handle: "lea", email: null } },
+      "Connecté en tant que @lea pour la traduction en ligne — Se déconnecter",
+    ],
+    [
+      { relevant: false, signedIn: false, signedOut: false, offerSync: true },
+      "Connecte-toi pour synchroniser tes révisions et utiliser la traduction en ligne. Se connecterPlus tard",
+    ],
+  ];
+
+  it("says each state in one quiet line, text nodes only", () => {
+    for (const [state, text] of CASES) {
+      renderAccountLine(el, state, "fr", { signIn: vi.fn(), signOut: vi.fn(), later: vi.fn() });
+      expect(el.textContent, JSON.stringify(state)).toBe(text);
+      expect(el.hidden).toBe(false);
+      expect(el.querySelector("a, img, script")).toBeNull();
+    }
+  });
+
+  it("offers the sign-in on opening, with « Plus tard », in every language", () => {
+    const OFFERS: ["fr" | "en" | "es", string[]][] = [
+      ["fr", ["Se connecter", "Plus tard"]],
+      ["en", ["Sign in", "Not now"]],
+      ["es", ["Iniciar sesión", "Ahora no"]],
+    ];
+    for (const [language, labels] of OFFERS) {
+      const actions = { signIn: vi.fn(), signOut: vi.fn(), later: vi.fn() };
+      renderAccountLine(el, { relevant: false, signedIn: false, signedOut: false, offerSync: true }, language, actions);
+      expect(buttons()).toEqual(labels);
+      el.querySelector<HTMLButtonElement>(".app-sign-in")!.click();
+      el.querySelector<HTMLButtonElement>(".app-sync-later")!.click();
+      expect(actions.signIn).toHaveBeenCalledOnce();
+      expect(actions.later).toHaveBeenCalledOnce();
+    }
+  });
+
+  it("names the account as markup never could", () => {
+    renderAccountLine(el, { ...base, sync: "synced", name: { handle: null, email: "<b>x</b>" } }, "en", {
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+    });
+    expect(el.querySelector("b")).toBeNull();
+    expect(el.textContent).toContain("Signed in as <b>x</b>: your reviews sync");
+  });
+
+  it("« Plus tard » sets the offer aside for thirty days, in the page's storage", () => {
+    const items = new Map<string, string>();
+    const local = {
+      getItem: (k: string) => items.get(k) ?? null,
+      setItem: (k: string, v: string) => void items.set(k, v),
+    };
+    expect(syncOfferSetAside(local, 1_000)).toBe(false);
+    setSyncOfferAside(local, 1_000);
+    expect(items.get(SYNC_OFFER_LATER_KEY)).toBe("1000");
+    expect(syncOfferSetAside(local, 1_000 + SYNC_OFFER_LATER_MS - 1)).toBe(true);
+    expect(syncOfferSetAside(local, 1_000 + SYNC_OFFER_LATER_MS)).toBe(false);
+    expect(syncOfferSetAside(null, 1_000)).toBe(false);
+    const broken = {
+      getItem: () => {
+        throw new Error("denied");
+      },
+      setItem: () => {
+        throw new Error("denied");
+      },
+    };
+    expect(syncOfferSetAside(broken, 1)).toBe(false);
+    setSyncOfferAside(broken, 1);
   });
 });

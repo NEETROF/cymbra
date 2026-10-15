@@ -3,6 +3,7 @@ import { app as esApp } from "../i18n/es/app.ts";
 import { app as frApp } from "../i18n/fr/app.ts";
 import { formatDate, formatNumber, formatTime, type InterfaceLanguage } from "../i18n/index.ts";
 import type { AppAccountName } from "./account.ts";
+import type { AppSyncLine } from "./deck-sync.ts";
 import type { AppModelView } from "./translation.ts";
 
 // What the Cymbra Lingua app's home shows of its own beside the extension's Révision
@@ -82,8 +83,21 @@ export interface AccountLineState {
   signedIn: boolean;
   /** The reader signed out from the app: the line offers to sign in again. */
   signedOut: boolean;
-  /** The account signed in to, when known (add-lingua-app-email-signin D9). */
+  /**
+   * The account signed in to, when known (add-lingua-app-email-signin D9): the line names it, the
+   * synchronising line too (add-lingua-app-deck-sync D11).
+   */
   name?: AppAccountName | null;
+  /**
+   * The synchronisation, as the line says it while signed in (add-lingua-app-deck-sync D6, D7, D11);
+   * absent: the online-translation line.
+   */
+  sync?: AppSyncLine;
+  /**
+   * Not signed in inside the app while Safari's extension is, and not set aside: the line offers the
+   * sign-in that synchronises the reviews and opens online translation (D11).
+   */
+  offerSync?: boolean;
 }
 
 /** How the line names the account: « @handle », else the address, else null (the plain line). */
@@ -95,6 +109,52 @@ export function accountLabel(name: AppAccountName | null | undefined): string | 
 export interface AccountLineActions {
   signIn(): void;
   signOut(): void;
+  /** « Plus tard »: the offer set aside for a while (D11). */
+  later?(): void;
+}
+
+/** How long « Plus tard » sets the sign-in offer aside (add-lingua-app-deck-sync D11). */
+export const SYNC_OFFER_LATER_MS = 30 * 86_400_000;
+/** Where the page keeps when the reader set the offer aside: its localStorage. */
+export const SYNC_OFFER_LATER_KEY = "cymbra-lingua-app-sync-later";
+
+/** Whether the reader set the sign-in offer aside less than SYNC_OFFER_LATER_MS ago. */
+export function syncOfferSetAside(local: Pick<Storage, "getItem"> | null, nowMs: number): boolean {
+  try {
+    const at = Number(local?.getItem(SYNC_OFFER_LATER_KEY) ?? "");
+    return Number.isFinite(at) && at > 0 && nowMs - at < SYNC_OFFER_LATER_MS;
+  } catch {
+    return false;
+  }
+}
+
+/** Set the offer aside from now. */
+export function setSyncOfferAside(local: Pick<Storage, "setItem"> | null, nowMs: number): void {
+  try {
+    local?.setItem(SYNC_OFFER_LATER_KEY, String(nowMs));
+  } catch {
+    /* this launch only */
+  }
+}
+
+/** The signed-in line's text for the synchronisation's state. */
+function syncText(copy: typeof frApp, sync: AppSyncLine | undefined, label: string | null | undefined): string {
+  switch (sync) {
+    case "synced":
+      // The account's name is the reader's data: a text node, never markup.
+      return label ? copy.syncOnAs(label) : copy.syncOn;
+    case "otherAccount":
+      return copy.syncOtherAccount;
+    case "safariSignedOut":
+      return copy.syncSafariSignedOut;
+    case "olderExtension":
+      return copy.syncOlderExtension;
+    case "failed":
+      return copy.syncFailed;
+    default:
+      // Not synchronising for a reason of its own (signed in, the account not read yet): the session line.
+      return label ? copy.signedInAs(label) : copy.signedIn;
+  }
 }
 
 /**
@@ -113,12 +173,17 @@ export function renderAccountLine(
   el.replaceChildren();
   const text = document.createElement("span");
   if (state.signedIn) {
-    // The account's name is the reader's data: a text node, never markup.
-    const label = accountLabel(state.name);
-    text.textContent = `${label ? copy.signedInAs(label) : copy.signedIn} — `;
+    text.textContent = `${syncText(copy, state.sync, accountLabel(state.name))} — `;
     el.append(
       text,
       button(copy.signOut, "app-link app-sign-out", () => actions.signOut()),
+    );
+  } else if (state.offerSync) {
+    text.textContent = `${copy.syncOffer} `;
+    el.append(
+      text,
+      button(copy.syncSignIn, "app-link app-sign-in", () => actions.signIn()),
+      button(copy.syncLater, "app-link app-sync-later", () => actions.later?.()),
     );
   } else if (state.relevant) {
     el.append(button(copy.signIn, "app-link app-sign-in", () => actions.signIn()));

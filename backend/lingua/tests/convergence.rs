@@ -542,3 +542,86 @@ async fn a_device_that_missed_the_erasure_cannot_bring_the_data_back() {
         1
     );
 }
+
+/// The Cymbra Lingua app synchronises as a device of its own (add-lingua-app-deck-sync D4, D10):
+/// it pushes the cards its review changed, which the Safari extension of the same iPhone later
+/// re-pushes from its whole deck with the same state. A third device id pushing a subset another
+/// device already pushed converges, and an equal-content re-push changes no card's content.
+#[tokio::test]
+async fn a_third_device_re_pushing_a_subset_converges_without_changing_content() {
+    const USER: &str = "user-app";
+    let deck = DeckModule::new(Arc::new(FakeDeck::default()), Arc::new(Marks::default()));
+    let reviewed = |client_id: &str, device: &str| Card {
+        language: "en".into(),
+        client_id: client_id.into(),
+        lemma: client_id.into(),
+        fsrs_state: "{\"reps\":1}".into(),
+        updated_at: 500,
+        device_id: device.into(),
+        gloss_language: "fr".into(),
+        ..Card::default()
+    };
+
+    // The app reviews three cards and pushes them under its own device id.
+    let app = "app-0001";
+    deck.push_cards(
+        USER,
+        ["c1", "c2", "c3"].map(|c| reviewed(c, app)).to_vec(),
+        1_000,
+    )
+    .await
+    .unwrap();
+    let (mac_first, mac_cursor) = deck.pull_cards(USER, 0, &[], false).await.unwrap();
+    assert_eq!(mac_first.len(), 3);
+
+    // Safari's extension, having collected the relay, re-pushes a subset with the same state:
+    // one device id sorts above the app's, one below — either way no content moves.
+    for safari in ["safari-zz", "safari-00"] {
+        deck.push_cards(
+            USER,
+            ["c1", "c2"].map(|c| reviewed(c, safari)).to_vec(),
+            1_000,
+        )
+        .await
+        .unwrap();
+    }
+    let (all, _) = deck.pull_cards(USER, 0, &[], false).await.unwrap();
+    assert_eq!(all.len(), 3);
+    for card in &all {
+        assert_eq!(card.fsrs_state, "{\"reps\":1}");
+        assert_eq!(card.updated_at, 500);
+    }
+    // The tie converged on the greatest device id: equal content, the row's owner only.
+    let owner = |id: &str| {
+        all.iter()
+            .find(|c| c.client_id == id)
+            .unwrap()
+            .device_id
+            .clone()
+    };
+    assert_eq!(owner("c1"), "safari-zz");
+    assert_eq!(owner("c3"), app);
+
+    // The Mac pulls the equal-content rewrite once more and holds the same state.
+    let (mac_again, _) = deck.pull_cards(USER, mac_cursor, &[], false).await.unwrap();
+    assert!(mac_again.len() <= 2);
+    for card in &mac_again {
+        let first = mac_first
+            .iter()
+            .find(|c| c.client_id == card.client_id)
+            .unwrap();
+        assert_eq!(
+            (&card.fsrs_state, card.updated_at),
+            (&first.fsrs_state, first.updated_at)
+        );
+    }
+
+    // A later change from the extension still wins over the app's.
+    let mut later = reviewed("c3", "safari-00");
+    later.fsrs_state = "{\"reps\":2}".into();
+    later.updated_at = 900;
+    deck.push_cards(USER, vec![later], 1_000).await.unwrap();
+    let (latest, _) = deck.pull_cards(USER, 0, &[], false).await.unwrap();
+    let c3 = latest.iter().find(|c| c.client_id == "c3").unwrap();
+    assert_eq!(c3.fsrs_state, "{\"reps\":2}");
+}
