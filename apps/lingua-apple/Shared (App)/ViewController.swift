@@ -77,9 +77,15 @@ class ViewController: PlatformViewController, WKNavigationDelegate, WKScriptMess
         NotificationCenter.default.addObserver(
             self, selector: #selector(foreground), name: UIApplication.willEnterForegroundNotification, object: nil
         )
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(background), name: UIApplication.didEnterBackgroundNotification, object: nil
+        )
 #elseif os(macOS)
         NotificationCenter.default.addObserver(
             self, selector: #selector(foreground), name: NSApplication.didBecomeActiveNotification, object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(background), name: NSApplication.willResignActiveNotification, object: nil
         )
 #endif
 
@@ -113,6 +119,25 @@ class ViewController: PlatformViewController, WKNavigationDelegate, WKScriptMess
         } else if let state = ReviewRelayStore.shared()?.state(), state != unusableState {
             load()
         }
+    }
+
+    /// Going to the background (add-lingua-app-deck-sync D5): the page pushes the reviews its
+    /// synchronisation still holds. On iOS, within a background task the system may cut short — what
+    /// is not pushed stays in the App Group and leaves at the next opening.
+    @objc private func background() {
+        guard showingReview else { return }
+#if os(iOS)
+        var task = UIBackgroundTaskIdentifier.invalid
+        let end = {
+            guard task != .invalid else { return }
+            UIApplication.shared.endBackgroundTask(task)
+            task = .invalid
+        }
+        task = UIApplication.shared.beginBackgroundTask(withName: "lingua-sync-push", expirationHandler: end)
+        webView.callAsyncJavaScript(AppPageHooks.background, arguments: [:], in: nil, in: .page) { _ in end() }
+#elseif os(macOS)
+        webView.callAsyncJavaScript(AppPageHooks.background, arguments: [:], in: nil, in: .page) { _ in }
+#endif
     }
 
 #if os(macOS)
@@ -200,11 +225,12 @@ class ViewController: PlatformViewController, WKNavigationDelegate, WKScriptMess
 #endif
         var presented: PlatformViewController?
         let sheet = AppSignInView(language: language, google: GoogleWebSignIn.fromBundle(anchor: anchor)) {
-            [weak self] provider, outcome in
+            [weak self] choice in
             guard let self else { return }
             let answer = self.pendingSignIn
             self.pendingSignIn = nil
-            answer?(AppSessionMessage.signInReply(provider, outcome))
+            // A provider's id_token, `{method: "email"}` for the page's email form, or `{}`.
+            answer?(AppSessionMessage.signInReply(choice))
 #if os(iOS)
             presented?.dismiss(animated: true)
 #elseif os(macOS)
@@ -217,7 +243,8 @@ class ViewController: PlatformViewController, WKNavigationDelegate, WKScriptMess
         present(host, animated: true)
 #elseif os(macOS)
         let host = NSHostingController(rootView: sheet)
-        host.view.frame = NSRect(x: 0, y: 0, width: 460, height: 380)
+        // Tall enough for the three entries (add-lingua-app-email-signin D2).
+        host.view.frame = NSRect(x: 0, y: 0, width: 460, height: 450)
         presented = host
         presentAsSheet(host)
 #endif

@@ -268,8 +268,11 @@ at the first « Traduction en ligne » press. The account line (French UI copy):
 The sign-in sheet's lede becomes (French UI copy) « Connecte-toi pour synchroniser les révisions
 faites dans l'app et utiliser la traduction en ligne. Utilise le même compte que dans Safari. »
 (`SignInFlow.swift` `appLede`, fr / en / es). The first press of « Traduction en ligne » still opens
-the sheet when not signed in. The note for an email-only account stays until
-`add-lingua-app-email-signin` replaces it.
+the sheet when not signed in. `add-lingua-app-email-signin` (merged first) replaced the note for an
+email-only account: the sheet now offers « Continuer avec un email », and « Se connecter » in the
+opening line opens that same sheet. Its named signed-in line (« Connecté en tant que @handle … »)
+carries over to the synchronising line, and the account's id comes from the `GetAccount` that names
+it — no second read.
 
 ### D12 — The deltas, and the archive order
 

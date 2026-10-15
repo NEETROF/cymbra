@@ -1,70 +1,88 @@
-## 1. Prove the two unknowns first
+Estimate: owner probes ~1 day (group 1) and manual passes ~1 day (group 9); agent work 12–15 ideal
+days (groups 2–8, 10). The translation line is `add-lingua-youtube-caption-translation` (3–4 days).
 
-- [ ] 1.1 In each variant (Chromium, Firefox desktop, Safari macOS), from a real content script, confirm a `PerformanceObserver({type: "resource"})` sees the player's `/api/timedtext` request with its `pot`; record the result in design.md (D1) and switch that variant to a main-world `XMLHttpRequest` hook if it does not
-- [ ] 1.2 In each variant, confirm a `world: "MAIN"` script can read `getPlayerResponse()` and select a caption track per video without flipping YouTube's sticky captions preference (D2, D8), or that the web-accessible `<script src>` fallback does
-- [ ] 1.3 Save anonymised json3 fixtures from the spike: a written track, an automatic track, a `tlang` track, and an empty body
+## 1. Probes on the owner's own browsers (owner, ~1 day, before any code)
 
-## 2. Stop reading the player's captions as page text (ships on its own)
+Use your everyday profiles, where YouTube's consent is already given — an automated browser gets
+the consent page and another token. The snippets P1–P6, where to paste them and how to read their
+answers are in design.md's appendix. Record each answer as an indented note under its task (as in
+`fix-lingua-dynamic-rescan` 4.3). Never paste a token, a full address or caption text: this
+repository is public; the snippets print only counts, yes/no flags, keys and types.
 
-- [ ] 2.1 Add the player's caption containers to the page reader's skip list on YouTube, mode on or off (D0); tests that no highlight or exposure comes from `.ytp-caption-segment` while comments are still read
+**What decides what.** Only step 2 (P2) can stop anything: it says whether the whole caption track
+can still be read. "Gets the track" below means `events` above 0 in the field named. Every other step
+only picks one of two ways of building a piece, and none of them stops the change.
 
-## 3. Track and sentences (pure, host-testable)
+- [ ] 1.1 Prepare, once (15 min): pick a public video with **written** English captions (the CC menu lists "English", not "English (auto-generated)") and one whose only English captions are **automatic**; give Lingua access to youtube.com in each browser (design appendix, "Access"); on the Mac, turn on Safari's developer features (Settings › Advanced). Record: nothing.
+- [ ] 1.2 Chrome (~1 h 30), on the written-captions video:
+  1. Record the Chrome version (`chrome://version`).
+  2. **The track — go/no-go.** P1, then P2 in the content script's world, then (reload, captions off) P2 in the page's world. Record for each world: `seen`, `hasPot`, `c`, `fetch.events`, `fetch.length`, `withoutPot.events`, `tlang.events`, and the `fetch.top` / `fetch.event` / `fetch.seg` lines. **Decides:** `fetch` gets the track in the content script's world → Chrome reads it from the content script (design D1); only in the page's world → from the page-world script (D1); in neither → **stop here, no code: bring the notes back**, the change is then degraded-only (D7) and needs the owner's decision. `withoutPot` gets the track → the token is no longer needed (note it; nothing else changes). `tlang` gets a track → the translation line of `add-lingua-youtube-caption-translation` can show YouTube's translation; it does not → that change needs rethinking before it starts.
+  3. The same two runs on the automatic-captions video. **Decides:** `fetch.seg` lists `tOffsetMs` → automatic tracks are cut into sentences on the pauses between words (D4); it does not → on the cue boundaries only.
+  4. **The list.** Captions off, P3. Record `tracks` (language, kind, translatable), `live`, `upcoming`, or the error. Click a suggested video, wait for it to play, P3 again: record whether `video` changed. **Decides:** an English entry in `tracks` → the offer can be decided at page load (D2, D9); an error naming `world` → the page-world script is loaded through the `<script src>` fallback (D2); `video` unchanged after the click → the list is read again a moment after YouTube's navigation event (task 3.1).
+  5. **Captions for this video only.** Captions off, P4 (on): record whether English captions appeared. Open another video with English captions in a new tab: record whether its captions came on by themselves (YouTube remembering the choice). Back on the first tab, P4 (off): record whether the captions went away, and whether a new tab still turns them on by itself. Then set your own captions back with the CC button. **Decides:** they appear and do not come on by themselves elsewhere → the mode selects the track for the one video (D8); they come on by themselves → the mode still turns them off at the end, and the notes say whether that also resets what YouTube remembers (D8, risk "YouTube remembers").
+  6. **The platform.** P5. Record `os`. **Decides:** the value a desktop answers, which the offer accepts (D13).
+- [ ] 1.3 Firefox (~1 h 30): steps 1–6 of 1.2 (version from `about:support`). In step 2, record `fetch.*` and `contentFetch.*` separately. **Decides** where Firefox reads the track (D1): `fetch` in the content script's world, else `contentFetch`, else the page's world, else degraded-only on Firefox (open question 3 then applies at once).
+- [ ] 1.4 Safari on macOS (~1 h 30, with the signed dev build of the host app or the installed one): steps 1–6 of 1.2. Record in particular any error that names `world` (P2 in the page's world, P3, P4) and whether P2 printed its answer or needed the `globalThis.__linguaP2` read-back (design appendix). **Decides:** an error naming `world` → Safari loads the page-world script through the `<script src>` fallback (D2); the read-back needed → the content script must not rely on a script's promise result in Safari (task 3.2).
+- [ ] 1.5 Once, in any browser (~30 min): during an advertisement — on a YouTube account that shows advertisements — run P6, then again after it. Record `ad` both times and whether `time` started again from near zero after the advertisement. **Decides:** `ad` true during it → the line hides on that sign (D3, task 4.6); false → task 1.6 finds another sign before 4.6. If an iPad is at hand: Safari on the iPad, with Lingua installed and allowed on youtube.com, P5 through the Mac (design appendix); record `os`. **Decides:** `ios` → the offer refuses it as is; anything else → the Macintosh-with-touch fallback of D13.
+- [ ] 1.6 (agent, 0.5 d) From the notes: fill the spike table in design.md per variant; settle D1 (observer and replay location per variant), D2 (`world: "MAIN"` or the `<script src>` fallback per variant), D4 (gap or cue split), D8 (track selection or toggle) and D13 (iPad detection); keep the `tlang` answer in the notes, where `add-lingua-youtube-caption-translation` reads it; write **synthetic** json3 fixtures with the recorded keys and types and invented English sentences — a written track, an automatic track with `tOffsetMs`, `[Music]` and fillers, and an empty body — under `apps/lingua-extension/test/fixtures/youtube/`. Never a real video's caption text.
 
-- [ ] 3.1 json3 parser → cues (start, duration, text, per-word offsets when present); tests on the fixtures, empty body is a typed failure
-- [ ] 3.2 Track choice: written English over automatic English, none when neither; tests
-- [ ] 3.3 Request rebuild from an observed player URL: keep `v`, signature params, `pot`, `potc`, `c`; set `lang`/`kind`/`fmt=json3`/optional `tlang`; refuse a URL whose `v` is not the current video; tests
-- [ ] 3.4 Annotation and filler filter (`[…]`, filler list); tests
-- [ ] 3.5 Cues → sentences: punctuation split for written tracks, gap-threshold split with a length cap for automatic tracks, never inside a cue; tests on both fixtures
-- [ ] 3.6 Cue lookup by time (binary search) with seek and rate change; tests
+## 2. Track and sentences (pure, host-testable; ~2.5 d)
 
-## 4. Page-world bridge and session
+- [ ] 2.1 json3 parser → cues (start, duration, text, per-word offsets when present) in a new `apps/lingua-extension/src/youtube/` module; tests on the fixtures; an empty body is a typed failure
+- [ ] 2.2 Track choice: written English over automatic English (any `en` or `en-*` language code), none when neither; tests
+- [ ] 2.3 Request rebuild from an observed player URL: keep `v`, signature parameters, `pot`, `potc`, `c`; set `lang` / `kind` / `fmt=json3`; refuse a URL that is not `https://www.youtube.com/api/timedtext` or whose `v` is not the current video — whether it came from the observer or from the page channel (design D2); tests
+- [ ] 2.4 Annotation and filler filter (`[…]`, filler list); tests
+- [ ] 2.5 Cues → sentences: punctuation split for written tracks, gap-threshold split (starting at 700 ms) with a length cap (starting at 25 words) for automatic tracks, never inside a cue; tests on both fixtures
+- [ ] 2.6 Cue lookup by time (binary search) with seek and rate change; tests
 
-- [ ] 4.1 Main-world script: video id, track list, captions state, captions on/off, over a per-load random `postMessage` channel; nothing else
-- [ ] 4.2 Video session: offered on `/watch` only (not Shorts, live, premieres, embeds); end on `yt-navigate-finish` to another video or away; token held in memory and discarded with the session; tests with a mocked bridge
-- [ ] 4.3 Observer of the player's caption request; turn captions on when none is seen; timeout → degraded; tests
-- [ ] 4.4 Restore the reader's captions state and the native line when the mode ends; tests
+## 3. Page-world script, offer and session (~3 d)
 
-## 5. Caption line and popup
+- [ ] 3.1 Page-world script (`src/youtube/page-world.ts`, a new esbuild entry in `build.mjs`, listed in `tool/check_variants.mjs`, excluded from coverage in `vitest.config.ts` like the other DOM glue): reads the video id, the tracks (language, kind, translatable), Short / live / premiere, from `movie_player.getPlayerResponse()`, again on `yt-navigate-finish` (with the delay 1.2 step 4 calls for); answers the captions state only when asked at mode start; accepts captions on / off / select track (D8) and, only where 1.6 says so, "replay this `/api/timedtext` URL of the current video"; posts over a per-load random `postMessage` channel; makes no request; add `src/youtube` to `IN_THE_PAGE` in `test/lint-page-context.spec.ts`. The content-script side checks every message as untrusted input (shape, language codes, URL through 2.3); tests on the checks
+- [ ] 3.2 Injection: the content script asks for the page-world script only when the reader is switched on (« Surlignage activé »), studies English, the platform is a desktop one and the page is `/watch` (design D9) — never otherwise; the background (`src/background.ts`) runs `scripting.executeScript({ world: "MAIN", files })` once per document, or the web-accessible `<script src>` fallback (declared for `https://www.youtube.com/*` only) on a variant 1.6 names; nothing relies on a script's promise result where 1.4 says Safari does not wait for it; tests on the content-script condition and on the background handler with a mocked `chrome.scripting`
+- [ ] 3.3 Offer decision (pure): studies English; desktop (`runtime.getPlatformInfo().os` through the background, `ios` and `android` refused); `/watch`; not a Short, live stream or premiere in progress; an English track. Re-decided on in-page navigation; tests for every "not offered" scenario of the spec, the iPad one included
+- [ ] 3.4 Video session: started from the control, the popup, or the preference; ended on mode off, on leaving the watch page, on another video, and when the reader switches Lingua off; token held in memory and discarded with the session; tests with a mocked bridge
+- [ ] 3.5 Caption request: the isolated `PerformanceObserver` (or the page-world observer where 1.6 says so); turn captions on through the bridge when no request is seen; replay through the variant's way (Chromium `fetch`, Firefox `fetch` or `content.fetch` or the page world, Safari per 1.4); timeout → degraded; tests
+- [ ] 3.6 Restore the reader's captions state and the native line when the mode ends; tests
 
-- [ ] 5.1 Caption line in the existing shadow-DOM host, over the player's caption area, following default/theatre/full-screen; native line hidden by a scoped stylesheet
-- [ ] 5.2 Highlight unknown/learning words through the existing analysis path; repaint on status change broadcast; no repaint when the cue has not changed
-- [ ] 5.3 Word click → existing word popup with the caption sentence as source; pause if playing, resume on close only if we paused; tests
-- [ ] 5.4 Phrase selection inside the shadow root (`getComposedRanges` or the root's selection), classified by the `SelectionWatcher` rules and fed to the same capture path; pauses the video; tests
-- [ ] 5.5 Card from a caption holds the caption sentence and dictionary data only, and a local address with `t=<line start>`; tests
-- [ ] 5.6 Hide the line and suspend timing during advertisements (`ad-showing`); test
-- [ ] 5.7 Line markup built with DOM construction APIs, no dynamic `innerHTML`
+## 4. Caption line and cards (~3 d)
 
-## 6. Percentage and exposure
+- [ ] 4.1 Caption element inside `#movie_player`: light-DOM text under our own host marked `data-cymbra-lingua-skip`, slotted into a closed shadow root for its look (D3); follows the default, theatre and full-screen layouts; native line hidden by a stylesheet scoped to `.ytp-caption-window-container`; pointer events on the line do not reach the player; markup by DOM construction APIs, no dynamic `innerHTML`
+- [ ] 4.2 Highlight unknown and learning words through the English analysis (D11) and the page's painter, which gains a per-owner layer of ranges merged into every paint and left alone by the page's `render` / `clear` (`src/reading/highlight.ts`, design D3); repaint on a status-change broadcast; no repaint when the cue has not changed; tests, including a page repaint that keeps the line's highlights and a line repaint that keeps the page's
+- [ ] 4.3 Word click and phrase selection → the page's `SelectionCard` with the caption sentence as source, `language: () => "en"`, `translator: () => source("en")` from `createTranslatorPort` (`src/translate/create-port.ts`), and the page's « Traduction en ligne » offer; selections through a `SelectionWatcher` of the mode's own, given the line as the one region it watches (a new `within` option in `src/reading/selection.ts`), while the page's watcher keeps ignoring the line (`insideReaderUi`); pause if playing, resume on close only if the card paused it; tests (jsdom, mocked `TranslatorPort` and online offer), including that the page's watcher opens no card for a selection in the line
+- [ ] 4.4 While the mode is on and the player is full screen, move the word card's host (`src/reading/wordpopup.ts`) into the player element, and back when it leaves full screen; tests where jsdom allows, the rest in 9.1
+- [ ] 4.5 A card from a caption keeps what a page card keeps, plus a local address with `t=<line start>`; tests
+- [ ] 4.6 Hide the line and suspend timing and exposure during advertisements (`ad-showing`); test
 
-- [ ] 6.1 Whole-track analysis at load → badge shows the video's percentage while the mode is on; popup shows its breakdown, which track (written/automatic), and the rest of the page apart; tests
-- [ ] 6.2 `CaptionExposureTracker`: a cue counts once playback has covered 80 % of its span in video time while playing (not during ads), once per session; seeks, paused display and rate changes tested
-- [ ] 6.3 Feed recorded lemmas through the same batch path as page exposures; test the distinct-day rule is unchanged
+## 5. Percentage, exposure and « Mots lus » (~2 d)
 
-## 7. Translation
+- [ ] 5.1 Whole-track analysis in English at load → the badge shows the video's percentage while the mode is on; the popup gets `SessionStats.surface: "video"` (`src/reading/session.ts`) and shows, in `src/popup/render.ts`, the breakdown, which track (written / automatic), and the rest of the page apart; tests
+- [ ] 5.2 `CaptionExposureTracker` emitting a `BlockReading` (`lemmas`, `read`, `unknown`) in English: a cue counts once playback covered 80 % of its span in video time while playing, not during advertisements, once per session; seeks, paused display and rate changes tested
+- [ ] 5.3 A caption batch of its own, flushed by the page's rules (throttle, `recordExposures`, `promoteByExposure`, as `flushExposure` in `src/reading/session.ts` does) but through the English port and under the exposure source `video:youtube` — never into the page session's batch, which records in the page's language under `reading:<hostname>`; tests: a French watch page records caption lemmas in English, and the distinct-day rule is unchanged
+- [ ] 5.4 Daily statistics: optional `video` share (`exposures`, `unknownSeen`) on `DailyStat` in `src/state/dailystats.ts`, part of the totals; `recordReading` takes the origin; `pushStats` in `src/sync/sync.ts` unchanged. Tests: the share is not pushed, the pushed totals include it, « Mots lus » includes it, a record without it reads as zero
 
-- [ ] 7.1 No engine (`createTranslatorPort()` is `null`): fetch the `tlang=<gloss language>` track once per video when the track is translatable, map by cue, show whole-line labelled as YouTube's automatic translation in the interface language ("Traduction automatique YouTube" in French), never mark a word, never on another site, not in degraded mode; tests
-- [ ] 7.2 Engine chosen (device, and remote when it exists): pre-translate the next few sentences ahead of the playhead, paced so a click is never queued behind them; popup shows the sentence with the word marked by the page rule; tests with a mocked `TranslatorPort`
-- [ ] 7.3 Translation line hidden by default, visibility kept per device; tests
-- [ ] 7.4 No translation of either source stored or sent; test on card creation
+## 6. Degraded mode (~1 d)
 
-## 8. Degraded mode
+- [ ] 6.1 A `MutationObserver` of the mode's own on `.ytp-caption-window-container` (the page's `ReadingObservers` ignores it by design, `blockOf` in `src/reading/observer.ts`); the line on screen shown in our line and used as the source sentence; percentage labelled « Lignes vues jusqu'ici »; popup says « Mode dégradé … »; tests
+- [ ] 6.2 Failure kinds (`no-request`, `empty-track`, `parse`, `no-main-world`) with their time in a bounded local list `cymbra-lingua-caption-failures` (`src/state/storage.ts`, like `REFRESH_FAILURES_KEY`), no caption text and no video id; test
 
-- [ ] 8.1 Read `.ytp-caption-segment` through the existing observer restricted to the caption container; show in our line; percentage labelled "lines seen so far"; tests
-- [ ] 8.2 Record failure kind (`no-request`, `empty-track`, `parse`, `no-main-world`) in the local diagnostics log with no caption text; test
+## 7. Activation and copy (~1.5 d)
 
-## 9. Activation, variants, permissions
+- [ ] 7.1 The « Sous-titres Lingua » control near the player and the popup line, shown only when the offer holds (3.3); start on click; « Démarrer automatiquement sur YouTube » in Réglages (the one builder `src/reading/settings-view.ts`, copy in `src/reading/settings-copy.ts`, shown in its three hosts), per device, off by default; the every-site grant alone never starts the mode; tests
+- [ ] 7.2 Copy in French, English and Spanish (`src/i18n/`): the control; the popup lines (no English captions; English captions only; for a reader who studies English; « Sous-titres écrits » / « Sous-titres automatiques »; degraded mode; « Lignes vues jusqu'ici »); the preference. The language's name comes from `src/analyzer/language-labels.ts` (`test/lint-language-labels.spec.ts`); no "lemma" / "lemme" in any copy
+- [ ] 7.3 Registration per variant: no new manifest permission on Chromium; Firefox and Safari through their static script; `world: "MAIN"` or its fallback per 1.6; `tool/check_variants.mjs` green for the three variants
 
-- [ ] 9.1 Offer the mode (control near the player + popup); start on click; per-device "start automatically on YouTube" preference, off by default; the every-site grant alone never starts it; inject the main-world script only when the mode starts; popup states "no English captions" when applicable, and that it reads English captions only for a reader of Spanish or French (D7, carried by the language matrix programme); offered only to a reader who studies English, whatever their native language — an English speaker is not offered it
-- [ ] 9.2 Registration per variant in `build.mjs` (Chromium dynamic, Firefox desktop, Safari)
-- [ ] 9.3 Manual pass per variant: written track, automatic track, seek, rate ×1.5, theatre, full-screen, advertisement, next video, phrase capture, card source opens at the moment, mode off restores captions
+## 8. Disclosure and review (~0.5 d)
 
-## 10. Disclosure and review
+- [ ] 8.1 Lingua annex of the privacy policy in French, English and Spanish (`apps/site/src/pages/confidentialite.md`, `en/privacy.md`, `es/privacidad.md`): on a YouTube watch page, for a reader who studies English, the extension reads in the page the list of the video's caption languages, to know whether to offer the caption mode, and sends nothing; once the reader starts the mode, it fetches the captions of the video being watched from YouTube, and sends nothing of the reader's with them
+- [ ] 8.2 `apps/lingua-extension/REVIEWERS.md`, "Where the add-on reaches the network": a fifth origin, `https://www.youtube.com`, only while the caption mode is on — the replayed player request, no token stored or shared, nothing of the reader's sent, the degraded fallback. And a paragraph on the page-world script: injected into YouTube's own context on every watch page where the reader is switched on and studies English (before any mode start, the every-site grant included), what it reads (the list of tracks, Short / live / premiere), what it accepts (captions on / off / select track, and the replay where 1.6 says so), that it makes no request and changes nothing in the player until the reader starts the mode
+- [ ] 8.3 `apps/lingua-extension/STORE-LISTING.md`, in French, English and Spanish where the field is per language: the listings' description mentions the YouTube caption mode (desktop browsers, English captions); the Chrome Web Store "Single purpose" names video captions as part of the same purpose; "Permission justifications" adds the second use of `scripting` (`executeScript` into the page's world on a YouTube watch page) and says no permission was added; "Data usage disclosures" says the caption requests go to YouTube and carry nothing of the reader's (nothing new collected); "Test instructions" give the reviewer a public video with English captions. Firefox's `data_collection_permissions` (`tool/manifests.mjs`) stay as they are: nothing is sent to Cymbra
 
-- [ ] 10.1 Lingua annex (fr + en): on YouTube the extension fetches the video's captions from YouTube; with no engine the translation shown there is YouTube's
-- [ ] 10.2 `REVIEWERS.md`: main-world script scope, the replayed player request, no token stored or shared, no request outside YouTube
-- [ ] 10.3 Store listings mention the YouTube caption mode (desktop only)
+## 9. Manual passes (owner, ~1 day)
 
-## 11. Gates
+- [ ] 9.1 In Chrome, Firefox and Safari on macOS: written track; automatic track; a video without English captions shows no control; seek; rate ×1.5; theatre; full screen with a word card open; an advertisement; next video in the same tab; phrase capture; « Traduction en ligne » pressed on a phrase; a card's source opens at its moment; mode off restores captions; « Surlignage activé » off ends the mode and shows no control; « Mots lus » grows after a video, in English, on a watch page whose description is in French
+- [ ] 9.2 From 9.1, set the automatic-track gap threshold, the sentence length cap and the 80 % threshold of D5; record the values in design.md
 
-- [ ] 11.1 `openspec validate add-lingua-youtube-captions --strict`
-- [ ] 11.2 Extension lint, typecheck and tests green; coverage ≥ 80 %
+## 10. Gates
+
+- [ ] 10.1 `openspec validate add-lingua-youtube-captions --strict`, and `scripts/openspec_archive_order.py add-lingua-youtube-captions` names only the changes in `archiveAfter` still open
+- [ ] 10.2 Extension lint, typecheck and tests green; coverage ≥ 80 %

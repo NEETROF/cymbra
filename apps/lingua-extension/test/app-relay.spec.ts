@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { CardOp, StatusOp } from "@/analyzer/port.ts";
 import { DAILY_KEY, loadDailyStats } from "@/state/dailystats.ts";
 import {
+  accountDigest,
   APPLIED_APP_DAILY_KEY,
   APPLIED_APP_DAILY_TTL_MS,
   applyAppDaily,
@@ -51,6 +52,7 @@ describe("the shared state (add-lingua-apple-review D3)", () => {
       prefs: { a: 1 },
       storeItems: { d: 2 },
       onlineAccess: false,
+      erasedAt: 0,
     });
     expect(
       parseSharedState(encodeSharedState({ backup: "B", savedAt: 1, prefs: {}, storeItems: {}, onlineAccess: true })),
@@ -80,6 +82,7 @@ describe("the shared state (add-lingua-apple-review D3)", () => {
       prefs: {},
       storeItems: {},
       onlineAccess: false,
+      erasedAt: 0,
     });
   });
 
@@ -100,6 +103,41 @@ describe("the shared state (add-lingua-apple-review D3)", () => {
       [undefined, false],
     ];
     for (const [snapshot, access] of cases) expect(onlineAccessOf(snapshot), JSON.stringify(snapshot)).toBe(access);
+  });
+});
+
+describe("the account and the erasure mark the state carries (add-lingua-app-deck-sync D7, D8)", () => {
+  it("encodes the account's digest and the mark, and reads them back", () => {
+    const raw = encodeSharedState({ backup: "B", savedAt: 1, prefs: {}, storeItems: {}, account: "abc", erasedAt: 77 });
+    expect(parseSharedState(raw)).toMatchObject({ account: "abc", erasedAt: 77 });
+    const out = parseSharedState(
+      encodeSharedState({ backup: "B", savedAt: 1, prefs: {}, storeItems: {}, account: null }),
+    );
+    expect(out?.account).toBeNull();
+    expect(out?.erasedAt).toBe(0);
+  });
+
+  it("reads an older payload as no account at all — apart from a signed-out one — and as never erased", () => {
+    const older = parseSharedState(JSON.stringify({ v: 1, backup: "B" }));
+    expect(older).not.toHaveProperty("account");
+    expect(older?.account).toBeUndefined();
+    expect(older?.erasedAt).toBe(0);
+    expect(parseSharedState(JSON.stringify({ v: 1, backup: "B", account: 3, erasedAt: "x" }))).toMatchObject({
+      account: null,
+      erasedAt: 0,
+    });
+    expect(parseSharedState(JSON.stringify({ v: 1, backup: "B", account: "" }))?.account).toBeNull();
+  });
+
+  it("digests the account id with SHA-256, in hex, never the id itself", async () => {
+    const digest = await accountDigest("user-1");
+    expect(digest).toMatch(/^[0-9a-f]{64}$/);
+    expect(digest).not.toContain("user-1");
+    expect(await accountDigest("user-1")).toBe(digest);
+    expect(await accountDigest("user-2")).not.toBe(digest);
+    // The prefix is part of what is hashed: not a bare SHA-256 of the id.
+    const bare = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode("user-1")));
+    expect(digest).not.toBe(Array.from(bare, (b) => b.toString(16).padStart(2, "0")).join(""));
   });
 });
 

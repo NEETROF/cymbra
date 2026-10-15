@@ -1,5 +1,5 @@
 import type { Client } from "@connectrpc/connect";
-import type { CardOp, DeclaredLevelOp, LinguaPort, StatusChangeIn } from "../analyzer/port.ts";
+import type { CardOp, DeclaredLevelOp, LinguaPort, StatusChangeIn, StatusOp } from "../analyzer/port.ts";
 import type { DeckService } from "../gen/deck_pb.ts";
 import type { KnownWordsService } from "../gen/known_words_pb.ts";
 import type { LinguaDataService } from "../gen/lingua_data_pb.ts";
@@ -26,22 +26,35 @@ import type { StudiedLanguage } from "../analyzer/types.ts";
 // store predates a « Effacer mes données Lingua » empties itself before pushing, so it
 // cannot bring the erased data back (design D2/D3).
 
-const DEVICE_KEY = "cymbra-lingua-device";
-const STATUS_CURSOR_KEY = "cymbra-lingua-status-cursor";
-const CARD_CURSOR_KEY = "cymbra-lingua-card-cursor";
+export const DEVICE_KEY = "cymbra-lingua-device";
+export const STATUS_CURSOR_KEY = "cymbra-lingua-status-cursor";
+export const CARD_CURSOR_KEY = "cymbra-lingua-card-cursor";
 /** The account erasure mark this device last acted on (server epoch millis). */
-const ERASED_AT_KEY = "cymbra-lingua-erased-at";
+export const ERASED_AT_KEY = "cymbra-lingua-erased-at";
 /**
  * The languages of this device's last successful sync (add-lingua-language-sync-client D4). Absent:
  * English alone, what every device accepted before cards carried a language.
  */
-const SYNC_LANGUAGES_KEY = "cymbra-lingua-sync-languages";
+export const SYNC_LANGUAGES_KEY = "cymbra-lingua-sync-languages";
 /**
  * Set once this device has pulled as a client that reads gloss languages
  * (add-lingua-native-language-sync-client D2). Absent: the server withheld non-French cards from
  * it, and its card cursor passed them.
  */
-const SYNC_LABELS_KEY = "cymbra-lingua-sync-labels";
+export const SYNC_LABELS_KEY = "cymbra-lingua-sync-labels";
+
+/**
+ * The keys a sync keeps for its own bookkeeping, beside the reader's data: what a host that keeps
+ * them apart (the Cymbra Lingua app, add-lingua-app-deck-sync D10) routes to its own area.
+ */
+export const SYNC_BOOKKEEPING_KEYS: readonly string[] = [
+  DEVICE_KEY,
+  STATUS_CURSOR_KEY,
+  CARD_CURSOR_KEY,
+  ERASED_AT_KEY,
+  SYNC_LANGUAGES_KEY,
+  SYNC_LABELS_KEY,
+];
 /** Max ops per request (bounded batches; the server resumes by outbox offset). */
 const BATCH = 500;
 
@@ -63,6 +76,29 @@ export interface SyncDeps {
   deviceId: string;
   /** The languages this device accepts (design D1); default: the reader's, as the package ships them. */
   acceptedLanguages?: () => Promise<StudiedLanguage[]>;
+  /**
+   * What to push (add-lingua-app-deck-sync D1). Default: every op the engine exports, the whole deck.
+   * The Cymbra Lingua app passes the ops its openings changed — the ones it relays (D3).
+   */
+  ops?: () => Promise<{ cards: CardOp[]; statuses: StatusOp[] }>;
+  /** Push the daily statistics (default true). The app never does: the extension counts them (D9). */
+  pushStats?: boolean;
+  /** Push the declared levels (default true). The app never changes one (D1). */
+  pushLevels?: boolean;
+  /**
+   * The erasure mark the state under review acted on, from its host (add-lingua-app-deck-sync D8):
+   * the app's is the Safari snapshot's. Given, it is the mark this device's state is checked against,
+   * whatever the bookkeeping recorded — a snapshot older than the account's mark predates the erasure.
+   */
+  hostErasedAt?: () => number;
+  /** The engine was reset for an erasure newer than its state's: the host drops what it keeps (D8). */
+  onErased?: (erasedAt: number) => Promise<void>;
+  /**
+   * Awaited before each read of the stored backup that the port is then restored to (and before the
+   * reset of an erasure). The app's port is its review's engine: a restore waits for the session under
+   * way to end, and reads the backup only then (add-lingua-app-deck-sync D2). Default: at once.
+   */
+  idle?: () => Promise<void>;
 }
 
 export interface SyncResult {
@@ -99,7 +135,8 @@ export class SyncEngine {
    * local state yet. The caller guarantees a signed-in session.
    */
   async sync(): Promise<SyncResult | null> {
-    await this.checkErasure();
+    await this.checkErasure(true);
+    await this.deps.idle?.();
     const stored = await loadStored(this.deps.storage);
     if (stored.kind !== "v2") return null; // nothing local to sync yet
     await this.deps.port.restore(stored.backup);
@@ -108,10 +145,7 @@ export class SyncEngine {
     await this.widen(languages);
     await this.readLabels();
 
-    const pushedStatuses = await this.pushStatuses();
-    await this.pushDeclaredLevels();
-    const pushedCards = await this.pushCards();
-    await this.pushStats();
+    const { pushedStatuses, pushedCards } = await this.pushAll();
 
     // Fetch pulls WITHOUT applying, so apply + persist happen together at the end.
     const statuses = await this.fetchStatuses(languages);
@@ -125,6 +159,7 @@ export class SyncEngine {
       // mutation made in another context during the (slow) push/pull round-trip is not
       // clobbered by writing back the stale start-of-sync snapshot. Applies are
       // idempotent LWW, so layering the pulled changes onto the fresh state is safe.
+      await this.deps.idle?.();
       const latest = await loadStored(this.deps.storage);
       if (latest.kind === "v2") await this.deps.port.restore(latest.backup);
       if (statuses.changes.length > 0) pulled += await this.deps.port.applyStatusChanges(statuses.changes);
@@ -141,6 +176,26 @@ export class SyncEngine {
     await this.saveCursor(CARD_CURSOR_KEY, cards.cursor);
     await this.deps.storage.set({ [SYNC_LANGUAGES_KEY]: languages, [SYNC_LABELS_KEY]: true });
     return { pushedStatuses, pushedCards, pulled };
+  }
+
+  /**
+   * Push only (add-lingua-app-deck-sync D1): the erasure mark first, then what this device pushes —
+   * no restore, no apply, no cursor moved. The port pushes the state it holds, the review's own in the
+   * app. A state that predates the account's erasure pushes nothing and is left as it is: the next
+   * `sync()` resets it, between two reviews. Resolves null then.
+   */
+  async push(): Promise<Omit<SyncResult, "pulled"> | null> {
+    if (!(await this.checkErasure(false))) return null;
+    return this.pushAll();
+  }
+
+  private async pushAll(): Promise<Omit<SyncResult, "pulled">> {
+    const chosen = await this.deps.ops?.();
+    const pushedStatuses = await this.pushStatuses(chosen?.statuses);
+    if (this.deps.pushLevels !== false) await this.pushDeclaredLevels();
+    const pushedCards = await this.pushCards(chosen?.cards);
+    if (this.deps.pushStats !== false) await this.pushStats();
+    return { pushedStatuses, pushedCards };
   }
 
   /**
@@ -182,16 +237,34 @@ export class SyncEngine {
    * recorded mark that never synced adopts the current one (its store never held the
    * erased data); one that did sync before marks existed counts as never having seen any.
    */
-  private async checkErasure(): Promise<void> {
+  /**
+   * With `wipe` false (a push), a stale state is not reset: resolves false, recording nothing, so the
+   * next full exchange still finds the mark newer. Resolves whether the state may be pushed.
+   *
+   * A host mark (the app's Safari snapshot, add-lingua-app-deck-sync D8) is what the state is checked
+   * against: that state came from the snapshot, whatever this device's bookkeeping recorded.
+   */
+  private async checkErasure(wipe: boolean): Promise<boolean> {
     const res = await this.deps.clients().data.getDataState({});
     this.cardLanguage = res.cardLanguage === true;
     this.languageLabels = res.languageLabels === true;
     const mark = Number(res.erasedAt);
     const recorded = (await this.deps.storage.get(ERASED_AT_KEY))[ERASED_AT_KEY];
-    const known = typeof recorded === "number" ? recorded : (await this.hasSynced()) ? 0 : mark;
-    if (mark > known) await this.wipeLocal();
+    const known = this.deps.hostErasedAt
+      ? this.deps.hostErasedAt()
+      : typeof recorded === "number"
+        ? recorded
+        : (await this.hasSynced())
+          ? 0
+          : mark;
+    if (mark > known) {
+      if (!wipe) return false;
+      await this.wipeLocal();
+      await this.deps.onErased?.(mark);
+    }
     if (recorded !== mark) await this.deps.storage.set({ [ERASED_AT_KEY]: mark });
     this.erasedAt = mark;
+    return true;
   }
 
   private async hasSynced(): Promise<boolean> {
@@ -212,6 +285,7 @@ export class SyncEngine {
    */
   private async wipeLocal(): Promise<void> {
     const { port, storage } = this.deps;
+    await this.deps.idle?.();
     const stored = await loadStored(storage);
     if (stored.kind === "v2") {
       await port.restore(stored.backup).catch((e: unknown) => {
@@ -234,8 +308,8 @@ export class SyncEngine {
     return this.erasedAt > 0 ? Math.max(ts, this.erasedAt + 1) : ts;
   }
 
-  private async pushStatuses(): Promise<number> {
-    const ops = await this.deps.port.exportStatusOps();
+  private async pushStatuses(chosen?: StatusOp[]): Promise<number> {
+    const ops = chosen ?? (await this.deps.port.exportStatusOps());
     for (const batch of chunk(ops, BATCH)) {
       await this.deps.clients().knownWords.pushOps({
         ops: batch.map((o) => ({
@@ -271,7 +345,7 @@ export class SyncEngine {
     });
   }
 
-  private async pushCards(): Promise<number> {
+  private async pushCards(chosen?: CardOp[]): Promise<number> {
     // A card in another language waits for a server that keys cards by language (design D3):
     // an older one would store it as English, under the key of the English card. A card glossed
     // in another language waits for a server that stores the gloss language
@@ -279,7 +353,7 @@ export class SyncEngine {
     // The push is the whole deck each time, so a held card goes at a later sync. The cards held for
     // their label are remembered: the pull drops their echo (see `held`).
     const labelled = (c: CardOp): boolean => this.languageLabels || (c.gloss_language || FRENCH) === FRENCH;
-    const all = await this.deps.port.exportCardOps();
+    const all = chosen ?? (await this.deps.port.exportCardOps());
     this.held = new Set(all.filter((c) => !labelled(c)).map((c) => c.client_id));
     const ops = all.filter((c) => (this.cardLanguage || (c.language || "en") === "en") && labelled(c));
     for (const batch of chunk(ops, BATCH)) {

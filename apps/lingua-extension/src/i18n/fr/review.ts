@@ -60,6 +60,9 @@ export const review = {
   keepFieldLabel: "Traduction à garder",
   keepSave: "Enregistrer",
   keepCancel: "Annuler",
+  /** Ending the session under way, beside the count of cards remaining (add-lingua-review-stop-session). */
+  end: "Terminer",
+  endLabel: "Terminer la séance",
   /** The end of a session: its title, then one line per count, its figure in bold. */
   sessionDone: "Séance terminée",
   reviewed: pluralForms({

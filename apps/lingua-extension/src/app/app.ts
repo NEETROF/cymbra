@@ -18,11 +18,20 @@ import { modelDb } from "../translate/host/model-db.ts";
 import { loadBundledCatalogue } from "../translate/host/model-manifest.ts";
 import { parseHost, TRANSLATION_HOST_KEY } from "../translate/setting.ts";
 import * as wasmGlue from "../wasm/pkg/lingua_wasm.js";
-import { appAccount } from "./account.ts";
+import { appAccount, appAccountLocale } from "./account.ts";
 import { webkitSend } from "./bridge.ts";
+import { type EmailPanel, emailPanel, reloadsOnForeground } from "./email-panel.ts";
+import { type AppDeckSync, appDeckSync } from "./deck-sync.ts";
 import { openAppSession } from "./session.ts";
 import { type AppTranslation, openAppTranslation } from "./translation.ts";
-import { appCopy, renderAccountLine, renderModelOffer, savedAtLine } from "./view.ts";
+import {
+  appCopy,
+  renderAccountLine,
+  renderModelOffer,
+  savedAtLine,
+  setSyncOfferAside,
+  syncOfferSetAside,
+} from "./view.ts";
 import { appDownload, appEngine } from "./workers.ts";
 
 // The Cymbra Lingua app's page (add-lingua-apple-review D1): the extension's own Révision and
@@ -42,6 +51,9 @@ function $(id: string): HTMLElement {
 }
 
 let review: ReviewPage | null = null;
+let emailSignIn: EmailPanel | null = null;
+/** The app's synchronisation of its reviews (add-lingua-app-deck-sync), once the page is open. */
+let deckSync: AppDeckSync | null = null;
 
 async function main(): Promise<void> {
   const send = webkitSend();
@@ -73,6 +85,7 @@ async function main(): Promise<void> {
       }
     })(),
     fallbackLanguage: opened,
+    onSaved: () => deckSync?.saved(),
   }).catch((e: unknown) => {
     console.warn("[Cymbra Lingua] could not open the shared state:", e);
     return null;
@@ -123,11 +136,22 @@ async function main(): Promise<void> {
   });
   renderModelOffer(offer, translation.view(), language, offerActions);
 
-  // « Traduction en ligne » in the app (D8): its own session, opened on the first press.
+  // « Traduction en ligne » in the app (D8): its own session, opened on the first press — or from the
+  // line offered on opening, which also synchronises the reviews (add-lingua-app-deck-sync D11).
   let clients: Clients | null = null;
   const line = $("account-line");
+  // An email account signs in in the page (add-lingua-app-email-signin): the extension's own flow.
+  emailSignIn = emailPanel({
+    dialog: $("email-panel") as HTMLDialogElement,
+    root: $("email-root"),
+    cancel: $("email-cancel") as HTMLButtonElement,
+    language,
+    locale: appAccountLocale(session.sharedLanguage, navigator.language),
+  });
+  let wasSignedIn = false;
   const account = appAccount({
     send,
+    emailSignIn: emailSignIn.signIn,
     clients: () => (clients ??= createClients(createTransport(() => account.token()))),
     native: () => port.nativeLanguage(),
     chosen: chosen[ONLINE_TRANSLATION_KEY] === true,
@@ -136,6 +160,11 @@ async function main(): Promise<void> {
     onChange: () => {
       drawAccount();
       void review?.refresh();
+      // Signed in or out: the synchronisation reads the account again (D7).
+      if (account.signedIn() !== wasSignedIn) {
+        wasSignedIn = account.signedIn();
+        void deckSync?.accountChanged();
+      }
     },
   });
   setTokenRefresher(() => account.refresh());
@@ -146,12 +175,44 @@ async function main(): Promise<void> {
         relevant: account.online.offered() || account.signedOut(),
         signedIn: account.signedIn(),
         signedOut: account.signedOut(),
+        name: account.name(),
+        sync: deckSync?.line(),
+        offerSync:
+          !account.signedIn() && typeof session.sharedAccount === "string" && !syncOfferSetAside(local, Date.now()),
       },
       language,
-      { signIn: () => void account.signIn(), signOut: () => void account.signOut() },
+      {
+        signIn: () => void account.signIn(),
+        signOut: () => void account.signOut(),
+        later: () => {
+          setSyncOfferAside(local, Date.now());
+          drawAccount();
+        },
+      },
     );
   await account.resume();
+  wasSignedIn = account.signedIn();
+  // The reviews synchronise with the server on the extension's account (add-lingua-app-deck-sync):
+  // the opening's exchange is waited at most a few seconds, the loading line showing meanwhile.
+  deckSync = appDeckSync({
+    port,
+    store,
+    pendingOps: session.pendingOps,
+    sharedAccount: session.sharedAccount,
+    sharedErasedAt: session.sharedErasedAt,
+    discardPending: session.discardPending,
+    signedIn: () => account.signedIn(),
+    // The id the line's name already read (add-lingua-app-email-signin D9), not a second request.
+    userId: () => account.userId(),
+    clients: () => (clients ??= createClients(createTransport(() => account.token()))),
+    local,
+    reviewing: () => review?.reviewing() ?? false,
+    onApplied: () => review?.refresh(),
+    onChange: () => drawAccount(),
+    now: () => Date.now(),
+  });
   drawAccount();
+  await deckSync.open();
 
   review = mountReview($("review-root"), port, store, {
     now,
@@ -196,11 +257,20 @@ async function main(): Promise<void> {
 
 /**
  * The app came back to the foreground (ViewController.swift): the extension may have saved since.
- * Read the shared state again, unless a session is under way — its queue stays as it is.
+ * Read the shared state again, unless a session is under way — its queue stays as it is — or the email
+ * sign-in is open, whose code step the reader came back from Mail for (add-lingua-app-email-signin D6).
  */
 (globalThis as { linguaForeground?: () => void }).linguaForeground = () => {
-  if (review?.reviewing()) return;
+  if (!reloadsOnForeground({ reviewing: review?.reviewing() ?? false, emailPanelOpen: emailSignIn?.isOpen() ?? false }))
+    return;
   location.reload();
 };
+
+/**
+ * The app goes to the background (ViewController.swift, add-lingua-app-deck-sync D5): push what waits
+ * at once; the app awaits it, within the time the system gives.
+ */
+(globalThis as { linguaBackground?: () => Promise<void> }).linguaBackground = () =>
+  deckSync?.background() ?? Promise.resolve();
 
 void main();

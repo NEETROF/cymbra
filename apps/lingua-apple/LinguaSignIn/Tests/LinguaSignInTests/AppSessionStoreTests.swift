@@ -61,10 +61,43 @@ final class AppSessionStoreTests: XCTestCase {
         XCTAssertEqual(AppSessionMessage.signInReply(nil, nil) as NSDictionary, [:])
     }
 
+    /// add-lingua-app-email-signin D2: the sheet's third entry answers `{method: "email"}`; a closed sheet
+    /// still answers `{}`; a provider's id_token is answered as before.
+    func testTheSheetAnswersTheEmailChoice() {
+        XCTAssertEqual(AppSessionMessage.signInReply(.email) as NSDictionary, ["method": "email"])
+        XCTAssertEqual(AppSessionMessage.signInReply(nil) as NSDictionary, [:])
+        XCTAssertEqual(
+            AppSessionMessage.signInReply(.provider(.apple, .idToken("t"))) as NSDictionary,
+            ["provider": "apple", "idToken": "t"]
+        )
+        XCTAssertEqual(AppSessionMessage.signInReply(.provider(.google, .cancelled)) as NSDictionary, [:])
+        XCTAssertEqual(AppSessionMessage.signInReply(.provider(.apple, .failed)) as NSDictionary, [:])
+        // No password ever crosses the bridge: the email answer carries the choice only.
+        XCTAssertEqual(AppSessionMessage.signInReply(.email).count, 1)
+    }
+
+    func testTheEmailEntryIsLabelledInEveryLanguage() {
+        XCTAssertEqual(SignInCopy(language: .fr).emailButton, "Continuer avec un email")
+        XCTAssertEqual(SignInCopy(language: .en).emailButton, "Continue with email")
+        XCTAssertEqual(SignInCopy(language: .es).emailButton, "Continuar con un correo")
+        let labels = SignInLanguage.allCases.map { SignInCopy(language: $0).emailButton }
+        XCTAssertEqual(Set(labels).count, SignInLanguage.allCases.count)
+        for language in SignInLanguage.allCases {
+            let copy = SignInCopy(language: language)
+            XCTAssertNotEqual(copy.emailButton, copy.button(.apple))
+            XCTAssertNotEqual(copy.emailButton, copy.button(.google))
+        }
+    }
+
     func testTheAppSheetSaysItIsForOnlineTranslationInEveryLanguage() {
         let ledes = [SignInLanguage.fr, .en, .es].map { SignInCopy(language: $0).appLede }
         XCTAssertEqual(Set(ledes).count, 3)
         XCTAssertTrue(ledes[0].contains("traduction en ligne"))
+        // add-lingua-app-deck-sync D11: the session synchronises the app's reviews too, on Safari's account.
+        XCTAssertTrue(ledes[0].contains("synchroniser les révisions"))
+        XCTAssertTrue(ledes[1].contains("sync the reviews"))
+        XCTAssertTrue(ledes[2].contains("sincronizar los repasos"))
+        for lede in ledes { XCTAssertTrue(lede.contains("Safari"), lede) }
         for language in [SignInLanguage.fr, .en, .es] {
             XCTAssertNotEqual(SignInCopy(language: language).appLede, SignInCopy(language: language).lede)
         }

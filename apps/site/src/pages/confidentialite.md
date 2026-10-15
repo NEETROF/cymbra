@@ -207,8 +207,8 @@ fournisseurs ne conservent la phrase ni sa traduction, et ces fournisseurs ne s'
 pour entraîner leurs modèles. Pour limiter l'usage et en connaître le coût, Cymbra compte, pour
 votre compte, le nombre de traductions en ligne du jour (compteur effacé au bout d'un jour) et
 tient des totaux quotidiens par fournisseur et par paire de langues, sans compte ni texte. Dans
-l'app Cymbra Lingua, la Traduction en ligne demande de vous connecter **dans l'app** (avec Apple
-ou Google) : l'app ouvre alors sa propre session de votre compte, distincte de celle de
+l'app Cymbra Lingua, la Traduction en ligne demande de vous connecter **dans l'app** (avec Apple,
+Google ou votre email et votre mot de passe) : l'app ouvre alors sa propre session de votre compte, distincte de celle de
 l'extension, que vous pouvez fermer depuis l'app.
 
 **Traduction gardée.** Une traduction automatique (sur l'appareil ou en ligne) n'est conservée
@@ -231,7 +231,13 @@ installée sur l'appareil, elle est utilisée à la place.
 | Statut de chaque mot (connu, en apprentissage, ignoré) et niveau déclaré, pour chaque langue étudiée | vous | retrouver votre progression sur vos appareils |
 | Deck de révision, pour chaque langue étudiée : le mot, la phrase où vous l'avez trouvé, sa traduction — celle du dictionnaire, ou la traduction automatique du mot que vous avez choisi de garder, jamais une phrase traduite —, la langue de cette traduction et son état de révision — **sans** l'adresse de la page | vous | réviser sur tous vos appareils |
 | Statistiques par jour et par langue étudiée (mots appris, révisions, nombre de mots lus et, parmi eux, de mots nouveaux), avec votre langue maternelle ce jour-là (celle des traductions) | calculées sur l'appareil | afficher vos statistiques ; chiffres d'usage **agrégés** pour faire fonctionner le service et, sans nom ni nombre de personnes, publiés sur les canaux de la communauté Cymbra (voir §2) |
-| Identifiant d'installation aléatoire | généré par l'extension | départager deux appareils lors de la synchronisation |
+| Identifiant d'installation aléatoire | généré par l'extension, et par l'app Cymbra Lingua pour elle-même | départager deux appareils lors de la synchronisation |
+
+C'est l'extension qui synchronise ces données. Si vous vous connectez **aussi dans l'app Cymbra
+Lingua**, avec le compte qu'utilise l'extension de Safari, l'app synchronise elle-même les statuts
+et les cartes des révisions faites dans l'app, sous sa propre session et son propre identifiant
+d'installation, avec le même contenu (sans adresse de page) ; les statistiques du jour passent
+toujours par l'extension. Rien de plus n'est collecté.
 
 - **Base légale** : exécution du contrat (fourniture de la synchronisation) ; intérêt
   légitime pour la publication de chiffres agrégés (voir §2).

@@ -125,12 +125,14 @@ struct SignInView: View {
 /// The sheet the app opens for its own Cymbra session (add-lingua-review-translation-fallback, D8):
 /// asked by its review page on the first press of « Traduction en ligne » (`auth.signIn`). Both
 /// providers, Apple first; the id_token goes back to the page, which exchanges it — never to the
-/// App Group, never to the Safari extension, whose session this does not touch. `finish` is called
-/// once: with the provider and its outcome, or with nothing when the reader closes the sheet.
+/// App Group, never to the Safari extension, whose session this does not touch. A third entry, below
+/// Google, hands the sign-in to the page's email form (add-lingua-app-email-signin D2): the password is
+/// typed there, never here. `finish` is called once: with the reader's choice, or with nothing when
+/// they close the sheet.
 struct AppSignInView: View {
     let language: SignInLanguage
     let google: GoogleIdTokenSource?
-    let finish: (SignInProvider?, ProviderOutcome?) -> Void
+    let finish: (AppSignInChoice?) -> Void
 
     @State private var failed: SignInProvider?
     @State private var working = false
@@ -170,6 +172,17 @@ struct AppSignInView: View {
                 .background(Palette.accentStrong, in: RoundedRectangle(cornerRadius: 12))
                 .disabled(working)
             }
+            // A secondary choice: the page shows the extension's own email sign-in.
+            Button { finish(.email) } label: {
+                Text(copy.emailButton)
+                    .font(.body.weight(.semibold))
+                    .frame(maxWidth: .infinity, minHeight: 48)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Palette.text)
+            .background(Palette.panel, in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Palette.border, lineWidth: 1))
+            .disabled(working)
             if working {
                 Text(copy.browserWaiting)
                     .foregroundStyle(Palette.muted)
@@ -178,7 +191,7 @@ struct AppSignInView: View {
                 Text(copy.failure(failed))
                     .foregroundStyle(Palette.coral)
             }
-            Button(copy.cancel) { finish(nil, nil) }
+            Button(copy.cancel) { finish(nil) }
                 .buttonStyle(.plain)
                 .foregroundStyle(Palette.accent)
         }
@@ -195,7 +208,7 @@ struct AppSignInView: View {
     private func answered(_ provider: SignInProvider, _ outcome: ProviderOutcome) {
         switch outcome {
         case .idToken:
-            finish(provider, outcome)
+            finish(.provider(provider, outcome))
         case .cancelled:
             failed = nil
         case .failed:
@@ -228,6 +241,8 @@ private enum Palette {
     static let accent = Color(hex: 0xD2BBFF)
     static let accentStrong = Color(hex: 0x7C3AED)
     static let accentInk = Color(hex: 0xEDE0FF)
+    static let panel = Color(hex: 0x171F33)
+    static let border = Color(hex: 0x2D3449)
     static let green = Color(hex: 0x4EDEA3)
     static let coral = Color(hex: 0xFFB4AB)
 }
