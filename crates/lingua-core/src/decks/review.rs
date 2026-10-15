@@ -34,11 +34,24 @@ use crate::knowledge::status::{KnownSource, Status};
 use super::card::{Card, EncounterSource};
 use super::fsrs::{FsrsParams, Rating};
 
+mod edit;
+
+pub use edit::{
+    CardEdit, EditError, EditOutcome, FORM_MAX_UNITS, GLOSS_MAX_UNITS, normalised_form,
+    normalised_gloss, occurrence,
+};
+
 /// A deck of cards, keyed by studied language then lemma (nested maps keep the
 /// serialised deck plain-JSON and deterministic, as elsewhere in the core).
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Deck {
     cards: BTreeMap<StudiedLanguage, BTreeMap<String, Card>>,
+    /// The cards an edit removed, per language, lemma → removal time in epoch seconds
+    /// (add-lingua-card-edit D7): what keeps a removed card from coming back with an older copy.
+    /// Left out when empty, so every deck without an edit keeps its bytes; a build released
+    /// before it ignores the field (the deck denies no unknown field).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    tombstones: BTreeMap<StudiedLanguage, BTreeMap<String, i64>>,
 }
 
 impl Deck {
@@ -59,12 +72,101 @@ impl Deck {
             .flat_map(|(&lang, per_lang)| per_lang.values().map(move |card| (lang, card)))
     }
 
-    /// Inserts or replaces the card for a lemma.
+    /// Inserts or replaces the card for a lemma. A removal of that lemma is forgotten: adding
+    /// the card again — a capture, a seeding, an edit onto it — is a newer decision
+    /// (add-lingua-card-edit D7).
     pub fn upsert(&mut self, lang: StudiedLanguage, card: Card) {
+        self.forget_removal(lang, &card.lemma);
         self.cards
             .entry(lang)
             .or_default()
             .insert(card.lemma.clone(), card);
+    }
+
+    /// When the card of `lemma` was removed by an edit, if it was (epoch seconds).
+    pub fn removed_at(&self, lang: StudiedLanguage, lemma: &str) -> Option<i64> {
+        self.tombstones.get(&lang)?.get(lemma).copied()
+    }
+
+    fn forget_removal(&mut self, lang: StudiedLanguage, lemma: &str) {
+        if let Some(per_lang) = self.tombstones.get_mut(&lang) {
+            per_lang.remove(lemma);
+            if per_lang.is_empty() {
+                self.tombstones.remove(&lang);
+            }
+        }
+    }
+
+    /// Records the removal of `lemma` at `at`, keeping the later of two removals.
+    fn record_removal(&mut self, lang: StudiedLanguage, lemma: &str, at: i64) -> bool {
+        let slot = self
+            .tombstones
+            .entry(lang)
+            .or_default()
+            .entry(lemma.to_owned())
+            .or_insert(i64::MIN);
+        let moved = at > *slot;
+        *slot = (*slot).max(at);
+        moved
+    }
+
+    /// Removes the card of `lemma` and records its removal at `at` (add-lingua-card-edit D7).
+    fn remove(&mut self, lang: StudiedLanguage, lemma: &str, at: i64) {
+        if let Some(per_lang) = self.cards.get_mut(&lang) {
+            per_lang.remove(lemma);
+            if per_lang.is_empty() {
+                self.cards.remove(&lang);
+            }
+        }
+        self.record_removal(lang, lemma, at);
+    }
+
+    /// Applies a pulled removal of `lemma` at `at` (epoch seconds) under last-write-wins
+    /// (add-lingua-card-edit D7): a local card changed after it is kept — a re-capture or a grade
+    /// made since wins —, otherwise the card is removed; the removal is recorded either way, with
+    /// no card too, so that an older copy arriving afterwards is refused. Returns whether local
+    /// state changed.
+    pub fn apply_card_removal_lww(&mut self, lang: StudiedLanguage, lemma: &str, at: i64) -> bool {
+        match self.get(lang, lemma) {
+            Some(card) if card.updated_at > at => false,
+            Some(_) => {
+                self.remove(lang, lemma, at);
+                true
+            }
+            None => self.record_removal(lang, lemma, at),
+        }
+    }
+
+    /// Every removal with its language and time, in (language, lemma) order: the deleted card
+    /// operations a push sends (add-lingua-card-edit D7).
+    pub fn export_removals(&self) -> Vec<(StudiedLanguage, String, i64)> {
+        self.tombstones
+            .iter()
+            .flat_map(|(&lang, per_lang)| {
+                per_lang
+                    .iter()
+                    .map(move |(lemma, &at)| (lang, lemma.clone(), at))
+            })
+            .collect()
+    }
+
+    /// Every language the deck records a removal in.
+    pub fn removal_languages(&self) -> BTreeSet<StudiedLanguage> {
+        self.tombstones.keys().copied().collect()
+    }
+
+    /// The lemma of the card of `lang` other than `except` whose lemma is `form`, letter case
+    /// aside — the one written exactly so first (add-lingua-card-edit D6).
+    fn other_card_named(&self, lang: StudiedLanguage, form: &str, except: &str) -> Option<String> {
+        let per_lang = self.cards.get(&lang)?;
+        if form != except && per_lang.contains_key(form) {
+            return Some(form.to_owned());
+        }
+        let wanted = form.to_lowercase();
+        per_lang
+            .keys()
+            .find(|lemma| lemma.as_str() != except && lemma.to_lowercase() == wanted)
+            .cloned()
     }
 
     /// Seeds cards for a chosen set of `(lemma, gloss)` — typically the lemmas
@@ -279,16 +381,20 @@ impl Deck {
     /// newer-or-equal card wins (upsert), an older one is dropped. Returns whether
     /// local state changed.
     ///
-    /// Upsert-only: cards are added, graded and retired but never deleted in the
-    /// MVP (mark-known retires a card, it does not remove it), so there is no
-    /// deletion to sync. Card deletion — and the tombstones it would need to stay
-    /// LWW-correct — is deferred to the change that actually adds it, rather than
-    /// shipping a delete path that resurrects on a stale re-add.
+    /// A card an edit removed (add-lingua-card-edit D7) is refused when it is not later than
+    /// the removal, and brings the card back, the removal forgotten, when it is later; removals
+    /// themselves arrive through [`Self::apply_card_removal_lww`].
     ///
     /// `captured_at` is the immutable encounter time and does not travel on the
     /// wire (the `CardOp` has no field for it), so the local value is preserved on
     /// an update: sync never rewrites when the word was first met.
     pub fn apply_card_lww(&mut self, lang: StudiedLanguage, mut card: Card) -> bool {
+        if self
+            .removed_at(lang, &card.lemma)
+            .is_some_and(|at| card.updated_at <= at)
+        {
+            return false;
+        }
         // No existing card → i64::MIN, so any incoming wins.
         let existing_ts = self
             .get(lang, &card.lemma)

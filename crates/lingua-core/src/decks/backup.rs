@@ -169,11 +169,13 @@ impl LinguaState {
     }
 
     /// Every language the per-language records hold: statuses, calibrations and
-    /// declared levels, exposure counters, cards.
+    /// declared levels, exposure counters, cards, and the cards an edit removed
+    /// (add-lingua-card-edit D7) — a removal names its language in the file as a card does.
     fn record_languages(&self) -> BTreeSet<StudiedLanguage> {
         let mut languages = self.knowledge.languages();
         languages.extend(self.exposure.languages());
         languages.extend(self.deck.languages());
+        languages.extend(self.deck.removal_languages());
         languages
     }
 
@@ -849,6 +851,62 @@ mod tests {
             let file = with_version(&LinguaState::default().to_backup(), version);
             assert!(LinguaState::from_backup(&file).is_ok(), "version {version}");
         }
+    }
+
+    #[test]
+    fn spec_scenario_the_backup_keeps_a_cards_edits() {
+        // lingua-decks-review « The backup keeps a card's edits » (add-lingua-card-edit D5, D7).
+        use crate::decks::review::CardEdit;
+        use std::collections::BTreeMap;
+        let mut state = populated_state();
+        assert!(
+            !state.to_backup().contains("tombstones"),
+            "no edit, no removal"
+        );
+        let mut session = ReviewSession::start(&state.deck, i64::MAX - 1);
+        let params = state.fsrs.clone();
+        while session.current_key().map(|(_, l)| l.as_str()) != Some("card03") {
+            session.grade(&mut state.deck, &params, Rating::Good, 1);
+        }
+        let edit = CardEdit {
+            form: "card three,",
+            gloss: "carte trois",
+            shown_gloss: None,
+            native: "fr",
+            now: 9_000_000,
+        };
+        session
+            .edit(&mut state.deck, &mut state.knowledge, &edit, &|_| None)
+            .expect("accepted");
+        let backup = state.to_backup();
+        assert_eq!(state.backup_version(), 1, "no schema version moves");
+
+        let mut restored = LinguaState::from_backup(&backup).expect("restore");
+        assert_eq!(restored.deck.len(), 20);
+        assert_eq!(restored.deck.removed_at(EN, "card03"), Some(9_000_000));
+        let renamed = restored.deck.get(EN, "card three").expect("renamed");
+        assert_eq!(renamed.gloss.as_deref(), Some("carte trois"));
+        assert!(renamed.gloss_by_reader);
+        // An older copy of the removed card is refused, as by the original deck.
+        let mut older = renamed.clone();
+        older.lemma = "card03".to_owned();
+        older.updated_at = 8_000_000;
+        assert!(!restored.deck.apply_card_lww(EN, older));
+        assert!(restored.deck.get(EN, "card03").is_none());
+
+        // A build released before: its deck denies no unknown field, so it restores the cards.
+        type Cards = BTreeMap<StudiedLanguage, BTreeMap<String, Card>>;
+        #[derive(Deserialize)]
+        struct OlderDeck {
+            cards: Cards,
+        }
+        #[derive(Deserialize)]
+        struct OlderState {
+            deck: OlderDeck,
+        }
+        let read: OlderState = serde_json::from_str(&backup).expect("a previous build reads it");
+        assert!(read.deck.cards[&EN].contains_key("card three"));
+        assert_eq!(read.deck.cards[&EN].len(), 20);
     }
 
     #[test]

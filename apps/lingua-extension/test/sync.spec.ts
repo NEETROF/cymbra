@@ -78,6 +78,7 @@ interface WireCard {
   clientId: string;
   language?: string;
   glossLanguage?: string;
+  glossByReader?: boolean;
   lemma: string;
   surfaceForm: string;
   sourceSentence: string;
@@ -177,6 +178,7 @@ describe("SyncEngine", () => {
           sourceSentence: "s",
           gloss: "rarement",
           glossLanguage: "", // an absent label goes as empty, which the server reads as French
+          glossByReader: false, // not written by the reader (add-lingua-card-edit D5)
           fsrsState: "{}",
           deleted: false,
           clientTs: 1800n,
@@ -1172,5 +1174,81 @@ describe("SyncEngine — the app's host seam (add-lingua-app-deck-sync D1, D8)",
     release();
     await running;
     expect(calls.restored).toEqual(["AFTER"]);
+  });
+});
+
+describe("SyncEngine and a card's edits (add-lingua-card-edit D5, D7)", () => {
+  const op = (lemma: string, over: Partial<CardOp> = {}): CardOp => ({
+    client_id: lemma,
+    language: "en",
+    lemma,
+    surface_form: lemma,
+    source_sentence: "",
+    source: "",
+    gloss: "",
+    fsrs_state: "{}",
+    deleted: false,
+    client_ts: 300_000,
+    device_id: "",
+    ...over,
+  });
+  const wire = (lemma: string, over: Partial<WireCard> = {}): WireCard => ({
+    clientId: lemma,
+    language: "en",
+    lemma,
+    surfaceForm: lemma,
+    sourceSentence: "",
+    source: "",
+    gloss: "",
+    fsrsState: "",
+    deleted: false,
+    clientTs: 300_000n,
+    deviceId: "other",
+    ...over,
+  });
+
+  it("pushes a rename as the new card, marked, and the old one deleted — from the app's own ops too", async () => {
+    const renamed = [
+      op("referred to as", { gloss: "dénommé", gloss_by_reader: true }),
+      op("colloquially", { deleted: true }),
+    ];
+    for (const host of ["extension", "app"] as const) {
+      const { port } = syncPort({ cardOps: host === "extension" ? renamed : [] });
+      const f = fakeClients();
+      const engine = new SyncEngine({
+        port,
+        storage: fakeArea(v2("BACKUP")),
+        clients: () => f.clients,
+        deviceId: host,
+        ...(host === "app" ? { ops: async () => ({ cards: renamed, statuses: [] }), pushStats: false } : {}),
+      });
+      await engine.sync();
+      const [request] = f.pushCards.mock.calls[0] as unknown as [{ cards: Record<string, unknown>[] }];
+      expect(request.cards.map((c) => [c.clientId, c.glossByReader, c.deleted])).toEqual([
+        ["referred to as", true, false],
+        ["colloquially", false, true],
+      ]);
+    }
+  });
+
+  it("applies a pulled card with its mark and a pulled removal", async () => {
+    const f = fakeClients();
+    f.pullCards.mockResolvedValueOnce({
+      cards: [
+        wire("referred to as", { gloss: "dénommé", glossByReader: true }),
+        wire("colloquially", { deleted: true }),
+        wire("plain"),
+      ],
+      cursor: 11n,
+    });
+    const { port, calls } = syncPort({ onApplyCards: (c) => c.length });
+    const engine = new SyncEngine({ port, storage: fakeArea(v2("BACKUP")), clients: () => f.clients, deviceId: "dev" });
+    await engine.sync();
+    const applied = calls.appliedCards.flat();
+    expect(applied.map((c) => [c.lemma, c.gloss_by_reader, c.deleted])).toEqual([
+      ["referred to as", true, false],
+      ["colloquially", undefined, true],
+      ["plain", undefined, false],
+    ]);
   });
 });

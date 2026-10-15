@@ -134,6 +134,16 @@ export interface DeclaredLevelOp {
   updated_at: number; // epoch millis
 }
 
+/** Why the engine refused an edit (add-lingua-card-edit D3): each said in the interface language. */
+export type ReviewEditError = "empty" | "form_too_long" | "gloss_too_long";
+
+/**
+ * What `reviewEdit` did: whether anything was written, the card merged into (its lemma, as the deck
+ * spells it), whether the card left the session; or why it was refused, nothing changed.
+ */
+export type ReviewEditResult =
+  { ok: true; changed: boolean; merged?: string; retired?: boolean } | { ok: false; error: ReviewEditError };
+
 /** One exported whole-card op, from `exportCardOps` (also the apply shape). */
 export interface CardOp {
   client_id: string;
@@ -149,7 +159,17 @@ export interface CardOp {
    * means `fr`. The sync client sends it from `add-lingua-native-language-sync-client`.
    */
   gloss_language?: string;
+  /**
+   * Whether the reader wrote or chose the gloss (add-lingua-review-translation-fallback D6,
+   * add-lingua-card-edit D5): emitted by `exportCardOps` only when set, read by `applyCardOps` —
+   * absent means not. Synchronised as `CardOp.gloss_by_reader`.
+   */
+  gloss_by_reader?: boolean;
   fsrs_state: string; // opaque JSON
+  /**
+   * A card an edit removed (add-lingua-card-edit D7): `exportCardOps` sends one per removal,
+   * stamped with its time; `applyCardOps` removes the local card unless it changed after.
+   */
   deleted: boolean;
   client_ts: number; // epoch millis
   device_id: string;
@@ -267,6 +287,12 @@ export interface LinguaPort {
   /** Hide the current card's word from review — « Ne plus me le montrer »: ignored, card retired,
    *  not deleted — and advance (refine-lingua-review-session D5). */
   reviewIgnore(now: number): Promise<void>;
+  /**
+   * Edit the current card — its word or expression and its translation, as the reader saved them
+   * (add-lingua-card-edit D3, D10); `now` in epoch seconds. Not an answer: the card stays current
+   * and revealed, unless its new form is known or ignored, which retires it and moves on.
+   */
+  reviewEdit(form: string, gloss: string, now: number): Promise<ReviewEditResult>;
   /** What the current session has done, or null when none was started. */
   reviewSummary(): Promise<ReviewSummary | null>;
   /** The whole state as a lossless, versioned backup string. */

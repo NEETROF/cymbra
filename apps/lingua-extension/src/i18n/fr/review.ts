@@ -60,6 +60,20 @@ export const review = {
   keepFieldLabel: "Traduction à garder",
   keepSave: "Enregistrer",
   keepCancel: "Annuler",
+  /**
+   * Editing the card under review (add-lingua-card-edit D1–D3, D6): the link — « la carte », so it is
+   * never read as the keep action's « Modifier » —, the form's two fields and buttons, its refusals,
+   * and the note a merge leaves once.
+   */
+  edit: "Modifier la carte",
+  editForm: "Mot ou expression",
+  editGloss: "Traduction",
+  editSave: "Enregistrer",
+  editCancel: "Annuler",
+  editEmpty: "Écrivez un mot ou une expression.",
+  editFormTooLong: "120 caractères au plus.",
+  editGlossTooLong: "200 caractères au plus.",
+  editMerged: (form: string) => `Réunie avec la carte « ${form} » déjà dans vos révisions.`,
   /** Ending the session under way, beside the count of cards remaining (add-lingua-review-stop-session). */
   end: "Terminer",
   endLabel: "Terminer la séance",

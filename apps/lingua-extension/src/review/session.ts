@@ -1,4 +1,11 @@
-import type { LinguaPort, Rating, ReviewCard, ReviewOptions, ReviewSummary } from "../analyzer/port.ts";
+import type {
+  LinguaPort,
+  Rating,
+  ReviewCard,
+  ReviewEditResult,
+  ReviewOptions,
+  ReviewSummary,
+} from "../analyzer/port.ts";
 import type { StudiedLanguage } from "../analyzer/types.ts";
 import { DEFAULT_NEW_WORDS_PER_DAY } from "../state/storage.ts";
 
@@ -137,6 +144,30 @@ export class ReviewController {
     await this.port.for(card.language ?? "en").keepGloss(card.headword, gloss, this.now());
     this.card = await this.port.reviewCurrent();
     return this.view();
+  }
+
+  /**
+   * Edit the current card — its word or expression and its translation, as the reader saved them
+   * (add-lingua-card-edit D10). Not an answer: nothing is counted, the card stays current and is read
+   * again, its showings carried to its new form; a card whose new form is known or ignored leaves the
+   * session, and the next card arrives. The engine's answer says what it did, or why it refused.
+   */
+  async edit(form: string, gloss: string): Promise<{ view: ReviewView; result: ReviewEditResult }> {
+    const card = this.card;
+    if (!card) return { view: this.view(), result: { ok: true, changed: false } };
+    const result = await this.port.reviewEdit(form, gloss, this.now());
+    if (result.ok && result.retired) {
+      await this.next();
+    } else if (result.ok && result.changed) {
+      this.card = await this.port.reviewCurrent();
+      const [from, to] = [showingKey(card), this.card ? showingKey(this.card) : null];
+      const shown = this.showings.get(from);
+      if (to && to !== from && shown !== undefined) {
+        this.showings.delete(from);
+        this.showings.set(to, Math.max(shown, this.showings.get(to) ?? 0));
+      }
+    }
+    return { view: this.view(), result };
   }
 
   /**

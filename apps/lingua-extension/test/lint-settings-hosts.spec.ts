@@ -193,6 +193,20 @@ function plainTexts(value: unknown): string[] {
   return [];
 }
 
+/**
+ * Texts that spell a title without being one, by module and key: the review's edit form labels its
+ * field « Traduction » (add-lingua-card-edit D2), a field's label, not the Réglages block's title.
+ */
+const NOT_TITLES: Record<string, readonly string[]> = { review: ["editGloss"] };
+
+/** A module's texts, the keys of NOT_TITLES left out. */
+function catalogueTexts(path: string, module: Catalogue): string[] {
+  const skipped = NOT_TITLES[path.replace(/^.*\/|\.ts$/g, "")] ?? [];
+  return Object.values(module).flatMap((catalogue) =>
+    plainTexts(Object.fromEntries(Object.entries(catalogue as Catalogue).filter(([key]) => !skipped.includes(key)))),
+  );
+}
+
 describe("the block titles, once per language in the catalogue", () => {
   for (const language of ["fr", "en", "es"] as const satisfies readonly InterfaceLanguage[]) {
     const own = (name: string): Catalogue =>
@@ -204,7 +218,7 @@ describe("the block titles, once per language in the catalogue", () => {
       const elsewhere = Object.entries(modules)
         .filter(([path]) => path.startsWith(`../src/i18n/${language}/`) && !path.endsWith("/settings.ts"))
         .flatMap(([path, module]) =>
-          plainTexts(module)
+          catalogueTexts(path, module)
             .filter((text) => languageTitles.includes(text))
             .map((text) => `${path}: « ${text} »`),
         );

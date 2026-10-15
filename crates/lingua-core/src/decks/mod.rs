@@ -33,5 +33,6 @@ pub use card::{Card, EncounterSource, Media, MediaSource, Provenance, SyncPolicy
 pub use fsrs::{FsrsParams, Memory, Rating, ReviewState};
 pub use outlook::{LanguageOutlook, OUTLOOK_VERSION, ReviewOutlook, UPCOMING_MAX};
 pub use review::{
-    Deck, NewCardAllowance, ReviewSession, SESSION_CARDS, SessionOptions, SessionSummary,
+    CardEdit, Deck, EditError, EditOutcome, NewCardAllowance, ReviewSession, SESSION_CARDS,
+    SessionOptions, SessionSummary,
 };

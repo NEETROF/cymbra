@@ -13,7 +13,7 @@ able to correct it.
 
 ## What Changes
 
-- **A « Modifier » link on the review card** (French UI copy), beside « Je connais » and
+- **A « Modifier la carte » link on the review card** (French UI copy), beside « Je connais » and
   « Ne plus me le montrer », in every review host: the extension drawer, Chrome's side panel,
   Firefox, Safari and the Cymbra Lingua app. Choosing it shows the answer, if it was hidden,
   and opens an inline form with two fields — the word or expression (the card's dictionary

@@ -7,6 +7,7 @@ import type {
   NewWordAllowance,
   Rating,
   ReviewCard,
+  ReviewEditResult,
   ReviewOptions,
   ReviewSummary,
   StatusChangeIn,
@@ -82,6 +83,7 @@ interface WasmEngine {
   reviewGrade(rating: string, now: number): boolean;
   reviewMarkKnown(now: number): void;
   reviewIgnore(now: number): void;
+  reviewEdit(form: string, gloss: string, now: number): string;
   reviewSummary(): string | undefined;
   reviewSnapshot(): string | undefined;
   reviewResume(json: string): boolean;
@@ -415,6 +417,10 @@ export class WasmAnalyzerPort implements LinguaPort {
 
   async reviewIgnore(now: number): Promise<void> {
     (await this.engine()).reviewIgnore(now);
+  }
+
+  async reviewEdit(form: string, gloss: string, now: number): Promise<ReviewEditResult> {
+    return JSON.parse((await this.engine()).reviewEdit(form, gloss, now)) as ReviewEditResult;
   }
 
   async reviewSummary(): Promise<ReviewSummary | null> {
