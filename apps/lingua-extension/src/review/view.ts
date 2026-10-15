@@ -16,6 +16,7 @@ import {
 import { withoutEdgePunctuation } from "../reading/selection.ts";
 import { sameSpokenText, type Speaker } from "../reading/speech.ts";
 import { type ReviewView, SESSION_CARDS } from "./session.ts";
+import { checkEdit, type EditRefusal, FORM_MAX_UNITS, GLOSS_MAX_UNITS } from "./edit.ts";
 import { keepable, keepCandidate, KEEP_MAX_UNITS, type ReviewTranslation } from "./translation.ts";
 
 // The review render — one function every review host (the side panel and the injected drawer)
@@ -54,6 +55,25 @@ export interface ReviewActions {
   ignore(): void;
   /** End the session under way (add-lingua-review-stop-session); a host without it offers no link. */
   end?(): void;
+  /** Edit the card under review (add-lingua-card-edit); a host without it offers no link. */
+  edit?: ReviewEditActions;
+}
+
+/** Editing the card under review (add-lingua-card-edit D1, D2). */
+export interface ReviewEditActions {
+  /** « Modifier la carte »: reveal the card if it is hidden, and open the form. */
+  open(): void;
+  /** Save the two fields, as typed: the engine checks and normalises them. */
+  save(form: string, gloss: string): void;
+  /** Close the form, nothing written. */
+  cancel(): void;
+}
+
+/** The edit form, open: what to show again after a refusal, and the refusal. Absent: closed. */
+export interface ReviewEditing {
+  form?: string;
+  gloss?: string;
+  refusal?: EditRefusal;
 }
 
 /** How a host has the review painted. */
@@ -95,6 +115,15 @@ export interface ReviewRenderOptions {
    * (add-lingua-review-translation-fallback D12). Absent: the note alone.
    */
   hint?: ReviewTranslationHint;
+  /**
+   * The edit form, open in place of the answer and the answers (add-lingua-card-edit D2). Absent:
+   * the card as usual.
+   */
+  editing?: ReviewEditing;
+  /** The card the last edit merged this one into, said once in the answer space (D6). */
+  merged?: string;
+  /** The engine's native language: the translation field's `lang` (D2). */
+  nativeLanguage?: string;
   /**
    * The rating request at the end of a session (add-lingua-comeback-hints D10): one sentence and
    * three actions, below the end's own, which stay first. Absent: none — the review page decides.
@@ -196,8 +225,10 @@ export function renderReview(
 function onKey(e: KeyboardEvent, root: HTMLElement, view: ReviewView, actions: ReviewActions): void {
   const card = view.phase === "reviewing" ? view.card : null;
   if (!card || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
-  // The keep field's own keys: typing never answers the card.
-  if ((e.target as HTMLElement | null)?.tagName === "INPUT") return;
+  // The keep field's and the edit form's own keys: typing, or a button of the form, never answers
+  // the card (add-lingua-card-edit D2).
+  const from = e.target as HTMLElement | null;
+  if (from?.tagName === "INPUT" || from?.closest?.("form")) return;
   let act: (() => void) | null = null;
   if (!card.revealed && (e.key === " " || e.key === "Enter")) {
     // A link or another button keeps its own Space and Enter.
@@ -269,10 +300,19 @@ function cardView(
   };
   main.append(...listen(frontListens(card, copy)));
 
+  // Editing: the form takes the answer's place and the answers', the sentence still in view (D2).
+  if (opts.editing && actions.edit) {
+    const wrap = div("review-reviewing");
+    wrap.append(main, editForm(card, opts.editing, actions.edit, opts.nativeLanguage, copy));
+    return wrap;
+  }
+
   // The answer's space, there from the start: revealing fills it and moves nothing else.
   const answer = div("review-answer");
   answer.setAttribute("aria-live", "polite");
   if (card.revealed) {
+    // Said once, after the save that merged it (add-lingua-card-edit D6).
+    if (opts.merged) answer.append(note(copy.editMerged(opts.merged), "review-merged"));
     // The dictionary form, when the sentence shows another one — both read without their edge
     // punctuation, so `four-poster bed,` is not offered as the form of `four-poster bed`.
     const otherForm = marked !== null && marked.text.toLowerCase() !== headword.toLowerCase();
@@ -311,6 +351,11 @@ function cardView(
     button(copy.markKnown, "review-link review-known", () => actions.markKnown()),
     button(copy.hide, "review-link review-hide", () => actions.ignore()),
   );
+  // Before and after the reveal alike, so the zone keeps its size (add-lingua-card-edit D1).
+  if (actions.edit) {
+    const edit = actions.edit;
+    links.append(button(copy.edit, "review-link review-edit-card", () => edit.open()));
+  }
   const bar = div("review-bar");
   bar.append(answers, links);
 
@@ -569,6 +614,110 @@ function keepField(prefill: string, keep: (gloss: string) => void, copy: ReviewC
   form.append(input, save, button(copy.keepCancel, "review-link review-keep-cancel", cancel));
   queueMicrotask(() => input.focus({ preventScroll: true }));
   return form;
+}
+
+/** Each edit form's fields get ids of their own, for their labels and their errors. */
+let editForms = 0;
+
+/**
+ * The edit form (add-lingua-card-edit D2): the word or expression, filled with the card's dictionary
+ * form, and its translation, filled with the gloss the review shows — never a machine translation —;
+ * « Enregistrer » and « Annuler ». Enter saves, Escape cancels. A refusal is said under its field,
+ * tied to it, and saves nothing; the page checks as the engine does, so it seldom has to answer.
+ */
+function editForm(
+  card: ReviewCard,
+  editing: ReviewEditing,
+  actions: ReviewEditActions,
+  nativeLanguage: string | undefined,
+  copy: ReviewCopy,
+): HTMLElement {
+  const id = `review-edit-${++editForms}`;
+  const form = document.createElement("form");
+  form.className = "review-edit";
+  form.noValidate = true;
+  const field = (
+    name: "form" | "gloss",
+    label: string,
+    value: string,
+    max: number,
+    lang: string | undefined,
+  ): { box: HTMLElement; input: HTMLInputElement; error: HTMLElement } => {
+    const box = div("review-edit-field");
+    const caption = document.createElement("label");
+    caption.className = "review-edit-label";
+    caption.htmlFor = `${id}-${name}`;
+    caption.textContent = label;
+    const input = document.createElement("input");
+    input.type = "text";
+    input.id = `${id}-${name}`;
+    input.className = `review-edit-input review-edit-${name}`;
+    input.value = value;
+    input.maxLength = max;
+    if (lang) input.lang = lang;
+    input.enterKeyHint = "done";
+    // On a phone, the field in view above the keyboard.
+    input.addEventListener("focus", () => input.scrollIntoView?.({ block: "nearest" }));
+    const error = div("review-edit-error");
+    error.id = `${id}-${name}-error`;
+    error.hidden = true;
+    box.append(caption, input, error);
+    return { box, input, error };
+  };
+  const word = field("form", copy.editForm, editing.form ?? card.headword, FORM_MAX_UNITS, card.language ?? "en");
+  // A form is not a sentence of the reader's: no capital, no correction, no spelling marks.
+  word.input.setAttribute("autocapitalize", "none");
+  word.input.setAttribute("autocorrect", "off");
+  word.input.spellcheck = false;
+  const gloss = field("gloss", copy.editGloss, editing.gloss ?? card.gloss ?? "", GLOSS_MAX_UNITS, nativeLanguage);
+  const fields = { form: word, gloss };
+
+  const refuse = (refusal: EditRefusal | null): void => {
+    for (const [name, { input, error }] of Object.entries(fields)) {
+      const mine = refusal?.field === name;
+      error.hidden = !mine;
+      error.textContent = mine ? refusalText(refusal.error, copy) : "";
+      if (mine) {
+        input.setAttribute("aria-invalid", "true");
+        input.setAttribute("aria-describedby", error.id);
+      } else {
+        input.removeAttribute("aria-invalid");
+        input.removeAttribute("aria-describedby");
+      }
+    }
+  };
+  refuse(editing.refusal ?? null);
+
+  const save = document.createElement("button");
+  save.type = "submit";
+  save.className = "review-btn primary review-edit-save";
+  save.textContent = copy.editSave;
+  const actionsRow = div("review-edit-actions");
+  actionsRow.append(
+    save,
+    button(copy.editCancel, "review-btn review-edit-cancel", () => actions.cancel()),
+  );
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const refusal = checkEdit(word.input.value, gloss.input.value);
+    refuse(refusal);
+    if (refusal) fields[refusal.field].input.focus();
+    else actions.save(word.input.value, gloss.input.value);
+  });
+  form.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    e.preventDefault();
+    e.stopPropagation();
+    actions.cancel();
+  });
+  form.append(word.box, gloss.box, actionsRow);
+  const first = editing.refusal ? fields[editing.refusal.field].input : word.input;
+  queueMicrotask(() => first.focus({ preventScroll: true }));
+  return form;
+}
+
+function refusalText(error: EditRefusal["error"], copy: ReviewCopy): string {
+  return error === "empty" ? copy.editEmpty : error === "form_too_long" ? copy.editFormTooLong : copy.editGlossTooLong;
 }
 
 /** An expression is not a word: its missing translation says so. */

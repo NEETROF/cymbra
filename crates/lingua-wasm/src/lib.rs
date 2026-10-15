@@ -34,11 +34,11 @@
 use lingua_core::analysis::language::{StudiedLanguage, detect_document_language};
 use lingua_core::decks::backup::LinguaState;
 use lingua_core::decks::card::{
-    Card, EncounterSource, FRENCH, Provenance, gloss_language_or_french,
+    Card, EncounterSource, FRENCH, Provenance, gloss_language_or_french, without_edge_punctuation,
 };
 use lingua_core::decks::fsrs::{Rating, ReviewState};
 use lingua_core::decks::outlook::ReviewOutlook;
-use lingua_core::decks::review::{NewCardAllowance, ReviewSession, SessionOptions};
+use lingua_core::decks::review::{CardEdit, NewCardAllowance, ReviewSession, SessionOptions};
 use lingua_core::engine::{
     analyse_page_json, french_expression_key, gloss_phrase_json, reading_expression_key,
     word_grammar_json,
@@ -140,17 +140,24 @@ fn fresh_state(packs: &PackSet) -> LinguaState {
 /// not that of `hacer tiempo`, which wins the key. A card whose lemma is itself a key — the
 /// winner's name (`hacer tiempo`), a lemma chain (`bueno día`) — is read there, as before.
 fn readable_gloss(pack: Option<&Pack>, card: &Card) -> Option<String> {
-    let lemma = card.lookup_lemma();
-    pack.and_then(|pack| {
-        if !lemma.contains(' ') {
-            if pack.studied() == StudiedLanguage::French
-                && let Some(gloss) = french_expression_key(lemma, pack.lexicon())
-                    .and_then(|key| pack.expression_gloss_named(&key, lemma))
-            {
-                return Some(gloss);
-            }
-            return pack.gloss(lemma);
+    pack.and_then(|pack| pack_gloss(pack, &card.lemma))
+        .or_else(|| card.gloss.clone())
+}
+
+/// The pack's gloss for `lemma`, read as [`readable_gloss`] reads a card's lemma — without its
+/// edge punctuation, a word's gloss or an expression's from the expression table — or `None`
+/// where the pack has none: what an edit looks up for a new form (add-lingua-card-edit D4).
+fn pack_gloss(pack: &Pack, lemma: &str) -> Option<String> {
+    let lemma = without_edge_punctuation(lemma);
+    let gloss = if !lemma.contains(' ') {
+        if pack.studied() == StudiedLanguage::French
+            && let Some(gloss) = french_expression_key(lemma, pack.lexicon())
+                .and_then(|key| pack.expression_gloss_named(&key, lemma))
+        {
+            return Some(gloss.to_owned());
         }
+        pack.gloss(lemma)
+    } else {
         match pack.studied() {
             StudiedLanguage::French => french_expression_key(lemma, pack.lexicon())
                 .and_then(|key| pack.expression_gloss_named(&key, lemma)),
@@ -160,9 +167,8 @@ fn readable_gloss(pack: Option<&Pack>, card: &Card) -> Option<String> {
             }),
             StudiedLanguage::English => pack.expression(lemma),
         }
-    })
-    .map(str::to_owned)
-    .or_else(|| card.gloss.clone())
+    };
+    gloss.map(str::to_owned)
 }
 
 /// The gloss `reviewCurrent` shows for `card` (add-lingua-review-translation-fallback D5), for
@@ -815,7 +821,9 @@ impl LinguaEngine {
     /// and only the local backup keeps it. `gloss_language` is the language the gloss is
     /// written in (add-lingua-card-gloss-language D2), left out when it is `fr` as the backup
     /// leaves it, so the baselines' export keeps its bytes; the sync client sends it from
-    /// `add-lingua-native-language-sync-client`.
+    /// `add-lingua-native-language-sync-client`. After the cards, every card an edit removed, as
+    /// a `deleted: true` op stamped with its removal time, its other fields empty
+    /// (add-lingua-card-edit D7).
     #[wasm_bindgen(js_name = exportCardOps)]
     pub fn export_card_ops(&self) -> String {
         let ops: Vec<serde_json::Value> = self
@@ -847,15 +855,38 @@ impl LinguaEngine {
                 }
                 op
             })
+            .chain(
+                // The cards an edit removed (add-lingua-card-edit D7), after the cards: a deck
+                // without an edit exports exactly as before.
+                self.state
+                    .deck
+                    .export_removals()
+                    .into_iter()
+                    .map(|(language, lemma, at)| {
+                        serde_json::json!({
+                            "client_id": lemma,
+                            "language": language.tag(),
+                            "lemma": lemma,
+                            "surface_form": "",
+                            "source_sentence": "",
+                            "source": "",
+                            "gloss": "",
+                            "fsrs_state": "",
+                            "deleted": true,
+                            "client_ts": at * 1000,
+                            "device_id": "",
+                        })
+                    }),
+            )
             .collect();
         serde_json::to_string(&ops).unwrap_or_else(|_| "[]".to_owned())
     }
 
     /// Apply a batch of pulled `CardOp`s (JSON array) under last-write-wins.
-    /// Returns how many changed local state. `deleted` ops are skipped — card
-    /// deletion is not an MVP feature (mark-known retires a card, it does not
-    /// remove it), and the tombstones a correct delete would need arrive with the
-    /// change that adds deletion. `captured_at` has no wire field, so a first-seen
+    /// Returns how many changed local state. A `deleted` op is a card an edit removed
+    /// (add-lingua-card-edit D7): the local card goes unless it changed after the removal, and
+    /// the removal is recorded either way, so an older copy is refused afterwards; a newer card
+    /// brings it back. `captured_at` has no wire field, so a first-seen
     /// card takes the op timestamp as a proxy; the deck preserves it thereafter, and
     /// keeps the local page address when the op carries none (it never does now).
     #[wasm_bindgen(js_name = applyCardOps)]
@@ -868,27 +899,36 @@ impl LinguaEngine {
             let Ok(language) = self.packs.resolve(Some(tag)).map(|(l, _)| l) else {
                 continue; // a language this engine holds no pack for
             };
-            if op
-                .get("deleted")
-                .and_then(serde_json::Value::as_bool)
-                .unwrap_or(false)
-            {
-                continue; // deletion + tombstones are a future change
-            }
             let lemma = op
                 .get("lemma")
-                .or_else(|| op.get("client_id"))
                 .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .or_else(|| op.get("client_id").and_then(|v| v.as_str()))
                 .unwrap_or("");
             if lemma.is_empty() {
                 continue;
             }
-            let str_field = |k: &str| op.get(k).and_then(|v| v.as_str()).unwrap_or("").to_owned();
             let client_ts = op
                 .get("client_ts")
                 .and_then(serde_json::Value::as_i64)
                 .unwrap_or(0);
             let updated_at = client_ts / 1000; // wire millis → the deck's second-based unit
+            // A card an edit removed (add-lingua-card-edit D7): removed here unless changed after.
+            if op
+                .get("deleted")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false)
+            {
+                if self
+                    .state
+                    .deck
+                    .apply_card_removal_lww(language, lemma, updated_at)
+                {
+                    changed += 1;
+                }
+                continue;
+            }
+            let str_field = |k: &str| op.get(k).and_then(|v| v.as_str()).unwrap_or("").to_owned();
             let gloss = op
                 .get("gloss")
                 .and_then(|v| v.as_str())
@@ -1317,6 +1357,56 @@ impl LinguaEngine {
         if let Some(session) = self.session.as_mut() {
             session.ignore(&mut self.state.deck, &mut self.state.knowledge, now as i64);
         }
+    }
+
+    /// Edits the card under review (add-lingua-card-edit D3, D10): `form` and `gloss` as the
+    /// reader saved them, `now` in epoch seconds. The translation field was filled with the gloss
+    /// `reviewCurrent` shows, so a `gloss` equal to it is left as it was; the new form's gloss is
+    /// read in the pack of the card's language as review reads a lemma. Answers JSON, never a raw
+    /// message: `{ ok: true, changed, merged?, retired? }` — `merged` the lemma of the card it
+    /// was merged into, `retired` when its new form is known or ignored and the session moved
+    /// on — or `{ ok: false, error: "empty" | "form_too_long" | "gloss_too_long" }`, nothing
+    /// changed. Without a card under review, `{ ok: true, changed: false }`.
+    #[wasm_bindgen(js_name = reviewEdit)]
+    pub fn review_edit(&mut self, form: &str, gloss: &str, now: f64) -> String {
+        let unchanged = serde_json::json!({ "ok": true, "changed": false }).to_string();
+        let Some(session) = self.session.as_mut() else {
+            return unchanged;
+        };
+        let Some((language, _)) = session.current_key().cloned() else {
+            return unchanged;
+        };
+        let pack = self.packs.get(language);
+        let shown = session
+            .current(&self.state.deck)
+            .and_then(|card| review_gloss(pack, card));
+        let edit = CardEdit {
+            form,
+            gloss,
+            shown_gloss: shown.as_deref(),
+            native: self.packs.native().tag(),
+            now: now as i64,
+        };
+        let lookup = |lemma: &str| pack.and_then(|pack| pack_gloss(pack, lemma));
+        let answer = match session.edit(
+            &mut self.state.deck,
+            &mut self.state.knowledge,
+            &edit,
+            &lookup,
+        ) {
+            Ok(outcome) => {
+                let mut answer = serde_json::json!({ "ok": true, "changed": outcome.changed });
+                if let Some(merged) = outcome.merged {
+                    answer["merged"] = merged.into();
+                }
+                if outcome.retired {
+                    answer["retired"] = true.into();
+                }
+                answer
+            }
+            Err(error) => serde_json::json!({ "ok": false, "error": error.wire() }),
+        };
+        answer.to_string()
     }
 
     /// The session under way as text, or `undefined` without one: what a background page the

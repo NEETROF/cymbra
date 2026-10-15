@@ -64,9 +64,10 @@ See proposal.md for the why. What exists:
 
 ## Decisions
 
-### D1 — « Modifier » is always on the card; choosing it reveals the answer
+### D1 — « Modifier la carte » is always on the card; choosing it reveals the answer
 
-A third link, « Modifier » (French UI copy; « Edit », « Editar »), sits in the links row with
+A third link, « Modifier la carte » (French UI copy; « Edit card », « Editar la tarjeta » — renamed
+from « Modifier » at implementation, see A2), sits in the links row with
 « Je connais » and « Ne plus me le montrer », before and after the reveal. Before the reveal,
 choosing it reveals the card — exactly as « Afficher la réponse » does, the reveal recorded in
 the session — and opens the form in the same repaint.
@@ -316,3 +317,63 @@ errors.
 Rollback: an older extension reads backups and ops carrying the new fields and ignores them; it
 re-shows nothing removed on its own device, and drops the mark at its next save. The column can
 stay.
+
+## Adaptations at implementation (2026-10-15)
+
+What landed on `main` between the proposal (#942) and its implementation, and what the
+implementation settled; the decisions above stand except where a line here says otherwise.
+
+- **A1 — The reader's mark already existed.** `add-lingua-review-translation-fallback` (#948, #944)
+  landed `Card.gloss_by_reader` (serde default, left out when `false`), `Deck::keep_gloss`, the echo
+  rule of D4 in `apply_card_lww`, `exportCardOps`/`applyCardOps` carrying `gloss_by_reader`,
+  `CardOp.gloss_by_reader = 13` in `deck.proto`, migration `0008_lingua_card_gloss_by_reader.sql`
+  (deployed in production) with `pg_deck.rs` storing and returning it, and the review precedence of
+  D4 (`review_gloss`: the reader's gloss, else the pack's at the lemma trimmed of its edge
+  punctuation, else the stored text). This change reuses all of it: no second field, no second
+  migration, no proto change. D5's server bullet and step 1 of the migration plan are done.
+- **A2 — The link says « Modifier la carte ».** The review card already carries a « Modifier » since
+  #948: the keep action's, beside « Garder « … » », which opens the field to edit the translation to
+  keep. Two « Modifier » on one card would edit two different things. The card edit's link is
+  « Modifier la carte » (« Edit card », « Editar la tarjeta »): it names its object, and the keep
+  action keeps its own « Modifier » for the candidate. Making the keep row's « Modifier » open the
+  card form instead was weighed and left out: it would change a shipped, dogfooded gesture and mix
+  a machine translation into the form D2 keeps it out of.
+- **A3 — No server change.** The server already stores a `deleted` card op as a tombstone row
+  keyed by (user, language, client id), last-write-wins by `updated_at` then `device_id`
+  (`pg_deck.rs`), returns it on pull, and lets a newer upsert bring the key back
+  (`backend/lingua/src/deck.rs` tests). Clients only had to send and apply it.
+- **A4 — The extension's sync client sends the mark.** #948 left the TypeScript sync client
+  (`src/sync/sync.ts`) without `glossByReader`: it now pushes `gloss_by_reader` as field 13 and maps
+  it back on pull, and pulled `deleted` ops reach `applyCardOps`, which applies them through
+  `Deck::apply_card_removal_lww` instead of skipping them.
+- **A5 — The app's own path.** Since #957 the Cymbra Lingua app synchronises directly
+  (`src/app/deck-sync.ts`, `SyncEngine` with `ops` = the app's pending ops). Those ops are
+  `appOpsSince`, i.e. the engine's `exportCardOps` and `exportStatusOps` filtered by time: the removal
+  (a `deleted` op stamped with the edit's time), the renamed card with its mark and the cleared and
+  new statuses reach the server through the app's sync and the extension through the App Group
+  relay, without any change to either path's shape.
+- **A6 — Edge punctuation, one rule.** `fix-lingua-selection-card-punctuation` landed first:
+  `without_edge_punctuation` (lingua-core) and `withoutEdgePunctuation` (`src/reading/selection.ts`)
+  are called, not reintroduced. Lengths are counted in UTF-16 code units — JavaScript's `length`, as
+  capture's `MAX_SELECTION_LENGTH` and the keep action's bound count —, in the engine and the page.
+- **A7 — The binding's answer.** `reviewEdit` answers `{ ok: true, changed, merged?, retired? }` or
+  `{ ok: false, error }`: `changed: false` for a save that changes nothing, so the page persists only
+  a change, and `retired` when the new form is known or ignored. The prefill and the "left as it was"
+  test both read the gloss `reviewCurrent` shows (`review_gloss`), computed by the binding.
+- **A8 — D4 step 3, made precise.** "The card's previous text stays" is the text the reader saw in
+  the field: when the review showed the pack's gloss of the old form over a stored text in another
+  language, that shown text is kept, labelled with the native language; when it is the stored text,
+  the card keeps it with its label.
+- **A9 — Where the code lives.** The edit is `ReviewSession::edit` in
+  `crates/lingua-core/src/decks/review/edit.rs` (a child module of `review`, so it re-keys the session
+  in place), the pack lookup handed in as a closure; `lingua-wasm`'s `readable_gloss` is split so
+  `pack_gloss` reads a pack at any lemma. The deck's removals serialise as `tombstones`, left out when
+  empty; a removal's language counts among the backup's record languages, so a removal in French
+  writes version 3 as a French card does.
+- **A10 — The form while open.** It takes the place of the answer *and* of the whole action bar,
+  links included (D2). The translation field's `lang` is the engine's native language, read once
+  from `LinguaPort.nativeLanguage()`. The fields carry `maxlength` 120 and 200 as D2 says; the
+  page's check (`src/review/edit.ts`) and the engine's still refuse a longer value, which a refused
+  save shows again. The catalogue lint that keeps Réglages' block titles out of other modules
+  (`test/lint-settings-hosts.spec.ts`) exempts `review.editGloss`, the field label « Traduction », by
+  name.

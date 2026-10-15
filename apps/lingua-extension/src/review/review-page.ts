@@ -28,6 +28,7 @@ import {
 import { watchBackup } from "../state/store.ts";
 import type { TranslatorSource } from "../translate/create-port.ts";
 import type { OnlineTranslationRequest, OnlineTranslationResult } from "../translate/online.ts";
+import { refusalOf } from "./edit.ts";
 import {
   afterSession,
   answer as answerRequest,
@@ -50,6 +51,7 @@ import {
 } from "./translation.ts";
 import {
   type ReviewActions,
+  type ReviewEditing,
   type ReviewOnlineOffer,
   type ReviewTranslationHint,
   renderReview,
@@ -246,14 +248,23 @@ export function mountReview(
     later: () => void answerRating("later"),
     never: () => void answerRating("never"),
   };
+  /** The edit form, while it is open (add-lingua-card-edit D2), and the merge the last save made (D6). */
+  let editing: ReviewEditing | null = null;
+  let merged: string | null = null;
+  /** The engine's native language, the translation field's language: read with the languages. */
+  let native: string | undefined;
   const render = (view: ReturnType<ReviewController["view"]>): void => {
     spoken = view.card?.language ?? language ?? spoken;
+    if (!view.card) editing = merged = null;
     renderReview(review, view, actions, {
       showLanguage: languages.length > 1,
       interfaceLanguage,
       speaker,
       ...(view.card ? assisted(view.card) : {}),
       ...(ratingShown && view.phase === "done" ? { rating: ratingActions } : {}),
+      ...(editing ? { editing } : {}),
+      ...(merged ? { merged } : {}),
+      ...(native ? { nativeLanguage: native } : {}),
     });
     void noteSeen();
   };
@@ -478,6 +489,7 @@ export function mountReview(
   /** The reader's languages; the review keeps its language while they still hold it. */
   async function readLanguages(): Promise<void> {
     languages = await acceptedLanguages(port);
+    native = await port.nativeLanguage().catch(() => native);
     if (!accepted(language)) switchTo(await opening(accepted(followed)));
     drawFilter();
   }
@@ -534,6 +546,8 @@ export function mountReview(
     arrives = true,
   ): Promise<void> {
     const view = await produce();
+    // Any other action closes the form and has said the merge (add-lingua-card-edit D2, D6).
+    editing = merged = null;
     if (arrives) arrive(view.card);
     // Preferences that cannot be read never hold the end back: no request then.
     await countEnd(view).catch(() => {});
@@ -566,7 +580,54 @@ export function mountReview(
     // Ending the session (add-lingua-review-stop-session D4): the end every session has — the backup
     // saved and the counts read with no session under way, what a host's end-of-session save expects.
     end: () => void run(() => session.end(), true),
+    // Editing the card under review (add-lingua-card-edit D1, D2, D10).
+    edit: {
+      open: () => void openEdit(),
+      save: (form, gloss) => void saveEdit(form, gloss),
+      cancel: () => {
+        editing = null;
+        render(session.view());
+        review.focus({ preventScroll: true });
+      },
+    },
   };
+
+  /**
+   * « Modifier la carte »: a hidden answer is revealed first, as « Afficher la réponse » does, and the
+   * form opens in the same repaint (D1). Whatever was being read stops.
+   */
+  async function openEdit(): Promise<void> {
+    speaker.stop();
+    let view = session.view();
+    if (!view.card) return;
+    if (!view.card.revealed) view = await session.reveal();
+    editing = {};
+    merged = null;
+    render(view);
+  }
+
+  /**
+   * Save the form (D10): the engine checks it — a refusal reopens the form with what was typed and
+   * the reason —, then the card is read again and repainted, revealed; a change is saved as after an
+   * answer, so every other surface and the app's App Group follow. A merge is said once (D6).
+   */
+  async function saveEdit(form: string, gloss: string): Promise<void> {
+    const { view, result } = await session.edit(form, gloss);
+    if (!result.ok) {
+      editing = { form, gloss, refusal: refusalOf(result.error) };
+      render(view);
+      return;
+    }
+    editing = null;
+    merged = result.merged ?? null;
+    if (result.changed) {
+      arrive(view.card);
+      await persist();
+      await refreshSummary();
+    }
+    render(view);
+    review.focus({ preventScroll: true });
+  }
 
   /** A fresh controller over the engine as it now is: the idle card and the counts. */
   async function restart(): Promise<void> {

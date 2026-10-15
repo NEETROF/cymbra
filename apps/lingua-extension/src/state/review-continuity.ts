@@ -20,6 +20,7 @@ const TOUCHES = new Set([
   "reviewGrade",
   "reviewMarkKnown",
   "reviewIgnore",
+  "reviewEdit",
   "restore",
   "reset",
   "resetStatuses",

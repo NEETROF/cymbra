@@ -368,7 +368,11 @@ export class SyncEngine {
           gloss: c.gloss,
           // The engine leaves the label out for a French gloss; the server reads empty as French.
           glossLanguage: c.gloss_language ?? "",
+          // Whether the reader wrote or chose the gloss (add-lingua-card-edit D5); a server that
+          // predates field 13 ignores it, and the engine keeps the local mark through its echo.
+          glossByReader: c.gloss_by_reader ?? false,
           fsrsState: c.fsrs_state,
+          // A card an edit removed goes up as a deleted op (add-lingua-card-edit D7).
           deleted: c.deleted,
           clientTs: BigInt(this.afterMark(c.client_ts)),
           deviceId: this.deps.deviceId,
@@ -458,8 +462,9 @@ export class SyncEngine {
         source: "", // never on the wire; the local card keeps its own
         gloss: c.gloss,
         gloss_language: c.glossLanguage, // as stored; the engine reads an empty label as French
+        ...(c.glossByReader ? { gloss_by_reader: true } : {}),
         fsrs_state: c.fsrsState,
-        deleted: c.deleted,
+        deleted: c.deleted, // a removal, applied under last-write-wins by the engine
         client_ts: Number(c.clientTs),
         device_id: c.deviceId,
       })),

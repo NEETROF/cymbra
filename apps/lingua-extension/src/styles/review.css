@@ -257,6 +257,67 @@
   font-size: calc(14px * var(--cymbra-lingua-ui-scale, 1));
 }
 
+/* Editing the card (add-lingua-card-edit D2): the form in place of the answer and the answers,
+   the sentence above it; two labelled fields the card's whole width, the buttons right under them
+   so a phone's keyboard does not hide them. No transition: opening and closing are one repaint. */
+.review-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.review-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.review-edit-label {
+  color: var(--cymbra-lingua-muted);
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+.review-edit-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  border-radius: 6px;
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-text);
+  font-family: inherit;
+  font-size: calc(16px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+.review-edit-input[aria-invalid="true"] {
+  border-color: var(--cymbra-lingua-danger);
+}
+
+.review-edit-error {
+  color: var(--cymbra-lingua-danger);
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+.review-edit-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.review-edit-actions .review-btn {
+  min-height: calc(44px * var(--cymbra-lingua-ui-scale, 1));
+  font-size: calc(15px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+/* The note a merge leaves, once, at the top of the answer (D6). */
+.review-merged {
+  margin-bottom: 6px;
+  color: var(--cymbra-lingua-muted);
+  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
+}
+
 .review-btn {
   cursor: pointer;
   width: 100%;

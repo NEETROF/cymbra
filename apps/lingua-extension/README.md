@@ -300,6 +300,30 @@ marked `gloss_by_reader`: it wins over the pack, survives a re-capture of the wo
 card. A translation not kept is discarded with the card — never in a backup, never synced; the
 translated sentence is never kept.
 
+**Editing a card** (`add-lingua-card-edit`): « Modifier la carte », in the links row beside « Je
+connais » and « Ne plus me le montrer », before and after the reveal, in every host. Before the reveal
+it reveals the card first, as « Afficher la réponse » does; the form then takes the place of the answer
+and the answers, the sentence still above it: « Mot ou expression », filled with the card's dictionary
+form, and « Traduction », filled with the gloss the review shows — never a machine translation —, with
+« Enregistrer » and « Annuler » (Enter saves, Escape cancels; the review's keys do nothing from the
+form). A form is trimmed, its spaces collapsed, its edge punctuation stripped by capture's own rule
+(`withoutEdgePunctuation` / `without_edge_punctuation`), then refused empty or over 120 UTF-16 code
+units; a translation is refused over 200, empty meaning none of the reader's. The engine's
+`reviewEdit` is the authority; the page checks the same rule first (`review/edit.ts`). The link is
+« Modifier la carte », not « Modifier », so it is never read as the keep action's « Modifier », which
+edits only the translation to keep. The gloss an edit leaves: a translation the reader typed is theirs
+(`gloss_by_reader`); an emptied one gives the pack's for the form, else none; one left as it was keeps a
+gloss the reader wrote, else takes the pack's for the new form, else keeps the text that was shown. A
+form another card of the deck already has, letter case aside, merges the two (the longer review
+history, the earlier capture, the reader's own gloss, the edited card's sentence), and the card says so
+once (« Réunie avec la carte « … » déjà dans vos révisions. »). The old form's `learning` is cleared and
+the new form becomes `learning` unless the reader decided otherwise; a known or ignored new form
+retires the card. The edit is not an answer. A rename synchronises as an addition and a removal: the
+deck records the removed card (a tombstone, in the backup only when there is one), `exportCardOps`
+sends it as a `deleted` op, and `applyCardOps` removes the local card unless it changed after the
+removal — a later capture of the same form brings it back. The app's edits reach the extension through
+the App Group relay, and the server through the app's own sync, in the same ops.
+
 Lossless **backup** (download) / **restore** (re-import) and the pack's sources live in
 Réglages › Données, in every host; the toolbar popup offers the download and points to the
 panel for a restore, since Firefox closes a popup when a file picker opens.

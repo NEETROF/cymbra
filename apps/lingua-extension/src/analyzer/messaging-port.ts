@@ -7,6 +7,7 @@ import type {
   NewWordAllowance,
   Rating,
   ReviewCard,
+  ReviewEditResult,
   ReviewOptions,
   ReviewSummary,
   StatusChangeIn,
@@ -95,6 +96,9 @@ export class MessagingLinguaPort implements LinguaPort {
   }
   reviewIgnore(now: number): Promise<void> {
     return this.rpc("reviewIgnore", [now]);
+  }
+  reviewEdit(form: string, gloss: string, now: number): Promise<ReviewEditResult> {
+    return this.rpc("reviewEdit", [form, gloss, now]);
   }
   reviewSummary(): Promise<ReviewSummary | null> {
     return this.rpc("reviewSummary");

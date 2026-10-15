@@ -12,6 +12,7 @@ import type {
   ReviewSummary,
 } from "@/analyzer/port.ts";
 import type { PageAnalysis, StudiedLanguage } from "@/analyzer/types.ts";
+import { checkEdit, editedForm } from "@/review/edit.ts";
 import {
   DEFAULT_SPEECH_SETTINGS,
   type SpeechEngine,
@@ -54,6 +55,10 @@ export interface FakeCalls {
   ignored: number;
   /** Glosses kept in review, in order (add-lingua-review-translation-fallback D3). */
   kept: { lemma: string; gloss: string; language: StudiedLanguage }[];
+  /** Card edits sent to the engine, as typed (add-lingua-card-edit). */
+  edits: { form: string; gloss: string }[];
+  /** Forms the reader made known: an edit onto one retires the card and moves on (D9). */
+  knownForms: string[];
   restored: string[];
   /** The languages each due count and each review start were asked for (none: every language). */
   reviewLanguages: (StudiedLanguage[] | undefined)[];
@@ -80,6 +85,8 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
     markKnown: 0,
     ignored: 0,
     kept: [],
+    edits: [],
+    knownForms: [],
     restored: [],
     reviewLanguages: [],
     reviewOptions: [],
@@ -220,6 +227,37 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
         retired.add(queue[pos]);
       }
       advance();
+    },
+    // The engine's edit, as far as a review shows it (add-lingua-card-edit): checked, renamed in place,
+    // merged into a card of the same form — the other card's later place dropped —, or retired.
+    reviewEdit: async (form, gloss) => {
+      calls.edits.push({ form, gloss });
+      const card = queue[pos];
+      if (!card) return { ok: true, changed: false };
+      const refusal = checkEdit(form, gloss);
+      if (refusal) return { ok: false, error: refusal.error };
+      const saved = editedForm(form);
+      const typed = gloss.replace(/\s+/g, " ").trim() || null;
+      if (saved === card.headword && typed === card.gloss) return { ok: true, changed: false };
+      const other = deck.find(
+        (c) =>
+          c !== card &&
+          (c.language ?? "en") === (card.language ?? "en") &&
+          c.headword.toLowerCase() === saved.toLowerCase(),
+      );
+      if (other) {
+        Object.assign(other, { sentence: card.sentence, surface: other.headword }, typed ? { gloss: typed } : {});
+        queue = queue.map((c) => (c === card ? other : c)).filter((c, i) => c !== other || i <= pos);
+        deck.splice(deck.indexOf(card), 1);
+      } else {
+        Object.assign(card, { headword: saved, surface: saved, gloss: typed });
+      }
+      if (calls.knownForms.includes(saved)) {
+        advance();
+        return { ok: true, changed: true, retired: true };
+      }
+      revealed = true;
+      return { ok: true, changed: true, ...(other ? { merged: other.headword } : {}) };
     },
     reviewSummary: async () => (summary ? { ...summary } : null),
     backup: async () => backup,
