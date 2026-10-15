@@ -83,8 +83,13 @@ pub const LINGUA_ONLINE_TRANSLATION_PRICE_ANTHROPIC_OUTPUT: &str =
 /// default; off, every report and leaving answer is acknowledged and nothing is counted, and
 /// extensions keep working — no release needed.
 pub const LINGUA_USAGE_COUNTS_ENABLED: &str = "lingua.usage_counts.enabled";
-/// The value each usage counter (week × step × browser × version) stops growing at.
+/// The value a week's usage counter for one step (or leaving reason) and one browser family
+/// stops growing at, versions summed.
 pub const LINGUA_USAGE_COUNTS_CEILING: &str = "lingua.usage_counts.ceiling";
+/// The latest released Lingua extension version (`major.minor`): the counters name it, the
+/// releases before it in its major and three minors past it; any other version is counted
+/// under `other`, so the rows a week can hold stay bounded.
+pub const LINGUA_USAGE_COUNTS_LATEST_VERSION: &str = "lingua.usage_counts.latest_version";
 
 // Config tunables (the scattered straw-man values live here).
 pub const RATING_REVIEW_MIN_VOTES: &str = "rating.review.min_votes";
@@ -881,7 +886,14 @@ pub fn builtin() -> Vec<KeyDef> {
             APP_LINGUA,
             FlagValue::Int(5_000),
             false,
-            "The value an anonymous usage counter (week × step × browser × version) stops growing at, so a flood cannot inflate a week past it.",
+            "The value a week's anonymous usage counter for one step (or leaving reason) and one browser family stops growing at, versions summed, so a flood cannot inflate a week past it.",
+        ),
+        cfg(
+            LINGUA_USAGE_COUNTS_LATEST_VERSION,
+            APP_LINGUA,
+            FlagValue::String("1.10".into()),
+            false,
+            "The latest released Lingua extension version (major.minor). The usage counters name it, the releases before it in its major and up to three minors past it; any other version is counted under \"other\". Move it when a release ships.",
         ),
     ]
 }
@@ -1168,6 +1180,10 @@ mod tests {
         assert_eq!(enabled.value_type, ValueType::Bool);
         let ceiling = r.get(APP_LINGUA, LINGUA_USAGE_COUNTS_CEILING).unwrap();
         assert_eq!(ceiling.default, FlagValue::Int(5_000));
+        let latest = r
+            .get(APP_LINGUA, LINGUA_USAGE_COUNTS_LATEST_VERSION)
+            .unwrap();
+        assert_eq!(latest.default, FlagValue::String("1.10".into()));
         assert!(r.get(APP_MUSIC, LINGUA_USAGE_COUNTS_ENABLED).is_none());
     }
 

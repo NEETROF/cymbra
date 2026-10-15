@@ -56,6 +56,9 @@ jsonwebtoken.workspace = true
 sqlx.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+# The Lingua leaving page's plain HTML form, when the page runs without JavaScript
+# (change: add-lingua-usage-counts). Already in the tree through axum.
+serde_urlencoded = "0.7"
 dotenvy.workspace = true
 
 [dev-dependencies]

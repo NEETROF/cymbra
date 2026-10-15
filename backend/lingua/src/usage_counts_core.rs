@@ -140,12 +140,52 @@ impl Reason {
     }
 }
 
-/// `major.minor`, one to three digits each (`1.10`).
+/// The version a report is filed under when its own is not one the counters name (design
+/// D10): a well-formed `major.minor` outside the accepted range.
+pub const OTHER_VERSION: &str = "other";
+
+/// The latest released `major.minor` when the runtime setting is absent or malformed.
+pub const DEFAULT_LATEST_VERSION: &str = "1.10";
+
+/// How many minor releases past the latest the counters still name, so a release that
+/// ships before the setting is moved is still counted under its own version (design D10).
+pub const MINORS_AHEAD: u32 = 3;
+
+/// `major.minor`, one to three digits each and no leading zero (`1.10`, never `01.9` or
+/// `1.09`, which would name one release twice).
+pub fn parse_version(s: &str) -> Option<(u32, u32)> {
+    let number = |p: &str| {
+        let well_formed = (1..=3).contains(&p.len())
+            && p.bytes().all(|b| b.is_ascii_digit())
+            && (p == "0" || !p.starts_with('0'));
+        if well_formed {
+            p.parse::<u32>().ok()
+        } else {
+            None
+        }
+    };
+    let (major, minor) = s.split_once('.')?;
+    Some((number(major)?, number(minor)?))
+}
+
+/// Whether `s` is a well-formed `major.minor` (see [`parse_version`]).
 pub fn is_version(s: &str) -> bool {
-    let digits = |p: &str| (1..=3).contains(&p.len()) && p.bytes().all(|b| b.is_ascii_digit());
-    match s.split_once('.') {
-        Some((major, minor)) => digits(major) && digits(minor),
-        None => false,
+    parse_version(s).is_some()
+}
+
+/// The version a well-formed `version` is counted under, given the latest released
+/// `major.minor` (a runtime setting; [`DEFAULT_LATEST_VERSION`] when it is malformed): its
+/// own name when it has the latest's major and a minor at most [`MINORS_AHEAD`] past it,
+/// [`OTHER_VERSION`] otherwise. The version is part of a counter's key, so this bounds the
+/// rows a week can hold: a forged `999.999` adds to `other`, never a row of its own.
+pub fn filed_version(version: (u32, u32), latest: &str) -> String {
+    let (major, minor) = parse_version(latest)
+        .or_else(|| parse_version(DEFAULT_LATEST_VERSION))
+        .expect("the default latest version is well formed");
+    if version.0 == major && version.1 <= minor + MINORS_AHEAD {
+        format!("{}.{}", version.0, version.1)
+    } else {
+        OTHER_VERSION.to_string()
     }
 }
 
@@ -213,7 +253,8 @@ impl Invalid {
 pub struct CheckedReport {
     pub week: i32,
     pub browser: Browser,
-    pub version: String,
+    /// `(major, minor)`; [`filed_version`] says what it is counted under.
+    pub version: (u32, u32),
     pub steps: Vec<Step>,
 }
 
@@ -241,9 +282,7 @@ pub fn check_report(
         checked.push(step);
     }
     let browser = Browser::from_wire(browser).ok_or(Invalid::UnknownBrowser)?;
-    if !is_version(version) {
-        return Err(Invalid::BadVersion);
-    }
+    let version = parse_version(version).ok_or(Invalid::BadVersion)?;
     if !is_monday(week) {
         return Err(Invalid::NotAMonday);
     }
@@ -251,7 +290,7 @@ pub fn check_report(
     Ok(CheckedReport {
         week,
         browser,
-        version: version.to_string(),
+        version,
         steps: checked,
     })
 }
@@ -261,7 +300,16 @@ pub fn check_report(
 pub struct CheckedLeave {
     pub reason: Reason,
     pub browser: &'static str,
-    pub version: String,
+    /// `(major, minor)`, or `None` for `unknown`.
+    pub version: Option<(u32, u32)>,
+}
+
+impl CheckedLeave {
+    /// The version the answer is counted under: `unknown`, or what [`filed_version`] says.
+    pub fn filed_version(&self, latest: &str) -> String {
+        self.version
+            .map_or_else(|| UNKNOWN.to_string(), |v| filed_version(v, latest))
+    }
 }
 
 /// Check a leaving answer (design D10, D12): one of the six reasons, a browser family or
@@ -273,13 +321,15 @@ pub fn check_leave(reason: &str, browser: &str, version: &str) -> Result<Checked
         None if browser == UNKNOWN => UNKNOWN,
         None => return Err(Invalid::UnknownBrowser),
     };
-    if version != UNKNOWN && !is_version(version) {
-        return Err(Invalid::BadVersion);
-    }
+    let version = if version == UNKNOWN {
+        None
+    } else {
+        Some(parse_version(version).ok_or(Invalid::BadVersion)?)
+    };
     Ok(CheckedLeave {
         reason,
         browser,
-        version: version.to_string(),
+        version,
     })
 }
 
@@ -336,14 +386,51 @@ mod tests {
 
     #[test]
     fn a_version_is_major_dot_minor() {
-        for ok in ["1.9", "1.10", "0.0", "123.456"] {
+        for ok in ["1.9", "1.10", "0.0", "1.0", "123.456"] {
             assert!(is_version(ok), "{ok}");
         }
+        assert_eq!(parse_version("1.10"), Some((1, 10)));
         for bad in [
             "", "1", "1.", ".1", "1.9.0", "1234.1", "1.1234", "v1.9", "1.x", " 1.9", "１.９",
+            // A leading zero would name one release twice (`1.09` is `1.9`).
+            "007.0", "01.9", "1.09", "1.00", "00.1",
         ] {
             assert!(!is_version(bad), "{bad:?}");
         }
+    }
+
+    #[test]
+    fn only_versions_near_the_latest_are_counted_under_their_name() {
+        // The latest release, those before it in its major, and up to three minors past it
+        // keep their own name.
+        for (v, latest) in [
+            ((1, 10), "1.10"),
+            ((1, 13), "1.10"),
+            ((1, 0), "1.10"),
+            ((1, 9), "1.10"),
+        ] {
+            assert_eq!(filed_version(v, latest), format!("{}.{}", v.0, v.1));
+        }
+        // Anything else is filed under `other`: a forged version adds no row of its own.
+        for (v, latest) in [
+            ((1, 14), "1.10"),
+            ((999, 999), "1.10"),
+            ((2, 0), "1.10"),
+            ((0, 9), "1.10"),
+        ] {
+            assert_eq!(filed_version(v, latest), OTHER_VERSION, "{v:?}");
+        }
+        // Moving the setting moves the range; a malformed setting falls back to the default.
+        assert_eq!(filed_version((2, 1), "2.0"), "2.1");
+        assert_eq!(filed_version((1, 13), "not a version"), "1.13");
+        assert_eq!(filed_version((1, 14), "01.20"), OTHER_VERSION);
+        // However many versions are sent, a counter's key names at most this many: the
+        // latest's major from .0 to three past it, and `other`.
+        let named: std::collections::BTreeSet<String> = (0..1000)
+            .flat_map(|major| (0..1000).map(move |minor| (major, minor)))
+            .map(|v| filed_version(v, DEFAULT_LATEST_VERSION))
+            .collect();
+        assert_eq!(named.len(), 10 + 1 + MINORS_AHEAD as usize + 1);
     }
 
     #[test]
@@ -397,7 +484,7 @@ mod tests {
         let r = check_report(week, 2, "1.10", &[2, 1]).unwrap();
         assert_eq!(r.week, week);
         assert_eq!(r.browser, Browser::Firefox);
-        assert_eq!(r.version, "1.10");
+        assert_eq!(r.version, (1, 10));
         assert_eq!(r.steps, vec![Step::Installed, Step::SetUp]);
         // All six at once.
         assert_eq!(
@@ -442,6 +529,10 @@ mod tests {
             Err(Invalid::BadVersion)
         );
         assert_eq!(
+            check_report(week, 1, "007.0", &[1]),
+            Err(Invalid::BadVersion)
+        );
+        assert_eq!(
             check_report(week + 1, 1, "1.9", &[1]),
             Err(Invalid::NotAMonday)
         );
@@ -463,11 +554,27 @@ mod tests {
     fn leaving_answers_are_bounded() {
         let a = check_leave("slow", "firefox", "1.10").unwrap();
         assert_eq!(a.reason, Reason::Slow);
-        assert_eq!((a.browser, a.version.as_str()), ("firefox", "1.10"));
+        assert_eq!(
+            (a.browser, a.filed_version("1.10").as_str()),
+            ("firefox", "1.10")
+        );
+        assert_eq!(
+            check_leave("slow", "firefox", "999.999")
+                .unwrap()
+                .filed_version("1.10"),
+            OTHER_VERSION
+        );
         let opened_by_hand = check_leave("other", "unknown", "unknown").unwrap();
         assert_eq!(
-            (opened_by_hand.browser, opened_by_hand.version.as_str()),
+            (
+                opened_by_hand.browser,
+                opened_by_hand.filed_version("1.10").as_str()
+            ),
             ("unknown", "unknown")
+        );
+        assert_eq!(
+            check_leave("slow", "firefox", "1.09"),
+            Err(Invalid::BadVersion)
         );
         assert_eq!(
             check_leave("I hate it, mail me at a@b.c", "firefox", "1.10"),

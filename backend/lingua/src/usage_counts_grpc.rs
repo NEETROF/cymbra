@@ -83,6 +83,9 @@ mod tests {
         let mut policy = MockUsageCountsPolicy::new();
         policy.expect_enabled().return_const(true);
         policy.expect_ceiling().return_const(5_000i64);
+        policy
+            .expect_latest_version()
+            .return_const("1.10".to_string());
         let mut clock = MockClock::new();
         clock.expect_now_secs().return_const(NOW);
         UsageCountsGrpc::new(Arc::new(UsageCountsModule::new(
@@ -114,7 +117,6 @@ mod tests {
     #[tokio::test]
     async fn a_request_carrying_a_bearer_resolves_no_identity() {
         let mut repo = MockUsageCountsRepo::new();
-        repo.expect_delete_before().returning(|_| Ok(()));
         repo.expect_count_steps()
             .times(1)
             .returning(|_, _, _, _, _| Ok(()));
@@ -128,7 +130,6 @@ mod tests {
     #[tokio::test]
     async fn the_forwarded_address_feeds_the_guard_only() {
         let mut repo = MockUsageCountsRepo::new();
-        repo.expect_delete_before().returning(|_| Ok(()));
         repo.expect_count_steps()
             .times(2)
             .returning(|_, _, _, _, _| Ok(()));

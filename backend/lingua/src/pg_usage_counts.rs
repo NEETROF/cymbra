@@ -41,12 +41,17 @@ impl UsageCountsRepo for PgUsageCountsRepo {
         ceiling: i64,
     ) -> Result<()> {
         let steps: Vec<String> = steps.iter().map(|s| s.to_string()).collect();
+        // The ceiling holds for the week's step and browser, every version summed — what the
+        // console shows and marks as capped (design D10). Two concurrent reports may each
+        // read the sum just under it: the ceiling is a soft bound, overshot by at most the
+        // reports in flight.
         sqlx::query(
             "INSERT INTO lingua.usage_counts_weekly (install_week, step, browser, version, count) \
-             SELECT $1, s, $3, $4, 1 FROM unnest($2::text[]) AS s WHERE $5 > 0 \
+             SELECT $1, s, $3, $4, 1 FROM unnest($2::text[]) AS s \
+             WHERE (SELECT COALESCE(SUM(t.count), 0) FROM lingua.usage_counts_weekly t \
+                    WHERE t.install_week = $1 AND t.step = s AND t.browser = $3) < $5 \
              ON CONFLICT (install_week, step, browser, version) DO UPDATE \
-               SET count = lingua.usage_counts_weekly.count + 1 \
-               WHERE lingua.usage_counts_weekly.count < $5",
+               SET count = lingua.usage_counts_weekly.count + 1",
         )
         .bind(week)
         .bind(&steps)
@@ -69,10 +74,11 @@ impl UsageCountsRepo for PgUsageCountsRepo {
     ) -> Result<()> {
         sqlx::query(
             "INSERT INTO lingua.leave_reasons_weekly (week, reason, browser, version, count) \
-             SELECT $1, $2, $3, $4, 1 WHERE $5 > 0 \
+             SELECT $1, $2, $3, $4, 1 \
+             WHERE (SELECT COALESCE(SUM(t.count), 0) FROM lingua.leave_reasons_weekly t \
+                    WHERE t.week = $1 AND t.reason = $2 AND t.browser = $3) < $5 \
              ON CONFLICT (week, reason, browser, version) DO UPDATE \
-               SET count = lingua.leave_reasons_weekly.count + 1 \
-               WHERE lingua.leave_reasons_weekly.count < $5",
+               SET count = lingua.leave_reasons_weekly.count + 1",
         )
         .bind(week)
         .bind(reason)

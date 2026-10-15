@@ -1,21 +1,29 @@
-//! The Lingua leaving page's one JSON route (change: add-lingua-usage-counts, spec
-//! `lingua-usage-counts`, D12): `POST /web/lingua/leave` with `{ reason, browser, version }`.
+//! The Lingua leaving page's one route (change: add-lingua-usage-counts, spec
+//! `lingua-usage-counts`, D12): `POST /web/lingua/leave` with `{ reason, browser, version }`
+//! — as JSON from the page's script, or as a plain HTML form when the page runs without
+//! JavaScript.
 //!
 //! No authentication and no cookie: the answer is counted, the same anonymous way as the
 //! count reports, under the UTC week it arrived in — through the same module, so the same
-//! flag, flood guard, ceiling and retention apply. The handler reads the body and the
+//! flag, flood guard, ceiling and version bound apply. The handler reads the body and the
 //! forwarded address (for the flood guard alone) and nothing else; it logs nothing about the
 //! request. CORS allows only the site's origins (`CYMBRA_WEB_ORIGINS`), without credentials.
 //! Mounted only when the Lingua module is wired.
 //!
-//! Answers: `200 {}` whether counted or not, `400` for anything but one of the six answers
-//! (no free text), `429` past the flood limit, `503` when the counter could not be written.
+//! Answers to JSON: `200 {}` whether counted or not, `400` for anything but one of the six
+//! answers (no free text), `429` past the flood limit, `503` when the counter could not be
+//! written. The flood guard counts every request first, a malformed one included.
+//!
+//! Answers to the form: `303` back to the page's thanks (`#merci`, `#thanks`, `#gracias`, in
+//! the form's `lang`, on the site's origin — the first of `CYMBRA_WEB_ORIGINS`, never an
+//! address the request names), whatever happened to the answer, as the script thanks the
+//! reader whatever the backend says; `400` only for an answer that is not one of the six.
 
 use std::sync::Arc;
 
-use axum::extract::rejection::JsonRejection;
+use axum::body::Bytes;
 use axum::extract::{DefaultBodyLimit, State};
-use axum::http::header::CONTENT_TYPE;
+use axum::http::header::{CONTENT_TYPE, LOCATION};
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
@@ -42,6 +50,9 @@ struct LeaveBody {
     browser: String,
     #[serde(default = "unknown")]
     version: String,
+    /// The form's page language, for the thanks it is sent back to; never counted.
+    #[serde(default)]
+    lang: String,
 }
 
 #[derive(Serialize)]
@@ -52,9 +63,28 @@ struct ErrorBody {
 #[derive(Serialize)]
 struct Empty {}
 
+#[derive(Clone)]
+struct LeaveState {
+    module: Arc<UsageCountsModule>,
+    /// The site's origin, where a form is sent back to (the first allowed web origin).
+    site: Option<String>,
+}
+
+/// The leaving page's thanks in each site language: the page itself, at the block its CSS
+/// shows when targeted (`apps/site/src/pages/**/lingua/*`). A fixed table: no address from
+/// the request is ever redirected to.
+fn thanks_path(lang: &str) -> &'static str {
+    match lang {
+        "en" => "/en/lingua/goodbye/#thanks",
+        "es" => "/es/lingua/adios/#gracias",
+        _ => "/lingua/au-revoir/#merci",
+    }
+}
+
 /// Build the router (CORS-wrapped), ready to `.merge()` into the HTTP server. `origins` are
-/// the exact browser origins allowed (`CYMBRA_WEB_ORIGINS`).
+/// the exact browser origins allowed (`CYMBRA_WEB_ORIGINS`), the site's first.
 pub fn web_lingua_router(module: Arc<UsageCountsModule>, origins: Vec<String>) -> Router {
+    let site = origins.first().map(|o| o.trim_end_matches('/').to_string());
     let origins: Vec<HeaderValue> = origins
         .iter()
         .filter_map(|o| o.parse::<HeaderValue>().ok())
@@ -67,7 +97,7 @@ pub fn web_lingua_router(module: Arc<UsageCountsModule>, origins: Vec<String>) -
         .route("/web/lingua/leave", post(leave))
         .layer(DefaultBodyLimit::max(MAX_BODY))
         .layer(cors)
-        .with_state(module)
+        .with_state(LeaveState { module, site })
 }
 
 /// The address the flood guard keys, resolved like every rate limit (Caddy's first
@@ -94,18 +124,38 @@ fn error_response(e: &AppError) -> Response {
         .into_response()
 }
 
-async fn leave(
-    State(module): State<Arc<UsageCountsModule>>,
-    headers: HeaderMap,
-    body: Result<Json<LeaveBody>, JsonRejection>,
-) -> Response {
-    let Ok(Json(body)) = body else {
-        return error_response(&AppError::InvalidArgument(
-            "the answer is not one of the six".into(),
-        ));
-    };
+/// Whether the body is a plain HTML form's (the page without JavaScript).
+fn is_form(headers: &HeaderMap) -> bool {
+    headers
+        .get(CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| v.starts_with("application/x-www-form-urlencoded"))
+}
+
+/// A form sent back to the page's thanks on the site; with no site configured, a plain
+/// "thank you" in the three languages.
+fn thanks(site: Option<&str>, lang: &str) -> Response {
+    match site.and_then(|s| HeaderValue::from_str(&format!("{s}{}", thanks_path(lang))).ok()) {
+        Some(location) => (StatusCode::SEE_OTHER, [(LOCATION, location)]).into_response(),
+        None => (StatusCode::OK, "Merci. Thank you. Gracias.").into_response(),
+    }
+}
+
+async fn leave(State(state): State<LeaveState>, headers: HeaderMap, body: Bytes) -> Response {
     let addr = client_addr(&headers);
-    match module
+    let form = is_form(&headers);
+    let parsed: Option<LeaveBody> = if form {
+        serde_urlencoded::from_bytes(&body).ok()
+    } else {
+        serde_json::from_slice(&body).ok()
+    };
+    // The guard counts a body it cannot read too (the module's `refuse_malformed`).
+    let Some(body) = parsed else {
+        return error_response(&state.module.refuse_malformed(&addr));
+    };
+    let lang = body.lang;
+    let outcome = state
+        .module
         .leave(
             &addr,
             &Leave {
@@ -114,8 +164,10 @@ async fn leave(
                 version: body.version,
             },
         )
-        .await
-    {
+        .await;
+    match outcome {
+        Err(e @ AppError::InvalidArgument(_)) => error_response(&e),
+        _ if form => thanks(state.site.as_deref(), &lang),
         Ok(()) => (StatusCode::OK, Json(Empty {})).into_response(),
         Err(e) => error_response(&e),
     }
@@ -144,6 +196,9 @@ mod tests {
         let mut policy = MockUsageCountsPolicy::new();
         policy.expect_enabled().return_const(enabled);
         policy.expect_ceiling().return_const(5_000i64);
+        policy
+            .expect_latest_version()
+            .return_const("1.10".to_string());
         let mut clock = MockClock::new();
         clock.expect_now_secs().return_const(NOW);
         Arc::new(UsageCountsModule::new(
@@ -156,7 +211,6 @@ mod tests {
 
     fn counting(times: usize) -> MockUsageCountsRepo {
         let mut repo = MockUsageCountsRepo::new();
-        repo.expect_delete_before().returning(|_| Ok(()));
         repo.expect_count_leave()
             .withf(|week, reason, browser, version, _| {
                 *week == monday_of(20_747)
@@ -207,7 +261,6 @@ mod tests {
     #[tokio::test]
     async fn absent_parameters_are_counted_as_unknown() {
         let mut repo = MockUsageCountsRepo::new();
-        repo.expect_delete_before().returning(|_| Ok(()));
         repo.expect_count_leave()
             .withf(|_, reason, browser, version, _| {
                 reason == "other" && browser == "unknown" && version == "unknown"
@@ -217,6 +270,127 @@ mod tests {
         let app = web_lingua_router(module(repo, true, 60), vec![SITE.into()]);
         let resp = app
             .oneshot(post_leave(r#"{"reason":"other"}"#, SITE))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    /// The review's nit: malformed JSON was refused before the flood guard saw it, so
+    /// garbage could be sent without limit. Now it spends the network's budget.
+    #[tokio::test]
+    async fn malformed_bodies_go_through_the_flood_guard_first() {
+        let app = web_lingua_router(
+            module(MockUsageCountsRepo::new(), true, 2),
+            vec![SITE.into()],
+        );
+        for _ in 0..2 {
+            let resp = app
+                .clone()
+                .oneshot(post_leave("not json", SITE))
+                .await
+                .unwrap();
+            assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        }
+        let resp = app.oneshot(post_leave("not json", SITE)).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
+    }
+
+    fn post_form(body: &str) -> Request<Body> {
+        Request::builder()
+            .method(Method::POST)
+            .uri("/web/lingua/leave")
+            .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
+            .header("origin", SITE)
+            .header("x-forwarded-for", "203.0.113.5")
+            .body(Body::from(body.to_string()))
+            .unwrap()
+    }
+
+    fn location(resp: &Response) -> &str {
+        resp.headers().get(LOCATION).unwrap().to_str().unwrap()
+    }
+
+    /// The page without JavaScript (review item 9): its buttons are a plain form, counted
+    /// like the script's answer and sent back to the page's thanks in its language.
+    #[tokio::test]
+    async fn a_plain_form_is_counted_and_sent_back_to_the_thanks() {
+        let app = web_lingua_router(module(counting(1), true, 60), vec![SITE.into()]);
+        let resp = app
+            .oneshot(post_form(
+                "reason=slow&browser=firefox&version=1.10&lang=en",
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::SEE_OTHER);
+        assert_eq!(
+            location(&resp),
+            "https://cymbra.app/en/lingua/goodbye/#thanks"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_form_without_parameters_is_counted_as_unknown_in_its_language() {
+        let mut repo = MockUsageCountsRepo::new();
+        repo.expect_count_leave()
+            .withf(|_, reason, browser, version, _| {
+                reason == "unclear" && browser == "unknown" && version == "unknown"
+            })
+            .times(3)
+            .returning(|_, _, _, _, _| Ok(()));
+        let app = web_lingua_router(
+            module(repo, true, 60),
+            vec![format!("{SITE}/"), "https://bo.cymbra.app".into()],
+        );
+        for (lang, thanks) in [
+            ("es", "https://cymbra.app/es/lingua/adios/#gracias"),
+            ("fr", "https://cymbra.app/lingua/au-revoir/#merci"),
+            // A language the site does not have: French, never an address from the request.
+            (
+                "https://evil.example",
+                "https://cymbra.app/lingua/au-revoir/#merci",
+            ),
+        ] {
+            let body =
+                serde_urlencoded::to_string([("reason", "unclear"), ("lang", lang)]).unwrap();
+            let resp = app.clone().oneshot(post_form(&body)).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::SEE_OTHER);
+            assert_eq!(location(&resp), thanks);
+        }
+    }
+
+    #[tokio::test]
+    async fn a_form_is_thanked_whatever_happened_to_the_answer_but_free_text() {
+        // Past the flood limit, or with the counter down, the reader is still thanked —
+        // as the script thanks them; only an answer outside the six is refused.
+        let mut repo = MockUsageCountsRepo::new();
+        repo.expect_count_leave()
+            .times(1)
+            .returning(|_, _, _, _, _| Err(AppError::Internal(anyhow::anyhow!("db down"))));
+        let app = web_lingua_router(module(repo, true, 1), vec![SITE.into()]);
+        for _ in 0..2 {
+            let resp = app
+                .clone()
+                .oneshot(post_form("reason=slow&lang=fr"))
+                .await
+                .unwrap();
+            assert_eq!(resp.status(), StatusCode::SEE_OTHER);
+        }
+        let app = web_lingua_router(
+            module(MockUsageCountsRepo::new(), true, 60),
+            vec![SITE.into()],
+        );
+        let resp = app
+            .clone()
+            .oneshot(post_form("reason=call+me+at+0612345678"))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        let resp = app.oneshot(post_form("%%%")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        // With no site configured, a plain thank-you.
+        let app = web_lingua_router(module(counting(1), true, 60), vec![]);
+        let resp = app
+            .oneshot(post_form("reason=slow&browser=firefox&version=1.10"))
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
@@ -302,7 +476,6 @@ mod tests {
     #[tokio::test]
     async fn a_counter_not_written_is_503() {
         let mut repo = MockUsageCountsRepo::new();
-        repo.expect_delete_before().returning(|_| Ok(()));
         repo.expect_count_leave()
             .returning(|_, _, _, _, _| Err(AppError::Internal(anyhow::anyhow!("pool timed out"))));
         let app = web_lingua_router(module(repo, true, 60), vec![SITE.into()]);
@@ -343,7 +516,6 @@ mod tests {
         let _guard = tracing::subscriber::set_default(subscriber);
 
         let mut repo = MockUsageCountsRepo::new();
-        repo.expect_delete_before().returning(|_| Ok(()));
         // The first counted report is written; the next write fails (logged).
         let mut writes = 0;
         repo.expect_count_steps().returning(move |_, _, _, _, _| {

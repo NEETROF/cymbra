@@ -10,9 +10,11 @@
 //!
 //! Every boundary is a port declared here (the consumer declares it): the counters
 //! ([`UsageCountsRepo`] — no row per report, no address, no header), the runtime knobs
-//! ([`UsageCountsPolicy`] — the kill switch and the ceiling, from the flag registry) and the
-//! time ([`Clock`]). Floods are refused by an in-memory [`FloodGuard`] that holds only a
-//! keyed hash of each network, never the address, and forgets it within the hour.
+//! ([`UsageCountsPolicy`] — the kill switch, the ceiling and the latest version, from the
+//! flag registry) and the time ([`Clock`]). Floods are refused by an in-memory
+//! [`FloodGuard`] that holds only a keyed hash of each network, never the address, and
+//! forgets it when the clock hour ends. Old counters are deleted by [`prune_expired`], run
+//! by the worker once a day.
 //!
 //! Keeping nothing: the module never logs a report, an answer or an address. The address
 //! reaches the guard alone and is dropped when the call returns.
@@ -36,8 +38,9 @@ use mockall::automock;
 #[cfg_attr(any(test, feature = "mock"), automock)]
 #[async_trait]
 pub trait UsageCountsRepo: Send + Sync {
-    /// Add one to the counter of each step for `(week, browser, version)`, each stopping
-    /// at `ceiling`.
+    /// Add one to the counter of each step for `(week, browser, version)`, unless the
+    /// week's counter for that step and browser, every version summed, has reached
+    /// `ceiling` — so a week marked capped in the console really is (design D10).
     async fn count_steps(
         &self,
         week: i32,
@@ -46,8 +49,8 @@ pub trait UsageCountsRepo: Send + Sync {
         steps: &[&'static str],
         ceiling: i64,
     ) -> Result<()>;
-    /// Add one to a leaving reason's counter for `(week, reason, browser, version)`,
-    /// stopping at `ceiling`.
+    /// Add one to a leaving reason's counter for `(week, reason, browser, version)`, unless
+    /// the week's counter for that reason and browser, versions summed, reached `ceiling`.
     async fn count_leave(
         &self,
         week: i32,
@@ -65,11 +68,15 @@ pub trait UsageCountsRepo: Send + Sync {
 pub trait UsageCountsPolicy: Send + Sync {
     /// `lingua.usage_counts.enabled`: off, requests are acknowledged and nothing is counted.
     fn enabled(&self) -> bool;
-    /// `lingua.usage_counts.ceiling`: the value a counter stops growing at.
+    /// `lingua.usage_counts.ceiling`: the value a week's counter for one step (or reason)
+    /// and one browser family stops growing at, versions summed.
     fn ceiling(&self) -> i64;
+    /// `lingua.usage_counts.latest_version`: the latest released `major.minor`, which
+    /// bounds the versions the counters name (design D10).
+    fn latest_version(&self) -> String;
 }
 
-/// The time, injected so the hour of the guard and the day of the pruning can be tested.
+/// The time, injected so the hour of the guard can be tested.
 #[cfg_attr(any(test, feature = "mock"), automock)]
 pub trait Clock: Send + Sync {
     /// Seconds since the Unix epoch.
@@ -88,7 +95,7 @@ impl Clock for SystemClock {
     }
 }
 
-/// Requests one network may make within its hour (design D10).
+/// Requests one network may make within a clock hour (design D10).
 pub const FLOOD_LIMIT: u32 = 60;
 /// Networks the guard holds at most; a new one is refused while it is full.
 pub const FLOOD_CAPACITY: usize = 50_000;
@@ -96,26 +103,27 @@ pub const FLOOD_CAPACITY: usize = 50_000;
 pub const DEFAULT_CEILING: i64 = 5_000;
 
 const HOUR_SECS: u64 = 3_600;
-/// How often expired entries are swept away, so a network is forgotten soon after its hour.
-const SWEEP_SECS: u64 = 60;
 
 type Key = [u8; 32];
 
-struct Entry {
-    /// When the entry's hour started (unix seconds).
-    since: u64,
-    count: u32,
-}
-
+/// The networks seen in one clock hour and how many requests each made. When the hour
+/// ends the whole table is replaced at once — no entry is ever visited to expire it, so
+/// no request scans the table, full or not (the review's DoS: a full table used to be
+/// swept on every new network, under the lock).
 struct Table {
-    entries: HashMap<Key, Entry>,
-    last_sweep: u64,
+    /// The clock hour (`now / 3600`) the entries belong to.
+    hour: u64,
+    entries: HashMap<Key, u32>,
 }
 
-/// Refuses more than [`FLOOD_LIMIT`] requests an hour from one network — an IPv4 address,
-/// or an IPv6 address's /64 prefix — holding only an HMAC of it under a key drawn at
-/// start-up and never written, and at most [`FLOOD_CAPACITY`] entries. The address itself
-/// is never stored, so it cannot leak into a log, a panic message or the disk.
+/// Refuses more than [`FLOOD_LIMIT`] requests a clock hour from one network — an IPv4
+/// address, or an IPv6 address's /64 prefix — holding only an HMAC of it under a key drawn
+/// at start-up and never written, and at most [`FLOOD_CAPACITY`] entries. The address
+/// itself is never stored, so it cannot leak into a log, a panic message or the disk.
+///
+/// Every request costs one HMAC (outside the lock) and one hash-map lookup (inside it):
+/// constant time, whether the table is empty or full. A full table refuses a new network
+/// until the hour ends; the previous hour's table is dropped after the lock is released.
 pub struct FloodGuard {
     key: Key,
     limit: u32,
@@ -139,8 +147,8 @@ impl FloodGuard {
             limit,
             capacity,
             table: Mutex::new(Table {
+                hour: 0,
                 entries: HashMap::new(),
-                last_sweep: 0,
             }),
         }
     }
@@ -176,43 +184,37 @@ impl FloodGuard {
     }
 
     /// Count one request from `addr` at `now`; `false` when it must be refused: the
-    /// network spent its hour's budget, or the table is full and does not hold it.
+    /// network spent this clock hour's budget, or the table is full and does not hold it.
     pub fn admit(&self, addr: &str, now: u64) -> bool {
         let key = self.hash(addr);
-        let mut table = self.table.lock().unwrap_or_else(|p| p.into_inner());
-        let expired = |e: &Entry| now.saturating_sub(e.since) >= HOUR_SECS;
-        if now.saturating_sub(table.last_sweep) >= SWEEP_SECS {
-            table.entries.retain(|_, e| !expired(e));
-            table.last_sweep = now;
-        }
-        if let Some(entry) = table.entries.get_mut(&key) {
-            if expired(entry) {
-                *entry = Entry {
-                    since: now,
-                    count: 0,
-                };
-            }
-            if entry.count >= self.limit {
-                return false;
-            }
-            entry.count += 1;
-            return true;
-        }
-        if table.entries.len() >= self.capacity {
-            table.entries.retain(|_, e| !expired(e));
-            table.last_sweep = now;
-            if table.entries.len() >= self.capacity {
-                return false;
-            }
-        }
-        table.entries.insert(
-            key,
-            Entry {
-                since: now,
-                count: 1,
-            },
-        );
-        true
+        let hour = now / HOUR_SECS;
+        let (admitted, previous) = {
+            let mut table = self.table.lock().unwrap_or_else(|p| p.into_inner());
+            // A new hour: the old table is taken out whole and forgotten below, once the
+            // lock is released.
+            let previous = if table.hour != hour {
+                table.hour = hour;
+                Some(std::mem::take(&mut table.entries))
+            } else {
+                None
+            };
+            let full = table.entries.len() >= self.capacity;
+            let admitted = match table.entries.get_mut(&key) {
+                Some(count) if *count >= self.limit => false,
+                Some(count) => {
+                    *count += 1;
+                    true
+                }
+                None if full => false,
+                None => {
+                    table.entries.insert(key, 1);
+                    true
+                }
+            };
+            (admitted, previous)
+        };
+        drop(previous);
+        admitted
     }
 
     /// Networks currently held (tests).
@@ -255,13 +257,27 @@ fn too_many() -> AppError {
     AppError::ResourceExhausted("too many requests".into())
 }
 
+/// The UTC day number of `now_secs`.
+fn utc_day(now_secs: u64) -> i32 {
+    (now_secs / 86_400) as i32
+}
+
+/// Delete every counter whose week is more than 25 months old on the UTC day of
+/// `now_secs`, and return the first week kept (design D9). Run once a day by the worker's
+/// scheduled `lingua_usage_prune` job — not from the request path, so retention holds
+/// whether counting is on or off and whether any report arrives (the review: pruning used
+/// to run only after the kill switch's check, on a report).
+pub async fn prune_expired(repo: &dyn UsageCountsRepo, now_secs: u64) -> Result<i32> {
+    let cutoff = core::retention_cutoff(utc_day(now_secs));
+    repo.delete_before(cutoff).await?;
+    Ok(cutoff)
+}
+
 pub struct UsageCountsModule {
     repo: Arc<dyn UsageCountsRepo>,
     policy: Arc<dyn UsageCountsPolicy>,
     clock: Arc<dyn Clock>,
     guard: FloodGuard,
-    /// The UTC day counters were last pruned on (at most once a day, from the request path).
-    last_pruned: Mutex<Option<i32>>,
 }
 
 impl UsageCountsModule {
@@ -276,12 +292,11 @@ impl UsageCountsModule {
             policy,
             clock,
             guard,
-            last_pruned: Mutex::new(None),
         }
     }
 
     fn today(&self) -> i32 {
-        (self.clock.now_secs() / 86_400) as i32
+        utc_day(self.clock.now_secs())
     }
 
     /// The floods first: a malformed request spends the network's budget too.
@@ -293,18 +308,12 @@ impl UsageCountsModule {
         }
     }
 
-    /// Delete the counters older than 25 months, at most once a UTC day. A failure is
-    /// logged (with no request detail) and waits for the next day.
-    async fn prune_if_due(&self, today: i32) {
-        {
-            let mut last = self.last_pruned.lock().unwrap_or_else(|p| p.into_inner());
-            if *last == Some(today) {
-                return;
-            }
-            *last = Some(today);
-        }
-        if let Err(e) = self.repo.delete_before(core::retention_cutoff(today)).await {
-            tracing::warn!(error = %e, "usage counts: old counters not pruned");
+    /// A request whose body could not even be read: refused as invalid — once the flood
+    /// guard has counted it, so malformed requests cannot be sent past the limit either.
+    pub fn refuse_malformed(&self, addr: &str) -> AppError {
+        match self.admit(addr) {
+            Err(e) => e,
+            Ok(()) => AppError::InvalidArgument("the answer is not one of the six".into()),
         }
     }
 
@@ -316,7 +325,8 @@ impl UsageCountsModule {
 
     /// Count a report's steps. `Ok` acknowledges it, counted or not (flag off, week out of
     /// range, ceiling reached); a malformed report is `InvalidArgument`, a flood
-    /// `ResourceExhausted`.
+    /// `ResourceExhausted`. Its version is filed under its own name only near the latest
+    /// release (`other` otherwise), so the versions a week holds stay bounded.
     pub async fn report(&self, addr: &str, r: &Report) -> Result<()> {
         self.admit(addr)?;
         let checked =
@@ -324,17 +334,16 @@ impl UsageCountsModule {
         if !self.policy.enabled() {
             return Ok(());
         }
-        let today = self.today();
-        if !core::week_in_window(checked.week, today) {
+        if !core::week_in_window(checked.week, self.today()) {
             return Ok(());
         }
-        self.prune_if_due(today).await;
         let steps: Vec<&'static str> = checked.steps.iter().map(|s| s.as_str()).collect();
+        let version = core::filed_version(checked.version, &self.policy.latest_version());
         self.repo
             .count_steps(
                 checked.week,
                 checked.browser.as_str(),
-                &checked.version,
+                &version,
                 &steps,
                 self.policy.ceiling(),
             )
@@ -343,21 +352,20 @@ impl UsageCountsModule {
     }
 
     /// Count a leaving answer under the UTC week it arrived in, with the same flag, guard,
-    /// ceiling and retention as the reports.
+    /// ceiling, version bound and retention as the reports.
     pub async fn leave(&self, addr: &str, l: &Leave) -> Result<()> {
         self.admit(addr)?;
         let checked = core::check_leave(&l.reason, &l.browser, &l.version).map_err(invalid)?;
         if !self.policy.enabled() {
             return Ok(());
         }
-        let today = self.today();
-        self.prune_if_due(today).await;
+        let version = checked.filed_version(&self.policy.latest_version());
         self.repo
             .count_leave(
-                core::monday_of(today),
+                core::monday_of(self.today()),
                 checked.reason.as_str(),
                 checked.browser,
-                &checked.version,
+                &version,
                 self.policy.ceiling(),
             )
             .await
@@ -385,6 +393,7 @@ mod tests {
         let mut p = MockUsageCountsPolicy::new();
         p.expect_enabled().return_const(enabled);
         p.expect_ceiling().return_const(ceiling);
+        p.expect_latest_version().return_const("1.10".to_string());
         p
     }
 
@@ -422,10 +431,10 @@ mod tests {
         }
     }
 
-    /// A repo that accepts any write, prunes allowed.
+    /// A repo that accepts any write (and is never asked to prune: the request path does
+    /// not).
     fn accepting() -> MockUsageCountsRepo {
         let mut repo = MockUsageCountsRepo::new();
-        repo.expect_delete_before().returning(|_| Ok(()));
         repo.expect_count_steps().returning(|_, _, _, _, _| Ok(()));
         repo.expect_count_leave().returning(|_, _, _, _, _| Ok(()));
         repo
@@ -433,11 +442,8 @@ mod tests {
 
     #[tokio::test]
     async fn a_report_is_counted_under_its_week() {
+        // No `delete_before` expectation: a report never prunes (the worker does).
         let mut repo = MockUsageCountsRepo::new();
-        repo.expect_delete_before()
-            .with(eq(retention_cutoff(TODAY)))
-            .times(1)
-            .returning(|_| Ok(()));
         repo.expect_count_steps()
             .withf(|week, browser, version, steps, ceiling| {
                 *week == monday_of(TODAY)
@@ -487,7 +493,15 @@ mod tests {
         not_monday.install_week += 1;
         let mut bad_version = report(&[1]);
         bad_version.version = "1.10.0".into();
-        for r in [report(&[9]), report(&[]), not_monday, bad_version] {
+        let mut leading_zero = report(&[1]);
+        leading_zero.version = "007.0".into();
+        for r in [
+            report(&[9]),
+            report(&[]),
+            not_monday,
+            bad_version,
+            leading_zero,
+        ] {
             assert!(matches!(
                 m.report(ADDR, &r).await,
                 Err(AppError::InvalidArgument(_))
@@ -495,10 +509,59 @@ mod tests {
         }
     }
 
+    /// The review: `is_version` accepted ~1.23M strings, each a row of its own in a
+    /// counter's key. A version far from the latest release is now filed under `other`.
+    #[tokio::test]
+    async fn a_version_far_from_the_latest_is_filed_under_other() {
+        let mut repo = MockUsageCountsRepo::new();
+        repo.expect_count_steps()
+            .withf(|_, _, v, _, _| v == "other")
+            .times(2)
+            .returning(|_, _, _, _, _| Ok(()));
+        repo.expect_count_steps()
+            .withf(|_, _, v, _, _| v == "1.13")
+            .times(1)
+            .returning(|_, _, _, _, _| Ok(()));
+        let m = module(repo, policy(true, 5_000));
+        for version in ["999.999", "1.14", "1.13"] {
+            let mut r = report(&[1]);
+            r.version = version.into();
+            m.report(ADDR, &r).await.unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn the_latest_version_comes_from_the_policy() {
+        let mut p = MockUsageCountsPolicy::new();
+        p.expect_enabled().return_const(true);
+        p.expect_ceiling().return_const(5_000i64);
+        p.expect_latest_version().return_const("2.0".to_string());
+        let mut repo = MockUsageCountsRepo::new();
+        repo.expect_count_steps()
+            .withf(|_, _, v, _, _| v == "other")
+            .times(1)
+            .returning(|_, _, _, _, _| Ok(()));
+        repo.expect_count_leave()
+            .withf(|_, _, _, v, _| v == "2.1")
+            .times(1)
+            .returning(|_, _, _, _, _| Ok(()));
+        let m = module(repo, p);
+        m.report(ADDR, &report(&[1])).await.unwrap(); // 1.10 is behind a 2.0 latest
+        m.leave(
+            ADDR,
+            &Leave {
+                reason: "slow".into(),
+                browser: "firefox".into(),
+                version: "2.1".into(),
+            },
+        )
+        .await
+        .unwrap();
+    }
+
     #[tokio::test]
     async fn the_ceiling_reaches_the_repo() {
         let mut repo = MockUsageCountsRepo::new();
-        repo.expect_delete_before().returning(|_| Ok(()));
         repo.expect_count_steps()
             .withf(|_, _, _, _, ceiling| *ceiling == 3)
             .times(1)
@@ -510,7 +573,6 @@ mod tests {
     #[tokio::test]
     async fn a_failed_write_is_unavailable_so_the_client_retries() {
         let mut repo = MockUsageCountsRepo::new();
-        repo.expect_delete_before().returning(|_| Ok(()));
         repo.expect_count_steps()
             .returning(|_, _, _, _, _| Err(AppError::Internal(anyhow::anyhow!("db down"))));
         let m = module(repo, policy(true, 5_000));
@@ -537,7 +599,6 @@ mod tests {
     #[tokio::test]
     async fn forty_installations_behind_one_school_address_are_all_counted() {
         let mut repo = MockUsageCountsRepo::new();
-        repo.expect_delete_before().returning(|_| Ok(()));
         repo.expect_count_steps()
             .times(40)
             .returning(|_, _, _, _, _| Ok(()));
@@ -589,25 +650,62 @@ mod tests {
         // Full: a new network is refused, a known one still admitted.
         assert!(!guard.admit("192.0.2.4", NOW + 10));
         assert!(guard.admit("192.0.2.1", NOW + 10));
-        // Once their hour is over, the old entries make room.
+        // Once the clock hour is over, the whole table is forgotten and makes room.
         assert!(guard.admit("192.0.2.4", NOW + 3_600));
         assert_eq!(guard.len(), 1);
     }
 
     #[test]
-    fn an_entry_is_forgotten_after_its_hour() {
+    fn an_entry_is_forgotten_when_its_clock_hour_ends() {
+        // NOW is noon sharp: its clock hour runs to NOW + 3 599.
         let guard = FloodGuard::with_key([1; 32], 2, 10);
         assert!(guard.admit(ADDR, NOW));
         assert!(guard.admit(ADDR, NOW + 1));
         assert!(!guard.admit(ADDR, NOW + 3_599));
         // A new hour, a new budget.
         assert!(guard.admit(ADDR, NOW + 3_600));
-        // An entry nobody revisits is swept away soon after its hour ends.
         assert!(guard.admit("192.0.2.9", NOW + 3_600));
         assert_eq!(guard.len(), 2);
-        assert!(guard.admit("192.0.2.10", NOW + 7_200 + SWEEP_SECS));
+        // An entry nobody revisits goes with its hour.
+        assert!(guard.admit("192.0.2.10", NOW + 7_200));
         assert_eq!(guard.len(), 1);
         assert!(!guard.is_empty());
+    }
+
+    /// The review's DoS: with the table full, every new network used to sweep all 50 000
+    /// entries under the lock. Now a request costs one HMAC and one lookup whatever the
+    /// table holds: refusing new networks against a full table takes about as long as
+    /// admitting one known network the same number of times (a ratio, so the test holds on
+    /// any machine and under coverage instrumentation; the old sweep was ~10 000× slower).
+    #[test]
+    fn a_full_table_stays_constant_time_per_request() {
+        const REQUESTS: usize = 5_000;
+        let full = FloodGuard::with_key([2; 32], FLOOD_LIMIT, FLOOD_CAPACITY);
+        for i in 0..FLOOD_CAPACITY {
+            let addr = format!("10.{}.{}.{}", i >> 16, (i >> 8) & 0xff, i & 0xff);
+            assert!(full.admit(&addr, NOW));
+        }
+        assert_eq!(full.len(), FLOOD_CAPACITY);
+        let new_networks: Vec<String> = (0..REQUESTS)
+            .map(|i| format!("172.16.{}.{}", i >> 8, i & 0xff))
+            .collect();
+        let started = std::time::Instant::now();
+        for (i, addr) in new_networks.iter().enumerate() {
+            assert!(!full.admit(addr, NOW + 1 + (i as u64 % 3_000)));
+        }
+        let against_full = started.elapsed();
+        assert_eq!(full.len(), FLOOD_CAPACITY);
+
+        let baseline = FloodGuard::with_key([2; 32], u32::MAX, FLOOD_CAPACITY);
+        let started = std::time::Instant::now();
+        for i in 0..REQUESTS {
+            assert!(baseline.admit(ADDR, NOW + 1 + (i as u64 % 3_000)));
+        }
+        let against_one = started.elapsed();
+        assert!(
+            against_full < against_one * 20 + std::time::Duration::from_millis(50),
+            "a full table cost {against_full:?} for {REQUESTS} requests, one known network {against_one:?}"
+        );
     }
 
     #[test]
@@ -634,23 +732,37 @@ mod tests {
         assert!(a.is_empty());
     }
 
+    /// The review: pruning used to run only on a report, after the kill switch's check, so
+    /// with counting off (or no traffic) counters outlived their 25 months. Retention is now
+    /// its own daily run, which reads neither the switch nor any request.
     #[tokio::test]
-    async fn counters_are_pruned_at_most_once_a_day() {
-        let at = Arc::new(AtomicU64::new(NOW));
+    async fn retention_runs_without_the_switch_or_a_report() {
         let mut repo = MockUsageCountsRepo::new();
         repo.expect_delete_before()
             .with(eq(retention_cutoff(TODAY)))
             .times(1)
             .returning(|_| Ok(()));
-        repo.expect_delete_before()
-            .with(eq(retention_cutoff(TODAY + 1)))
-            .times(1)
+        // No policy and no module are involved: nothing can stop it.
+        assert_eq!(
+            prune_expired(&repo, NOW).await.unwrap(),
+            retention_cutoff(TODAY)
+        );
+        // A failure is the job's to retry.
+        let mut failing = MockUsageCountsRepo::new();
+        failing
+            .expect_delete_before()
             .returning(|_| Err(AppError::Internal(anyhow::anyhow!("db down"))));
-        repo.expect_count_steps().returning(|_, _, _, _, _| Ok(()));
-        repo.expect_count_leave().returning(|_, _, _, _, _| Ok(()));
-        let m = module_at(repo, policy(true, 5_000), at.clone());
+        assert!(prune_expired(&failing, NOW).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn a_report_or_an_answer_never_prunes() {
+        // `delete_before` has no expectation: a call would panic.
+        let at = Arc::new(AtomicU64::new(NOW));
+        let m = module_at(accepting(), policy(true, 5_000), at.clone());
         m.report(ADDR, &report(&[1])).await.unwrap();
-        m.report("192.0.2.1", &report(&[2])).await.unwrap();
+        at.store(NOW + 86_400, Ordering::SeqCst);
+        m.report(ADDR, &report(&[1])).await.unwrap();
         m.leave(
             ADDR,
             &Leave {
@@ -661,16 +773,28 @@ mod tests {
         )
         .await
         .unwrap();
-        // The next UTC day prunes once more; a failed prune does not fail the report.
-        at.store(NOW + 86_400, Ordering::SeqCst);
-        m.report("192.0.2.2", &report(&[1])).await.unwrap();
-        m.report("192.0.2.3", &report(&[1])).await.unwrap();
+    }
+
+    /// The review's nit: a body that could not be read was refused before the guard, so a
+    /// flood of malformed requests was never limited.
+    #[test]
+    fn malformed_requests_spend_the_budget_too() {
+        let m = module(MockUsageCountsRepo::new(), policy(true, 5_000));
+        for _ in 0..FLOOD_LIMIT {
+            assert!(matches!(
+                m.refuse_malformed(ADDR),
+                AppError::InvalidArgument(_)
+            ));
+        }
+        assert!(matches!(
+            m.refuse_malformed(ADDR),
+            AppError::ResourceExhausted(_)
+        ));
     }
 
     #[tokio::test]
     async fn a_leaving_answer_is_counted_under_the_week_it_arrived_in() {
         let mut repo = MockUsageCountsRepo::new();
-        repo.expect_delete_before().returning(|_| Ok(()));
         repo.expect_count_leave()
             .withf(|week, reason, browser, version, ceiling| {
                 *week == monday_of(TODAY)
@@ -713,7 +837,6 @@ mod tests {
     #[tokio::test]
     async fn a_failed_leaving_write_is_unavailable() {
         let mut repo = MockUsageCountsRepo::new();
-        repo.expect_delete_before().returning(|_| Ok(()));
         repo.expect_count_leave()
             .returning(|_, _, _, _, _| Err(AppError::Internal(anyhow::anyhow!("db down"))));
         let m = module(repo, policy(true, 5_000));

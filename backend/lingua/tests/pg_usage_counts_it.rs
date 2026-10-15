@@ -101,8 +101,16 @@ async fn counters_grow_to_the_ceiling_and_are_read_back_by_week() {
     repo.count_steps(week, "safari", "1.10", &["installed"], 5_000)
         .await
         .unwrap();
-    // A ceiling of 2: the Firefox 1.10 "installed" counter stays at 2.
-    repo.count_steps(week, "firefox", "1.10", &["installed"], 2)
+    // A ceiling of 3 holds for the week's Firefox "installed", versions summed (2 + 1):
+    // neither 1.10 nor a version with no row of its own yet grows past it.
+    repo.count_steps(week, "firefox", "1.10", &["installed"], 3)
+        .await
+        .unwrap();
+    repo.count_steps(week, "firefox", "1.11", &["installed"], 3)
+        .await
+        .unwrap();
+    // Safari's own counter is not held by Firefox's.
+    repo.count_steps(week, "safari", "1.10", &["installed"], 3)
         .await
         .unwrap();
     // A ceiling of 0 creates nothing.
@@ -111,7 +119,7 @@ async fn counters_grow_to_the_ceiling_and_are_read_back_by_week() {
         .unwrap();
 
     let firefox = admin
-        .usage_funnel(week, week + 6, Some("firefox"), 2)
+        .usage_funnel(week, week + 6, Some("firefox"), 3)
         .await
         .unwrap();
     let get = |rows: &[cymbra_lingua::admin_core::FunnelRow], step: &str| {
@@ -119,15 +127,27 @@ async fn counters_grow_to_the_ceiling_and_are_read_back_by_week() {
             .find(|r| r.step == step)
             .map(|r| (r.count, r.capped))
     };
-    // Versions summed: 2 (1.10, capped) + 1 (1.9).
+    // Versions summed: 2 (1.10) + 1 (1.9), and capped — the mark is true of the sum shown.
     assert_eq!(get(&firefox, "installed"), Some((3, true)));
+    let versions: Vec<String> = sqlx::query_scalar(
+        "SELECT version FROM lingua.usage_counts_weekly \
+         WHERE install_week = $1 AND browser = 'firefox' AND step = 'installed' ORDER BY version",
+    )
+    .bind(week)
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    assert_eq!(versions, ["1.10", "1.9"]);
+    // Every browser at once: capped when one browser's sum reached the ceiling.
+    let capped_all = admin.usage_funnel(week, week + 6, None, 3).await.unwrap();
+    assert_eq!(get(&capped_all, "installed"), Some((5, true)));
     assert_eq!(get(&firefox, "set_up"), Some((1, false)));
     assert_eq!(get(&firefox, "first_analysis"), None);
     let all = admin
         .usage_funnel(week, week + 6, None, 5_000)
         .await
         .unwrap();
-    assert_eq!(get(&all, "installed"), Some((4, false)));
+    assert_eq!(get(&all, "installed"), Some((5, false)));
     // Outside the window, nothing.
     assert!(
         admin
@@ -142,6 +162,10 @@ async fn counters_grow_to_the_ceiling_and_are_read_back_by_week() {
         .await
         .unwrap();
     repo.count_leave(week, "slow", "unknown", "unknown", 5_000)
+        .await
+        .unwrap();
+    // The reason's ceiling holds across versions too.
+    repo.count_leave(week, "slow", "firefox", "other", 1)
         .await
         .unwrap();
     let reasons = admin

@@ -611,6 +611,16 @@ impl cymbra_lingua::usage_counts::UsageCountsPolicy for FlagUsageCountsPolicy {
             )
             .max(0)
     }
+
+    fn latest_version(&self) -> String {
+        use cymbra_feature_flags::registry;
+        let ctx = cymbra_feature_flags::EvalContext::anonymous(registry::APP_LINGUA);
+        self.flags.string(
+            registry::LINGUA_USAGE_COUNTS_LATEST_VERSION,
+            cymbra_lingua::usage_counts_core::DEFAULT_LATEST_VERSION,
+            &ctx,
+        )
+    }
 }
 
 /// The product whose plan and betas a flag evaluation for `app` reads: each app scope
@@ -1001,6 +1011,7 @@ mod tests {
         let defaults = FlagUsageCountsPolicy::new(service(vec![]).await);
         assert!(defaults.enabled());
         assert_eq!(defaults.ceiling(), 5_000);
+        assert_eq!(defaults.latest_version(), "1.10");
         let overridden = FlagUsageCountsPolicy::new(
             service(vec![
                 lingua(
@@ -1008,11 +1019,16 @@ mod tests {
                     FlagValue::Bool(false),
                 ),
                 lingua(registry::LINGUA_USAGE_COUNTS_CEILING, FlagValue::Int(300)),
+                lingua(
+                    registry::LINGUA_USAGE_COUNTS_LATEST_VERSION,
+                    FlagValue::String("1.12".into()),
+                ),
             ])
             .await,
         );
         assert!(!overridden.enabled());
         assert_eq!(overridden.ceiling(), 300);
+        assert_eq!(overridden.latest_version(), "1.12");
         // A negative ceiling counts nothing rather than misbehaving.
         let negative = FlagUsageCountsPolicy::new(
             service(vec![lingua(

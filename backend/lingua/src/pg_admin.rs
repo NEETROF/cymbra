@@ -169,13 +169,17 @@ impl LinguaAdminRepo for PgLinguaAdminRepo {
         browser: Option<&str>,
         ceiling: i64,
     ) -> Result<Vec<FunnelRow>> {
-        // Versions summed; the finest grain is week × step × browser family.
+        // Versions summed; the finest grain is week × step × browser family. The ceiling
+        // holds per week × step × browser, versions summed (the write's own bound), so a
+        // week is capped when one browser's sum reached it.
         let rows = sqlx::query(
-            "SELECT install_week, step, COALESCE(SUM(count), 0)::bigint AS total, \
-                    bool_or(count >= $4) AS capped \
-             FROM lingua.usage_counts_weekly \
-             WHERE install_week >= $1 AND install_week <= $2 \
-               AND ($3::text IS NULL OR browser = $3) \
+            "SELECT install_week, step, COALESCE(SUM(total), 0)::bigint AS total, \
+                    bool_or(total >= $4) AS capped \
+             FROM (SELECT install_week, step, browser, SUM(count) AS total \
+                   FROM lingua.usage_counts_weekly \
+                   WHERE install_week >= $1 AND install_week <= $2 \
+                     AND ($3::text IS NULL OR browser = $3) \
+                   GROUP BY install_week, step, browser) per_browser \
              GROUP BY install_week, step ORDER BY install_week, step",
         )
         .bind(from_week)
@@ -204,10 +208,12 @@ impl LinguaAdminRepo for PgLinguaAdminRepo {
         ceiling: i64,
     ) -> Result<Vec<ReasonRow>> {
         let rows = sqlx::query(
-            "SELECT reason, COALESCE(SUM(count), 0)::bigint AS total, \
-                    bool_or(count >= $4) AS capped \
-             FROM lingua.leave_reasons_weekly \
-             WHERE week >= $1 AND week <= $2 AND ($3::text IS NULL OR browser = $3) \
+            "SELECT reason, COALESCE(SUM(total), 0)::bigint AS total, \
+                    bool_or(total >= $4) AS capped \
+             FROM (SELECT week, reason, browser, SUM(count) AS total \
+                   FROM lingua.leave_reasons_weekly \
+                   WHERE week >= $1 AND week <= $2 AND ($3::text IS NULL OR browser = $3) \
+                   GROUP BY week, reason, browser) per_browser \
              GROUP BY reason ORDER BY reason",
         )
         .bind(from_week)
