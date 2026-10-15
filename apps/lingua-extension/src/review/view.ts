@@ -52,6 +52,8 @@ export interface ReviewActions {
   grade(rating: Rating): void;
   markKnown(): void;
   ignore(): void;
+  /** End the session under way (add-lingua-review-stop-session); a host without it offers no link. */
+  end?(): void;
 }
 
 /** How a host has the review painted. */
@@ -228,6 +230,14 @@ function cardView(
   );
   // The card's language, when the reader studies several (add-lingua-language-stats-review D2).
   if (opts.showLanguage && card.language) head.append(note(languageName(language, card.language), "review-language"));
+  // Ending the session, a link at the end of the same line (add-lingua-review-stop-session D1): no
+  // block of its own, so nothing moves on an e-ink screen.
+  if (actions.end) {
+    const end = actions.end;
+    const link = button(copy.end, "review-link review-end", () => end());
+    link.setAttribute("aria-label", copy.endLabel);
+    head.append(link);
+  }
   main.append(head);
 
   const source = sourceLabel(card.source);
@@ -302,7 +312,9 @@ function ending(view: ReviewView, actions: ReviewActions, language: InterfaceLan
   const box = div("review-done");
   const s: ReviewSummary | null = view.summary;
   if (!s || s.reviewed + s.known + s.hidden === 0) {
-    box.append(note(copy.nothingDue));
+    // Ended before any answer: it ended, nothing to count — never « nothing due » above « Encore 10 »
+    // (add-lingua-review-stop-session D3).
+    box.append(view.ended ? line("done-title", copy.sessionDone) : note(copy.nothingDue));
   } else {
     box.append(line("done-title", copy.sessionDone));
     const list = document.createElement("ul");

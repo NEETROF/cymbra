@@ -93,6 +93,11 @@ final class AppSessionStoreTests: XCTestCase {
         let ledes = [SignInLanguage.fr, .en, .es].map { SignInCopy(language: $0).appLede }
         XCTAssertEqual(Set(ledes).count, 3)
         XCTAssertTrue(ledes[0].contains("traduction en ligne"))
+        // add-lingua-app-deck-sync D11: the session synchronises the app's reviews too, on Safari's account.
+        XCTAssertTrue(ledes[0].contains("synchroniser les révisions"))
+        XCTAssertTrue(ledes[1].contains("sync the reviews"))
+        XCTAssertTrue(ledes[2].contains("sincronizar los repasos"))
+        for lede in ledes { XCTAssertTrue(lede.contains("Safari"), lede) }
         for language in [SignInLanguage.fr, .en, .es] {
             XCTAssertNotEqual(SignInCopy(language: language).appLede, SignInCopy(language: language).lede)
         }

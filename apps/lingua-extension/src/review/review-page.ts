@@ -414,6 +414,9 @@ export function mountReview(
     grade: (rating) => void run(() => session.grade(rating), true),
     markKnown: () => void run(() => session.markKnown(), true),
     ignore: () => void run(() => session.ignore(), true),
+    // Ending the session (add-lingua-review-stop-session D4): the end every session has — the backup
+    // saved and the counts read with no session under way, what a host's end-of-session save expects.
+    end: () => void run(() => session.end(), true),
   };
 
   /** A fresh controller over the engine as it now is: the idle card and the counts. */

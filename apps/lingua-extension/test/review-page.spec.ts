@@ -354,6 +354,73 @@ describe("Révision — the page", () => {
     expect(text(m.container, ".remaining")).toBe("2 carte(s) à revoir");
   });
 
+  it("ends a session in progress on « Terminer »: the end, saved, ten more offered (add-lingua-review-stop-session)", async () => {
+    const twelve: FakeCard[] = Array.from({ length: 12 }, (_, i) => ({
+      headword: `w${i}`,
+      surface: `w${i}`,
+      sentence: "",
+      gloss: null,
+    }));
+    const { port, calls } = makeFakePort(twelve);
+    const m = mount(port);
+    await m.page.refresh();
+    button(m.container, "Réviser").click();
+    await settle();
+    button(m.container, "Afficher la réponse").click();
+    await settle();
+    button(m.container, "Su").click();
+    await settle();
+    delete m.area.raw[ROOT_KEY];
+    button(m.container, "Afficher la réponse").click(); // revealed, never answered
+    await settle();
+
+    const end = button(m.container, "Terminer");
+    expect(end.getAttribute("aria-label")).toBe("Terminer la séance");
+    end.click();
+    await settle();
+
+    expect(m.page.reviewing()).toBe(false);
+    expect(calls.grades).toEqual(["good"]);
+    expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+    expect(text(m.container, ".review-done-stats")).toContain("1 mot revu");
+    expect(m.container.querySelector(".review-end")).toBeNull();
+    // The end every session has: the state saved with no session under way.
+    expect(m.area.raw[ROOT_KEY]).toEqual({ v: STORAGE_VERSION, backup: "{}" });
+    // « Encore 10 »: the revealed card and the others not answered come up again.
+    button(m.container, "Encore 10").click();
+    await settle();
+    expect(text(m.container, ".remaining")).toBe("10 carte(s) à revoir");
+    expect(m.container.querySelector(".review-end")).not.toBeNull();
+  });
+
+  it("ends a practice session the same way, practice offered again (add-lingua-review-stop-session)", async () => {
+    const { port, calls } = makeFakePort(DECK);
+    const m = mount(port);
+    await m.page.refresh();
+    button(m.container, "Réviser").click();
+    await settle();
+    for (let i = 0; i < 2; i++) {
+      button(m.container, "Afficher la réponse").click();
+      await settle();
+      button(m.container, "Su").click();
+      await settle();
+    }
+    button(m.container, "S'entraîner quand même").click();
+    await settle();
+    expect(text(m.container, ".remaining")).toBe("Entraînement · 2 carte(s)");
+
+    button(m.container, "Terminer").click();
+    await settle();
+
+    expect(m.page.reviewing()).toBe(false);
+    expect(calls.grades).toEqual(["good", "good"]);
+    // Ended before any practice answer: it ended, nothing counted, never « nothing due » alone.
+    expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+    expect(m.container.textContent).not.toContain("Rien à réviser");
+    expect(m.container.querySelector(".review-more")).toBeNull();
+    expect(button(m.container, "S'entraîner quand même")).toBeTruthy();
+  });
+
   it("ends its session when a restore beside it dropped the engine's session", async () => {
     // Réglages › Données restores through the same engine: the session the page was walking is gone.
     const { port, calls } = makeFakePort(DECK);

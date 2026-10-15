@@ -3,7 +3,7 @@ layout: ../../layouts/Legal.astro
 title: Política de privacidad
 description: Qué datos personales tratan los servicios Cymbra, por qué, con quién se comparten y cuáles son tus derechos.
 lang: es
-updated: 11/10/2026
+updated: 14/10/2026
 alternates:
   fr: /confidentialite
   en: /en/privacy
@@ -230,7 +230,13 @@ en el dispositivo, se utiliza en su lugar.
 | Estado de cada palabra (conocida, en aprendizaje, ignorada) y nivel declarado, para cada idioma que estudias | tú | recuperar tu progreso en tus dispositivos |
 | Mazo de repaso, para cada idioma que estudias: la palabra, la frase en la que la encontraste, su traducción —la del diccionario, o la traducción automática de la palabra que decidiste guardar, nunca una frase traducida—, el idioma de esa traducción y su estado de repaso —**sin** la dirección de la página | tú | repasar en todos tus dispositivos |
 | Estadísticas por día y por idioma que estudias (palabras aprendidas, repasos, número de palabras leídas y, entre ellas, de palabras nuevas), con tu lengua materna de ese día (la de las traducciones) | calculadas en el dispositivo | mostrar tus estadísticas; cifras de uso **agregadas** para hacer funcionar el servicio y, sin nombre ni número de personas, publicadas en los canales de la comunidad Cymbra (véase el §2) |
-| Identificador de instalación aleatorio | generado por la extensión | distinguir dos dispositivos durante la sincronización |
+| Identificador de instalación aleatorio | generado por la extensión, y por la app Cymbra Lingua para sí misma | distinguir dos dispositivos durante la sincronización |
+
+La extensión sincroniza estos datos. Si **también inicias sesión en la app Cymbra Lingua**, con la
+cuenta que usa la extensión de Safari, la propia app sincroniza los estados y las tarjetas de los
+repasos hechos en la app, con su propia sesión y su propio identificador de instalación, con el
+mismo contenido (sin dirección de página); las estadísticas del día siguen pasando por la
+extensión. No se recoge nada más.
 
 - **Base legal**: ejecución del contrato (prestación de la sincronización); interés
   legítimo para la publicación de cifras agregadas (véase el §2).
@@ -246,3 +252,18 @@ en el dispositivo, se utiliza en su lugar.
 una contraseña desde Lingua, la extensión indica a Cymbra un idioma —el de la interfaz de
 Lingua o el de tu navegador— que tu cuenta guarda como su idioma: Cymbra te escribe en él
 (verificación, restablecimiento de la contraseña) y tus otras apps Cymbra pueden adoptarlo.
+
+**Política de Datos de Usuario de Chrome Web Store.** « The use of information received from
+Google APIs will adhere to the Chrome Web Store User Data Policy, including the Limited Use
+requirements. » Es decir: el uso de la información recibida de las API de Google se ajustará a
+la Política de Datos de Usuario de Chrome Web Store (*Chrome Web Store User Data Policy*),
+incluidos los requisitos de Uso Limitado (*Limited Use*). Para Cymbra Lingua, esta información
+es: el texto de las páginas que lees, analizado en tu dispositivo; tu cuenta Cymbra (dirección
+de correo electrónico, identificador de inicio de sesión, sesiones, idioma de la cuenta); lo
+que se sincroniza si has iniciado sesión (estados y niveles de las palabras, mazo de repaso,
+estadísticas diarias, identificador de instalación); y la frase enviada con la **Traducción en
+línea**, solo cuando pulsas su botón. Cymbra solo usa estos datos para los fines descritos en
+esta política, solo los comparte con los encargados del tratamiento citados en el §4 y para
+esos fines, no los vende y no los usa para publicidad. El equipo de Cymbra solo ve tus datos de
+Lingua como totales, sin cuenta, salvo para ayudarte a petición tuya, por seguridad o para
+cumplir la ley.

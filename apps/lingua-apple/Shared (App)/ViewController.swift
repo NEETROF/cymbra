@@ -77,9 +77,15 @@ class ViewController: PlatformViewController, WKNavigationDelegate, WKScriptMess
         NotificationCenter.default.addObserver(
             self, selector: #selector(foreground), name: UIApplication.willEnterForegroundNotification, object: nil
         )
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(background), name: UIApplication.didEnterBackgroundNotification, object: nil
+        )
 #elseif os(macOS)
         NotificationCenter.default.addObserver(
             self, selector: #selector(foreground), name: NSApplication.didBecomeActiveNotification, object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(background), name: NSApplication.willResignActiveNotification, object: nil
         )
 #endif
 
@@ -113,6 +119,25 @@ class ViewController: PlatformViewController, WKNavigationDelegate, WKScriptMess
         } else if let state = ReviewRelayStore.shared()?.state(), state != unusableState {
             load()
         }
+    }
+
+    /// Going to the background (add-lingua-app-deck-sync D5): the page pushes the reviews its
+    /// synchronisation still holds. On iOS, within a background task the system may cut short — what
+    /// is not pushed stays in the App Group and leaves at the next opening.
+    @objc private func background() {
+        guard showingReview else { return }
+#if os(iOS)
+        var task = UIBackgroundTaskIdentifier.invalid
+        let end = {
+            guard task != .invalid else { return }
+            UIApplication.shared.endBackgroundTask(task)
+            task = .invalid
+        }
+        task = UIApplication.shared.beginBackgroundTask(withName: "lingua-sync-push", expirationHandler: end)
+        webView.callAsyncJavaScript(AppPageHooks.background, arguments: [:], in: nil, in: .page) { _ in end() }
+#elseif os(macOS)
+        webView.callAsyncJavaScript(AppPageHooks.background, arguments: [:], in: nil, in: .page) { _ in }
+#endif
     }
 
 #if os(macOS)

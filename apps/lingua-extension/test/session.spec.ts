@@ -225,6 +225,99 @@ describe("ReviewController", () => {
     expect(view.moreDue).toBe(false);
   });
 
+  describe("ending a session in progress (add-lingua-review-stop-session)", () => {
+    it("keeps the answers given, leaves the cards not shown due and untouched, and offers more", async () => {
+      const recorded: string[] = [];
+      const { port, calls } = makeFakePort(cards(12));
+      const c = new ReviewController(port, clock, (event) => void recorded.push(event));
+      await c.start();
+      await c.grade("good");
+      await c.grade("again"); // w1 waits to come back after three other cards
+      await c.grade("good");
+      const view = await c.end();
+      expect([view.phase, view.card, view.ended, view.showing]).toEqual(["done", null, true, 0]);
+      expect(view.summary).toEqual({ reviewed: 3, recovered: 0, holding: 0, known: 0, hidden: 0 });
+      // Ending answers nothing and counts nothing.
+      expect(calls.grades).toEqual(["good", "again", "good"]);
+      expect(recorded).toEqual(["review", "review", "review"]);
+      expect(view.moreDue).toBe(true);
+      // « Encore 10 »: the cards not shown in the ended session, a first showing each, w1 not among them.
+      const next = await c.start();
+      expect([next.card?.headword, next.showing, next.ended, next.card?.remaining]).toEqual(["w3", 1, false, 9]);
+    });
+
+    it("never asks again a missed card waiting to come back", async () => {
+      const { port, calls } = makeFakePort(cards(5));
+      const c = new ReviewController(port, clock);
+      await c.start();
+      await c.grade("again");
+      const view = await c.end();
+      expect(view.phase).toBe("done");
+      expect(view.summary?.reviewed).toBe(1);
+      expect(calls.grades).toEqual(["again"]);
+      // Its miss stands; the next session does not hold it again.
+      const next = await c.start();
+      expect(next.card?.headword).toBe("w1");
+    });
+
+    it("leaves a revealed card unanswered", async () => {
+      const { port, calls } = makeFakePort(deck);
+      const c = new ReviewController(port, clock);
+      await c.start();
+      await c.reveal();
+      const view = await c.end();
+      expect([view.phase, view.ended, view.moreDue]).toEqual(["done", true, true]);
+      expect(view.summary).toEqual({ reviewed: 0, recovered: 0, holding: 0, known: 0, hidden: 0 });
+      expect(calls.grades).toEqual([]);
+      // Still due: the next session opens on it, answer hidden again.
+      const next = await c.start();
+      expect([next.card?.headword, next.card?.revealed]).toEqual(["seldom", false]);
+    });
+
+    it("keeps a word marked known in the session", async () => {
+      const { port } = makeFakePort(deck);
+      const c = new ReviewController(port, clock);
+      await c.start();
+      await c.markKnown();
+      const view = await c.end();
+      expect(view.summary?.known).toBe(1);
+      expect((await c.start()).card?.headword).toBe("conundrum");
+    });
+
+    it("ends a practice session the same way, offering practice again", async () => {
+      const { port } = makeFakePort(deck);
+      const c = new ReviewController(port, clock);
+      await c.start();
+      await c.grade("good");
+      await c.grade("good");
+      await c.start(undefined, true);
+      await c.grade("good");
+      const view = await c.end();
+      expect([view.phase, view.practice, view.ended, view.moreDue, view.practiceAvailable]).toEqual([
+        "done",
+        true,
+        true,
+        false,
+        true,
+      ]);
+      expect(view.summary?.reviewed).toBe(1);
+    });
+
+    it("does nothing outside a session", async () => {
+      const { port, calls } = makeFakePort(deck);
+      const c = new ReviewController(port, clock);
+      expect((await c.end()).phase).toBe("idle");
+      expect(calls.reviewOptions).toEqual([]);
+      await c.start();
+      await c.grade("good");
+      const done = await c.grade("good");
+      const starts = calls.reviewOptions.length;
+      const again = await c.end();
+      expect([again.phase, again.ended]).toEqual([done.phase, false]);
+      expect(calls.reviewOptions).toHaveLength(starts);
+    });
+  });
+
   it("is done immediately when the deck is empty", async () => {
     const { port } = makeFakePort([]);
     const view = await new ReviewController(port, clock).start();

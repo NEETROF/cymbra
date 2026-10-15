@@ -465,6 +465,23 @@ bundle folds away the other variants' branches:
   no account creation, no provider buttons, no handle step. The password goes from the page to Cymbra
   ID only, never to the bridge or any storage; the app keeps only the refresh token, in its Keychain.
 
+  Signed in inside the app as well (`add-lingua-app-deck-sync`), the app synchronises the reviews made
+  in it itself (`app/deck-sync.ts`), with this package's `SyncEngine` and the app's options: it pushes
+  only what its openings changed — the same ops it relays (`ops`) —, never the day's statistics
+  (`pushStats: false`, the extension keeps counting the relayed counts once and sends them under its
+  device id) and never a declared level (`pushLevels: false`); a full exchange restores and applies on
+  the review's engine only between sessions (`idle`). It pulls at opening (waited at most 3 s, then
+  applied once no session runs) and on return to the foreground (one exchange per 10 s), pushes 5 s
+  after a run of answers, at a session's end and when the app goes to the background
+  (`window.linguaBackground`). The app is a device of its own: its device id and cursors live in the
+  page's `localStorage`, keyed by the account. It synchronises only when Safari's extension is signed
+  in to the same account: the relayed state names the extension's account by a digest of its id
+  (`account`, SHA-256 of `cymbra-lingua-relay:` + the user id, never a token; null signed out) and
+  the erasure mark its store acted on (`erasedAt`); a newer mark on the server makes the app drop the
+  snapshot and its pending changes from before it (`hostErasedAt`, `onErased`). A change the app
+  cannot push stays in the App Group and leaves at a later opening; the relay to the extension is
+  unchanged.
+
 ## Release
 
 The version lives in **`package.json`** and nowhere else: release-please bumps it from the

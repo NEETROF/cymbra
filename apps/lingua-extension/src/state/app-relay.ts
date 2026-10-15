@@ -32,13 +32,16 @@ import {
 // - the app's changes, the other way: the card and status ops its review produced since it loaded,
 //   in the engine's sync shape — the extension applies them under last-write-wins, as it applies a
 //   pull, so neither side's state ever replaces the other's.
-// Nothing here leaves the device.
+// Nothing here leaves the device. Never a token: the extension's state names its account only by a
+// digest of its id, so the app can tell whether it is signed in to the same one before it synchronises
+// (add-lingua-app-deck-sync D7).
 
 /** The payloads' version: a reader of another one ignores what it cannot read. */
 export const RELAY_VERSION = 1;
 
 /**
- * The preferences the app's review reads, carried with the backup (never the session or the account).
+ * The preferences the app's review reads, carried with the backup (never the session; the account only
+ * as a digest, `RELAYED_ACCOUNT_KEY`).
  * « Traduction étendue »'s setting — not its models' state, which is this device's extension's — and
  * « Traduction en ligne »'s: the app follows the extension's choices on the device
  * (add-lingua-review-translation-fallback D7, D9).
@@ -77,6 +80,30 @@ export interface SharedState {
    * authority. Absent from an older extension: no access.
    */
   onlineAccess: boolean;
+  /**
+   * The extension's account, as a digest of its id (`accountDigest`), never a token
+   * (add-lingua-app-deck-sync D7): null when the extension is signed out; absent (undefined) from an
+   * extension that predates the field — which the app tells apart, to ask for an update.
+   */
+  account?: string | null;
+  /**
+   * The account erasure mark the extension's store last acted on (epoch millis; 0 when none, and from
+   * an older extension): a newer one on the server means the state predates an erasure (D8).
+   */
+  erasedAt: number;
+}
+
+/** Where the extension keeps its account's digest: chrome.storage.local, beside the relayed preferences. */
+export const RELAYED_ACCOUNT_KEY = "cymbra-lingua-relay-account";
+
+/**
+ * The digest of a Cymbra account id the relay carries (add-lingua-app-deck-sync D7): SHA-256 of
+ * « cymbra-lingua-relay: » and the id, in hex. Both sides compute it from `UserService.GetAccount`.
+ */
+export async function accountDigest(userId: string): Promise<string> {
+  const bytes = new TextEncoder().encode(`cymbra-lingua-relay:${userId}`);
+  const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  return Array.from(hash, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 /** The extension's snapshot of the online-translation flag, as its flag store keeps it (`FLAGS_KEY`). */
@@ -140,11 +167,14 @@ function object(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
-export function encodeSharedState(state: Omit<SharedState, "v" | "onlineAccess"> & { onlineAccess?: boolean }): string {
+export function encodeSharedState(
+  state: Omit<SharedState, "v" | "onlineAccess" | "erasedAt"> & { onlineAccess?: boolean; erasedAt?: number },
+): string {
   return JSON.stringify({
     v: RELAY_VERSION,
     ...state,
     onlineAccess: state.onlineAccess === true,
+    erasedAt: state.erasedAt ?? 0,
   } satisfies SharedState);
 }
 
@@ -159,6 +189,9 @@ export function parseSharedState(raw: unknown): SharedState | null {
     prefs: object(r.prefs),
     storeItems: object(r.storeItems),
     onlineAccess: r.onlineAccess === true,
+    // Absent stays absent: an extension that predates the field, apart from one signed out.
+    ...("account" in r ? { account: typeof r.account === "string" && r.account ? r.account : null } : {}),
+    erasedAt: typeof r.erasedAt === "number" && Number.isFinite(r.erasedAt) ? r.erasedAt : 0,
   };
 }
 
