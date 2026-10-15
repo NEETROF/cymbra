@@ -374,6 +374,60 @@ translation, its last sentence goes.
 Cymbra Lingua ahora habla español, para los hispanohablantes que aprenden inglés: la interfaz, la tarjeta, el repaso y las estadísticas están en español, y las palabras inglesas llegan con su significado en español, escrito por personas. La traducción ampliada traduce tu selección en inglés directamente al español, en tu dispositivo.
 ```
 
+## What's New — 1.7.0
+
+Submitted on 2026-10-13: iOS build 240, macOS build 241, in the five locales (en-GB as en-US, es-MX
+as es-ES). What a reader sees change since 1.6.0: the app reviews the deck (add-lingua-apple-review),
+the review of refine-lingua-review-session, add-lingua-review-practice and
+add-lingua-review-repeat-hint, the review translation, the chapter recap and the pages left. Online
+translation is not listed: it is a beta opened per account, said in the review notes only. Every
+label is quoted from `apps/lingua-extension/src/i18n/`, except one: App Store Connect refuses « ᵉ »
+(U+1D49) as an invalid character, so the French notes write « 2e passage » where the review says
+« 2ᵉ passage ». The promotional text is not carried over to a new version: paste it again with
+each one.
+
+### fr-FR (869 / 4000)
+
+```
+L'app Cymbra Lingua révise votre deck : ouvrez-la pour réviser les mots capturés dans Safari, sur iPhone, iPad et Mac.
+
+Révision repensée : des séances courtes de 10 cartes, les plus fragiles d'abord. La carte montre la phrase où vous avez rencontré le mot, avec deux réponses, « Pas su » et « Su », et « Ne plus me le montrer ». Une carte ratée revient dans la séance (« À revoir · 2e passage »). Les nouveaux mots entrent en révision à votre rythme (Réglages › Nouveaux mots par jour). Rien à réviser ? « S'entraîner quand même », sans rien décaler.
+
+Une carte sans traduction dans le dictionnaire est traduite à la révision, sur l'appareil, si la traduction étendue est activée.
+
+Livres : à la fin d'un chapitre, triez les mots que vous avez regardés. Le pied de page affiche les pages restantes d'un toucher.
+
+Corrections, dont une déconnexion inattendue du compte.
+```
+
+### en-US, en-GB (779 / 4000)
+
+```
+The Cymbra Lingua app now reviews your deck: open it to review the words you captured in Safari, on iPhone, iPad and Mac.
+
+Review, redesigned: short sessions of 10 cards, the most fragile first. The card shows the sentence where you met the word, with two answers, "Didn't know" and "Knew it", and "Don't show it again". A missed card comes back in the session ("Again · 2nd time"). New words enter review at your pace (Settings › New words per day). Nothing due? "Practice anyway", without moving any schedule.
+
+A card the dictionary has no translation for is translated at review, on your device, when extended translation is on.
+
+Books: at the end of a chapter, sort the words you looked up. The footer shows the pages left, at a tap.
+
+Fixes, including an unexpected sign-out.
+```
+
+### es-ES, es-MX (880 / 4000)
+
+```
+La app Cymbra Lingua ahora repasa tu mazo: ábrela para repasar las palabras que guardaste en Safari, en iPhone, iPad y Mac.
+
+Repaso renovado: sesiones cortas de 10 tarjetas, las más frágiles primero. La tarjeta muestra la frase donde encontraste la palabra, con dos respuestas, «No la sabía» y «La sabía», y «No volver a mostrarla». Una tarjeta fallada vuelve en la sesión («Otra vez · 2.ª vez»). Las palabras nuevas entran en el repaso a tu ritmo (Ajustes › Palabras nuevas al día). ¿Nada que repasar? «Practicar de todos modos», sin mover ninguna fecha.
+
+Una tarjeta sin traducción en el diccionario se traduce en el repaso, en tu dispositivo, si la traducción ampliada está activada.
+
+Libros: al final de un capítulo, clasifica las palabras que consultaste. El pie de página muestra las páginas restantes con un toque.
+
+Correcciones, entre ellas un cierre de sesión inesperado.
+```
+
 ## What's New — 1.5.0 (696 / 4000)
 
 Submitted on 2026-10-07: iOS build 210, macOS build 211. The app now ships the Spanish → French
@@ -507,6 +561,41 @@ range, « 25.4-26.2 MB each » (−109); "Purpose & audience" lost « (A1-C2) »
 no in-app purchase » (−7); "Third-party material" lost « (definitions and translation tables) »
 (−37). Every step, the deletion path, every external service and every source are still there:
 **3984** with fr-es, **3943** without it.
+
+### As submitted with 1.7.0 (3976 / 4000)
+
+Pasted on 2026-10-13 for iOS build 240 and macOS build 241: the block with fr-es below, changed
+where 1.7.0 made it untrue. The app is no longer an explanation only: it reviews the deck built in
+Safari (step 7). « No AI/LLM API » went: online translation sends the sentence a reader chooses to
+our backend and on to Google Gemini or Anthropic Claude, said as a beta enabled per account. To stay
+within 4,000 characters, the account paragraph, the audiences and the dictionary sources were
+shortened; every step, the deletion path, every external service and every source are still there.
+
+```
+No account is needed: every feature but online translation works signed out. An optional Cymbra account saves progress (known words, deck, level, statistics) across reinstalls and devices. To test it: panel > Settings > Data > Account, Sign in with Apple or Google - no invitation needed.
+
+IMPORTANT - this app hosts a Safari extension, which must be enabled in Safari before anything happens. Until then the app only explains how.
+
+1. Settings > Apps > Safari > Extensions (macOS: Safari > Settings > Extensions): enable "Cymbra Lingua", then set "Other Websites" to Allow.
+2. In SAFARI (not in the app), open the extension from the address-bar menu, keep English as your language and pick a Spanish level, e.g. B1. With no level, every word is highlighted and the pill reads 0%.
+3. Open a Spanish page. Reload any tab opened BEFORE the extension was enabled or the level picked.
+4. Words above your level are highlighted; the pill shows the share of the page you know. Tap a highlighted word: a card gives its English translation, dictionary form and frequency, with "I know it", "+ Deck", "Ignore".
+5. Tap the pill to open the panel: Review, Stats (estimated vocabulary, A1 to C2), Settings (four tabs; the account is under Data).
+6. French: Settings > Language > "Languages studied" > "French", then a French level, on a French page.
+7. Open the app: it reviews the deck built in Safari (on the device).
+
+Account deletion: panel > Settings > Data, signed in > "Manage my data" opens the account page. "Erase my Lingua data…" erases that data on the server and every device, keeping the account. "Delete my Cymbra account" opens https://cymbra.app/en/delete-account/, where the account (shared by Cymbra's apps) is deleted after signing in.
+
+OPTIONAL - "Extended translation", off by default (Settings > Language). The translation engine (Mozilla's Firefox Translations, WebAssembly) ships inside the app. Turning it on downloads data only - a model per pair studied (Spanish or French to English 26.2 MB each, English to Spanish 25.4 MB; French to Spanish chains two) from https://models.cymbra.app, checked against a pinned sha256 - and the selected sentence is then translated on the device. No page text, account or device identifier is sent. Turning it off deletes the models.
+
+Purpose & audience: Cymbra Lingua helps people learn a language by reading real web pages and their own DRM-free EPUB books: unknown words are highlighted in place, looked up offline, captured into a deck reviewed with spaced repetition, and the reader's CEFR level (A1-C2) is estimated from the words they marked. Readers study English, Spanish or French, other than their own.
+
+External services: none by default - highlighting, lookup, the level estimate and translation run on the device. No analytics, no ads. Only on the reader's action: https://models.cymbra.app serves the models above; https://api.cymbra.app (our backend) syncs the word list when signed in; Sign in with Apple / Google authenticate (the app never sees a password). "Online translation" (a beta enabled per account on request, then turned on in Settings): its button sends the selected sentence to our backend, translated by Google Gemini or Anthropic Claude, kept by no one. No payment processor and no in-app purchase.
+
+Regional differences: none. The interface follows the device's language (French, Spanish, else English); Settings > Language switches. A device in Spanish runs steps 2-5 on an English page: "Elige tu nivel de inglés", "La conozco", "+ Mazo", "Ignorar", "Repaso", "Ajustes".
+
+Third-party material: the bundled dictionaries combine sources licensed for commercial use - ESDB (SCOWL), CEFR-J and Octanove for English; the UD Spanish-GSD and French-GSD treebanks; wordfreq; kaikki.org extracts of the English, French and Spanish Wiktionaries - credited in the extension's "Sources & privacy" panel. The translation models are Mozilla's (MPL 2.0). The app does not operate in a regulated industry.
+```
 
 ### English, for every locale, with fr-es (3984 / 4000)
 
