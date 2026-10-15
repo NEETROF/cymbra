@@ -202,6 +202,14 @@
   padding: 0;
 }
 
+/* Ending the session (add-lingua-review-stop-session D1, D5): at the end of the head's line, no
+   taller than its text, so the line keeps its height and nothing moves. */
+.review-head .review-end {
+  margin-left: auto;
+  padding: 0;
+  color: var(--cymbra-lingua-muted);
+}
+
 .review-online,
 .review-keep {
   display: flex;

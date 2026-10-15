@@ -137,6 +137,82 @@ describe("renderReview — practice (add-lingua-review-practice)", () => {
   });
 });
 
+describe("renderReview — ending a session (add-lingua-review-stop-session)", () => {
+  it("offers « Terminer » beside the count on every card of a session, wired to end()", () => {
+    const end = vi.fn();
+    const withEnd = { ...actions, end };
+    for (const view of [
+      reviewing(),
+      reviewing({ revealed: true }),
+      { ...reviewing(), showing: 2 },
+      { ...reviewing(), practice: true },
+    ]) {
+      renderReview(root, view, withEnd, { showLanguage: true });
+      const link = root.querySelector<HTMLButtonElement>(".review-head .review-end");
+      expect(link?.textContent).toBe("Terminer");
+      expect(link?.getAttribute("aria-label")).toBe("Terminer la séance");
+      expect(link?.classList.contains("review-link")).toBe(true);
+      // In the head's own line, after the count: no block of its own.
+      expect(link?.parentElement?.firstElementChild?.classList.contains("remaining")).toBe(true);
+    }
+    root.querySelector<HTMLButtonElement>(".review-end")?.click();
+    expect(end).toHaveBeenCalledOnce();
+  });
+
+  it("offers none before a session starts, at its end, or in a host without the action", () => {
+    const end = vi.fn();
+    renderReview(root, { phase: "idle", card: null, summary: null, moreDue: false }, { ...actions, end });
+    expect(root.querySelector(".review-end")).toBeNull();
+    renderReview(root, done({ reviewed: 2, recovered: 0, holding: 0, known: 0, hidden: 0 }, true), {
+      ...actions,
+      end,
+    });
+    expect(root.querySelector(".review-end")).toBeNull();
+    renderReview(root, reviewing(), actions);
+    expect(root.querySelector(".review-end")).toBeNull();
+  });
+
+  it("speaks the interface language", () => {
+    const end = vi.fn();
+    const cases: [InterfaceLanguage, string, string][] = [
+      ["en", "End", "End the session"],
+      ["es", "Terminar", "Terminar la sesión"],
+    ];
+    for (const [interfaceLanguage, text, aria] of cases) {
+      renderReview(root, reviewing(), { ...actions, end }, { interfaceLanguage });
+      const link = root.querySelector(".review-end");
+      expect([link?.textContent, link?.getAttribute("aria-label")]).toEqual([text, aria]);
+    }
+  });
+
+  it("is not a key: Escape on the card does nothing", () => {
+    const end = vi.fn();
+    renderReview(root, reviewing(), { ...actions, end });
+    expect(key(root, "Escape").defaultPrevented).toBe(false);
+    expect(end).not.toHaveBeenCalled();
+  });
+
+  it("ended before any answer: says the session ended, never that nothing is due, and offers more", () => {
+    const empty = { reviewed: 0, recovered: 0, holding: 0, known: 0, hidden: 0 };
+    renderReview(root, { ...done(empty, true), ended: true }, actions);
+    expect(root.querySelector(".review-done-title")?.textContent).toBe("Séance terminée");
+    expect(root.textContent).not.toContain("Rien à réviser");
+    expect(root.querySelector(".review-done-stats")).toBeNull();
+    expect(root.querySelector(".review-more")?.textContent).toBe("Encore 10");
+  });
+
+  it("ended after some answers: the usual end with its counts", () => {
+    renderReview(
+      root,
+      { ...done({ reviewed: 3, recovered: 0, holding: 1, known: 0, hidden: 0 }, true), ended: true },
+      actions,
+    );
+    expect(root.querySelector(".review-done-title")?.textContent).toBe("Séance terminée");
+    expect(root.querySelector(".review-done-stats")?.textContent).toContain("3 mots revus");
+    expect(root.querySelector(".review-more")).not.toBeNull();
+  });
+});
+
 describe("renderReview — the card (refine-lingua-review-session)", () => {
   it("idle shows a start button wired to start()", () => {
     renderReview(root, { phase: "idle", card: null, summary: null, moreDue: false }, actions);
