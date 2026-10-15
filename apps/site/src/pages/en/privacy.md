@@ -237,7 +237,7 @@ you use it again **the day after** installing it; again **between day 7 and day 
   the day. Should the extension be stopped just as Cymbra receives a report, that report is sent
   again later and counted twice: the totals can only be slightly too high, never tied to you.
 - **On your device**, the day of the installation is kept to tell when you come back — until the
-  end of the week that follows your 59th day, **73 days at most** — then forgotten; only its week
+  end of the week after the one holding its 59th day, **73 days at most** — then forgotten; only its week
   leaves the device. At Cymbra, the counts are weekly totals, with no trace of each report,
   **deleted after 25 months**.
 - **Installations from before the counts.** An installation made before the version of Lingua

@@ -250,7 +250,7 @@ extensión (por ejemplo, 1.10).
   envío, ese envío vuelve a salir más tarde y cuenta dos veces: los totales solo pueden quedar un
   poco altos, nunca vinculados a ti.
 - **En tu dispositivo**, el día de la instalación se guarda para saber cuándo vuelves —hasta el
-  final de la semana que sigue a tu día 59, **73 días como máximo**— y después se olvida; solo
+  final de la semana siguiente a la del día 59, **73 días como máximo**— y después se olvida; solo
   sale de él su semana. En Cymbra, los recuentos son totales semanales, sin rastro de cada envío,
   y **se borran a los 25 meses**.
 - **Instalaciones anteriores a los recuentos.** Una instalación hecha antes de la versión de

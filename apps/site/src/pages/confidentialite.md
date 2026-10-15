@@ -252,7 +252,7 @@ navigateur** (Chromium, Firefox ou Safari) et la **version** de l'extension (par
   précis où Cymbra reçoit un envoi, cet envoi repart plus tard et compte deux fois : les totaux
   ne peuvent qu'être un peu trop hauts, jamais rattachés à vous.
 - **Sur votre appareil**, le jour de l'installation est gardé pour savoir quand vous revenez —
-  jusqu'à la fin de la semaine qui suit votre 59e jour, **73 jours au plus** — puis oublié ; seule
+  jusqu'à la fin de la semaine qui suit celle du 59e jour, **73 jours au plus** — puis oublié ; seule
   sa semaine en sort. Chez Cymbra, les comptages sont des totaux par semaine, sans aucune trace de
   chaque envoi, **supprimés au bout de 25 mois**.
 - **Installations antérieures aux comptages.** Une installation faite avant la version de Lingua
