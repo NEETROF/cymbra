@@ -16,6 +16,8 @@
 //! `reviewEdit`, and the removals `exportCardOps` sends and `applyCardOps` applies. Host only:
 //! en-fr built from the committed tables, its expression table holding `four-poster bed`.
 
+#![cfg(not(target_arch = "wasm32"))]
+
 mod support;
 
 use lingua_wasm::LinguaEngine;
