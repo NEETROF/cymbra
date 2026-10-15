@@ -155,10 +155,21 @@
         "safari": "Safari"
       },
       "loading": "Loading installations…",
-      "note": "Anonymous counts from the installations that count: on Chromium, only those whose reader agreed, so Chromium's absolute numbers are not comparable with Firefox's and Safari's, while its percentages within a week are. Installations made before the first release that counts are never counted. A reinstall and each device each count as one installation. No figure is finer than a week and a browser family. A device sends each step the week after it happened, so the latest week stays incomplete until the following week.",
-      "notYetNote": "A return reads “not yet” until its window has closed for every day of the installation week and the week after has passed, when the devices send it.",
-      "chartTitle": "Installations per week",
-      "week": "Installation week",
+      "note": "Anonymous counts from the installations that count: on Chromium, only those whose reader agreed, so Chromium's absolute numbers are not comparable with Firefox's and Safari's, while its percentages within a day or a week are. Installations made before the first release that counts are never counted. A reinstall and each device each count as one installation. A device sends each step as soon as it happens, the next time the extension wakes, and the counts are filed by installation day: the installation's local calendar date. No figure is finer than a day and a browser family.",
+      "notYetNote": "A return reads “not yet” until its window has closed: at the end of day 1, 13 or 59 after the installation day — for a week, after the week's last day.",
+      "grainLabel": "Installation period",
+      "grains": {
+        "day": "By day",
+        "week": "By week"
+      },
+      "chartTitle": {
+        "day": "Installations per day",
+        "week": "Installations per week"
+      },
+      "period": {
+        "day": "Installation day",
+        "week": "Installation week"
+      },
       "installed": "Installed",
       "setUp": "Level chosen",
       "firstAnalysis": "First page analysed",

@@ -99,10 +99,10 @@ export interface E2EData {
     costMicroUsd: number;
   }[];
   /** The Lingua installation funnel (change: add-lingua-usage-counts): one row per installation
-   * week (its Monday) and browser family. The fake sums the families the request's browser filter
+   * day (yyyy-mm-dd) and browser family. The fake sums the families the request's browser filter
    * keeps, so the filter is observable. */
   linguaFunnel?: {
-    week: string;
+    day: string;
     browser: string;
     installed: number;
     setUp?: number;
@@ -751,19 +751,20 @@ export function installE2EClients(): void {
           costMicroUsd: sum((r) => r.costMicroUsd),
         };
       },
-      // Change add-lingua-usage-counts: per-week sums over the families the filter keeps.
+      // Change add-lingua-usage-counts: per-installation-day sums over the families the filter
+      // keeps, ascending by day like the service.
       adminGetUsageFunnel: async (req: { browser: string }) => {
         failIfSet("adminGetUsageFunnel");
         const rows = (data.linguaFunnel ?? []).filter((r) => !req.browser || r.browser === req.browser);
-        const byWeek = new Map<string, (typeof rows)[number][]>();
-        for (const r of rows) byWeek.set(r.week, [...(byWeek.get(r.week) ?? []), r]);
+        const byDay = new Map<string, (typeof rows)[number][]>();
+        for (const r of rows) byDay.set(r.day, [...(byDay.get(r.day) ?? []), r]);
         const total = (rs: typeof rows, f: (r: (typeof rows)[number]) => number | undefined) =>
           BigInt(rs.reduce((t, r) => t + (f(r) ?? 0), 0));
         return {
-          weeks: [...byWeek.entries()]
+          days: [...byDay.entries()]
             .sort(([a], [b]) => a.localeCompare(b))
-            .map(([week, rs]) => ({
-              week,
+            .map(([day, rs]) => ({
+              day,
               installed: total(rs, (r) => r.installed),
               setUp: total(rs, (r) => r.setUp),
               firstAnalysis: total(rs, (r) => r.firstAnalysis),

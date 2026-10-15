@@ -73,7 +73,7 @@ function fakeLinguaClients(opts: { failUsage?: boolean; failOnline?: boolean } =
         };
       },
       // The Installations section (change: add-lingua-usage-counts) — see lingua-installations.spec.ts.
-      adminGetUsageFunnel: async () => ({ weeks: [] }),
+      adminGetUsageFunnel: async () => ({ days: [] }),
       adminGetLeaveReasons: async () => ({ reasons: [], capped: false }),
     },
   } as unknown as Clients;

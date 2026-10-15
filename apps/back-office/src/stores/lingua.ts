@@ -5,6 +5,7 @@ import { type Async, idle, run } from "@/lib/async";
 import { LinguaSeriesMetric } from "@/gen/lingua_admin_pb";
 import {
   type BrowserFilter,
+  type FunnelGrain,
   type InstallationFunnel,
   type LeaveReasons,
   installationFunnel,
@@ -165,9 +166,13 @@ export const useLinguaStore = defineStore("lingua", () => {
   /** Its own union: a failed online-usage read leaves the rest of the console standing. */
   const online = ref<Async<OnlineUsage>>(idle);
   /** The installation funnel and the leaving reasons (change: add-lingua-usage-counts): anonymous
-   *  weekly counters, each its own union so one failed read leaves the other standing. */
+   *  counters — the funnel by installation day, the reasons totalled over the window — each its own
+   *  union so one failed read leaves the other standing. */
   const funnel = ref<Async<InstallationFunnel>>(idle);
   const reasons = ref<Async<LeaveReasons>>(idle);
+  /** Which of the funnel's two views the section shows: by installation day (the default) or
+   *  summed by week. Both come from the same read, so switching never re-reads. */
+  const funnelGrain = ref<FunnelGrain>("day");
   const filters = reactive<LinguaFilters>(defaultFilters());
 
   function currentWindow() {
@@ -183,17 +188,17 @@ export const useLinguaStore = defineStore("lingua", () => {
     return [
       run(funnel, async () => {
         const r = await api().lingua.adminGetUsageFunnel({ window: win, browser });
-        const weeks = r.weeks.map((w) => ({
-          week: w.week,
-          installed: Number(w.installed),
-          setUp: Number(w.setUp),
-          firstAnalysis: Number(w.firstAnalysis),
-          returnedDay1: Number(w.returnedDay1),
-          returnedDays7To13: Number(w.returnedDays7To13),
-          returnedDays30To59: Number(w.returnedDays30To59),
-          capped: w.capped,
+        const days = r.days.map((d) => ({
+          day: d.day,
+          installed: Number(d.installed),
+          setUp: Number(d.setUp),
+          firstAnalysis: Number(d.firstAnalysis),
+          returnedDay1: Number(d.returnedDay1),
+          returnedDays7To13: Number(d.returnedDays7To13),
+          returnedDays30To59: Number(d.returnedDays30To59),
+          capped: d.capped,
         }));
-        return installationFunnel(weeks, win, today);
+        return installationFunnel(days, win, today);
       }),
       run(reasons, async () => {
         const r = await api().lingua.adminGetLeaveReasons({ window: win, browser });
@@ -277,5 +282,5 @@ export const useLinguaStore = defineStore("lingua", () => {
     ]);
   }
 
-  return { report, series, online, funnel, reasons, filters, load, loadInstallations };
+  return { report, series, online, funnel, reasons, funnelGrain, filters, load, loadInstallations };
 });
