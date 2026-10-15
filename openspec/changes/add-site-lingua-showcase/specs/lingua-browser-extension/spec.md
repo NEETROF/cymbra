@@ -17,7 +17,7 @@ The repository SHALL hold one command, run on a developer's machine and never in
 
 #### Scenario: The same state each run
 - **WHEN** the command is run twice on one commit
-- **THEN** both runs restore the same deck, statuses and levels, and the statistics show the fortnight before each run
+- **THEN** both runs restore the same deck, statuses and levels, with the same cards due on the run's day, and the statistics show the thirty days ending on each run's day
 
 ### Requirement: The store listings describe the extension as it is
 The listing texts kept in the repository SHALL describe the review with the answers each interface shows — « Pas su » and « Su », "Didn't know" and "Knew it", « No la sabía » and « La sabía » — SHALL name Firefox on computers and on Android wherever they name the platforms, extended translation's included, and SHALL say that the browser listings' screenshots come from the capture command, listing the shots in their order per listing language. The texts SHALL be pasted by the owner.

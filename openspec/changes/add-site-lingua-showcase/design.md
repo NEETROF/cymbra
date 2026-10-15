@@ -466,3 +466,105 @@ before implementation starts, and tasks 1.6 and the video parts of 3.1 and 3.4 g
    not half, and drops the one thing that shows Lingua moving, which you asked for. Choose the
    leaner one only if the pictures must be online sooner and the video can follow a few weeks
    later.
+
+### The owner's answers (2026-10-14)
+
+Given before implementation started (task 6.1):
+
+1. **Hero**: `card` — the highlighted page with a word card open, and the close-up crop of the
+   card on phones.
+2. **Video**: on the site, self-hosted, one per interface language, below the hero (in « En
+   images »), never starting on its own beyond D9's rule (muted, in view, motion welcome, data not
+   saved).
+3. **E-ink**: one capture, `reader-eink` — the EPUB reader in « E-ink contrasté » — on the site
+   only.
+4. **The fifth store slot**: the EPUB reader (`reader`).
+5. **Store PNGs**: not committed — generated locally under `store-captures/` (git-ignored) and
+   uploaded by the owner.
+6. **Scope**: everything at once, the video included — not the leaner first version.
+
+## Deviations in the implementation
+
+What task 1.1's spike found, and where the implementation departs from D1–D16:
+
+- **Spike (task 1.1).** Every part of D1, D2 and D6 held on Playwright 1.62.0 (Chrome for Testing
+  151): the reader starts on a served page from the static content script; `openDrawer` sent from an
+  extension page opens the in-page panel (the tab is found with `chrome.tabs.query({ active: true })`
+  once the article tab is brought to the front: without the `tabs` permission an extension page
+  sees no tab's address); a word found from the page's text and a control found through
+  `DOM.getDocument` with `pierce: true` are clicked with the mouse. Headless (`channel: 'chromium'`)
+  and headed runs show the same pages, pixel for pixel but for the window's scrollbar, which a headed
+  window draws (the article shifts ~8 px) and headless hides: headless stays the default. Two
+  headless runs on one day write byte-identical site images. `recordVideo`, re-encoded by ffmpeg
+  (H.264, CRF 23), reads well at 1280×800: no screencast fallback.
+- **A host name for the fixtures (D3).** The pages are served from `127.0.0.1`, under the reserved
+  name `reading.example` (`--host-resolver-rules`): a card keeps the host it was met on as its source,
+  which the review capture shows — « reading.example » rather than « 127.0.0.1 ».
+- **The seed (D4).** `--record-seed` chooses the second studied language and level B1 on the install's
+  welcome page (`onboarding.html`), then marks known and adds to the deck the words `plan.mjs` lists,
+  as many as the page highlights at B1 (about 30 known, 12 cards in all), the deck's one second
+  apart (a card's capture time is kept to the second, and the review takes new cards in that order);
+  it answers the deck's first four in a short review, and marks « Ignorer » the book's names the EPUB
+  reader highlights (Bennet, Bingley, Morris, « Oh »), as a reader does. A word goes to the deck only
+  when its card has a translation. The tool pretty-prints the backup the product saves; Prettier
+  ignores those files. Before restoring a seed, the tool moves its dates — levels declared, words
+  read, cards met, answered and due — by the whole days between its recording and the run
+  (`tool/capture/seed.mjs`), so that every run, whatever its day, finds the same cards due; the tool
+  and the browser read their clock in Europe/Paris.
+- **The statistics (D4).** Thirty days ending on the run's, not a fortnight: the statistics page opens
+  on its 30-day range, which a fortnight left half empty (`tool/capture/days.mjs`; the spec's scenario
+  says thirty).
+- **Captures that would mislead are refused (D5).** The tool fails, naming the shot and the word, on
+  a hero or second card without a translation, a second card or a revealed review card whose gloss
+  reads as a dictionary's list (`glossProblems`: over 60 characters, a parenthesis, a first name's
+  sense — « Aube, aurore, … (sunrise); … Prénom féminin » was the French set's review card), a book
+  name still highlighted, a statistics page without its language picker, a pill that does not rise
+  in the video, or a video whose last frame shows the note on agent sessions. The words were chosen so
+  that each set passes: the review reveals « Émission » (fr), "airline" (en), « Emisión » (es); the
+  Spanish set's hero is « vanished » (« abandoned » opened on a noun, « Despreocupación »), its second
+  card « empreinte », the English set's « couchette » ("sleeping berth": « empreinte »'s English
+  gloss is a parenthesis).
+- **The English set's reader at C1 (D5).** Galdós's first chapter is 82 % known at B1 — a page of
+  highlights. The tool declares C1 in Réglages before the reader's two captures (the last ones):
+  92 %, as the other sets' Austen at B1. The other English-set captures stay at B1.
+- **The close-up and the crops (D7, D10).** The captures are taken at 3× so that the phone's close-up
+  holds 1260 px for a 420-px phone at 3×; the whole-window sources are written at 2× (2560 px). The
+  hero is cut to 16:9 from the window's foot (the card and the pill kept, the article's top lines
+  gone), and the share image starts at the window's top when the page's title sits just above the
+  card. The site's `second` and `review` are portrait crops (600 and 640 CSS px wide) — the card with the start
+  of its lines, the review panel with the page beside it — readable in a 430-px column, and each
+  figure links to its 1280-px image; `stats` is cut below its ladder, before « Renforcer un niveau »
+  (and the line it repeats, a product matter left to its own change). The store PNGs stay whole
+  windows.
+- **The video (D8).** « + Deck » is pressed on the verb whose card opened (4–15 s), then « Je connais »
+  on words of the first screen until the pill's share rises (one word in each set: 93 → 94 %, 92 →
+  93 %); the statistics then scroll from the ladder to the thirty days' charts and stop above the
+  page's closing note on agent sessions. The videos last about 28 s and weigh about 1.2 MB each.
+- **The site's variants (D7).** WebP alone, at 640, 960 and 1280 px for the captures shown in a column
+  or centred, 1920 too for the hero, shown wide, and up to 1260 px for the phone's close-up: every
+  variant stays within D14's budget. AVIF was dropped: built from these captures (text on a flat
+  page) at the same quality, it was heavier than WebP for most variants (5.0 MB against 4.8 MB over
+  the three pages, 58 variants heavier), so it cost bytes without paying. `Shot.astro` reads no
+  property of an imported image (Astro would then ship the source beside its variants).
+- **The layout (D10).** The hero's note follows its capture, and the hero has less air above and below,
+  so that a 1280×800 window shows most of the capture (it starts at 408–471 px, 55–66 % of it above
+  the fold, where it started at 748 px). After the video, five captures in two columns:
+  `second` and `review`, then `stats` alone on its row, centred, then `reader` with `reader-eink` beside
+  it (open question 3).
+- **The brand image (D12).** Astro rasterises an SVG only with `image.dangerouslyProcessSVG`, set in
+  `astro.config.mjs` for that one file of ours.
+- **The byte pin (task 3.5).** The Lingua page's fixtures leave aside its image addresses and script
+  bodies (`test/support/media.mjs`): the build hashes them and the Container API names them by their
+  path on the machine. `test/support/refresh-lingua-fixtures.mjs` replaces the README's one-liner;
+  `taken-with.json` takes the figures `lingua-pack-update` refreshed since (fr-en, fr-es).
+- **CI (task 2.2).** `site-check`'s filter also gains `apps/lingua-extension/tool/capture/plan.mjs`
+  and `apps/lingua-extension/src/i18n/**`: the site's tests read the capture plan and the labels the
+  alt texts quote.
+- **Two pull requests.** release-please assigns a squash commit to components by path, so a
+  `feat(site)` squash touching `apps/lingua-extension` and `apps/lingua-apple` would release both for
+  byte-identical packages. The extension side (the capture tool, its fixtures and seeds, `build.mjs`'s
+  output folder, `playwright-core`, the READMEs and the listings) lands first as a `chore(lingua)`
+  pull request; the site's side, the committed captures and this change's tasks follow in a
+  `feat(site)` one.
+- **The listings' counts (D16).** Re-measured as pasted (paragraphs a blank line apart, lines joined,
+  bold dropped); the previous counts predated the « Traduction en ligne » paragraph.
