@@ -138,22 +138,23 @@ pub fn browser_filter(s: &str, allow_unknown: bool) -> Result<Option<&'static st
     )))
 }
 
-/// One week × step of the installation counters, versions summed, as the repository
+/// One installation day × step of the counters, versions summed, as the repository
 /// returns it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FunnelRow {
-    pub week: i32,
+    /// The installation day (epoch day).
+    pub day: i32,
     pub step: String,
     pub count: i64,
     /// One of the counters summed reached the ceiling.
     pub capped: bool,
 }
 
-/// One installation week of the funnel (counts only, no identifier).
+/// One installation day of the funnel (counts only, no identifier).
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub struct FunnelWeek {
-    /// The Monday that starts the installation week (epoch day).
-    pub week: i32,
+pub struct FunnelDay {
+    /// The installation day (epoch day): the installation's local calendar day.
+    pub day: i32,
     pub installed: i64,
     pub set_up: i64,
     pub first_analysis: i64,
@@ -163,16 +164,16 @@ pub struct FunnelWeek {
     pub capped: bool,
 }
 
-/// Pivot week × step rows into one funnel row per week, ascending; a step the server does
-/// not know (none should exist) is ignored.
-pub fn funnel_weeks(rows: Vec<FunnelRow>) -> Vec<FunnelWeek> {
-    let mut weeks: std::collections::BTreeMap<i32, FunnelWeek> = std::collections::BTreeMap::new();
+/// Pivot day × step rows into one funnel row per installation day, ascending; a step the
+/// server does not know (none should exist) is ignored.
+pub fn funnel_days(rows: Vec<FunnelRow>) -> Vec<FunnelDay> {
+    let mut days: std::collections::BTreeMap<i32, FunnelDay> = std::collections::BTreeMap::new();
     for r in rows {
         let Some(step) = Step::ALL.into_iter().find(|s| s.as_str() == r.step) else {
             continue;
         };
-        let w = weeks.entry(r.week).or_insert_with(|| FunnelWeek {
-            week: r.week,
+        let w = days.entry(r.day).or_insert_with(|| FunnelDay {
+            day: r.day,
             ..Default::default()
         });
         let slot = match step {
@@ -186,7 +187,7 @@ pub fn funnel_weeks(rows: Vec<FunnelRow>) -> Vec<FunnelWeek> {
         *slot += r.count;
         w.capped |= r.capped;
     }
-    weeks.into_values().collect()
+    days.into_values().collect()
 }
 
 /// One leaving reason's total over a window, as the repository returns it.
@@ -349,14 +350,14 @@ mod tests {
     }
 
     #[test]
-    fn funnel_rows_pivot_into_weeks() {
-        let row = |week, step: &str, count, capped| FunnelRow {
-            week,
+    fn funnel_rows_pivot_into_days() {
+        let row = |day, step: &str, count, capped| FunnelRow {
+            day,
             step: step.into(),
             count,
             capped,
         };
-        let weeks = funnel_weeks(vec![
+        let days = funnel_days(vec![
             row(11, "installed", 3, false),
             row(4, "installed", 40, false),
             row(4, "set_up", 30, false),
@@ -368,10 +369,10 @@ mod tests {
             row(18, "retired_step", 1, true),
         ]);
         assert_eq!(
-            weeks,
+            days,
             vec![
-                FunnelWeek {
-                    week: 4,
+                FunnelDay {
+                    day: 4,
                     installed: 40,
                     set_up: 30,
                     first_analysis: 25,
@@ -380,14 +381,14 @@ mod tests {
                     returned_days_30_59: 2,
                     capped: true,
                 },
-                FunnelWeek {
-                    week: 11,
+                FunnelDay {
+                    day: 11,
                     installed: 3,
                     ..Default::default()
                 },
             ]
         );
-        assert!(funnel_weeks(vec![]).is_empty());
+        assert!(funnel_days(vec![]).is_empty());
     }
 
     #[test]

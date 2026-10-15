@@ -27,7 +27,7 @@ use crate::proto::{
     AdminGetLinguaUsageSeriesResponse, AdminGetOnlineTranslationUsageRequest,
     AdminGetOnlineTranslationUsageResponse, AdminGetUsageFunnelRequest,
     AdminGetUsageFunnelResponse, LeaveReasonTotal, LinguaLanguageUsage, LinguaSeriesPoint,
-    OnlineTranslationUsageRow, UsageFunnelWeek,
+    OnlineTranslationUsageRow, UsageFunnelDay,
 };
 
 pub struct LinguaAdminGrpc {
@@ -150,12 +150,12 @@ impl LinguaAdminService for LinguaAdminGrpc {
         require_admin_in_scope(&identity(&req)?, LINGUA_SCOPE)?;
         let r = req.into_inner();
         let (from, to) = window(r.window)?;
-        let weeks = self.module.get_usage_funnel(&from, &to, &r.browser).await?;
+        let days = self.module.get_usage_funnel(&from, &to, &r.browser).await?;
         Ok(Response::new(AdminGetUsageFunnelResponse {
-            weeks: weeks
+            days: days
                 .into_iter()
-                .map(|w| UsageFunnelWeek {
-                    week: iso_day(w.week),
+                .map(|w| UsageFunnelDay {
+                    day: iso_day(w.day),
                     installed: w.installed,
                     set_up: w.set_up,
                     first_analysis: w.first_analysis,
@@ -229,18 +229,18 @@ mod tests {
         }
         async fn usage_funnel(
             &self,
-            from_week: i32,
+            from_day: i32,
             _to_day: i32,
             browser: Option<&str>,
             _ceiling: i64,
         ) -> Result<Vec<crate::admin_core::FunnelRow>> {
-            // One Firefox week and one Chromium week, so the filter is visible.
-            let rows = [("firefox", from_week, 3), ("chromium", from_week + 7, 5)];
+            // One Firefox day and one Chromium day, so the filter is visible.
+            let rows = [("firefox", from_day, 3), ("chromium", from_day + 1, 5)];
             Ok(rows
                 .into_iter()
                 .filter(|(b, _, _)| browser.is_none_or(|f| f == *b))
-                .map(|(_, week, count)| crate::admin_core::FunnelRow {
-                    week,
+                .map(|(_, day, count)| crate::admin_core::FunnelRow {
+                    day,
                     step: "installed".into(),
                     count,
                     capped: false,
@@ -295,28 +295,25 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn the_funnel_answers_weeks_from_the_window_and_the_filter() {
+    async fn the_funnel_answers_days_from_the_window_and_the_filter() {
         let admin: &[(&str, &[&str])] = &[("lingua", &["admin"])];
         let all = grpc()
             .admin_get_usage_funnel(with_identity(funnel_request(""), admin))
             .await
             .unwrap()
             .into_inner();
-        // The window starts on a Wednesday: its week is the Monday before.
+        // The window's first day and the day after it: installation days, not weeks.
         assert_eq!(
-            all.weeks
-                .iter()
-                .map(|w| w.week.as_str())
-                .collect::<Vec<_>>(),
-            ["2026-10-19", "2026-10-26"]
+            all.days.iter().map(|d| d.day.as_str()).collect::<Vec<_>>(),
+            ["2026-10-21", "2026-10-22"]
         );
         let firefox = grpc()
             .admin_get_usage_funnel(with_identity(funnel_request("firefox"), admin))
             .await
             .unwrap()
             .into_inner();
-        assert_eq!(firefox.weeks.len(), 1);
-        assert_eq!(firefox.weeks[0].installed, 3);
+        assert_eq!(firefox.days.len(), 1);
+        assert_eq!(firefox.days[0].installed, 3);
         let bad = grpc()
             .admin_get_usage_funnel(with_identity(funnel_request("opera"), admin))
             .await

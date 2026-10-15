@@ -6,14 +6,15 @@
 
 //! The pure rules of the anonymous usage counts (change: add-lingua-usage-counts, design
 //! D1, D9, D10): the closed sets (six steps, three browser families, six leaving reasons),
-//! the version pattern, the week check, the accepted window and the retention cut-off.
+//! the version pattern, the accepted window of installation days and the retention cut-off.
 //! Host-tested; nothing here touches a network address, a header or a clock.
 
 use chrono::{Months, NaiveDate};
 
-/// Weeks before the server's UTC day an installation week may start: day 59 of an
-/// installation plus time offline (design D10).
-pub const WINDOW_WEEKS_BEFORE: i32 = 18;
+/// Days before the server's UTC day an installation day may be (design D10): a device sends
+/// its last step on day 59 and forgets the installation at day 60; the rest is room for a
+/// device clock that runs up to a month behind.
+pub const WINDOW_DAYS_BEFORE: i32 = 90;
 
 /// Months a counter is kept (design D9, the CNIL's figure for audience measurement).
 pub const RETENTION_MONTHS: u32 = 25;
@@ -177,7 +178,7 @@ pub fn is_version(s: &str) -> bool {
 /// `major.minor` (a runtime setting; [`DEFAULT_LATEST_VERSION`] when it is malformed): its
 /// own name when it has the latest's major and a minor at most [`MINORS_AHEAD`] past it,
 /// [`OTHER_VERSION`] otherwise. The version is part of a counter's key, so this bounds the
-/// rows a week can hold: a forged `999.999` adds to `other`, never a row of its own.
+/// rows a day can hold: a forged `999.999` adds to `other`, never a row of its own.
 pub fn filed_version(version: (u32, u32), latest: &str) -> String {
     let (major, minor) = parse_version(latest)
         .or_else(|| parse_version(DEFAULT_LATEST_VERSION))
@@ -189,28 +190,24 @@ pub fn filed_version(version: (u32, u32), latest: &str) -> String {
     }
 }
 
-/// Whether a day number (days since 1970-01-01, a Thursday) is a Monday.
-pub fn is_monday(day: i32) -> bool {
-    day.rem_euclid(7) == 4
-}
-
-/// The Monday that starts the week holding `day`.
+/// The Monday that starts the week holding `day` (days since 1970-01-01, a Thursday): a
+/// leaving answer is filed under the UTC week it arrived in.
 pub fn monday_of(day: i32) -> i32 {
     day - (day - 4).rem_euclid(7)
 }
 
-/// Whether an installation week is counted on the server's UTC `today`: from 18 weeks
-/// before it to the day after it (time zones ahead of UTC).
-pub fn week_in_window(week: i32, today: i32) -> bool {
-    week >= today - WINDOW_WEEKS_BEFORE * 7 && week <= today + 1
+/// Whether an installation day is counted on the server's UTC `today`: from
+/// [`WINDOW_DAYS_BEFORE`] days before it to the day after it (time zones ahead of UTC).
+pub fn day_in_window(day: i32, today: i32) -> bool {
+    day >= today - WINDOW_DAYS_BEFORE && day <= today + 1
 }
 
 fn epoch() -> NaiveDate {
     NaiveDate::from_ymd_opt(1970, 1, 1).expect("1970-01-01 is a valid date")
 }
 
-/// The first day still kept on `today`: counters whose week starts before it are deleted
-/// (25 months back, calendar months).
+/// The first day still kept on `today`: installation counters whose day, and leaving
+/// counters whose week, is before it are deleted (25 months back, calendar months).
 pub fn retention_cutoff(today: i32) -> i32 {
     let date = epoch() + chrono::Duration::days(i64::from(today));
     let cutoff = date
@@ -228,7 +225,6 @@ pub enum Invalid {
     RepeatedStep,
     UnknownBrowser,
     BadVersion,
-    NotAMonday,
     UnknownReason,
 }
 
@@ -242,7 +238,6 @@ impl Invalid {
             Invalid::RepeatedStep => "a step appears twice",
             Invalid::UnknownBrowser => "unknown browser family",
             Invalid::BadVersion => "the version is not major.minor",
-            Invalid::NotAMonday => "the installation week does not start on a Monday",
             Invalid::UnknownReason => "unknown reason",
         }
     }
@@ -251,7 +246,8 @@ impl Invalid {
 /// A report whose values are all bounded.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CheckedReport {
-    pub week: i32,
+    /// Day 0: the installation's local calendar day, as a day number.
+    pub day: i32,
     pub browser: Browser,
     /// `(major, minor)`; [`filed_version`] says what it is counted under.
     pub version: (u32, u32),
@@ -259,10 +255,10 @@ pub struct CheckedReport {
 }
 
 /// Check a report's values (design D10): one to six distinct known steps, a known browser
-/// family, a `major.minor` version and a Monday. The window is checked separately: a week
-/// out of range is acknowledged, not refused.
+/// family and a `major.minor` version. Any day number is well formed; the window is checked
+/// separately: a day out of range is acknowledged, not refused.
 pub fn check_report(
-    week: i32,
+    day: i32,
     browser: i32,
     version: &str,
     steps: &[i32],
@@ -283,12 +279,9 @@ pub fn check_report(
     }
     let browser = Browser::from_wire(browser).ok_or(Invalid::UnknownBrowser)?;
     let version = parse_version(version).ok_or(Invalid::BadVersion)?;
-    if !is_monday(week) {
-        return Err(Invalid::NotAMonday);
-    }
     checked.sort();
     Ok(CheckedReport {
-        week,
+        day,
         browser,
         version,
         steps: checked,
@@ -337,9 +330,14 @@ pub fn check_leave(reason: &str, browser: &str, version: &str) -> Result<Checked
 mod tests {
     use super::*;
 
-    /// 2026-10-19, a Monday (the spec's example week).
+    /// 2026-10-19, a Monday.
     fn monday_19_october() -> i32 {
         (NaiveDate::from_ymd_opt(2026, 10, 19).unwrap() - epoch()).num_days() as i32
+    }
+
+    /// 2026-10-21, a Wednesday (the spec's example installation day).
+    fn wednesday_21_october() -> i32 {
+        monday_19_october() + 2
     }
 
     #[test]
@@ -434,31 +432,31 @@ mod tests {
     }
 
     #[test]
-    fn mondays_and_their_weeks() {
+    fn a_leaving_answer_week_starts_on_its_monday() {
         let monday = monday_19_october();
-        assert!(is_monday(monday));
         assert_eq!(monday % 7, 4);
-        for d in 1..7 {
-            assert!(!is_monday(monday + d));
+        for d in 0..7 {
             assert_eq!(monday_of(monday + d), monday, "day {d} of the week");
         }
-        assert_eq!(monday_of(monday), monday);
-        // 1970-01-05, the first Monday, and a day before the epoch.
-        assert!(is_monday(4));
+        assert_eq!(monday_of(monday + 7), monday + 7);
+        // 1970-01-05 is the first Monday; a day before the epoch belongs to 1969-12-29's week.
+        assert_eq!(monday_of(4), 4);
         assert_eq!(monday_of(0), -3);
-        assert!(is_monday(-3));
     }
 
     #[test]
-    fn the_window_runs_from_18_weeks_before_to_the_day_after() {
-        let today = monday_19_october() + 2; // a Wednesday
-        assert!(week_in_window(today - 2, today));
-        assert!(week_in_window(today - 126, today));
-        assert!(!week_in_window(today - 127, today));
-        assert!(week_in_window(today + 1, today));
-        assert!(!week_in_window(today + 2, today));
-        // The spec's scenario: a week that started 200 days ago.
-        assert!(!week_in_window(today - 200, today));
+    fn the_window_runs_from_90_days_before_to_the_day_after() {
+        let today = wednesday_21_october();
+        assert!(day_in_window(today, today));
+        // Day 59 of an installation is well inside it.
+        assert!(day_in_window(today - 59, today));
+        assert!(day_in_window(today - 90, today));
+        assert!(!day_in_window(today - 91, today));
+        // A device ahead of UTC is already on tomorrow; two days ahead is a wrong clock.
+        assert!(day_in_window(today + 1, today));
+        assert!(!day_in_window(today + 2, today));
+        // The spec's scenario: an installation day 200 days ago.
+        assert!(!day_in_window(today - 200, today));
     }
 
     #[test]
@@ -469,7 +467,7 @@ mod tests {
             cutoff,
             (NaiveDate::from_ymd_opt(2026, 10, 15).unwrap() - epoch()).num_days() as i32
         );
-        // A week 26 months old is before the cut-off; one 24 months old is not.
+        // A day 26 months old is before the cut-off; one 24 months old is not.
         let old = (NaiveDate::from_ymd_opt(2026, 9, 14).unwrap() - epoch()).num_days() as i32;
         let young = (NaiveDate::from_ymd_opt(2026, 11, 16).unwrap() - epoch()).num_days() as i32;
         assert!(old < cutoff);
@@ -480,61 +478,62 @@ mod tests {
 
     #[test]
     fn a_valid_report() {
-        let week = monday_19_october();
-        let r = check_report(week, 2, "1.10", &[2, 1]).unwrap();
-        assert_eq!(r.week, week);
+        let day = wednesday_21_october();
+        let r = check_report(day, 2, "1.10", &[2, 1]).unwrap();
+        assert_eq!(r.day, day);
         assert_eq!(r.browser, Browser::Firefox);
         assert_eq!(r.version, (1, 10));
         assert_eq!(r.steps, vec![Step::Installed, Step::SetUp]);
         // All six at once.
         assert_eq!(
-            check_report(week, 1, "1.9", &[1, 2, 3, 4, 5, 6])
+            check_report(day, 1, "1.9", &[1, 2, 3, 4, 5, 6])
                 .unwrap()
                 .steps
                 .len(),
             6
         );
+        // Every day of the week is an installation day: the grain is the day.
+        for d in 0..7 {
+            let monday = monday_19_october();
+            assert_eq!(
+                check_report(monday + d, 3, "1.10", &[1]).unwrap().day,
+                monday + d
+            );
+        }
     }
 
     #[test]
     fn malformed_reports_are_invalid() {
-        let week = monday_19_october();
-        assert_eq!(check_report(week, 1, "1.9", &[]), Err(Invalid::NoStep));
+        let day = wednesday_21_october();
+        assert_eq!(check_report(day, 1, "1.9", &[]), Err(Invalid::NoStep));
         assert_eq!(
-            check_report(week, 1, "1.9", &[1, 2, 3, 4, 5, 6, 1]),
+            check_report(day, 1, "1.9", &[1, 2, 3, 4, 5, 6, 1]),
             Err(Invalid::TooManySteps)
         );
         assert_eq!(
-            check_report(week, 1, "1.9", &[1, 9]),
+            check_report(day, 1, "1.9", &[1, 9]),
             Err(Invalid::UnknownStep)
         );
+        assert_eq!(check_report(day, 1, "1.9", &[0]), Err(Invalid::UnknownStep));
         assert_eq!(
-            check_report(week, 1, "1.9", &[0]),
-            Err(Invalid::UnknownStep)
-        );
-        assert_eq!(
-            check_report(week, 1, "1.9", &[3, 3]),
+            check_report(day, 1, "1.9", &[3, 3]),
             Err(Invalid::RepeatedStep)
         );
         assert_eq!(
-            check_report(week, 0, "1.9", &[1]),
+            check_report(day, 0, "1.9", &[1]),
             Err(Invalid::UnknownBrowser)
         );
         assert_eq!(
-            check_report(week, 4, "1.9", &[1]),
+            check_report(day, 4, "1.9", &[1]),
             Err(Invalid::UnknownBrowser)
         );
         assert_eq!(
-            check_report(week, 1, "1.9.0", &[1]),
+            check_report(day, 1, "1.9.0", &[1]),
             Err(Invalid::BadVersion)
         );
         assert_eq!(
-            check_report(week, 1, "007.0", &[1]),
+            check_report(day, 1, "007.0", &[1]),
             Err(Invalid::BadVersion)
-        );
-        assert_eq!(
-            check_report(week + 1, 1, "1.9", &[1]),
-            Err(Invalid::NotAMonday)
         );
         for invalid in [
             Invalid::NoStep,
@@ -543,7 +542,6 @@ mod tests {
             Invalid::RepeatedStep,
             Invalid::UnknownBrowser,
             Invalid::BadVersion,
-            Invalid::NotAMonday,
             Invalid::UnknownReason,
         ] {
             assert!(!invalid.message().is_empty());

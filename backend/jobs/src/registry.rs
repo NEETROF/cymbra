@@ -107,8 +107,9 @@ pub const DISCORD_NOTIFY: &str = "discord_notify";
 /// one twice.
 pub const DISCORD_DIGEST: &str = "discord_digest";
 /// Stable name of the Lingua usage counters' retention (change: add-lingua-usage-counts,
-/// D9). No payload. Scheduled daily: deletes the anonymous week counters more than 25
-/// months old, whatever the counts' kill switch says and whether any report arrives.
+/// D9). No payload. Scheduled daily: deletes the anonymous counters (installation days,
+/// leaving weeks) more than 25 months old, whatever the counts' kill switch says and whether
+/// any report arrives.
 /// Idempotent (a second run finds nothing to delete).
 pub const LINGUA_USAGE_PRUNE: &str = "lingua_usage_prune";
 

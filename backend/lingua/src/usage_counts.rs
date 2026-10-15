@@ -5,8 +5,8 @@
 // License at http://www.apache.org/licenses/LICENSE-2.0
 
 //! Anonymous usage counts (change: add-lingua-usage-counts, spec `lingua-usage-counts`):
-//! an installation's steps and the leaving page's answers added to week counters, and
-//! nothing else kept.
+//! an installation's steps added to counters keyed by its installation day, the leaving
+//! page's answers to week counters, and nothing else kept.
 //!
 //! Every boundary is a port declared here (the consumer declares it): the counters
 //! ([`UsageCountsRepo`] — no row per report, no address, no header), the runtime knobs
@@ -34,16 +34,17 @@ use crate::usage_counts_core::{self as core, Invalid};
 #[cfg(any(test, feature = "mock"))]
 use mockall::automock;
 
-/// The week counters (a thin Postgres adapter). Values reach it already bounded.
+/// The counters (a thin Postgres adapter). Values reach it already bounded.
 #[cfg_attr(any(test, feature = "mock"), automock)]
 #[async_trait]
 pub trait UsageCountsRepo: Send + Sync {
-    /// Add one to the counter of each step for `(week, browser, version)`, unless the
-    /// week's counter for that step and browser, every version summed, has reached
-    /// `ceiling` — so a week marked capped in the console really is (design D10).
+    /// Add one to the counter of each step for `(day, browser, version)` — `day` being the
+    /// installation's day — unless the day's counter for that step and browser, every
+    /// version summed, has reached `ceiling`, so a day marked capped in the console really
+    /// is (design D10).
     async fn count_steps(
         &self,
-        week: i32,
+        day: i32,
         browser: &str,
         version: &str,
         steps: &[&'static str],
@@ -59,8 +60,9 @@ pub trait UsageCountsRepo: Send + Sync {
         version: &str,
         ceiling: i64,
     ) -> Result<()>;
-    /// Delete every counter whose week starts before `week`.
-    async fn delete_before(&self, week: i32) -> Result<()>;
+    /// Delete every installation counter whose day, and every leaving counter whose week,
+    /// is before `day`.
+    async fn delete_before(&self, day: i32) -> Result<()>;
 }
 
 /// The runtime knobs, read on every request.
@@ -68,8 +70,9 @@ pub trait UsageCountsRepo: Send + Sync {
 pub trait UsageCountsPolicy: Send + Sync {
     /// `lingua.usage_counts.enabled`: off, requests are acknowledged and nothing is counted.
     fn enabled(&self) -> bool;
-    /// `lingua.usage_counts.ceiling`: the value a week's counter for one step (or reason)
-    /// and one browser family stops growing at, versions summed.
+    /// `lingua.usage_counts.ceiling`: the value an installation day's counter for one step
+    /// (or a week's for one leaving reason) and one browser family stops growing at,
+    /// versions summed.
     fn ceiling(&self) -> i64;
     /// `lingua.usage_counts.latest_version`: the latest released `major.minor`, which
     /// bounds the versions the counters name (design D10).
@@ -235,7 +238,7 @@ impl FloodGuard {
 /// A report as the gRPC layer hands it over (the message fields, nothing else).
 #[derive(Clone, Debug, Default)]
 pub struct Report {
-    pub install_week: i32,
+    pub install_day: i32,
     pub browser: i32,
     pub version: String,
     pub steps: Vec<i32>,
@@ -262,8 +265,8 @@ fn utc_day(now_secs: u64) -> i32 {
     (now_secs / 86_400) as i32
 }
 
-/// Delete every counter whose week is more than 25 months old on the UTC day of
-/// `now_secs`, and return the first week kept (design D9). Run once a day by the worker's
+/// Delete every counter whose day (or, for the leaving answers, week) is more than 25
+/// months old on the UTC day of `now_secs`, and return the first day kept (design D9). Run once a day by the worker's
 /// scheduled `lingua_usage_prune` job — not from the request path, so retention holds
 /// whether counting is on or off and whether any report arrives (the review: pruning used
 /// to run only after the kill switch's check, on a report).
@@ -323,25 +326,26 @@ impl UsageCountsModule {
         AppError::Unavailable("usage counts".into())
     }
 
-    /// Count a report's steps. `Ok` acknowledges it, counted or not (flag off, week out of
-    /// range, ceiling reached); a malformed report is `InvalidArgument`, a flood
-    /// `ResourceExhausted`. Its version is filed under its own name only near the latest
-    /// release (`other` otherwise), so the versions a week holds stay bounded.
+    /// Count a report's steps under its installation day. `Ok` acknowledges it, counted or
+    /// not (flag off, day out of range, ceiling reached); a malformed report is
+    /// `InvalidArgument`, a flood `ResourceExhausted`. Its version is filed under its own
+    /// name only near the latest release (`other` otherwise), so the versions a day holds
+    /// stay bounded.
     pub async fn report(&self, addr: &str, r: &Report) -> Result<()> {
         self.admit(addr)?;
         let checked =
-            core::check_report(r.install_week, r.browser, &r.version, &r.steps).map_err(invalid)?;
+            core::check_report(r.install_day, r.browser, &r.version, &r.steps).map_err(invalid)?;
         if !self.policy.enabled() {
             return Ok(());
         }
-        if !core::week_in_window(checked.week, self.today()) {
+        if !core::day_in_window(checked.day, self.today()) {
             return Ok(());
         }
         let steps: Vec<&'static str> = checked.steps.iter().map(|s| s.as_str()).collect();
         let version = core::filed_version(checked.version, &self.policy.latest_version());
         self.repo
             .count_steps(
-                checked.week,
+                checked.day,
                 checked.browser.as_str(),
                 &version,
                 &steps,
@@ -376,7 +380,7 @@ impl UsageCountsModule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::usage_counts_core::{monday_of, retention_cutoff};
+    use crate::usage_counts_core::{WINDOW_DAYS_BEFORE, monday_of, retention_cutoff};
     use mockall::predicate::*;
     use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -384,10 +388,6 @@ mod tests {
     const NOW: u64 = 20_747 * 86_400 + 43_200;
     const TODAY: i32 = 20_747;
     const ADDR: &str = "203.0.113.5";
-
-    fn monday() -> i32 {
-        monday_of(TODAY)
-    }
 
     fn policy(enabled: bool, ceiling: i64) -> MockUsageCountsPolicy {
         let mut p = MockUsageCountsPolicy::new();
@@ -422,9 +422,10 @@ mod tests {
         )
     }
 
+    /// A report from an installation made today, the 21st.
     fn report(steps: &[i32]) -> Report {
         Report {
-            install_week: monday(),
+            install_day: TODAY,
             browser: 2,
             version: "1.10".into(),
             steps: steps.to_vec(),
@@ -441,12 +442,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn a_report_is_counted_under_its_week() {
+    async fn a_report_is_counted_under_its_installation_day() {
         // No `delete_before` expectation: a report never prunes (the worker does).
         let mut repo = MockUsageCountsRepo::new();
         repo.expect_count_steps()
-            .withf(|week, browser, version, steps, ceiling| {
-                *week == monday_of(TODAY)
+            .withf(|day, browser, version, steps, ceiling| {
+                *day == TODAY
                     && browser == "firefox"
                     && version == "1.10"
                     && steps == ["installed", "set_up"]
@@ -475,33 +476,51 @@ mod tests {
         .unwrap();
     }
 
+    /// Any day of the week is an installation day, the edges of the window included: day 59
+    /// of an installation made 90 days ago by a device a month behind, and tomorrow for a
+    /// device ahead of UTC.
     #[tokio::test]
-    async fn a_week_out_of_range_is_acknowledged_not_counted() {
+    async fn every_day_in_the_window_is_counted_under_itself() {
+        let days = [
+            TODAY - WINDOW_DAYS_BEFORE,
+            TODAY - 59,
+            monday_of(TODAY) - 1, // the Sunday before
+            TODAY,
+            TODAY + 1,
+        ];
+        let mut repo = MockUsageCountsRepo::new();
+        for day in days {
+            repo.expect_count_steps()
+                .withf(move |d, _, _, _, _| *d == day)
+                .times(1)
+                .returning(|_, _, _, _, _| Ok(()));
+        }
+        let m = module(repo, policy(true, 5_000));
+        for day in days {
+            let mut r = report(&[1]);
+            r.install_day = day;
+            m.report(ADDR, &r).await.unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn a_day_out_of_range_is_acknowledged_not_counted() {
         let m = module(MockUsageCountsRepo::new(), policy(true, 5_000));
-        let mut old = report(&[1]);
-        old.install_week = monday_of(TODAY - 200);
-        m.report(ADDR, &old).await.unwrap();
-        let mut ahead = report(&[1]);
-        ahead.install_week = monday_of(TODAY + 7);
-        m.report(ADDR, &ahead).await.unwrap();
+        for day in [TODAY - 200, TODAY - WINDOW_DAYS_BEFORE - 1, TODAY + 2] {
+            let mut r = report(&[1]);
+            r.install_day = day;
+            m.report(ADDR, &r).await.unwrap();
+        }
     }
 
     #[tokio::test]
     async fn malformed_reports_are_invalid_and_count_nothing() {
         let m = module(MockUsageCountsRepo::new(), policy(true, 5_000));
-        let mut not_monday = report(&[1]);
-        not_monday.install_week += 1;
         let mut bad_version = report(&[1]);
         bad_version.version = "1.10.0".into();
         let mut leading_zero = report(&[1]);
         leading_zero.version = "007.0".into();
-        for r in [
-            report(&[9]),
-            report(&[]),
-            not_monday,
-            bad_version,
-            leading_zero,
-        ] {
+        for r in [report(&[9]), report(&[]), bad_version, leading_zero] {
             assert!(matches!(
                 m.report(ADDR, &r).await,
                 Err(AppError::InvalidArgument(_))

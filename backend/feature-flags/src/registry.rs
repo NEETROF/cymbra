@@ -83,12 +83,12 @@ pub const LINGUA_ONLINE_TRANSLATION_PRICE_ANTHROPIC_OUTPUT: &str =
 /// default; off, every report and leaving answer is acknowledged and nothing is counted, and
 /// extensions keep working — no release needed.
 pub const LINGUA_USAGE_COUNTS_ENABLED: &str = "lingua.usage_counts.enabled";
-/// The value a week's usage counter for one step (or leaving reason) and one browser family
-/// stops growing at, versions summed.
+/// The value an installation day's usage counter for one step (or a week's for one leaving
+/// reason) and one browser family stops growing at, versions summed.
 pub const LINGUA_USAGE_COUNTS_CEILING: &str = "lingua.usage_counts.ceiling";
 /// The latest released Lingua extension version (`major.minor`): the counters name it, the
 /// releases before it in its major and three minors past it; any other version is counted
-/// under `other`, so the rows a week can hold stay bounded.
+/// under `other`, so the rows a day can hold stay bounded.
 pub const LINGUA_USAGE_COUNTS_LATEST_VERSION: &str = "lingua.usage_counts.latest_version";
 
 // Config tunables (the scattered straw-man values live here).
@@ -886,7 +886,7 @@ pub fn builtin() -> Vec<KeyDef> {
             APP_LINGUA,
             FlagValue::Int(5_000),
             false,
-            "The value a week's anonymous usage counter for one step (or leaving reason) and one browser family stops growing at, versions summed, so a flood cannot inflate a week past it.",
+            "The value an installation day's anonymous usage counter for one step (or a week's for one leaving reason) and one browser family stops growing at, versions summed, so a flood cannot inflate a day past it.",
         ),
         cfg(
             LINGUA_USAGE_COUNTS_LATEST_VERSION,

@@ -57,7 +57,7 @@ impl UsageCountsService for UsageCountsGrpc {
             .report(
                 &addr,
                 &Report {
-                    install_week: r.install_week,
+                    install_day: r.install_day,
                     browser: r.browser,
                     version: r.version,
                     steps: r.steps,
@@ -72,7 +72,6 @@ impl UsageCountsService for UsageCountsGrpc {
 mod tests {
     use super::*;
     use crate::usage_counts::{FloodGuard, MockClock, MockUsageCountsPolicy, MockUsageCountsRepo};
-    use crate::usage_counts_core::monday_of;
     use cymbra_platform::AuthIdentity;
     use tonic::Code;
     use tonic::metadata::MetadataValue;
@@ -98,7 +97,7 @@ mod tests {
 
     fn request(bearer: bool, forwarded: &str) -> Request<ReportRequest> {
         let mut req = Request::new(ReportRequest {
-            install_week: monday_of(20_747),
+            install_day: 20_747,
             browser: 1,
             version: "1.10".into(),
             steps: vec![1],

@@ -816,8 +816,8 @@ async fn main() -> anyhow::Result<()> {
                 marks,
             ));
             let data = std::sync::Arc::new(cymbra_lingua::DataModule::new(data_repo));
-            // Anonymous usage counts (change: add-lingua-usage-counts): week counters in
-            // `lingua`, the kill switch and ceiling from runtime flags, floods refused by an
+            // Anonymous usage counts (change: add-lingua-usage-counts): counters by installation
+            // day in `lingua`, the kill switch and ceiling from runtime flags, floods refused by an
             // in-memory guard keyed by an HMAC under a key drawn here and never written.
             let usage_counts_policy: std::sync::Arc<
                 dyn cymbra_lingua::usage_counts::UsageCountsPolicy,

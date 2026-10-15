@@ -164,25 +164,25 @@ impl LinguaAdminRepo for PgLinguaAdminRepo {
 
     async fn usage_funnel(
         &self,
-        from_week: i32,
+        from_day: i32,
         to_day: i32,
         browser: Option<&str>,
         ceiling: i64,
     ) -> Result<Vec<FunnelRow>> {
-        // Versions summed; the finest grain is week × step × browser family. The ceiling
-        // holds per week × step × browser, versions summed (the write's own bound), so a
-        // week is capped when one browser's sum reached it.
+        // Versions summed; the finest grain is installation day × step × browser family. The
+        // ceiling holds per day × step × browser, versions summed (the write's own bound), so
+        // a day is capped when one browser's sum reached it.
         let rows = sqlx::query(
-            "SELECT install_week, step, COALESCE(SUM(total), 0)::bigint AS total, \
+            "SELECT install_day, step, COALESCE(SUM(total), 0)::bigint AS total, \
                     bool_or(total >= $4) AS capped \
-             FROM (SELECT install_week, step, browser, SUM(count) AS total \
-                   FROM lingua.usage_counts_weekly \
-                   WHERE install_week >= $1 AND install_week <= $2 \
+             FROM (SELECT install_day, step, browser, SUM(count) AS total \
+                   FROM lingua.usage_counts_daily \
+                   WHERE install_day >= $1 AND install_day <= $2 \
                      AND ($3::text IS NULL OR browser = $3) \
-                   GROUP BY install_week, step, browser) per_browser \
-             GROUP BY install_week, step ORDER BY install_week, step",
+                   GROUP BY install_day, step, browser) per_browser \
+             GROUP BY install_day, step ORDER BY install_day, step",
         )
-        .bind(from_week)
+        .bind(from_day)
         .bind(to_day)
         .bind(browser)
         .bind(ceiling)
@@ -192,7 +192,7 @@ impl LinguaAdminRepo for PgLinguaAdminRepo {
         Ok(rows
             .iter()
             .map(|r| FunnelRow {
-                week: r.get("install_week"),
+                day: r.get("install_day"),
                 step: r.get("step"),
                 count: r.get("total"),
                 capped: r.get::<Option<bool>, _>("capped").unwrap_or(false),

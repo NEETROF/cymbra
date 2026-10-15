@@ -28,8 +28,8 @@ service LinguaAdminService {
   // (change: add-lingua-online-translation).
   rpc AdminGetOnlineTranslationUsage(AdminGetOnlineTranslationUsageRequest) returns (AdminGetOnlineTranslationUsageResponse);
   // The anonymous installation funnel (change: add-lingua-usage-counts): per installation
-  // week, how many installations reached each step, from week counters that carry no
-  // identifier. Versions are summed; the finest grain is week × browser family.
+  // day, how many installations reached each step, from day counters that carry no
+  // identifier. Versions are summed; the finest grain is day × browser family.
   rpc AdminGetUsageFunnel(AdminGetUsageFunnelRequest) returns (AdminGetUsageFunnelResponse);
   // The leaving page's answers, totalled per reason over the window (same counters' rules).
   rpc AdminGetLeaveReasons(AdminGetLeaveReasonsRequest) returns (AdminGetLeaveReasonsResponse);
@@ -115,25 +115,25 @@ message AdminGetOnlineTranslationUsageResponse {
 }
 
 message AdminGetUsageFunnelRequest {
-  // The installation weeks whose days meet the window.
+  // The installation days in the window.
   LinguaWindow window = 1;
   string browser = 2;          // `chromium` | `firefox` | `safari`; empty => every family
 }
 
-// One installation week of the funnel: counts only, versions summed.
-message UsageFunnelWeek {
-  string week = 1;             // yyyy-mm-dd, the Monday that starts the installation week
+// One installation day of the funnel: counts only, versions summed.
+message UsageFunnelDay {
+  string day = 1;              // yyyy-mm-dd, the installation's local calendar day (day 0)
   int64 installed = 2;
   int64 set_up = 3;
   int64 first_analysis = 4;
   int64 returned_day_1 = 5;
   int64 returned_days_7_to_13 = 6;
   int64 returned_days_30_to_59 = 7;
-  bool capped = 8;             // one of this week's counters reached the ceiling
+  bool capped = 8;             // one of this day's counters reached the ceiling
 }
 
 message AdminGetUsageFunnelResponse {
-  repeated UsageFunnelWeek weeks = 1; // ascending by week
+  repeated UsageFunnelDay days = 1; // ascending by day
 }
 
 message AdminGetLeaveReasonsRequest {

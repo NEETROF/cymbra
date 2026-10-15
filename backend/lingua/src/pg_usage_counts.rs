@@ -34,26 +34,26 @@ impl PgUsageCountsRepo {
 impl UsageCountsRepo for PgUsageCountsRepo {
     async fn count_steps(
         &self,
-        week: i32,
+        day: i32,
         browser: &str,
         version: &str,
         steps: &[&'static str],
         ceiling: i64,
     ) -> Result<()> {
         let steps: Vec<String> = steps.iter().map(|s| s.to_string()).collect();
-        // The ceiling holds for the week's step and browser, every version summed — what the
-        // console shows and marks as capped (design D10). Two concurrent reports may each
-        // read the sum just under it: the ceiling is a soft bound, overshot by at most the
-        // reports in flight.
+        // The ceiling holds for the installation day's step and browser, every version
+        // summed — what the console shows and marks as capped (design D10). Two concurrent
+        // reports may each read the sum just under it: the ceiling is a soft bound, overshot
+        // by at most the reports in flight.
         sqlx::query(
-            "INSERT INTO lingua.usage_counts_weekly (install_week, step, browser, version, count) \
+            "INSERT INTO lingua.usage_counts_daily (install_day, step, browser, version, count) \
              SELECT $1, s, $3, $4, 1 FROM unnest($2::text[]) AS s \
-             WHERE (SELECT COALESCE(SUM(t.count), 0) FROM lingua.usage_counts_weekly t \
-                    WHERE t.install_week = $1 AND t.step = s AND t.browser = $3) < $5 \
-             ON CONFLICT (install_week, step, browser, version) DO UPDATE \
-               SET count = lingua.usage_counts_weekly.count + 1",
+             WHERE (SELECT COALESCE(SUM(t.count), 0) FROM lingua.usage_counts_daily t \
+                    WHERE t.install_day = $1 AND t.step = s AND t.browser = $3) < $5 \
+             ON CONFLICT (install_day, step, browser, version) DO UPDATE \
+               SET count = lingua.usage_counts_daily.count + 1",
         )
-        .bind(week)
+        .bind(day)
         .bind(&steps)
         .bind(browser)
         .bind(version)
@@ -91,15 +91,15 @@ impl UsageCountsRepo for PgUsageCountsRepo {
         Ok(())
     }
 
-    async fn delete_before(&self, week: i32) -> Result<()> {
+    async fn delete_before(&self, day: i32) -> Result<()> {
         let mut tx = self.pool.begin().await.map_err(internal)?;
-        sqlx::query("DELETE FROM lingua.usage_counts_weekly WHERE install_week < $1")
-            .bind(week)
+        sqlx::query("DELETE FROM lingua.usage_counts_daily WHERE install_day < $1")
+            .bind(day)
             .execute(&mut *tx)
             .await
             .map_err(internal)?;
         sqlx::query("DELETE FROM lingua.leave_reasons_weekly WHERE week < $1")
-            .bind(week)
+            .bind(day)
             .execute(&mut *tx)
             .await
             .map_err(internal)?;

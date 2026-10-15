@@ -541,9 +541,9 @@ mod tests {
         repo.expect_count_leave().returning(|_, _, _, _, _| Ok(()));
         let module = module(repo, true, 4);
         let grpc = UsageCountsGrpc::new(module.clone());
-        let report = |week: i32, steps: Vec<i32>| {
+        let report = |day: i32, steps: Vec<i32>| {
             let mut req = tonic::Request::new(ReportRequest {
-                install_week: week,
+                install_day: day,
                 browser: 2,
                 version: "1.10".into(),
                 steps,
@@ -555,16 +555,15 @@ mod tests {
             md.insert("authorization", "Bearer eyJ.reader.bearer".parse().unwrap());
             req
         };
-        let monday = monday_of(20_747);
-        // Counted, then a write that fails, then dropped (week too old), then refused.
-        grpc.report(report(monday, vec![1, 2])).await.unwrap();
-        assert!(grpc.report(report(monday, vec![3])).await.is_err());
-        grpc.report(report(monday_of(20_747 - 200), vec![1]))
-            .await
-            .unwrap();
-        assert!(grpc.report(report(monday + 1, vec![1])).await.is_err());
+        let today = 20_747;
+        // Counted, then a write that fails, then dropped (day too old), then refused (an
+        // unknown step).
+        grpc.report(report(today, vec![1, 2])).await.unwrap();
+        assert!(grpc.report(report(today, vec![3])).await.is_err());
+        grpc.report(report(today - 200, vec![1])).await.unwrap();
+        assert!(grpc.report(report(today, vec![9])).await.is_err());
         // The guard (4 an hour) now refuses the address: a flood refusal too.
-        assert!(grpc.report(report(monday, vec![1])).await.is_err());
+        assert!(grpc.report(report(today, vec![1])).await.is_err());
 
         let app = web_lingua_router(module, vec![SITE.into()]);
         for body in [SLOW, r#"{"reason":"free text"}"#] {
