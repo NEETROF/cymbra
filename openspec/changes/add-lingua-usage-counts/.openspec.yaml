@@ -1,0 +1,7 @@
+schema: spec-driven
+created: 2026-10-13
+archiveAfter:
+  - add-lingua-translation-delivery
+  - add-lingua-youtube-captions
+  - add-lingua-youtube-caption-translation
+  - add-lingua-review-translation-fallback
