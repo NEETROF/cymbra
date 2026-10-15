@@ -4,6 +4,7 @@ import type { LinguaPort } from "@/analyzer/port.ts";
 import {
   ANDROID_VOICES_KEY,
   type AsyncStorageArea,
+  BADGE_COUNT_KEY,
   NEW_WORDS_PER_DAY_KEY,
   REMOTE_VOICES_KEY,
   ROOT_KEY,
@@ -13,6 +14,7 @@ import {
 import { createSpeaker, type SpeechSettings, type VoiceInfo } from "@/reading/speech.ts";
 import { RESTORE_FROM_FILE } from "@/state/store.ts";
 import type { SyncReply } from "@/sync/messages.ts";
+import { STORE_REVIEW_PAGE } from "@/state/store-links.ts";
 import { makeFakePort, makeFakeSpeech, voiceFixture, type FakePort } from "./helpers.ts";
 
 function fakeArea(): AsyncStorageArea & { store: Record<string, unknown> } {
@@ -1064,5 +1066,78 @@ describe("Réglages — the review's blocks (refine-lingua-review-session)", () 
     const m = mountData({ ...port, licences: async () => [] } as FakePort);
     await settle();
     expect(m.block("Sources et confidentialité").textContent).not.toContain("Sources :");
+  });
+});
+
+describe("Réglages — the toolbar icon's count and rating the extension (add-lingua-comeback-hints)", () => {
+  function mountComeback(opts: { badgeCountOffered?: boolean; prefs?: Record<string, unknown> } = {}) {
+    const container = document.createElement("div");
+    document.body.replaceChildren(container);
+    const prefs = fakeArea();
+    Object.assign(prefs.store, opts.prefs ?? {});
+    const pages: string[] = [];
+    mountSettings(container, makeFakePort().port, prefs, {
+      persist: async () => {},
+      store: fakeArea(),
+      openPage: (url) => pages.push(url),
+      sync: {
+        available: async () => false,
+        syncNow: async () => ({ ok: true }),
+        lastSync: async () => null,
+        now: () => NOW,
+        watch: () => {},
+      },
+      badgeCountOffered: opts.badgeCountOffered,
+    });
+    const block = (title: string): HTMLElement =>
+      [...container.querySelectorAll<HTMLElement>(".set-block")].find(
+        (b) => b.querySelector(".set-label")?.textContent === title,
+      )!;
+    const toggle = (): HTMLLabelElement =>
+      [...block("Rythme de révision").querySelectorAll<HTMLLabelElement>("label.set-toggle")].find(
+        (l) => l.textContent === "Afficher les cartes à réviser sur l'icône",
+      )!;
+    return { container, prefs, pages, block, toggle };
+  }
+
+  it("offers the count's switch in « Rythme de révision », on by default, kept on the device", async () => {
+    const m = mountComeback();
+    await settle();
+    const row = m.toggle();
+    expect(row.hidden).toBe(false);
+    const input = row.querySelector("input")!;
+    expect(input.checked).toBe(true);
+    expect(row.nextElementSibling?.textContent).toContain("Calculé sur cet appareil.");
+    input.checked = false;
+    input.dispatchEvent(new Event("change"));
+    await settle();
+    expect(m.prefs.store[BADGE_COUNT_KEY]).toBe(false);
+  });
+
+  it("shows the switch as the reader left it", async () => {
+    const m = mountComeback({ prefs: { [BADGE_COUNT_KEY]: false } });
+    await settle();
+    expect(m.toggle().querySelector("input")!.checked).toBe(false);
+  });
+
+  it("Safari 17: the setting is not offered", async () => {
+    const m = mountComeback({ badgeCountOffered: false });
+    await settle();
+    expect(m.toggle().hidden).toBe(true);
+    expect((m.toggle().nextElementSibling as HTMLElement).hidden).toBe(true);
+  });
+
+  it("Réglages › Données carry « Noter Cymbra Lingua », opening the build's store page through the background", async () => {
+    const m = mountComeback();
+    await settle();
+    const sources = m.block("Sources et confidentialité");
+    const rate = [...sources.querySelectorAll("button")].find((b) => b.textContent === "Noter Cymbra Lingua")!;
+    expect(rate.nextElementSibling?.textContent).toBe("Sur la boutique où tu as installé Cymbra Lingua.");
+    expect(m.pages).toEqual([]);
+    rate.click();
+    expect(m.pages).toEqual([STORE_REVIEW_PAGE]);
+    expect(STORE_REVIEW_PAGE).toBe(
+      "https://chromewebstore.google.com/detail/cymbra-lingua/lodgdmkjlbpieomelpdkfaifdbipfncd/reviews",
+    );
   });
 });

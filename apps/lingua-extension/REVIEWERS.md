@@ -182,3 +182,29 @@ There are four origins, all of them in the source:
   password.
 - `https://cymbra.app` — a link in the account screen to the account-deletion page
   (`src/account/locale.ts`). A link, not a request.
+
+## The toolbar icon's count and the rating request
+
+**The count on the icon.** Where the toolbar icon shows no page percentage, its badge shows how
+many cards a review would hold today, worked out on the device from the reader's own data
+(`src/state/badge-host.ts`, `src/state/badge.ts`, `src/state/review-outlook.ts`). It needs no
+permission the add-on did not already have, and asks for none: it is worked out after a change of
+the reader's data and read again when the browser starts, a tab is activated or a window is
+focused — `runtime.onStartup`, `runtime.onInstalled`, `tabs.onActivated` (which gives tab ids
+only) and `windows.onFocusChanged`. `tabs.onUpdated` is listened to for its `status` alone (with a
+`status` filter on Firefox), which needs no `tabs` permission: a page's percentage is withdrawn
+when its tab starts loading, and a page that stays is asked to say it again when the load ends.
+There is no `alarms`, `idle`, `tabs` or `notifications` permission, no timer and no notification;
+working out the count makes no request. A setting turns it off.
+
+**The rating request.** At the end of a review session that says it is complete, from the fifth
+such session on the reader's third day of review, the review shows one sentence and three buttons
+— rate, later, never again (`src/review/rating.ts`, `src/review/review-page.ts`). It is shown at
+most twice on a device, ever; nothing is offered in exchange; no rating is chosen and no text is
+written in advance; nothing depends on how the session went. The store's page — the add-on's
+listing on addons.mozilla.org, or its Chrome Web Store reviews — opens in a new tab only when the
+reader presses « Noter Cymbra Lingua », through the background, so that no address of a page
+being read is sent with it (`src/state/store-links.ts`). It counts as shown only once it was on
+the reader's screen, and it never shows in the book reader. Settings carry the same link. What the
+request remembers stays in the browser's local storage: it is not synchronised. The Safari build
+shows no request.

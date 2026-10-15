@@ -223,6 +223,15 @@ describe("a session attached to a book section", () => {
     expect(answer).not.toHaveBeenCalled();
   });
 
+  it("says its figure again when the background asks, after its tab's load (add-lingua-comeback-hints D4)", async () => {
+    const { s } = session();
+    await s.start(null);
+    await s.attach(section("<p>It was a dark night.</p>").host);
+    sent.length = 0;
+    expect(runtimeListeners[0]({ type: "badge:again" }, {}, vi.fn())).toBe(false);
+    expect(sent).toEqual([{ type: "stats", pct: 80, language: "en" }]);
+  });
+
   it("keeps the book and chapter as the source of a card captured in it", async () => {
     const { s, calls } = session();
     await s.start(null);
@@ -387,6 +396,10 @@ describe("a session attached to a book section", () => {
     expect(painted).toHaveBeenCalled();
     expect(registry.has(HL_UNKNOWN)).toBe(false);
     expect(sent).toContainEqual({ type: "stats", pct: null, disabled: true });
+    // Asked again after its tab's load (add-lingua-comeback-hints D4): still switched off.
+    sent.length = 0;
+    runtimeListeners[0]({ type: "badge:again" }, {}, vi.fn());
+    expect(sent).toEqual([{ type: "stats", pct: null, disabled: true }]);
   });
 });
 
@@ -762,7 +775,11 @@ describe("the reading session and the studied language", () => {
 describe("the review beside the document (refine-lingua-review-language)", () => {
   /** A reader of English and Spanish, reading a book the engine finds Spanish; every count asked is kept. */
   async function spanishBook() {
-    const counted: { deck: (string[] | undefined)[]; due: (string[] | undefined)[] } = { deck: [], due: [] };
+    const counted: {
+      deck: (string[] | undefined)[];
+      due: (string[] | undefined)[];
+      allowances: (number | undefined)[];
+    } = { deck: [], due: [], allowances: [] };
     const fake = session();
     await fake.port.setStudiedLanguages(["en", "es"]);
     fake.port.detectLanguage = async () => "es";
@@ -770,8 +787,10 @@ describe("the review beside the document (refine-lingua-review-language)", () =>
       counted.deck.push(languages);
       return 7;
     };
-    fake.port.dueCount = async (_now, languages) => {
+    // What a review would hold today, within the day's allowance (add-lingua-comeback-hints D1).
+    fake.port.reviewableCount = async (_now, languages, allowance) => {
       counted.due.push(languages);
+      counted.allowances.push(allowance?.newPerDay);
       return 2;
     };
     await fake.s.start(null);
@@ -786,7 +805,7 @@ describe("the review beside the document (refine-lingua-review-language)", () =>
     await vi.waitFor(() => expect(answer).not.toBe("none"));
 
     expect(answer).toMatchObject({ language: "es", reviewLanguage: "es", deckCount: 7, dueCount: 2 });
-    expect(counted).toEqual({ deck: [["es"]], due: [["es"]] });
+    expect(counted).toEqual({ deck: [["es"]], due: [["es"]], allowances: [10] });
   });
 
   it("announces the document's language with its figures, for Chrome's side panel (D3)", async () => {

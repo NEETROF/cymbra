@@ -55,6 +55,7 @@ import {
   loadEnabled,
   loadHudHidden,
   loadHudPosition,
+  loadNewWordsPerDay,
   parseHudPosition,
   saveBackup,
   saveHudPosition,
@@ -62,6 +63,7 @@ import {
   storedVoicePreference,
 } from "../state/storage.ts";
 import { messagedArea, watchBackup } from "../state/store.ts";
+import { localDayStart } from "../review/session.ts";
 import { requestSync } from "../sync/messages.ts";
 
 // The reading controller, one implementation for its two hosts: the content script on a web
@@ -540,6 +542,8 @@ export class ReadingSession {
       translator: this.translator,
       // The selection card's runtime-message client: the background owns the session (D2).
       online: { offered: online, translate: (request) => translateOnline(request) },
+      // The book reader's drawer asks for no rating (add-lingua-comeback-hints D10).
+      inBook: opts.surface === "book",
     });
     const actions: HudActions = {
       onReview: () => this.openReviewSurface("review"),
@@ -691,6 +695,9 @@ export class ReadingSession {
       else if (msg?.type === "toggleDrawer") void this.drawer.toggle();
       else if (msg?.type === "openDrawer") void this.drawer.openOn(drawerView(msg.view));
       else if (msg?.type === "openToSort") this.host?.openToSort?.();
+      // The tab's load ended (add-lingua-comeback-hints D4): the background cleared the tab's own
+      // figure at its start, and this page stayed — a link within it — so it says its figure again.
+      else if (msg?.type === "badge:again") this.reportBadge();
       else if (msg?.type === "getStats") {
         void this.statsMessage().then(sendResponse);
         return true; // async response
@@ -1044,6 +1051,12 @@ export class ReadingSession {
     }
   }
 
+  /** Say this tab's figure again, as the last paint did: its percentage, or switched off. */
+  private reportBadge(): void {
+    if (this.enabled) this.pushBadge();
+    else this.pushDisabledBadge();
+  }
+
   /** Clear the badge for this tab: the reader is switched off here. */
   private pushDisabledBadge(): void {
     try {
@@ -1356,9 +1369,13 @@ export class ReadingSession {
       trackedCount: await this.port.trackedCount(),
       reviewLanguage: beside,
       toSort: await this.toSortBeside(),
-      // Where the review opens beside it (refine-lingua-review-language D4).
+      // Where the review opens beside it (refine-lingua-review-language D4), and what a review would
+      // hold there today: the new words beyond the day's allowance wait (add-lingua-comeback-hints D1).
       deckCount: await this.port.deckCount([counted]),
-      dueCount: await this.port.dueCount(now, [counted]),
+      dueCount: await this.port.reviewableCount(now, [counted], {
+        newPerDay: await loadNewWordsPerDay(storageArea),
+        dayStart: localDayStart(now),
+      }),
     };
   }
 }

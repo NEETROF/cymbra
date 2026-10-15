@@ -233,6 +233,10 @@ async function main(): Promise<void> {
       };
     },
     online: account.online,
+    // « Séance terminée »: the app's own count, for StoreKit's request — no prompt in the page (D11).
+    onSessionFinished: session.sessionFinished,
+    // A session started within StoreKit's two seconds: the app does not ask then (D11).
+    onSessionStarted: session.sessionStarted,
   });
 
   async function show(view: "review" | "stats"): Promise<void> {

@@ -471,6 +471,7 @@ const SAME_EVERYWHERE = new Set([
   "+",
   "/",
   "; ",
+  ", ",
   " · ",
   "This is how your pages will sound when Lingua reads them aloud.",
   "Así sonarán tus páginas cuando Lingua las lea en voz alta.",
@@ -489,7 +490,7 @@ const SAME_AS_FRENCH: Record<"en" | "es", Set<string>> = {
 };
 
 /** Slot messages whose text is only their parts and a symbol — the same shape in every language. */
-const SAME_SHAPE_EVERYWHERE = new Set(["@α", "▶ α", "α → β", "α / β", `≈${NBSP}α`, "α…", "α — β"]);
+const SAME_SHAPE_EVERYWHERE = new Set(["@α", "▶ α", "α → β", "α / β", `≈${NBSP}α`, "α…", "α — β", "α β"]);
 const SAME_SHAPE_AS_FRENCH: Record<"en" | "es", Set<string>> = {
   en: new Set(),
   es: new Set(),

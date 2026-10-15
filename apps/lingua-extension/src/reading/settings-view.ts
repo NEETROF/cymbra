@@ -14,17 +14,21 @@ import { CEFR_LEVELS, type CefrLevel, type StudiedLanguage } from "../analyzer/t
 import { DEFAULT_INTERFACE_LANGUAGE, fillSlots, formatCount, type InterfaceLanguage, slot } from "../i18n/index.ts";
 import { needsLevelChoice } from "../state/level-choice.ts";
 import { nativeChoiceOffered } from "../state/native-language.ts";
+import { countSupported } from "../state/badge.ts";
 import { type OpenPage, openPageViaBackground } from "../state/open-page.ts";
+import { STORE_REVIEW_PAGE } from "../state/store-links.ts";
 import { saveRestoredBackup } from "../state/store.ts";
 import { hasShortcutEditor } from "../state/platform.ts";
 import {
   type AsyncStorageArea,
+  loadBadgeCount,
   loadHudHidden,
   loadNewWordsPerDay,
   loadReaderFlow,
   NEW_WORDS_PER_DAY_STEPS,
   type NewWordsPerDay,
   saveAndroidVoices,
+  saveBadgeCount,
   saveHudHidden,
   loadOnlineTranslation,
   saveOnlineTranslation,
@@ -101,6 +105,12 @@ export interface SettingsOptions {
    * so the popup offers the backup's download and points to the panel for a restore.
    */
   canPickFiles?: boolean;
+  /**
+   * Whether the toolbar icon can show the count of cards to review here (add-lingua-comeback-hints
+   * D4, D7): `countSupported(navigator.userAgent)` unless given — false in Safari before 18, where
+   * the setting is not offered.
+   */
+  badgeCountOffered?: boolean;
 }
 
 /** The key the settings preview speaks under — not a card's, so no card silences it. */
@@ -594,7 +604,19 @@ export function mountSettings(
   paceGroup.append(...paceButtons.map(({ b }) => b));
   const paceRow = el("div", "set-display-row");
   paceRow.append(el("span", undefined, copy.newWordsPerDay), paceGroup);
-  paceBlock.append(paceRow, el("div", "set-note", copy.newWordsPerDayNote));
+  // The toolbar icon's count (add-lingua-comeback-hints D7): on by default, kept on this device,
+  // not offered where the icon cannot show it beside page percentages (D4).
+  const badgeRow = el("label", "set-toggle");
+  const badgeToggle = el("input");
+  badgeToggle.type = "checkbox";
+  badgeToggle.checked = true;
+  badgeRow.append(badgeToggle, el("span", undefined, copy.badgeCount));
+  const badgeNote = el("div", "set-note", copy.badgeCountNote);
+  const badgeOffered = opts.badgeCountOffered ?? countSupported(navigator.userAgent);
+  badgeRow.hidden = !badgeOffered;
+  badgeNote.hidden = !badgeOffered;
+  badgeToggle.addEventListener("change", () => void saveBadgeCount(area, badgeToggle.checked));
+  paceBlock.append(paceRow, el("div", "set-note", copy.newWordsPerDayNote), badgeRow, badgeNote);
   const showPace = (perDay: NewWordsPerDay): void => {
     for (const { step, b } of paceButtons) b.setAttribute("aria-pressed", String(step === perDay));
   };
@@ -652,7 +674,18 @@ export function mountSettings(
   const notice = el("pre", "set-notice");
   const noticeDetails = el("details", "set-notice-details");
   noticeDetails.append(el("summary", undefined, copy.fullNotice), notice);
-  sourcesBlock.append(el("div", "set-note set-privacy", copy.privacy), licences, noticeDetails);
+  // Rating the extension (add-lingua-comeback-hints D13): in every browser, on the store the build is
+  // distributed by, opened by the background so no address of a page being read goes with it.
+  const rateLink = el("button", "linklike", copy.rate);
+  rateLink.type = "button";
+  rateLink.addEventListener("click", () => openPage(STORE_REVIEW_PAGE));
+  sourcesBlock.append(
+    el("div", "set-note set-privacy", copy.privacy),
+    licences,
+    noticeDetails,
+    rateLink,
+    el("div", "set-note", copy.rateNote),
+  );
   async function refreshSources(): Promise<void> {
     const pack = port.for(await readingLanguage(port, pairs));
     const names = await pack.licences();
@@ -841,6 +874,7 @@ export function mountSettings(
     renderVoices();
     flowToggle.checked = (await loadReaderFlow(area)) === "scrolled";
     showPace(await loadNewWordsPerDay(area));
+    badgeToggle.checked = await loadBadgeCount(area);
     await Promise.all([bookDisplay.refresh(), colours.refresh()]);
     await Promise.all([refreshSync(), account.refresh(), translation?.refresh(), refreshOnline(), refreshSources()]);
   }

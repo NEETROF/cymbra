@@ -66,6 +66,14 @@ export function languageName(language: InterfaceLanguage, studied: NamedLanguage
 }
 
 /**
+ * A language within a running sentence, as the toolbar icon's title lists them — « anglais 8,
+ * espagnol 4 », "English 8, Spanish 4", « inglés 8, español 4 » (add-lingua-comeback-hints D5).
+ */
+export function listedLanguageName(language: InterfaceLanguage, studied: NamedLanguage): string {
+  return words(language, studied).masculine;
+}
+
+/**
  * A native language named in its own language — « Français », "English", « Español » — the same in
  * every interface language (add-lingua-native-language-choice D4): a reader finds their own language
  * whatever the interface speaks.

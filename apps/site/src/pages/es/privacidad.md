@@ -3,7 +3,7 @@ layout: ../../layouts/Legal.astro
 title: Política de privacidad
 description: Qué datos personales tratan los servicios Cymbra, por qué, con quién se comparten y cuáles son tus derechos.
 lang: es
-updated: 14/10/2026
+updated: 15/10/2026
 alternates:
   fr: /confidentialite
   en: /en/privacy
@@ -170,7 +170,12 @@ dispositivo** y nunca se envía, salvo la frase que envías tú con la **Traducc
 la traducción de una palabra que decides guardar en su tarjeta (más abajo). También se quedan en el dispositivo: el detalle de tus
 lecturas (qué palabras has encontrado, en qué páginas), la **dirección de la página** en la
 que añades una palabra a tu mazo y, si no has iniciado sesión, el conjunto de tus datos de
-Lingua.
+Lingua. También se queda en el dispositivo, sin sincronizarse ni guardarse en el archivo de copia
+de seguridad, lo que recuerda la petición de valoración: el número de sesiones de repaso que has
+terminado, el número de días en que terminaste alguna, la fecha de la última, el número de veces
+que se te mostró la petición y tu respuesta — y, en la app Cymbra Lingua, el número de sesiones
+terminadas en la app y la versión de la app para la que se pidió la valoración; la página de la
+tienda solo se abre si decides valorar Cymbra Lingua.
 
 **Tus idiomas.** Tus ajustes de idiomas se quedan en el dispositivo: los idiomas que estudias y
 tu lengua materna no se guardan como tales. Cada estado, nivel, tarjeta y día de estadísticas

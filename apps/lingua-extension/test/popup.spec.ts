@@ -13,7 +13,9 @@ import {
   NODE_SLOT,
   renderAround,
 } from "@/i18n/index.ts";
-import { type PageStats, renderStats } from "@/popup/render.ts";
+import { deckFigure, reviewDestination } from "@/popup/deck.ts";
+import { type PageStats, renderDeck, renderStats } from "@/popup/render.ts";
+import { OUTLOOK_VERSION, type ReviewOutlook } from "@/state/review-outlook.ts";
 import { PENDING_RULE, pageArea, refusingArea, REVEAL_KEYFRAMES } from "./helpers.ts";
 
 // The popup's page (localise-lingua-reading-surfaces D2, D5): its skeleton holds no text; opened as
@@ -266,5 +268,65 @@ describe("the popup's page, filled from the catalogue", () => {
     expect(enPopup.review("3")).toBe("Review (3)");
     expect(doc.documentElement.lang).toBe("en");
     expect(doc.documentElement.hasAttribute(COPY_PENDING_ATTR)).toBe(false);
+  });
+});
+
+describe("the deck and « Réviser (N) » on every tab (add-lingua-comeback-hints D8)", () => {
+  const NOW = 1_790_000_000;
+  const DAY_START = NOW - 8 * 3_600;
+  /** An outlook: English with 2 reviewed cards due and 30 new words, Spanish with 4 cards due. */
+  const OUTLOOK: ReviewOutlook = {
+    version: OUTLOOK_VERSION,
+    computedAt: NOW,
+    dayStart: DAY_START,
+    languages: [
+      { language: "en", cards: 45, due: 2, upcoming: [], fresh: 30, introduced: 0 },
+      { language: "es", cards: 9, due: 4, upcoming: [], fresh: 0, introduced: 0 },
+    ],
+  };
+  const away = { reviewLanguage: null, now: NOW, dayStart: DAY_START, perDay: 10 };
+
+  /** The page filled in `language`, a tab that did not answer, its deck from the outlook. */
+  async function awayFromPage(language: InterfaceLanguage, reviewLanguage: string | null = null) {
+    const doc = page();
+    const got = await fillPageInLanguage(doc, pageArea({ [INTERFACE_LANGUAGE_KEY]: language }), (l) => POPUP[l]);
+    renderStats(doc, got.language, got.copy, null, false);
+    renderDeck(doc, got.language, got.copy, deckFigure(null, OUTLOOK, { ...away, reviewLanguage }));
+    return doc;
+  }
+
+  it("A tab that was not analysed: the deck and « Réviser (N) » show, outside the page's figures", async () => {
+    const doc = await awayFromPage("fr");
+    expect(doc.getElementById("controls")!.hidden).toBe(true);
+    const block = doc.getElementById("review-block")!;
+    expect(block.hidden).toBe(false);
+    expect(block.closest("#controls")).toBeNull();
+    // New words beyond today's allowance: 2 due + 10 of the 30, not 32.
+    expect(doc.getElementById("review")!.textContent).toBe("Réviser (12)");
+    expect(doc.getElementById("deck")!.textContent).toBe("45");
+  });
+
+  it("in the language the review would open in: the last chosen, else the first studied", async () => {
+    expect((await awayFromPage("fr", "es")).getElementById("review")!.textContent).toBe("Réviser (4)");
+    expect((await awayFromPage("fr", "fr")).getElementById("review")!.textContent).toBe("Réviser (12)");
+  });
+
+  it("in the three interface languages", async () => {
+    expect((await awayFromPage("en")).getElementById("review")!.textContent).toBe("Review (12)");
+    expect((await awayFromPage("es")).getElementById("review")!.textContent).toBe("Repasar (12)");
+  });
+
+  it("an analysed page gives its own figures; no outlook and no page, nothing", () => {
+    expect(deckFigure({ deckCount: 3, dueCount: 2 }, OUTLOOK, away)).toEqual({ deckCount: 3, dueCount: 2 });
+    expect(deckFigure(null, null, away)).toEqual({ deckCount: 0, dueCount: 0 });
+    expect(deckFigure(null, { ...OUTLOOK, languages: [] }, away)).toEqual({ deckCount: 0, dueCount: 0 });
+  });
+
+  it("« Réviser » opens the side panel on Chromium, the drawer where the reader runs, else a tab", () => {
+    expect(reviewDestination(false, false)).toBe("panel");
+    expect(reviewDestination(false, true)).toBe("panel");
+    expect(reviewDestination(true, true)).toBe("drawer");
+    // A Firefox tab without the reader: the review opens in a tab of its own.
+    expect(reviewDestination(true, false)).toBe("tab");
   });
 });

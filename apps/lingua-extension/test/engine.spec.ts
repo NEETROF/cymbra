@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { reprofileBackup, WasmAnalyzerPort, type WasmModule } from "@/analyzer/engine.ts";
+import { reprofileBackup, reviewOutlookJson, WasmAnalyzerPort, type WasmModule } from "@/analyzer/engine.ts";
+import { localDayStart } from "@/review/session.ts";
+import { realGlue, realPort } from "./real-wasm.ts";
 
 /**
  * A glue module that behaves like wasm-pack's: init() returns at once when a previous call
@@ -148,6 +150,10 @@ describe("WasmAnalyzerPort language views", () => {
         received.push(["dueCount", args]);
         return 2;
       }
+      reviewableCount(...args: unknown[]): number {
+        received.push(["reviewableCount", args]);
+        return 1;
+      }
       deckCount(...args: unknown[]): number {
         received.push(["deckCount", args]);
         return 3;
@@ -260,6 +266,8 @@ describe("WasmAnalyzerPort language views", () => {
     await port.startReview(100, ["es"], { limit: 10, practice: true });
     expect(await port.deckCount(["es"])).toBe(3);
     await port.deckCount();
+    expect(await port.reviewableCount(100, ["es"], { newPerDay: 10, dayStart: 86_400 })).toBe(1);
+    await port.reviewableCount(100);
 
     expect(glue.received).toEqual([
       ["dueCount", [100, ["es"]]],
@@ -270,6 +278,8 @@ describe("WasmAnalyzerPort language views", () => {
       ["startReview", [100, ["es"], 10, null, null, true]],
       ["deckCount", [["es"]]],
       ["deckCount", [null]],
+      ["reviewableCount", [100, ["es"], 10, 86_400]],
+      ["reviewableCount", [100, null, null, null]],
     ]);
   });
 
@@ -806,5 +816,63 @@ describe("WasmAnalyzerPort packs", () => {
 
     expect(packs()).toEqual([EN_FR]);
     expect(glue.calls).toEqual([]);
+  });
+});
+
+describe("the real engine's count of what a review would hold (add-lingua-comeback-hints D1)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("leaves out the new words beyond the day's allowance, as a session does", async () => {
+    const port = realPort();
+    const dayStart = localDayStart(1_790_000_000);
+    const now = dayStart + 8 * 3_600;
+    const english = port.for("en");
+    for (let i = 0; i < 30; i++) {
+      await english.addCard({
+        lemma: `word${i}`,
+        surface: `word${i}`,
+        sentence: "",
+        url: "",
+        gloss: null,
+        capturedAt: dayStart - 86_400 + i,
+      });
+    }
+    const allowance = { newPerDay: 10, dayStart };
+
+    expect(await port.dueCount(now, ["en"])).toBe(30);
+    expect(await port.reviewableCount(now, ["en"], allowance)).toBe(10);
+    expect(await port.reviewableCount(now, ["en"])).toBe(30);
+
+    // Four new words answered this morning: six of today's allowance are left, as a session finds.
+    await port.startReview(now, ["en"], { limit: 4, ...allowance });
+    for (let i = 0; i < 4; i++) {
+      await port.reviewReveal();
+      await port.reviewGrade("good", now);
+    }
+    const later = now + 60;
+    expect(await port.reviewableCount(later, ["en"], allowance)).toBe(6);
+    expect(await port.startReview(later, ["en"], allowance)).toBe(6);
+  });
+
+  it("reads a backup's outlook through the glue, with no engine", async () => {
+    const port = realPort();
+    await port.for("en").addCard({
+      lemma: "seldom",
+      surface: "seldom",
+      sentence: "",
+      url: "",
+      gloss: null,
+      capturedAt: 100,
+    });
+    const json = await reviewOutlookJson(await port.backup(), 200, 0, async () => realGlue());
+    expect(JSON.parse(json)).toMatchObject({
+      version: 1,
+      computedAt: 200,
+      dayStart: 0,
+      languages: [{ language: "en", cards: 1, due: 0, upcoming: [], fresh: 1, introduced: 0 }],
+    });
+    await expect(reviewOutlookJson("{ not json", 0, 0, async () => realGlue())).rejects.toThrow(/malformed backup/);
   });
 });

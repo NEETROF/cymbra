@@ -86,6 +86,11 @@ export const settings: typeof fr = {
   dataErased: "Data erased.",
   tabs: "Settings",
   reviewPace: "Review pace",
+  badgeCount: "Show the cards to review on the icon",
+  badgeCountNote:
+    "What a review would hold today, on the pages where the icon shows no percentage. Worked out on this device.",
+  rate: "Rate Cymbra Lingua",
+  rateNote: "In the store you installed Cymbra Lingua from.",
   newWordsPerDay: "New words per day",
   newWordsPerDayNote:
     "For each language you study. Words added beyond it wait for the following days. A session holds ten cards at most.",

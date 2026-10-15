@@ -95,6 +95,18 @@ export interface ReviewRenderOptions {
    * (add-lingua-review-translation-fallback D12). Absent: the note alone.
    */
   hint?: ReviewTranslationHint;
+  /**
+   * The rating request at the end of a session (add-lingua-comeback-hints D10): one sentence and
+   * three actions, below the end's own, which stay first. Absent: none — the review page decides.
+   */
+  rating?: ReviewRatingRequest;
+}
+
+/** The rating request's three answers: rate, later, never again. */
+export interface ReviewRatingRequest {
+  rate(): void;
+  later(): void;
+  never(): void;
 }
 
 /**
@@ -164,7 +176,7 @@ export function renderReview(
 
   const rows: ListenRow[] = [];
   if (view.phase === "idle") root.append(button(copy.start, "review-btn primary review-start", () => actions.start()));
-  else if (view.phase === "done" || !card) root.append(ending(view, actions, language, copy));
+  else if (view.phase === "done" || !card) root.append(ending(view, actions, language, copy, opts.rating));
   else root.append(cardView(card, view.showing ?? 1, view.practice ?? false, actions, opts, language, copy, rows));
 
   const speaker = opts.speaker;
@@ -307,11 +319,30 @@ function cardView(
   return wrap;
 }
 
-/** The end of a session: what it did, and « Encore 10 » while another session would hold cards. */
-function ending(view: ReviewView, actions: ReviewActions, language: InterfaceLanguage, copy: ReviewCopy): HTMLElement {
+/**
+ * Whether a session's end says what it did (« Séance terminée » and its counts): it answered at least
+ * one card, a practice session included. An end that says nothing was due is not one
+ * (add-lingua-comeback-hints D10); nor, for the rating request, is a session the reader ended before
+ * its last card, which the review page leaves out (`ReviewView.ended`).
+ */
+export function sessionCompleted(summary: ReviewSummary | null): boolean {
+  return !!summary && summary.reviewed + summary.known + summary.hidden > 0;
+}
+
+/**
+ * The end of a session: what it did, and « Encore 10 » while another session would hold cards — then,
+ * when the review page asks for it, the rating request below them.
+ */
+function ending(
+  view: ReviewView,
+  actions: ReviewActions,
+  language: InterfaceLanguage,
+  copy: ReviewCopy,
+  rating?: ReviewRatingRequest,
+): HTMLElement {
   const box = div("review-done");
   const s: ReviewSummary | null = view.summary;
-  if (!s || s.reviewed + s.known + s.hidden === 0) {
+  if (!s || !sessionCompleted(s)) {
     // Ended before any answer: it ended, nothing to count — never « nothing due » above « Encore 10 »
     // (add-lingua-review-stop-session D3).
     box.append(view.ended ? line("done-title", copy.sessionDone) : note(copy.nothingDue));
@@ -343,6 +374,26 @@ function ending(view: ReviewView, actions: ReviewActions, language: InterfaceLan
     const practise = actions.practice;
     box.append(button(copy.practice, "review-btn primary review-practice", () => practise()));
   }
+  if (rating) box.append(ratingRequest(rating, copy));
+  return box;
+}
+
+/**
+ * « Une note sur la boutique de ton navigateur aide d'autres lecteurs à trouver Cymbra Lingua. »
+ * and its three actions (add-lingua-comeback-hints D10): no stars, nothing chosen in advance,
+ * nothing offered.
+ */
+function ratingRequest(rating: ReviewRatingRequest, copy: ReviewCopy): HTMLElement {
+  const box = div("review-rating");
+  box.setAttribute("role", "group");
+  box.setAttribute("aria-label", copy.ratingRate);
+  const actions = div("review-rating-actions");
+  actions.append(
+    button(copy.ratingRate, "review-btn review-rating-rate", () => rating.rate()),
+    button(copy.ratingLater, "review-link review-rating-later", () => rating.later()),
+    button(copy.ratingNever, "review-link review-rating-never", () => rating.never()),
+  );
+  box.append(note(copy.ratingAsk, "review-rating-ask"), actions);
   return box;
 }
 

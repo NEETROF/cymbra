@@ -44,9 +44,11 @@ language change, an erasure and the Apple app's changes collected by `reviewRela
 `background.ts`: `session.resume()` (`src/state/session.ts` — no request while the stored access
 token is usable, a token refresh otherwise) and, for a signed-in reader, `flags.refresh()` (at most
 every 5 min, `FLAG_REFRESH_MS`) and `scheduler.onOpen(SURFACE_INTERVAL_MS)` — a sync if none ran in
-the last 10 s. A Chromium service worker is stopped after about 30 s without events, so every start
-after a quiet spell syncs a signed-in reader. Pages and surfaces also ask for their own syncs
-(`requestSync("page")`, 60 s; `requestSync("surface")`, 10 s).
+the last 10 s. The background does not stay up on any of the three browsers: a Chromium service
+worker is stopped after about 30 s without events, Firefox's event page (desktop and Android) is
+unloaded after about 30 s idle, and Safari suspends its background page whenever it is idle. So on
+every browser, every start after a quiet spell syncs a signed-in reader. Pages and surfaces also
+ask for their own syncs (`requestSync("page")`, 60 s; `requestSync("surface")`, 10 s).
 
 **The review end.** `renderReview` → `ending()` (`src/review/view.ts`) shows « Séance terminée »
 and the summary when the session answered at least one card, else « Rien à réviser pour
@@ -110,7 +112,7 @@ the dogfood (task 8.3).
   did not answer — at the moment a session ends, within each store's rules.
 - Nothing new leaves the device; nothing wakes the extension on a schedule.
 - The synchronisation keeps its current triggers: this change adds none and removes none, though on
-  Chromium one of them — the background's start — now happens more often (D9, *Follow-up*).
+  every browser one of them — the background's start — now happens more often (D9, *Follow-up*).
 
 **Non-Goals:**
 - Notifications, alarms, timers, `idle` detection, streaks, any badge or count on the page while
@@ -145,24 +147,53 @@ day refills the allowance). So the background computes, after each change of the
 - `upcoming`: the due times of the next reviewed cards to come due, ascending — at most 100, enough
   to tell 99 from more;
 - `fresh`: the never-reviewed cards (due, not retired);
-- `introduced`: the cards first answered since the local midnight of `dayStart`.
+- `introduced`: the cards first answered since the local midnight of `dayStart`;
+- `cards`: every card of the language — the « Deck (en cours) » the popup shows away from a page
+  (D8; added during implementation, a count like the others).
 
 Count at `t` = `due` + `upcoming` ≤ `t` + min(`fresh`, `perDay` − (`introduced` if `t` is still on
 `dayStart`'s day, else 0)). The outlook is computed by `reviewOutlook(backup, now, dayStart)`, a
 standalone WASM function that needs no pack — the deck read with `LinguaState::from_backup`,
 counted in the core next to `reviewable_count_for`, as `reprofileBackup` reads a backup — and kept
-in `chrome.storage.local` under one key with its version. It holds counts and timestamps only: no
-word, no page. The popup reads the same key. Reading it repeats one line of the allowance rule (the
+in `chrome.storage.local` under one key with its version. It holds counts, timestamps and the
+digest below only: no word, no page. The popup reads the same key. Reading it repeats one line of the allowance rule (the
 smaller of the new words waiting and the allowance left); a test checks the outlook's count at
 several times — before and after upcoming due times, and on the next day — against the engine's
 `reviewableCount` on the same deck, so the two cannot drift apart unnoticed.
 
-The computation runs after every write that touches `ROOT_KEY` (hooked where `announceStoreChange`
-already calls `onReaderDataChanged`), without a timer: a write arriving while one runs marks it
-dirty, and one more run follows. It also runs at the background's start when the key is missing or
-of another version, and at an event that finds a language's `upcoming` list used up (it held 100
-times and the last has passed): the 101st card may then be due, and only a new outlook knows — rare,
-since any answer or sync recomputes it first. It does not run while the setting is off.
+The computation is considered after every write that touches `ROOT_KEY` (hooked where
+`announceStoreChange` already calls `onReaderDataChanged`), without a timer: a write arriving while
+one runs marks it dirty, and one more run follows. It runs only when what it reads moved. The outlook
+is kept with `inputs`, a SHA-256 digest of the parts of the backup it reads — the `deck` and the
+`profile` (the studied languages), found by their top-level keys in the backup as the engine writes
+it, one key per line two spaces in; a backup laid out otherwise is digested whole. A write whose
+digest equals the kept one — the reading exposures a page saves every two seconds
+(`EXPOSURE_FLUSH_MS`), a status, the daily statistics — works nothing out. Measured on the real
+engine over a simulated minute of reading (thirty exposure saves, then a capture): 31 runs before
+this rule, 1 after it, 2 once the word is captured (`test/badge-host.spec.ts`). It also runs at the
+background's start when the key is missing or of another version, and at an event that finds a
+language's `upcoming` list used up (it held 100 times and the last has passed): the 101st card may
+then be due, and only a new outlook knows — rare, since any answer or sync recomputes it first.
+
+**Reviews made in the Cymbra Lingua app.** Since `add-lingua-app-deck-sync` (merged after this change
+was proposed) the app synchronises its own reviews with the server, and still hands them back
+through the App Group. They reach the extension's deck by two roads, the relay's `collect()` and the
+extension's own sync pulling what the app pushed; both write the backup through the owner's area
+(`ownedStore` in `background.ts`), whose announcement is the one this computation hangs off — no hook
+of its own. `test/badge-host.spec.ts` pins the relay's road end to end, through `ownerArea`.
+
+**The clock going back.** The outlook's `due` and `introduced` were counted at `computedAt` on the
+day starting at `dayStart`. Asked at an earlier time, or on an earlier day (the date set back, a
+time zone moved west), it would count cards not due yet. Such an outlook is *stale*: the core's
+`count_at` and the extension's `languageCountAt` return none for it, alike (`ReviewOutlook::stale_at`,
+`staleAt`), and a new one is worked out — by the background at the event, by the popup itself — even
+when its digest is the same. Never a count from a stale outlook: a run that cannot read the backup
+leaves the badge empty rather than too high.
+
+**The switch.** It does not run while the setting is off. Each turn of the switch moves an epoch: a
+run that started before it writes nothing, so a run under way when the count is turned off cannot
+leave an outlook behind for the next « on », and turning the count on works a new outlook out at
+once, whatever was kept.
 
 *Rejected.* Ask a hydrated engine on each event: on Chromium every tab switch after 30 s idle would
 load the WASM module, a pack and the whole backup. Count in TypeScript from the backup JSON: a
@@ -174,7 +205,10 @@ relay), and only the background sees them all.
 ### D3 — Events, never a timer
 
 The badge is re-evaluated (outlook read, count worked out, action API touched only when the text,
-colour or title differ from what was last applied, kept in `chrome.storage.session`):
+colour or title differ from what was last applied, kept in `chrome.storage.session`). Every touch of
+the action API — the global badge and a tab's own — runs on one promise chain, the look worked out on
+the chain itself: two events never interleave their calls, the last event shows the latest figure,
+and what is recorded as applied is what the icon shows:
 
 - when an outlook is written (an answer, a capture, a sync applied, a restore, a native language
   change, an erasure, a review made in the Cymbra Lingua app);
@@ -182,6 +216,7 @@ colour or title differ from what was last applied, kept in `chrome.storage.sessi
 - `tabs.onActivated` (another tab) and `windows.onFocusChanged` to a window (back to the browser —
   `chrome.windows` is guarded, Firefox for Android has none);
 - a change of the daily allowance, of the setting, of the colour preset (`chrome.storage.onChanged`);
+- a tab's load starting or ending (`tabs.onUpdated`'s `status`, D4);
 - any other message that already wakes the background (a page's `stats`, a surface's `sync`).
 
 **The count can be behind, by design.** Between two events nothing runs, so the badge shows the
@@ -190,14 +225,16 @@ count as of the last event:
   events, not at 14:00; the day's new words show at the first event after midnight.
 - *Too high*: cards the reader answered on another device (or in the app) still count until this
   browser applies them — at its next sync, which a surface opening, a page loading, the browser
-  starting or, on Chromium, a wake of the background after a quiet spell already triggers (D9).
+  starting or, on every browser, a wake of the background after a quiet spell already triggers (D9).
 
 That is the price of "no timer", and the events above are frequent while the browser is in use;
 opening the popup is itself one of them (it asks for a sync), and the review counts from the engine,
 never from the outlook (D1). None of the events
-needs a permission (`tabs.onActivated` gives ids only), so the update asks for no new consent. Not
-used: `alarms`, `idle`, `setInterval`, `tabs.onUpdated` (it fires several times per page load and
-for background tabs; a navigation already clears a tab's own badge — D4).
+needs a permission (`tabs.onActivated` gives ids only, `tabs.onUpdated` its `status` without the
+`tabs` permission), so the update asks for no new consent. Not used: `alarms`, `idle`,
+`setInterval`. `tabs.onUpdated` fires several times per page load and for background tabs; it is
+listened to for the per-tab reset of D4 only, on Firefox with a `status` filter so other changes do
+not wake the event page (Chrome refuses a filter on this event).
 
 ### D4 — The global badge says the count, a tab's own badge says its percentage
 
@@ -207,9 +244,17 @@ for background tabs; a navigation already clears a tab's own badge — D4).
 - A tab whose page reports nothing to count, or whose reader is switched off, gets
   `setBadgeText({ tabId, text: null })`: it inherits the global count. Its colour is set to the
   count's colour explicitly, Chrome having no `null` colour.
-- A navigation clears a tab's own values, so a percentage never outlives its page (Firefox
-  documents it; Chromium clears a tab's action values on a cross-document navigation — checked in
-  task 8.2, with a reset on `tabs.onUpdated` `loading` as the fallback if it does not).
+- A percentage never outlives its page. Firefox documents that a navigation clears a tab's own
+  values and Chromium clears them on a cross-document navigation, but Safari does not say, and the
+  review found Safari 18 might keep it. So on every browser that shows the count the background
+  clears the tab's own text itself when the tab's load starts (`tabs.onUpdated`, `status`
+  `loading`): the tab then shows the global count. A load also starts for a navigation within the
+  page (a link to an anchor, a history push) where the page stays and repaints nothing, so when the
+  load ends (`status` `complete`) the background asks the tab's page to say its figure again
+  (`badge:again`, answered by the reading session with its last report); a tab without the reader
+  does not answer, and its badge stays the count. Both resets go through the chain of D3, in the
+  order the events came. Not in Safari before 18, whose one badge serves every tab: a background
+  tab's load would clear the percentage of the tab in front.
 
 The dash « — » goes: the badge shows one thing at a time, and the popup already says why a page
 has no figure (« Pas de texte anglais détecté sur cette page. »).
@@ -264,7 +309,8 @@ In Réglages › Langue › « Rythme de révision », under « Nouveaux mots pa
 cartes à réviser sur l'icône », with a note saying it counts what a review would hold today, on the
 pages where the icon shows no percentage, computed on this device. On by default, for new and
 existing readers; a device preference in `chrome.storage.local`, not synced, not in the backup file.
-Off: no outlook is computed, the global badge and title are cleared, page percentages stay. Not
+Off: no outlook is computed, the global badge and title are cleared, page percentages stay; on
+again, a new outlook is worked out at once (D2, *The switch*). Not
 offered where the count cannot show: Safari before 18 (D4), and iOS and iPadOS if task 8.3 finds
 that Safari shows no badge text there.
 
@@ -274,25 +320,31 @@ that Safari shows no badge text there.
 highlighting on or off. On an analysed tab N is the page's language's count, from the page; away
 from one, it is the count of the language the review would open in away from a page (the last one
 chosen in the review on this device, else the first studied), from the outlook — the popup needs no
-engine. « Réviser » opens the side panel on Chromium; on Firefox and Safari it opens the drawer when
+engine. Where no outlook is kept — the count turned off (D7), or none worked out yet — the popup
+works one out itself with the same standalone function over the stored backup, still with no engine
+and no pack. « Réviser » opens the side panel on Chromium; on Firefox and Safari it opens the drawer when
 the tab has the reader, and otherwise `sidepanel.html` in a tab, as the background's `openPanel`
 already does when the side panel cannot open.
 
 ### D9 — The background's start is left as it is
 
-With D3, a tab switch or a window focus can start the background where nothing started it before —
-on Chromium, whose service worker stops after about 30 s without events. Each start already resumes
-the session and, for a signed-in reader, syncs if none ran in the last 10 s and refreshes the flags
-(*The background's wake*). So a signed-in Chromium reader who comes back to the browser after a
-quiet spell now gets one exchange with the server at the first tab switch or window focus, where
-today it comes with the next page analysed or surface opened. A signed-out reader — the majority —
-gets none: signed out, the background makes no request.
+With D3, a tab switch, a window focus or a tab's load can start the background where nothing
+started it before — on every browser: a Chromium service worker stops after about 30 s without
+events, Firefox's event page is unloaded after about 30 s idle (desktop and Android), and Safari
+suspends its background page whenever it is idle. Each start already resumes the session and, for
+a signed-in reader, syncs if none ran in the last 10 s and refreshes the flags (*The background's
+wake*). So a signed-in reader on Chrome, Firefox or Safari who comes back to the browser after a
+quiet spell now gets one exchange with the server at the first tab switch, window focus or page
+load, where today it comes with the next page analysed or surface opened (on Firefox and Safari,
+whose reader runs on every page, a page load already woke it; the tab switch and the focus are new
+there). A signed-out reader — the majority — gets none: signed out, the background makes no request.
 
 This change keeps that start as it is. It is what keeps the *too high* count of D3 short: a review
 made on the phone reaches this browser, and its badge, at the first tab switch after the reader
-comes back. How many exchanges it adds is measured in the dogfood (task 8.2: exchanges in the network
-log over ten minutes of ordinary browsing, signed in, on Chrome, against the same ten minutes on the
-previous version) and written in the pull request.
+comes back. How many exchanges it adds is measured in the dogfood, on all three browsers (task 8.2:
+exchanges in the background's network log over ten minutes of ordinary browsing, signed in, on
+Chrome, Firefox and Safari on the Mac, each against the same ten minutes on the previous version)
+and written in the pull request.
 
 *Rejected for this change.* Move the start-time sync and flag refresh to `runtime.onStartup` and
 `runtime.onInstalled` (the first version of this proposal): it changes when every reader's data is
@@ -309,13 +361,37 @@ start-time sync (*Follow-up*).
 - **Where**: the end of a session that shows « Séance terminée » (a session that answered at least
   one card, practice included), in the side panel and the in-page drawer, under the summary and
   below « Encore 10 » or « S'entraîner quand même », which stay first. Never at « Rien à réviser
-  pour l'instant », never in the popup, the word card, the page bar or the book reader.
+  pour l'instant », never in the popup, the word card, the page bar or the book reader — the
+  drawer the book reader opens included (`inBook`); a session finished there still counts, so the
+  request comes at the next qualifying end elsewhere.
+- **A session the reader ends is not finished**: `add-lingua-review-stop-session` (merged after
+  this change was proposed) lets the reader end a session in progress with « Terminer »; its end
+  shows « Séance terminée » too — with the counts so far, or none when no card was answered. That
+  change's spec says the end is shown "as when its last card is answered"; this one counted ends
+  that "say they are complete". Read together they leave the question open, so the stricter
+  reading is taken: a session ended with « Terminer » (`ReviewView.ended`) is not counted and never
+  asks — in the side panel, the drawer and the app (D11) alike. A reader who stops a session has
+  chosen to stop; asking them to rate at that moment is the worst moment the request could pick.
+  *For the owner:* counting it instead is a one-line change in `countEnd` (`review-page.ts`) and a
+  spec sentence; say so if you prefer it.
 - **When**: the fifth finished session, on the third distinct day of review or later — Apple's
   sample waits for four completions; Firefox's guidance asks for time with the add-on first; a
   single evening's binge does not qualify.
-- **How often**: once shown, the request counts as made. « Plus tard », or leaving without
+- **How often**: once seen, the request counts as made. « Plus tard », or leaving without
   answering, asks again after ten more finished sessions; after the second showing, never again.
   « Noter Cymbra Lingua » and « Ne plus demander » end it.
+- **Seen, not just drawn**: the request is drawn at the qualifying end, and counts as shown only
+  once its view is on the reader's screen — its document visible and neither the review nor any
+  ancestor hidden, across the drawer's shadow root (a closed drawer, another tab of the panel) — or
+  once answered. The review page checks after each drawing, at each refresh its host makes when
+  Révision is shown, and when the page becomes visible again. A request drawn and never seen does
+  not count: the next qualifying end asks again.
+- **It stays on screen**: at a session's end, a write of the reader's data by another surface that
+  leaves the deck and the studied languages as they were (the parts of the backup D2 digests) — the
+  page being read beside the side panel or under the drawer saves its exposures every two seconds —
+  is restored into the review's engine without leaving the end, so the end and its request stay. A
+  write that changes the deck (a capture, a sync's cards, a restore) starts the review over, as
+  before.
 - **What it says**: « Une note sur la boutique de ton navigateur aide d'autres lecteurs à trouver
   Cymbra Lingua. » and three buttons, « Noter Cymbra Lingua », « Plus tard », « Ne plus demander ».
   No stars, no pre-filled text, nothing offered, no question about satisfaction first, no condition
@@ -339,14 +415,19 @@ Syncing the state (the same reader on Chrome and Firefox rates two different lis
 ### D11 — Safari and the Cymbra Lingua app
 
 - **The app** uses StoreKit's own request: the page, built with `__APP__`, shows no card and posts
-  `review.sessionFinished` at each « Séance terminée »; `ViewController` hands it to a
+  `review.sessionFinished` at each « Séance terminée » — not at the end of a session the reader
+  ended with « Terminer » (D10); `ViewController` hands it to a
   `ReviewRequestPolicy` in `LinguaSignIn` (counts in the app's own `UserDefaults`, not the App
   Group), which asks from the fifth finished session in the app, at most once per
   `CFBundleShortVersionString`; the request is made two seconds after the end shows, as Apple's
   sample does, through `AppStore.requestReview(in:)` (a `UIWindowScene` on iOS, the view
   controller on macOS), falling back to `SKStoreReviewController.requestReview()` where the
   platform's minimum (macOS 12) lacks it. The system decides whether it shows (three times a year
-  at most; never when the reader turned review requests off).
+  at most; never when the reader turned review requests off). A version counts as having asked
+  only when the request is actually made: the policy hands a ticket at the qualifying end, the page
+  posts `review.sessionStarted` at each session's start, and the request is dropped if a session
+  started within the two seconds, or if no window is on screen then (a foreground-active scene on
+  iOS, a visible window on macOS); the next finished session then asks.
 - **The Safari extension** shows no request at the end of a session. It ships inside the app that
   App Review examines, and 5.6.1 disallows custom review prompts; an extension cannot present
   StoreKit's prompt.
@@ -377,14 +458,16 @@ reviews only in Safari can still rate.
 
 ## Risks / Trade-offs
 
-- [More starts of the background on Chromium, and with them more syncs] → each tab switch or window
-  focus after about 30 s of quiet starts the service worker; for a signed-in reader that start runs
-  the existing start-time sync (D9). Measured in task 8.2 — the time from a tab switch to the badge
-  on a cold worker, and the exchanges over ten minutes of browsing against the previous version —
-  and recorded in the pull request; too many → the *Follow-up*.
-- [The outlook's cost on a large deck] → `from_backup` reads the whole backup after each answer.
-  Measured on a 2,000-card backup in task 3.1; if it exceeds 50 ms on the Boox (Firefox for
-  Android), the run is coalesced per session end instead of per answer.
+- [More starts of the background on every browser, and with them more syncs] → each tab switch,
+  window focus or tab load after about 30 s of quiet starts the service worker (Chromium) or the
+  event page (Firefox, Safari); for a signed-in reader that start runs the existing start-time sync
+  (D9). Measured in task 8.2 on Chrome, Firefox and Safari — the time from a tab switch to the badge
+  on a cold background, and the exchanges over ten minutes of browsing against the previous
+  version — and recorded in the pull request; too many → the *Follow-up*.
+- [The outlook's cost on a large deck] → `from_backup` reads the whole backup after each write that
+  changes the deck or the languages — never after a page's exposure save (D2). Measured on a
+  2,000-card backup in task 3.1; if it exceeds 50 ms on the Boox (Firefox for Android), the run is
+  coalesced per session end instead of per answer.
 - [A count behind the truth] → by design (D3): too low until the next event after a card comes due,
   too high until the next sync after a review on another device. The next tab switch, window focus
   or popup opening corrects it; the review itself always counts from the engine.
@@ -405,6 +488,15 @@ request's state start at their defaults. Rollback is the previous version: the k
 `chrome.storage.local` are ignored (and added to `dropRetiredKeys` if a later version retires them).
 
 ## Open Questions
+
+**Answered by the owner on 2026-10-14: every question below takes its recommended answer.** The
+count is on by default with its switch (1); summed across the studied languages, the title naming
+each (2); the dash « — » goes (3); the count shows where highlighting is off (4); one figure
+everywhere — the popup's « Réviser (N) » and the review's summary count what a review would hold
+today (5); the rating request comes after the fifth finished session on the third distinct day or
+later, « Plus tard » asks again after ten more sessions, at most twice (6); Safari shows no request
+in the extension, the app uses StoreKit, Réglages carry a plain write-review link (7); the request's
+state is not synced (8); the background's start-time sync stays as it is (9, D9).
 
 1. **Is the count on by default, for everyone?** *Recommended: yes*, for new and existing readers,
    with the switch in « Rythme de révision ». Off by default, almost nobody would discover it, and
@@ -430,9 +522,9 @@ request's state start at their defaults. Rollback is the previous version: the k
    *Recommended: yes* (D11, D13).
 8. **Does the request's state sync across devices?** *Recommended: no* — each browser rates its own
    listing; the cost is that a reader of Chrome and Firefox may be asked once in each.
-9. **May a tab switch, once Chrome has been quiet for half a minute, start a sync for a signed-in
-   reader?** It does so because the icon now listens to tab switches, and the extension's start
-   already syncs. *Recommended: yes, for now* — it is also what clears the count after a review made
+9. **May a tab switch, once the browser's background has been quiet for half a minute, start a sync
+   for a signed-in reader?** It does so on Chrome, Firefox and Safari alike, because the icon now
+   listens to tab switches, window focus and tab loads, and the extension's start already syncs. *Recommended: yes, for now* — it is also what clears the count after a review made
    on the phone — and measure it in the dogfood (task 8.2). If the extra exchanges are too many, a
    separate change decides when the extension's start syncs (*Follow-up*); this one does not.
 

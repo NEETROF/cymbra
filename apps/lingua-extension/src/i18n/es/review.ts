@@ -100,4 +100,8 @@ export const review: typeof fr = {
     one: (n) => `${n} palabra de este libro por clasificar`,
     other: (n) => `${n} palabras de este libro por clasificar`,
   },
+  ratingAsk: "Una valoración en la tienda de tu navegador ayuda a otros lectores a encontrar Cymbra Lingua.",
+  ratingRate: "Valorar Cymbra Lingua",
+  ratingLater: "Más tarde",
+  ratingNever: "No volver a preguntar",
 };

@@ -87,6 +87,11 @@ export const settings: typeof fr = {
   dataErased: "Datos borrados.",
   tabs: "Ajustes",
   reviewPace: "Ritmo de repaso",
+  badgeCount: "Mostrar las tarjetas por repasar en el icono",
+  badgeCountNote:
+    "Lo que tendría un repaso hoy, en las páginas donde el icono no muestra un porcentaje. Calculado en este dispositivo.",
+  rate: "Valorar Cymbra Lingua",
+  rateNote: "En la tienda desde la que instalaste Cymbra Lingua.",
   newWordsPerDay: "Palabras nuevas al día",
   newWordsPerDayNote:
     "Para cada idioma que estudias. Las palabras añadidas de más esperan a los días siguientes. Una sesión tiene diez tarjetas como máximo.",

@@ -150,6 +150,22 @@ describe("the manifest step while every shipped pair is French-native", () => {
     }
   });
 
+  it.each(TARGETS)(
+    "%s: No new permission — the icon's count wakes on events, with no alarm, idle, notification or tabs permission (add-lingua-comeback-hints D3)",
+    (target) => {
+      const { manifest } = step(target, TODAY);
+      const permissions = manifest.permissions as string[];
+      for (const absent of ["alarms", "idle", "notifications", "tabs"])
+        expect(permissions, target).not.toContain(absent);
+      const expected: Record<string, string[]> = {
+        chromium: ["activeTab", "storage", "scripting", "sidePanel", "identity", "offscreen"],
+        firefox: ["activeTab", "storage", "scripting", "identity"],
+        safari: ["activeTab", "storage", "scripting", "nativeMessaging"],
+      };
+      expect([...permissions].sort(), target).toEqual([...expected[target]!].sort());
+    },
+  );
+
   it("forces the static reader on Chromium only when asked (LINGUA_ALL_URLS=1)", () => {
     const forced = buildManifest({
       base,
