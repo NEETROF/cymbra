@@ -370,7 +370,12 @@ describe("A step leaves at the first wake after it happens (owner, 2026-10-16)",
     await t.host.used();
     t.advance(7 * DAY_MS); // day 8
     await t.host.analysed();
-    expect(t.steps()).toEqual([["installed"], ["set_up"], ["returned_day_1"], ["first_analysis", "returned_days_7_13"]]);
+    expect(t.steps()).toEqual([
+      ["installed"],
+      ["set_up"],
+      ["returned_day_1"],
+      ["first_analysis", "returned_days_7_13"],
+    ]);
     expect(t.reports.every((r) => r.installDay === DAY0)).toBe(true);
     expect(t.held()).toEqual([]);
   });
