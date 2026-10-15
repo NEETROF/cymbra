@@ -70,7 +70,7 @@ export function firefoxManifest(base) {
   //   installation id, which belong to that account, not to technicalAndInteraction.
   // - technicalAndInteraction gates the anonymous usage counts alone (src/usage/): six steps per
   //   installation (installed, set up, first page analysed, back on day 1, in days 7–13, in days
-  //   30–59), each sent once with the week of installation, the browser family and the version —
+  //   30–59), each sent once, when it happens, with the day of installation, the browser family and the version —
   //   no identifier of any kind, no account token, nothing read. Mozilla requires this type to be
   //   optional (an opt-out): Firefox ticks it at install, the add-on sends nothing unless
   //   permissions.getAll() lists it, and « Comptages anonymes » in Réglages → Données requests or

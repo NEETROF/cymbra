@@ -45,7 +45,7 @@ export const settings: typeof fr = {
   usageCounts: "Anonymous usage counts",
   usageCountsToggle: "Send anonymous usage counts",
   usageCountsNote:
-    "Six steps of each installation, each sent once: installed, a first level chosen, a first page analysed, back the next day, between day 7 and day 13, between day 30 and day 59. With them, only the week of installation, the browser and Lingua's version — no identifier, even when signed in. Nothing you read leaves your device.",
+    "Six steps of each installation, each sent once, when it happens: installed, a first level chosen, a first page analysed, back the next day, between day 7 and day 13, between day 30 and day 59. With them, only the day of installation, the browser and Lingua's version — no identifier, even when signed in. Nothing you read leaves your device.",
   usageCountsFirefoxNote: "On Firefox, this switch is Firefox's own “Technical and interaction data” consent.",
   usageCountsFromToolbar: "To turn them back on, open Settings from Lingua's toolbar button.",
   shortcuts: "Shortcuts & gestures",

@@ -15,7 +15,6 @@ import {
   type NoticeKind,
   noticeKind,
   parseState,
-  ready,
   recordAnalysis,
   recording,
   record,
@@ -33,10 +32,10 @@ import type { SwitchReply, UsageMessage } from "./messages.ts";
 
 // The background's side of the anonymous usage counts (change: add-lingua-usage-counts, D1, D5,
 // D6, D7, D12): it records a step when the background already wakes for a message it receives —
-// an installation, a page analysed, a surface opened, a level saved — and, at those same wakes,
-// sends in one report the steps whose week is over (a step leaves from the Monday after the week
-// it happened in). No alarm, no timer. Every operation runs one after the other, so two tabs'
-// messages never send the same steps twice.
+// an installation, a page analysed, a surface opened, a level saved — and sends what waits in one
+// report at that same wake, so a step leaves as soon as it happens; a failed report is tried
+// again at a later wake. No alarm, no timer. Every operation runs one after the other, so two
+// tabs' messages never send the same steps twice.
 
 /** What the host needs from the background (wired in background.ts, doubled in tests). */
 export interface UsageHostDeps {
@@ -94,10 +93,10 @@ export class UsageHost {
   }
 
   /**
-   * Change the state with `change` if this installation still records, then send what may leave.
+   * Change the state with `change` if this installation still records, then send what waits.
    * Off, whatever this device held is forgotten. Every change starts from the state as it is
-   * today: past its last week the installation's day 0 and held steps are gone (D4), whichever
-   * message woke the background — a wake, the notice, an answer or the switch included.
+   * today: from day 60 the installation's day 0 and held steps are gone (D4), whichever message
+   * woke the background — a wake, the notice, an answer or the switch included.
    */
   private step(change: (state: UsageState, today: number) => UsageState, skipWhenInert = true): Promise<void> {
     return this.serial(async () => {
@@ -112,21 +111,21 @@ export class UsageHost {
       const after = change(expire(before, today), today);
       await this.save(before, after);
       this.inert = after.day0 === null && after.waiting.length === 0;
-      await this.flush(after, consent, today);
+      await this.flush(after, consent);
     });
   }
 
   /**
-   * Report in one report every step whose Monday has come, when this browser's consent and the
-   * backoff allow. A step never leaves in the week it happened in.
+   * Report every waiting step in one report, filed under day 0, when this browser's consent and
+   * the backoff allow.
    */
-  private async flush(state: UsageState, consent: Consent, today: number): Promise<void> {
+  private async flush(state: UsageState, consent: Consent): Promise<void> {
     const now = this.deps.now().getTime();
-    if (!sending(this.deps.mode, consent, state) || !due(state, today, now) || state.week === null) return;
-    const steps = ready(state, today);
+    if (!sending(this.deps.mode, consent, state) || !due(state, now) || state.day0 === null) return;
+    const steps = [...state.waiting];
     const outcome = await this.deps
       .client()
-      .report({ installWeek: state.week, browser: this.deps.browser, version: shortVersion(this.deps.version), steps })
+      .report({ installDay: state.day0, browser: this.deps.browser, version: shortVersion(this.deps.version), steps })
       .catch(() => "retry" as const);
     await this.save(state, afterReport(state, steps, outcome, this.deps.now().getTime()));
   }

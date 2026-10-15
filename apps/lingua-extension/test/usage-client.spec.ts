@@ -9,7 +9,7 @@ import { createUsageClient, outcomeOf, type UsageReport } from "@/usage/client.t
 // becomes accepted, invalid (dropped) or retry (kept).
 
 const REPORT: UsageReport = {
-  installWeek: 20_745,
+  installDay: 20_747,
   browser: "firefox",
   version: "1.10",
   steps: ["installed", "set_up"],

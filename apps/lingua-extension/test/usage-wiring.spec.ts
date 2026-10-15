@@ -25,8 +25,6 @@ function event<L extends Listener>() {
 /** Wednesday 21 October 2026, local noon. */
 const START = new Date(2026, 9, 21, 12);
 const DAY_MS = 86_400_000;
-/** The Monday after START's week, 9 a.m. */
-const NEXT_MONDAY = new Date(2026, 9, 26, 9);
 const TAB = { tab: { id: 7 } };
 
 function wired(opts: { browser?: "chromium" | "firefox" | "safari"; consent?: Consent } = {}) {
@@ -41,7 +39,9 @@ function wired(opts: { browser?: "chromium" | "firefox" | "safari"; consent?: Co
     },
   };
   let now = START;
-  let consent: Consent = opts.consent ?? { kind: "switch", off: false };
+  // Chromium unanswered by default: steps are recorded and held, never sent, so what a message
+  // records stays visible.
+  let consent: Consent = opts.consent ?? { kind: "switch", off: undefined };
   let outcome: "accepted" | "retry" = "accepted";
   const reports: UsageReport[] = [];
   const urls: string[] = [];
@@ -93,7 +93,12 @@ function wired(opts: { browser?: "chromium" | "firefox" | "safari"; consent?: Co
     onPermissionsAdded,
     onPermissionsRemoved,
     settle,
-    held: () => (store[USAGE_COUNTS_KEY] as UsageState | undefined)?.waiting.map((w) => w.step) ?? [],
+    /** Every step recorded for this installation, sent or held. */
+    recorded: () => {
+      const s = store[USAGE_COUNTS_KEY] as UsageState | undefined;
+      return [...(s?.sent ?? []), ...(s?.waiting ?? [])];
+    },
+    held: () => (store[USAGE_COUNTS_KEY] as UsageState | undefined)?.waiting ?? [],
     advanceTo: (d: Date) => (now = d),
     advance: (ms: number) => (now = new Date(now.getTime() + ms)),
     setConsent: (c: Consent) => (consent = c),
@@ -123,11 +128,11 @@ describe("which message is a use", () => {
     send(t, { type: "stats", pct: null, language: "es" });
     send(t, { type: "sync:request", reason: "page" });
     await t.settle();
-    expect(t.held()).toEqual(["installed"]);
+    expect(t.recorded()).toEqual(["installed"]);
     // A page analysed in a studied language is the first analysis and a use.
     send(t, { type: "stats", pct: 35, language: "es" });
     await t.settle();
-    expect(t.held()).toEqual(["installed", "first_analysis", "returned_day_1"]);
+    expect(t.recorded()).toEqual(["installed", "first_analysis", "returned_day_1"]);
   });
 
   it("a surface the reader opened is a use; a page load is only a wake; a forced sync is neither", async () => {
@@ -139,10 +144,10 @@ describe("which message is a use", () => {
     send(t, { type: "sync:request", reason: "page" });
     send(t, { type: "sync:request" });
     await t.settle();
-    expect(t.held()).toEqual(["installed"]);
+    expect(t.recorded()).toEqual(["installed"]);
     send(t, { type: "sync:request", reason: "surface" });
     await t.settle();
-    expect(t.held()).toEqual(["installed", "returned_day_1"]);
+    expect(t.recorded()).toEqual(["installed", "returned_day_1"]);
   });
 
   it("the welcome tab opening is not a use: its messages record nothing", async () => {
@@ -157,27 +162,41 @@ describe("which message is a use", () => {
     send(t, { type: "usage:notice-shown" });
     await t.settle();
     expect(replies).toEqual([{ notice: "inform" }]);
-    expect(t.held()).toEqual(["installed"]);
+    expect(t.recorded()).toEqual(["installed"]);
+    // The sentence shown opened Safari's gate: what waited left at once.
+    expect(t.reports.map((r) => r.steps)).toEqual([["installed"]]);
   });
 });
 
-describe("the wakes that send what may leave", () => {
+describe("the wakes that send what waits", () => {
   it("an update starts nothing; an installation is day 0", async () => {
     const t = wired();
     t.onInstalled.fire({ reason: "update" });
     await t.settle();
-    expect(t.held()).toEqual([]);
+    expect(t.recorded()).toEqual([]);
     t.onInstalled.fire({ reason: "install" });
     await t.settle();
-    expect(t.held()).toEqual(["installed"]);
+    expect(t.recorded()).toEqual(["installed"]);
+  });
+
+  it("with consent, a step leaves at the wake that records it", async () => {
+    const t = wired({ consent: { kind: "switch", off: false } });
+    t.onInstalled.fire({ reason: "install" });
+    await t.settle();
+    expect(t.reports.map((r) => r.steps)).toEqual([["installed"]]);
+    send(t, { type: "stats", pct: 35, language: "es" });
+    await t.settle();
+    expect(t.reports.map((r) => r.steps)).toEqual([["installed"], ["first_analysis"]]);
+    expect(t.held()).toEqual([]);
   });
 
   it("a browser start retries what a failure kept, an hour later", async () => {
-    const t = wired();
+    const t = wired({ consent: { kind: "switch", off: false } });
     t.setOutcome("retry");
     t.onInstalled.fire({ reason: "install" });
     await t.settle();
-    t.advanceTo(NEXT_MONDAY);
+    expect(t.reports).toHaveLength(1);
+    t.advance(10 * 60 * 1000);
     t.onStartup.fire();
     await t.settle();
     expect(t.reports).toHaveLength(1);
@@ -219,10 +238,10 @@ describe("what the leaving page follows", () => {
     // A permission that is not the data-collection consent is not followed.
     t.onPermissionsRemoved.fire({ origins: ["<all_urls>"] });
     await t.settle();
-    expect(t.held()).toEqual(["installed"]);
+    expect(t.recorded()).toEqual(["installed"]);
     t.onPermissionsRemoved.fire({ data_collection: ["technicalAndInteraction"] });
     await t.settle();
-    expect(t.held()).toEqual([]);
+    expect(t.recorded()).toEqual([]);
     expect(t.urls.at(-1)).toBe("");
     t.setConsent({ kind: "grant", supported: true, granted: true });
     t.onPermissionsAdded.fire({ data_collection: ["technicalAndInteraction"] });

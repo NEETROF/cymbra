@@ -1,3 +1,7 @@
+// Paris leaves summer time on Sunday 25 October 2026, in the first week of START's installation:
+// the midnight and daylight-saving tests below run across it. Set before any date is made.
+process.env.TZ = "Europe/Paris";
+
 import { describe, expect, it, vi } from "vitest";
 import type { InterfaceLanguage } from "@/i18n/index.ts";
 import type { AsyncStorageArea } from "@/state/storage.ts";
@@ -8,7 +12,6 @@ import {
   type CountsMode,
   forgetsOn,
   localDay,
-  mondayOf,
   type ReportOutcome,
   RETRY_AFTER_MS,
   USAGE_COUNTS_KEY,
@@ -18,20 +21,20 @@ import {
 import { UsageHost } from "@/usage/host.ts";
 
 // The background's side of the counts (add-lingua-usage-counts D1, D5, D6, D7, D12): each trigger
-// records a step and, at the same wakes, sends the steps whose week is over — as each browser's
+// records a step and, at that same wake, sends what waits, filed under day 0 — as each browser's
 // consent allows: nothing on Chromium before "yes", nothing in Safari before the sentence, on
 // Firefox only with its consent, and never for an installation that predates the counts.
 
 interface FakeArea extends AsyncStorageArea {
   store: Record<string, unknown>;
-  /** The next write throws (the background stopped before it was saved). */
-  failNextSet: boolean;
+  /** The next write this matches throws (the background stopped before it was saved). */
+  failSetIf: ((items: Record<string, unknown>) => boolean) | null;
 }
 
 function fakeArea(store: Record<string, unknown> = {}): FakeArea {
   const area: FakeArea = {
     store,
-    failNextSet: false,
+    failSetIf: null,
     async get(keys) {
       const list = keys == null ? Object.keys(store) : Array.isArray(keys) ? keys : [keys];
       const out: Record<string, unknown> = {};
@@ -39,8 +42,8 @@ function fakeArea(store: Record<string, unknown> = {}): FakeArea {
       return out;
     },
     async set(items) {
-      if (area.failNextSet) {
-        area.failNextSet = false;
+      if (area.failSetIf?.(items)) {
+        area.failSetIf = null;
         throw new Error("the service worker was stopped");
       }
       Object.assign(store, structuredClone(items));
@@ -51,8 +54,6 @@ function fakeArea(store: Record<string, unknown> = {}): FakeArea {
 
 /** Wednesday 21 October 2026, local noon. */
 const START = new Date(2026, 9, 21, 12);
-/** The Monday after START's week, 9 a.m.: the first morning its steps may leave. */
-const NEXT_MONDAY = new Date(2026, 9, 26, 9);
 const DAY_MS = 86_400_000;
 
 interface Setup {
@@ -126,7 +127,8 @@ function setup(opts: Setup = {}) {
     urls,
     dataCollection,
     state: () => area.store[USAGE_COUNTS_KEY] as UsageState | undefined,
-    held: () => (area.store[USAGE_COUNTS_KEY] as UsageState | undefined)?.waiting.map((w) => w.step),
+    held: () => (area.store[USAGE_COUNTS_KEY] as UsageState | undefined)?.waiting,
+    steps: () => reports.map((r) => r.steps),
     setConsent: (c: Consent) => (consent = c),
     setOutcome: (o: ReportOutcome) => (outcome = o),
     advance: (ms: number) => (now = new Date(now.getTime() + ms)),
@@ -134,27 +136,27 @@ function setup(opts: Setup = {}) {
   };
 }
 
-const week = mondayOf(localDay(START));
+/** Day 0 of an installation made at START: what every report of it is filed under. */
+const DAY0 = localDay(START);
 const granted: Consent = { kind: "grant", supported: true, granted: true };
 
 describe("Chromium asks before anything leaves", () => {
-  it("Chrome, agreed on the welcome tab: installed and set up leave in one report, after the press and not before the next Monday", async () => {
+  it("Chrome, agreed on the welcome tab: installed and set up leave in one report at the press, none before it", async () => {
     const t = setup();
     await t.host.installed("install");
     await t.host.setUp();
+    t.advance(DAY_MS); // the reader answers the next day, after a few wakes
+    await t.host.wake();
+    expect(t.reports).toEqual([]);
     expect(await t.host.status()).toBe("ask");
     await t.host.answer(true);
-    // Agreed, but the week they happened in is not over.
-    expect(t.reports).toEqual([]);
+    expect(t.reports).toEqual([
+      { installDay: DAY0, browser: "chromium", version: "1.10", steps: ["installed", "set_up"] },
+    ]);
+    expect(t.state()?.waiting).toEqual([]);
     expect(await t.host.status()).toBe("none");
     // The leaving page is registered once the reader agreed.
     expect(t.urls.at(-1)).toBe("https://cymbra.app/lingua/au-revoir/?b=chromium&v=1.10");
-    t.advanceTo(NEXT_MONDAY);
-    await t.host.wake();
-    expect(t.reports).toEqual([
-      { installWeek: week, browser: "chromium", version: "1.10", steps: ["installed", "set_up"] },
-    ]);
-    expect(t.state()?.waiting).toEqual([]);
   });
 
   it("Chrome, never answered: no step is ever reported", async () => {
@@ -163,7 +165,6 @@ describe("Chromium asks before anything leaves", () => {
     await t.host.analysed();
     t.advance(DAY_MS);
     await t.host.used();
-    t.advanceTo(NEXT_MONDAY);
     await t.host.wake();
     expect(t.reports).toEqual([]);
     expect(t.held()).toEqual(["installed", "first_analysis", "returned_day_1"]);
@@ -179,36 +180,32 @@ describe("Chromium asks before anything leaves", () => {
     expect(t.state()?.waiting).toEqual([]);
     expect(t.area.store[USAGE_COUNTS_OFF_KEY]).toBe(true);
     await t.host.analysed();
-    t.advanceTo(NEXT_MONDAY);
+    t.advance(DAY_MS);
     await t.host.wake();
     expect(t.reports).toEqual([]);
     expect(await t.host.switchState()).toEqual({ shown: true, on: false });
     expect(t.urls.at(-1)).toBe("");
   });
 
-  it("ticking the switch is a yes", async () => {
+  it("ticking the switch is a yes: what waited leaves at once", async () => {
     const t = setup();
     await t.host.installed("install");
     const reply = await t.host.setSwitch(true);
     expect(reply).toEqual({ view: { shown: true, on: true } });
-    t.advanceTo(NEXT_MONDAY);
-    await t.host.wake();
-    expect(t.reports).toHaveLength(1);
+    expect(t.steps()).toEqual([["installed"]]);
   });
 });
 
 describe("Safari counts once the sentence was shown", () => {
-  it("Safari, popup first: nothing before the sentence, the steps the Monday after it", async () => {
+  it("Safari, popup first: nothing before the sentence, the waiting steps as soon as it is shown", async () => {
     const t = setup({ browser: "safari" });
     await t.host.installed("install");
     await t.host.analysed();
     expect(await t.host.status()).toBe("inform");
-    t.advanceTo(NEXT_MONDAY);
     await t.host.wake();
-    // Their week is over, but the sentence was not shown yet.
     expect(t.reports).toEqual([]);
     await t.host.noticeShown();
-    expect(t.reports.map((r) => r.steps)).toEqual([["installed", "first_analysis"]]);
+    expect(t.steps()).toEqual([["installed", "first_analysis"]]);
     expect(t.reports[0].browser).toBe("safari");
     expect(await t.host.status()).toBe("none");
   });
@@ -224,32 +221,30 @@ describe("Safari counts once the sentence was shown", () => {
   it("Turning counting off with steps waiting: neither is ever sent", async () => {
     const t = setup({ browser: "safari", outcome: "retry" });
     await t.host.installed("install");
-    await t.host.noticeShown();
+    await t.host.noticeShown(); // offline: the attempt fails
     await t.host.setUp();
-    t.advanceTo(NEXT_MONDAY);
-    await t.host.wake(); // offline: the attempt fails
     expect(t.held()).toEqual(["installed", "set_up"]);
     await t.host.setSwitch(false);
     expect(t.state()?.waiting).toEqual([]);
     t.setOutcome("accepted");
     t.advance(2 * RETRY_AFTER_MS);
     await t.host.wake();
-    expect(t.reports).toHaveLength(1); // the one failed attempt, before "off"
+    expect(t.steps()).toEqual([["installed"]]); // the one failed attempt, before "off"
   });
 
   it("Turning it on again: nothing more is reported for this installation", async () => {
     const t = setup({ browser: "safari" });
     await t.host.installed("install");
     await t.host.noticeShown();
+    expect(t.steps()).toEqual([["installed"]]);
     t.advance(2 * DAY_MS);
     await t.host.setSwitch(false);
     t.advance(DAY_MS);
     await t.host.setSwitch(true);
     t.advance(5 * DAY_MS);
     await t.host.used();
-    t.advance(7 * DAY_MS);
     await t.host.wake();
-    expect(t.reports).toEqual([]);
+    expect(t.steps()).toEqual([["installed"]]);
     expect(await t.host.switchState()).toEqual({ shown: true, on: true });
   });
 
@@ -260,29 +255,27 @@ describe("Safari counts once the sentence was shown", () => {
     expect(t.state()?.day0).toBeNull();
     expect(t.area.store[USAGE_COUNTS_OFF_KEY]).toBeUndefined();
     await t.host.noticeShown();
-    t.advanceTo(NEXT_MONDAY);
     await t.host.wake();
     expect(t.reports).toEqual([]);
   });
 });
 
 describe("Firefox follows its own data-collection consent", () => {
-  it("with the consent, the leaving page is set at installation and the steps leave the Monday after; the sentence only informs", async () => {
+  it("with the consent, the leaving page is set and installed leaves at installation; the sentence only informs", async () => {
     const t = setup({ browser: "firefox", consent: granted, firefox: { request: true } });
     await t.host.installed("install");
     expect(t.urls.at(-1)).toBe("https://cymbra.app/lingua/au-revoir/?b=firefox&v=1.10");
-    expect(t.reports).toEqual([]);
+    expect(t.reports.map((r) => [r.browser, r.installDay, r.steps])).toEqual([["firefox", DAY0, ["installed"]]]);
     expect(await t.host.status()).toBe("inform");
-    t.advanceTo(NEXT_MONDAY);
     await t.host.analysed();
-    expect(t.reports.map((r) => [r.browser, r.steps])).toEqual([["firefox", ["installed"]]]);
+    expect(t.steps()).toEqual([["installed"], ["first_analysis"]]);
   });
 
   it("Declined in Firefox's install prompt: no step is ever reported, and the switch shows off", async () => {
     const t = setup({ browser: "firefox", consent: { kind: "grant", supported: true, granted: false } });
     await t.host.installed("install");
     await t.host.analysed();
-    t.advanceTo(NEXT_MONDAY);
+    t.advance(DAY_MS);
     await t.host.wake();
     expect(t.reports).toEqual([]);
     expect(t.state()?.day0 ?? null).toBeNull();
@@ -293,6 +286,7 @@ describe("Firefox follows its own data-collection consent", () => {
   it("Changed in the add-on manager: the device forgets, and the leaving page goes", async () => {
     const t = setup({ browser: "firefox", consent: granted, outcome: "retry" });
     await t.host.installed("install");
+    expect(t.held()).toEqual(["installed"]);
     t.setConsent({ kind: "grant", supported: true, granted: false });
     await t.host.consentChanged();
     expect(t.state()?.waiting).toEqual([]);
@@ -302,7 +296,6 @@ describe("Firefox follows its own data-collection consent", () => {
   it("An older Firefox: nothing is reported and the switch is not shown", async () => {
     const t = setup({ browser: "firefox", consent: { kind: "grant", supported: false, granted: false } });
     await t.host.installed("install");
-    t.advanceTo(NEXT_MONDAY);
     await t.host.wake();
     expect(t.reports).toEqual([]);
     expect(await t.host.switchState()).toEqual({ shown: false, on: false });
@@ -367,35 +360,71 @@ describe("An installation from before the first counting release (an update from
   });
 });
 
-describe("A step leaves the week after it happened (owner, 2026-10-15)", () => {
-  it("a wake at Sunday 23:59 sends nothing; the first wake at Monday 00:00 sends the week's steps", async () => {
+describe("A step leaves at the first wake after it happens (owner, 2026-10-16)", () => {
+  it("each step leaves at the wake that records it, every report filed under day 0", async () => {
     const t = setup({ browser: "safari" });
     await t.host.installed("install");
     await t.host.noticeShown();
-    t.advanceTo(new Date(2026, 9, 25, 23, 59)); // Sunday night, the day Paris leaves summer time
     await t.host.setUp();
-    await t.host.wake();
-    expect(t.reports).toEqual([]);
-    t.advanceTo(new Date(2026, 9, 26, 0, 0));
-    await t.host.wake();
-    expect(t.reports).toEqual([
-      { installWeek: week, browser: "safari", version: "1.10", steps: ["installed", "set_up"] },
-    ]);
+    t.advance(DAY_MS);
+    await t.host.used();
+    t.advance(7 * DAY_MS); // day 8
+    await t.host.analysed();
+    expect(t.steps()).toEqual([["installed"], ["set_up"], ["returned_day_1"], ["first_analysis", "returned_days_7_13"]]);
+    expect(t.reports.every((r) => r.installDay === DAY0)).toBe(true);
+    expect(t.held()).toEqual([]);
   });
 
-  it("a step of the next week waits for its own Monday, while the earlier ones go", async () => {
+  it("the midnight boundary, on the day Paris leaves summer time: 23:59 is still day 0, 00:00 is day 1", async () => {
+    const sunday = new Date(2026, 9, 25, 0, 30); // a 25-hour day
+    const t = setup({ browser: "safari", now: sunday });
+    await t.host.installed("install");
+    await t.host.noticeShown();
+    t.advanceTo(new Date(2026, 9, 25, 23, 59));
+    await t.host.used();
+    expect(t.steps()).toEqual([["installed"]]);
+    t.advanceTo(new Date(2026, 9, 26, 0, 0));
+    await t.host.used();
+    expect(t.steps()).toEqual([["installed"], ["returned_day_1"]]);
+    const day0 = localDay(sunday);
+    expect(t.reports.map((r) => r.installDay)).toEqual([day0, day0]);
+    expect(day0).toBe(DAY0 + 4);
+  });
+
+  it("an installation the evening before the change: back the next morning is day 1", async () => {
+    const t = setup({ browser: "safari", now: new Date(2026, 9, 24, 22, 0) });
+    await t.host.installed("install");
+    await t.host.noticeShown();
+    t.advanceTo(new Date(2026, 9, 25, 8, 0));
+    await t.host.analysed();
+    expect(t.steps()).toEqual([["installed"], ["first_analysis", "returned_day_1"]]);
+    expect(t.reports[1].installDay).toBe(localDay(new Date(2026, 9, 24, 22, 0)));
+  });
+
+  it("a clock set back before day 0 records nothing; the reports keep day 0 as it was", async () => {
     const t = setup({ browser: "safari" });
     await t.host.installed("install");
     await t.host.noticeShown();
-    t.advanceTo(new Date(2026, 9, 29, 12)); // day 8, a Thursday: back in days 7–13
-    await t.host.used();
-    expect(t.reports.map((r) => r.steps)).toEqual([["installed"]]);
-    t.advanceTo(new Date(2026, 10, 1, 23, 59)); // that week's Sunday night
-    await t.host.wake();
-    expect(t.reports).toHaveLength(1);
-    t.advanceTo(new Date(2026, 10, 2, 8));
+    t.advance(-3 * DAY_MS);
     await t.host.analysed();
-    expect(t.reports.map((r) => r.steps)).toEqual([["installed"], ["returned_days_7_13"]]);
+    await t.host.setUp();
+    expect(t.steps()).toEqual([["installed"]]);
+    t.advanceTo(START);
+    await t.host.analysed();
+    expect(t.steps()).toEqual([["installed"], ["first_analysis"]]);
+    expect(t.reports.every((r) => r.installDay === DAY0)).toBe(true);
+  });
+
+  it("a clock set back after a failure retries without waiting for it to catch up", async () => {
+    const t = setup({ browser: "safari", outcome: "retry" });
+    await t.host.installed("install");
+    await t.host.noticeShown();
+    expect(t.report).toHaveBeenCalledTimes(1);
+    t.setOutcome("accepted");
+    t.advance(-2 * 60 * 60 * 1000);
+    await t.host.wake();
+    expect(t.report).toHaveBeenCalledTimes(2);
+    expect(t.held()).toEqual([]);
   });
 });
 
@@ -406,32 +435,28 @@ describe("Reports ride the extension's own wake-ups", () => {
     await t.host.setUp();
     await t.host.analysed();
     await t.host.setSwitch(true);
-    t.advanceTo(NEXT_MONDAY);
-    await t.host.wake();
-    expect(t.reports.map((r) => r.steps)).toEqual([["installed", "set_up", "first_analysis"]]);
+    expect(t.steps()).toEqual([["installed", "set_up", "first_analysis"]]);
   });
 
-  it("Offline: the waiting steps leave when the network is back, filed under the week of day 0", async () => {
+  it("Offline for days: the waiting steps leave when the network is back, filed under day 0", async () => {
     const t = setup({ browser: "safari", outcome: "retry" });
     await t.host.installed("install");
-    await t.host.noticeShown();
-    await t.host.setUp();
-    t.advanceTo(NEXT_MONDAY);
-    await t.host.wake(); // still offline
+    await t.host.noticeShown(); // offline: fails
+    await t.host.setUp(); // within the hour: no attempt
+    expect(t.report).toHaveBeenCalledTimes(1);
     t.setOutcome("accepted");
-    t.advance(3 * DAY_MS);
-    await t.host.analysed();
+    t.advanceTo(new Date(2026, 9, 29, 10)); // the Thursday of the following week
+    await t.host.wake();
     const last = t.reports.at(-1)!;
-    expect(last.installWeek).toBe(week);
+    expect(last.installDay).toBe(DAY0);
     expect(last.steps).toEqual(["installed", "set_up"]);
+    expect(t.held()).toEqual([]);
   });
 
   it("The server is down: no further attempt before an hour has passed", async () => {
     const t = setup({ browser: "safari", outcome: "retry" });
     await t.host.installed("install");
     await t.host.noticeShown();
-    t.advanceTo(NEXT_MONDAY);
-    await t.host.wake();
     expect(t.report).toHaveBeenCalledTimes(1);
     for (let i = 0; i < 5; i++) {
       t.advance(2 * 60 * 1000);
@@ -447,8 +472,6 @@ describe("Reports ride the extension's own wake-ups", () => {
     const t = setup({ browser: "safari", outcome: "invalid" });
     await t.host.installed("install");
     await t.host.noticeShown();
-    t.advanceTo(NEXT_MONDAY);
-    await t.host.wake();
     t.advance(2 * RETRY_AFTER_MS);
     await t.host.wake();
     expect(t.report).toHaveBeenCalledTimes(1);
@@ -460,10 +483,8 @@ describe("Reports ride the extension's own wake-ups", () => {
     await t.host.installed("install");
     await t.host.noticeShown();
     t.advance(DAY_MS);
-    await Promise.all([t.host.analysed(), t.host.analysed(), t.host.used()]);
-    t.advanceTo(NEXT_MONDAY);
-    await Promise.all([t.host.wake(), t.host.analysed(), t.host.used()]);
-    expect(t.reports.map((r) => r.steps)).toEqual([["installed", "first_analysis", "returned_day_1"]]);
+    await Promise.all([t.host.analysed(), t.host.analysed(), t.host.used(), t.host.wake()]);
+    expect(t.steps()).toEqual([["installed"], ["first_analysis", "returned_day_1"]]);
   });
 
   it("a client that throws counts as a failure to retry", async () => {
@@ -471,9 +492,8 @@ describe("Reports ride the extension's own wake-ups", () => {
     t.report.mockRejectedValueOnce(new Error("boom"));
     await t.host.installed("install");
     await t.host.noticeShown();
-    t.advanceTo(NEXT_MONDAY);
-    await t.host.wake();
-    expect(t.state()?.lastFailure).toBe(NEXT_MONDAY.getTime());
+    expect(t.state()?.lastFailure).toBe(START.getTime());
+    expect(t.held()).toEqual(["installed"]);
   });
 
   /**
@@ -484,72 +504,86 @@ describe("Reports ride the extension's own wake-ups", () => {
     const area = fakeArea();
     const first = setup({ browser: "safari", area });
     await first.host.installed("install");
-    await first.host.noticeShown();
-    first.advanceTo(NEXT_MONDAY);
-    area.failNextSet = true;
-    await expect(first.host.wake()).rejects.toThrow("stopped");
-    expect(first.reports.map((r) => r.steps)).toEqual([["installed"]]);
+    area.failSetIf = (items) => ((items[USAGE_COUNTS_KEY] as UsageState | undefined)?.sent.length ?? 0) > 0;
+    await expect(first.host.noticeShown()).rejects.toThrow("stopped");
+    expect(first.steps()).toEqual([["installed"]]);
     // The background starts again on the same storage.
-    const second = setup({ browser: "safari", area, now: NEXT_MONDAY });
+    const second = setup({ browser: "safari", area, now: START });
     await second.host.wake();
-    expect(second.reports.map((r) => r.steps)).toEqual([["installed"]]);
+    expect(second.steps()).toEqual([["installed"]]);
     expect(second.state()?.sent).toEqual(["installed"]);
   });
 });
 
-describe("Past the installation's last week, nothing changes it any more (review of #958)", () => {
-  /** Day 70 of an installation made on START (a Wednesday: its last week ends on day 67). */
-  const DAY_70 = new Date(START.getTime() + 70 * DAY_MS);
+describe("From day 60, nothing changes the installation any more (review of #958)", () => {
+  const DAY_59 = new Date(START.getTime() + 59 * DAY_MS);
+  const DAY_60 = new Date(START.getTime() + 60 * DAY_MS);
 
-  it("the last week ends before day 70 for this installation", () => {
-    expect(forgetsOn(localDay(START)) - localDay(START)).toBeLessThanOrEqual(70);
+  it("day 60 is when the device forgets the installation, across the daylight-saving change", () => {
+    expect(forgetsOn(DAY0)).toBe(DAY0 + 60);
+    expect(localDay(DAY_60)).toBe(DAY0 + 60);
   });
 
-  it("Chrome: a yes on day 70 sends nothing", async () => {
+  it("Chrome: a yes on day 59 still sends what was held", async () => {
     const t = setup();
     await t.host.installed("install");
     await t.host.setUp();
-    t.advanceTo(DAY_70);
+    t.advanceTo(DAY_59);
+    await t.host.answer(true);
+    expect(t.steps()).toEqual([["installed", "set_up"]]);
+  });
+
+  it("Chrome: a yes on day 60 sends nothing", async () => {
+    const t = setup();
+    await t.host.installed("install");
+    await t.host.setUp();
+    t.advanceTo(DAY_60);
     await t.host.answer(true);
     expect(t.reports).toEqual([]);
     expect(t.state()?.day0).toBeNull();
     expect(t.state()?.waiting).toEqual([]);
   });
 
-  it("Safari: the sentence shown on day 70 sends nothing", async () => {
+  it("Safari: the sentence shown on day 60 sends nothing", async () => {
     const t = setup({ browser: "safari" });
     await t.host.installed("install");
     await t.host.analysed();
-    t.advanceTo(DAY_70);
+    t.advanceTo(DAY_60);
     expect(await t.host.status()).toBe("none");
     await t.host.noticeShown();
     expect(t.reports).toEqual([]);
   });
 
-  it("a plain wake on day 70 clears day 0", async () => {
-    const t = setup({ browser: "safari" });
+  it("a step that failed to leave by day 59 is forgotten at day 60, not sent", async () => {
+    const t = setup({ browser: "safari", outcome: "retry" });
     await t.host.installed("install");
-    t.advanceTo(DAY_70);
+    await t.host.noticeShown();
+    t.advanceTo(DAY_59);
+    await t.host.used(); // back in days 30–59, still offline
+    expect(t.held()).toEqual(["installed", "returned_days_30_59"]);
+    t.setOutcome("accepted");
+    t.advanceTo(DAY_60);
     await t.host.wake();
+    expect(t.reports.filter((r) => r.steps.includes("returned_days_30_59"))).toHaveLength(1); // the failed try
     expect(t.state()?.day0).toBeNull();
     expect(t.state()?.waiting).toEqual([]);
     // The installation still counts as one made by a counting release.
     expect(t.state()?.countable).toBe(true);
   });
 
-  it("the switch moved on day 70 sends nothing", async () => {
+  it("the switch moved on day 60 sends nothing", async () => {
     const t = setup();
     await t.host.installed("install");
-    t.advanceTo(DAY_70);
+    t.advanceTo(DAY_60);
     await t.host.setSwitch(true);
     expect(t.reports).toEqual([]);
   });
 
-  it("an installation past its last week stops reading anything", async () => {
+  it("an installation past day 59 stops reading anything", async () => {
     const t = setup({ browser: "safari" });
     await t.host.installed("install");
     await t.host.noticeShown();
-    t.advanceTo(DAY_70);
+    t.advanceTo(DAY_60);
     await t.host.used();
     expect(t.state()?.day0).toBeNull();
     const reads = vi.spyOn(t.area, "get");

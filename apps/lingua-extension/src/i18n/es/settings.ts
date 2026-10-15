@@ -45,7 +45,7 @@ export const settings: typeof fr = {
   usageCounts: "Recuentos anónimos",
   usageCountsToggle: "Enviar recuentos anónimos",
   usageCountsNote:
-    "Seis pasos de cada instalación, cada uno enviado una sola vez: instalada, un primer nivel elegido, una primera página analizada, una vuelta al día siguiente, entre el día 7 y el 13, entre el día 30 y el 59. Con ellos, solo la semana de instalación, el navegador y la versión de Lingua, sin ningún identificador, aunque hayas iniciado sesión. Nada de lo que lees sale de tu dispositivo.",
+    "Seis pasos de cada instalación, cada uno enviado una sola vez, cuando ocurre: instalada, un primer nivel elegido, una primera página analizada, una vuelta al día siguiente, entre el día 7 y el 13, entre el día 30 y el 59. Con ellos, solo el día de instalación, el navegador y la versión de Lingua, sin ningún identificador, aunque hayas iniciado sesión. Nada de lo que lees sale de tu dispositivo.",
   usageCountsFirefoxNote:
     "En Firefox, este interruptor es el consentimiento «Datos técnicos y de interacción» del propio Firefox.",
   usageCountsFromToolbar:

@@ -9,9 +9,9 @@ import type { BrowserFamily as Browser, ReportOutcome, UsageStep } from "./count
 // so no code path can attach the account to a report, even while a session holds a token. The
 // service it calls is mounted with no authentication on the server.
 
-/** One report: the week of day 0, the browser family, the version (major.minor) and the steps. */
+/** One report: day 0 (a local day number), the browser family, the version (major.minor) and the steps. */
 export interface UsageReport {
-  installWeek: number;
+  installDay: number;
   browser: Browser;
   version: string;
   steps: readonly UsageStep[];
@@ -64,7 +64,7 @@ export function createUsageClient(options: UsageClientOptions = {}): UsageClient
     async report(r) {
       try {
         await client.report({
-          installWeek: r.installWeek,
+          installDay: r.installDay,
           browser: WIRE_BROWSERS[r.browser],
           version: r.version,
           steps: r.steps.map((s) => WIRE_STEPS[s]),

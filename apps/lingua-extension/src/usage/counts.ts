@@ -1,12 +1,13 @@
 import type { InterfaceLanguage } from "../i18n/index.ts";
 
 // The anonymous usage counts' state and rules (change: add-lingua-usage-counts, spec
-// `lingua-usage-counts`, design D1, D4, D6, D7). Pure: what an installation has recorded, when a
-// step is recorded, when the waiting steps may leave, and what each browser's consent allows. The
-// background (usage/host.ts) reads and writes it; nothing here touches a browser API.
+// `lingua-usage-counts`, design D1, D4, D5, D6, D7). Pure: what an installation has recorded, when
+// a step is recorded, when the waiting steps may be tried, and what each browser's consent allows.
+// The background (usage/host.ts) reads and writes it; nothing here touches a browser API.
 //
-// What leaves the device is a week, a browser family, a version and the steps — never day 0, which
-// stays here for 60 days at most, never an identifier, never anything read.
+// What leaves the device is the installation's day (day 0), a browser family, a version and the
+// steps — never an identifier, never anything read. A step leaves at the first wake after it
+// happens (owner, 2026-10-16: the figures as fast as possible); day 0 stays here 60 days at most.
 
 /** The counts' state on this device: `chrome.storage.local`, never in the backup, never synced. */
 export const USAGE_COUNTS_KEY = "cymbra-lingua-usage-counts";
@@ -29,7 +30,7 @@ export const USAGE_STEPS = [
 ] as const;
 export type UsageStep = (typeof USAGE_STEPS)[number];
 
-/** The last day a step is recorded on: after it, the installation records nothing more. */
+/** The last day a step is recorded and sent on: at day 60 the installation is forgotten. */
 export const LAST_DAY = 59;
 
 /** After a failed report, the next attempt waits this long (D5). */
@@ -41,27 +42,16 @@ export type BrowserFamily = "chromium" | "firefox" | "safari";
 /** What a variant's first-run sentence does (D7): `ask` on Chromium, `on` elsewhere. */
 export type CountsMode = "on" | "ask";
 
-/**
- * A step recorded and not yet sent, with the day it may leave on: the Monday after the week it
- * happened in (owner decision 2026-10-15). Sending it the following week means the moment a
- * report arrives says nothing about the day the step happened. Only that Monday is kept, never
- * the step's day.
- */
-export interface HeldStep {
-  step: UsageStep;
-  /** The day number of the Monday from which the step may leave. */
-  from: number;
-}
-
 export interface UsageState {
-  /** The local day number the installation was made on, or null: nothing is ever recorded. */
+  /**
+   * The local day number the installation was made on, or null: nothing is ever recorded. It is
+   * what a report is filed under on the server.
+   */
   day0: number | null;
-  /** The day number of the Monday that starts day 0's local week — what leaves the device. */
-  week: number | null;
   /** Steps reported (or refused as malformed): never recorded again. */
   sent: UsageStep[];
-  /** Steps recorded and not yet reported, each with the Monday it may leave from. */
-  waiting: HeldStep[];
+  /** Steps recorded and not yet reported: they leave at the next wake the consent allows. */
+  waiting: UsageStep[];
   /** Whether the first-run sentence was shown (Safari's gate; on Chromium, with the answer). */
   noticeShown: boolean;
   /** When the last report failed (epoch ms), or null. */
@@ -77,7 +67,6 @@ export interface UsageState {
 
 export const EMPTY_STATE: UsageState = {
   day0: null,
-  week: null,
   sent: [],
   waiting: [],
   noticeShown: false,
@@ -88,29 +77,15 @@ export const EMPTY_STATE: UsageState = {
 const isStep = (s: unknown): s is UsageStep => (USAGE_STEPS as readonly unknown[]).includes(s);
 const isInt = (n: unknown): n is number => typeof n === "number" && Number.isInteger(n);
 
-function heldSteps(v: unknown): HeldStep[] {
-  if (!Array.isArray(v)) return [];
-  const out: HeldStep[] = [];
-  for (const item of v) {
-    const h = item as Partial<HeldStep> | null;
-    if (h && isStep(h.step) && isInt(h.from) && !out.some((o) => o.step === h.step)) {
-      out.push({ step: h.step, from: h.from });
-    }
-  }
-  return out;
-}
-
 /** The stored state, or the empty one: a malformed value never throws. */
 export function parseState(raw: unknown): UsageState {
   if (!raw || typeof raw !== "object") return { ...EMPTY_STATE };
   const r = raw as Record<string, unknown>;
   const steps = (v: unknown): UsageStep[] => (Array.isArray(v) ? [...new Set(v.filter(isStep))] : []);
-  const day0 = isInt(r.day0) ? r.day0 : null;
   return {
-    day0,
-    week: day0 === null ? null : mondayOf(day0),
+    day0: isInt(r.day0) ? r.day0 : null,
     sent: steps(r.sent),
-    waiting: heldSteps(r.waiting),
+    waiting: steps(r.waiting),
     noticeShown: r.noticeShown === true,
     lastFailure: isInt(r.lastFailure) ? r.lastFailure : null,
     countable: r.countable === true,
@@ -119,39 +94,25 @@ export function parseState(raw: unknown): UsageState {
 
 /**
  * The local calendar day of `date` as a day number (days since 1970-01-01): "the next day" is the
- * reader's next day, not a UTC rollover in the evening (D1).
+ * reader's next day, not a UTC rollover in the evening (D1). A day with a daylight-saving change
+ * is still one day.
  */
 export function localDay(date: Date): number {
   return Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86_400_000);
 }
 
-/** The Monday that starts the week holding `day` (1970-01-01 was a Thursday). */
-export function mondayOf(day: number): number {
-  return day - ((((day - 4) % 7) + 7) % 7);
-}
-
-/** The Monday from which a step that happened on `day` may leave: the one after its week. */
-export function leavesFrom(day: number): number {
-  return mondayOf(day) + 7;
-}
-
-/**
- * The first day this installation keeps nothing: the Monday two weeks after the one that starts
- * day 59's week. The last steps are recorded in day 59's week and leave the week after it, which
- * gives each of them a whole week for a wake to send it; then everything goes (73 days at most).
- */
+/** The first day this installation keeps nothing: day 60 (D4). */
 export function forgetsOn(day0: number): number {
-  return mondayOf(day0 + LAST_DAY) + 14;
+  return day0 + LAST_DAY + 1;
 }
 
-/** A new installation on `today`: day 0, and « installed » waiting for the next Monday. */
+/** A new installation on `today`: day 0, and « installed » waiting. */
 export function install(state: UsageState, today: number): UsageState {
   return {
     ...state,
     day0: today,
-    week: mondayOf(today),
     sent: [],
-    waiting: [{ step: "installed", from: leavesFrom(today) }],
+    waiting: ["installed"],
     lastFailure: null,
     countable: true,
   };
@@ -166,8 +127,8 @@ export function forget(state: UsageState): UsageState {
 }
 
 /**
- * `state` as it is on `today` (D4): from {@link forgetsOn} the device forgets day 0 and every
- * step it still holds. Every path that changes the state goes through this first.
+ * `state` as it is on `today` (D4): from day 60 the device forgets day 0 and every step it still
+ * holds, sent or not. Every path that changes the state goes through this first.
  */
 export function expire(state: UsageState, today: number): UsageState {
   if (state.day0 === null || today < forgetsOn(state.day0)) return state;
@@ -179,8 +140,8 @@ export function record(state: UsageState, step: UsageStep, today: number): Usage
   const s = expire(state, today);
   if (s.day0 === null || today < s.day0) return s; // a clock set back before day 0 records nothing
   if (today - s.day0 > LAST_DAY) return s;
-  if (s.sent.includes(step) || s.waiting.some((w) => w.step === step)) return s;
-  return { ...s, waiting: [...s.waiting, { step, from: leavesFrom(today) }] };
+  if (s.sent.includes(step) || s.waiting.includes(step)) return s;
+  return { ...s, waiting: [...s.waiting, step] };
 }
 
 /** The return a use on `day` of the installation counts as, if any (D1). */
@@ -205,19 +166,14 @@ export function recordAnalysis(state: UsageState, today: number): UsageState {
 }
 
 /**
- * The steps that may leave on `today`: those whose Monday has come — never one in the week it
- * happened in, so a report's arrival cannot tell the day.
+ * Whether a report may be tried at `now` (epoch ms): a step waits, and no failure happened in the
+ * last hour. A failure the clock now puts in the future — a clock set back — does not hold the
+ * steps until the clock catches up.
  */
-export function ready(state: UsageState, today: number): UsageStep[] {
-  return state.waiting.filter((w) => w.from <= today).map((w) => w.step);
-}
-
-/**
- * Whether a report may be tried on `today` at `now` (epoch ms): a step is ready, and an hour has
- * passed since a failure.
- */
-export function due(state: UsageState, today: number, now: number): boolean {
-  return ready(state, today).length > 0 && (state.lastFailure === null || now - state.lastFailure >= RETRY_AFTER_MS);
+export function due(state: UsageState, now: number): boolean {
+  if (state.waiting.length === 0) return false;
+  const last = state.lastFailure;
+  return last === null || now - last >= RETRY_AFTER_MS || now < last;
 }
 
 /** How a report ended (usage/client.ts). */
@@ -240,7 +196,7 @@ export function afterReport(
   return {
     ...state,
     sent: [...new Set([...state.sent, ...steps])],
-    waiting: state.waiting.filter((w) => !steps.includes(w.step)),
+    waiting: state.waiting.filter((s) => !steps.includes(s)),
     lastFailure: null,
   };
 }
