@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.26.0...back-office-v0.27.0) (2026-10-15)
+
+
+### Features
+
+* **lingua:** count installations anonymously and ask leavers why ([#958](https://github.com/NEETROF/cymbra/issues/958)) ([23344cf](https://github.com/NEETROF/cymbra/commit/23344cf91fccf46fa1d2531379cf41b037b4e331))
+
 ## [0.26.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.25.0...back-office-v0.26.0) (2026-10-13)
 
 

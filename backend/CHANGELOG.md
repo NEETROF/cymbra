@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.39.0](https://github.com/NEETROF/cymbra/compare/backend-v0.38.0...backend-v0.39.0) (2026-10-15)
+
+
+### Features
+
+* **lingua:** count installations anonymously and ask leavers why ([#958](https://github.com/NEETROF/cymbra/issues/958)) ([23344cf](https://github.com/NEETROF/cymbra/commit/23344cf91fccf46fa1d2531379cf41b037b4e331))
+* **lingua:** the Cymbra Lingua app synchronises its own reviews ([#957](https://github.com/NEETROF/cymbra/issues/957)) ([1ef7838](https://github.com/NEETROF/cymbra/commit/1ef7838b1435f33ba90d9243adf095034a21b7e2))
+* **lingua:** translate review cards the pack cannot answer, and keep the translation ([#948](https://github.com/NEETROF/cymbra/issues/948)) ([58ae075](https://github.com/NEETROF/cymbra/commit/58ae07596d9ff29f7bc89f19ca09e2ddbc1761db))
+
 ## [0.38.0](https://github.com/NEETROF/cymbra/compare/backend-v0.37.0...backend-v0.38.0) (2026-10-13)
 
 

@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.16.0](https://github.com/NEETROF/cymbra/compare/site-v0.15.0...site-v0.16.0) (2026-10-15)
+
+
+### Features
+
+* **lingua:** count installations anonymously and ask leavers why ([#958](https://github.com/NEETROF/cymbra/issues/958)) ([23344cf](https://github.com/NEETROF/cymbra/commit/23344cf91fccf46fa1d2531379cf41b037b4e331))
+* **lingua:** show the cards waiting on the toolbar icon and ask, at most twice, for a store rating ([#959](https://github.com/NEETROF/cymbra/issues/959)) ([88dff73](https://github.com/NEETROF/cymbra/commit/88dff73b4fa7135ce45df7a72056b6ea75503768))
+* **lingua:** sign in to the app with an email and a password ([#952](https://github.com/NEETROF/cymbra/issues/952)) ([12021dd](https://github.com/NEETROF/cymbra/commit/12021dd55e7692ba228bee2a11d8e099a214d63b))
+* **lingua:** the Cymbra Lingua app synchronises its own reviews ([#957](https://github.com/NEETROF/cymbra/issues/957)) ([1ef7838](https://github.com/NEETROF/cymbra/commit/1ef7838b1435f33ba90d9243adf095034a21b7e2))
+* **lingua:** translate review cards the pack cannot answer, and keep the translation ([#948](https://github.com/NEETROF/cymbra/issues/948)) ([58ae075](https://github.com/NEETROF/cymbra/commit/58ae07596d9ff29f7bc89f19ca09e2ddbc1761db))
+* **site:** show Cymbra Lingua at work on its page ([#960](https://github.com/NEETROF/cymbra/issues/960)) ([5300ddb](https://github.com/NEETROF/cymbra/commit/5300ddbd4fa1dcbc8e53f6f09845157f443d7d6c))
+* **site:** show Cymbra Music in action on its page ([#938](https://github.com/NEETROF/cymbra/issues/938)) ([2f38078](https://github.com/NEETROF/cymbra/commit/2f38078df90126509e9559f017c55f0d34362945))
+
+
+### Bug Fixes
+
+* **site:** add the Chrome Web Store Limited Use statement to the privacy policy ([#953](https://github.com/NEETROF/cymbra/issues/953)) ([15732bd](https://github.com/NEETROF/cymbra/commit/15732bd22d73eebac96e4017f0d7c656959ad488))
+
 ## [0.15.0](https://github.com/NEETROF/cymbra/compare/site-v0.14.0...site-v0.15.0) (2026-10-13)
 
 
