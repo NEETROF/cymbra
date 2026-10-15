@@ -577,8 +577,10 @@ iPad 13" 2064 x 2752, macOS 1280 x 800, 1440 x 900, 2560 x 1600 or 2880 x 1800.
 What they should show, in this order: a page being read with its highlighting and the pill, the
 word card open on a highlighted word, the review panel, and the statistics screen with the
 estimated vocabulary — and, where a locale gains French, a fifth on a French page (App Store
-Connect takes ten per slot). The same captures the browser listings use — they are what the product
-is.
+Connect takes ten per slot). Every slot, macOS's 1280 x 800 included, is captured in Safari by hand,
+and never filled from the browser listings' captures (`yarn capture` in `apps/lingua-extension`,
+change add-site-lingua-showcase): those are Chromium's rendering of the extension, not the Safari
+app's, and App Review asks for the app in use (Guideline 2.3.3).
 
 | Locale | iPhone 6.5" | iPad 13" | macOS | Taken from |
 |---|---|---|---|---|
@@ -595,8 +597,8 @@ The en-US set, captured by the owner (the device in English, a Spanish level cho
 2. **The word card** — open on a highlighted verb form whose card names a tense: « dijo » reads
    "third-person singular preterite indicative of decir" (`test/baseline/word-card-es-en.txt`),
    its English gloss below, "I know it", "+ Deck" and "Ignore".
-3. **Review** — the panel ("Review") on a card, its sentence shown, the four answers ("Again",
-   "Hard", "Good", "Easy").
+3. **Review** — the panel ("Review") on a card, its answer revealed below its sentence, the two
+   answers ("Didn't know" and "Knew it").
 4. **Statistics** — "Stats", the ladder "My estimated Spanish level" from A1 to C2, with its note
    that the levels are estimated from word frequency.
 5. **French** (from change 52, a French level chosen) — a French article in Safari (a French
@@ -614,8 +616,8 @@ The es-ES set, captured by the owner (the device in Spanish, an English level ch
    (`src/i18n/es/grammar.ts`, pinned by `test/word-grammar-es.spec.ts`; change 24's snapshot of the
    card in Spanish, once merged, gives the real readings), its Spanish gloss below, « La conozco »,
    « + Mazo » and « Ignorar ».
-3. **Review** — the panel (« Repaso ») on a card, its sentence shown, the four answers (« Otra vez »,
-   « Difícil », « Bien », « Fácil »).
+3. **Review** — the panel (« Repaso ») on a card, its answer revealed below its sentence, the two
+   answers (« No la sabía » and « La sabía »).
 4. **Statistics** — « Stats », the ladder « Mi nivel de inglés » from A1 to C2 (MCER), its levels
    English's own lists, not estimated.
 5. **French** (if change 52 lists fr-es, a French level chosen) — the same French page, the card
