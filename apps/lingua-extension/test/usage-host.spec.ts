@@ -367,6 +367,38 @@ describe("An installation from before the first counting release (an update from
   });
 });
 
+describe("A step leaves the week after it happened (owner, 2026-10-15)", () => {
+  it("a wake at Sunday 23:59 sends nothing; the first wake at Monday 00:00 sends the week's steps", async () => {
+    const t = setup({ browser: "safari" });
+    await t.host.installed("install");
+    await t.host.noticeShown();
+    t.advanceTo(new Date(2026, 9, 25, 23, 59)); // Sunday night, the day Paris leaves summer time
+    await t.host.setUp();
+    await t.host.wake();
+    expect(t.reports).toEqual([]);
+    t.advanceTo(new Date(2026, 9, 26, 0, 0));
+    await t.host.wake();
+    expect(t.reports).toEqual([
+      { installWeek: week, browser: "safari", version: "1.10", steps: ["installed", "set_up"] },
+    ]);
+  });
+
+  it("a step of the next week waits for its own Monday, while the earlier ones go", async () => {
+    const t = setup({ browser: "safari" });
+    await t.host.installed("install");
+    await t.host.noticeShown();
+    t.advanceTo(new Date(2026, 9, 29, 12)); // day 8, a Thursday: back in days 7–13
+    await t.host.used();
+    expect(t.reports.map((r) => r.steps)).toEqual([["installed"]]);
+    t.advanceTo(new Date(2026, 10, 1, 23, 59)); // that week's Sunday night
+    await t.host.wake();
+    expect(t.reports).toHaveLength(1);
+    t.advanceTo(new Date(2026, 10, 2, 8));
+    await t.host.analysed();
+    expect(t.reports.map((r) => r.steps)).toEqual([["installed"], ["returned_days_7_13"]]);
+  });
+});
+
 describe("Reports ride the extension's own wake-ups", () => {
   it("Several steps at once: they leave in one report", async () => {
     const t = setup();
