@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import manifest from "../../../lingua-extension/model-manifest.json";
 import coverage from "../../src/data/lingua-coverage.json";
 import takenWith from "../fixtures/lingua/taken-with.json";
+import { withoutMediaUrls } from "../support/media.mjs";
 
 // Run after `yarn build` (see `vitest.build.config.ts`). The Lingua page is one component
 // fed by the shipped pairs (change: add-site-lingua-matrix-pages); with the pairs the
@@ -24,9 +25,9 @@ function builtPages(dir = dist): string[] {
   });
 }
 
-/** The page's `<main>` without what a community invite adds to it. */
+/** The page's `<main>` without what a community invite adds to it, its media addresses left aside. */
 function mainWithoutInvite(html: string): string {
-  const main = html.match(/<main>(.*?)<\/main>/s)?.[1] ?? "";
+  const main = withoutMediaUrls(html.match(/<main>(.*?)<\/main>/s)?.[1] ?? "");
   return main
     .replace(/(<p class="muted small hero-note">[^<]*) <a href="[^"]*" rel="noopener">[^<]*<\/a>[^<]*<\/p>/, "$1</p>")
     .replace(/<section class="container community".*?<\/section>/s, "");
@@ -124,7 +125,7 @@ describe("a Spanish Lingua page only once a pair glossed in Spanish ships (D3)",
     () => {
       const html = read("es/lingua/index.html");
       expect(html).toContain('<html lang="es"');
-      expect(html).toContain('<link rel="alternate" hreflang="es" href="https://cymbra.app/es/lingua">');
+      expect(html).toContain('<link rel="alternate" hreflang="es" href="https://cymbra.app/es/lingua/">');
       expect(html.match(/<nav class="nav-links">(.*?)<\/nav>/s)?.[1]).toContain('<a href="/es/lingua">Lingua</a>');
       expect(html.match(/<footer class="site-footer">(.*?)<\/footer>/s)?.[1]).toContain('<a href="/es/lingua">Lingua</a>');
       // The coverage table leads with a pair glossed in Spanish. While every listed pair is, it is

@@ -1,6 +1,12 @@
 ---
 import Base from '../layouts/Base.astro';
 import Community from '../components/Community.astro';
+import { linguaPairs } from '../lib/lingua-pairs';
+import { frenchHomeLinguaCard } from '../lib/lingua-text';
+
+// The Lingua card is built from the shipped pairs glossed in French (change:
+// add-site-lingua-showcase, D15): « en anglais ou en espagnol » today.
+const lingua = frenchHomeLinguaCard(linguaPairs());
 ---
 
 <Base
@@ -31,12 +37,8 @@ import Community from '../components/Community.astro';
     <article class="product">
       <p class="kicker">Cymbra Lingua · extension navigateur <span class="badge">bêta</span></p>
       <h2>📖 Lingua</h2>
-      <p>
-        Lisez le web en anglais, les mots que vous ne connaissez pas encore sont
-        surlignés sur place. Un pourcentage honnête par page, un clic pour la
-        traduction, et votre vocabulaire qui se construit tout seul.
-      </p>
-      <a class="btn btn-ghost" href="/lingua">Découvrir Lingua</a>
+      <p set:html={lingua.body} />
+      <a class="btn btn-ghost" href={lingua.href}>Découvrir Lingua</a>
     </article>
   </section>
 

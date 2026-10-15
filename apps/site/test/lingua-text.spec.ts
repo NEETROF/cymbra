@@ -9,14 +9,17 @@ import {
   esAnd,
   esOr,
   fill,
+  frenchHomeLinguaCard,
   LINGUA_TEXT,
   type LinguaPageText,
   linguaPageText,
+  SHOT_KEYS,
   spanishHomeLinguaCard,
   STUDIED,
   studiedLanguage,
 } from "../src/lib/lingua-text";
 import { MATRIX, ROUTES, SIX_PAIRS, TODAY, WITH_FR_EN } from "./support/lingua";
+import { STUDIED as CAPTURED } from "../../lingua-extension/tool/capture/plan.mjs";
 
 // The words around the data (change: add-site-lingua-matrix-pages, D2 and D4), built from
 // committed pair lists (`test/support/lingua.ts`): today's two French-native pairs read as
@@ -47,10 +50,10 @@ describe("today's pairs: the pages read as before", () => {
       "Une extension navigateur qui surligne les mots d'anglais ou d'espagnol que vous ne connaissez pas encore, directement sur la page. Pas d'appli à ouvrir, pas de session de révision à caler : vous lisez, vous apprenez.",
     );
     expect(t.heroNote).toBe(
-      'Disponible sur Chrome, Edge et les navigateurs Chromium, sur Firefox (ordinateur) et sur Safari (iPhone, iPad, Mac). <a href="https://discord.gg/example" rel="noopener">Rejoignez la communauté</a> pour en parler.',
+      'Disponible sur Chrome, Edge et les navigateurs Chromium, sur Firefox (ordinateur et Android) et sur Safari (iPhone, iPad, Mac). <a href="https://discord.gg/example" rel="noopener">Rejoignez la communauté</a> pour en parler.',
     );
     expect(linguaPageText("fr", today, noDiscord).heroNote).toBe(
-      "Disponible sur Chrome, Edge et les navigateurs Chromium, sur Firefox (ordinateur) et sur Safari (iPhone, iPad, Mac).",
+      "Disponible sur Chrome, Edge et les navigateurs Chromium, sur Firefox (ordinateur et Android) et sur Safari (iPhone, iPad, Mac).",
     );
     expect(t.cards.map((c) => c.key)).toEqual(["highlight", "percentage", "click", "deck", "offline", "level", "account", "languages"]);
     expect(card(t, "languages")).toEqual({
@@ -93,7 +96,7 @@ describe("today's pairs: the pages read as before", () => {
       "A browser extension that highlights, on the page you are reading, the English or Spanish words you do not know yet. Offline analysis, no account required.",
     );
     expect(t.heroNote).toBe(
-      'Available on Chrome, Edge and other Chromium browsers, on Firefox (desktop) and on Safari (iPhone, iPad, Mac). Made for French speakers learning English or Spanish: the interface and the translations are in French. <a href="https://discord.gg/example" rel="noopener">Join the community</a> to talk about it.',
+      'Available on Chrome, Edge and other Chromium browsers, on Firefox (desktop and Android) and on Safari (iPhone, iPad, Mac). Made for French speakers learning English or Spanish: the interface and the translations are in French. <a href="https://discord.gg/example" rel="noopener">Join the community</a> to talk about it.',
     );
     expect(card(t, "languages").title).toBe("🧭 English and Spanish → French");
     expect(card(t, "languages").body).toBe("Choose your languages in Settings: each page is read in its own.");
@@ -118,7 +121,7 @@ describe("the matrix: each page leads with its readers' pairs (D2)", () => {
     const t = linguaPageText("en", matrix, noDiscord);
     expect(t.tagline).toMatch(/^A browser extension that highlights the Spanish words you do not know yet/);
     expect(t.heroNote).toBe(
-      "Available on Chrome, Edge and other Chromium browsers, on Firefox (desktop) and on Safari (iPhone, iPad, Mac). Made for English speakers learning Spanish. Also for French speakers learning English or Spanish: the interface and the translations are in French. Also for Spanish speakers learning English: the interface and the translations are in Spanish.",
+      "Available on Chrome, Edge and other Chromium browsers, on Firefox (desktop and Android) and on Safari (iPhone, iPad, Mac). Made for English speakers learning Spanish. Also for French speakers learning English or Spanish: the interface and the translations are in French. Also for Spanish speakers learning English: the interface and the translations are in Spanish.",
     );
     expect(card(t, "languages").title).toBe("🧭 Spanish → English · English and Spanish → French · English → Spanish");
     // Two native languages listed: one row per pair, the readers' first, one column per top
@@ -140,7 +143,7 @@ describe("the matrix: each page leads with its readers' pairs (D2)", () => {
       "Una extensión para el navegador que resalta las palabras en inglés que todavía no conoces, directamente en la página. Sin aplicación que abrir ni sesión de repaso que programar: lees y aprendes.",
     );
     expect(t.heroNote).toBe(
-      'Disponible en Chrome, Edge y otros navegadores Chromium, en Firefox (escritorio) y en Safari (iPhone, iPad, Mac). Pensada para hispanohablantes que aprenden inglés. También para francohablantes que aprenden inglés o español: la interfaz y las traducciones están en francés. También para anglohablantes que aprenden español: la interfaz y las traducciones están en inglés. <a href="https://discord.gg/example" rel="noopener">Únete a la comunidad</a> para hablar de ello.',
+      'Disponible en Chrome, Edge y otros navegadores Chromium, en Firefox (escritorio y Android) y en Safari (iPhone, iPad, Mac). Pensada para hispanohablantes que aprenden inglés. También para francohablantes que aprenden inglés o español: la interfaz y las traducciones están en francés. También para anglohablantes que aprenden español: la interfaz y las traducciones están en inglés. <a href="https://discord.gg/example" rel="noopener">Únete a la comunidad</a> para hablar de ello.',
     );
     expect(card(t, "languages").title).toBe("🧭 Inglés → español · Inglés y español → francés · Español → inglés");
     expect(card(t, "languages").body).toBe("Elige tus idiomas en los Ajustes: cada página se lee en el suyo.");
@@ -163,7 +166,7 @@ describe("the matrix: each page leads with its readers' pairs (D2)", () => {
   it("French: the French-native pairs first, the others named for their readers", () => {
     const t = linguaPageText("fr", matrix, noDiscord);
     expect(t.heroNote).toBe(
-      "Disponible sur Chrome, Edge et les navigateurs Chromium, sur Firefox (ordinateur) et sur Safari (iPhone, iPad, Mac). Conçue pour les francophones qui apprennent l'anglais ou l'espagnol. Aussi pour les anglophones qui apprennent l'espagnol : l'interface et les traductions sont en anglais. Aussi pour les hispanophones qui apprennent l'anglais : l'interface et les traductions sont en espagnol.",
+      "Disponible sur Chrome, Edge et les navigateurs Chromium, sur Firefox (ordinateur et Android) et sur Safari (iPhone, iPad, Mac). Conçue pour les francophones qui apprennent l'anglais ou l'espagnol. Aussi pour les anglophones qui apprennent l'espagnol : l'interface et les traductions sont en anglais. Aussi pour les hispanophones qui apprennent l'anglais : l'interface et les traductions sont en espagnol.",
     );
     expect(card(t, "languages").title).toBe("🧭 Anglais et espagnol → français · Espagnol → anglais · Anglais → espagnol");
     expect(t.coverage.head).toEqual(["Mots les plus courants", `5${NNBSP}000`, `10${NNBSP}000`, `20${NNBSP}000`]);
@@ -179,7 +182,7 @@ describe("the matrix: each page leads with its readers' pairs (D2)", () => {
     const enEs = shipped({ tops: MATRIX.tops, glossed: { "en-es": [96.0, 91.0, 80.0] } });
     const t = linguaPageText("es", enEs, noDiscord);
     expect(t.heroNote).toBe(
-      "Disponible en Chrome, Edge y otros navegadores Chromium, en Firefox (escritorio) y en Safari (iPhone, iPad, Mac).",
+      "Disponible en Chrome, Edge y otros navegadores Chromium, en Firefox (escritorio y Android) y en Safari (iPhone, iPad, Mac).",
     );
     expect(card(t, "languages").title).toBe("🧭 Inglés → español");
     // No listed pair studies Spanish: the Spanish pack's sentences stay out.
@@ -200,7 +203,7 @@ describe("the matrix: each page leads with its readers' pairs (D2)", () => {
     // other group as today's English page presents the French speakers.
     const noFrench = shipped({ tops: MATRIX.tops, glossed: { "es-en": [90, 80, 70], "en-es": [96, 91, 80] } });
     expect(linguaPageText("fr", noFrench, noDiscord).heroNote).toBe(
-      "Disponible sur Chrome, Edge et les navigateurs Chromium, sur Firefox (ordinateur) et sur Safari (iPhone, iPad, Mac). Conçue pour les anglophones qui apprennent l'espagnol : l'interface et les traductions sont en anglais. Aussi pour les hispanophones qui apprennent l'anglais : l'interface et les traductions sont en espagnol.",
+      "Disponible sur Chrome, Edge et les navigateurs Chromium, sur Firefox (ordinateur et Android) et sur Safari (iPhone, iPad, Mac). Conçue pour les anglophones qui apprennent l'espagnol : l'interface et les traductions sont en anglais. Aussi pour les hispanophones qui apprennent l'anglais : l'interface et les traductions sont en espagnol.",
     );
     // The Spanish page is built only with a Spanish-glossed pair (D3): it has no such sentence.
     expect(() => linguaPageText("es", today, noDiscord)).toThrow(/the es page is built only with a pair glossed in its language/);
@@ -550,5 +553,80 @@ describe("the card's buttons, as the extension labels them (change 34, enable-li
       "the English table quotes the English interface's buttons: it ships only with a pair glossed in English",
     ).toContain("es-en");
     expect(left, `the English table of src/lib/lingua-text.ts still says ${left.join(", ")}`).toEqual([]);
+  });
+});
+
+describe("the French home's Lingua card follows the shipped pairs (change: add-site-lingua-showcase, D15)", () => {
+  const REST =
+    "les mots que vous ne connaissez pas encore sont surlignés sur place. Un pourcentage honnête par page, un clic pour la traduction, et votre vocabulaire qui se construit tout seul.";
+
+  it("today's pairs: English or Spanish, and the French Lingua page", () => {
+    expect(frenchHomeLinguaCard(today.pairs)).toEqual({ body: `Lisez le web en anglais ou en espagnol, ${REST}`, href: "/lingua" });
+    expect(frenchHomeLinguaCard(six.pairs).body).toBe(`Lisez le web en anglais ou en espagnol, ${REST}`);
+  });
+
+  it("en-fr alone: English", () => {
+    const english = shipped({ tops: TODAY.tops, glossed: { "en-fr": TODAY.glossed["en-fr"] } });
+    expect(frenchHomeLinguaCard(english.pairs)).toEqual({ body: `Lisez le web en anglais, ${REST}`, href: "/lingua" });
+  });
+
+  it("refuses a list with no pair glossed in French", () => {
+    const spanish = shipped({ tops: TODAY.tops, glossed: { "en-es": MATRIX.glossed["en-es"] } });
+    expect(() => frenchHomeLinguaCard(spanish.pairs)).toThrow(/no shipped pair is glossed in French/);
+  });
+});
+
+describe("the captures' words (change: add-site-lingua-showcase, D10, D11)", () => {
+  const LANGS = ["fr", "en", "es"] as const;
+  const extension = (path: string) => readFileSync(resolve(__dirname, `../../lingua-extension/src/i18n/${path}`), "utf8");
+  const label = (lang: string, module: string, key: string) =>
+    extension(`${lang}/${module}.ts`).match(new RegExp(`^  ${key}: "([^"]+)",$`, "m"))?.[1];
+  const quoted: Record<(typeof LANGS)[number], (text: string) => string> = {
+    fr: (text) => `« ${text} »`,
+    en: (text) => `“${text}”`,
+    es: (text) => `«${text}»`,
+  };
+
+  it.each(LANGS)("%s: a heading, the hero's alt text, the video's label and caption, and every capture's alt text and caption", (lang) => {
+    const { showcase, hints } = linguaPageText(lang, six, noDiscord);
+    expect(showcase.heading).toBeTruthy();
+    expect(showcase.hero.alt.length).toBeGreaterThan(40);
+    expect(showcase.video.label).toBeTruthy();
+    expect(showcase.video.caption).toBeTruthy();
+    expect(showcase.shareAlt).toBeTruthy();
+    expect(Object.keys(showcase.shots).sort()).toEqual([...SHOT_KEYS].sort());
+    for (const key of SHOT_KEYS) {
+      expect(showcase.shots[key].alt.length, `${lang} ${key} alt`).toBeGreaterThan(30);
+      expect(showcase.shots[key].caption, `${lang} ${key} caption`).toBeTruthy();
+    }
+    expect(Object.keys(hints).sort()).toEqual(["android", "ios"]);
+    expect(hints.ios).toContain("Safari");
+    expect(hints.android).toContain("Firefox");
+  });
+
+  it.each(LANGS)("%s: the alt texts quote no figure the seed could change, only the scale's levels", (lang) => {
+    const { showcase } = LINGUA_TEXT[lang];
+    const texts = [showcase.hero.alt, showcase.shareAlt, ...SHOT_KEYS.map((key) => showcase.shots[key].alt)];
+    for (const text of texts) expect(text.replace(/\b[ABC][12]\b/g, ""), text).not.toMatch(/\d/);
+  });
+
+  it.each(LANGS)("%s: the alt texts name the languages the capture's reader studies (tool/capture/plan.mjs)", (lang) => {
+    const t = LINGUA_TEXT[lang];
+    const [first, second] = CAPTURED[lang];
+    expect(t.showcase.hero.alt).toContain(t.names[first]);
+    expect(t.showcase.shareAlt).toContain(t.names[first]);
+    expect(t.showcase.shots.second.alt).toContain(t.names[second]);
+    expect(t.showcase.shots.stats.alt).toContain(t.names[first]);
+  });
+
+  it.each(LANGS)("%s: the review's two answers, the « Je connais » and the e-ink preset are quoted as the extension labels them", (lang) => {
+    const { showcase } = LINGUA_TEXT[lang];
+    for (const key of ["missed", "recalled"]) {
+      const text = label(lang, "review", key);
+      expect(text, `${lang}/review.ts ${key}`).toBeTruthy();
+      expect(showcase.shots.review.alt).toContain(quoted[lang](text!));
+    }
+    expect(showcase.video.caption).toContain(quoted[lang](label(lang, "card", "known")!));
+    expect(showcase.shots["reader-eink"].alt).toContain(quoted[lang](label(lang, "colours", "presetEinkMono")!));
   });
 });

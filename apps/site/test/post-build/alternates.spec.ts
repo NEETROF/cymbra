@@ -13,6 +13,11 @@ import { outputFileFor } from "../../src/lib/pinned-routes";
 
 const dist = resolve(__dirname, "../../dist");
 const site = "https://cymbra.app";
+/**
+ * A declared path as `hreflang` names it: the address the host serves, with its trailing slash
+ * (change: add-site-lingua-showcase, D12) — the switch keeps the declared path.
+ */
+const served = (href: string) => `${site}${href.replace(/\/+$/, "")}/`;
 
 const builtPage = (path: string) => readFileSync(resolve(dist, outputFileFor(path)), "utf8");
 
@@ -42,7 +47,7 @@ describe("each page names its translations", () => {
 
   for (const [page, byLang] of Object.entries(twins)) {
     it(`${page}: the switch and hreflang of each language open the same page`, () => {
-      const expectedHreflang = Object.entries(byLang).map(([l, href]) => [l, `${site}${href}`]);
+      const expectedHreflang = Object.entries(byLang).map(([l, href]) => [l, served(href)]);
       for (const [lang, path] of Object.entries(byLang)) {
         const { hreflang, switchTo } = alternatesOf(path);
         expect(hreflang, `${path} hreflang`).toEqual(expectedHreflang);
@@ -59,7 +64,7 @@ describe("each page names its translations", () => {
     // `<studied>-<native>`, is glossed in Spanish — read here, not asked of the site's helpers.
     const lingua: Record<string, string> = { fr: "/lingua", en: "/en/lingua" };
     if (Object.keys(coverage.glossed).some((pair) => pair.split("-")[1] === "es")) lingua.es = "/es/lingua";
-    const expected = Object.entries(lingua).map(([l, href]) => [l, `${site}${href}`]);
+    const expected = Object.entries(lingua).map(([l, href]) => [l, served(href)]);
     for (const [lang, path] of Object.entries(lingua)) {
       const { hreflang, switchTo } = alternatesOf(path);
       expect(hreflang, `${path} hreflang`).toEqual(expected);
@@ -73,8 +78,8 @@ describe("each page names its translations", () => {
   it("a page without a Spanish twin offers French and English alone", () => {
     // The account, code redemption and checkout pages (D4).
     expect(alternatesOf("/account").hreflang).toEqual([
-      ["fr", `${site}/account`],
-      ["en", `${site}/en/account`],
+      ["fr", `${site}/account/`],
+      ["en", `${site}/en/account/`],
     ]);
     expect(alternatesOf("/account").switchTo).toEqual([["EN", "/en/account"]]);
     expect(alternatesOf("/en/redeem").switchTo).toEqual([["FR", "/redeem"]]);

@@ -1,0 +1,66 @@
+---
+// One capture of the extension (change: add-site-lingua-showcase, D7, D10): WebP at 640, 960 and
+// 1280 px — and 1920 when it is shown wide — from the committed source, an `<img>` with its width
+// and height so that nothing moves while it loads, lazy unless it is the hero. WebP alone: AVIF,
+// measured on these captures (text on a flat page), came out heavier than WebP at the same quality
+// for most variants. A `closeUp` is what a phone shows instead (a `<source>` for narrow windows: the
+// word card it could not read at full width), up to 1260 px for a phone 420 px wide at 3×. A `zoom`
+// figure is a link to its 1280 px image — the `<img>`'s own file, so nothing more is built — for a
+// visitor who wants it larger than its column.
+import { getImage } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+
+interface Props {
+  src: ImageMetadata;
+  alt: string;
+  /** The `sizes` of the wide image. */
+  sizes: string;
+  /** The hero: loaded at once, first. */
+  eager?: boolean;
+  closeUp?: ImageMetadata;
+  /** The widest variant: 1920 px for an image shown wide (the hero), else 1280. */
+  wide?: boolean;
+  /** A link to the image's 1280 px file around it. */
+  zoom?: boolean;
+}
+
+const { src, alt, sizes, eager = false, closeUp, wide: shownWide = false, zoom = false } = Astro.props;
+
+/** Below this window width, the close-up (D10). */
+const PHONE = '(max-width: 639px)';
+const WIDTHS = [640, 960, 1280];
+const WIDE_WIDTHS = [...WIDTHS, 1920];
+const CLOSE_UP_WIDTHS = [480, 720, 960, 1260];
+const QUALITY = 72;
+
+// The source's own width and height are never read here: reading a property of an imported image
+// tells Astro its original is used, and the build would then ship the source beside its variants.
+// `getImage` leaves out the widths larger than the source, and says each size it makes.
+const srcset = async (image: ImageMetadata, widths: number[]) =>
+  (await getImage({ src: image, widths, format: 'webp', quality: QUALITY })).srcSet.attribute;
+
+const wide = await srcset(src, shownWide ? WIDE_WIDTHS : WIDTHS);
+const fallback = await getImage({ src, width: 1280, format: 'webp', quality: QUALITY });
+const close = closeUp ? await srcset(closeUp, CLOSE_UP_WIDTHS) : null;
+const closeSize = closeUp ? (await getImage({ src: closeUp, width: 720, format: 'webp', quality: QUALITY })).attributes : null;
+const Wrapper = zoom ? 'a' : Fragment;
+---
+
+<Wrapper {...(zoom ? { class: 'shot-zoom', href: fallback.src } : {})}>
+  <picture>
+    {close && closeSize && (
+      <source media={PHONE} type="image/webp" srcset={close} sizes="100vw" width={closeSize.width} height={closeSize.height} />
+    )}
+    <img
+      src={fallback.src}
+      srcset={wide}
+      sizes={sizes}
+      width={fallback.attributes.width}
+      height={fallback.attributes.height}
+      alt={alt}
+      loading={eager ? 'eager' : 'lazy'}
+      decoding={eager ? undefined : 'async'}
+      fetchpriority={eager ? 'high' : undefined}
+    />
+  </picture>
+</Wrapper>

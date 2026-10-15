@@ -2,6 +2,10 @@
 // A row of distribution links (`src/lib/stores.ts`). An unpublished channel is
 // dimmed and unclickable rather than hidden, so the platform coverage stays
 // readable while the listing is still in review.
+//
+// `choose` (the Lingua page alone, change: add-site-lingua-showcase, D11): each button carries
+// its store as `data-store`, and `StoreChoice.astro`'s script marks the visitor's browser's one
+// primary. Without script — and on every other page — the buttons are as before.
 import type { StoreLink } from '../lib/stores';
 
 interface Props {
@@ -9,18 +13,21 @@ interface Props {
   /** `true` on a hero (centred), `false` inside a page block (left-aligned). */
   centered?: boolean;
   primary?: boolean;
+  choose?: boolean;
 }
 
-const { links, centered = true, primary = false } = Astro.props as Props;
+const { links, centered = true, primary = false, choose = false } = Astro.props as Props;
 ---
 
-<div class={`cta-row${centered ? '' : ' left'}`}>
+<div class={`cta-row${centered ? '' : ' left'}`} data-store-choice={choose ? '' : undefined}>
   {links.map((l, i) => (
     <a
       class={`btn ${primary && i === 0 && l.live ? 'btn-primary' : 'btn-ghost'}${l.live ? '' : ' disabled'}`}
       href={l.href}
       rel={l.live ? 'noopener' : undefined}
       aria-disabled={l.live ? undefined : 'true'}
+      data-store={choose ? l.store : undefined}
+      data-android-href={choose ? l.androidHref : undefined}
     >{l.label}</a>
   ))}
 </div>
