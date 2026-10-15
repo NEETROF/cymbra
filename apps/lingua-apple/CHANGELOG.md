@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.1](https://github.com/NEETROF/cymbra/compare/lingua-apple-v1.8.0...lingua-apple-v1.8.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* **lingua-apple:** build the app's page against the production backend ([#963](https://github.com/NEETROF/cymbra/issues/963)) ([0042dd2](https://github.com/NEETROF/cymbra/commit/0042dd2346ec64da83ad2acd2aa73d533b75962d))
+
 ## [1.8.0](https://github.com/NEETROF/cymbra/compare/lingua-apple-v1.7.0...lingua-apple-v1.8.0) (2026-10-15)
 
 
