@@ -4,6 +4,7 @@
 // pinned route (`src/lib/pinned-routes.ts`): shipped builds compile it in.
 import Base from '../../../layouts/Base.astro';
 import LeaveReasonIsland from '../../../components/LeaveReasonIsland.vue';
+import LeaveThanks from '../../../components/LeaveThanks.astro';
 import { config } from '../../../lib/config';
 import { t } from '../../../lib/i18n';
 ---
@@ -17,6 +18,7 @@ import { t } from '../../../lib/i18n';
 >
   <section class="container narrow">
     <h1>{t('en', 'leaveQuestion')}</h1>
+    <LeaveThanks lang="en" communityUrl={config.discordUrl} />
     <LeaveReasonIsland client:load lang="en" communityUrl={config.discordUrl} />
   </section>
 </Base>

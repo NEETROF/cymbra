@@ -7,8 +7,10 @@ import {
   createLinguaLeaveClient,
   LEAVE_REASONS,
   leaveContextFromQuery,
+  leaveFormAction,
   setLinguaLeaveClientForTest,
   SUPPORT_HREF,
+  THANKS_ID,
   type LeaveAnswer,
   type LinguaLeaveClient,
 } from "../src/lib/lingua-leave";
@@ -140,7 +142,8 @@ describe("LeaveReasonIsland", () => {
     ]);
     expect(answers(w).every((b) => b.attributes("disabled") === undefined)).toBe(true);
     expect(w.find("textarea").exists()).toBe(false);
-    expect(w.find("input").exists()).toBe(false);
+    // No field to type in: the one input is the page's language, hidden, for the plain form.
+    expect(w.findAll("input").map((i) => [i.attributes("type"), i.attributes("name")])).toEqual([["hidden", "lang"]]);
     expect(w.find('[data-testid="leave-thanks"]').exists()).toBe(false);
     expect(client.leave).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
@@ -201,6 +204,46 @@ describe("LeaveReasonIsland", () => {
       await flushPromises();
       expect(client.leave).toHaveBeenCalledWith({ reason: "highlighting", browser: "unknown", version: "unknown" });
     }
+  });
+
+  it("without JavaScript, the six answers are a plain form posting the tapped one to the leaving route", async () => {
+    // Review of #958: the server-rendered buttons did nothing without JavaScript.
+    fakeClient();
+    for (const lang of LANGS) {
+      const w = mount(LeaveReasonIsland, { props: { lang, communityUrl: null } });
+      await flushPromises();
+      const form = w.find("form");
+      expect(form.attributes("method")).toBe("post");
+      expect(form.attributes("action")).toBe(leaveFormAction());
+      expect(leaveFormAction("https://api.example")).toBe("https://api.example/web/lingua/leave");
+      expect(form.find('input[type="hidden"][name="lang"]').attributes("value")).toBe(lang);
+      expect(answers(w).map((b) => [b.attributes("type"), b.attributes("name"), b.attributes("value")])).toEqual(
+        LEAVE_REASONS.map((r) => ["submit", "reason", r]),
+      );
+    }
+  });
+
+  it("with JavaScript, a tap sends the answer itself and never submits the form", async () => {
+    const client = fakeClient();
+    const w = mount(LeaveReasonIsland, { props: { lang: "fr", communityUrl: null }, attachTo: document.body });
+    await flushPromises();
+    const submitted = vi.fn((e: Event) => e.preventDefault());
+    w.find("form").element.addEventListener("submit", submitted);
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+    w.find('[data-reason="unclear"]').element.dispatchEvent(click);
+    await flushPromises();
+    expect(click.defaultPrevented).toBe(true);
+    expect(submitted).not.toHaveBeenCalled();
+    expect(client.leave).toHaveBeenCalledTimes(1);
+    // A submit by any other means (a keyboard on some browsers) is stopped too.
+    const submit = new Event("submit", { bubbles: true, cancelable: true });
+    w.find("form").element.dispatchEvent(submit);
+    expect(submit.defaultPrevented).toBe(true);
+    w.unmount();
+  });
+
+  it("the thanks the plain form comes back to have one id per language", () => {
+    expect(THANKS_ID).toEqual({ fr: "merci", en: "thanks", es: "gracias" });
   });
 
   it("speaks each site language, six answers each", async () => {

@@ -247,3 +247,9 @@ a:hover { text-decoration: underline; }
 .leave-answers .btn[aria-pressed="true"] { border-color: var(--accent); opacity: 1; }
 .leave .outcome { margin-top: 1.2rem; }
 .leave .outcome p + p { margin-top: 0.6rem; }
+/* Without JavaScript the answers are a plain form, and the backend sends the reader back to the
+   page's thanks (#merci, #thanks, #gracias): shown only when targeted, in place of the answers. */
+.leave-done { display: none; }
+.leave-done:target { display: block; }
+.leave-done p + p { margin-top: 0.6rem; }
+.container:has(.leave-done:target) .island { display: none; }

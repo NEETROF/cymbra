@@ -44,6 +44,26 @@ export function leaveContextFromQuery(search: string): LeaveContext {
   };
 }
 
+/**
+ * The block of each leaving page that thanks a reader whose browser ran no JavaScript: the
+ * backend sends the plain form back to `<page>#<id>`, and the page's CSS shows the block when it
+ * is targeted. Mirrors `thanks_path` in `backend/server/src/web_lingua.rs`.
+ */
+export const THANKS_ID: Record<Lang, string> = {
+  fr: "merci",
+  en: "thanks",
+  es: "gracias",
+};
+
+/**
+ * Where the answers' plain form posts when the page runs without JavaScript — the same route
+ * as the script's request. With JavaScript the island sends the answer itself and the form is
+ * never submitted.
+ */
+export function leaveFormAction(apiUrl: string = config.apiUrl): string {
+  return `${apiUrl}/web/lingua/leave`;
+}
+
 /** The help page in each site language, offered with the thanks. */
 export const SUPPORT_HREF: Record<Lang, string> = {
   fr: "/support",
