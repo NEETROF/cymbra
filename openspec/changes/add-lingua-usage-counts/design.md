@@ -601,8 +601,10 @@ mint either, at real cost to the code).
   | es | `https://cymbra.app/es/lingua/adios/` |
 
   The URL carries `?b=<browser>&v=<major.minor>` and nothing else. With the switch off — or, on
-  Chromium, before the reader agreed — the URL is `""`. The call is compiled out of the Safari bundle,
-  where it does nothing.
+  Chromium, before the reader agreed — the URL is `""`, and so it is, whatever the switch says, for
+  an installation from before the first counting release (D4, owner decision B). It is also set
+  right after an installation is recorded, since Firefox's consent is already given then. The call
+  is compiled out of the Safari bundle, where it does nothing.
 - **The page.** A static Astro page in each language asks « Pourquoi quittez-vous Cymbra Lingua ? »
   and offers six buttons:
   1. « Je ne m'en servais pas » — `not_using`
