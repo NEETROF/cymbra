@@ -175,6 +175,13 @@ background's start when the key is missing or of another version, and at an even
 language's `upcoming` list used up (it held 100 times and the last has passed): the 101st card may
 then be due, and only a new outlook knows — rare, since any answer or sync recomputes it first.
 
+**Reviews made in the Cymbra Lingua app.** Since `add-lingua-app-deck-sync` (merged after this change
+was proposed) the app synchronises its own reviews with the server, and still hands them back
+through the App Group. They reach the extension's deck by two roads, the relay's `collect()` and the
+extension's own sync pulling what the app pushed; both write the backup through the owner's area
+(`ownedStore` in `background.ts`), whose announcement is the one this computation hangs off — no hook
+of its own. `test/badge-host.spec.ts` pins the relay's road end to end, through `ownerArea`.
+
 **The clock going back.** The outlook's `due` and `introduced` were counted at `computedAt` on the
 day starting at `dayStart`. Asked at an earlier time, or on an earlier day (the date set back, a
 time zone moved west), it would count cards not due yet. Such an outlook is *stale*: the core's
@@ -357,6 +364,16 @@ start-time sync (*Follow-up*).
   pour l'instant », never in the popup, the word card, the page bar or the book reader — the
   drawer the book reader opens included (`inBook`); a session finished there still counts, so the
   request comes at the next qualifying end elsewhere.
+- **A session the reader ends is not finished**: `add-lingua-review-stop-session` (merged after
+  this change was proposed) lets the reader end a session in progress with « Terminer »; its end
+  shows « Séance terminée » too — with the counts so far, or none when no card was answered. That
+  change's spec says the end is shown "as when its last card is answered"; this one counted ends
+  that "say they are complete". Read together they leave the question open, so the stricter
+  reading is taken: a session ended with « Terminer » (`ReviewView.ended`) is not counted and never
+  asks — in the side panel, the drawer and the app (D11) alike. A reader who stops a session has
+  chosen to stop; asking them to rate at that moment is the worst moment the request could pick.
+  *For the owner:* counting it instead is a one-line change in `countEnd` (`review-page.ts`) and a
+  spec sentence; say so if you prefer it.
 - **When**: the fifth finished session, on the third distinct day of review or later — Apple's
   sample waits for four completions; Firefox's guidance asks for time with the add-on first; a
   single evening's binge does not qualify.
@@ -398,7 +415,8 @@ Syncing the state (the same reader on Chrome and Firefox rates two different lis
 ### D11 — Safari and the Cymbra Lingua app
 
 - **The app** uses StoreKit's own request: the page, built with `__APP__`, shows no card and posts
-  `review.sessionFinished` at each « Séance terminée »; `ViewController` hands it to a
+  `review.sessionFinished` at each « Séance terminée » — not at the end of a session the reader
+  ended with « Terminer » (D10); `ViewController` hands it to a
   `ReviewRequestPolicy` in `LinguaSignIn` (counts in the app's own `UserDefaults`, not the App
   Group), which asks from the fifth finished session in the app, at most once per
   `CFBundleShortVersionString`; the request is made two seconds after the end shows, as Apple's

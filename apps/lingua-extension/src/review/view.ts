@@ -320,9 +320,10 @@ function cardView(
 }
 
 /**
- * Whether a session's end says it is complete (« Séance terminée »): it answered at least one card,
- * a practice session included. An end that says nothing was due is not one
- * (add-lingua-comeback-hints D10).
+ * Whether a session's end says what it did (« Séance terminée » and its counts): it answered at least
+ * one card, a practice session included. An end that says nothing was due is not one
+ * (add-lingua-comeback-hints D10); nor, for the rating request, is a session the reader ended before
+ * its last card, which the review page leaves out (`ReviewView.ended`).
  */
 export function sessionCompleted(summary: ReviewSummary | null): boolean {
   return !!summary && summary.reviewed + summary.known + summary.hidden > 0;

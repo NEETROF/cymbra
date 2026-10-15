@@ -1,7 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { reviewOutlookJson } from "@/analyzer/engine.ts";
 import { BADGE_COUNT_COLOUR, BADGE_NEUTRAL_COLOUR, BADGE_PERCENT_COLOUR } from "@/state/badge.ts";
-import { BADGE_APPLIED_KEY, type BadgeAction, badgeHost, type BadgeHostDeps } from "@/state/badge-host.ts";
+import type { CardOp } from "@/analyzer/port.ts";
+import { encodeAppOps } from "@/state/app-relay.ts";
+import {
+  BADGE_APPLIED_KEY,
+  type BadgeAction,
+  type BadgeHost,
+  badgeHost,
+  type BadgeHostDeps,
+} from "@/state/badge-host.ts";
+import type { NativeMessage } from "@/state/native-signin.ts";
+import { reviewRelay } from "@/state/review-relay.ts";
+import { ownerArea } from "@/state/store.ts";
 import {
   OUTLOOK_KEY,
   OUTLOOK_VERSION,
@@ -11,7 +22,7 @@ import {
 } from "@/state/review-outlook.ts";
 import { localDayStart } from "@/review/session.ts";
 import { BADGE_COUNT_KEY, COLOURS_KEY, NEW_WORDS_PER_DAY_KEY, ROOT_KEY } from "@/state/storage.ts";
-import { memoryArea } from "./helpers.ts";
+import { makeFakePort, memoryArea } from "./helpers.ts";
 import { realGlue, realPort } from "./real-wasm.ts";
 
 // The background's badge wiring (add-lingua-comeback-hints D2–D4), on fakes: the action API is a
@@ -511,5 +522,58 @@ describe("a tab's navigation (review finding: Safari 18 may keep a percentage pa
     await t.host.tabUpdated(7, "complete");
     expect(t.calls()).toEqual([]);
     expect(askReport).not.toHaveBeenCalled();
+  });
+});
+
+describe("a review made in the Cymbra Lingua app (add-lingua-app-deck-sync)", () => {
+  const CARD: CardOp = {
+    client_id: "c",
+    language: "en",
+    lemma: "dog",
+    surface_form: "dog",
+    source_sentence: "",
+    source: "",
+    gloss: "",
+    fsrs_state: "{}",
+    deleted: false,
+    client_ts: 5000,
+    device_id: "",
+  };
+
+  it("handed back through the App Group, it is written through the owner's area, and the count follows", async () => {
+    const raw = memoryArea({ [ROOT_KEY]: { v: 2, backup: '{"backup":true}' } });
+    const runs: Promise<void>[] = [];
+    let host: BadgeHost | null = null;
+    // As background.ts wires it: every write of the backup by its owner tells the badge.
+    const store = ownerArea(raw, (keys) => {
+      if (keys.includes(ROOT_KEY) && host) runs.push(host.dataChanged());
+    });
+    const t = setup({ store });
+    host = t.host;
+    await t.host.dataChanged();
+    expect(t.action.setBadgeText).toHaveBeenLastCalledWith({ text: "12" });
+
+    // The app answered the cards that were due; the relay lays its changes on the sync's engine and saves.
+    const { port } = makeFakePort();
+    port.restore = async () => {};
+    port.backup = async () => '{"backup":"from the app"}';
+    port.applyCardOps = async (ops) => ops.length;
+    port.applyStatusChanges = async () => 0;
+    let waiting: { ops: string; writtenAt: number } | null = {
+      ops: encodeAppOps({ since: 0, cardOps: [CARD], statusOps: [] }),
+      writtenAt: 1,
+    };
+    const send = async (message: NativeMessage): Promise<unknown> => {
+      if (message.type === "review.readOps") return waiting ?? {};
+      if (message.type === "review.clearOps") waiting = null;
+      return {};
+    };
+    const relay = reviewRelay({ send, store, prefs: memoryArea(), port, exclusive: (task) => task(), now: () => 0 });
+    t.compute.mockImplementation(async () => JSON.stringify(outlook({ due: 0, upcoming: [] })));
+
+    expect(await relay.collect()).toBe(1);
+    await Promise.all(runs);
+    expect(t.compute).toHaveBeenLastCalledWith('{"backup":"from the app"}', MORNING, DAY_START);
+    expect(t.action.setBadgeText).toHaveBeenLastCalledWith({ text: "" });
   });
 });

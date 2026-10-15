@@ -1416,6 +1416,55 @@ describe("Révision — the rating request at the end of a session (add-lingua-c
     expect(finished).toHaveBeenCalledTimes(1);
   });
 
+  it("Ended with « Terminer » before its last card: not a finished session — no count, no request, nothing told to the app", async () => {
+    const finished = vi.fn();
+    const prefs = fakeArea();
+    prefs.raw[RATING_KEY] = READY;
+    const m = mount(makeFakePort(TWELVE).port, fakeArea(), { prefs, onSessionFinished: finished });
+    await m.page.refresh();
+    button(m.container, "Réviser").click();
+    await settle();
+    button(m.container, "Afficher la réponse").click();
+    await settle();
+    button(m.container, "Su").click();
+    await settle();
+    button(m.container, "Terminer").click();
+    await settle();
+    // The end says what the session did, as add-lingua-review-stop-session wants…
+    expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+    // …but the reader stopped it: the request is not asked there, nor the session counted.
+    expect(request(m.container)).toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toEqual(READY);
+    expect(finished).not.toHaveBeenCalled();
+
+    // The next session played to its end is the fifth finished one, and asks.
+    button(m.container, "Encore 10").click();
+    await settle();
+    while (m.container.querySelector(".review-reveal")) {
+      button(m.container, "Afficher la réponse").click();
+      await settle();
+      button(m.container, "Su").click();
+      await settle();
+    }
+    expect(request(m.container)).not.toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toMatchObject({ sessions: 5, shown: 1 });
+    expect(finished).toHaveBeenCalledTimes(1);
+  });
+
+  it("Ended with « Terminer » before any answer: « Séance terminée » with no count, and no request", async () => {
+    const prefs = fakeArea();
+    prefs.raw[RATING_KEY] = READY;
+    const m = mount(makeFakePort(TWELVE).port, fakeArea(), { prefs });
+    await m.page.refresh();
+    button(m.container, "Réviser").click();
+    await settle();
+    button(m.container, "Terminer").click();
+    await settle();
+    expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+    expect(request(m.container)).toBeNull();
+    expect(m.prefs.raw[RATING_KEY]).toEqual(READY);
+  });
+
   it("is offered by the Chromium and Firefox builds only", () => {
     expect(ratingOffered("chromium", false)).toBe(true);
     expect(ratingOffered("firefox", false)).toBe(true);

@@ -275,10 +275,12 @@ export function mountReview(
   /**
    * An end that says the session is complete — practice included, never « Rien à réviser » — is
    * counted once; the request shows when this end qualifies, and counts as made from then on (D10).
+   * A session the reader ended before its last card (« Terminer », add-lingua-review-stop-session)
+   * is not a finished one: it neither counts nor asks, here or in the app (D10, D11).
    * Nothing is sent anywhere: the state stays in the preferences of this device.
    */
   async function countEnd(view: ReturnType<ReviewController["view"]>): Promise<void> {
-    if (endCounted || view.phase !== "done" || !sessionCompleted(view.summary)) return;
+    if (endCounted || view.phase !== "done" || view.ended || !sessionCompleted(view.summary)) return;
     endCounted = true;
     opts.onSessionFinished?.();
     if (!askRating) return;
