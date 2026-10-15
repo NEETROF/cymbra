@@ -44,6 +44,9 @@ export const review: typeof fr = {
   keepFieldLabel: "Traducción que guardar",
   keepSave: "Guardar",
   keepCancel: "Cancelar",
+  /** Ending the session under way, beside the count of cards remaining (add-lingua-review-stop-session). */
+  end: "Terminar",
+  endLabel: "Terminar la sesión",
   sessionDone: "Sesión terminada",
   reviewed: {
     one: (n) => `${n} palabra repasada`,
