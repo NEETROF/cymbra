@@ -232,9 +232,16 @@ you use it again **the day after** installing it; again **between day 7 and day 
   network address of these reports neither in its database, nor in its logs, nor in the logs of
   the server that passes requests on to it (its "reverse proxy"). The address serves only to
   refuse floods of reports, in memory only, in a scrambled form forgotten within the hour.
-- **On your device**, the day of the installation is kept for **60 days at most**, to tell when
-  you come back, then forgotten; only its week leaves the device. At Cymbra, the counts are
-  weekly totals, with no trace of each report, **deleted after 25 months**.
+- **Sent the week after.** Each count leaves your device only from the Monday after the week it
+  happened in, at the extension's next start or use, so the moment it reaches Cymbra does not tell
+  the day. Should the extension be stopped just as Cymbra receives a report, that report is sent
+  again later and counted twice: the totals can only be slightly too high, never tied to you.
+- **On your device**, the day of the installation is kept to tell when you come back — until the
+  end of the week that follows your 59th day, **73 days at most** — then forgotten; only its week
+  leaves the device. At Cymbra, the counts are weekly totals, with no trace of each report,
+  **deleted after 25 months**.
+- **Installations from before the counts.** An installation made before the version of Lingua
+  that introduced the counts is never counted, never asked, and opens no leaving page.
 - **How each browser asks.** Chrome and the other Chromium browsers (Edge…): nothing is sent
   until you press « Yes, count ». Firefox: Firefox's own consent to « Technical and interaction
   data », offered when you install the extension, decides (Firefox 140 or later on desktop, 142
@@ -249,9 +256,13 @@ you use it again **the day after** installing it; again **between day 7 and day 
 
 **The leaving page.** On Chrome and Firefox, while the counts are on, removing Lingua opens a
 cymbra.app page that asks one question — why you are leaving — with six fixed answers and no
-free text. Opening the page sends nothing; only the answer you press is counted, in the same
-anonymous way: the week it arrives, the browser family and the extension's version, the only
-things the page's address carries. With the counts off, no page opens.
+free text. Opening it is an ordinary visit to the site: as for any of its pages, its host
+(Cloudflare) receives your device's IP address and the page's address, with its two parameters
+(the browser family and the version); Cymbra adds nothing to that visit and receives nothing
+from it. Only the answer you press is sent to Cymbra and counted, in the same anonymous way: the
+week it arrives, the browser family and the extension's version, the only things the page's
+address carries (without JavaScript, the page sends neither, and they are counted as unknown).
+With the counts off, no page opens.
 
 **What is synced when you are signed in** to your Cymbra account:
 

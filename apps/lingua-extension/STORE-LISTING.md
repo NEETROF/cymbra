@@ -624,9 +624,11 @@ steps, the week of installation, the browser family and the extension's version 
 **no identifier** of any kind (no installation, device or account id, even for a signed-in reader)
 and nothing about what is read. It goes to `https://api.cymbra.app` without the account's token, to
 a service that authenticates no one; the server adds one to a weekly counter, keeps no network
-address and deletes the counters after 25 months. The device keeps the day of installation for at
-most 60 days. Turning "Anonymous usage counts" off in Settings → Data stops the counts for good on
-that installation. While counting is on, removing the extension opens a cymbra.app page that asks
+address and deletes the counters after 25 months. Each step leaves the device only from the Monday
+after the week it happened in. The device keeps the day of installation for at most 73 days (the
+end of the week after day 59). An installation made before the release that introduced the counts
+is never asked and never counted. Turning "Anonymous usage counts" off in Settings → Data stops the
+counts for good on that installation. While counting is on, removing the extension opens a cymbra.app page that asks
 why, with six fixed answers and no free text; only an answer the reader taps is sent, counted the
 same anonymous way. The figures are read only as aggregates, in Cymbra's own back office.
 

@@ -246,10 +246,18 @@ navigateur** (Chromium, Firefox ou Safari) et la **version** de l'extension (par
   journaux, ni dans ceux du serveur qui lui transmet les requêtes (son « reverse proxy »).
   Elle ne sert qu'à refuser les envois en rafale, en mémoire seulement, sous une forme
   brouillée oubliée au bout d'une heure.
-- **Sur votre appareil**, le jour de l'installation est gardé **60 jours au plus**, pour
-  savoir quand vous revenez, puis oublié ; seule sa semaine en sort. Chez Cymbra, les comptages
-  sont des totaux par semaine, sans aucune trace de chaque envoi, **supprimés au bout de
-  25 mois**.
+- **Envoyés la semaine suivante.** Chaque comptage ne quitte votre appareil qu'à partir du lundi
+  qui suit la semaine où il a eu lieu, au démarrage ou à l'usage suivant de l'extension : le
+  moment où il arrive chez Cymbra ne dit donc pas le jour. Si l'extension est arrêtée au moment
+  précis où Cymbra reçoit un envoi, cet envoi repart plus tard et compte deux fois : les totaux
+  ne peuvent qu'être un peu trop hauts, jamais rattachés à vous.
+- **Sur votre appareil**, le jour de l'installation est gardé pour savoir quand vous revenez —
+  jusqu'à la fin de la semaine qui suit votre 59e jour, **73 jours au plus** — puis oublié ; seule
+  sa semaine en sort. Chez Cymbra, les comptages sont des totaux par semaine, sans aucune trace de
+  chaque envoi, **supprimés au bout de 25 mois**.
+- **Installations antérieures aux comptages.** Une installation faite avant la version de Lingua
+  qui a introduit les comptages n'est jamais comptée, jamais sollicitée, et n'ouvre aucune page
+  d'au revoir.
 - **Comment chaque navigateur vous demande.** Chrome et les autres navigateurs Chromium
   (Edge…) : rien n'est envoyé tant que vous n'avez pas appuyé sur « Oui, compter ». Firefox :
   c'est le consentement de Firefox aux « Données techniques et d'interaction », proposé à
@@ -265,10 +273,14 @@ navigateur** (Chromium, Firefox ou Safari) et la **version** de l'extension (par
 
 **Page d'au revoir.** Sur Chrome et Firefox, tant que les comptages sont activés, désinstaller
 Lingua ouvre une page de cymbra.app qui pose une seule question — pourquoi vous partez — avec
-six réponses fixes, sans champ libre. Ouvrir la page n'envoie rien ; seule la réponse sur
-laquelle vous appuyez est comptée, de la même façon anonyme : la semaine où elle arrive, la
-famille du navigateur et la version de l'extension, seules informations que porte l'adresse de
-la page. Comptages coupés, aucune page ne s'ouvre.
+six réponses fixes, sans champ libre. L'ouvrir est une visite ordinaire du site : comme pour
+toutes ses pages, son hébergeur (Cloudflare) reçoit l'adresse IP de votre appareil et l'adresse
+de la page, avec ses deux paramètres (la famille du navigateur et la version) ; Cymbra n'ajoute
+rien à cette visite et n'en reçoit rien. Seule la réponse sur laquelle vous appuyez est envoyée
+à Cymbra et comptée, de la même façon anonyme : la semaine où elle arrive, la famille du
+navigateur et la version de l'extension, seules informations que porte l'adresse de la page
+(sans JavaScript, la page n'envoie ni l'une ni l'autre, comptées alors comme inconnues).
+Comptages coupés, aucune page ne s'ouvre.
 
 **Ce qui est synchronisé si vous êtes connecté** à votre compte Cymbra :
 

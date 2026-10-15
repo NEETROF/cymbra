@@ -47,7 +47,9 @@ the first build that sends.
   (Chromium, Firefox, Safari), the extension's version (major.minor) and the steps it reports —
   nothing else. It never carries the account's token, even for a signed-in reader, and the server
   service is mounted with no authentication at all, so it could not resolve an account if it tried.
-  The device keeps the installation's day for at most 60 days, then forgets it.
+  Each step leaves the device only the week after it happened, so its arrival does not date it
+  (owner, 2026-10-15). The device keeps the installation's day for at most 73 days, then forgets it.
+  An installation made before the first counting release is never asked and never counted.
 - **Each store's rule, one switch to turn it off** — « Comptages anonymes » in Settings → Data
   (fr/en/es). Safari: on by default. Firefox 140+ (Android 142+): the switch is Firefox's own
   "technical and interaction data" consent, which Firefox shows ticked at install and lets the

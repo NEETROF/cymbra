@@ -244,9 +244,18 @@ extensión (por ejemplo, 1.10).
   registros, ni en los del servidor que le transmite las solicitudes (su « proxy inverso »).
   Solo sirve para rechazar los envíos masivos, únicamente en memoria y de forma ilegible, y se
   olvida al cabo de una hora.
-- **En tu dispositivo**, el día de la instalación se guarda **60 días como máximo**, para saber
-  cuándo vuelves, y después se olvida; solo sale de él su semana. En Cymbra, los recuentos son
-  totales semanales, sin rastro de cada envío, y **se borran a los 25 meses**.
+- **Enviados la semana siguiente.** Cada recuento sale de tu dispositivo solo a partir del lunes
+  que sigue a la semana en que ocurrió, al siguiente inicio o uso de la extensión: el momento en
+  que llega a Cymbra no dice el día. Si la extensión se detiene justo cuando Cymbra recibe un
+  envío, ese envío vuelve a salir más tarde y cuenta dos veces: los totales solo pueden quedar un
+  poco altos, nunca vinculados a ti.
+- **En tu dispositivo**, el día de la instalación se guarda para saber cuándo vuelves —hasta el
+  final de la semana que sigue a tu día 59, **73 días como máximo**— y después se olvida; solo
+  sale de él su semana. En Cymbra, los recuentos son totales semanales, sin rastro de cada envío,
+  y **se borran a los 25 meses**.
+- **Instalaciones anteriores a los recuentos.** Una instalación hecha antes de la versión de
+  Lingua que introdujo los recuentos nunca se cuenta, nunca se le pregunta y no abre ninguna
+  página de despedida.
 - **Cómo pregunta cada navegador.** Chrome y los demás navegadores Chromium (Edge…): no se envía
   nada hasta que pulsas « Sí, contar ». Firefox: decide el propio consentimiento de Firefox a los
   « Datos técnicos y de interacción », que se ofrece al instalar la extensión (Firefox 140 o
@@ -261,9 +270,13 @@ extensión (por ejemplo, 1.10).
 
 **La página de despedida.** En Chrome y Firefox, mientras los recuentos están activados,
 desinstalar Lingua abre una página de cymbra.app con una sola pregunta —por qué te vas— y seis
-respuestas fijas, sin campo libre. Abrir la página no envía nada; solo se cuenta la respuesta que
-pulsas, de la misma forma anónima: la semana en que llega, la familia del navegador y la versión
-de la extensión, los únicos datos que lleva la dirección de la página. Con los recuentos
+respuestas fijas, sin campo libre. Abrirla es una visita normal al sitio: como en cualquiera de
+sus páginas, el proveedor que lo aloja (Cloudflare) recibe la dirección IP de tu dispositivo y la
+dirección de la página, con sus dos parámetros (la familia del navegador y la versión); Cymbra no
+añade nada a esa visita ni recibe nada de ella. Solo la respuesta que pulsas se envía a Cymbra y
+se cuenta, de la misma forma anónima: la semana en que llega, la familia del navegador y la
+versión de la extensión, los únicos datos que lleva la dirección de la página (sin JavaScript, la
+página no envía ninguno de los dos, y se cuentan como desconocidos). Con los recuentos
 desactivados, no se abre ninguna página.
 
 **Lo que se sincroniza si has iniciado sesión** con tu cuenta Cymbra:

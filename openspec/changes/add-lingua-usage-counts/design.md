@@ -187,7 +187,7 @@ follow people across sites or apps, and share nothing with third parties; it rec
 lifetime of 13 months at most and keeping the collected information 25 months at most
 ("Cookies : solutions pour les outils de mesure d'audience", cnil.fr; the page refused automated
 reading on 2026-10-14, so these conditions are taken from its published 2020–2025 guidance as
-summarised by search results, to be re-read by the owner). Day 0 lives 60 days (D4); counters are
+summarised by search results, to be re-read by the owner). Day 0 lives 73 days at most (D4); counters are
 deleted after 25 months (D9).
 
 ## Goals / Non-Goals
@@ -228,7 +228,12 @@ tab opening by itself at install is not a use.
 | `RETURNED_DAYS_7_13` | the first use on a day from 7 to 13 |
 | `RETURNED_DAYS_30_59` | the first use on a day from 30 to 59 |
 
-After day 59 the device forgets day 0 and the step list; that installation never reports again.
+After day 59 nothing more is recorded. The steps still held then leave the week after (D5), and at
+the end of that week — the Monday two weeks after the one that starts day 59's week, 67 to 73 days
+after day 0 — the device forgets day 0 and the step list; that installation never reports again.
+Every change to the state goes through that expiry first, whichever message woke the background:
+a wake, the first-run sentence shown, an answer, the switch (review of #958: it was applied only
+when a step was recorded).
 `SET_UP` comes from a one-line message (`usage:step`) sent by `level-row.ts` and `settings-view.ts`
 after a level is saved; the background records the rest from messages it already receives.
 
@@ -292,47 +297,71 @@ excludes. If the mobile/desktop split is wanted, it is one more enum in a later 
 ### D4. What the device keeps, and for how long
 
 One `chrome.storage.local` key, `cymbra-lingua-usage-counts`: day 0, the steps already sent, the
-steps waiting to be sent, whether the first-run sentence was shown (and, on Chromium, answered), and
-the time of the last failed attempt. It is not in the backup, not in the exported file, not synced.
+steps waiting to be sent (each with the Monday it may leave from, never its day), whether the
+first-run sentence was shown (and, on Chromium, answered), the time of the last failed attempt, and
+whether the installation was made by a counting release (`countable`, below). It is not in the
+backup, not in the exported file, not synced.
 
-- **Lifetime.** It is deleted after day 59 or when the switch is turned off — far below the
-  13 months the CNIL accepts for an audience-measurement tracker, and never extended.
+- **Lifetime.** Day 0 and the steps are deleted at the end of the week that follows day 59's week
+  (73 days at most, D1), or when the switch is turned off — far below the 13 months the CNIL
+  accepts for an audience-measurement tracker, and never extended. Only `countable` and whether
+  the sentence was shown outlive them: facts about the installation, not counts.
 - **A full reset** in Settings deletes it too, so the installation stops being counted; the switch
   keeps its position.
 - **Installations made before the first counting release** receive `onInstalled` with `update`, so
   they have no day 0 and never report. The funnel starts clean with that release. They could be
   given a fake day 0, but their steps would be counted against a week in which they were not
   installed. (This also means Chrome's rule on practices introduced after installation never comes
-  into play: nothing changes for an existing installation.)
+  into play: nothing changes for an existing installation.) **Owner decision B (2026-10-15):** such
+  an installation is never asked either — no question on Chromium, neither on the welcome tab nor
+  in the popup, no sentence elsewhere — and never gets the leaving page, on Chromium or on Firefox
+  (its steps were never counted). It is identified as before: only an `install` sets `countable`;
+  an update never does. The switch in Settings → Data stays, as the reader's standing choice; for
+  such an installation it changes nothing that is sent.
 - **A reinstall** is a new installation: Chrome and Firefox wipe extension storage on removal.
   In Safari, switching the extension off and on again in the browser's settings keeps its storage
   and fires no `install`, so it is not a new installation; deleting the app is.
 - **Several devices** count as several installations, and so do several browser profiles. Counts
   never ride the sync.
 
-### D5. Reports go when a step is recorded, and retry on later wake-ups
+### D5. Reports go the week after, at the extension's own wake-ups
 
-When the background records a step, it tries to send every waiting step in one report, while it is
-already awake for that message. A failure keeps them waiting; the next wake-up tries again, at most
-once an hour after a failure. The wake-ups are `onInstalled`, `onStartup`, a `stats` message and a
-`sync:request`. No alarm and no timer are used. Offline readers' steps leave when they are back
-online, still under the week of day 0.
+**Owner decision A (2026-10-15): send the following week.** A step is sent only at the first wake
+on or after the Monday (local) that follows the ISO week in which it happened — never earlier — so
+a report's arrival cannot reveal the day. A return in days 7–13 or 30–59 likewise waits for the end
+of the week it happened in. The device keeps, for each held step, only that Monday.
+
+At every wake, the background sends in one report every step whose Monday has come. A failure keeps
+them waiting; the next wake-up tries again, at most once an hour after a failure. The wake-ups are
+`onInstalled`, `onStartup`, a `stats` message, a `sync:request` and the surfaces' own messages
+(`src/usage/wiring.ts`). No alarm and no timer are used. Offline readers' steps leave when they are
+back online, still under the week of day 0. The day is the device's local calendar day
+(`localDay`), so a daylight-saving change does not move the boundary: Sunday 23:59 is still the
+step's week, Monday 00:00 is the first moment it may leave.
+
+The back office's latest installation week is therefore incomplete until the following week, and a
+return's figure is final only from the Monday after the week holding the window's last day for a
+Sunday installation (D13).
 
 The server answers "OK" to everything it can parse, counted or not: flag off, week out of range,
 or a ceiling reached. A client therefore never retries a dropped report. An unparseable report gets
 `INVALID_ARGUMENT`; the client also drops those steps, so a bug cannot loop. Only
 `RESOURCE_EXHAUSTED` and transport errors are retried.
 
-**Delivery is at least once.** If the browser suspends the service worker after the server counted
-a report but before the answer arrived, the steps stay waiting and are counted again later. This is
-rare and only inflates; preventing it would need a report identifier, which the rule excludes.
+**Delivery is at least once.** If the browser suspends or kills the service worker after the server
+counted a report but before the answer arrived — or after it arrived but before the device saved
+the steps as sent (`afterReport`) — the steps stay waiting and are sent, and counted, again at a
+later wake. This is rare and only inflates; preventing it would need a report identifier, which
+the rule excludes. The privacy annex says so (`test/usage-host.spec.ts` covers the resend).
 
 *Rejected:*
-- **One batch a day.** A reader who installs, sets up, reads one page and never returns is the
-  person the funnel exists for; waiting for tomorrow's batch would lose exactly them.
-- **A random delay** before sending, so a report cannot be tied to an installation moment. The
-  server keeps no time and no address, so there is nothing to tie it to, and a suspended service
-  worker would lose delayed reports.
+- **Sending as soon as a step is recorded** (the first implementation). A report arriving minutes
+  after an installation, or after a return, would date it to the day, or the hour, for anyone who
+  could see the requests arrive; a week of delay costs the funnel nothing, since it reads weeks.
+- **One batch a day.** It still dates a step to the day, and needs a timer.
+- **A random delay** before sending. It needs a timer the extension does not have, and a suspended
+  service worker would lose delayed reports; the week boundary is deterministic and survives a
+  suspension.
 - **`chrome.alarms`.** A new permission, and against the product's line of no timers.
 
 ### D6. When counting starts, per browser, and the switch
@@ -352,7 +381,9 @@ policy in the interface language (`PRIVACY_POLICY_URLS`, `src/translate/online.t
 steps and day 0, sends nothing more, and unregisters the leaving page (`setUninstallURL("")`).
 **On again** sends nothing for this installation: it no longer has a day 0. This keeps every count
 of a later step backed by a counted installation, so a percentage never goes above 100 %. Signed in
-or not makes no difference.
+or not makes no difference. An installation from before the first counting release (D4, owner
+decision B) is never asked and never gets the leaving page, whatever the switch or Firefox's
+consent says: the leaving page is registered only for an installation that counts.
 
 The Firefox manifest keeps `required: ["none"]` with `technicalAndInteraction` optional: Firefox's
 install prompt then says the extension requires no data collection and offers the ticked
@@ -379,9 +410,13 @@ does:
 - **`ask` — Chromium.** The sentence carries two buttons, « Oui, compter » / "Yes, count" /
   « Sí, contar » and « Non merci » / "No, thanks" / « No, gracias », equal in size and weight. The gate
   opens on "yes"; "no" is the switch turned off. Until the reader answers, steps are recorded and
-  held, never sent. Unanswered, the popup asks again at its next openings — inside the popup only,
-  never over a page.
-- **`on` — Safari.** Rendering the sentence opens the gate (a `usage:notice-shown` message).
+  held, never sent. Unanswered, the popup asks again at its next openings, as long as the
+  installation has something to count — inside the popup only, never over a page.
+- **`on` — Safari.** The sentence on screen opens the gate (a `usage:notice-shown` message). It
+  counts as shown only once it is actually visible — an `IntersectionObserver` on it — because the
+  popup can open straight on Réglages › Données with the main view, and the sentence in it, hidden
+  (review of #958).
+- **None** for an installation from before the counts (D4), on any browser.
 - **Firefox** builds with `on`, but its gate is the browser's grant (D6); the sentence is still shown,
   for information.
 
@@ -446,12 +481,18 @@ CREATE TABLE IF NOT EXISTS lingua.leave_reasons_weekly (
 ```
 
 **No column for a time of day, an address, a header or a report.** Counters are upserted with
-`count = count + 1 WHERE count < ceiling`.
+`count = count + 1` only while the week's counter for that step (or reason) and browser, every
+version summed, is under the ceiling (D10).
 
 **Retention: 25 months.** The counters are anonymous aggregates, but the CNIL's figure for
-audience-measurement data is 25 months, and a funnel older than two years answers no question. The
-module deletes rows whose week is more than 25 months old, at most once a day, from the report path
-(an in-memory "last pruned" day; no job, no timer). See Q6.
+audience-measurement data is 25 months, and a funnel older than two years answers no question. A
+daily job of the worker, `lingua_usage_prune` (`backend/jobs/src/registry.rs`, scheduled by
+`backend/jobs/migrations/0022_seed_lingua_usage_prune_schedule.sql`, 04:15 UTC), deletes the rows
+whose week is more than 25 months old, over the worker's `lingua_svc` pool
+(`CYMBRA_LINGUA_DATABASE_URL`, already read by the worker for the Discord Lingua report). It reads
+neither the kill switch nor any request, so retention holds with counting off and with no traffic
+(review of #958: the first implementation pruned from the report path, after the switch's check).
+See Q6.
 
 **Privilege chain.** Writes and the console's reads run on the `lingua_svc` pool
 (`CYMBRA_LINGUA_DATABASE_URL`), whose `search_path` is `lingua`, and the queries are
@@ -473,22 +514,38 @@ another module's schema. Reusing it would also tie the change to the still-open
 An unauthenticated counter can always be inflated by someone determined. The aim is to make that
 costly and visible, not impossible.
 
-- **Bounded values.** A step is one of six, a browser one of three, and `version` matches
-  `^\d{1,3}\.\d{1,3}$`. A report holds one to six distinct steps. The week must be a Monday
+- **Bounded values.** A step is one of six, a browser one of three, and `version` is `major.minor`,
+  one to three digits each, **with no leading zero** (`1.09` or `007.0` would name a release
+  twice). A report holds one to six distinct steps. The week must be a Monday
   (`install_week % 7 == 4`); one that is not is `INVALID_ARGUMENT`. A Monday more than 18 weeks
-  before the server's UTC day (day 59, and time offline), or later than the day after it (time
+  before the server's UTC day (day 72, and time offline), or later than the day after it (time
   zones ahead of UTC), is dropped and answered OK.
-- **Floods from one address.** At most 60 reports an hour per address, enforced by an in-memory
-  `FloodGuard` in the server process:
+- **Bounded versions.** The version is part of a counter's key, so an open pattern (about 1.2
+  million strings) meant unbounded rows (review of #958). A runtime setting,
+  `lingua.usage_counts.latest_version` (`cfg`, default `1.10`), names the latest released
+  `major.minor`; the counters name it, the releases before it in its major, and up to three minors
+  past it (a release that ships before the setting is moved). Any other well-formed version is
+  counted under `other`, never dropped: a forgotten setting loses no count, and a forged `999.999`
+  adds no row of its own. At most `minor + 5` names per week, step and browser.
+- **Floods from one address.** At most 60 reports a clock hour per address, enforced by an
+  in-memory `FloodGuard` in the server process:
   - **Key.** An IPv4 address, or an IPv6 address's /64 prefix — one home or one phone holds a whole
     /64, so keying full IPv6 addresses would let one machine rotate past the limit. The key is
     hashed with HMAC under a key drawn at start-up and never written.
   - **Bounded.** The table holds at most 50 000 entries (a few megabytes). When it is full, a new
-    address is refused with `RESOURCE_EXHAUSTED` until entries expire; the client keeps its steps
+    address is refused with `RESOURCE_EXHAUSTED` until the hour ends; the client keeps its steps
     and retries an hour later, so a botnet cannot push the guard open, and an honest reader loses
     nothing.
-  - **Forgetting.** An entry is forgotten when its hour ends; a restart forgets everything. The
-    server runs as one process (`docker-compose.prod.yml`), so one guard is enough.
+  - **Constant time.** The table belongs to one clock hour; when the hour ends it is replaced
+    whole, and the old one is dropped after the lock is released. No request ever scans it: a
+    request costs one HMAC (outside the lock) and one lookup, full table or not. (Review of #958:
+    the first guard swept all 50 000 entries under a `std::sync::Mutex` for every new network once
+    the table was full — a cheap way to stall the async runtime.) The price is a coarser window:
+    one network can send 60 at the end of one hour and 60 at the start of the next.
+  - **Forgetting.** An entry is forgotten when its clock hour ends; a restart forgets everything.
+    The server runs as one process (`docker-compose.prod.yml`), so one guard is enough.
+  - **Malformed requests count too.** The guard sees every request first, so a flood of bodies
+    that cannot even be read is refused like any other.
   - **What the hash protects.** The table never holds an address in clear, so it can never leak one
     into a log, a panic message or the disk. It does not protect against someone who can read the
     server's memory: the key is there too, and 2³² IPv4 addresses can be tried. That attacker could
@@ -497,9 +554,12 @@ costly and visible, not impossible.
     school, an office or a mobile carrier's shared address. The address is resolved with
     `client_addr::resolve` and passed to the guard alone. The platform limiter is not used, because
     it writes its subject into a Redis key.
-- **A ceiling per counter.** At most `lingua.usage_counts.ceiling` per (week, step, browser,
-  version), 5 000 by default (runtime config, `cfg` in the flag registry). A capped week shows as
-  such in the console.
+- **A ceiling per counter.** At most `lingua.usage_counts.ceiling` per (week, step, browser), every
+  version summed — the grain the console shows — 5 000 by default (runtime config, `cfg` in the
+  flag registry). A week shows as capped in the console when one browser's sum reached it, so the
+  mark is true of the figure shown (review of #958: the first ceiling held per version, while the
+  console summed versions). The ceiling is soft: two reports in flight may each read the sum just
+  under it.
 
 The same flag, guard, ceiling and retention apply to the leaving route (D12). Its bounds are the
 reason (one of six), and the browser family and version as above, where `unknown` is also accepted:
@@ -552,16 +612,32 @@ mint either, at real cost to the code).
   5. « Je n'ai pas compris comment m'en servir » — `unclear`
   6. « Une autre raison » — `other`
 
-  Loading the page sends nothing. Tapping a button sends one `POST /web/lingua/leave`
-  `{ reason, browser, version }`, disables the buttons and thanks the reader, whatever the answer.
-  The thanks offer the support page and the community link for anyone who wants to say more. The
-  island follows the site's rules: a composable behind a client seam and an `Async<T>` union,
-  never `fetch` in the component. A missing or malformed `b`/`v` is sent as `unknown` and counted
-  under it.
-- **The route.** `backend/server/src/web_lingua.rs` follows `web_plans.rs`: a JSON route under
-  `/web/`, already on Caddy's `@http` list, with CORS limited to `CYMBRA_WEB_ORIGINS` and no
-  credentials. It delegates to the same module and goes through the same flag, ceiling, retention
-  and guard, with the bounds D10 gives it. The answer is filed under the UTC week it arrived in.
+  Loading the page sends nothing to Cymbra's backend. It is still an ordinary page load: the
+  site's static host (Cloudflare Pages) receives the visitor's IP address and the page's address
+  with its `?b=&v=`, as for any page of the site, and Cymbra adds no script, cookie or analytics to
+  it — the annex says so (review of #958: it said "opening the page sends nothing"), and the owner
+  checks that Cloudflare Web Analytics is off on the Pages project (task 7.8). Tapping a button
+  sends one `POST /web/lingua/leave` `{ reason, browser, version }`, disables the buttons and
+  thanks the reader, whatever the answer. The thanks offer the support page and the community link
+  for anyone who wants to say more. The island follows the site's rules: a composable behind a
+  client seam and an `Async<T>` union, never `fetch` in the component. A missing or malformed
+  `b`/`v` is sent as `unknown` and counted under it.
+- **Without JavaScript.** The island's server-rendered answers are a real HTML form:
+  `<form method="post" action="<api>/web/lingua/leave">`, six `<button type="submit"
+  name="reason">`, and a hidden `lang` (fr, en or es) used only for the way back. A browser that
+  runs no script posts the tapped answer as `application/x-www-form-urlencoded`; the route counts
+  it like the script's (the page cannot read `?b=&v=` without a script, so both are `unknown`) and
+  answers `303` to the page's thanks — `/lingua/au-revoir/#merci`, `/en/lingua/goodbye/#thanks`,
+  `/es/lingua/adios/#gracias`, on the first origin of `CYMBRA_WEB_ORIGINS`, from a fixed table, so
+  the request names no address to go to. The page's CSS shows that block when it is targeted and
+  hides the answers. With a script, a tap never submits the form. This is one set of buttons for
+  both cases, rather than a `<noscript>` copy beside buttons that would do nothing.
+- **The route.** `backend/server/src/web_lingua.rs` follows `web_plans.rs`: a route under `/web/`,
+  already on Caddy's `@http` list, with CORS limited to `CYMBRA_WEB_ORIGINS` and no credentials,
+  taking JSON or the plain form. It delegates to the same module and goes through the same flag,
+  ceiling, version bound, retention and guard, with the bounds D10 gives it; the guard counts a
+  request before its body is read, so a malformed body spends the budget too. The answer is filed
+  under the UTC week it arrived in.
 - **Pinned routes.** The three paths join `PINNED_ROUTES` (`apps/site/src/lib/pinned-routes.ts`):
   shipped builds compile them in.
 
@@ -586,13 +662,17 @@ Both answer per week and per browser family at the finest; versions are summed. 
 gains an "Installations" section:
 - a table by installation week, with each step as a count and as a share of "installed";
 - a browser filter;
-- a return cell reads "not yet" until its window has closed for every day of the week (day 2, 14
-  and 60 after the week's last day), so a young week never looks like a bad week;
+- a return cell reads "not yet" until its window has closed for every day of the week and the
+  devices have sent it — the Monday after the week holding the window's last day for a Sunday
+  installation (D5): the week's Monday + 14, + 21 and + 70 days — so a young week never looks like
+  a bad week;
 - the leaving reasons as a list of totals;
 - a note that these are anonymous counts from installations that count — on Chromium, only those
   whose reader said yes, so Chromium's absolute numbers are not comparable with Firefox's and
-  Safari's, while its percentages within a week are — and that reinstalls and several devices each
-  count as one.
+  Safari's, while its percentages within a week are; installations from before the first counting
+  release never — that reinstalls and several devices each count as one, and that the latest week
+  stays incomplete until the following week, since devices send each step the week after it
+  happens (owner decision A).
 
 The store keeps the existing `Async<T>` union; strings are in en and fr. The section reuses the
 console's window. Its one chart is the existing series component, plotting installations per week.
@@ -601,7 +681,7 @@ console's window. Its one chart is the existing series component, plotting insta
 
 | Where | What changes | Evidence |
 |---|---|---|
-| Privacy policy, Annex B (fr/en/es) | a paragraph on the counts and the leaving page: what is counted, the three things sent with it (week, browser family, version), no identifier, no address kept — **not even in the technical logs of §2**, which otherwise keep IP addresses 7 days —, day 0 kept on the device for at most 60 days, counters deleted after 25 months, the switch, how each browser asks; legal basis legitimate interest (audience measurement) where no consent is asked, objection through the switch | `apps/site/src/pages/confidentialite.md`, `en/privacy.md`, `es/privacidad.md` |
+| Privacy policy, Annex B (fr/en/es) | a paragraph on the counts and the leaving page: what is counted, the three things sent with it (week, browser family, version), no identifier, no address kept — **not even in the technical logs of §2**, which otherwise keep IP addresses 7 days —, each count sent the week after it happens and possibly counted twice (D5), day 0 kept on the device for at most 73 days, counters deleted after 25 months, installations from before the counts never counted, the switch, how each browser asks, and that opening the leaving page is an ordinary visit to the site's host; legal basis legitimate interest (audience measurement) where no consent is asked, objection through the switch | `apps/site/src/pages/confidentialite.md`, `en/privacy.md`, `es/privacidad.md` |
 | Privacy policy, general part (fr/en/es) | the Chrome Web Store Limited Use statement | User Data FAQ, *Limited uses*, question 1; Limited Use policy, item 6 |
 | Firefox manifest | `technicalAndInteraction` stays in `optional` with `required: ["none"]`, and the comment names the counts | Extension Workshop, built-in consent; Add-on Policies 6.2.1 |
 | `REVIEWERS.md` | "Where the add-on reaches the network" names the report, the leaving page, Firefox's consent and the versions below 140/142 that count nothing | — |
@@ -621,8 +701,9 @@ which promises nothing about the network.
 
 ### D15. Order
 
-1. **Server.** Migration, service, route, flag, the Caddy log filter. Deployed, then checked from
-   outside: a report sent with `buf curl` increments one counter, the 61st report from one address
+1. **Server.** Migration, service, route, flags (`lingua.usage_counts.latest_version` set to the
+   release that ships the counts), the worker's retention schedule, the Caddy log filter.
+   Deployed, then checked from outside: a report sent with `buf curl` increments one counter, the 61st report from one address
    within an hour is refused, and a forced 502 leaves no address in Caddy's output.
 2. **Site.** Annex, Limited Use statement and leaving page, deployed.
 3. **Stores.** Text and forms updated in their consoles, ready to go with the build.
@@ -657,7 +738,8 @@ The back office ships with step 1.
 
 ## Migration Plan
 
-New tables only (the next free migration number, idempotent, `IF NOT EXISTS`); no backfill.
+New tables only (the next free migration number, idempotent, `IF NOT EXISTS`); no backfill. One
+row in `jobs.schedules` (`0022_seed_lingua_usage_prune_schedule.sql`, `ON CONFLICT DO NOTHING`).
 Rollback: set `lingua.usage_counts.enabled` off (clients keep working, nothing is recorded), or ship
 an extension whose switch defaults off. Dropping the two tables loses only counts. The Caddy filter
 is one global option; removing it restores today's error lines.
@@ -673,6 +755,21 @@ against A and B as merged.
 **Owner's answers (2026-10-14).** Q1: Chrome asks once, with two equal buttons; Firefox and Safari
 stay on by default, with the switch in Réglages. Every other question takes its recommended answer.
 Q12 (the Limited Use statement) is handled in a change of its own, ahead of this one.
+
+**Owner's decisions (2026-10-15), after the first review of the implementation (#958):**
+- **A. Send the following week.** A step is sent only at the first wake on or after the Monday
+  (local) following the ISO week in which it happened, never earlier, so a report's arrival cannot
+  reveal the day; returns in days 7–13 or 30–59 likewise wait for the end of their week. The back
+  office's latest week is therefore incomplete until the following week, and its note says so. See
+  D1, D4, D5, D13.
+- **B. Installations from before the first counting release are never asked on Chrome** — no
+  question on the welcome tab or in the popup, no counting, no leaving page registered — and on
+  Firefox likewise get no leaving page (their steps were never counted). They are identified as
+  before: the `update` reason, no day-0 record. See D4, D6, D7.
+
+The same review also moved retention to a worker job (D9), bounded the versions and the flood
+guard's cost, made the ceiling hold across versions (D10), reworded what opening the leaving page
+sends and gave the page a form that works without JavaScript (D12).
 
 Each has a recommended answer; the design above assumes it. Q1 comes first because it changes
 something you decided.

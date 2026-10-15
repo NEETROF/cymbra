@@ -185,7 +185,11 @@ There are four origins, all of them in the source:
   Monday), the browser family, the version (major.minor) and the steps it reports, each sent once
   per installation — installed; set up (a first level chosen); first page analysed in a studied
   language; back on day 1; back during days 7–13; back during days 30–59 — and nothing else: no
-  identifier of any kind, nothing of the page. On Firefox they are governed by Firefox's built-in
+  identifier of any kind, nothing of the page. A step is sent only at the first start or use of
+  the add-on on or after the Monday following the week it happened in, so a report's arrival does
+  not tell its day (`src/usage/counts.ts`, `ready`); no alarm and no timer are used. An
+  installation made before the release that introduced the counts — one Firefox reports as an
+  `update` — is never counted and never gets the leaving page below. On Firefox they are governed by Firefox's built-in
   data consent: the manifest declares `technicalAndInteraction` as optional, with
   `required: ["none"]` (`tool/manifests.mjs`); Firefox ticks it at install, and the add-on sends
   nothing unless `permissions.getAll()` lists it under `data_collection`. Unticking it in the
@@ -198,13 +202,15 @@ There are four origins, all of them in the source:
   provider's token through the redirect and exchanges it with the backend; it never sees a
   password.
 - `https://cymbra.app` — a link in the account screen to the account-deletion page
-  (`src/account/locale.ts`). A link, not a request. And, only while the counts are on, the leaving
-  page the browser opens when the add-on is removed: `runtime.setUninstallURL` registers
-  `https://cymbra.app/lingua/au-revoir/` (`/en/lingua/goodbye/`, `/es/lingua/adios/`, in the
-  interface language) with `?b=<browser>&v=<major.minor>` and nothing else, and registers `""` as
-  soon as they are off. The add-on sends nothing there itself: the page asks one question with six
-  fixed answers, no free text, and posts only the answer the reader taps, counted the same
-  anonymous way.
+  (`src/account/locale.ts`). A link, not a request. And, only while the counts are on for an
+  installation made since they exist, the leaving page the browser opens when the add-on is
+  removed: `runtime.setUninstallURL` registers `https://cymbra.app/lingua/au-revoir/`
+  (`/en/lingua/goodbye/`, `/es/lingua/adios/`, in the interface language) with
+  `?b=<browser>&v=<major.minor>` and nothing else, and registers `""` as soon as they are off (and
+  always for an installation updated from a release that did not count). The add-on sends nothing
+  there itself: loading the page is an ordinary visit to the site's static host, and the page asks
+  one question with six fixed answers, no free text, and posts only the answer the reader taps
+  (as a plain form when the page runs without JavaScript), counted the same anonymous way.
 
 ## The toolbar icon's count and the rating request
 
