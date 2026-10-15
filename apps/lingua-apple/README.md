@@ -92,9 +92,30 @@ extension (see `openspec/changes/add-lingua-apple`).
     `auth.signIn`; the page exchanges the id_token through `SignInOidc` (`lingua` audience) and keeps
     the access token in memory, the refresh token in the Keychain (`KeychainRefreshTokenStore`, the
     page's `auth.readRefresh` / `auth.writeRefresh` / `auth.clear`, `AppSessionMessage`). A line under
-    the views shows the session and ends it; an email-only account is told the app needs Apple or
-    Google. The page calls the server directly over gRPC-web: WebKit sends `Origin: lingua-app://app`,
+    the views shows the session and ends it, or offers to sign in. *Email accounts*
+    (add-lingua-app-email-signin): the sheet's third entry, « Continuer avec un email », closes it and
+    answers `{method: "email"}` (`AppSignInChoice.email`); the page then shows the extension's own
+    email sign-in (`AccountFlow` + `renderAccount` in their app scope, `src/app/email-panel.ts`) —
+    sign-in, the code step of an unverified address, « Mot de passe oublié ? » — over the app's
+    session (`SignInLocal`, `lingua` audience). No account creation in the app (a new reader uses Apple,
+    Google, or the extension's account page), no handle step. The password is typed in the page and
+    sent only to Cymbra ID: it never crosses the bridge and is never stored — only the refresh token,
+    in the Keychain. The app does not reload its page on returning to the foreground while the panel
+    is open, so a code read in Mail finds its step. The page calls the server directly over gRPC-web: WebKit sends `Origin: lingua-app://app`,
     which production must list in `CYMBRA_ALLOWED_WEB_ORIGINS`.
+
+- **The app synchronises its reviews** (`openspec/changes/add-lingua-app-deck-sync`). Signed in
+  inside the app with the account Safari's extension uses, the page synchronises the reviews made in
+  it with the server itself (`src/app/deck-sync.ts` of `apps/lingua-extension`), as a device of its
+  own, and keeps handing them to the extension through the App Group. A line under the review offers
+  the sign-in on opening (« Plus tard » sets it aside for 30 days); another account in Safari, Safari
+  signed out, or an extension too old to name its account: the app says so and does not synchronise.
+  The day's statistics still go through the extension (one writer per device). `ViewController`
+  calls `window.linguaBackground` when the app goes to the background
+  (`UIApplication.didEnterBackgroundNotification` inside `beginBackgroundTask` on iOS,
+  `NSApplication.willResignActiveNotification` on macOS; `AppPageHooks.background`) so the page
+  pushes what it still holds. **The extension must ship first**: an older extension writes no account
+  digest, and the app then does not synchronise.
 
 The project was scaffolded by `xcrun safari-web-extension-converter` and then changed by
 hand to replace its copied resources with the build phase above.
@@ -216,6 +237,12 @@ provider, is translated and kept by no one: Apple counts as collected only data 
 longer than it takes to service the request in real time, which this is not. The per-account
 count of the day's online translations (erased after a day) and the daily totals per provider
 and pair (no account) fall under Usage Data → Product Interaction, already declared.
+
+Reviewed for the app's own synchronisation (add-lingua-app-deck-sync, 2026-10-14): **no new data
+type**. Signed in inside the app, the app sends the statuses and cards of its reviews (User
+Content → Other User Content) under its own random installation id (Identifiers → Device ID), on
+the same account (User ID) — all already declared, linked, for App Functionality. It sends no daily
+statistics (Product Interaction stays the extension's).
 
 ## Known issue — popup title on iOS 27
 

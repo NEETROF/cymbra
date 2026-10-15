@@ -1033,3 +1033,144 @@ describe("SyncEngine and the native language of a day (add-lingua-native-languag
     expect(sent(older)).toEqual([row("fr")]);
   });
 });
+
+describe("SyncEngine — the app's host seam (add-lingua-app-deck-sync D1, D8)", () => {
+  const status = (lemma: string, updated_at: number): StatusOp => ({
+    language: "en",
+    lemma,
+    status: "known",
+    provenance: "srs",
+    updated_at,
+  });
+  const cardOp = (lemma: string, client_ts: number): CardOp => ({
+    client_id: lemma,
+    language: "en",
+    lemma,
+    surface_form: lemma,
+    source_sentence: "",
+    source: "",
+    gloss: "",
+    fsrs_state: "{}",
+    deleted: false,
+    client_ts,
+    device_id: "",
+  });
+
+  it("pushes only the ops its host gives, no daily statistics and no declared level", async () => {
+    const { port } = syncPort({
+      statusOps: [status("old", 1), status("new", 9)],
+      cardOps: [cardOp("old", 1), cardOp("new", 9)],
+      levelOps: [{ language: "en", level: "B1", updated_at: 5 }],
+    });
+    const f = fakeClients();
+    const storage = fakeArea({
+      ...v2("BACKUP"),
+      daily: { 20000: { en: { exposures: 1, wordsLearned: 0, reviews: 3 } } },
+    });
+    const engine = new SyncEngine({
+      port,
+      storage,
+      clients: () => f.clients,
+      deviceId: "app",
+      ops: async () => ({ cards: [cardOp("new", 9)], statuses: [status("new", 9)] }),
+      pushStats: false,
+      pushLevels: false,
+    });
+    expect(await engine.sync()).toEqual({ pushedStatuses: 1, pushedCards: 1, pulled: 0 });
+    expect(f.pushOps).toHaveBeenCalledOnce();
+    const pushed = (f.pushOps.mock.calls[0] as unknown as [{ ops: { lemma: string }[] }])[0];
+    expect(pushed.ops.map((o) => o.lemma)).toEqual(["new"]);
+    const cards = (f.pushCards.mock.calls[0] as unknown as [{ cards: { clientId: string; deviceId: string }[] }])[0];
+    expect(cards.cards).toMatchObject([{ clientId: "new", deviceId: "app" }]);
+    expect(f.upsertDailyStats).not.toHaveBeenCalled();
+  });
+
+  it("push() reads the mark, pushes, and moves no cursor, restores and applies nothing", async () => {
+    const { port, calls } = syncPort({ statusOps: [status("run", 5)] });
+    const f = fakeClients();
+    const storage = fakeArea({ ...v2("BACKUP"), "cymbra-lingua-status-cursor": 3 });
+    const engine = new SyncEngine({ port, storage, clients: () => f.clients, deviceId: "app", pushStats: false });
+    expect(await engine.push()).toEqual({ pushedStatuses: 1, pushedCards: 0 });
+    expect(f.getDataState).toHaveBeenCalledOnce();
+    expect(f.pullChanges).not.toHaveBeenCalled();
+    expect(f.pullCards).not.toHaveBeenCalled();
+    expect(calls.restored).toEqual([]);
+    expect(storage.store["cymbra-lingua-status-cursor"]).toBe(3);
+  });
+
+  it("push() on a state older than the account's erasure pushes nothing and resets nothing", async () => {
+    const { port, calls } = syncPort({ statusOps: [status("run", 5)] });
+    const f = fakeClients();
+    f.getDataState.mockResolvedValue({ erasedAt: 100n });
+    const storage = fakeArea(v2("BACKUP"));
+    const engine = new SyncEngine({
+      port,
+      storage,
+      clients: () => f.clients,
+      deviceId: "app",
+      hostErasedAt: () => 50,
+    });
+    expect(await engine.push()).toBeNull();
+    expect(f.pushOps).not.toHaveBeenCalled();
+    expect(calls.resets).toBe(0);
+    expect(storage.store["cymbra-lingua-erased-at"]).toBeUndefined();
+  });
+
+  it("a host mark older than the server's resets the engine, tells the host, and pushes nothing from before", async () => {
+    const { port, calls } = syncPort({ statusOps: [status("run", 5)], cardOps: [cardOp("dog", 5)] });
+    const f = fakeClients();
+    f.getDataState.mockResolvedValue({ erasedAt: 100n });
+    // The app's own bookkeeping already recorded the mark: the snapshot's is what counts.
+    const storage = fakeArea({ ...v2("BACKUP"), "cymbra-lingua-erased-at": 100 });
+    const onErased = vi.fn(async () => {});
+    const engine = new SyncEngine({
+      port,
+      storage,
+      clients: () => f.clients,
+      deviceId: "app",
+      ops: async () => ({ cards: await port.exportCardOps(), statuses: await port.exportStatusOps() }),
+      hostErasedAt: () => 50,
+      onErased,
+    });
+    await engine.sync();
+    expect(calls.resets).toBe(1);
+    expect(onErased).toHaveBeenCalledWith(100);
+    expect(f.pushOps).not.toHaveBeenCalled();
+    expect(f.pushCards).not.toHaveBeenCalled();
+    expect(f.pullChanges).toHaveBeenCalledWith({ cursor: 0n });
+  });
+
+  it("an equal host mark changes nothing", async () => {
+    const { port, calls } = syncPort({ statusOps: [status("run", 5)] });
+    const f = fakeClients();
+    f.getDataState.mockResolvedValue({ erasedAt: 100n });
+    const onErased = vi.fn(async () => {});
+    const engine = new SyncEngine({
+      port,
+      storage: fakeArea(v2("BACKUP")),
+      clients: () => f.clients,
+      deviceId: "app",
+      hostErasedAt: () => 100,
+      onErased,
+    });
+    await engine.sync();
+    expect(calls.resets).toBe(0);
+    expect(onErased).not.toHaveBeenCalled();
+    expect(f.pushOps).toHaveBeenCalledOnce();
+  });
+
+  it("reads the backup to restore only once its host is idle", async () => {
+    const { port, calls } = syncPort({});
+    const f = fakeClients();
+    const storage = fakeArea(v2("BEFORE"));
+    let release: () => void = () => {};
+    const idle = vi.fn(() => new Promise<void>((resolve) => (release = resolve)));
+    const engine = new SyncEngine({ port, storage, clients: () => f.clients, deviceId: "app", idle });
+    const running = engine.sync();
+    await vi.waitFor(() => expect(idle).toHaveBeenCalled());
+    await storage.set(v2("AFTER")); // a session's answers saved meanwhile
+    release();
+    await running;
+    expect(calls.restored).toEqual(["AFTER"]);
+  });
+});

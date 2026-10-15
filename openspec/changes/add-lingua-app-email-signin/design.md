@@ -153,6 +153,11 @@ key, a domain suggestion, one-time codes from Mail. Typing the password, or pick
 Passwords list, is the accepted fallback. If the dogfood finds autofill missing and typing a burden,
 associated domains are a follow-up change of their own.
 
+**Outcome on iPhone (dogfood 2026-10-14, iPhone 15 Pro Max, build 535b409d9):** iOS offered no autofill
+at all in the app's web view: no « Mots de passe » key, no suggestion, no code from Mail. Guillaume
+judged it unimportant: typing is accepted, and associated domains are not needed now. The Mac
+(task 5.3) is still to be measured.
+
 ### D6 — Coming back from the mailbox keeps the step
 
 The app reloads its page when it returns to the foreground (`linguaForeground`), unless a review is
@@ -188,6 +193,24 @@ votre mot de passe », « with Apple, Google or your email and password », « c
 correo y tu contraseña ». What is collected does not
 change — the email and password already reach Cymbra ID from the extension — so the App Store
 privacy answers do not move; `lingua-privacy`'s requirement names no method and is not modified.
+
+### D9 — The line names the account signed in
+
+Dogfood on a real iPhone (2026-10-14): after an email sign-in the line only said « Connecté à Cymbra
+pour la traduction en ligne », not which account — and the app's session may be a different account
+from the extension's. The line now names it for every method: « Connecté en tant que @handle pour la
+traduction en ligne — Se déconnecter » (English « Signed in as @handle for online translation »,
+Spanish « Sesión iniciada como @handle para la traducción en línea »).
+
+The handle is read the way the extension's account page reads it: `UserService.GetAccount`, with the
+app's own bearer over the same gRPC-web transport (origin `lingua-app://app`, already allowed). It is
+a separate read in `src/app/account.ts`, not the panel's profile port, which stays a refusal (D3: no
+handle step in the app). Without a handle (an account the reaper has not reached yet), the line falls
+back to an email address: the one an email sign-in just used (no request), else the `local`
+identity's subject from `UserService.ListIdentities`; without either, or when the read fails, it keeps
+the plain line. It is read once after each sign-in and on opening with a session, kept in the page's
+memory only, and forgotten on sign-out: nothing new is stored, so `lingua-privacy` does not move.
+The name is the reader's data: a text node only.
 
 ## Risks / Trade-offs
 
