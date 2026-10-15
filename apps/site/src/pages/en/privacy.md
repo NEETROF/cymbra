@@ -6,7 +6,7 @@ alternates:
   fr: /confidentialite
   en: /en/privacy
   es: /es/privacidad
-updated: 11/10/2026
+updated: 14/10/2026
 ---
 
 This policy explains what personal data the **Cymbra services** (published by
@@ -240,3 +240,14 @@ page address); the daily statistics still go through the extension. Nothing more
 a password from Lingua, the extension tells Cymbra a language — Lingua's interface language or
 your browser's — which your account keeps as its language: Cymbra writes to you in it
 (verification, password reset), and your other Cymbra apps may adopt it.
+
+**Chrome Web Store User Data Policy.** The use of information received from Google APIs will
+adhere to the Chrome Web Store User Data Policy, including the Limited Use requirements. For
+Cymbra Lingua, this information is: the text of the pages you read, analysed on your device;
+your Cymbra account (email address, sign-in identifier, sessions, account language); what is
+synced when you are signed in (word statuses and levels, review deck, daily statistics,
+installation identifier); and the sentence sent with **Online translation**, only when you
+press its button. Cymbra uses this data only for the purposes set out in this policy, shares it
+only with the processors named in §4 and for those purposes, does not sell it and does not use
+it for advertising. Cymbra's team sees your Lingua data only as aggregates, with no account,
+except to help you at your request, for security, or to comply with the law.

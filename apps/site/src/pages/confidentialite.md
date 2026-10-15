@@ -6,7 +6,7 @@ alternates:
   fr: /confidentialite
   en: /en/privacy
   es: /es/privacidad
-updated: 11/10/2026
+updated: 14/10/2026
 ---
 
 La présente politique explique quelles données personnelles les **services Cymbra**
@@ -256,3 +256,18 @@ passe, ou ajoutez un mot de passe depuis Lingua, l'extension indique à Cymbra u
 celle de l'interface de Lingua ou celle de votre navigateur — que votre compte garde comme sa
 langue : Cymbra vous écrit dans cette langue (vérification, réinitialisation de mot de passe)
 et vos autres apps Cymbra peuvent l'adopter.
+
+**Règles du Chrome Web Store sur les données utilisateur.** « The use of information received
+from Google APIs will adhere to the Chrome Web Store User Data Policy, including the Limited Use
+requirements. » Autrement dit : l'utilisation des informations reçues des API Google respectera
+les Règles du Chrome Web Store sur les données utilisateur (*Chrome Web Store User Data
+Policy*), y compris les exigences d'utilisation limitée (*Limited Use*). Pour Cymbra Lingua, ces
+informations sont : le texte des pages que vous lisez, analysé sur votre appareil ; votre compte
+Cymbra (adresse email, identifiant de connexion, sessions, langue du compte) ; ce qui est
+synchronisé si vous êtes connecté (statuts et niveaux des mots, deck de révision, statistiques
+quotidiennes, identifiant d'installation) ; et la phrase envoyée par la **Traduction en
+ligne**, seulement quand vous appuyez sur son bouton. Cymbra n'utilise ces données qu'aux fins
+décrites dans la présente politique, ne les partage qu'avec les sous-traitants cités au §4 et
+pour ces fins, ne les vend pas et ne s'en sert pas pour de la publicité. L'équipe de Cymbra ne
+voit vos données Lingua que sous forme de totaux, sans compte, sauf pour vous aider à votre
+demande, pour la sécurité ou pour respecter la loi.
