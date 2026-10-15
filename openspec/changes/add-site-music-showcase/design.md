@@ -88,6 +88,12 @@ build stays pure. A post-build test checks every Music page declares one and the
 exists at 1200×630. This is the input `add-site-lingua-showcase` also needs: the first of
 the two to land adds it.
 
+*As landed:* `add-site-lingua-showcase` landed first, so the Music pages reuse its `image`
+prop (`{ src, alt }`) instead of adding `share`. Its `Base.astro` gives every page a share
+preview (the brand image by default) and re-encodes the image as a 1200×630 JPEG; it emits
+no `og:locale`. The Music pages pass `src/assets/music/<locale>/share.png`, and
+`test/post-build/head.spec.ts` checks each Music page shares the image of its own language.
+
 **D6 — The sound is rendered offline by the app's own mixer, not recorded.** The run
 plays silently: its `AudioService` is a recording double that logs every command the app
 sends to the sound engine (notes played by the faked keyboard, notes the app plays itself,

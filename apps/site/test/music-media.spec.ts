@@ -18,7 +18,7 @@ import {
   VIDEO_MAX_SECONDS,
   VIDEO_SOURCE,
 } from "../src/lib/music-media";
-import { mp4FastStart, mp4Info, pngSize } from "./support/media";
+import { mp4FastStart, mp4Info, pngSize } from "./support/media-headers";
 
 // The Music page's media (change: add-site-music-showcase, spec site-music-page): every
 // file the page shows is a byte-for-byte copy of what the Music capture harness generated,

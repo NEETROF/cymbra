@@ -16,14 +16,14 @@
 
 ## 3. Share preview (apps/site)
 
-- [x] 3.1 Add the optional `share` prop to `Base.astro` emitting the Open Graph + Twitter tags of D5 with absolute URLs; pages without it unchanged — verify with an astro component test for both cases
+- [x] 3.1 Reuse the share-preview `image` prop `add-site-lingua-showcase` added to `Base.astro` (D5, as landed) — verify with `test/post-build/head.spec.ts`: each Music page shares its own language's `share.png`
 - [x] 3.2 Add `scripts/music-share-images.ts` (`yarn gen:music-share`) generating `src/assets/music/<locale>/share.png` at 1200×630 (the build gives it a content hash) (staff capture + headline in the page's language) and commit the three images — verify dimensions and that re-running yields the same hash
-- [x] 3.3 Add a post-build test (`test/post-build/share-preview.spec.ts`): every Music page declares `og:image` on `https://cymbra.app/`, the file exists in `dist/` at 1200×630, and a Music page without it fails naming the page — verify after `yarn build`
+- [x] 3.3 Add a post-build test (`test/post-build/share-preview.spec.ts`): every Music page declares `og:image` on `https://cymbra.app/`, the file exists in `dist/` (its 1200×630 size is `head.spec.ts`'s), and a Music page without it fails naming the page — verify after `yarn build`
 
 ## 4. The Music pages (apps/site)
 
 - [x] 4.1 Add a `MusicShowcase.astro` component: video (muted, loop, playsinline, `preload="none"`, poster; plays in view unless `prefers-reduced-motion`, else controls; a localised "🔊 Listen" button that unmutes and restarts it) and the `<Picture>` gallery (AVIF/WebP/PNG, lazy after the first) with captions from `src/lib/music-media.ts` — verify with an astro component test (attributes, sound button label per locale, alt texts, lazy loading)
-- [x] 4.2 Use it and the `share` prop in `music.astro`, `en/music.astro` and `es/music.astro`, each with its locale's media — verify `yarn check`, `yarn test`, `yarn build` pass and the built pages reference only their own locale's files
+- [x] 4.2 Use it and the `image` prop in `music.astro`, `en/music.astro` and `es/music.astro`, each with its locale's media — verify `yarn check`, `yarn test`, `yarn build` pass and the built pages reference only their own locale's files
 - [x] 4.3 Describe the media pipeline (sync, check, share images) in `apps/site/README.md` — verify the documented commands run as written
 
 ## 5. Integration

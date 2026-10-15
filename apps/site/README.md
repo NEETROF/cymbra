@@ -107,8 +107,8 @@ path with its trailing slash — for every `hreflang`, and for the canonical lin
 every page that is not `noindex` (a personal page names none); the switch keeps the declared
 paths. Every page carries a 1200×630 JPEG `og:image` at its absolute address, its alt text in the
 page's language, `og:site_name` and `twitter:card` `summary_large_image`: `Base.astro`'s `image`
-prop — the Lingua pages their capture, the Music pages Music's own macOS store capture
-(`apps/music/store/macos/desktop_1440x900/<lang>/01_library.png`, cropped), every other page the
+prop — the Lingua pages their capture, the Music pages their share preview
+(`src/assets/music/<lang>/share.png`, see below), every other page the
 brand image, the name « Cymbra » drawn as paths (`src/assets/brand-share.svg`, the one SVG the
 build rasterises: `image.dangerouslyProcessSVG` in `astro.config.mjs`). After the build,
 `astro.config.mjs` writes `sitemap.xml` from the built pages (`src/lib/sitemap.ts`): every page
@@ -202,9 +202,9 @@ a chat shows a picture. None of it is made by hand:
   filter watches `apps/music/store/**`, so a refreshed capture that was not synced fails
   the pull request.
 - **Share previews** (`src/assets/music/<lang>/share.png`) are generated from the staff
-  capture by `yarn gen:music-share` and committed. `Base.astro`'s optional `share` prop
-  emits the Open Graph and Twitter card tags; `test/post-build/share-preview.spec.ts`
-  checks every Music page has one, at 1200×630, on an absolute URL.
+  capture by `yarn gen:music-share` and committed, and passed as `Base.astro`'s `image`
+  prop; `test/post-build/share-preview.spec.ts` checks every Music page's is in the build,
+  on an absolute URL, and `head.spec.ts` that it is its own language's, at 1200×630.
 
 ## Routes shipped clients depend on
 

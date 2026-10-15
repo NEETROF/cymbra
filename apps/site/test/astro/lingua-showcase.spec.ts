@@ -128,10 +128,13 @@ describe("the store buttons (D11)", () => {
     ]);
   });
 
-  it("the Music page's buttons choose nothing and carry no script", async () => {
+  it("the Music page's buttons choose nothing and carry no store script", async () => {
     const html = await render(MusicPage);
     expect(html).not.toContain("data-store");
-    expect(html).not.toContain("<script");
+    // Its only script is the showcase video's (change: add-site-music-showcase), none a store's.
+    const scripts = html.match(/<script\b[^>]*>/g) ?? [];
+    expect(scripts).toHaveLength(1);
+    expect(scripts[0]).toContain("MusicShowcase.astro");
     expect(html).toContain('<a class="btn btn-primary" href="https://apps.apple.com/app/id6789557194" rel="noopener">');
   });
 
