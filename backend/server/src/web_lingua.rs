@@ -358,8 +358,16 @@ mod tests {
         }
     }
 
+    /// The tests that make the module log "counter not written" run one at a time: `tracing`
+    /// caches a call site's interest when it is first hit, and a first hit on another thread
+    /// while `nothing_identifying_reaches_the_logs` installs its capture can leave that call
+    /// site silent for the capture (seen under `cargo llvm-cov`), which would make the
+    /// capture test fail — or, worse, pass on an empty log.
+    static LOGGING_TESTS: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
     #[tokio::test]
     async fn a_form_is_thanked_whatever_happened_to_the_answer_but_free_text() {
+        let _one_at_a_time = LOGGING_TESTS.lock().await;
         // Past the flood limit, or with the counter down, the reader is still thanked —
         // as the script thanks them; only an answer outside the six is refused.
         let mut repo = MockUsageCountsRepo::new();
@@ -475,6 +483,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_counter_not_written_is_503() {
+        let _one_at_a_time = LOGGING_TESTS.lock().await;
         let mut repo = MockUsageCountsRepo::new();
         repo.expect_count_leave()
             .returning(|_, _, _, _, _| Err(AppError::Internal(anyhow::anyhow!("pool timed out"))));
@@ -506,6 +515,7 @@ mod tests {
         const ORIGIN: &str = "moz-extension://4b1d7a3e-2f0c-4b8e-9d55-0c6f1a2b3c4d";
         const AGENT: &str = "Mozilla/5.0 (Macintosh; rv:140.0) Gecko/20100101 Firefox/140.0";
 
+        let _one_at_a_time = LOGGING_TESTS.lock().await;
         let captured = Captured::default();
         let writer = captured.clone();
         let subscriber = tracing_subscriber::fmt()
@@ -514,6 +524,8 @@ mod tests {
             .with_ansi(false)
             .finish();
         let _guard = tracing::subscriber::set_default(subscriber);
+        // A call site first hit before this capture existed is asked again.
+        tracing::callsite::rebuild_interest_cache();
 
         let mut repo = MockUsageCountsRepo::new();
         // The first counted report is written; the next write fails (logged).
