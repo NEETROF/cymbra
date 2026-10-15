@@ -15,8 +15,8 @@ name: lingua-apple-release
 # tag, version.txt and the tag must agree or the run stops.
 #
 # The bundled extension is the production build: the real EN→FR pack (sources cached
-# between runs) and LINGUA_GRPC_WEB_URL=https://api.cymbra.app — the archive's copy phase
-# refuses a bundle that still calls localhost.
+# between runs) and LINGUA_GRPC_WEB_URL=https://api.cymbra.app, for the extension and the app's
+# page alike — the archive's copy phases refuse either one that still calls localhost.
 #
 # Build numbers: iOS and macOS share one App Store Connect record, whose build numbers
 # must increase across both platforms — iOS = run×10, macOS = run×10+1 (as music-release).
@@ -124,11 +124,14 @@ jobs:
           # (add-lingua-translation-safari): lingua-engine-build's artefact, kept only if every
           # file matches engine-pin.json — build.mjs refuses to package anything else.
           yarn fetch:engine
-          LINGUA_GRPC_WEB_URL=https://api.cymbra.app yarn build:safari
+          yarn build:safari
           # The app's review page, the extension's Révision for the app (add-lingua-apple-review).
+          # It calls Cymbra itself (sign-in, deck sync, online translation): the backend origin is
+          # the step's, never one command's — the 1.8.0 TestFlight page called localhost.
           yarn build:app
         env:
           GH_TOKEN: ${{ github.token }}
+          LINGUA_GRPC_WEB_URL: https://api.cymbra.app
 
       - name: Signing tool tests
         working-directory: apps/lingua-apple/tool
