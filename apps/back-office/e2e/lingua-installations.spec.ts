@@ -81,6 +81,10 @@ test.describe("lingua installations", () => {
       "on Chromium, only those whose reader agreed",
     );
     await expect(section.getByTestId("installations-note")).toContainText("each device each count as one installation");
+    // Steps are sent the week after they happen: the latest week is incomplete (owner, 2026-10-15).
+    await expect(section.getByTestId("installations-note")).toContainText(
+      "the latest week stays incomplete until the following week",
+    );
 
     // The leaving reasons: all six, in the page's order, with their labels.
     const reasons = section.getByTestId("reason-row");

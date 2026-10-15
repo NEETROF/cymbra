@@ -155,8 +155,8 @@
         "safari": "Safari"
       },
       "loading": "Chargement des installations…",
-      "note": "Comptages anonymes des installations qui comptent : sur Chromium, seulement celles dont le lecteur a accepté. Les nombres absolus de Chromium ne se comparent donc pas à ceux de Firefox et de Safari, mais ses pourcentages au sein d’une semaine, si. Une réinstallation et chaque appareil comptent chacun pour une installation. Aucun chiffre n’est plus fin qu’une semaine et une famille de navigateurs.",
-      "notYetNote": "Un retour affiche « pas encore » tant que sa fenêtre n’est pas close pour chaque jour de la semaine d’installation.",
+      "note": "Comptages anonymes des installations qui comptent : sur Chromium, seulement celles dont le lecteur a accepté. Les nombres absolus de Chromium ne se comparent donc pas à ceux de Firefox et de Safari, mais ses pourcentages au sein d’une semaine, si. Les installations antérieures à la première version qui compte ne sont jamais comptées. Une réinstallation et chaque appareil comptent chacun pour une installation. Aucun chiffre n’est plus fin qu’une semaine et une famille de navigateurs. Un appareil envoie chaque étape la semaine qui suit, si bien que la dernière semaine reste incomplète jusqu’à la suivante.",
+      "notYetNote": "Un retour affiche « pas encore » tant que sa fenêtre n’est pas close pour chaque jour de la semaine d’installation et que la semaine suivante, où les appareils l’envoient, n’est pas passée.",
       "chartTitle": "Installations par semaine",
       "week": "Semaine d’installation",
       "installed": "Installées",

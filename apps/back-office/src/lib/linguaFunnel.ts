@@ -22,15 +22,16 @@ export const FUNNEL_STEPS = [
 export type FunnelStep = (typeof FUNNEL_STEPS)[number];
 
 /**
- * For each return, how many days after the installation week's last day (its Monday + 6) its
- * window has closed for every day of the week: a Sunday installation's day 1 is the next Monday,
- * so its figure is final on the Tuesday — the last day + 2. Likewise day 13 → + 14 and day 59 →
- * + 60. The other steps have no window: their figure only grows, and is shown as it stands.
+ * The last day of each return's window, counted from day 0. A device sends a step only from the
+ * Monday after the week it happened in (owner decision 2026-10-15), so a return's figure is final
+ * once that Monday has come for the last day any installation of the week could return on — a
+ * Sunday installation's: day 1 is the next Monday, reported from the Monday after it. The other
+ * steps have no window: their figure only grows, and is shown as it stands.
  */
-const RETURN_FINAL_AFTER: Partial<Record<FunnelStep, number>> = {
-  returnedDay1: 2,
-  returnedDays7To13: 14,
-  returnedDays30To59: 60,
+const RETURN_WINDOW_END: Partial<Record<FunnelStep, number>> = {
+  returnedDay1: 1,
+  returnedDays7To13: 13,
+  returnedDays30To59: 59,
 };
 
 /** One funnel cell: a count with its share of the week's installations, or "not yet". */
@@ -107,10 +108,13 @@ export function shareOf(count: number, installed: number): number | null {
 }
 
 /** The first UTC day on which `step`'s figure for the week starting `week` is final, or null
- *  for a step that has no return window. */
+ *  for a step that has no return window: the Monday after the week holding the window's last
+ *  day for the week's last installation day (its Sunday) — week + 14, + 21 and + 70 days. */
 export function finalOn(week: string, step: FunnelStep): string | null {
-  const after = RETURN_FINAL_AFTER[step];
-  return after === undefined ? null : addDays(week, 6 + after);
+  const end = RETURN_WINDOW_END[step];
+  if (end === undefined) return null;
+  const lastReturn = mondayOf(addDays(week, 6 + end));
+  return lastReturn === null ? null : addDays(lastReturn, 7);
 }
 
 /** One week's row: each step as a count and a share of "installed", a return whose window is

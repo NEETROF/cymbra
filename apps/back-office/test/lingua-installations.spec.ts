@@ -128,11 +128,12 @@ describe("shareOf", () => {
 });
 
 describe("funnelWeek: the 'not yet' cells", () => {
-  // The week's last day is 2026-10-04: day 1 is final on 10-06, days 7–13 on 10-18, days 30–59 on 12-03.
-  it("dates each return's closing from the week's last day: + 2, + 14, + 60", () => {
-    expect(finalOn(WEEK, "returnedDay1")).toBe("2026-10-06");
-    expect(finalOn(WEEK, "returnedDays7To13")).toBe("2026-10-18");
-    expect(finalOn(WEEK, "returnedDays30To59")).toBe("2026-12-03");
+  // A step leaves the device the Monday after its week: a Sunday (10-04) installation's day 1 (10-05)
+  // arrives from 10-12, its day 13 (10-17) from 10-19, its day 59 (12-02) from 12-07.
+  it("dates each return's closing from the week's Monday: + 14, + 21, + 70", () => {
+    expect(finalOn(WEEK, "returnedDay1")).toBe("2026-10-12");
+    expect(finalOn(WEEK, "returnedDays7To13")).toBe("2026-10-19");
+    expect(finalOn(WEEK, "returnedDays30To59")).toBe("2026-12-07");
     expect(finalOn(WEEK, "setUp")).toBeNull();
     expect(finalOn(WEEK, "firstAnalysis")).toBeNull();
   });
@@ -147,18 +148,18 @@ describe("funnelWeek: the 'not yet' cells", () => {
   });
 
   it("shows day 1 on the day it closes, not the day before", () => {
-    expect(kinds("2026-10-05")).toEqual(["notYet", "notYet", "notYet"]);
-    expect(kinds("2026-10-06")).toEqual(["count", "notYet", "notYet"]);
+    expect(kinds("2026-10-11")).toEqual(["notYet", "notYet", "notYet"]);
+    expect(kinds("2026-10-12")).toEqual(["count", "notYet", "notYet"]);
   });
 
   it("shows days 7–13 on the day they close, not the day before", () => {
-    expect(kinds("2026-10-17")).toEqual(["count", "notYet", "notYet"]);
-    expect(kinds("2026-10-18")).toEqual(["count", "count", "notYet"]);
+    expect(kinds("2026-10-18")).toEqual(["count", "notYet", "notYet"]);
+    expect(kinds("2026-10-19")).toEqual(["count", "count", "notYet"]);
   });
 
   it("shows days 30–59 on the day they close, not the day before", () => {
-    expect(kinds("2026-12-02")).toEqual(["count", "count", "notYet"]);
-    expect(kinds("2026-12-03")).toEqual(["count", "count", "count"]);
+    expect(kinds("2026-12-06")).toEqual(["count", "count", "notYet"]);
+    expect(kinds("2026-12-07")).toEqual(["count", "count", "count"]);
   });
 
   it("never holds back the steps without a window, even in the current week", () => {
@@ -236,7 +237,7 @@ describe("lingua store: installations", () => {
     setActivePinia(createPinia());
     // Only the clock: the store decides "not yet" against today's UTC day.
     vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-10-05T23:30:00Z")); // the day before WEEK's day 1 closes
+    vi.setSystemTime(new Date("2026-10-05T23:30:00Z")); // while WEEK's day-1 return is not final
   });
   afterEach(() => vi.useRealTimers());
 
@@ -267,7 +268,7 @@ describe("lingua store: installations", () => {
   });
 
   it("shows a day-1 return once today reaches the day it closes", async () => {
-    vi.setSystemTime(new Date("2026-10-06T00:00:01Z"));
+    vi.setSystemTime(new Date("2026-10-12T00:00:01Z"));
     const { clients } = fakeClients();
     setClientsForTest(clients);
     const store = useLinguaStore();
