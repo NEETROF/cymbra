@@ -142,7 +142,7 @@ translation, nothing reached the network — the anonymous counts make that fals
 its account paragraph names the counts beside « Traduction en ligne ». The four counts were
 re-measured with it, the same way.
 
-**FR** — for French speakers (2,729 / 16,000 characters)
+**FR** — for French speakers (2,835 / 16,000 characters)
 
 Cymbra Lingua surligne, sur la page que vous lisez, les mots d'anglais ou d'espagnol que vous ne
 connaissez pas encore — sans rien changer à la mise en page. Un pourcentage vous dit quelle part du
@@ -190,7 +190,7 @@ Cymbra Lingua est disponible sur Chrome, sur Firefox (ordinateur et Android) et 
 (iPhone, iPad, Mac).
 
 **EN** — for English speakers, who study Spanish (es-en, from change 34) and French (fr-en, from
-change 52) (2,821 / 16,000 characters)
+change 52) (2,903 / 16,000 characters)
 
 Cymbra Lingua highlights, right on the page you are reading, the Spanish or French words you don't
 know yet — without changing the layout. A percentage tells you how much of the text is familiar,
@@ -243,7 +243,7 @@ Cymbra Lingua is available on Chrome, on Firefox (desktop and Android) and as a 
 iPad, Mac).
 
 **ES, with fr-es** — for Spanish speakers, who study English (en-es, from change 35) and French
-(fr-es, from change 52) (3,324 / 16,000 characters)
+(fr-es, from change 52) (3,416 / 16,000 characters)
 
 Cymbra Lingua resalta, en la misma página que estás leyendo, las palabras en inglés o en francés que
 todavía no conoces, sin cambiar el diseño de la página. Un porcentaje te dice qué parte del texto te
@@ -300,7 +300,7 @@ Cymbra Lingua está disponible en Chrome, en Firefox (escritorio y Android) y co
 
 **ES, without fr-es** — for Spanish speakers, who study English (en-es, from change 35), if change 52
 lists fr-en alone: change 37's text, its last line naming what English speakers study
-(2,848 / 16,000 characters)
+(2,940 / 16,000 characters)
 
 Cymbra Lingua resalta, en la misma página que estás leyendo, las palabras en inglés que todavía no
 conoces, sin cambiar el diseño de la página. Un porcentaje te dice qué parte del texto te resulta
@@ -565,7 +565,7 @@ then what a signed-in reader synchronizes across their own devices — word stat
 with their review history, and daily learning statistics (`SyncEngine`, `src/sync/sync.ts`).
 And, only once the reader has pressed "Yes, count" (« Sí, contar » in Spanish, « Oui, compter » in
 French), the anonymous usage counts (`cymbra.lingua.v1.UsageCountsService/Report`,
-`src/usage/client.ts`): sent without the account's token, carrying only the week of installation,
+`src/usage/client.ts`): sent without the account's token, carrying only the day of installation,
 the browser family and the version — see _Data usage disclosures_.
 The origin is set at build time (`LINGUA_GRPC_WEB_URL`, `src/net/transport.ts`) and
 granted by the build (`tool/manifests.mjs`, `hostPattern`). A reader who neither signs in nor
@@ -620,13 +620,14 @@ once, on the welcome tab or in the popup, in one sentence with two equal buttons
 before "Yes, count", and "No, thanks" turns counting off. Six steps are then counted, each sent
 once per installation: installed; set up (a first level chosen); first page analysed in a studied
 language; back on day 1; back during days 7–13; back during days 30–59. A report carries those
-steps, the week of installation, the browser family and the extension's version (major.minor) —
+steps, the day of installation, the browser family and the extension's version (major.minor) —
 **no identifier** of any kind (no installation, device or account id, even for a signed-in reader)
 and nothing about what is read. It goes to `https://api.cymbra.app` without the account's token, to
-a service that authenticates no one; the server adds one to a weekly counter, keeps no network
-address and deletes the counters after 25 months. Each step leaves the device only from the Monday
-after the week it happened in. The device keeps the day of installation for at most 73 days (the
-end of the week after day 59). An installation made before the release that introduced the counts
+a service that authenticates no one; the server adds one to a counter per installation day, keeps
+no network address and deletes the counters after 25 months. Each step is sent when it happens (or
+at the extension's next start or use, if it could not leave), so an installation alone on its day
+can be recognised in the totals, as the privacy policy says. The device keeps the day of
+installation for at most 60 days. An installation made before the release that introduced the counts
 is never asked and never counted. Turning "Anonymous usage counts" off in Settings → Data stops the
 counts for good on that installation. While counting is on, removing the extension opens a cymbra.app page that asks
 why, with six fixed answers and no free text; only an answer the reader taps is sent, counted the

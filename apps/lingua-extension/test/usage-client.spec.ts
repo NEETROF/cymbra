@@ -70,7 +70,7 @@ describe("A report carries no identifier", () => {
     expect(seen[0].url).toBe("https://api.example.test/cymbra.lingua.v1.UsageCountsService/Report");
     expect(seen[0].headers.has("authorization")).toBe(false);
     expect(new TextDecoder().decode(seen[0].body)).not.toContain("eyJ");
-    // The message: the week, the browser family, the version, the steps — "1.10" is in it.
+    // The message: day 0, the browser family, the version, the steps — "1.10" is in it.
     expect(new TextDecoder().decode(seen[0].body)).toContain("1.10");
     setTokenRefresher(null);
   });

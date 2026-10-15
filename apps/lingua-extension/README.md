@@ -196,8 +196,8 @@ yarn lint && yarn format:check && yarn typecheck && yarn test
   Safari the reader is a static content script on every page (see the injection note
   above). A reader who neither signs in nor turns on « Traduction étendue » (its model, once)
   makes one kind of request only, the anonymous usage counts (`src/usage/`): six steps per
-  installation, each sent once with the week of installation, the browser family and the
-  version — no identifier, no account token, nothing read. Chromium sends them only after
+  installation, each sent once, when it happens, with the day of installation, the browser
+  family and the version — no identifier, no account token, nothing read. Chromium sends them only after
   « Oui, compter », Firefox only under its built-in data consent (never below 140, or 142 on
   Android), Safari by default; « Comptages anonymes » in Réglages → Données turns them off.
   The pack, the glosses and the translation engine are local assets.

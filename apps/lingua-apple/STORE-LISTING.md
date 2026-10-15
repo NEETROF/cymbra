@@ -439,9 +439,9 @@ before.
 The field is **one, in English, for every locale, within 4,000 characters**. The block before
 `add-lingua-english-listings` measured 4,042, over it; that change cut it to 3,973,
 `add-lingua-spanish-audience-listings` added the Spanish path (3,976), and
-`add-lingua-french-listings` added French (3976 with fr-es, 3935 without), and
-`add-lingua-usage-counts` names the anonymous counts and measures **3986** with fr-es, **3945**
-without it. A
+`add-lingua-french-listings` added French (3976 with fr-es, 3935 without), the correction for
+« Traduction en ligne » (below) measured 3988 and 3947, and `add-lingua-usage-counts` names the
+anonymous counts on top of it and measures **3984** with fr-es, **3943** without it. A
 reviewer's device that is not in French or Spanish gets the English interface studying Spanish (the
 native language is preset from the browser's language: `add-lingua-native-language-choice`, D4;
 Spanish stays an English reader's first language once change 52 lists fr-en after es-en), so the
@@ -474,19 +474,6 @@ deletion path, every external service and every source are still there. Without 
 « Spanish speakers English and French, » reads « Spanish speakers English, » and « ; French to
 Spanish chains two » goes.
 
-To name the anonymous counts (add-lingua-usage-counts, 2026-10-14), "External services" no longer
-says « none by default » or « no analytics »: it says the counts are on by default under a
-legitimate interest once the popup has said so, gives their six steps, the three things sent with
-them, no identifier and no page text, and where they are turned off (+259). Wording was cut again,
-and no step a reviewer needs: the account paragraph lost « (iPhone, iPad, Mac) » and its test path
-became « To test it: panel > Settings > Data > Account, … » (−67); the IMPORTANT line says « Enable
-the extension in Safari first. » (−27); step 5 lost « ; the account is under Data », which the
-account and deletion paragraphs give in full (−27); "Account deletion" says « erases it » (−7);
-"OPTIONAL" lost « and the selected sentence is then translated on the device », which "External
-services" says, and gives the models' sizes as one range, « 25.4-26.2 MB each » (−113); "Purpose &
-audience" lost « (A1-C2) », which step 5 gives (−8). Every step, the deletion path, every external
-service and every source are still there.
-
 M15 is settled: extended translation opens with each pair; should change 52 not offer one, its
 models go from the OPTIONAL paragraph and the count only falls.
 
@@ -504,15 +491,32 @@ lists » « frequencies »; the `https://` of models.cymbra.app and api.cymbra.a
 Safari sentence was reworded. Every step, the deletion path, every external service and every
 source are still there: **3988** with fr-es, **3947** without it.
 
-### English, for every locale, with fr-es (3988 / 4000)
+To name the anonymous counts (add-lingua-usage-counts, written on 2026-10-14 and applied on
+2026-10-16 on top of the correction above), "External services" no longer says « none by
+default » or « no analytics »: it says the counts are on by default under a legitimate interest
+once the popup has said so, that they are sent as they happen, gives their six steps, the three
+things sent with them (install day, browser, version), no identifier and no page text, and where
+they are turned off (+281). Wording was cut, and no step a reviewer needs: the account paragraph
+lost « (iPhone, iPad, Mac) », its progress list became « (words, deck, level, statistics) » and
+its test path « To test it: panel > Settings > Data > Account, … » (−67); the IMPORTANT line says
+« Enable the extension in Safari first. » (−20); step 2 lost « the engine assumes zero known
+words: », the reason for what it shows (−37); "OPTIONAL" lost « - then the selected sentence is
+translated on the device », which "External services" says, and gives the models' sizes as one
+range, « 25.4-26.2 MB each » (−109); "Purpose & audience" lost « (A1-C2) », which step 5 gives
+(−8); "External services" lost « the » before « level estimate » and says « No payment processor,
+no in-app purchase » (−7); "Third-party material" lost « (definitions and translation tables) »
+(−37). Every step, the deletion path, every external service and every source are still there:
+**3984** with fr-es, **3943** without it.
+
+### English, for every locale, with fr-es (3984 / 4000)
 
 ```
-No account is needed to review this app. An optional Cymbra account saves progress - known words, deck, level and statistics - across reinstalls and devices (iPhone, iPad, Mac). To test it, create one from the extension (panel > Settings > Data > Account) with Sign in with Apple or Google - no invitation needed.
+No account is needed to review this app. An optional Cymbra account saves progress (words, deck, level, statistics) across reinstalls and devices. To test it: panel > Settings > Data > Account, Sign in with Apple or Google - no invitation needed.
 
-IMPORTANT - this app is a Safari extension host: its own screen only explains. Nothing happens until the extension is enabled in Safari.
+IMPORTANT - this app is a Safari extension host: its own screen only explains. Enable the extension in Safari first.
 
 1. Settings > Apps > Safari > Extensions (macOS: Safari > Settings > Extensions): enable "Cymbra Lingua", then set "Other Websites" to Allow.
-2. In SAFARI (not in the app), open the extension from the address-bar menu, keep English as your language and pick a Spanish level, e.g. B1. With no level, the engine assumes zero known words: every word is highlighted and the pill reads 0%.
+2. In SAFARI (not in the app), open the extension from the address-bar menu, keep English as your language and pick a Spanish level, e.g. B1. With no level, every word is highlighted and the pill reads 0%.
 3. Open a Spanish page. Reload any tab opened BEFORE the extension was enabled or the level picked.
 4. Words above your level are highlighted; the pill shows the share of the page you know. Tap a highlighted word: a card gives its English translation, dictionary form and frequency, with "I know it", "+ Deck", "Ignore".
 5. Tap the pill to open the panel: Review, Stats (estimated vocabulary, A1 to C2), Settings (four tabs).
@@ -520,26 +524,26 @@ IMPORTANT - this app is a Safari extension host: its own screen only explains. N
 
 Account deletion: panel > Settings > Data, signed in > "Manage my data" opens the account page. "Erase my Lingua data…" erases it on the server and every device, keeping the account. "Delete my Cymbra account" opens https://cymbra.app/en/delete-account/, where the account (shared by Cymbra's apps) is deleted after signing in.
 
-OPTIONAL - "Extended translation", off by default (Settings > Language). Its engine (Mozilla's Firefox Translations, WebAssembly) ships inside the app. Turning it on downloads data only - a model per pair studied (Spanish or French to English 26.2 MB each, English to Spanish 25.4 MB; French to Spanish chains two) from models.cymbra.app, checked against a pinned sha256 - then the selected sentence is translated on the device. No page text, account or device identifier is sent. Turning it off deletes the models.
+OPTIONAL - "Extended translation", off by default (Settings > Language). Its engine (Mozilla's Firefox Translations, WebAssembly) ships inside the app. Turning it on downloads data only - a model per pair studied (25.4-26.2 MB each; French to Spanish chains two) from models.cymbra.app, checked against a pinned sha256. No page text, account or device identifier is sent. Turning it off deletes the models.
 
-Purpose & audience: Cymbra Lingua helps people learn a language by reading web pages and their own DRM-free EPUB books: unknown words are highlighted in place, looked up offline, captured into a deck reviewed with spaced repetition, and their CEFR level (A1-C2) is estimated from the words they marked. English speakers learn Spanish and French, Spanish speakers English and French, French speakers English and Spanish.
+Purpose & audience: Cymbra Lingua helps people learn a language by reading web pages and their own DRM-free EPUB books: unknown words are highlighted in place, looked up offline, captured into a deck reviewed with spaced repetition, and their CEFR level is estimated from the words they marked. English speakers learn Spanish and French, Spanish speakers English and French, French speakers English and Spanish.
 
-External services: none by default - highlighting, lookup, the level estimate and translation run on the device; no analytics, no ads. Only on the reader's action: models.cymbra.app serves the models above; api.cymbra.app (our backend) syncs the word list when signed in and, for accounts we grant it, relays the AI-based "Online translation" (off by default): each button press sends one sentence to Google Gemini, else Anthropic Claude, kept by no one; Sign in with Apple / Google authenticate (the app never sees a password). No payment processor and no in-app purchase.
+External services: highlighting, lookup, level estimate and translation run on the device; no ads. By default (legitimate interest), once the popup has said so, anonymous counts go to api.cymbra.app (our backend) as they happen: install, level chosen, first page analysed, return on day 1, 7-13, 30-59 - each once, with install day, browser, version; no identifier, no page text. Off: Settings > Data > "Anonymous usage counts". Only on the reader's action: models.cymbra.app serves the models above; the backend syncs the word list when signed in and, for accounts we grant it, relays the AI-based "Online translation" (off by default): each button press sends one sentence to Google Gemini, else Anthropic Claude, kept by no one; Sign in with Apple / Google authenticate (the app never sees a password). No payment processor, no in-app purchase.
 
 Regional differences: none. The interface follows the device's language (French, Spanish, else English); Settings > Language switches. A device in Spanish runs steps 2-5 on an English page: "Elige tu nivel de inglés", "La conozco", "+ Mazo", "Ignorar", "Repaso", "Ajustes".
 
-Third-party material: the bundled dictionaries use sources licensed for commercial use - ESDB (SCOWL) inflections, CEFR-J and Octanove level lists for English; the UD Spanish-GSD and French-GSD treebanks; wordfreq frequencies; kaikki.org extracts of the English, French and Spanish Wiktionaries (definitions and translation tables) for the glosses - credited in the extension's "Sources & privacy" panel. The translation models are Mozilla's (MPL 2.0). The app does not operate in a regulated industry.
+Third-party material: the bundled dictionaries use sources licensed for commercial use - ESDB (SCOWL) inflections, CEFR-J and Octanove level lists for English; the UD Spanish-GSD and French-GSD treebanks; wordfreq frequencies; kaikki.org extracts of the English, French and Spanish Wiktionaries for the glosses - credited in the extension's "Sources & privacy" panel. The translation models are Mozilla's (MPL 2.0). The app does not operate in a regulated industry.
 ```
 
-### English, for every locale, without fr-es (3947 / 4000)
+### English, for every locale, without fr-es (3943 / 4000)
 
 ```
-No account is needed to review this app. An optional Cymbra account saves progress - known words, deck, level and statistics - across reinstalls and devices (iPhone, iPad, Mac). To test it, create one from the extension (panel > Settings > Data > Account) with Sign in with Apple or Google - no invitation needed.
+No account is needed to review this app. An optional Cymbra account saves progress (words, deck, level, statistics) across reinstalls and devices. To test it: panel > Settings > Data > Account, Sign in with Apple or Google - no invitation needed.
 
-IMPORTANT - this app is a Safari extension host: its own screen only explains. Nothing happens until the extension is enabled in Safari.
+IMPORTANT - this app is a Safari extension host: its own screen only explains. Enable the extension in Safari first.
 
 1. Settings > Apps > Safari > Extensions (macOS: Safari > Settings > Extensions): enable "Cymbra Lingua", then set "Other Websites" to Allow.
-2. In SAFARI (not in the app), open the extension from the address-bar menu, keep English as your language and pick a Spanish level, e.g. B1. With no level, the engine assumes zero known words: every word is highlighted and the pill reads 0%.
+2. In SAFARI (not in the app), open the extension from the address-bar menu, keep English as your language and pick a Spanish level, e.g. B1. With no level, every word is highlighted and the pill reads 0%.
 3. Open a Spanish page. Reload any tab opened BEFORE the extension was enabled or the level picked.
 4. Words above your level are highlighted; the pill shows the share of the page you know. Tap a highlighted word: a card gives its English translation, dictionary form and frequency, with "I know it", "+ Deck", "Ignore".
 5. Tap the pill to open the panel: Review, Stats (estimated vocabulary, A1 to C2), Settings (four tabs).
@@ -547,15 +551,15 @@ IMPORTANT - this app is a Safari extension host: its own screen only explains. N
 
 Account deletion: panel > Settings > Data, signed in > "Manage my data" opens the account page. "Erase my Lingua data…" erases it on the server and every device, keeping the account. "Delete my Cymbra account" opens https://cymbra.app/en/delete-account/, where the account (shared by Cymbra's apps) is deleted after signing in.
 
-OPTIONAL - "Extended translation", off by default (Settings > Language). Its engine (Mozilla's Firefox Translations, WebAssembly) ships inside the app. Turning it on downloads data only - a model per pair studied (Spanish or French to English 26.2 MB each, English to Spanish 25.4 MB) from models.cymbra.app, checked against a pinned sha256 - then the selected sentence is translated on the device. No page text, account or device identifier is sent. Turning it off deletes the models.
+OPTIONAL - "Extended translation", off by default (Settings > Language). Its engine (Mozilla's Firefox Translations, WebAssembly) ships inside the app. Turning it on downloads data only - a model per pair studied (25.4-26.2 MB each) from models.cymbra.app, checked against a pinned sha256. No page text, account or device identifier is sent. Turning it off deletes the models.
 
-Purpose & audience: Cymbra Lingua helps people learn a language by reading web pages and their own DRM-free EPUB books: unknown words are highlighted in place, looked up offline, captured into a deck reviewed with spaced repetition, and their CEFR level (A1-C2) is estimated from the words they marked. English speakers learn Spanish and French, Spanish speakers English, French speakers English and Spanish.
+Purpose & audience: Cymbra Lingua helps people learn a language by reading web pages and their own DRM-free EPUB books: unknown words are highlighted in place, looked up offline, captured into a deck reviewed with spaced repetition, and their CEFR level is estimated from the words they marked. English speakers learn Spanish and French, Spanish speakers English, French speakers English and Spanish.
 
-External services: none by default - highlighting, lookup, the level estimate and translation run on the device; no analytics, no ads. Only on the reader's action: models.cymbra.app serves the models above; api.cymbra.app (our backend) syncs the word list when signed in and, for accounts we grant it, relays the AI-based "Online translation" (off by default): each button press sends one sentence to Google Gemini, else Anthropic Claude, kept by no one; Sign in with Apple / Google authenticate (the app never sees a password). No payment processor and no in-app purchase.
+External services: highlighting, lookup, level estimate and translation run on the device; no ads. By default (legitimate interest), once the popup has said so, anonymous counts go to api.cymbra.app (our backend) as they happen: install, level chosen, first page analysed, return on day 1, 7-13, 30-59 - each once, with install day, browser, version; no identifier, no page text. Off: Settings > Data > "Anonymous usage counts". Only on the reader's action: models.cymbra.app serves the models above; the backend syncs the word list when signed in and, for accounts we grant it, relays the AI-based "Online translation" (off by default): each button press sends one sentence to Google Gemini, else Anthropic Claude, kept by no one; Sign in with Apple / Google authenticate (the app never sees a password). No payment processor, no in-app purchase.
 
 Regional differences: none. The interface follows the device's language (French, Spanish, else English); Settings > Language switches. A device in Spanish runs steps 2-5 on an English page: "Elige tu nivel de inglés", "La conozco", "+ Mazo", "Ignorar", "Repaso", "Ajustes".
 
-Third-party material: the bundled dictionaries use sources licensed for commercial use - ESDB (SCOWL) inflections, CEFR-J and Octanove level lists for English; the UD Spanish-GSD and French-GSD treebanks; wordfreq frequencies; kaikki.org extracts of the English, French and Spanish Wiktionaries (definitions and translation tables) for the glosses - credited in the extension's "Sources & privacy" panel. The translation models are Mozilla's (MPL 2.0). The app does not operate in a regulated industry.
+Third-party material: the bundled dictionaries use sources licensed for commercial use - ESDB (SCOWL) inflections, CEFR-J and Octanove level lists for English; the UD Spanish-GSD and French-GSD treebanks; wordfreq frequencies; kaikki.org extracts of the English, French and Spanish Wiktionaries for the glosses - credited in the extension's "Sources & privacy" panel. The translation models are Mozilla's (MPL 2.0). The app does not operate in a regulated industry.
 ```
 
 ### As submitted with 1.5.0 (3950 / 4000)

@@ -3,7 +3,7 @@ layout: ../../layouts/Legal.astro
 title: Política de privacidad
 description: Qué datos personales tratan los servicios Cymbra, por qué, con quién se comparten y cuáles son tus derechos.
 lang: es
-updated: 15/10/2026
+updated: 16/10/2026
 alternates:
   fr: /confidentialite
   en: /en/privacy
@@ -232,9 +232,9 @@ en el dispositivo, se utiliza en su lugar.
 extensión puede enviar a Cymbra seis recuentos, cada uno una vez por instalación: Lingua está
 **instalada**; está **lista** (un primer nivel elegido); se **analiza una primera página** en un
 idioma que estudias; vuelves a usarla **al día siguiente** de instalarla; de nuevo **entre el
-día 7 y el 13**; de nuevo **entre el día 30 y el 59**. Cada envío solo contiene tres datos: la **semana** de la
-instalación, la **familia del navegador** (Chromium, Firefox o Safari) y la **versión** de la
-extensión (por ejemplo, 1.10).
+día 7 y el 13**; de nuevo **entre el día 30 y el 59**. Cada envío solo contiene tres datos: el
+**día** de la instalación (su fecha en tu dispositivo), la **familia del navegador** (Chromium,
+Firefox o Safari) y la **versión** de la extensión (por ejemplo, 1.10).
 
 - **Ningún identificador** de ningún tipo —ni identificador de instalación o de dispositivo, ni
   cuenta, aunque hayas iniciado sesión— y **nada de lo que lees**: ni dirección, ni sitio, ni
@@ -244,15 +244,19 @@ extensión (por ejemplo, 1.10).
   registros, ni en los del servidor que le transmite las solicitudes (su « proxy inverso »).
   Solo sirve para rechazar los envíos masivos, únicamente en memoria y de forma ilegible, y se
   olvida al cabo de una hora.
-- **Enviados la semana siguiente.** Cada recuento sale de tu dispositivo solo a partir del lunes
-  que sigue a la semana en que ocurrió, al siguiente inicio o uso de la extensión: el momento en
-  que llega a Cymbra no dice el día. Si la extensión se detiene justo cuando Cymbra recibe un
-  envío, ese envío vuelve a salir más tarde y cuenta dos veces: los totales solo pueden quedar un
-  poco altos, nunca vinculados a ti.
-- **En tu dispositivo**, el día de la instalación se guarda para saber cuándo vuelves —hasta el
-  final de la semana siguiente a la del día 59, **73 días como máximo**— y después se olvida; solo
-  sale de él su semana. En Cymbra, los recuentos son totales semanales, sin rastro de cada envío,
-  y **se borran a los 25 meses**.
+- **Enviados en cuanto ocurren.** Cada recuento sale de tu dispositivo en el momento en que
+  ocurre —o, si no pudo salir, al siguiente inicio o uso de la extensión—. Su llegada dice, por
+  tanto, el día en que ocurrió; Cymbra no guarda ni la hora ni rastro de él, solo un total. Si la
+  extensión se detiene justo cuando Cymbra recibe un envío, ese envío vuelve a salir más tarde y
+  cuenta dos veces: los totales solo pueden quedar un poco altos, nunca vinculados a ti.
+- **Contados por día de instalación.** En Cymbra, los recuentos son totales por día de
+  instalación, familia del navegador y versión, sin rastro de cada envío, y **se borran a los
+  25 meses**. Una instalación que es la única de su día (en su navegador) se reconoce, por tanto,
+  en esos totales: de ellos se deduce su día de instalación y se ve si volvió. Nada en ellos dice
+  de quién es; pero alguien que ya supiera que instalaste Lingua ese día podría ver en ellos si
+  volviste.
+- **En tu dispositivo**, el día de la instalación se guarda **60 días como máximo**, para saber
+  cuándo vuelves, y después se olvida, junto con lo que aún no había podido salir.
 - **Instalaciones anteriores a los recuentos.** Una instalación hecha antes de la versión de
   Lingua que introdujo los recuentos nunca se cuenta, nunca se le pregunta y no abre ninguna
   página de despedida.
@@ -317,8 +321,9 @@ incluidos los requisitos de Uso Limitado (*Limited Use*). Para Cymbra Lingua, es
 es: el texto de las páginas que lees, analizado en tu dispositivo; tu cuenta Cymbra (dirección
 de correo electrónico, identificador de inicio de sesión, sesiones, idioma de la cuenta); lo
 que se sincroniza si has iniciado sesión (estados y niveles de las palabras, mazo de repaso,
-estadísticas diarias, identificador de instalación); y la frase enviada con la **Traducción en
-línea**, solo cuando pulsas su botón. Cymbra solo usa estos datos para los fines descritos en
+estadísticas diarias, identificador de instalación); los **recuentos anónimos**, si los aceptaste
+(véase más arriba); y la frase enviada con la **Traducción en línea**, solo cuando pulsas su
+botón. Cymbra solo usa estos datos para los fines descritos en
 esta política, solo los comparte con los encargados del tratamiento citados en el §4 y para
 esos fines, no los vende y no los usa para publicidad. El equipo de Cymbra solo ve tus datos de
 Lingua como totales, sin cuenta, salvo para ayudarte a petición tuya, por seguridad o para

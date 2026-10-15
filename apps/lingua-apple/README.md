@@ -219,7 +219,7 @@ used for tracking.
 | Identifiers → User ID | the Cymbra account and its handle | yes | App Functionality, Analytics |
 | Identifiers → Device ID | the random installation id used by sync | yes | App Functionality |
 | User Content → Other User Content | word statuses and level, each under the studied language it belongs to; deck (word, sentence, gloss and the language of that gloss, review state), each card under its studied language | yes | App Functionality |
-| Usage Data → Product Interaction | daily counts (words learned, reviews, words met), per day and studied language, with the native language of the day; and the anonymous usage counts — six steps per installation (installed, set up, first page analysed, back on day 1, in days 7–13, in days 30–59), each sent once with the week of installation, the browser family and the version, with no identifier and nothing read (not linked themselves) | yes | App Functionality, Analytics (aggregated back-office figures) |
+| Usage Data → Product Interaction | daily counts (words learned, reviews, words met), per day and studied language, with the native language of the day; and the anonymous usage counts — six steps per installation (installed, set up, first page analysed, back on day 1, in days 7–13, in days 30–59), each sent once, when it happens, with the day of installation, the browser family and the version, with no identifier and nothing read (not linked themselves) | yes | App Functionality, Analytics (aggregated back-office figures) |
 
 Not collected: browsing history, search history, location, contacts, purchases, diagnostics,
 financial or health data. The language Lingua sends to the Cymbra account (the interface's or
@@ -245,7 +245,7 @@ the same account (User ID) — all already declared, linked, for App Functionali
 statistics (Product Interaction stays the extension's).
 
 Reviewed for the anonymous usage counts (add-lingua-usage-counts, 2026-10-14): **no new type or
-purpose**. The Safari extension's six counts — each step sent once, with the week of installation,
+purpose**. The Safari extension's six counts — each step sent once, with the day of installation,
 the browser family and the version, no identifier and nothing read — are Usage Data → Product
 Interaction, already declared for Analytics. App Store Connect asks once per data type whether it
 is linked to the user: this type stays linked for the synced daily counts, and counts that are not

@@ -181,13 +181,15 @@ There are four origins, all of them in the source:
   counts**, signed in or not:
   `cymbra.lingua.v1.UsageCountsService/Report` (gRPC-web, `src/usage/client.ts`), sent through a
   transport with no interceptor, so it never carries the account's token, to a service the server
-  mounts with no authentication. A report carries the week of installation (the day number of its
-  Monday), the browser family, the version (major.minor) and the steps it reports, each sent once
-  per installation — installed; set up (a first level chosen); first page analysed in a studied
-  language; back on day 1; back during days 7–13; back during days 30–59 — and nothing else: no
-  identifier of any kind, nothing of the page. A step is sent only at the first start or use of
-  the add-on on or after the Monday following the week it happened in, so a report's arrival does
-  not tell its day (`src/usage/counts.ts`, `ready`); no alarm and no timer are used. An
+  mounts with no authentication. A report carries the day of installation (its local date, as a
+  day number), the browser family, the version (major.minor) and the steps it reports, each sent
+  once per installation — installed; set up (a first level chosen); first page analysed in a
+  studied language; back on day 1; back during days 7–13; back during days 30–59 — and nothing
+  else: no identifier of any kind, nothing of the page. A step is sent when it happens, or at the
+  add-on's next start or use if it could not leave (at most one retry an hour), so the server
+  counts it by installation day; an installation alone on its day can be recognised in those
+  totals, and the privacy policy says so (`src/usage/counts.ts`, `src/usage/host.ts`). No alarm
+  and no timer are used; the device forgets the installation's day at day 60. An
   installation made before the release that introduced the counts — one Firefox reports as an
   `update` — is never counted and never gets the leaving page below. On Firefox they are governed by Firefox's built-in
   data consent: the manifest declares `technicalAndInteraction` as optional, with
