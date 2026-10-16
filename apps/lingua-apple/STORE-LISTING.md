@@ -374,6 +374,61 @@ translation, its last sentence goes.
 Cymbra Lingua ahora habla español, para los hispanohablantes que aprenden inglés: la interfaz, la tarjeta, el repaso y las estadísticas están en español, y las palabras inglesas llegan con su significado en español, escrito por personas. La traducción ampliada traduce tu selección en inglés directamente al español, en tu dispositivo.
 ```
 
+## What's New — 1.8.1
+
+Submitted on 2026-10-16: iOS build 260, macOS build 261, in the five locales (en-GB as en-US, es-MX
+as es-ES), released automatically once approved. 1.8.0 never left TestFlight: its page called a
+local backend (#963), so 1.8.1 is the first public build since 1.7.0 and its notes cover both. What
+a reader sees change: signing in from the app, with an email and a password too (add-lingua-app-email-signin),
+the app syncing its own reviews (add-lingua-app-deck-sync), editing and ending a review
+(add-lingua-card-edit, the end of a session in progress), a translation kept on the card, the count
+on the toolbar icon and the anonymous counts (add-lingua-usage-counts). Online translation is still
+not listed: a beta opened per account. The anonymous counts are said, as they are on by default in
+Safari. Every label is quoted from `apps/lingua-extension/src/i18n/`. The promotional text was pasted
+again (es-ES and es-MX with fr-es), and the review notes carried over from 1.7.0 unchanged.
+
+### fr-FR (755 / 4000)
+
+```
+Connexion dans l'app : connectez-vous avec Apple, Google ou une adresse e-mail et un mot de passe. Les révisions faites dans l'app se synchronisent avec vos autres appareils.
+
+Révision : « Modifier la carte » corrige une carte pendant la révision, et « Terminer » arrête la séance en cours. Une traduction trouvée à la révision est gardée sur la carte.
+
+Dans Safari, l'icône de l'extension peut afficher le nombre de cartes à réviser (Réglages › Afficher les cartes à réviser sur l'icône).
+
+Comptages anonymes : l'extension envoie quelques comptages d'utilisation, jamais ce que vous lisez. Vous pouvez les couper dans Réglages (Envoyer des comptages anonymes).
+
+Corrections, dont la traduction des verbes modaux anglais et la ponctuation autour des mots.
+```
+
+### en-US, en-GB (555 / 4000)
+
+```
+Sign in from the app: with Apple, Google, or an email address and a password. Reviews done in the app sync with your other devices.
+
+Review: "Edit card" corrects a card during review, and "End" stops the session in progress. A translation found at review stays on the card.
+
+In Safari, the extension's icon can show the number of cards to review (Settings › Show the cards to review on the icon).
+
+Anonymous usage counts: the extension sends a few usage counts, never what you read. You can turn them off in Settings (Send anonymous usage counts).
+
+Fixes.
+```
+
+### es-ES, es-MX (638 / 4000)
+
+```
+Inicio de sesión en la app: con Apple, Google o una dirección de correo y una contraseña. Los repasos hechos en la app se sincronizan con tus otros dispositivos.
+
+Repaso: «Editar la tarjeta» corrige una tarjeta durante el repaso, y «Terminar» detiene la sesión en curso. Una traducción encontrada en el repaso se guarda en la tarjeta.
+
+En Safari, el icono de la extensión puede mostrar el número de tarjetas por repasar (Ajustes › Mostrar las tarjetas por repasar en el icono).
+
+Recuentos anónimos: la extensión envía algunos recuentos de uso, nunca lo que lees. Puedes desactivarlos en Ajustes (Enviar recuentos anónimos).
+
+Correcciones.
+```
+
 ## What's New — 1.7.0
 
 Submitted on 2026-10-13: iOS build 240, macOS build 241, in the five locales (en-GB as en-US, es-MX
