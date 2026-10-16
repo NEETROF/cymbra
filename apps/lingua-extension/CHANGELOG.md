@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.1](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.10.0...lingua-extension-v1.10.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* **lingua:** keep the background alive on Firefox for Android ([#965](https://github.com/NEETROF/cymbra/issues/965)) ([02e9f50](https://github.com/NEETROF/cymbra/commit/02e9f50ac97156c481d51775760edbaa795a3bd0))
+
 ## [1.10.0](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.9.0...lingua-extension-v1.10.0) (2026-10-15)
 
 
