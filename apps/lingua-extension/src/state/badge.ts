@@ -116,3 +116,26 @@ export function tabBadge(report: PageReport, opts: { eink: boolean; counting: bo
   }
   return { text: null, colour: opts.eink ? BADGE_EINK_COLOUR : BADGE_COUNT_COLOUR };
 }
+
+/** What `listenTabLoads` needs of `tabs.onUpdated`: the second argument only where filters exist. */
+export interface TabUpdatedEvent<L> {
+  addListener(listener: L, filter?: { properties: string[] }): void;
+}
+
+/**
+ * Listen to tabs' loads for the badge (add-lingua-comeback-hints D4). Firefox for the desktop can be
+ * told to wake for `status` alone; Firefox for Android refuses any filter on this event
+ * ("Incorrect argument types for tabs.onUpdated", thrown synchronously — 1.10.0 lost its whole
+ * background to it), and Chrome refuses one too. So the filter is a wish: refused, the plain listener.
+ */
+export function listenTabLoads<L>(event: TabUpdatedEvent<L>, listener: L, filtered: boolean): void {
+  if (filtered) {
+    try {
+      event.addListener(listener, { properties: ["status"] });
+      return;
+    } catch {
+      // Firefox for Android: no filter on this event.
+    }
+  }
+  event.addListener(listener);
+}

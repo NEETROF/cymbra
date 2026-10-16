@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   BADGE_COUNT_COLOUR,
   BADGE_EINK_COLOUR,
@@ -8,6 +8,7 @@ import {
   einkColours,
   formatBadgeCount,
   globalBadge,
+  listenTabLoads,
   tabBadge,
 } from "@/state/badge.ts";
 
@@ -168,5 +169,30 @@ describe("where the count can show (D4)", () => {
     expect(countSupported(CHROME, "chromium")).toBe(true);
     expect(countSupported(MAC_17, "firefox")).toBe(true);
     expect(countSupported(CHROME)).toBe(true); // the build under test is Chromium's
+  });
+});
+
+describe("listenTabLoads", () => {
+  const listener = (): void => {};
+
+  it("asks for `status` alone where the event takes a filter (Firefox for the desktop)", () => {
+    const addListener = vi.fn();
+    listenTabLoads({ addListener }, listener, true);
+    expect(addListener.mock.calls).toEqual([[listener, { properties: ["status"] }]]);
+  });
+
+  it("falls back to the plain listener when the filter is refused (Firefox for Android)", () => {
+    const addListener = vi.fn((_l: unknown, filter?: unknown) => {
+      if (filter) throw new Error("Incorrect argument types for tabs.onUpdated.");
+    });
+    expect(() => listenTabLoads({ addListener }, listener, true)).not.toThrow();
+    expect(addListener).toHaveBeenLastCalledWith(listener);
+    expect(addListener).toHaveBeenCalledTimes(2);
+  });
+
+  it("never offers a filter where none is wanted (Chrome, Safari)", () => {
+    const addListener = vi.fn();
+    listenTabLoads({ addListener }, listener, false);
+    expect(addListener.mock.calls).toEqual([[listener]]);
   });
 });

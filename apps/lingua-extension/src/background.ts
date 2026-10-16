@@ -29,7 +29,7 @@ import {
   runAuthFlow,
 } from "./state/oidc.ts";
 import { isOpenPageMessage } from "./state/open-page.ts";
-import { countSupported, type PageReport } from "./state/badge.ts";
+import { countSupported, listenTabLoads, type PageReport, type TabUpdatedEvent } from "./state/badge.ts";
 import { type BadgeAction, badgeHost } from "./state/badge-host.ts";
 import { reviewRelay } from "./state/review-relay.ts";
 import { openOrFocusReader, READER_PAGE, type ReaderWhereMessage } from "./reader/locate.ts";
@@ -405,19 +405,16 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   });
   // A tab's load (D4): at its start the tab's own percentage goes, so it never outlives its page
   // whatever the browser does with a tab's values on a navigation; at its end a page that stayed
-  // says it again. `status` needs no permission. Firefox can be told to wake for it alone; Chrome
-  // refuses a filter on this event.
+  // says it again. `status` needs no permission. Firefox for the desktop can be told to wake for it
+  // alone; Firefox for Android and Chrome refuse a filter on this event (listenTabLoads).
   const onTabUpdated = (tabId: number, changeInfo: { status?: string }): void => {
     if (changeInfo.status) void badge.tabUpdated(tabId, changeInfo.status).catch(() => {});
   };
-  if (__TARGET__ === "firefox") {
-    (chrome.tabs.onUpdated.addListener as (cb: typeof onTabUpdated, filter: { properties: string[] }) => void)(
-      onTabUpdated,
-      { properties: ["status"] },
-    );
-  } else {
-    chrome.tabs.onUpdated.addListener(onTabUpdated);
-  }
+  listenTabLoads(
+    chrome.tabs.onUpdated as unknown as TabUpdatedEvent<typeof onTabUpdated>,
+    onTabUpdated,
+    __TARGET__ === "firefox",
+  );
   // A setting the count depends on: the allowance, the colours, the title's language, the switch.
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
