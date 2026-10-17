@@ -348,4 +348,83 @@ void main() {
     expect(manifest.blocks[0], isA<TextBlock>());
     expect(manifest.blocks[1], isA<PlayKeyBlock>());
   });
+
+  // change: add-music-piece-lessons
+  group('piece block', () {
+    test('parses the score reference, imposed settings and threshold', () {
+      final block = parseOne({
+        'type': 'piece',
+        'score': {'bundled': 'au-clair-de-la-lune'},
+        'hands': 'right',
+        'speed': 0.6,
+        'waitMode': true,
+        'metronome': false,
+        'readingAid': 'nameAndRhythm',
+        'passPct': 75,
+        'title': {'en': 'Slowly'},
+        'prompt': {'en': 'Take your time'},
+      });
+      final piece = block as PieceBlock;
+      expect(piece.score, const PieceScoreRef.bundled('au-clair-de-la-lune'));
+      expect(piece.score.key, 'bundled:au-clair-de-la-lune');
+      expect(piece.hands, LessonHands.right);
+      expect(piece.speed, 0.6);
+      expect(piece.waitMode, isTrue);
+      expect(piece.metronome, isFalse);
+      expect(piece.readingAid, LessonReadingAid.nameAndRhythm);
+      expect(piece.passPct, 75);
+      expect(piece.title['en'], 'Slowly');
+      expect(piece.prompt['en'], 'Take your time');
+    });
+
+    test('defaults: both hands, full speed, Wait Mode on, names, 80 %', () {
+      final piece =
+          parseOne({
+                'type': 'piece',
+                'score': {'catalog': 'abc'},
+              })
+              as PieceBlock;
+      expect(piece.score, const PieceScoreRef.catalog('abc'));
+      expect(piece.hands, LessonHands.both);
+      expect(piece.speed, 1.0);
+      expect(piece.waitMode, isTrue);
+      expect(piece.metronome, isFalse);
+      expect(piece.readingAid, LessonReadingAid.name);
+      expect(piece.passPct, kPieceDefaultPassPct);
+    });
+
+    test('clamps speed and threshold into their ranges', () {
+      final piece =
+          parseOne({
+                'type': 'piece',
+                'score': {'bundled': 'x'},
+                'speed': 3,
+                'passPct': 140,
+              })
+              as PieceBlock;
+      expect(piece.speed, 1.0);
+      expect(piece.passPct, 100);
+      final slow =
+          parseOne({
+                'type': 'piece',
+                'score': {'bundled': 'x'},
+                'speed': 0.1,
+                'passPct': 0,
+              })
+              as PieceBlock;
+      expect(slow.speed, 0.25);
+      expect(slow.passPct, 1);
+    });
+
+    test('a piece without a usable score reference is skipped, not fatal', () {
+      expect(parseOne({'type': 'piece'}), isA<UnsupportedBlock>());
+      expect(
+        parseOne({
+          'type': 'piece',
+          'score': {'bundled': ''},
+        }),
+        isA<UnsupportedBlock>(),
+      );
+    });
+  });
 }

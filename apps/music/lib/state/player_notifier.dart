@@ -33,6 +33,7 @@ import 'practice_settings_store.dart';
 import 'drum_input_mapping.dart';
 import 'drum_input_mapping_notifier.dart';
 import 'drum_kit.dart';
+import 'lesson_context.dart';
 import 'player_data.dart';
 import 'input_calibration_notifier.dart';
 import 'performance_scoring_core.dart';
@@ -142,8 +143,12 @@ class Player extends _$Player {
     });
     _loadInitial();
     // Seed from the device-persisted play preferences so hands / speed /
-    // metronome / MIDI device are remembered across scores and restarts.
+    // metronome / MIDI device are remembered across scores and restarts —
+    // unless a lesson's piece step opened this run (change:
+    // add-music-piece-lessons): its imposed settings win for the run, and the
+    // preferences are neither read for them nor written by them.
     final prefs = ref.read(playerPreferencesProvider);
+    final lesson = ref.read(pendingLessonContextProvider);
     // Initial MIDI status, read directly (cannot touch `state` during build).
     List<String> ports;
     String? device;
@@ -160,11 +165,13 @@ class Player extends _$Player {
     return PlayerData(
       midiPorts: ports,
       connectedDevice: device,
-      selectedHands: prefs.hands,
-      speed: prefs.speed,
-      metronomeEnabled: prefs.metronome,
+      selectedHands: lesson?.hands ?? prefs.hands,
+      speed: lesson?.speed ?? prefs.speed,
+      metronomeEnabled: lesson?.metronome ?? prefs.metronome,
+      waitMode: lesson?.waitMode ?? true,
       keyboardRange: prefs.keyboardRange,
-      readingAid: prefs.readingAid,
+      readingAid: lesson?.readingAid ?? prefs.readingAid,
+      lessonContext: lesson,
       instrumentSoundsItself: prefs.instrumentSoundsItself,
       usesMicrophoneInput:
           ref.read(effectivePlayerInputSourceProvider) ==
@@ -992,6 +999,8 @@ class Player extends _$Player {
   // Re-arm the onset gate at the current playhead when toggling Wait Mode on,
   // and silence any in-flight score voices so none hang across the switch.
   void toggleWaitMode() {
+    // Imposed by the lesson for this run (change: add-music-piece-lessons).
+    if (state.lessonContext != null) return;
     _silenceAll();
     state = state.copyWith(
       waitMode: !state.waitMode,
@@ -1006,6 +1015,7 @@ class Player extends _$Player {
   /// pieces and app restarts; ticks resume on the next beat boundary once
   /// playback runs again.
   void toggleMetronome() {
+    if (state.lessonContext != null) return;
     final next = !state.metronomeEnabled;
     ref.read(playerPreferencesProvider.notifier).setMetronome(enabled: next);
     state = state.copyWith(metronomeEnabled: next);
@@ -1014,6 +1024,7 @@ class Player extends _$Player {
 
   /// Sets the playback speed (0.25×–2×) and remembers it across scores/restarts.
   void setSpeed(double s) {
+    if (state.lessonContext != null) return;
     final clamped = s.clamp(0.25, 2.0);
     ref.read(playerPreferencesProvider.notifier).setSpeed(clamped);
     state = state.copyWith(speed: clamped);
@@ -1047,7 +1058,7 @@ class Player extends _$Player {
   /// Sets how much reading help is shown at a held onset, and remembers it
   /// across scores and restarts.
   void setReadingAid(NoteReadingAid aid) {
-    if (aid == state.readingAid) return;
+    if (aid == state.readingAid || state.lessonContext != null) return;
     ref.read(playerPreferencesProvider.notifier).setNoteReadingAid(aid);
     state = state.copyWith(readingAid: aid);
     _track(UsageActions.settingsChange, variant: UsageVariants.readingAid);
@@ -1059,6 +1070,7 @@ class Player extends _$Player {
   // onset that is now hidden (or pre-satisfied from the previous selection), and
   // silence voices so a now-hidden hand's notes don't keep sounding.
   void setSelectedHands(Hand hand) {
+    if (state.lessonContext != null) return;
     ref.read(playerPreferencesProvider.notifier).setHands(hand);
     _track(UsageActions.settingsChange, variant: UsageVariants.hand);
     _silenceAll();

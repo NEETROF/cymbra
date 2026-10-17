@@ -62,20 +62,28 @@ classified `wait` by performance scoring and their overall % is the reaction sco
 threshold applies to the overall % whatever the mode, which is what the author chose for
 that step.
 
-### D4 — Passed / best are additive columns and fields
-`course_progress` gains `passed_at timestamptz` and `best_sync_pct real`;
-`RecordCourseCompletionRequest` gains `optional bool passed` and `optional float
-best_sync_pct`, `CourseProgress` gains `int64 passed_at_ms` and `float best_sync_pct`.
-`passed_at` is set once (first pass), `best_sync_pct` is monotonic (greatest wins) so
-devices reconcile without ordering. A course with no piece step never writes them.
+### D4 — Passed / best are additive columns, recorded by their own RPC
+`course_progress` gains `passed_at timestamptz` and `best_sync_pct real`. A new
+`RecordCoursePieceResult(course_id, passed, sync_pct)` RPC writes them — not extra fields
+on `RecordCourseCompletion`, whose every call sets `completed_at` and bumps the play
+count: a piece run mid-lesson must do neither. The client judges `passed` against the
+step's threshold (the block is client-owned content); the server keeps `passed_at` once
+(first pass) and `best_sync_pct` monotonic (greatest wins) so devices reconcile without
+ordering. `CourseProgress` gains `int64 passed_at_ms` (0 = never) and `optional float
+best_sync_pct`. A row may now exist before any completion (`completed_at` NULL).
 
 ### D5 — Content rule: every unit closes with a piece lesson that fits what was taught
-Unit 1 (five notes, treble) → "Ode to Joy" right hand only; unit 2 (rhythm) → the same
-piece with its real rhythm; unit 3 (full treble staff) → "Twinkle" both phrases; unit 4
-(bass clef) → a left-hand accompaniment then hands together; units 5–7 draw from the
-catalogue's beginner pieces (Minuet in G for 6/8 and dotted values is intermediate — the
-corpus test asserts note range and rhythm figures against the unit's taught set so a
-mis-filed piece fails the test, not the learner).
+The bundled Ode to Joy carries eighths and two accidentals and the bundled Twinkle is a
+73-bar set of variations, so neither fits an early unit. Four short traditional tunes are
+authored as two-staff MusicXML (right hand on staff 1, a whole-note left hand on staff 2):
+unit 1 → Au clair de la lune, right hand (C4–G4, quarters/halves/wholes); unit 2 → Mary
+Had a Little Lamb with its rests, then with the metronome; unit 3 → a simple Twinkle
+(C4–A4); unit 4 → Au clair de la lune, left hand then both; unit 5 → Frère Jacques
+(eighths) both hands; unit 6 → Ode to Joy (its accidentals); unit 7 → the Minuet in G
+(key signature, 3/4, eighths) with the bar at 70 %. The corpus test scans each referenced
+MusicXML — figures, dots, rests, accidentals, key signature, clef and range, per the
+hands the step imposes — against a per-unit table of what has been taught, so a
+mis-filed piece fails the test, not the learner.
 
 ### D6 — Offline
 A `piece` step whose score bytes are not cached while offline shows the library's

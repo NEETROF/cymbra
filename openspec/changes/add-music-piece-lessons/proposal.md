@@ -25,8 +25,9 @@ existing course format, so the path finally leads to the keyboard.
   is content; the block only needs per-step hands, speed and gating.
 - **Passed state is persisted across devices.** The per-course progress record gains a
   *passed* timestamp and the *best synchronisation* reached on the course's piece steps,
-  recorded idempotently like completion. The path shows three states on a piece node:
-  not started, visited, passed.
+  recorded through a dedicated `RecordCoursePieceResult` call (first pass wins, the best
+  only rises, and a run never counts as a lesson completion). The path shows three states
+  on a piece node: not started, visited, passed.
 - **The player knows it is in a lesson.** In lesson context the pre-play setup modal is not
   shown (settings are imposed), the header shows the lesson's name and target, and the
   end-of-run summary's primary action is **Back to the lesson**. The player's own
@@ -61,11 +62,15 @@ progress contract, the repertoire content.
   `screens/player_screen.dart` and `screens/pre_play_setup_modal.dart` (lesson context),
   `widgets/session_summary_modal.dart` (back-to-lesson action), `state/player_notifier.dart`
   (per-run imposed settings), `state/course_completion_notifier.dart` (passed + best).
-- Backend: `music.course_progress` gains `passed_at` and `best_sync_pct`;
-  `RecordCourseCompletionRequest` gains `passed` and `best_sync_pct`, `CourseProgress`
-  gains `passed_at_ms` and `best_sync_pct` — **additive** fields, `buf breaking` passes.
+- Backend: `music.course_progress` gains `passed_at` and `best_sync_pct`; a new
+  `RecordCoursePieceResult` RPC records a run (completion keeps its own RPC, so a run never
+  bumps the lesson's play count), and `CourseProgress` gains `passed_at_ms` and
+  `best_sync_pct` — **additive**, `buf breaking` passes.
 - Content: `backend/content/courses/*.json` gains seven closing piece lessons; the seed
-  script regenerates `seed_courses.sql`.
+  script regenerates `seed_courses.sql`. Four short traditional tunes are added to the
+  bundled scores (Au clair de la lune, Mary Had a Little Lamb, a simple Twinkle, Frère
+  Jacques) because the existing bundled pieces use eighths and accidentals before the
+  units that teach them; Ode to Joy and the Minuet in G close units 6 and 7.
 - Tests: manifest parsing (unknown fields, old apps skip), block view states, player lesson
   context, summary action, notifier passed/best merge, Rust repo + RPC with mockall doubles,
   content corpus test extended to `piece` blocks.

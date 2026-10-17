@@ -215,6 +215,15 @@ abstract class CatalogService {
   Future<CatalogAccessState?> unlockForToday(String catalogId);
 }
 
+/// One catalog score by id (change: add-music-piece-lessons), for a lesson's
+/// piece step that names a catalogue piece. Its own seam, not a member of
+/// [CatalogService]: the many fakes of that seam never look a piece up, and
+/// `implements` would force each of them to carry a method they do not use.
+abstract class CatalogScoreLookup {
+  /// Throws when the id is unknown or the server unreachable.
+  Future<CatalogHit> getCatalogScore(String catalogId);
+}
+
 /// Map the wire access state (change: add-score-daily-access-rewards).
 CatalogAccessState accessStateFromWire(score.CatalogAccessState a) =>
     CatalogAccessState(
@@ -237,7 +246,7 @@ String? _levelWire(PracticeLevel? level) => level?.name;
 /// Production [CatalogService] over the generated `ScoreServiceClient`. Protected
 /// calls run through [authedCall] so a stale access token is refreshed once and
 /// the call retried transparently (mirrors [GrpcScoreUploadService]).
-class GrpcCatalogService implements CatalogService {
+class GrpcCatalogService implements CatalogService, CatalogScoreLookup {
   GrpcCatalogService({
     required ClientChannel channel,
     required AuthedRunner authed,
@@ -247,6 +256,16 @@ class GrpcCatalogService implements CatalogService {
 
   final score.ScoreServiceClient _client;
   final AuthedRunner _authed;
+
+  @override
+  Future<CatalogHit> getCatalogScore(String catalogId) =>
+      _authed((bearer) async {
+        final hit = await _client.getCatalogScore(
+          score.GetCatalogScoreRequest(catalogId: catalogId),
+          options: bearerOptions(bearer),
+        );
+        return _toHit(hit);
+      });
 
   CatalogHit _toHit(score.CatalogHit h) => CatalogHit(
     id: h.id,
@@ -422,6 +441,15 @@ class GrpcCatalogService implements CatalogService {
 /// Production catalog-service provider. Override in tests with a fake.
 @Riverpod(keepAlive: true)
 CatalogService catalogService(Ref ref) => GrpcCatalogService(
+  channel: ref.watch(cymbraChannelProvider),
+  authed: ref.watch(authedRunnerProvider),
+  deadlines: ref.watch(rpcDeadlinesProvider),
+);
+
+/// Production single-score lookup (change: add-music-piece-lessons). Override
+/// in tests with a fake; a piece step that names a catalogue piece reads it.
+@Riverpod(keepAlive: true)
+CatalogScoreLookup catalogScoreLookup(Ref ref) => GrpcCatalogService(
   channel: ref.watch(cymbraChannelProvider),
   authed: ref.watch(authedRunnerProvider),
   deadlines: ref.watch(rpcDeadlinesProvider),

@@ -46,21 +46,21 @@ class CoursesSection extends ConsumerWidget {
     if (courses.isEmpty) return const SizedBox.shrink();
 
     final l10n = AppLocalizations.of(context);
-    final completed = ref.watch(
-      courseCompletionProvider.select((s) => s.completed),
-    );
+    final completion = ref.watch(courseCompletionProvider);
     final lang = Localizations.localeOf(context).languageCode;
 
-    // The next uncompleted lesson in catalogue order — or the first lesson
-    // again when everything is done (courses stay replayable).
+    // The next lesson neither completed nor passed, in catalogue order — or
+    // the first lesson again when everything is done (courses stay
+    // replayable). A passed piece step counts as done (change:
+    // add-music-piece-lessons).
     final next = courses.firstWhere(
-      (c) => !completed.contains(c.id),
+      (c) => !completion.isDone(c.id),
       orElse: () => courses.first,
     );
     final unitLessons = courses
         .where((c) => c.unit == next.unit && c.level == next.level)
         .toList();
-    final unitDone = unitLessons.where((c) => completed.contains(c.id)).length;
+    final unitDone = unitLessons.where((c) => completion.isDone(c.id)).length;
     final unitTitle = resolveInline(next.unitTitle, lang);
 
     return Column(
@@ -146,19 +146,16 @@ class CoursesSection extends ConsumerWidget {
                           // (change: add-music-learn-play-home).
                           Hero(
                             tag: lessonHeroTag(next.id),
-                            child: Material(
-                              type: MaterialType.transparency,
-                              textStyle: DefaultTextStyle.of(context).style,
-                              child: Text(
-                                resolveInline(next.title, lang),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: CymbraColors.onSurface,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  height: 1.2,
-                                ),
+                            flightShuttleBuilder: heroTextFlight,
+                            child: Text(
+                              resolveInline(next.title, lang),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: CymbraColors.onSurface,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                height: 1.2,
                               ),
                             ),
                           ),

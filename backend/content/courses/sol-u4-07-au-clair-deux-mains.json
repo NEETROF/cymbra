@@ -1,0 +1,115 @@
+{
+  "id": "sol-u4-07-au-clair-deux-mains",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "intermediate",
+  "unit": "u4",
+  "unitTitle": {
+    "en": "Bass clef and the left hand",
+    "fr": "La clé de fa et la main gauche",
+    "es": "La clave de fa y la mano izquierda",
+    "it": "La chiave di basso e la mano sinistra"
+  },
+  "sortOrder": 407,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Your turn: Au clair de la lune, both hands",
+    "fr": "À toi de jouer : Au clair de la lune à deux mains",
+    "es": "Te toca: Au clair de la lune a dos manos",
+    "it": "Tocca a te: Au clair de la lune a due mani"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u4-07-au-clair-deux-mains",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "intermediate",
+    "title": {
+      "en": "Your turn: Au clair de la lune, both hands",
+      "fr": "À toi de jouer : Au clair de la lune à deux mains",
+      "es": "Te toca: Au clair de la lune a dos manos",
+      "it": "Tocca a te: Au clair de la lune a due mani"
+    },
+    "summary": {
+      "en": "The left hand reads the bass clef, then both hands together.",
+      "fr": "La main gauche lit la clé de fa, puis les deux mains ensemble.",
+      "es": "La mano izquierda lee la clave de fa, luego las dos manos juntas.",
+      "it": "La mano sinistra legge la chiave di basso, poi le due mani insieme."
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "You met Au clair de la lune in unit 1. Now the bass clef gives the left hand one long note per bar. Left hand alone first, then both hands.",
+          "fr": "Tu as rencontré Au clair de la lune à l’unité 1. Maintenant la clé de fa donne à la main gauche une note longue par mesure. Main gauche seule d’abord, puis les deux mains.",
+          "es": "Conociste Au clair de la lune en la unidad 1. Ahora la clave de fa da a la mano izquierda una nota larga por compás. Primero la mano izquierda sola, luego las dos manos.",
+          "it": "Hai incontrato Au clair de la lune nell’unità 1. Ora la chiave di basso dà alla mano sinistra una nota lunga per battuta. Prima la mano sinistra da sola, poi le due mani."
+        }
+      },
+      {
+        "type": "piece",
+        "score": {
+          "bundled": "au-clair-de-la-lune"
+        },
+        "hands": "left",
+        "speed": 0.6,
+        "waitMode": true,
+        "metronome": false,
+        "readingAid": "name",
+        "passPct": 80,
+        "title": {
+          "en": "Left hand alone",
+          "fr": "Main gauche seule",
+          "es": "Mano izquierda sola",
+          "it": "Mano sinistra da sola"
+        }
+      },
+      {
+        "type": "piece",
+        "score": {
+          "bundled": "au-clair-de-la-lune"
+        },
+        "hands": "both",
+        "speed": 0.6,
+        "waitMode": true,
+        "metronome": false,
+        "readingAid": "name",
+        "passPct": 80,
+        "title": {
+          "en": "Both hands, slowly",
+          "fr": "Deux mains, lentement",
+          "es": "Dos manos, despacio",
+          "it": "Due mani, lentamente"
+        }
+      },
+      {
+        "type": "piece",
+        "score": {
+          "bundled": "au-clair-de-la-lune"
+        },
+        "hands": "both",
+        "speed": 1.0,
+        "waitMode": false,
+        "metronome": false,
+        "readingAid": "name",
+        "passPct": 80,
+        "title": {
+          "en": "Both hands, in time",
+          "fr": "Deux mains, en rythme",
+          "es": "Dos manos, a tempo",
+          "it": "Due mani, a tempo"
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "Two staves, two hands, one tune: that is the grand staff doing its job.",
+          "fr": "Deux portées, deux mains, un seul air : la grande portée fait son travail.",
+          "es": "Dos pentagramas, dos manos, una sola melodía: el sistema de piano hace su trabajo.",
+          "it": "Due pentagrammi, due mani, una sola melodia: il sistema pianistico fa il suo lavoro."
+        }
+      }
+    ]
+  }
+}

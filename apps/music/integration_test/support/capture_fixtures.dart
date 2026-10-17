@@ -238,6 +238,24 @@ class CaptureCourseProgress implements CourseProgressService {
 
   @override
   Future<void> recordCompletion(String courseId) async {}
+
+  @override
+  Future<List<CourseProgressRecord>> progress() async => [
+    for (final course in kCaptureCourses.take(kCaptureCompletedLessons))
+      CourseProgressRecord(
+        courseId: course.id,
+        completed: true,
+        passed: false,
+        bestSyncPct: null,
+      ),
+  ];
+
+  @override
+  Future<void> recordPieceResult(
+    String courseId, {
+    required bool passed,
+    required double syncPct,
+  }) async {}
 }
 
 /// A silent [AudioService] — captures are images.

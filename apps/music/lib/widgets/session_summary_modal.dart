@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
 import '../state/leaderboard.dart';
+import '../state/lesson_context.dart';
 import '../state/leaderboard_notifier.dart';
 import '../state/performance_scoring_core.dart';
 import '../state/play_reward_cue.dart';
@@ -28,30 +29,45 @@ import 'leaderboard_view.dart';
 import 'post_play_rating.dart';
 
 /// What the player chose to do from the summary modal.
-enum SummaryAction { replay, retry, close }
+enum SummaryAction {
+  replay,
+  retry,
+  close,
+
+  /// Return to the lesson the run belonged to (change:
+  /// add-music-piece-lessons) — the primary action in lesson context.
+  backToLesson,
+}
 
 /// Shows the end-of-session summary for [result]. Returns the chosen
 /// [SummaryAction] (or [SummaryAction.close] if dismissed). The caller handles
 /// `replay` (it holds the score context the replay needs).
 Future<SummaryAction> showSessionSummary(
   BuildContext context,
-  SessionResult result,
-) async {
+  SessionResult result, {
+  LessonContext? lesson,
+}) async {
   final action = await showDialog<SummaryAction>(
     context: context,
     // The player must make an explicit choice (see mistakes / retry / quit) —
     // no dismiss by tapping outside or the back button.
     barrierDismissible: false,
-    builder: (context) =>
-        PopScope(canPop: false, child: _SummaryDialog(result: result)),
+    builder: (context) => PopScope(
+      canPop: false,
+      child: _SummaryDialog(result: result, lesson: lesson),
+    ),
   );
   return action ?? SummaryAction.close;
 }
 
 class _SummaryDialog extends StatelessWidget {
-  const _SummaryDialog({required this.result});
+  const _SummaryDialog({required this.result, this.lesson});
 
   final SessionResult result;
+
+  /// Set when the run was a lesson's piece step (change:
+  /// add-music-piece-lessons): the summary names the goal and leads back.
+  final LessonContext? lesson;
 
   @override
   Widget build(BuildContext context) {
@@ -113,6 +129,26 @@ class _SummaryDialog extends StatelessWidget {
                           color: CymbraColors.outline,
                         ),
                       ),
+                      // The step's bar, met or not (change:
+                      // add-music-piece-lessons). Never the success green on
+                      // a miss, never a celebration here either.
+                      if (lesson case final lesson?)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            lesson.passes(result)
+                                ? l10n.summaryGoalMet(lesson.passPct)
+                                : l10n.summaryGoalMissed(lesson.passPct),
+                            key: const Key('summary-goal'),
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: lesson.passes(result)
+                                  ? CymbraColors.tertiary
+                                  : CymbraColors.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
                       // What this run earned (change: add-play-rewards) — shown
                       // right under the score, where the work happened. Renders
                       // nothing at all when the run earned nothing.
@@ -307,17 +343,42 @@ class _SummaryDialog extends StatelessWidget {
 
   Widget _actions(BuildContext context, AppLocalizations l10n) => Column(
     children: [
-      // Primary action: see the mistakes on the score. Quit is the close cross.
-      SizedBox(
-        width: double.infinity,
-        child: FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: CymbraColors.primaryContainer,
+      // In a lesson run the way back to the lesson is the primary action
+      // (change: add-music-piece-lessons); seeing the mistakes steps down to a
+      // secondary button, retry stays.
+      if (lesson != null) ...[
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            key: const Key('summary-back-to-lesson'),
+            style: FilledButton.styleFrom(
+              backgroundColor: CymbraColors.primaryContainer,
+            ),
+            onPressed: () =>
+                Navigator.of(context).pop(SummaryAction.backToLesson),
+            child: Text(l10n.summaryBackToLesson),
           ),
-          onPressed: () => Navigator.of(context).pop(SummaryAction.replay),
-          child: Text(l10n.summaryReplay),
         ),
-      ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: () => Navigator.of(context).pop(SummaryAction.replay),
+            child: Text(l10n.summaryReplay),
+          ),
+        ),
+      ] else
+        // Primary action: see the mistakes on the score. Quit is the close cross.
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: CymbraColors.primaryContainer,
+            ),
+            onPressed: () => Navigator.of(context).pop(SummaryAction.replay),
+            child: Text(l10n.summaryReplay),
+          ),
+        ),
       const SizedBox(height: 8),
       // Sole secondary action. Drilling a passage is no longer offered here: the
       // range is picked in the play screen itself (long-press the rewind), so the

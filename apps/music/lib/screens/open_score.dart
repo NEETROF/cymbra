@@ -18,9 +18,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
+import '../courses/course_manifest.dart';
+import '../services/catalog_service.dart';
+import '../state/lesson_context.dart';
 import '../state/notation_data.dart';
 import '../state/notation_notifier.dart';
 import '../state/score_catalog.dart';
+import '../state/saved_catalog_scores.dart';
 import '../state/score_preview_playback.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/app_snackbar.dart';
@@ -43,8 +47,11 @@ const _minSpinnerVisible = Duration(milliseconds: 550);
 ///
 /// The returned future completes when the player is **left**, so a caller that
 /// has something to do afterwards (the no-account try offering sign-in) can
-/// simply await it; callers that just open a score keep ignoring it.
-Future<void> openScore(
+/// simply await it; callers that just open a score keep ignoring it. It
+/// resolves to the load failure when the player never opened, null otherwise
+/// (opened, or the wait was cancelled) — a lesson's piece step reads it
+/// (change: add-music-piece-lessons).
+Future<ScoreLoadFailure?> openScore(
   BuildContext context,
   WidgetRef ref,
   CatalogEntry entry,
@@ -130,12 +137,13 @@ Future<void> openScore(
     // The selection is already cleared, so the in-flight load's guards discard
     // its late result whether it succeeds or fails.
     sub.close();
-    return;
+    return null;
   }
   if (loaded) {
     await navigator
         .push(MaterialPageRoute<void>(builder: (_) => const PlayerScreen()))
         .whenComplete(sub.close);
+    return null;
   } else {
     // Surface the specific (but localized) cause — missing, not-ready, offline…
     final failure =
@@ -145,8 +153,72 @@ Future<void> openScore(
       // Refused by the daily quota (change: add-score-daily-access-rewards):
       // not an error — offer the teaser / the points unlock / the upsell.
       if (context.mounted) await showCatalogUnlockSheet(context, ref, entry);
-      return;
+      return failure;
     }
     showAppSnackBar(messenger, scoreLoadFailureMessage(l10n, failure));
+    return failure;
+  }
+}
+
+/// How a lesson's piece step's attempt to open its piece ended (change:
+/// add-music-piece-lessons).
+enum PieceOpenOutcome {
+  /// The player opened (and has been left since).
+  opened,
+
+  /// The piece is unknown, gone, or could not be loaded.
+  missing,
+
+  /// Offline, and the piece has no cached copy.
+  offline,
+}
+
+/// Resolves the score a piece step names into a playable library entry: a
+/// bundled score from the shipped catalog, or a catalogue piece looked up by
+/// id. Null when unknown or unreachable.
+Future<CatalogEntry?> resolvePieceEntry(
+  WidgetRef ref,
+  PieceScoreRef score,
+) async {
+  if (score.bundled case final id?) {
+    return ref.read(scoreCatalogProvider).where((e) => e.id == id).firstOrNull;
+  }
+  if (score.catalog case final id?) {
+    try {
+      return catalogEntryFromHit(
+        await ref.read(catalogScoreLookupProvider).getCatalogScore(id),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+  return null;
+}
+
+/// Opens the piece a lesson step names in the full player, with the lesson's
+/// imposed settings armed for that run (change: add-music-piece-lessons). The
+/// context is armed right before the player builds and cleared when it is
+/// left, so free play is never touched by it. Completes when the player is
+/// left (or could not open).
+Future<PieceOpenOutcome> openScoreForLesson(
+  BuildContext context,
+  WidgetRef ref, {
+  required PieceScoreRef score,
+  required LessonContext lesson,
+}) async {
+  final entry = await resolvePieceEntry(ref, score);
+  if (entry == null) return PieceOpenOutcome.missing;
+  if (!context.mounted) return PieceOpenOutcome.missing;
+  final pending = ref.read(pendingLessonContextProvider.notifier);
+  pending.arm(lesson);
+  try {
+    final failure = await openScore(context, ref, entry);
+    return switch (failure) {
+      null => PieceOpenOutcome.opened,
+      ScoreLoadFailure.offlineUnavailable => PieceOpenOutcome.offline,
+      _ => PieceOpenOutcome.missing,
+    };
+  } finally {
+    pending.clear();
   }
 }

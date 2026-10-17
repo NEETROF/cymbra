@@ -233,6 +233,37 @@ const List<CatalogEntry> _bundledEntries = [
     assetPath: 'assets/scores/beginner/twinkle.musicxml',
     level: PracticeLevel.beginner,
   ),
+  // Four short traditional tunes authored for the learning path's piece
+  // lessons (change: add-music-piece-lessons): each uses only what its unit
+  // taught — the corpus test holds them to it.
+  CatalogEntry(
+    id: 'au-clair-de-la-lune',
+    title: 'Au clair de la lune',
+    composer: 'Traditional',
+    assetPath: 'assets/scores/beginner/au_clair_de_la_lune.musicxml',
+    level: PracticeLevel.beginner,
+  ),
+  CatalogEntry(
+    id: 'mary-had-a-little-lamb',
+    title: 'Mary Had a Little Lamb',
+    composer: 'Traditional',
+    assetPath: 'assets/scores/beginner/mary_had_a_little_lamb.musicxml',
+    level: PracticeLevel.beginner,
+  ),
+  CatalogEntry(
+    id: 'twinkle-simple',
+    title: 'Twinkle, Twinkle (simple)',
+    composer: 'Traditional',
+    assetPath: 'assets/scores/beginner/twinkle_simple.musicxml',
+    level: PracticeLevel.beginner,
+  ),
+  CatalogEntry(
+    id: 'frere-jacques',
+    title: 'Frère Jacques',
+    composer: 'Traditional',
+    assetPath: 'assets/scores/beginner/frere_jacques.musicxml',
+    level: PracticeLevel.beginner,
+  ),
   CatalogEntry(
     id: 'minuet-in-g',
     title: 'Minuet in G (BWV Anh. 114)',

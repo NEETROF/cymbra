@@ -60,8 +60,9 @@ use crate::proto::{
     ListRewardShopResponse, ListSavedCatalogScoresRequest, ListSavedCatalogScoresResponse,
     ListScoreCollectionsRequest, ListScoreCollectionsResponse, ListSoundFontsRequest,
     ListSoundFontsResponse, ProposeScoreRequest, ProposeScoreResponse,
-    RecordCourseCompletionRequest, RecordCourseCompletionResponse, RedeemRewardRequest,
-    RedeemRewardResponse, RemoveSavedCatalogScoreRequest, RemoveSavedCatalogScoreResponse,
+    RecordCourseCompletionRequest, RecordCourseCompletionResponse, RecordCoursePieceResultRequest,
+    RecordCoursePieceResultResponse, RedeemRewardRequest, RedeemRewardResponse,
+    RemoveSavedCatalogScoreRequest, RemoveSavedCatalogScoreResponse,
     RemoveScoreFromCollectionRequest, RemoveScoreFromCollectionResponse,
     RenameScoreCollectionRequest, RenameScoreCollectionResponse, ReportContentRequest,
     ReportContentResponse, RewardActivity, RewardShopItem, SaveCatalogScoreRequest,
@@ -785,9 +786,37 @@ impl ScoreService for ScoreGrpc {
                 course_id: p.course_id,
                 completed: p.completed,
                 play_count: p.play_count as i32,
+                passed_at_ms: p.passed_at.map_or(0, |t| t.timestamp_millis()),
+                best_sync_pct: p.best_sync_pct,
             })
             .collect();
         Ok(Response::new(GetCourseProgressResponse { progress }))
+    }
+
+    /// One piece-step run of a course (change: add-music-piece-lessons).
+    /// Owner-scoped; first pass wins, the best only rises; never a completion.
+    async fn record_course_piece_result(
+        &self,
+        req: Request<RecordCoursePieceResultRequest>,
+    ) -> Result<Response<RecordCoursePieceResultResponse>, Status> {
+        let owner_id = owner(&req)?;
+        let RecordCoursePieceResultRequest {
+            course_id,
+            passed,
+            sync_pct,
+        } = req.into_inner();
+        if !(0.0..=100.0).contains(&sync_pct) || !sync_pct.is_finite() {
+            return Err(Status::invalid_argument("sync_pct must be within 0..=100"));
+        }
+        let store = self.course_progress()?;
+        let outcome = store
+            .record_piece_result(&owner_id, &course_id, passed, sync_pct)
+            .await
+            .map_err(|e| Status::internal(format!("record course piece result: {e}")))?;
+        Ok(Response::new(RecordCoursePieceResultResponse {
+            newly_passed: outcome.newly_passed,
+            best_sync_pct: outcome.best_sync_pct,
+        }))
     }
 
     /// Admin list of the SoundFont catalog (change:

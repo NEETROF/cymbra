@@ -34,7 +34,10 @@ import 'package:music/services/score_asset_source.dart';
 import 'package:music/services/score_upload_service.dart';
 import 'package:music/services/token_store.dart';
 import 'package:music/src/rust/frb_generated.dart';
+import 'package:music/courses/course_manifest.dart';
+import 'package:music/services/course_catalog_service.dart';
 import 'package:music/state/app_locale.dart';
+import 'package:music/state/home_door.dart';
 import 'package:music/state/onboarding_notifier.dart';
 import 'package:music/state/score_catalog.dart';
 import 'package:music/state/session_notifier.dart';
@@ -362,6 +365,79 @@ void main() {
     await watch(tester);
   });
 
+  // A lesson's piece step (change: add-music-piece-lessons) sends the learner
+  // to the REAL player — real Rust parse and layout of the piece — with the
+  // lesson's settings imposed, and takes them back. Courses come from the
+  // server, which this offline run cannot reach, so the lesson is served by a
+  // one-course fake catalogue; the piece is the bundled Ode to Joy, whose bytes
+  // the fixture asset source serves.
+  testWidgets('piece lesson: Learn → lesson → the player with the lesson in '
+      'charge → back to the lesson', (tester) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final prefs = _MemoryPrefs({
+      Onboarding.languagePrefsKey: 'true',
+      Onboarding.welcomePrefsKey: 'true',
+      HomeDoorChoice.prefsKey: 'learn',
+    });
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          scoreAssetSourceProvider.overrideWithValue(
+            const FixtureScoreAssetSource(),
+          ),
+          courseCatalogServiceProvider.overrideWithValue(
+            const _PieceLessonCatalog(),
+          ),
+          tokenStoreProvider.overrideWithValue(const _GuestTokenStore()),
+          connectivityServiceProvider.overrideWithValue(
+            const _FakeConnectivity(),
+          ),
+          deviceLocaleProvider.overrideWithValue(const Locale('en')),
+          preferencesServiceProvider.overrideWithValue(prefs),
+        ],
+        child: const CymbraApp(),
+      ),
+    );
+    Future<void> settle([int frames = 8]) async {
+      for (var i = 0; i < frames; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    await settle(12);
+    // The Learn door, remembered: the continue card names the one lesson.
+    expect(find.byKey(const Key('learn-door-body')), findsOneWidget);
+    await watch(tester);
+    await tester.tap(find.byKey(const Key('courses-continue-card')));
+    await settle(8);
+    expect(find.text('Your turn.'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('lesson-next')));
+    await settle(4);
+
+    // The piece step: imposed settings, the bar, Play.
+    expect(find.text('80 % overall sync to pass this step'), findsOneWidget);
+    expect(find.byKey(const Key('piece-start')), findsOneWidget);
+    await watch(tester);
+    await tester.tap(find.byKey(const Key('piece-start')));
+    // Asset load + real bridge parse/layout.
+    await settle(25);
+
+    // The real player, no setup modal, the lesson in the header.
+    expect(find.byKey(const Key('onscreen-keyboard')), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Play'), findsNothing);
+    expect(find.text('Lesson · Fa et sol · goal 80 %'), findsOneWidget);
+    await watch(tester);
+
+    // Leave the player: the lesson is where we left it, the step still open.
+    await tester.tap(find.byTooltip('Back to library'));
+    await settle(8);
+    expect(find.byKey(const Key('piece-start')), findsOneWidget);
+    await watch(tester);
+  });
+
   testWidgets('contribution wizard: import → verify → confirm → submit', (
     tester,
   ) async {
@@ -594,4 +670,36 @@ class _GuestTokenStore implements TokenStore {
 
   @override
   Future<void> clear() async {}
+}
+
+/// One lesson with a single piece step on the bundled Ode to Joy (change:
+/// add-music-piece-lessons), for the piece-lesson scenario.
+class _PieceLessonCatalog implements CourseCatalogService {
+  const _PieceLessonCatalog();
+
+  @override
+  Future<List<CourseListing>> listCourses() async => const [
+    CourseListing(
+      id: 'it-piece',
+      schemaVersion: 2,
+      unit: 'u1',
+      unitTitle: {'en': 'First notes'},
+      sortOrder: 101,
+      title: {'en': 'Fa et sol'},
+    ),
+  ];
+
+  @override
+  Future<String?> getCourseManifestJson(String id) async => '''
+{
+  "schemaVersion": 2, "id": "it-piece", "title": {"en": "Fa et sol"},
+  "blocks": [
+    {"type": "text", "text": {"en": "Your turn."}},
+    {"type": "piece", "score": {"bundled": "ode-to-joy"}, "hands": "right",
+     "speed": 0.6, "waitMode": true, "passPct": 80,
+     "title": {"en": "Ode to Joy, right hand"}},
+    {"type": "text", "text": {"en": "Well done."}}
+  ]
+}
+''';
 }

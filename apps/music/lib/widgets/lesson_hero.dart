@@ -19,6 +19,32 @@
 /// path nodes.
 library;
 
+import 'package:flutter/material.dart';
+
+/// The flight of a heroed text: in place the text renders exactly as it did
+/// before it was heroed (no wrapper at all), and only the shuttle crossing the
+/// overlay gets a Material and the destination's text style — the overlay has
+/// neither, and a bare Text there would fly underlined in yellow.
+Widget heroTextFlight(
+  BuildContext flightContext,
+  Animation<double> animation,
+  HeroFlightDirection direction,
+  BuildContext fromHeroContext,
+  BuildContext toHeroContext,
+) {
+  final source = direction == HeroFlightDirection.push
+      ? toHeroContext
+      : fromHeroContext;
+  final hero = source.widget as Hero;
+  return Material(
+    type: MaterialType.transparency,
+    child: DefaultTextStyle(
+      style: DefaultTextStyle.of(source).style,
+      child: hero.child,
+    ),
+  );
+}
+
 /// The tag of a lesson's title, by course id.
 String lessonHeroTag(String courseId) => 'lesson-hero-$courseId';
 

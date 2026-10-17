@@ -1,0 +1,133 @@
+{
+  "id": "sol-u6-07-ode-a-la-joie",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "intermediate",
+  "unit": "u6",
+  "unitTitle": {
+    "en": "Sharps, flats and keys",
+    "fr": "Dièses, bémols et tonalités",
+    "es": "Sostenidos, bemoles y tonalidades",
+    "it": "Diesis, bemolli e tonalità"
+  },
+  "sortOrder": 607,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Your turn: Ode to Joy",
+    "fr": "À toi de jouer : l’Ode à la joie",
+    "es": "Te toca: el Himno a la alegría",
+    "it": "Tocca a te: l’Inno alla gioia"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u6-07-ode-a-la-joie",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "intermediate",
+    "title": {
+      "en": "Your turn: Ode to Joy",
+      "fr": "À toi de jouer : l’Ode à la joie",
+      "es": "Te toca: el Himno a la alegría",
+      "it": "Tocca a te: l’Inno alla gioia"
+    },
+    "summary": {
+      "en": "Beethoven's theme with its accidentals, both hands.",
+      "fr": "Le thème de Beethoven avec ses altérations, à deux mains.",
+      "es": "El tema de Beethoven con sus alteraciones, a dos manos.",
+      "it": "Il tema di Beethoven con le sue alterazioni, a due mani."
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Beethoven's theme has a sharp waiting in it. Right hand, left hand, then both — and the last run is at tempo.",
+          "fr": "Le thème de Beethoven cache un dièse. Main droite, main gauche, puis les deux — et le dernier passage est au tempo.",
+          "es": "El tema de Beethoven esconde un sostenido. Mano derecha, mano izquierda, luego las dos; la última pasada es a tempo.",
+          "it": "Il tema di Beethoven nasconde un diesis. Mano destra, mano sinistra, poi le due: l’ultima esecuzione è a tempo."
+        }
+      },
+      {
+        "type": "piece",
+        "score": {
+          "bundled": "ode-to-joy"
+        },
+        "hands": "right",
+        "speed": 0.6,
+        "waitMode": true,
+        "metronome": false,
+        "readingAid": "name",
+        "passPct": 80,
+        "title": {
+          "en": "Right hand",
+          "fr": "Main droite",
+          "es": "Mano derecha",
+          "it": "Mano destra"
+        }
+      },
+      {
+        "type": "piece",
+        "score": {
+          "bundled": "ode-to-joy"
+        },
+        "hands": "left",
+        "speed": 0.6,
+        "waitMode": true,
+        "metronome": false,
+        "readingAid": "name",
+        "passPct": 80,
+        "title": {
+          "en": "Left hand",
+          "fr": "Main gauche",
+          "es": "Mano izquierda",
+          "it": "Mano sinistra"
+        }
+      },
+      {
+        "type": "piece",
+        "score": {
+          "bundled": "ode-to-joy"
+        },
+        "hands": "both",
+        "speed": 0.7,
+        "waitMode": true,
+        "metronome": false,
+        "readingAid": "name",
+        "passPct": 80,
+        "title": {
+          "en": "Both hands, slowly",
+          "fr": "Deux mains, lentement",
+          "es": "Dos manos, despacio",
+          "it": "Due mani, lentamente"
+        }
+      },
+      {
+        "type": "piece",
+        "score": {
+          "bundled": "ode-to-joy"
+        },
+        "hands": "both",
+        "speed": 1.0,
+        "waitMode": false,
+        "metronome": false,
+        "readingAid": "name",
+        "passPct": 80,
+        "title": {
+          "en": "Both hands, at tempo",
+          "fr": "Deux mains, au tempo",
+          "es": "Dos manos, a tempo",
+          "it": "Due mani, a tempo"
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "A real piece of the repertoire, read with accidentals and played with both hands.",
+          "fr": "Un vrai morceau du répertoire, lu avec ses altérations et joué à deux mains.",
+          "es": "Una pieza de verdad del repertorio, leída con sus alteraciones y tocada a dos manos.",
+          "it": "Un vero brano del repertorio, letto con le alterazioni e suonato a due mani."
+        }
+      }
+    ]
+  }
+}

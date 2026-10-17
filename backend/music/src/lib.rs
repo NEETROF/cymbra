@@ -107,7 +107,7 @@ pub use content_report::{
 pub use course::{Course, CourseRepo, CourseSummary, FakeCourseRepo, PgCourseRepo};
 pub use course_progress::{
     CompletionOutcome, CourseProgress, CourseProgressStore, FakeCourseProgressStore,
-    PgCourseProgressStore,
+    PgCourseProgressStore, PieceOutcome,
 };
 pub use curation_rewards::{
     ConsensusCandidate, CurationRewardsRepo, CurationRewardsSink, CuratorMetrics,

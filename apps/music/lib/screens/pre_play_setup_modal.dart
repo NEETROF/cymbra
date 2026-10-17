@@ -268,14 +268,46 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     final maxHeight = MediaQuery.of(context).size.height * 0.92;
 
     final facts = _facts(l10n, data, entry);
+    // A lesson's piece step imposes hands, tempo, metronome and reading aid
+    // for this run (change: add-music-piece-lessons): shown, greyed, inert —
+    // the learner sees why the hands are locked, and changes nothing.
+    final lesson = data.lessonContext;
+    Widget? locked(Widget? w) => w == null || lesson == null
+        ? w
+        : IgnorePointer(child: Opacity(opacity: 0.55, child: w));
+    final Widget? lessonBanner = lesson == null
+        ? null
+        : Padding(
+            key: const Key('pre-play-lesson-lock'),
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.lock_outline,
+                  size: 18,
+                  color: CymbraColors.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    l10n.prePlaySetByLesson(lesson.lessonTitle),
+                    style: const TextStyle(
+                      color: CymbraColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
     final sound = _soundSection(l10n, percussion: data.isPercussion);
     // The hand selector is a KEYBOARD control (change:
     // add-practice-focus-controls): a drum part is written on one staff, so the
     // staff mapping never applied to it. Percussion isolates part of a groove
     // through per-piece focus below, at the grain a drummer reasons in.
-    final hands = !data.isPercussion && data.hasMultipleStaves
-        ? _handsSection(l10n)
-        : null;
+    final hands = locked(
+      !data.isPercussion && data.hasMultipleStaves ? _handsSection(l10n) : null,
+    );
     final drumFocus = data.hasDrumPiecesToFocus
         ? _drumFocusSection(l10n, data)
         : null;
@@ -284,8 +316,8 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     final drumCalibration = data.isPercussion
         ? _drumCalibrationSection(l10n, data)
         : null;
-    final metronome = _metronomeTile(l10n);
-    final tempo = _tempoTile(l10n, data);
+    final metronome = locked(_metronomeTile(l10n))!;
+    final tempo = locked(_tempoTile(l10n, data))!;
     final midi = _inputSection(l10n, data);
     // Where the app's audio goes (change: add-audio-output-routing). Unlike the
     // drafted settings around it, this one applies immediately: the point of
@@ -304,9 +336,9 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     final Widget? invertedKit = data.isPercussion
         ? _invertedKitSection(l10n)
         : null;
-    final Widget? readingAid = data.isPercussion
-        ? null
-        : _readingAidSection(l10n);
+    final Widget? readingAid = locked(
+      data.isPercussion ? null : _readingAidSection(l10n),
+    );
     _scoreSizeDraft ??= resolveScoreSize(
       ref.read(playerPreferencesProvider).scoreSize,
       isPhone: phone,
@@ -341,6 +373,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     final Widget body = phone
         ? SingleChildScrollView(
             child: col([
+              ?lessonBanner,
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -370,6 +403,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
             ]),
           )
         : scrollCol([
+            ?lessonBanner,
             facts,
             ?hands,
             ?drumFocus,

@@ -1,0 +1,106 @@
+{
+  "id": "sol-u2-07-mary-had-a-little-lamb",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "beginner",
+  "unit": "u2",
+  "unitTitle": {
+    "en": "Pulse and rhythm",
+    "fr": "La pulsation et le rythme",
+    "es": "El pulso y el ritmo",
+    "it": "La pulsazione e il ritmo"
+  },
+  "sortOrder": 207,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Your turn: Mary Had a Little Lamb",
+    "fr": "À toi de jouer : Mary Had a Little Lamb",
+    "es": "Te toca: Mary Had a Little Lamb",
+    "it": "Tocca a te: Mary Had a Little Lamb"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u2-07-mary-had-a-little-lamb",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "beginner",
+    "title": {
+      "en": "Your turn: Mary Had a Little Lamb",
+      "fr": "À toi de jouer : Mary Had a Little Lamb",
+      "es": "Te toca: Mary Had a Little Lamb",
+      "it": "Tocca a te: Mary Had a Little Lamb"
+    },
+    "summary": {
+      "en": "Quarters, halves and rests, in time with the metronome.",
+      "fr": "Noires, blanches et silences, en mesure avec le métronome.",
+      "es": "Negras, blancas y silencios, a tiempo con el metrónomo.",
+      "it": "Semiminime, minime e pause, a tempo con il metronomo."
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Quarters, halves, a whole note and two rests: Mary Had a Little Lamb has them all. First slowly, with the player waiting; then with the metronome.",
+          "fr": "Des noires, des blanches, une ronde et deux silences : Mary Had a Little Lamb a tout ça. D’abord lentement avec le lecteur qui attend, puis avec le métronome.",
+          "es": "Negras, blancas, una redonda y dos silencios: Mary Had a Little Lamb lo tiene todo. Primero despacio con el reproductor esperando, luego con el metrónomo.",
+          "it": "Semiminime, minime, una semibreve e due pause: Mary Had a Little Lamb ha tutto. Prima lentamente con il lettore che aspetta, poi con il metronomo."
+        }
+      },
+      {
+        "type": "piece",
+        "score": {
+          "bundled": "mary-had-a-little-lamb"
+        },
+        "hands": "right",
+        "speed": 0.6,
+        "waitMode": true,
+        "metronome": false,
+        "readingAid": "name",
+        "passPct": 80,
+        "title": {
+          "en": "Mary — slowly",
+          "fr": "Mary — lentement",
+          "es": "Mary — despacio",
+          "it": "Mary — lentamente"
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "Now the same tune in time, with the metronome clicking the beats. Count the rests as carefully as the notes.",
+          "fr": "Maintenant le même air en mesure, le métronome marquant les temps. Compte les silences aussi soigneusement que les notes.",
+          "es": "Ahora la misma melodía a tiempo, con el metrónomo marcando los pulsos. Cuenta los silencios con tanto cuidado como las notas.",
+          "it": "Ora la stessa melodia a tempo, con il metronomo che segna i battiti. Conta le pause con la stessa cura delle note."
+        }
+      },
+      {
+        "type": "piece",
+        "score": {
+          "bundled": "mary-had-a-little-lamb"
+        },
+        "hands": "right",
+        "speed": 1.0,
+        "waitMode": false,
+        "metronome": true,
+        "readingAid": "nameAndRhythm",
+        "passPct": 80,
+        "title": {
+          "en": "Mary — with the metronome",
+          "fr": "Mary — avec le métronome",
+          "es": "Mary — con el metrónomo",
+          "it": "Mary — con il metronomo"
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "Rhythm is what makes a tune recognisable. You just proved it.",
+          "fr": "Le rythme, c’est ce qui rend un air reconnaissable. Tu viens de le prouver.",
+          "es": "El ritmo es lo que hace reconocible una melodía. Acabas de demostrarlo.",
+          "it": "Il ritmo è ciò che rende riconoscibile una melodia. L’hai appena dimostrato."
+        }
+      }
+    ]
+  }
+}

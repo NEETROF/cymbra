@@ -108,6 +108,41 @@ abstract class CourseProgressService {
   /// Records a completion of [courseId] for the signed-in user (idempotent
   /// server-side; the first one awards the badge).
   Future<void> recordCompletion(String courseId);
+
+  /// The signed-in user's progress on every course they touched (change:
+  /// add-music-piece-lessons): completion, and the piece steps' passed state
+  /// and best overall synchronisation.
+  Future<List<CourseProgressRecord>> progress();
+
+  /// Records one piece-step run of [courseId]: [passed] against the step's
+  /// threshold, and the run's overall [syncPct]. First pass wins, the best
+  /// only ever rises (both decided server-side). Never marks the course
+  /// completed — that is [recordCompletion]'s job.
+  Future<void> recordPieceResult(
+    String courseId, {
+    required bool passed,
+    required double syncPct,
+  });
+}
+
+/// One course's server-side progress record (change: add-music-piece-lessons).
+class CourseProgressRecord {
+  const CourseProgressRecord({
+    required this.courseId,
+    required this.completed,
+    required this.passed,
+    required this.bestSyncPct,
+  });
+
+  final String courseId;
+  final bool completed;
+
+  /// Whether a piece step of this course was ever passed.
+  final bool passed;
+
+  /// Best overall synchronisation reached on this course's piece steps, or
+  /// null when none was ever run.
+  final double? bestSyncPct;
 }
 
 /// Production [CourseProgressService] over the generated `ScoreServiceClient`.
@@ -138,6 +173,39 @@ class GrpcCourseProgressService implements CourseProgressService {
   Future<void> recordCompletion(String courseId) => _authed((bearer) async {
     await _client.recordCourseCompletion(
       score.RecordCourseCompletionRequest(courseId: courseId),
+      options: bearerOptions(bearer),
+    );
+  });
+
+  @override
+  Future<List<CourseProgressRecord>> progress() => _authed((bearer) async {
+    final resp = await _client.getCourseProgress(
+      score.GetCourseProgressRequest(),
+      options: bearerOptions(bearer),
+    );
+    return [
+      for (final p in resp.progress)
+        CourseProgressRecord(
+          courseId: p.courseId,
+          completed: p.completed,
+          passed: p.passedAtMs > 0,
+          bestSyncPct: p.hasBestSyncPct() ? p.bestSyncPct : null,
+        ),
+    ];
+  });
+
+  @override
+  Future<void> recordPieceResult(
+    String courseId, {
+    required bool passed,
+    required double syncPct,
+  }) => _authed((bearer) async {
+    await _client.recordCoursePieceResult(
+      score.RecordCoursePieceResultRequest(
+        courseId: courseId,
+        passed: passed,
+        syncPct: syncPct,
+      ),
       options: bearerOptions(bearer),
     );
   });

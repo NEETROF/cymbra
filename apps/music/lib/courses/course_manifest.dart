@@ -38,6 +38,39 @@ part 'course_manifest.freezed.dart';
 /// `earChoice`, `buildChord`).
 const int kCourseSchemaVersion = 2;
 
+/// Which hand(s) a `piece` step imposes on the player (change:
+/// add-music-piece-lessons). Mirrors the player's hand filter without the
+/// courses module depending on the player's state types.
+enum LessonHands { right, left, both }
+
+/// How much reading help a `piece` step imposes while Wait Mode holds.
+enum LessonReadingAid { off, name, nameAndRhythm }
+
+/// Which score a `piece` step opens: a bundled score by its catalog-entry id,
+/// or a public-catalogue piece by its catalog id. Exactly one is set.
+class PieceScoreRef {
+  const PieceScoreRef.bundled(String id) : bundled = id, catalog = null;
+  const PieceScoreRef.catalog(String id) : catalog = id, bundled = null;
+
+  final String? bundled;
+  final String? catalog;
+
+  /// A stable key for the step's persisted outcome.
+  String get key => bundled != null ? 'bundled:$bundled' : 'catalog:$catalog';
+
+  @override
+  bool operator ==(Object other) =>
+      other is PieceScoreRef &&
+      other.bundled == bundled &&
+      other.catalog == catalog;
+
+  @override
+  int get hashCode => Object.hash(bundled, catalog);
+}
+
+/// The pass threshold a `piece` step uses when its manifest names none.
+const int kPieceDefaultPassPct = 80;
+
 /// Inline-localized text: language code → string. Kept as a plain map so a
 /// third-party manifest is self-contained (no dependency on the app's ARBs).
 typedef InlineText = Map<String, String>;
@@ -279,6 +312,23 @@ sealed class CourseBlock with _$CourseBlock {
     @Default(<String, String>{}) InlineText prompt,
   }) = BuildChordBlock;
 
+  /// Sends the learner to the FULL score player on [score] with the settings
+  /// this step imposes, and a success threshold (change:
+  /// add-music-piece-lessons). The player returns the run's result; the step
+  /// is passed when the overall synchronisation meets [passPct], visited
+  /// otherwise — and a visited step never traps the learner.
+  const factory CourseBlock.piece({
+    required PieceScoreRef score,
+    @Default(LessonHands.both) LessonHands hands,
+    @Default(1.0) double speed,
+    @Default(true) bool waitMode,
+    @Default(false) bool metronome,
+    @Default(LessonReadingAid.name) LessonReadingAid readingAid,
+    @Default(kPieceDefaultPassPct) int passPct,
+    @Default(<String, String>{}) InlineText title,
+    @Default(<String, String>{}) InlineText prompt,
+  }) = PieceBlock;
+
   /// A block whose `type` this build does not support — skipped at play time.
   const factory CourseBlock.unsupported({required String type}) =
       UnsupportedBlock;
@@ -509,6 +559,40 @@ CourseBlock _parseBlock(Object? raw) {
       }
       return CourseBlock.buildChord(
         notes: notes,
+        prompt: _inline(raw['prompt']),
+      );
+    case 'piece':
+      final rawRef = raw['score'];
+      PieceScoreRef? ref;
+      if (rawRef is Map) {
+        final b = rawRef['bundled'];
+        final c = rawRef['catalog'];
+        if (b is String && b.isNotEmpty) {
+          ref = PieceScoreRef.bundled(b);
+        } else if (c is String && c.isNotEmpty) {
+          ref = PieceScoreRef.catalog(c);
+        }
+      }
+      if (ref == null) return const CourseBlock.unsupported(type: 'piece');
+      final speed = raw['speed'];
+      final pass = raw['passPct'];
+      return CourseBlock.piece(
+        score: ref,
+        hands: switch (raw['hands']) {
+          'right' => LessonHands.right,
+          'left' => LessonHands.left,
+          _ => LessonHands.both,
+        },
+        speed: speed is num ? speed.toDouble().clamp(0.25, 1.0) : 1.0,
+        waitMode: raw['waitMode'] != false,
+        metronome: raw['metronome'] == true,
+        readingAid: switch (raw['readingAid']) {
+          'off' => LessonReadingAid.off,
+          'nameAndRhythm' => LessonReadingAid.nameAndRhythm,
+          _ => LessonReadingAid.name,
+        },
+        passPct: pass is int ? pass.clamp(1, 100) : kPieceDefaultPassPct,
+        title: _inline(raw['title']),
         prompt: _inline(raw['prompt']),
       );
     default:

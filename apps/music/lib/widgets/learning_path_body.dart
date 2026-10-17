@@ -77,12 +77,12 @@ class LearningPathBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final lang = Localizations.localeOf(context).languageCode;
     final listings = ref.watch(coursesProvider).valueOrNull ?? const [];
-    final completed = ref.watch(
-      courseCompletionProvider.select((s) => s.completed),
-    );
+    final completion = ref.watch(courseCompletionProvider);
     final units = pathUnitsOf(listings);
+    // Next up: the first course neither completed nor passed (change:
+    // add-music-piece-lessons — a passed piece step counts as done).
     final nextId = listings
-        .where((l) => !completed.contains(l.id))
+        .where((l) => !completion.isDone(l.id))
         .map((l) => l.id)
         .firstOrNull;
     return Column(
@@ -92,7 +92,7 @@ class LearningPathBody extends ConsumerWidget {
           _UnitSection(
             unit: units[i],
             glyph: _unitGlyphs[i % _unitGlyphs.length],
-            completed: completed,
+            completion: completion,
             nextId: nextId,
             lang: lang,
             heroes: heroes,
@@ -106,7 +106,7 @@ class _UnitSection extends StatelessWidget {
   const _UnitSection({
     required this.unit,
     required this.glyph,
-    required this.completed,
+    required this.completion,
     required this.nextId,
     required this.lang,
     required this.heroes,
@@ -114,14 +114,14 @@ class _UnitSection extends StatelessWidget {
 
   final PathUnit unit;
   final String glyph;
-  final Set<String> completed;
+  final CourseCompletionState completion;
   final String? nextId;
   final String lang;
   final bool heroes;
 
   @override
   Widget build(BuildContext context) {
-    final done = unit.lessons.where((l) => completed.contains(l.id)).length;
+    final done = unit.lessons.where((l) => completion.isDone(l.id)).length;
     final total = unit.lessons.length;
     final title = resolveInline(unit.title, lang);
     return Column(
@@ -194,11 +194,7 @@ class _UnitSection extends StatelessWidget {
         for (var i = 0; i < unit.lessons.length; i++)
           _LessonNode(
             listing: unit.lessons[i],
-            state: completed.contains(unit.lessons[i].id)
-                ? _NodeState.done
-                : (unit.lessons[i].id == nextId
-                      ? _NodeState.next
-                      : _NodeState.later),
+            state: _stateOf(unit.lessons[i].id),
             // A gentle meander keeps the path playful without a custom canvas.
             indent: 12.0 + 28.0 * ((i % 4 < 2) ? (i % 4) : (3 - i % 4)),
             lang: lang,
@@ -207,9 +203,18 @@ class _UnitSection extends StatelessWidget {
       ],
     );
   }
+
+  /// Passed, or completed without any piece run → done. Completed with a
+  /// piece run that never passed → visited (the third state, change:
+  /// add-music-piece-lessons). Otherwise next up or later.
+  _NodeState _stateOf(String id) {
+    if (completion.isVisited(id)) return _NodeState.visited;
+    if (completion.isDone(id)) return _NodeState.done;
+    return id == nextId ? _NodeState.next : _NodeState.later;
+  }
 }
 
-enum _NodeState { done, next, later }
+enum _NodeState { done, visited, next, later }
 
 class _LessonNode extends StatefulWidget {
   const _LessonNode({
@@ -266,8 +271,10 @@ class _LessonNodeState extends State<_LessonNode>
     final title = resolveInline(widget.listing.title, widget.lang);
     final isNext = widget.state == _NodeState.next;
     final isDone = widget.state == _NodeState.done;
+    final isVisited = widget.state == _NodeState.visited;
     final circleColor = switch (widget.state) {
       _NodeState.done => CymbraColors.tertiary,
+      _NodeState.visited => CymbraColors.secondaryContainer,
       _NodeState.next => CymbraColors.primary,
       _NodeState.later => CymbraColors.surfaceContainerHigh,
     };
@@ -317,9 +324,14 @@ class _LessonNodeState extends State<_LessonNode>
                   child: Icon(
                     isDone
                         ? Icons.check
+                        : isVisited
+                        ? Icons.replay
                         : (isNext ? Icons.play_arrow : Icons.music_note),
+                    key: isVisited
+                        ? Key('path-visited-${widget.listing.id}')
+                        : null,
                     size: 20,
-                    color: isDone || isNext
+                    color: isDone || isNext || isVisited
                         ? CymbraColors.surfaceContainerLowest
                         : CymbraColors.onSurfaceVariant.withValues(alpha: 0.6),
                   ),
@@ -331,11 +343,8 @@ class _LessonNodeState extends State<_LessonNode>
                 child: widget.hero
                     ? Hero(
                         tag: lessonHeroTag(widget.listing.id),
-                        child: Material(
-                          type: MaterialType.transparency,
-                          textStyle: DefaultTextStyle.of(context).style,
-                          child: titleText,
-                        ),
+                        flightShuttleBuilder: heroTextFlight,
+                        child: titleText,
                       )
                     : titleText,
               ),

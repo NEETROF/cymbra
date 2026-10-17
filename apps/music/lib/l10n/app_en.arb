@@ -4133,5 +4133,148 @@
   "learnDoorEmpty": "Courses are on their way. Meanwhile, the Play door is one tap away.",
   "@learnDoorEmpty": {
       "description": "Learn door body when no course is available (none published, or unreachable with no cache)."
+  },
+  "pieceStart": "Play the piece",
+  "@pieceStart": {
+      "description": "Piece step: primary button before the first run (change: add-music-piece-lessons)."
+  },
+  "pieceTryAgain": "Try again",
+  "@pieceTryAgain": {
+      "description": "Piece step: primary button after a run."
+  },
+  "pieceTarget": "{pct} % overall sync to pass this step",
+  "@pieceTarget": {
+      "description": "Piece step: the bar to clear; {pct} is the overall synchronisation percentage.",
+      "placeholders": {
+          "pct": {
+              "type": "int"
+          }
+      }
+  },
+  "pieceNotStarted": "Not played yet",
+  "@pieceNotStarted": {
+      "description": "Piece step state: no run yet."
+  },
+  "piecePassed": "Step passed · {pct} %",
+  "@piecePassed": {
+      "description": "Piece step state: passed; {pct} is the best overall synchronisation.",
+      "placeholders": {
+          "pct": {
+              "type": "int"
+          }
+      }
+  },
+  "pieceVisited": "Visited · best {pct} %",
+  "@pieceVisited": {
+      "description": "Piece step state: run but never passed; {pct} is the best so far.",
+      "placeholders": {
+          "pct": {
+              "type": "int"
+          }
+      }
+  },
+  "pieceHandsRight": "Right hand",
+  "@pieceHandsRight": {
+      "description": "Imposed setting chip."
+  },
+  "pieceHandsLeft": "Left hand",
+  "@pieceHandsLeft": {
+      "description": "Imposed setting chip."
+  },
+  "pieceHandsBoth": "Both hands",
+  "@pieceHandsBoth": {
+      "description": "Imposed setting chip."
+  },
+  "pieceSpeed": "Speed {pct} %",
+  "@pieceSpeed": {
+      "description": "Imposed setting chip; {pct} is the playback speed in percent.",
+      "placeholders": {
+          "pct": {
+              "type": "int"
+          }
+      }
+  },
+  "pieceWaitOn": "Wait Mode",
+  "@pieceWaitOn": {
+      "description": "Imposed setting chip: Wait Mode on."
+  },
+  "pieceWaitOff": "Free run",
+  "@pieceWaitOff": {
+      "description": "Imposed setting chip: Wait Mode off (the piece runs at tempo)."
+  },
+  "pieceMetronomeOn": "Metronome",
+  "@pieceMetronomeOn": {
+      "description": "Imposed setting chip."
+  },
+  "pieceMetronomeOff": "No metronome",
+  "@pieceMetronomeOff": {
+      "description": "Imposed setting chip."
+  },
+  "pieceAidName": "Note names",
+  "@pieceAidName": {
+      "description": "Imposed setting chip: reading aid shows the note's name."
+  },
+  "pieceAidNameRhythm": "Names and rhythm",
+  "@pieceAidNameRhythm": {
+      "description": "Imposed setting chip: reading aid shows the name and the rhythmic figure."
+  },
+  "pieceAidOff": "No reading aid",
+  "@pieceAidOff": {
+      "description": "Imposed setting chip: no reading aid."
+  },
+  "pieceMissing": "This piece is not available.",
+  "@pieceMissing": {
+      "description": "Piece step: the referenced piece is unknown or gone."
+  },
+  "pieceOffline": "This piece is not available offline.",
+  "@pieceOffline": {
+      "description": "Piece step: offline and the piece has no cached copy."
+  },
+  "pieceCatalogPiece": "Catalogue piece",
+  "@pieceCatalogPiece": {
+      "description": "Piece step title fallback for a catalogue piece whose title is only known once opened."
+  },
+  "summaryBackToLesson": "Back to the lesson",
+  "@summaryBackToLesson": {
+      "description": "End-of-run summary: primary action in a lesson run."
+  },
+  "summaryGoalMet": "Goal {pct} % met",
+  "@summaryGoalMet": {
+      "description": "End-of-run summary in a lesson run: the step's threshold was met.",
+      "placeholders": {
+          "pct": {
+              "type": "int"
+          }
+      }
+  },
+  "summaryGoalMissed": "Goal {pct} % · not yet",
+  "@summaryGoalMissed": {
+      "description": "End-of-run summary in a lesson run: the step's threshold was not met.",
+      "placeholders": {
+          "pct": {
+              "type": "int"
+          }
+      }
+  },
+  "playerLessonHeader": "Lesson · {title} · goal {pct} %",
+  "@playerLessonHeader": {
+      "description": "Player top bar in a lesson run: {title} is the lesson's title, {pct} the step's threshold.",
+      "placeholders": {
+          "pct": {
+              "type": "int"
+          },
+          "title": {
+              "type": "String"
+          }
+      }
+  },
+  "prePlaySetByLesson": "Set by the lesson “{title}”",
+  "@prePlaySetByLesson": {
+      "description": "Pre-play setup banner in a lesson run: the imposed settings are locked; {title} is the lesson's title.",
+      "placeholders": {
+          "title": {
+              "type": "String"
+          }
+      }
   }
 }

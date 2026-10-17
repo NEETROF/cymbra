@@ -172,19 +172,16 @@ class ScoreCard extends StatelessWidget {
                     // add-music-learn-play-home).
                     Hero(
                       tag: scoreHeroTag(entry.id),
-                      child: Material(
-                        type: MaterialType.transparency,
-                        textStyle: DefaultTextStyle.of(context).style,
-                        child: Text(
-                          entry.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: CymbraColors.onSurface,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            height: 1.15,
-                          ),
+                      flightShuttleBuilder: heroTextFlight,
+                      child: Text(
+                        entry.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: CymbraColors.onSurface,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          height: 1.15,
                         ),
                       ),
                     ),

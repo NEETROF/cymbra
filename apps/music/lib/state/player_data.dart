@@ -18,6 +18,7 @@ import '../painters/keyboard_range.dart';
 import '../src/rust/api/musicxml.dart' show BeamState, HeadClass;
 import '../src/rust/api/score.dart';
 import 'drum_kit.dart';
+import 'lesson_context.dart';
 import 'note_density_core.dart';
 import 'performance_scoring_core.dart' show ScoreClocks, judgmentClock;
 
@@ -587,6 +588,12 @@ abstract class PlayerData with _$PlayerData {
     /// from the persisted play preferences (like [metronomeEnabled]) and changed
     /// through the setup modal / in-game settings.
     @Default(NoteReadingAid.name) NoteReadingAid readingAid,
+
+    /// The lesson this run belongs to, when a `piece` step opened the player
+    /// (change: add-music-piece-lessons): the imposed settings are a per-run
+    /// override, so the setters leave the preferences alone while it is set
+    /// and the pre-play setup is not shown. Null for free play.
+    LessonContext? lessonContext,
 
     /// Whether the connected MIDI instrument produces its own sound, so the app
     /// must not duplicate it (change: add-audio-output-routing). Seeded from the

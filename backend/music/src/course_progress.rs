@@ -26,12 +26,23 @@ use anyhow::{Context, Result};
 use async_trait::async_trait;
 use sqlx::{PgPool, Row};
 
-/// A user's progress on one course.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// A user's progress on one course. `passed_at` / `best_sync_pct` are the
+/// piece-step outcome (change: add-music-piece-lessons): first pass, best run.
+#[derive(Debug, Clone, PartialEq)]
 pub struct CourseProgress {
     pub course_id: String,
     pub completed: bool,
     pub play_count: i64,
+    pub passed_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub best_sync_pct: Option<f32>,
+}
+
+/// The result of recording a piece-step run: whether this was the FIRST pass of
+/// the course, and the best overall synchronisation after this run.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PieceOutcome {
+    pub newly_passed: bool,
+    pub best_sync_pct: f32,
 }
 
 /// The result of recording a completion: whether this was the **first** time the
@@ -53,6 +64,17 @@ pub trait CourseProgressStore: Send + Sync {
 
     /// Every course the user has any progress on (completed courses included).
     async fn list(&self, user_id: &str) -> Result<Vec<CourseProgress>>;
+
+    /// Records one piece-step run of `course_id` by `user_id` (change:
+    /// add-music-piece-lessons): `passed_at` is set on the first pass and kept,
+    /// `best_sync_pct` only rises. Never marks the course completed.
+    async fn record_piece_result(
+        &self,
+        user_id: &str,
+        course_id: &str,
+        passed: bool,
+        sync_pct: f32,
+    ) -> Result<PieceOutcome>;
 }
 
 /// Postgres-backed [`CourseProgressStore`] over `music.course_progress`.
@@ -98,7 +120,8 @@ impl CourseProgressStore for PgCourseProgressStore {
             return Ok(Vec::new());
         };
         let rows = sqlx::query(
-            "SELECT course_id, completed_at IS NOT NULL AS completed, play_count \
+            "SELECT course_id, completed_at IS NOT NULL AS completed, play_count, \
+                    passed_at, best_sync_pct \
              FROM music.course_progress WHERE user_id = $1 ORDER BY course_id",
         )
         .bind(user)
@@ -111,43 +134,114 @@ impl CourseProgressStore for PgCourseProgressStore {
                 course_id: r.get::<String, _>("course_id"),
                 completed: r.get::<bool, _>("completed"),
                 play_count: r.get::<i32, _>("play_count") as i64,
+                passed_at: r.get::<Option<chrono::DateTime<chrono::Utc>>, _>("passed_at"),
+                best_sync_pct: r.get::<Option<f32>, _>("best_sync_pct"),
             })
             .collect())
     }
+
+    async fn record_piece_result(
+        &self,
+        user_id: &str,
+        course_id: &str,
+        passed: bool,
+        sync_pct: f32,
+    ) -> Result<PieceOutcome> {
+        let user = uuid::Uuid::parse_str(user_id).context("record piece result: bad user id")?;
+        // The CTE reads the row BEFORE the upsert so "first pass" is exact; the
+        // upsert itself never touches completed_at / play_count (a piece run is
+        // not a lesson completion).
+        let row = sqlx::query(
+            "WITH old AS ( \
+                 SELECT passed_at FROM music.course_progress \
+                 WHERE user_id = $1 AND course_id = $2 \
+             ), up AS ( \
+                 INSERT INTO music.course_progress \
+                     (user_id, course_id, play_count, passed_at, best_sync_pct) \
+                 VALUES ($1, $2, 0, CASE WHEN $3 THEN now() END, $4) \
+                 ON CONFLICT (user_id, course_id) DO UPDATE SET \
+                     passed_at = COALESCE(music.course_progress.passed_at, \
+                                          CASE WHEN $3 THEN now() END), \
+                     best_sync_pct = GREATEST( \
+                         COALESCE(music.course_progress.best_sync_pct, 0), $4), \
+                     updated_at = now() \
+                 RETURNING passed_at, best_sync_pct \
+             ) \
+             SELECT up.passed_at, up.best_sync_pct, \
+                    (SELECT passed_at FROM old) AS old_passed_at \
+             FROM up",
+        )
+        .bind(user)
+        .bind(course_id)
+        .bind(passed)
+        .bind(sync_pct)
+        .fetch_one(&self.pool)
+        .await
+        .context("record course piece result")?;
+        let now_passed = row
+            .get::<Option<chrono::DateTime<chrono::Utc>>, _>("passed_at")
+            .is_some();
+        let was_passed = row
+            .get::<Option<chrono::DateTime<chrono::Utc>>, _>("old_passed_at")
+            .is_some();
+        Ok(PieceOutcome {
+            newly_passed: now_passed && !was_passed,
+            best_sync_pct: row.get::<Option<f32>, _>("best_sync_pct").unwrap_or(0.0),
+        })
+    }
+}
+
+/// One in-memory row of the fake store.
+#[derive(Debug, Clone)]
+struct FakeRow {
+    user_id: String,
+    course_id: String,
+    /// `None` until the first completion (a piece run alone creates the row).
+    play_count: Option<i64>,
+    passed_at: Option<chrono::DateTime<chrono::Utc>>,
+    best_sync_pct: Option<f32>,
 }
 
 /// In-memory [`CourseProgressStore`] for tests. Interior-mutable so the write
 /// path works through the shared `&self` trait. Encodes the same idempotency as
-/// the SQL upsert: first completion is `newly_completed`, replays only count.
+/// the SQL upserts: first completion is `newly_completed`, replays only count;
+/// first pass is `newly_passed`, the best only rises.
 #[derive(Default)]
 pub struct FakeCourseProgressStore {
-    // (user_id, course_id) -> play_count (presence ⇒ completed).
-    rows: Mutex<Vec<(String, String, i64)>>,
+    rows: Mutex<Vec<FakeRow>>,
+}
+
+impl FakeCourseProgressStore {
+    fn upsert<'a>(rows: &'a mut Vec<FakeRow>, user_id: &str, course_id: &str) -> &'a mut FakeRow {
+        if let Some(i) = rows
+            .iter()
+            .position(|r| r.user_id == user_id && r.course_id == course_id)
+        {
+            return &mut rows[i];
+        }
+        rows.push(FakeRow {
+            user_id: user_id.to_string(),
+            course_id: course_id.to_string(),
+            play_count: None,
+            passed_at: None,
+            best_sync_pct: None,
+        });
+        rows.last_mut().unwrap()
+    }
 }
 
 #[async_trait]
 impl CourseProgressStore for FakeCourseProgressStore {
     async fn record_completion(&self, user_id: &str, course_id: &str) -> Result<CompletionOutcome> {
         let mut rows = self.rows.lock().unwrap();
-        match rows
-            .iter_mut()
-            .find(|(u, c, _)| u == user_id && c == course_id)
-        {
-            Some((_, _, count)) => {
-                *count += 1;
-                Ok(CompletionOutcome {
-                    newly_completed: false,
-                    play_count: *count,
-                })
-            }
-            None => {
-                rows.push((user_id.to_string(), course_id.to_string(), 1));
-                Ok(CompletionOutcome {
-                    newly_completed: true,
-                    play_count: 1,
-                })
-            }
-        }
+        let row = Self::upsert(&mut rows, user_id, course_id);
+        let newly = row.play_count.is_none();
+        let count = row.play_count.unwrap_or(0) + 1;
+        row.play_count = Some(count);
+        Ok(CompletionOutcome {
+            newly_completed: newly,
+            play_count: count,
+        })
     }
 
     async fn list(&self, user_id: &str) -> Result<Vec<CourseProgress>> {
@@ -156,15 +250,38 @@ impl CourseProgressStore for FakeCourseProgressStore {
             .lock()
             .unwrap()
             .iter()
-            .filter(|(u, _, _)| u == user_id)
-            .map(|(_, c, count)| CourseProgress {
-                course_id: c.clone(),
-                completed: true,
-                play_count: *count,
+            .filter(|r| r.user_id == user_id)
+            .map(|r| CourseProgress {
+                course_id: r.course_id.clone(),
+                completed: r.play_count.is_some(),
+                play_count: r.play_count.unwrap_or(0),
+                passed_at: r.passed_at,
+                best_sync_pct: r.best_sync_pct,
             })
             .collect();
         out.sort_by(|a, b| a.course_id.cmp(&b.course_id));
         Ok(out)
+    }
+
+    async fn record_piece_result(
+        &self,
+        user_id: &str,
+        course_id: &str,
+        passed: bool,
+        sync_pct: f32,
+    ) -> Result<PieceOutcome> {
+        let mut rows = self.rows.lock().unwrap();
+        let row = Self::upsert(&mut rows, user_id, course_id);
+        let newly_passed = passed && row.passed_at.is_none();
+        if newly_passed {
+            row.passed_at = Some(chrono::Utc::now());
+        }
+        let best = row.best_sync_pct.map_or(sync_pct, |b| b.max(sync_pct));
+        row.best_sync_pct = Some(best);
+        Ok(PieceOutcome {
+            newly_passed,
+            best_sync_pct: best,
+        })
     }
 }
 
@@ -194,6 +311,52 @@ mod tests {
                 play_count: 2
             }
         );
+    }
+
+    #[tokio::test]
+    async fn piece_results_pass_once_and_only_raise_the_best() {
+        let store = FakeCourseProgressStore::default();
+        // A run below the bar: a row appears, not completed, not passed.
+        let a = store
+            .record_piece_result(U, "c1", false, 71.0)
+            .await
+            .unwrap();
+        assert_eq!(
+            a,
+            PieceOutcome {
+                newly_passed: false,
+                best_sync_pct: 71.0
+            }
+        );
+        let rows = store.list(U).await.unwrap();
+        assert_eq!(rows.len(), 1);
+        assert!(!rows[0].completed);
+        assert!(rows[0].passed_at.is_none());
+        assert_eq!(rows[0].best_sync_pct, Some(71.0));
+        // The first pass is the signal; a later lower run changes nothing.
+        let b = store
+            .record_piece_result(U, "c1", true, 84.0)
+            .await
+            .unwrap();
+        assert!(b.newly_passed);
+        assert_eq!(b.best_sync_pct, 84.0);
+        let c = store
+            .record_piece_result(U, "c1", true, 80.0)
+            .await
+            .unwrap();
+        assert!(!c.newly_passed);
+        assert_eq!(c.best_sync_pct, 84.0);
+        let d = store
+            .record_piece_result(U, "c1", false, 60.0)
+            .await
+            .unwrap();
+        assert!(!d.newly_passed);
+        assert_eq!(d.best_sync_pct, 84.0);
+        assert!(store.list(U).await.unwrap()[0].passed_at.is_some());
+        // Completing afterwards is a first completion, untouched by the runs.
+        let e = store.record_completion(U, "c1").await.unwrap();
+        assert!(e.newly_completed);
+        assert_eq!(e.play_count, 1);
     }
 
     #[tokio::test]

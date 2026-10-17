@@ -135,4 +135,38 @@ void main() {
     await tester.pump();
     expect(find.byType(LessonPlayerScreen), findsOneWidget);
   });
+
+  // change: add-music-piece-lessons — the third node state and "done" = passed.
+  testWidgets('a completed lesson whose piece step was never passed shows as '
+      'visited; a passed one counts as done and is skipped as next', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      prefs: FakePreferencesService({
+        'courses.completed.v1': '["c1"]',
+        'courses.best.v1': '{"c1": 62, "c2": 91}',
+        'courses.passed.v1': '["c2"]',
+      }),
+    );
+    // c1: completed, run at 62, never passed → visited (replay icon).
+    expect(find.byKey(const Key('path-visited-c1')), findsOneWidget);
+    // c2: passed without being completed → done (check), so c3 is next.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('path-node-c2')),
+        matching: find.byIcon(Icons.check),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('path-node-c3')),
+        matching: find.byIcon(Icons.play_arrow),
+      ),
+      findsOneWidget,
+    );
+    // Unit 1 reads 2/2 done.
+    expect(find.text('2/2'), findsOneWidget);
+  });
 }

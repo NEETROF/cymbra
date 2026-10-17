@@ -1,0 +1,112 @@
+{
+  "id": "sol-u1-07-au-clair-de-la-lune",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "beginner",
+  "unit": "u1",
+  "unitTitle": {
+    "en": "The staff and your first notes",
+    "fr": "La portée et tes premières notes",
+    "es": "El pentagrama y tus primeras notas",
+    "it": "Il pentagramma e le tue prime note"
+  },
+  "sortOrder": 107,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Your turn: Au clair de la lune",
+    "fr": "À toi de jouer : Au clair de la lune",
+    "es": "Te toca: Au clair de la lune",
+    "it": "Tocca a te: Au clair de la lune"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u1-07-au-clair-de-la-lune",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "beginner",
+    "title": {
+      "en": "Your turn: Au clair de la lune",
+      "fr": "À toi de jouer : Au clair de la lune",
+      "es": "Te toca: Au clair de la lune",
+      "it": "Tocca a te: Au clair de la lune"
+    },
+    "summary": {
+      "en": "Play a real tune with the five notes you know.",
+      "fr": "Joue un vrai air avec les cinq notes que tu connais.",
+      "es": "Toca una melodía de verdad con las cinco notas que conoces.",
+      "it": "Suona una vera melodia con le cinque note che conosci."
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "You know C, D, E, F and G. That is enough for a real tune: Au clair de la lune. Play the right hand slowly first — the player waits for every note.",
+          "fr": "Tu connais do, ré, mi, fa et sol. C’est assez pour un vrai air : Au clair de la lune. Joue d’abord la main droite lentement, le lecteur attend chaque note.",
+          "es": "Conoces do, re, mi, fa y sol. Basta para una melodía de verdad: Au clair de la lune. Toca primero la mano derecha despacio: el reproductor espera cada nota.",
+          "it": "Conosci do, re, mi, fa e sol. Basta per una vera melodia: Au clair de la lune. Suona prima la mano destra lentamente: il lettore aspetta ogni nota."
+        }
+      },
+      {
+        "type": "piece",
+        "score": {
+          "bundled": "au-clair-de-la-lune"
+        },
+        "hands": "right",
+        "speed": 0.6,
+        "waitMode": true,
+        "metronome": false,
+        "readingAid": "name",
+        "passPct": 80,
+        "title": {
+          "en": "Au clair de la lune — right hand, slowly",
+          "fr": "Au clair de la lune — main droite, lentement",
+          "es": "Au clair de la lune — mano derecha, despacio",
+          "it": "Au clair de la lune — mano destra, lentamente"
+        },
+        "prompt": {
+          "en": "Read each note on the staff and find it on the keyboard. Take your time.",
+          "fr": "Lis chaque note sur la portée et trouve-la sur le clavier. Prends ton temps.",
+          "es": "Lee cada nota en el pentagrama y búscala en el teclado. Tómate tu tiempo.",
+          "it": "Leggi ogni nota sul pentagramma e trovala sulla tastiera. Prenditi il tuo tempo."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "Good. Now the player keeps going without waiting: stay with it, a missed note is fine.",
+          "fr": "Bien. Maintenant le lecteur ne s’arrête plus : reste avec lui, une note ratée n’est pas grave.",
+          "es": "Bien. Ahora el reproductor no se detiene: síguelo, una nota fallada no pasa nada.",
+          "it": "Bene. Ora il lettore non si ferma: stagli dietro, una nota sbagliata non è grave."
+        }
+      },
+      {
+        "type": "piece",
+        "score": {
+          "bundled": "au-clair-de-la-lune"
+        },
+        "hands": "right",
+        "speed": 1.0,
+        "waitMode": false,
+        "metronome": false,
+        "readingAid": "name",
+        "passPct": 80,
+        "title": {
+          "en": "Au clair de la lune — right hand, in time",
+          "fr": "Au clair de la lune — main droite, en rythme",
+          "es": "Au clair de la lune — mano derecha, a tempo",
+          "it": "Au clair de la lune — mano destra, a tempo"
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "That was your first piece from the staff to the keys. Next unit: making the rhythm precise.",
+          "fr": "C’était ton premier morceau, de la portée aux touches. Unité suivante : rendre le rythme précis.",
+          "es": "Fue tu primera pieza, del pentagrama a las teclas. Siguiente unidad: afinar el ritmo.",
+          "it": "È stato il tuo primo brano, dal pentagramma ai tasti. Prossima unità: rendere preciso il ritmo."
+        }
+      }
+    ]
+  }
+}

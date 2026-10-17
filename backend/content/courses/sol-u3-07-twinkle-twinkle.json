@@ -1,0 +1,106 @@
+{
+  "id": "sol-u3-07-twinkle-twinkle",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "beginner",
+  "unit": "u3",
+  "unitTitle": {
+    "en": "The whole treble staff",
+    "fr": "Toute la clé de sol",
+    "es": "Toda la clave de sol",
+    "it": "Tutta la chiave di violino"
+  },
+  "sortOrder": 307,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Your turn: Twinkle, Twinkle",
+    "fr": "À toi de jouer : Twinkle, Twinkle",
+    "es": "Te toca: Twinkle, Twinkle",
+    "it": "Tocca a te: Twinkle, Twinkle"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u3-07-twinkle-twinkle",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "beginner",
+    "title": {
+      "en": "Your turn: Twinkle, Twinkle",
+      "fr": "À toi de jouer : Twinkle, Twinkle",
+      "es": "Te toca: Twinkle, Twinkle",
+      "it": "Tocca a te: Twinkle, Twinkle"
+    },
+    "summary": {
+      "en": "The whole treble staff up to A, in a tune everyone knows.",
+      "fr": "Toute la clé de sol jusqu’au la, dans un air que tout le monde connaît.",
+      "es": "Toda la clave de sol hasta el la, en una melodía que todos conocen.",
+      "it": "Tutta la chiave di violino fino al la, in una melodia che tutti conoscono."
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "With A on the staff you can play Twinkle, Twinkle. Twelve bars, right hand, from C to A.",
+          "fr": "Avec le la sur la portée, tu peux jouer Twinkle, Twinkle. Douze mesures, main droite, du do au la.",
+          "es": "Con el la en el pentagrama puedes tocar Twinkle, Twinkle. Doce compases, mano derecha, de do a la.",
+          "it": "Con il la sul pentagramma puoi suonare Twinkle, Twinkle. Dodici battute, mano destra, dal do al la."
+        }
+      },
+      {
+        "type": "piece",
+        "score": {
+          "bundled": "twinkle-simple"
+        },
+        "hands": "right",
+        "speed": 0.6,
+        "waitMode": true,
+        "metronome": false,
+        "readingAid": "name",
+        "passPct": 80,
+        "title": {
+          "en": "Twinkle — slowly",
+          "fr": "Twinkle — lentement",
+          "es": "Twinkle — despacio",
+          "it": "Twinkle — lentamente"
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "You have every note under your fingers. Once more, in time, without the player waiting.",
+          "fr": "Tu as toutes les notes sous les doigts. Encore une fois, en rythme, sans que le lecteur attende.",
+          "es": "Tienes todas las notas bajo los dedos. Una vez más, a tempo, sin que el reproductor espere.",
+          "it": "Hai tutte le note sotto le dita. Ancora una volta, a tempo, senza che il lettore aspetti."
+        }
+      },
+      {
+        "type": "piece",
+        "score": {
+          "bundled": "twinkle-simple"
+        },
+        "hands": "right",
+        "speed": 1.0,
+        "waitMode": false,
+        "metronome": false,
+        "readingAid": "name",
+        "passPct": 80,
+        "title": {
+          "en": "Twinkle — in time",
+          "fr": "Twinkle — en rythme",
+          "es": "Twinkle — a tempo",
+          "it": "Twinkle — a tempo"
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "Six notes of the treble staff, read and played. The left hand joins in the next unit.",
+          "fr": "Six notes de la clé de sol, lues et jouées. La main gauche arrive à l’unité suivante.",
+          "es": "Seis notas de la clave de sol, leídas y tocadas. La mano izquierda llega en la siguiente unidad.",
+          "it": "Sei note della chiave di violino, lette e suonate. La mano sinistra arriva nella prossima unità."
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "id": "sol-u5-07-frere-jacques",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "intermediate",
+  "unit": "u5",
+  "unitTitle": {
+    "en": "Eighth notes and new meters",
+    "fr": "Croches et nouvelles mesures",
+    "es": "Corcheas y nuevos compases",
+    "it": "Crome e nuovi tempi"
+  },
+  "sortOrder": 507,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Your turn: Frère Jacques",
+    "fr": "À toi de jouer : Frère Jacques",
+    "es": "Te toca: Frère Jacques",
+    "it": "Tocca a te: Frère Jacques"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u5-07-frere-jacques",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "intermediate",
+    "title": {
+      "en": "Your turn: Frère Jacques",
+      "fr": "À toi de jouer : Frère Jacques",
+      "es": "Te toca: Frère Jacques",
+      "it": "Tocca a te: Frère Jacques"
+    },
+    "summary": {
+      "en": "Eighth notes in a tune, both hands.",
+      "fr": "Des croches dans un air, à deux mains.",
+      "es": "Corcheas en una melodía, a dos manos.",
+      "it": "Crome in una melodia, a due mani."
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "\"Sonnez les matines\" runs on eighth notes. Frère Jacques is the tune to feel them: right hand first, then both hands with the left hand holding the bass.",
+          "fr": "« Sonnez les matines » court sur des croches. Frère Jacques est l’air idéal pour les sentir : main droite d’abord, puis les deux mains, la gauche tenant la basse.",
+          "es": "«Sonnez les matines» corre en corcheas. Frère Jacques es la melodía para sentirlas: primero la mano derecha, luego las dos manos con la izquierda sosteniendo el bajo.",
+          "it": "«Sonnez les matines» corre sulle crome. Frère Jacques è la melodia per sentirle: prima la mano destra, poi le due mani con la sinistra che tiene il basso."
+        }
+      },
+      {
+        "type": "piece",
+        "score": {
+          "bundled": "frere-jacques"
+        },
+        "hands": "right",
+        "speed": 0.6,
+        "waitMode": true,
+        "metronome": false,
+        "readingAid": "nameAndRhythm",
+        "passPct": 80,
+        "title": {
+          "en": "Right hand, slowly",
+          "fr": "Main droite, lentement",
+          "es": "Mano derecha, despacio",
+          "it": "Mano destra, lentamente"
+        }
+      },
+      {
+        "type": "piece",
+        "score": {
+          "bundled": "frere-jacques"
+        },
+        "hands": "both",
+        "speed": 0.6,
+        "waitMode": true,
+        "metronome": false,
+        "readingAid": "name",
+        "passPct": 80,
+        "title": {
+          "en": "Both hands, slowly",
+          "fr": "Deux mains, lentement",
+          "es": "Dos manos, despacio",
+          "it": "Due mani, lentamente"
+        }
+      },
+      {
+        "type": "piece",
+        "score": {
+          "bundled": "frere-jacques"
+        },
+        "hands": "both",
+        "speed": 1.0,
+        "waitMode": false,
+        "metronome": true,
+        "readingAid": "name",
+        "passPct": 80,
+        "title": {
+          "en": "Both hands, in time",
+          "fr": "Deux mains, en rythme",
+          "es": "Dos manos, a tempo",
+          "it": "Due mani, a tempo"
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "Eighths are now in your hands, not only in your head.",
+          "fr": "Les croches sont maintenant dans tes mains, pas seulement dans ta tête.",
+          "es": "Las corcheas ya están en tus manos, no solo en tu cabeza.",
+          "it": "Le crome ora sono nelle tue mani, non solo nella tua testa."
+        }
+      }
+    ]
+  }
+}

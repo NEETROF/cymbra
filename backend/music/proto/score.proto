@@ -477,10 +477,31 @@ message GetCourseResponse {
 }
 
 // Per-user course completion, cross-device (change: add-notation-courses).
+// Piece-step outcome (change: add-music-piece-lessons): `passed_at_ms` is the
+// first pass (0 = never passed), `best_sync_pct` the best overall
+// synchronisation reached on the course's piece steps (absent = never run).
 message CourseProgress {
   string course_id = 1;
   bool completed = 2;
   int32 play_count = 3;
+  int64 passed_at_ms = 4;
+  optional float best_sync_pct = 5;
+}
+
+// One piece-step run of a course (change: add-music-piece-lessons). The client
+// judged `passed` against the step's own threshold (the block is client-owned
+// content); the server keeps first-pass-wins / greatest-best and never marks
+// the course completed here.
+message RecordCoursePieceResultRequest {
+  string course_id = 1;
+  bool passed = 2;
+  float sync_pct = 3;
+}
+
+message RecordCoursePieceResultResponse {
+  // True only on the FIRST pass of this course.
+  bool newly_passed = 1;
+  float best_sync_pct = 2;
 }
 
 message RecordCourseCompletionRequest {
@@ -826,6 +847,8 @@ service ScoreService {
   // Cross-device course completion (change: add-notation-courses). Owner-scoped.
   rpc RecordCourseCompletion(RecordCourseCompletionRequest) returns (RecordCourseCompletionResponse);
   rpc GetCourseProgress(GetCourseProgressRequest) returns (GetCourseProgressResponse);
+  // A piece step's run (change: add-music-piece-lessons). Owner-scoped.
+  rpc RecordCoursePieceResult(RecordCoursePieceResultRequest) returns (RecordCoursePieceResultResponse);
 
   // SoundFont catalog administration (change: add-soundfont-back-office-management).
   // Music-scope moderator/admin only. Metadata list/edit/delete; adding a font (with

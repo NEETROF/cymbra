@@ -32,6 +32,36 @@ class _FakeProgress implements CourseProgressService {
     recorded.add(courseId);
     serverIds = {...serverIds, courseId};
   }
+
+  /// Piece-step results the server holds (change: add-music-piece-lessons):
+  /// course id → (passed, best %).
+  final Map<String, (bool, double)> pieces = {};
+  final List<(String, bool, double)> pieceRecorded = [];
+
+  @override
+  Future<List<CourseProgressRecord>> progress() async => [
+    for (final id in {...serverIds, ...pieces.keys})
+      CourseProgressRecord(
+        courseId: id,
+        completed: serverIds.contains(id),
+        passed: pieces[id]?.$1 ?? false,
+        bestSyncPct: pieces[id]?.$2,
+      ),
+  ];
+
+  @override
+  Future<void> recordPieceResult(
+    String courseId, {
+    required bool passed,
+    required double syncPct,
+  }) async {
+    pieceRecorded.add((courseId, passed, syncPct));
+    final prev = pieces[courseId];
+    pieces[courseId] = (
+      (prev?.$1 ?? false) || passed,
+      prev == null || syncPct > prev.$2 ? syncPct : prev.$2,
+    );
+  }
 }
 
 ProviderContainer _container({

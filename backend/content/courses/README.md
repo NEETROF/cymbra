@@ -54,6 +54,12 @@ Interactive (gate the lesson's Next):
 - `earChoice {notes[], choices: [{id, label}], answerId, gapMs?, harmonic?, reveal?, prompt}` — listen then choose.
 - `buildChord {notes[] (2–5), prompt}` — toggle keys to build the chord.
 - `playKey {notes: [midi…], prompt}` — legacy "play these keys" (keyboard only, no staff).
+- `piece {score: {bundled: <catalog-entry id>} | {catalog: <id>}, hands: right|left|both,
+  speed: 0.25–1.0, waitMode: bool, metronome: bool, readingAid: off|name|nameAndRhythm,
+  passPct: 1–100 (default 80), title, prompt}` — sends the learner to the FULL player on
+  that piece with these settings imposed; the run's overall sync % against `passPct`
+  decides passed / visited (change: add-music-piece-lessons). A run opens the gate without
+  advancing, so the learner reads the outcome, retries or moves on.
 
 ## Authoring rules (enforced by the corpus test)
 
@@ -68,3 +74,11 @@ Interactive (gate the lesson's Next):
    shamed ("Presque…", never "Faux !").
 6. Note names in prose follow the locale (fr/es/it solfège do-ré-mi, en letters
    C-D-E); never hardcode one convention across locales.
+7. **Every unit closes with a piece lesson** (`sol-u<n>-07-*`, change:
+   add-music-piece-lessons): a `text` hook, a chain of `piece` steps on ONE
+   bundled score, a `text` recap. The chain **ends with a free-run step at full
+   tempo** (`waitMode: false`, `speed: 1.0`). The piece MUST only use what the
+   unit (or an earlier one) taught — clefs, note range, rhythmic figures,
+   accidentals, key signature — for the hands the step imposes; the corpus test
+   scans the MusicXML and fails a mis-filed piece. Piece lessons are exempt from
+   rule 2's v2 minimum (the piece IS the exercise), not from rule 1.

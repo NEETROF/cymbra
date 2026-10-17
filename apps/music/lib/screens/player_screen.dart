@@ -713,6 +713,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   void _maybeShowSetup() {
     if (_setupShown || !ref.read(notationProvider).hasDocument) return;
     _setupShown = true;
+    // A lesson's piece step imposes the settings (change:
+    // add-music-piece-lessons): nothing to set up, the run starts at once.
+    if (ref.read(playerProvider).lessonContext != null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) showPrePlaySetup(context);
     });
@@ -744,9 +747,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     }
     // Capture the score context now — the piece is unchanged after the run.
     final score = ReplayScore.fromPlayer(ref.read(playerProvider));
+    // A lesson's piece step gets the result first (change:
+    // add-music-piece-lessons): the step is passed or visited before the
+    // summary is even shown, so leaving the player any way keeps it.
+    final lesson = ref.read(playerProvider).lessonContext;
+    lesson?.onResult(result);
     while (true) {
       if (!mounted) return;
-      final action = await showSessionSummary(context, result);
+      final action = await showSessionSummary(context, result, lesson: lesson);
       if (!mounted) return;
       if (action == SummaryAction.replay) {
         await showMistakeReplay(context, score, result);
@@ -1372,12 +1380,18 @@ class _TempoChipState extends ConsumerState<_TempoChip>
     });
 
     final l10n = AppLocalizations.of(context);
+    final inLesson = ref.watch(
+      playerProvider.select((d) => d.lessonContext != null),
+    );
     return Semantics(
       button: true,
       toggled: enabled,
       label: l10n.metronome,
       child: InkWell(
-        onTap: () => ref.read(playerProvider.notifier).toggleMetronome(),
+        // Locked while a lesson imposes it (change: add-music-piece-lessons).
+        onTap: inLesson
+            ? null
+            : () => ref.read(playerProvider.notifier).toggleMetronome(),
         borderRadius: BorderRadius.circular(8),
         child: AnimatedBuilder(
           animation: _pulse,
@@ -1638,16 +1652,20 @@ class _TransportBar extends ConsumerWidget {
     // the pads satisfy the gate (change: add-drum-input-mapping) and the
     // matcher judges what they satisfy, which is exactly the condition
     // add-drum-kit-view's interim named for lifting itself.
+    // Locked while a lesson imposes it (change: add-music-piece-lessons).
+    final VoidCallback? toggleWait = data.lessonContext == null
+        ? notifier.toggleWaitMode
+        : null;
     final Widget wait = isPhone
         ? IconButton(
             visualDensity: density,
             tooltip: 'Wait',
-            onPressed: notifier.toggleWaitMode,
+            onPressed: toggleWait,
             icon: waitIcon,
           )
         : TextButton.icon(
             style: TextButton.styleFrom(visualDensity: density),
-            onPressed: notifier.toggleWaitMode,
+            onPressed: toggleWait,
             icon: waitIcon,
             label: Text('Wait', style: TextStyle(color: waitColor)),
           );
@@ -2065,12 +2083,18 @@ class _TopBarLead extends ConsumerWidget {
       );
     }
     final l10n = AppLocalizations.of(context);
+    // In a lesson run the header names the lesson and its bar (change:
+    // add-music-piece-lessons) — the learner knows which app they are in.
+    final lesson = ref.watch(playerProvider.select((d) => d.lessonContext));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          'Cymbra Music',
+          lesson == null
+              ? 'Cymbra Music'
+              : l10n.playerLessonHeader(lesson.passPct, lesson.lessonTitle),
+          key: const Key('player-lead-title'),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
@@ -2105,11 +2129,8 @@ Widget _heroed(BuildContext context, String? entryId, Widget child) =>
     ? child
     : Hero(
         tag: scoreHeroTag(entryId),
-        child: Material(
-          type: MaterialType.transparency,
-          textStyle: DefaultTextStyle.of(context).style,
-          child: child,
-        ),
+        flightShuttleBuilder: heroTextFlight,
+        child: child,
       );
 
 /// The exit from an endless practice loop (change: add-measure-range-practice).

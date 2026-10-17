@@ -14,6 +14,10 @@ confirmed as public-domain / CC0.
 |------|------|----------|--------|
 | `beginner/ode_to_joy.musicxml` | Ode to Joy (theme from Symphony No. 9) | Ludwig van Beethoven (1770–1827) | Public domain (composition) |
 | `beginner/twinkle.musicxml` | Twinkle, Twinkle, Little Star | Traditional | Public domain |
+| `beginner/au_clair_de_la_lune.musicxml` | Au clair de la lune (two staves, 8 bars) | Traditional (18th c.) | Public domain; arrangement authored for this project |
+| `beginner/mary_had_a_little_lamb.musicxml` | Mary Had a Little Lamb (8 bars) | Traditional (1830s) | Public domain; arrangement authored for this project |
+| `beginner/twinkle_simple.musicxml` | Twinkle, Twinkle, Little Star (simple, 12 bars) | Traditional | Public domain; arrangement authored for this project |
+| `beginner/frere_jacques.musicxml` | Frère Jacques (8 bars) | Traditional | Public domain; arrangement authored for this project |
 | `intermediate/minuet_in_g.musicxml` | Minuet in G major, BWV Anh. 114 | Christian Petzold (1677–1733) | Public domain (composition) |
 | `intermediate/arabesque-l-66-no-1-in-e-major.musicxml` | Arabesque No. 1, L. 66 | Claude Debussy (1862–1918) | Public domain (composition) |
 | `advanced/prelude_e_minor.musicxml` | Prelude in E minor, Op. 28 No. 4 (opening) | Frédéric Chopin (1810–1849) | Public domain (composition) |

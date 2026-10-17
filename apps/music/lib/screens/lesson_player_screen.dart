@@ -34,6 +34,7 @@ import '../widgets/lesson_keyboard.dart';
 import '../widgets/lesson_midi_chip.dart';
 import '../widgets/lesson_staff.dart';
 import '../widgets/name_note_view.dart';
+import '../widgets/piece_block_view.dart';
 import '../widgets/place_note_view.dart';
 import '../widgets/play_key_view.dart';
 import '../widgets/read_play_view.dart';
@@ -95,6 +96,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
     EarChoiceBlock() ||
     BuildChordBlock() ||
     PlayKeyBlock() ||
+    PieceBlock() ||
     QuestionBlock() => true,
     _ => false,
   };
@@ -175,19 +177,11 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
           // add-music-learn-play-home).
           title: Hero(
             tag: lessonHeroTag(widget.courseId),
-            // A Builder, so the Material keeps the APP BAR's title style (set
-            // around the title, below this screen's own context) rather than
-            // the body text style.
-            child: Builder(
-              builder: (titleContext) => Material(
-                type: MaterialType.transparency,
-                textStyle: DefaultTextStyle.of(titleContext).style,
-                child: Text(
-                  async.valueOrNull == null
-                      ? ''
-                      : resolveInline(async.value!.title, lang),
-                ),
-              ),
+            flightShuttleBuilder: heroTextFlight,
+            child: Text(
+              async.valueOrNull == null
+                  ? ''
+                  : resolveInline(async.value!.title, lang),
             ),
           ),
           actions: const [LessonMidiChip(), SizedBox(width: 4)],
@@ -252,6 +246,8 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
               block: block,
               lang: lang,
               l10n: l10n,
+              courseId: widget.courseId,
+              lessonTitle: resolveInline(m.title, lang),
               // The legacy playKey gate has no wrong-answer concept (stray
               // keys just don't count), so satisfying it counts as first-try.
               onSatisfied: () {
@@ -376,6 +372,8 @@ class _BlockView extends StatelessWidget {
     required this.block,
     required this.lang,
     required this.l10n,
+    required this.courseId,
+    required this.lessonTitle,
     required this.onSatisfied,
     required this.onCompleted,
     required this.onAnswered,
@@ -384,6 +382,12 @@ class _BlockView extends StatelessWidget {
   final CourseBlock block;
   final String lang;
   final AppLocalizations l10n;
+
+  /// The course this step belongs to and its title — a piece step records its
+  /// outcome against the course and names the lesson in the player's header
+  /// (change: add-music-piece-lessons).
+  final String courseId;
+  final String lessonTitle;
 
   /// Called by an interactive block once its gate is met (the lesson advances).
   final VoidCallback onSatisfied;
@@ -491,6 +495,14 @@ class _BlockView extends StatelessWidget {
       BuildChordBlock() => BuildChordView(
         block: block as BuildChordBlock,
         onCompleted: onCompleted,
+      ),
+      // A run opens the gate without advancing, like a question: the learner
+      // reads the outcome, retries or moves on at their own pace.
+      PieceBlock() => PieceBlockView(
+        block: block as PieceBlock,
+        courseId: courseId,
+        lessonTitle: lessonTitle,
+        onAnswered: onAnswered,
       ),
       UnsupportedBlock() => const SizedBox.shrink(),
     };

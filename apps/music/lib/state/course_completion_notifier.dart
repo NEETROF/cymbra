@@ -37,13 +37,36 @@ sealed class CourseCompletionState with _$CourseCompletionState {
   const factory CourseCompletionState({
     @Default(false) bool loaded,
     @Default(<String>{}) Set<String> completed,
+
+    /// Courses whose piece step was passed at least once (change:
+    /// add-music-piece-lessons). A course can be passed without being
+    /// completed (the learner left after the run) and completed without
+    /// being passed (visited).
+    @Default(<String>{}) Set<String> passed,
+
+    /// Best overall synchronisation reached on each course's piece steps.
+    /// Monotonic: a later, lower run never lowers it.
+    @Default(<String, double>{}) Map<String, double> bestPct,
   }) = _CourseCompletionState;
 
   /// Whether course [id] is marked completed.
   bool isCompleted(String id) => completed.contains(id);
+
+  /// Whether a piece step of course [id] was ever passed.
+  bool isPassed(String id) => passed.contains(id);
+
+  /// Completed, with a piece step run but never passed — the path's third
+  /// state. Without any piece run the course is plainly completed.
+  bool isVisited(String id) =>
+      completed.contains(id) && bestPct.containsKey(id) && !passed.contains(id);
+
+  /// Done for the "next lesson" choice: completed or passed.
+  bool isDone(String id) => completed.contains(id) || passed.contains(id);
 }
 
 const String _kCompletedKey = 'courses.completed.v1';
+const String _kPassedKey = 'courses.passed.v1';
+const String _kBestKey = 'courses.best.v1';
 
 /// Owns the completed-course set: restores it, and marks a course completed once
 /// (idempotent) when the lesson player reaches the end. Persistence goes through
@@ -51,9 +74,14 @@ const String _kCompletedKey = 'courses.completed.v1';
 /// without native storage.
 @Riverpod(keepAlive: true)
 class CourseCompletion extends _$CourseCompletion {
+  /// The restore in flight: the server reconciliation waits for it, so a
+  /// local-only completion or piece result recorded on a previous launch is
+  /// pushed up instead of being read as absent.
+  late final Future<void> _restoring;
+
   @override
   CourseCompletionState build() {
-    _restore();
+    _restoring = _restore();
     // Reconcile with the server whenever online access becomes available (sign-in
     // or reconnect), and once now if already online.
     ref.listen(canUseOnlineServicesProvider, (_, online) {
@@ -68,50 +96,146 @@ class CourseCompletion extends _$CourseCompletion {
   /// (so a guest's completions land on their account after sign-in). Best-effort:
   /// any failure (offline, signed out) leaves the local set untouched.
   Future<void> _sync() async {
+    await _restoring;
     final service = ref.read(courseProgressServiceProvider);
-    final Set<String> serverIds;
+    final List<CourseProgressRecord> records;
     try {
-      serverIds = await service.completedCourseIds();
+      records = await service.progress();
     } catch (_) {
       return; // offline / signed out → local only
     }
-    if (!serverIds.every(state.completed.contains)) {
-      state = state.copyWith(
-        loaded: true,
-        completed: {...state.completed, ...serverIds},
-      );
-    }
+    final serverIds = {
+      for (final r in records)
+        if (r.completed) r.courseId,
+    };
+    final serverPassed = {
+      for (final r in records)
+        if (r.passed) r.courseId,
+    };
+    final serverBest = <String, double>{
+      for (final r in records) r.courseId: ?r.bestSyncPct,
+    };
+    // Merge: completed and passed are unions, the best is the greatest — so
+    // two devices reconcile whatever the order their records arrive in.
+    final mergedBest = {...state.bestPct};
+    serverBest.forEach((id, b) {
+      final local = mergedBest[id];
+      if (local == null || b > local) mergedBest[id] = b;
+    });
+    final next = state.copyWith(
+      loaded: true,
+      completed: {...state.completed, ...serverIds},
+      passed: {...state.passed, ...serverPassed},
+      bestPct: mergedBest,
+    );
+    if (next != state) state = next;
     for (final id in state.completed.difference(serverIds)) {
       try {
         await service.recordCompletion(id);
+      } catch (_) {}
+    }
+    // Push local-only piece results up (a guest's runs land on their account
+    // after sign-in): a pass the server lacks, or a better best.
+    for (final entry in state.bestPct.entries) {
+      final id = entry.key;
+      final passedHere = state.passed.contains(id);
+      final serverB = serverBest[id];
+      final needsPass = passedHere && !serverPassed.contains(id);
+      final needsBest = serverB == null || entry.value > serverB;
+      if (!needsPass && !needsBest) continue;
+      try {
+        await service.recordPieceResult(
+          id,
+          passed: passedHere,
+          syncPct: entry.value,
+        );
       } catch (_) {}
     }
   }
 
   Future<void> _restore() async {
     final prefs = ref.read(preferencesServiceProvider);
-    var ids = <String>{};
+    final ids = await _restoreIds(prefs, _kCompletedKey);
+    final passed = await _restoreIds(prefs, _kPassedKey);
+    var best = <String, double>{};
     try {
-      final raw = await prefs.getString(_kCompletedKey);
+      final raw = await prefs.getString(_kBestKey);
+      if (raw != null) {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map) {
+          best = {
+            for (final e in decoded.entries)
+              if (e.key is String && e.value is num)
+                e.key as String: (e.value as num).toDouble(),
+          };
+        }
+      }
+    } catch (_) {}
+    // Union with anything already marked in memory: a completion recorded before
+    // the restore finished (a race) must not be clobbered by the restored set.
+    final mergedBest = {...best};
+    state.bestPct.forEach((id, b) {
+      final stored = mergedBest[id];
+      if (stored == null || b > stored) mergedBest[id] = b;
+    });
+    state = state.copyWith(
+      loaded: true,
+      completed: {...ids, ...state.completed},
+      passed: {...passed, ...state.passed},
+      bestPct: mergedBest,
+    );
+  }
+
+  /// A persisted id set, or empty when absent/unreadable (storage unavailable →
+  /// an empty set, still marked loaded so the UI shows; nothing is falsely done).
+  static Future<Set<String>> _restoreIds(
+    PreferencesService prefs,
+    String key,
+  ) async {
+    try {
+      final raw = await prefs.getString(key);
       if (raw != null) {
         final decoded = jsonDecode(raw);
         if (decoded is List) {
-          ids = {
+          return {
             for (final e in decoded)
               if (e is String) e,
           };
         }
       }
-    } catch (_) {
-      // Storage unavailable → an empty set, still marked loaded so the UI shows
-      // (nothing is falsely "completed").
-    }
-    // Union with anything already marked in memory: a completion recorded before
-    // the restore finished (a race) must not be clobbered by the restored set.
+    } catch (_) {}
+    return {};
+  }
+
+  /// Records one piece-step run of course [id] (change: add-music-piece-
+  /// lessons): a pass is kept forever, the best only rises. Persisted locally,
+  /// and pushed to the server when online so other devices see it. Never marks
+  /// the course completed — reaching the end of the lesson does that.
+  Future<void> recordPieceResult(
+    String id, {
+    required bool passed,
+    required double syncPct,
+  }) async {
+    final best = state.bestPct[id];
+    final nextBest = best == null || syncPct > best ? syncPct : best;
+    final nextPassed = passed ? {...state.passed, id} : state.passed;
+    if (nextBest == best && nextPassed.length == state.passed.length) return;
     state = state.copyWith(
-      loaded: true,
-      completed: {...ids, ...state.completed},
+      passed: nextPassed,
+      bestPct: {...state.bestPct, id: nextBest},
     );
+    final prefs = ref.read(preferencesServiceProvider);
+    try {
+      await prefs.setString(_kPassedKey, jsonEncode(state.passed.toList()));
+      await prefs.setString(_kBestKey, jsonEncode(state.bestPct));
+    } catch (_) {}
+    if (ref.read(canUseOnlineServicesProvider)) {
+      try {
+        await ref
+            .read(courseProgressServiceProvider)
+            .recordPieceResult(id, passed: passed, syncPct: syncPct);
+      } catch (_) {}
+    }
   }
 
   /// Marks course [id] completed and persists the set. A no-op if already
