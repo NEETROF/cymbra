@@ -61,6 +61,14 @@ Interactive (gate the lesson's Next):
   decides passed / visited (change: add-music-piece-lessons). A run opens the gate without
   advancing, so the learner reads the outcome, retries or moves on.
 
+## The placement course (add-music-placement-test)
+
+`placement-piano.json` is the one course with `track: placement` (unit empty,
+`sortOrder` 1). The app lists it apart from the path. Every exercise block carries a
+`placementUnit` tag (`u1`…`u7`), non-decreasing and covering every unit in path order;
+the closing `piece` step is tagged too. The result is the unit of the first exercise not
+solved first try (a skipped step counts as a miss); the corpus test enforces the tags.
+
 ## Authoring rules (enforced by the corpus test)
 
 1. First block is a short `text` hook (≤ 2 sentences, second person, warm); never

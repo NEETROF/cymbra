@@ -980,5 +980,21 @@
   "dailyStreakNone": "Pas encore de série — aujourd'hui en lance une",
   "dailySessionCompleteTitle": "Séance terminée !",
   "dailySessionCompleteMessage": "{count, plural, =1{1 élément fait aujourd'hui} other{{count} éléments faits aujourd'hui}}. À demain.",
-  "dailyReviewFallback": "Révision rapide"
+  "dailyReviewFallback": "Révision rapide",
+  "placementOfferTitle": "Tu joues déjà un peu ?",
+  "placementOfferBody": "Trouve ton point de départ en deux minutes : quelques exercices et un petit morceau.",
+  "placementOfferStart": "Trouver mon point de départ",
+  "placementOfferLater": "Plus tard",
+  "placementResultAppBar": "Placement · résultat",
+  "placementResultTitle": "Ton point de départ",
+  "placementUnitNumber": "Unité {n}",
+  "placementUnitShort": "U{n}",
+  "placementSolved": "{count, plural, =1{1 exercice réussi} other{{count} exercices réussis}}",
+  "placementMissedAt": "raté à « {title} »",
+  "placementAllSolved": "tout réussi — le parcours commence après la dernière unité testée",
+  "placementSkippedNote": "Les unités précédentes sont « sautées par le placement » : ouvertes, jamais comptées comme terminées.",
+  "placementConfirm": "Commencer à l'unité {n}",
+  "placementRestart": "Commencer du début",
+  "placementSkippedUnit": "Sautée par le placement",
+  "placementOpenUnit": "Ouvrir"
 }

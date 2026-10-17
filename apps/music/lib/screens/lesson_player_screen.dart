@@ -23,6 +23,7 @@ import '../l10n/gen/app_localizations.dart';
 import '../services/audio_service.dart';
 import '../services/course_catalog_service.dart';
 import '../state/course_completion_notifier.dart';
+import '../state/placement_core.dart';
 import '../state/today_ledger.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/build_chord_view.dart';
@@ -39,6 +40,7 @@ import '../widgets/piece_block_view.dart';
 import '../widgets/place_note_view.dart';
 import '../widgets/play_key_view.dart';
 import '../widgets/read_play_view.dart';
+import 'placement_result_screen.dart';
 import '../widgets/rhythm_tap_view.dart';
 import '../widgets/score_block_view.dart';
 
@@ -161,6 +163,10 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
       Navigator.of(context).pop();
       return;
     }
+    if (m.track == kPlacementTrack) {
+      _finishPlacement(m, steps);
+      return;
+    }
     ref.read(courseCompletionProvider.notifier).markCompleted(widget.courseId);
     // Today's ledger: a lesson completed today (change:
     // add-music-daily-session).
@@ -190,6 +196,42 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
     } else {
       Navigator.of(context).pop();
     }
+  }
+
+  /// A placement run ends on its result, not on a completion (change:
+  /// add-music-placement-test, D2): the unit of the first probe not solved
+  /// first try — a skipped step is a miss — adjustable before it is confirmed.
+  /// Nothing is recorded against any course.
+  void _finishPlacement(CourseManifest m, List<CourseBlock> steps) {
+    final stepUnits = <String?>[
+      for (final (i, b) in m.blocks.indexed)
+        if (b is! UnsupportedBlock) m.placementUnits[i],
+    ];
+    final listings = ref.read(coursesProvider).valueOrNull ?? const [];
+    final units = unitOrder(listings);
+    final outcome = computePlacement(
+      stepUnits: stepUnits,
+      flawless: _flawless,
+      units: units,
+    );
+    if (outcome == null || units.isEmpty) {
+      Navigator.of(context).pop();
+      return;
+    }
+    final lang = Localizations.localeOf(context).languageCode;
+    final missed = outcome.missedStep;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => PlacementResultScreen(
+          outcome: outcome,
+          units: units,
+          unitTitles: {for (final l in listings) unitSlugOf(l): l.unitTitle},
+          missedTitle: missed == null
+              ? null
+              : resolveInline(promptOf(steps[missed]), lang),
+        ),
+      ),
+    );
   }
 
   @override

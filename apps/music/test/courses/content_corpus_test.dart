@@ -101,8 +101,11 @@ void main() {
           .listSync()
           .whereType<File>()
           .where((f) => f.path.endsWith('.json'))
+          // The solfège path; the placement course has its own group below.
+          .where((f) => f.uri.pathSegments.last.startsWith('sol-'))
           .toList()
         ..sort((a, b) => a.path.compareTo(b.path));
+  final placementFile = File('${dir.path}/placement-piano.json');
 
   test('the corpus exists and is the full 49-course curriculum', () {
     expect(dir.existsSync(), isTrue);
@@ -326,6 +329,71 @@ void main() {
       }
     },
   );
+
+  group('the placement course (change: add-music-placement-test)', () {
+    Map doc() => jsonDecode(placementFile.readAsStringSync()) as Map;
+    List<Map> blocks() =>
+        ((doc()['content'] as Map)['blocks'] as List).cast<Map>();
+
+    test('exists, is published on the placement track, and parses', () {
+      expect(placementFile.existsSync(), isTrue);
+      final d = doc();
+      expect(d['id'], 'placement-piano');
+      expect(d['status'], 'published');
+      expect(d['track'], kPlacementTrack);
+      expect((d['content'] as Map)['track'], kPlacementTrack);
+      expect(d['sortOrder'], 1);
+      final m = parseCourseManifest(jsonEncode(d['content']));
+      expect(m, isNotNull);
+      expect(m!.track, kPlacementTrack);
+      expect(m.blocks.whereType<UnsupportedBlock>(), isEmpty);
+      final errors = <String>[];
+      _checkI18n(d['title'], 'placement.title', errors);
+      _checkI18n(d['unitTitle'], 'placement.unitTitle', errors);
+      _checkI18n(d['content'], 'placement.content', errors);
+      expect(errors, isEmpty, reason: errors.join('\n'));
+    });
+
+    test('a hook, five to seven exercises plus one piece, a recap', () {
+      final types = blocks().map((b) => b['type'] as String).toList();
+      expect(types.first, 'text');
+      expect(types.last, 'text');
+      final exercises = types
+          .where(_interactive.contains)
+          .where((t) => t != 'piece');
+      expect(exercises.length, inInclusiveRange(5, 7));
+      expect(types.where((t) => t == 'piece').length, 1);
+    });
+
+    test('every exercise probes a unit, in path order, covering them all', () {
+      // Every probe — the exercises and the closing piece — is tagged.
+      final tags = [
+        for (final b in blocks())
+          if (_interactive.contains(b['type']) || b['type'] == 'piece')
+            b['placementUnit'],
+      ];
+      expect(tags, everyElement(isA<String>()), reason: 'untagged exercise');
+      final units = _unitLevels.keys.toList();
+      for (final t in tags) {
+        expect(units, contains(t), reason: 'unknown unit tag $t');
+      }
+      final order = tags.map((t) => units.indexOf(t as String)).toList();
+      for (var i = 1; i < order.length; i++) {
+        expect(order[i] >= order[i - 1], isTrue, reason: 'tags out of order');
+      }
+      expect(tags.toSet(), units.toSet(), reason: 'every unit is probed');
+      // The parser keeps the tags, by block index.
+      final m = parseCourseManifest(jsonEncode(doc()['content']))!;
+      expect(m.placementUnits.length, tags.length);
+    });
+
+    test('its piece is a bundled score the last unit allows', () {
+      final piece = blocks().singleWhere((b) => b['type'] == 'piece');
+      expect(piece['placementUnit'], _unitLevels.keys.last);
+      final ref = (piece['score'] as Map)['bundled'] as String;
+      expect(_bundledAssets, contains(ref), reason: 'unknown bundled $ref');
+    });
+  });
 
   test('a closing piece only uses what its unit has taught', () {
     for (final f in files) {

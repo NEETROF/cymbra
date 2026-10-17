@@ -19,6 +19,7 @@ import '../courses/course_manifest.dart';
 import '../services/course_catalog_service.dart';
 import 'course_completion_notifier.dart';
 import 'daily_session_core.dart';
+import 'placement_notifier.dart';
 import 'today_ledger.dart';
 
 part 'daily_session_notifier.g.dart';
@@ -34,6 +35,7 @@ Future<DailySession> dailySession(Ref ref) async {
   final ledger = ref.watch(dailyLedgerProvider);
   final goal = ref.watch(dailyGoalSettingProvider);
   final dayKey = ref.watch(localDayProvider);
+  final skipped = ref.watch(skippedUnitsProvider);
   if (listings.isEmpty) {
     return DailySession(items: const [], goal: goal, pathFinished: false);
   }
@@ -42,6 +44,7 @@ Future<DailySession> dailySession(Ref ref) async {
     completion: completion,
     ledger: ledger,
     dayKey: dayKey,
+    skipUnits: skipped,
   );
   // Each manifest comes from the course cache (offline-safe, never throws).
   final loaded = await Future.wait([
@@ -58,5 +61,6 @@ Future<DailySession> dailySession(Ref ref) async {
     ledger: ledger,
     goal: goal,
     dayKey: dayKey,
+    skipUnits: skipped,
   );
 }

@@ -24,17 +24,21 @@ passed" in path order. See proposal.md — Why.
 ### D1 — The placement is a course with `track: placement`
 Alternatives: a hard-coded quiz in the app.
 Chosen: a manifest in the existing format using `nameNote`, `placeNote`, `rhythmTap`,
-`earChoice` and one `piece` block, each with a `placementUnit: "u3"` tag (an additive key
-the parser keeps on every block as optional metadata). The listing excludes the
-`placement` track from the path and the Learn door picks it by track. Authors tune it in
-JSON; the content corpus test asserts every block is tagged and the tags cover the units in
-order.
+`earChoice` and one `piece` block, each with a `placementUnit: "u3"` tag — an additive key
+the parser keeps for every block, whatever its type (an unknown block keeps its tag too),
+as `CourseManifest.placementUnits`, a map by block index: the block union has fourteen
+variants and a field on each would be fourteen edits for one optional tag. The listing
+excludes the `placement` track from the path (`coursesProvider`) and exposes it through
+`placementCourseProvider`. Authors tune it in JSON; the content corpus test asserts every
+probe is tagged and the tags cover the units in order.
 
 ### D2 — Result = first unit with a miss, from the lesson player's per-step results
 The lesson player already records `_flawless[stepIndex]`; the placement run reads it on
 finish: the starting unit is the `placementUnit` of the first step not solved first-try,
-or the unit after the last probed one when everything was solved. A skipped step counts
-as a miss. `piece` steps count as solved when passed.
+or the unit after the last probed one when everything was solved — the last unit itself
+when nothing follows it. A skipped step counts as a miss. `piece` steps count as solved
+when passed. The run ends on the result screen (replacing the player's route), never on a
+completion: nothing is recorded against the placement course.
 
 ### D3 — Skipped-by-placement is a path display state, not completion
 `PlacementState { startUnit?, takenAt? }` persisted locally. The path renders units before

@@ -4396,5 +4396,94 @@
   "dailyReviewFallback": "Quick review",
   "@dailyReviewFallback": {
       "description": "Title of a review item whose block has no prompt."
+  },
+  "placementOfferTitle": "Already play a little?",
+  "@placementOfferTitle": {
+      "description": "Title of the placement offer card on the Learn door."
+  },
+  "placementOfferBody": "Find your starting point in two minutes: a few exercises and a short piece.",
+  "@placementOfferBody": {
+      "description": "Body of the placement offer card."
+  },
+  "placementOfferStart": "Find my starting point",
+  "@placementOfferStart": {
+      "description": "Button opening the placement; also the path header's entry."
+  },
+  "placementOfferLater": "Later",
+  "@placementOfferLater": {
+      "description": "Dismisses the placement offer for this session."
+  },
+  "placementResultAppBar": "Placement · result",
+  "@placementResultAppBar": {
+      "description": "App bar title of the placement result screen."
+  },
+  "placementResultTitle": "Your starting point",
+  "@placementResultTitle": {
+      "description": "Heading of the placement result screen."
+  },
+  "placementUnitNumber": "Unit {n}",
+  "@placementUnitNumber": {
+      "description": "A unit by its number.",
+      "placeholders": {
+          "n": {
+              "type": "int"
+          }
+      }
+  },
+  "placementUnitShort": "U{n}",
+  "@placementUnitShort": {
+      "description": "A unit's short chip label.",
+      "placeholders": {
+          "n": {
+              "type": "int"
+          }
+      }
+  },
+  "placementSolved": "{count, plural, =1{1 exercise solved} other{{count} exercises solved}}",
+  "@placementSolved": {
+      "description": "How many placement exercises were solved first try.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "placementMissedAt": "missed at “{title}”",
+  "@placementMissedAt": {
+      "description": "Which placement exercise was missed first.",
+      "placeholders": {
+          "title": {
+              "type": "String"
+          }
+      }
+  },
+  "placementAllSolved": "everything solved — the path starts after the last unit probed",
+  "@placementAllSolved": {
+      "description": "Result line when no placement exercise was missed."
+  },
+  "placementSkippedNote": "Earlier units are skipped by placement: open, never counted as completed.",
+  "@placementSkippedNote": {
+      "description": "Explains the skipped-by-placement state on the result screen."
+  },
+  "placementConfirm": "Start at unit {n}",
+  "@placementConfirm": {
+      "description": "Confirms the starting unit.",
+      "placeholders": {
+          "n": {
+              "type": "int"
+          }
+      }
+  },
+  "placementRestart": "Start from the beginning",
+  "@placementRestart": {
+      "description": "Clears the placement and starts the path at unit 1."
+  },
+  "placementSkippedUnit": "Skipped by placement",
+  "@placementSkippedUnit": {
+      "description": "Label on a collapsed path unit the placement skipped."
+  },
+  "placementOpenUnit": "Open",
+  "@placementOpenUnit": {
+      "description": "Expands a path unit the placement skipped."
   }
 }

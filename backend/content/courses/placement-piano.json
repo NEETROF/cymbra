@@ -1,0 +1,252 @@
+{
+  "id": "placement-piano",
+  "status": "published",
+  "instrument": "piano",
+  "track": "placement",
+  "level": "beginner",
+  "unit": "",
+  "unitTitle": {
+    "en": "Find your starting point",
+    "fr": "Trouve ton point de départ",
+    "es": "Encuentra tu punto de partida",
+    "it": "Trova il tuo punto di partenza"
+  },
+  "sortOrder": 1,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Find your starting point",
+    "fr": "Trouve ton point de départ",
+    "es": "Encuentra tu punto de partida",
+    "it": "Trova il tuo punto di partenza"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "placement-piano",
+    "instrument": "piano",
+    "track": "placement",
+    "level": "beginner",
+    "title": {
+      "en": "Find your starting point",
+      "fr": "Trouve ton point de départ",
+      "es": "Encuentra tu punto de partida",
+      "it": "Trova il tuo punto di partenza"
+    },
+    "summary": {
+      "en": "A two-minute placement: one exercise per unit and a short piece, to find where the path should start for you.",
+      "fr": "Un placement de deux minutes : un exercice par unité et un petit morceau, pour trouver où le parcours doit commencer pour toi.",
+      "es": "Una nivelación de dos minutos: un ejercicio por unidad y una pieza corta, para saber dónde debe empezar tu recorrido.",
+      "it": "Un collocamento di due minuti: un esercizio per unità e un breve brano, per capire dove il percorso debba iniziare per te."
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "A few quick exercises, one per unit, then a short piece. Miss one? No matter — it only tells us where to start.",
+          "fr": "Quelques exercices rapides, un par unité, puis un petit morceau. Tu en rates un ? Aucun souci — ça nous dit seulement où commencer.",
+          "es": "Unos ejercicios rápidos, uno por unidad, y luego una pieza corta. ¿Fallas uno? No pasa nada: solo nos dice por dónde empezar.",
+          "it": "Qualche esercizio veloce, uno per unità, poi un breve brano. Ne sbagli uno? Nessun problema: ci dice solo da dove iniziare."
+        }
+      },
+      {
+        "type": "nameNote",
+        "placementUnit": "u1",
+        "clef": "treble",
+        "notes": [
+          "C4",
+          "E4",
+          "G4"
+        ],
+        "choiceCount": 3,
+        "prompt": {
+          "en": "Name these three notes.",
+          "fr": "Nomme ces trois notes.",
+          "es": "Nombra estas tres notas.",
+          "it": "Dai il nome a queste tre note."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "placementUnit": "u2",
+        "pattern": [
+          {
+            "fig": "half",
+            "dots": 1
+          },
+          {
+            "fig": "quarter",
+            "rest": true
+          }
+        ],
+        "beats": 4,
+        "beatType": 4,
+        "bpm": 80,
+        "prompt": {
+          "en": "Tap this rhythm with the metronome — mind the rest.",
+          "fr": "Tape ce rythme avec le métronome — attention au silence.",
+          "es": "Toca este ritmo con el metrónomo: ojo con el silencio.",
+          "it": "Batti questo ritmo con il metronomo: attenzione alla pausa."
+        }
+      },
+      {
+        "type": "placeNote",
+        "placementUnit": "u3",
+        "clef": "treble",
+        "targets": [
+          "B4",
+          "D5",
+          "F5"
+        ],
+        "prompt": {
+          "en": "Place each note on the staff.",
+          "fr": "Place chaque note sur la portée.",
+          "es": "Coloca cada nota en el pentagrama.",
+          "it": "Metti ogni nota sul pentagramma."
+        }
+      },
+      {
+        "type": "nameNote",
+        "placementUnit": "u4",
+        "clef": "bass",
+        "notes": [
+          "F3",
+          "A3",
+          "C3"
+        ],
+        "choiceCount": 3,
+        "prompt": {
+          "en": "Bass clef now: name these notes.",
+          "fr": "Clé de fa maintenant : nomme ces notes.",
+          "es": "Ahora en clave de fa: nombra estas notas.",
+          "it": "Ora in chiave di basso: dai il nome a queste note."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "placementUnit": "u5",
+        "pattern": [
+          {
+            "fig": "eighth"
+          },
+          {
+            "fig": "eighth"
+          },
+          {
+            "fig": "quarter"
+          },
+          {
+            "fig": "eighth"
+          },
+          {
+            "fig": "eighth"
+          },
+          {
+            "fig": "quarter"
+          }
+        ],
+        "beats": 4,
+        "beatType": 4,
+        "bpm": 76,
+        "prompt": {
+          "en": "Eighth notes: tap this one.",
+          "fr": "Des croches : tape celui-ci.",
+          "es": "Corcheas: toca este.",
+          "it": "Crome: batti questo."
+        }
+      },
+      {
+        "type": "nameNote",
+        "placementUnit": "u6",
+        "clef": "treble",
+        "notes": [
+          "F#4",
+          "Bb4"
+        ],
+        "choiceCount": 3,
+        "prompt": {
+          "en": "Sharps and flats: name these notes.",
+          "fr": "Dièses et bémols : nomme ces notes.",
+          "es": "Sostenidos y bemoles: nombra estas notas.",
+          "it": "Diesis e bemolli: dai il nome a queste note."
+        }
+      },
+      {
+        "type": "earChoice",
+        "placementUnit": "u7",
+        "notes": [
+          "C4",
+          "G4"
+        ],
+        "answerId": "fifth",
+        "choices": [
+          {
+            "id": "third",
+            "label": {
+              "en": "A third",
+              "fr": "Une tierce",
+              "es": "Una tercera",
+              "it": "Una terza"
+            }
+          },
+          {
+            "id": "fifth",
+            "label": {
+              "en": "A fifth",
+              "fr": "Une quinte",
+              "es": "Una quinta",
+              "it": "Una quinta"
+            }
+          },
+          {
+            "id": "octave",
+            "label": {
+              "en": "An octave",
+              "fr": "Une octave",
+              "es": "Una octava",
+              "it": "Un'ottava"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "Listen: which interval is this?",
+          "fr": "Écoute : quel est cet intervalle ?",
+          "es": "Escucha: ¿qué intervalo es?",
+          "it": "Ascolta: che intervallo è?"
+        }
+      },
+      {
+        "type": "piece",
+        "placementUnit": "u7",
+        "score": {
+          "bundled": "frere-jacques"
+        },
+        "hands": "both",
+        "speed": 1.0,
+        "waitMode": false,
+        "metronome": false,
+        "readingAid": "off",
+        "passPct": 80,
+        "title": {
+          "en": "Frère Jacques — both hands, at tempo",
+          "fr": "Frère Jacques — deux mains, au tempo",
+          "es": "Frère Jacques: dos manos, a tempo",
+          "it": "Frère Jacques: due mani, a tempo"
+        },
+        "prompt": {
+          "en": "One run, both hands, no help. Passing it places you at the last unit.",
+          "fr": "Un passage, deux mains, sans aide. Le réussir te place à la dernière unité.",
+          "es": "Una pasada, dos manos, sin ayuda. Superarla te coloca en la última unidad.",
+          "it": "Un passaggio, due mani, senza aiuti. Superarlo ti colloca all'ultima unità."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "That's it. The next screen proposes where to start — you can nudge it up or down.",
+          "fr": "C'est tout. L'écran suivant te propose où commencer — tu peux l'ajuster d'un cran.",
+          "es": "Eso es todo. La siguiente pantalla te propone por dónde empezar: puedes ajustarlo un paso.",
+          "it": "È tutto. La schermata seguente ti propone da dove iniziare: puoi spostarlo di un passo."
+        }
+      }
+    ]
+  }
+}

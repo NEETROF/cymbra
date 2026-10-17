@@ -21,6 +21,7 @@ import '../theme/cymbra_theme.dart';
 import 'courses_section.dart';
 import 'daily_session_block.dart';
 import 'learning_path_body.dart';
+import 'placement_offer_card.dart';
 
 /// The Learn door's body (change: add-music-learn-play-home): today's session
 /// (change: add-music-daily-session), the continue card,
@@ -44,6 +45,9 @@ class LearnDoorBody extends ConsumerWidget {
             child: DailySessionBlock(),
           ),
         ),
+        // The placement offer, at the first visit (change:
+        // add-music-placement-test).
+        const SliverToBoxAdapter(child: PlacementOfferCard()),
         switch (courses) {
           AsyncData(:final value) when value.isEmpty => SliverFillRemaining(
             hasScrollBody: false,
@@ -54,15 +58,23 @@ class LearnDoorBody extends ConsumerWidget {
               // The path sits right below, so the card drops its own link to it.
               const CoursesSection(showPathLink: false),
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-                child: Text(
-                  l10n.pathTitle,
-                  style: const TextStyle(
-                    color: CymbraColors.primary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
-                  ),
+                padding: const EdgeInsets.fromLTRB(16, 20, 8, 0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        l10n.pathTitle,
+                        style: const TextStyle(
+                          color: CymbraColors.primary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                    // The placement stays reachable from the path header.
+                    const PlacementEntryButton(),
+                  ],
                 ),
               ),
               const Padding(

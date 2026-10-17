@@ -980,5 +980,21 @@
   "dailyStreakNone": "Aún sin racha: hoy empieza una",
   "dailySessionCompleteTitle": "¡Sesión completada!",
   "dailySessionCompleteMessage": "{count, plural, =1{1 elemento hecho hoy} other{{count} elementos hechos hoy}}. Hasta mañana.",
-  "dailyReviewFallback": "Repaso rápido"
+  "dailyReviewFallback": "Repaso rápido",
+  "placementOfferTitle": "¿Ya tocas un poco?",
+  "placementOfferBody": "Encuentra tu punto de partida en dos minutos: unos ejercicios y una pieza corta.",
+  "placementOfferStart": "Encontrar mi punto de partida",
+  "placementOfferLater": "Más tarde",
+  "placementResultAppBar": "Nivelación · resultado",
+  "placementResultTitle": "Tu punto de partida",
+  "placementUnitNumber": "Unidad {n}",
+  "placementUnitShort": "U{n}",
+  "placementSolved": "{count, plural, =1{1 ejercicio resuelto} other{{count} ejercicios resueltos}}",
+  "placementMissedAt": "fallo en «{title}»",
+  "placementAllSolved": "todo resuelto: el recorrido empieza tras la última unidad evaluada",
+  "placementSkippedNote": "Las unidades anteriores quedan «saltadas por la nivelación»: abiertas, nunca contadas como terminadas.",
+  "placementConfirm": "Empezar en la unidad {n}",
+  "placementRestart": "Empezar desde el principio",
+  "placementSkippedUnit": "Saltada por la nivelación",
+  "placementOpenUnit": "Abrir"
 }

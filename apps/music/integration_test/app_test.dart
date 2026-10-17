@@ -458,6 +458,107 @@ void main() {
     await watch(tester);
   });
 
+  // The placement (change: add-music-placement-test): offered at the first
+  // Learn visit, run in the lesson player, its result confirmed; the units
+  // before the start collapse but stay open, the continue card moves; a retake
+  // ended on "start from the beginning" restores the full path.
+  testWidgets('placement: offer → run with a miss on unit 3 → units 1 and 2 '
+      'skipped → start from the beginning', (tester) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final prefs = _MemoryPrefs({
+      Onboarding.languagePrefsKey: 'true',
+      Onboarding.welcomePrefsKey: 'true',
+    });
+    List<Override> overrides() => [
+      scoreCatalogProvider.overrideWithValue(const [kFixtureCatalogEntry]),
+      scoreAssetSourceProvider.overrideWithValue(
+        const FixtureScoreAssetSource(),
+      ),
+      tokenStoreProvider.overrideWithValue(const _GuestTokenStore()),
+      connectivityServiceProvider.overrideWithValue(const _FakeConnectivity()),
+      deviceLocaleProvider.overrideWithValue(const Locale('en')),
+      preferencesServiceProvider.overrideWithValue(prefs),
+      courseCatalogServiceProvider.overrideWithValue(const _PlacementCatalog()),
+    ];
+    Future<void> settle([int frames = 8]) async {
+      for (var i = 0; i < frames; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    Future<void> answer(List<bool> right) async {
+      for (final r in right) {
+        await tester.tap(find.byKey(Key('lesson-option-${r ? 0 : 1}')));
+        await settle(4);
+        await tester.tap(find.byKey(const Key('lesson-next')));
+        await settle(4);
+      }
+    }
+
+    await tester.pumpWidget(
+      ProviderScope(overrides: overrides(), child: const CymbraApp()),
+    );
+    await settle(12);
+    await tester.tap(find.text('Learn'));
+    await settle(10);
+
+    // The offer, at the first visit.
+    expect(find.byKey(const Key('placement-offer')), findsOneWidget);
+    await watch(tester);
+    await tester.tap(find.byKey(const Key('placement-offer-start')));
+    await settle(8);
+    expect(find.byType(LessonPlayerScreen), findsOneWidget);
+    await tester.tap(find.byKey(const Key('lesson-next'))); // the hook
+    await settle(4);
+    await answer([true, true, false]);
+    await tester.tap(find.byKey(const Key('lesson-next'))); // the recap
+    await settle(8);
+
+    // The result: unit 3, confirmed.
+    expect(find.byKey(const Key('placement-result')), findsOneWidget);
+    expect(find.text('Unit 3'), findsOneWidget);
+    await watch(tester);
+    await tester.tap(find.byKey(const Key('placement-confirm')));
+    await settle(10);
+
+    // Units 1 and 2 collapsed but open; the continue card on unit 3.
+    expect(find.byKey(const Key('path-unit-skipped-u1')), findsOneWidget);
+    expect(find.byKey(const Key('path-unit-skipped-u2')), findsOneWidget);
+    expect(find.byKey(const Key('placement-offer')), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('courses-continue-card')),
+        matching: find.text('The whole staff'),
+      ),
+      findsOneWidget,
+    );
+    await watch(tester);
+
+    // Retake from the header, end on "start from the beginning".
+    await tester.tap(find.byKey(const Key('placement-entry')));
+    await settle(8);
+    await tester.tap(find.byKey(const Key('lesson-next')));
+    await settle(4);
+    await answer([false, false, false]);
+    await tester.tap(find.byKey(const Key('lesson-next')));
+    await settle(8);
+    expect(find.text('Unit 1'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('placement-restart')));
+    await settle(10);
+    expect(find.byKey(const Key('path-unit-skipped-u1')), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('courses-continue-card')),
+        matching: find.text('Where the notes live'),
+      ),
+      findsOneWidget,
+    );
+    await watch(tester);
+  });
+
   // A lesson's piece step (change: add-music-piece-lessons) sends the learner
   // to the REAL player — real Rust parse and layout of the piece — with the
   // lesson's settings imposed, and takes them back. Courses come from the
@@ -767,6 +868,55 @@ class _GuestTokenStore implements TokenStore {
 
 /// One lesson with a single piece step on the bundled Ode to Joy (change:
 /// add-music-piece-lessons), for the piece-lesson scenario.
+/// Three one-lesson units plus a placement of three questions, one per unit.
+class _PlacementCatalog implements CourseCatalogService {
+  const _PlacementCatalog();
+
+  static const _units = [
+    ('u1', 'First notes', 'Where the notes live'),
+    ('u2', 'Rhythm', 'The pulse'),
+    ('u3', 'The whole staff', 'Lines and spaces'),
+  ];
+
+  @override
+  Future<List<CourseListing>> listCourses() async => [
+    for (final (i, u) in _units.indexed)
+      CourseListing(
+        id: 'it-pl-${u.$1}',
+        schemaVersion: 2,
+        unit: u.$1,
+        unitTitle: {'en': u.$2},
+        sortOrder: (i + 1) * 100 + 1,
+        title: {'en': u.$3},
+      ),
+    const CourseListing(
+      id: 'it-placement',
+      schemaVersion: 2,
+      track: 'placement',
+      sortOrder: 1,
+      title: {'en': 'Find your starting point'},
+    ),
+  ];
+
+  static String _q(String unit) =>
+      '{"type": "question", "placementUnit": "$unit", '
+      '"prompt": {"en": "A question about $unit"}, '
+      '"options": [{"en": "right"}, {"en": "wrong"}], "answerIndex": 0}';
+
+  @override
+  Future<String?> getCourseManifestJson(String id) async {
+    if (id == 'it-placement') {
+      return '{"schemaVersion": 2, "id": "it-placement", "track": "placement", '
+          '"title": {"en": "Find your starting point"}, "blocks": ['
+          '{"type": "text", "text": {"en": "Three quick questions."}}, '
+          '${_q('u1')}, ${_q('u2')}, ${_q('u3')}, '
+          '{"type": "text", "text": {"en": "Done."}}]}';
+    }
+    return '{"schemaVersion": 2, "id": "$id", "title": {"en": "Lesson"}, '
+        '"blocks": [{"type": "text", "text": {"en": "A short lesson."}}]}';
+  }
+}
+
 /// Two text-only lessons for the daily-session scenario.
 class _DailyCatalog implements CourseCatalogService {
   const _DailyCatalog();

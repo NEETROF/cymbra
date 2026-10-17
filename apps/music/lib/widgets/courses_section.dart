@@ -21,6 +21,8 @@ import '../screens/learning_path_screen.dart';
 import '../screens/lesson_player_screen.dart';
 import '../services/course_catalog_service.dart';
 import '../state/course_completion_notifier.dart';
+import '../state/placement_core.dart';
+import '../state/placement_notifier.dart';
 import '../theme/cymbra_theme.dart';
 import 'lesson_hero.dart';
 
@@ -53,8 +55,11 @@ class CoursesSection extends ConsumerWidget {
     // the first lesson again when everything is done (courses stay
     // replayable). A passed piece step counts as done (change:
     // add-music-piece-lessons).
+    // Units skipped by placement are not "next" (change:
+    // add-music-placement-test) — they stay open on the path.
+    final skipped = ref.watch(skippedUnitsProvider);
     final next = courses.firstWhere(
-      (c) => !completion.isDone(c.id),
+      (c) => !completion.isDone(c.id) && !skipped.contains(unitSlugOf(c)),
       orElse: () => courses.first,
     );
     final unitLessons = courses

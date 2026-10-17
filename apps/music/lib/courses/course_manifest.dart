@@ -111,6 +111,11 @@ sealed class CourseListing with _$CourseListing {
   }) = _CourseListing;
 }
 
+/// The track of the placement course (change: add-music-placement-test):
+/// listed apart from the learning path, run by the lesson player, finished on
+/// a result screen instead of a completion.
+const String kPlacementTrack = 'placement';
+
 /// A parsed course: its grouping metadata (instrument/track/level), inline
 /// titles, and the ordered blocks the lesson player runs.
 @freezed
@@ -124,6 +129,11 @@ sealed class CourseManifest with _$CourseManifest {
     @Default(<String, String>{}) InlineText title,
     @Default(<String, String>{}) InlineText summary,
     @Default(<CourseBlock>[]) List<CourseBlock> blocks,
+
+    /// The unit each block probes, by block index — the optional
+    /// `placementUnit` tag the parser keeps on any block (change:
+    /// add-music-placement-test). Empty on an ordinary lesson.
+    @Default(<int, String>{}) Map<int, String> placementUnits,
   }) = _CourseManifest;
 }
 
@@ -365,6 +375,16 @@ CourseManifest? parseCourseManifest(
     if (rawBlocks is List)
       for (final b in rawBlocks) _parseBlock(b),
   ];
+  // The `placementUnit` tag rides on any block, whatever its type — an
+  // unknown type keeps its tag too, so a newer block still probes its unit.
+  final placementUnits = <int, String>{
+    if (rawBlocks is List)
+      for (final (i, b) in rawBlocks.indexed)
+        if (b is Map &&
+            b['placementUnit'] is String &&
+            (b['placementUnit'] as String).isNotEmpty)
+          i: b['placementUnit'] as String,
+  };
 
   return CourseManifest(
     schemaVersion: schemaVersion,
@@ -375,6 +395,7 @@ CourseManifest? parseCourseManifest(
     title: _inline(decoded['title']),
     summary: _inline(decoded['summary']),
     blocks: blocks,
+    placementUnits: placementUnits,
   );
 }
 

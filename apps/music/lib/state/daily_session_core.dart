@@ -16,6 +16,7 @@ import 'package:flutter/foundation.dart';
 
 import '../courses/course_manifest.dart';
 import 'course_completion_notifier.dart';
+import 'placement_core.dart';
 import 'today_ledger.dart';
 
 /// How many items a day the learner signed up for (change:
@@ -144,8 +145,7 @@ bool isDrillBlock(CourseBlock block) =>
 Map<String, List<CourseListing>> _units(List<CourseListing> listings) {
   final units = <String, List<CourseListing>>{};
   for (final l in listings) {
-    final slug = l.unit.isNotEmpty ? l.unit : 'level:${l.level}';
-    (units[slug] ??= []).add(l);
+    (units[unitSlugOf(l)] ??= []).add(l);
   }
   return units;
 }
@@ -175,18 +175,24 @@ TodayLedger _effective(TodayLedger ledger, String dayKey) =>
     ledger.localDay == dayKey ? ledger : const TodayLedger();
 
 /// The lesson item's course, before any manifest is known: the lesson done
-/// today if one is, else the first course neither completed nor passed.
+/// today if one is, else the first course neither completed nor passed outside
+/// the units the placement skipped (change: add-music-placement-test).
 CourseListing? _lessonOf(
   List<CourseListing> listings,
   CourseCompletionState completion,
   TodayLedger today,
+  Set<String> skipUnits,
 ) {
   final byId = {for (final l in listings) l.id: l};
   for (final id in today.lessonIds) {
     final l = byId[id];
     if (l != null) return l;
   }
-  return listings.where((l) => !completion.isDone(l.id)).firstOrNull;
+  return listings
+      .where(
+        (l) => !completion.isDone(l.id) && !skipUnits.contains(unitSlugOf(l)),
+      )
+      .firstOrNull;
 }
 
 /// Which course manifests [composeDailySession] wants loaded for [dayKey]:
@@ -197,11 +203,12 @@ Set<String> dailySessionManifestsWanted({
   required CourseCompletionState completion,
   required TodayLedger ledger,
   required String dayKey,
+  Set<String> skipUnits = const {},
 }) {
   final today = _effective(ledger, dayKey);
   final byId = {for (final l in listings) l.id: l};
   final wanted = <String>{};
-  final lesson = _lessonOf(listings, completion, today);
+  final lesson = _lessonOf(listings, completion, today, skipUnits);
   if (lesson != null) wanted.add(lesson.id);
   wanted.addAll(today.pieceStepKeys.where(byId.containsKey));
   for (final key in today.reviewKeys) {
@@ -243,19 +250,23 @@ DailySession composeDailySession({
   required TodayLedger ledger,
   required DailyGoal goal,
   required String dayKey,
+  Set<String> skipUnits = const {},
 }) {
   if (listings.isEmpty) {
     return DailySession(items: const [], goal: goal, pathFinished: false);
   }
   final today = _effective(ledger, dayKey);
   final byId = {for (final l in listings) l.id: l};
-  final pathFinished = listings.every((l) => completion.isDone(l.id));
+  // Finished = everything from the starting unit on is done.
+  final pathFinished = listings
+      .where((l) => !skipUnits.contains(unitSlugOf(l)))
+      .every((l) => completion.isDone(l.id));
   final items = <DailyItem>[];
 
   // Lesson.
   CourseListing? lesson;
   if (!pathFinished) {
-    lesson = _lessonOf(listings, completion, today);
+    lesson = _lessonOf(listings, completion, today, skipUnits);
     if (lesson != null) {
       items.add(
         DailyItem(

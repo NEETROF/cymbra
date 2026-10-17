@@ -236,6 +236,36 @@ void main() {
       expect(piece.title, {'en': 'Lesson b2'});
     });
 
+    test('units skipped by placement are not the next lesson (change: '
+        'add-music-placement-test)', () {
+      final s = composeDailySession(
+        listings: dailyListings,
+        completion: const CourseCompletionState(loaded: true),
+        manifests: dailyManifests(),
+        ledger: const TodayLedger(),
+        goal: DailyGoal.normal,
+        dayKey: _day,
+        skipUnits: const {'u1', 'u2'},
+      );
+      expect(_item(s, DailyItemKind.lesson)?.courseId, 'c1');
+      expect(s.pathFinished, isFalse);
+      // Everything from the start on done → finished, whatever unit 1 holds.
+      final done = composeDailySession(
+        listings: dailyListings,
+        completion: const CourseCompletionState(
+          loaded: true,
+          completed: {'c1'},
+          passed: {'c2'},
+        ),
+        manifests: dailyManifests(),
+        ledger: const TodayLedger(),
+        goal: DailyGoal.normal,
+        dayKey: _day,
+        skipUnits: const {'u1', 'u2'},
+      );
+      expect(done.pathFinished, isTrue);
+    });
+
     test('the manifests wanted are the few the composition can use', () {
       final wanted = dailySessionManifestsWanted(
         listings: dailyListings,

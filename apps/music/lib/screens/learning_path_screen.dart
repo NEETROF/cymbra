@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/learning_path_body.dart';
+import '../widgets/placement_offer_card.dart';
 
 export '../widgets/learning_path_body.dart' show PathUnit, pathUnitsOf;
 
@@ -41,6 +42,12 @@ class LearningPathScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: CymbraColors.surfaceContainerLowest,
         title: Text(l10n.pathTitle),
+        // The placement stays reachable from the path header (change:
+        // add-music-placement-test).
+        actions: const [
+          PlacementEntryButton(compact: true),
+          SizedBox(width: 4),
+        ],
       ),
       body: const SafeArea(
         child: SingleChildScrollView(

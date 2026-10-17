@@ -17,11 +17,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../courses/course_manifest.dart';
+import '../l10n/gen/app_localizations.dart';
 import '../painters/path_curve_painter.dart';
 import '../painters/smufl.dart';
 import '../screens/lesson_player_screen.dart';
 import '../services/course_catalog_service.dart';
 import '../state/course_completion_notifier.dart';
+import '../state/placement_core.dart';
+import '../state/placement_notifier.dart';
 import '../theme/cymbra_theme.dart';
 import '../theme/motion.dart';
 import 'lesson_hero.dart';
@@ -59,8 +62,7 @@ typedef PathUnit = ({
 List<PathUnit> pathUnitsOf(List<CourseListing> listings) {
   final units = <String, List<CourseListing>>{};
   for (final l in listings) {
-    final slug = l.unit.isNotEmpty ? l.unit : 'level:${l.level}';
-    (units[slug] ??= []).add(l);
+    (units[unitSlugOf(l)] ??= []).add(l);
   }
   return [
     for (final e in units.entries)
@@ -106,11 +108,15 @@ class LearningPathBody extends ConsumerWidget {
     final lang = Localizations.localeOf(context).languageCode;
     final listings = ref.watch(coursesProvider).valueOrNull ?? const [];
     final completion = ref.watch(courseCompletionProvider);
+    final skipped = ref.watch(skippedUnitsProvider);
     final units = pathUnitsOf(listings);
     // Next up: the first course neither completed nor passed (change:
-    // add-music-piece-lessons — a passed piece step counts as done).
+    // add-music-piece-lessons — a passed piece step counts as done), outside
+    // the units the placement skipped (change: add-music-placement-test).
     final nextId = listings
-        .where((l) => !completion.isDone(l.id))
+        .where(
+          (l) => !completion.isDone(l.id) && !skipped.contains(unitSlugOf(l)),
+        )
         .map((l) => l.id)
         .firstOrNull;
     return Column(
@@ -124,6 +130,7 @@ class LearningPathBody extends ConsumerWidget {
             nextId: nextId,
             lang: lang,
             heroes: heroes,
+            skipped: skipped.contains(units[i].slug),
           ),
       ],
     );
@@ -138,6 +145,7 @@ class _UnitSection extends ConsumerStatefulWidget {
     required this.nextId,
     required this.lang,
     required this.heroes,
+    this.skipped = false,
   });
 
   final PathUnit unit;
@@ -147,6 +155,10 @@ class _UnitSection extends ConsumerStatefulWidget {
   final String lang;
   final bool heroes;
 
+  /// Skipped by placement (change: add-music-placement-test): collapsed to
+  /// its header until opened; its lessons keep their real states underneath.
+  final bool skipped;
+
   @override
   ConsumerState<_UnitSection> createState() => _UnitSectionState();
 }
@@ -155,6 +167,9 @@ class _UnitSectionState extends ConsumerState<_UnitSection>
     with TickerProviderStateMixin {
   /// The segment filling right now (its start node's index), or -1.
   int _fillingIndex = -1;
+
+  /// A skipped unit the learner opened anyway.
+  bool _expanded = false;
   late final AnimationController _fill = AnimationController(
     vsync: this,
     duration: Motion.standard,
@@ -238,6 +253,66 @@ class _UnitSectionState extends ConsumerState<_UnitSection>
     final done = unit.lessons.where((l) => completion.isDone(l.id)).length;
     final total = unit.lessons.length;
     final title = resolveInline(unit.title, widget.lang);
+    if (widget.skipped && !_expanded) {
+      final l10n = AppLocalizations.of(context);
+      return Container(
+        key: Key('path-unit-${unit.slug}'),
+        margin: const EdgeInsets.only(top: 12, bottom: 4),
+        padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
+        decoration: BoxDecoration(
+          color: CymbraColors.surfaceContainerHigh.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: CymbraColors.onSurfaceVariant.withValues(alpha: 0.15),
+          ),
+        ),
+        child: Row(
+          children: [
+            Text(
+              widget.glyph,
+              style: const TextStyle(
+                fontFamily: Smufl.fontFamily,
+                fontSize: 22,
+                height: 1,
+                color: CymbraColors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title.isEmpty ? unit.slug : title,
+                    style: const TextStyle(
+                      color: CymbraColors.onSurfaceVariant,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    '${l10n.placementSkippedUnit} · $done/$total',
+                    key: Key('path-unit-skipped-${unit.slug}'),
+                    style: const TextStyle(
+                      color: CymbraColors.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            TextButton(
+              key: Key('path-unit-open-${unit.slug}'),
+              onPressed: () => setState(() => _expanded = true),
+              child: Text(
+                l10n.placementOpenUnit,
+                style: const TextStyle(color: CymbraColors.secondary),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     // The glow rises then fades over its run: 0 → 1 → 0.
     final glow = _glow.value > 0 && _glow.value < 1
         ? (1 - (2 * _glow.value - 1).abs()).clamp(0.0, 1.0)

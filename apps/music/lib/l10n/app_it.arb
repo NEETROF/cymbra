@@ -980,5 +980,21 @@
   "dailyStreakNone": "Nessuna serie ancora: oggi ne inizia una",
   "dailySessionCompleteTitle": "Sessione completata!",
   "dailySessionCompleteMessage": "{count, plural, =1{1 elemento fatto oggi} other{{count} elementi fatti oggi}}. A domani.",
-  "dailyReviewFallback": "Ripasso rapido"
+  "dailyReviewFallback": "Ripasso rapido",
+  "placementOfferTitle": "Suoni già un po'?",
+  "placementOfferBody": "Trova il tuo punto di partenza in due minuti: qualche esercizio e un breve brano.",
+  "placementOfferStart": "Trova il mio punto di partenza",
+  "placementOfferLater": "Più tardi",
+  "placementResultAppBar": "Collocamento · risultato",
+  "placementResultTitle": "Il tuo punto di partenza",
+  "placementUnitNumber": "Unità {n}",
+  "placementUnitShort": "U{n}",
+  "placementSolved": "{count, plural, =1{1 esercizio risolto} other{{count} esercizi risolti}}",
+  "placementMissedAt": "sbagliato a «{title}»",
+  "placementAllSolved": "tutto risolto: il percorso inizia dopo l'ultima unità testata",
+  "placementSkippedNote": "Le unità precedenti sono «saltate dal collocamento»: aperte, mai contate come completate.",
+  "placementConfirm": "Inizia dall'unità {n}",
+  "placementRestart": "Inizia dall'inizio",
+  "placementSkippedUnit": "Saltata dal collocamento",
+  "placementOpenUnit": "Apri"
 }

@@ -239,13 +239,13 @@ String _manifestCacheKey(String id) => 'courses.manifest.v1.$id';
 List<CourseListing> _supported(List<CourseListing> listings) =>
     listings.where((l) => l.schemaVersion <= kCourseSchemaVersion).toList();
 
-/// The course listing, reconciled with an offline cache: fetches from the
-/// server and refreshes the cache, or — when the server is unreachable — falls
-/// back to the last cached listing (empty if none). Never throws. Listings the
-/// build cannot run are filtered out (the cache keeps them, so an app update
-/// reveals them without a refetch).
+/// Every supported course listing, reconciled with an offline cache: fetches
+/// from the server and refreshes the cache, or — when the server is
+/// unreachable — falls back to the last cached listing (empty if none). Never
+/// throws. Listings the build cannot run are filtered out (the cache keeps
+/// them, so an app update reveals them without a refetch).
 @riverpod
-Future<List<CourseListing>> courses(Ref ref) async {
+Future<List<CourseListing>> allCourses(Ref ref) async {
   final prefs = ref.watch(preferencesServiceProvider);
   try {
     final list = await ref.watch(courseCatalogServiceProvider).listCourses();
@@ -257,6 +257,22 @@ Future<List<CourseListing>> courses(Ref ref) async {
     final cached = await _readCache(prefs, _kCoursesCacheKey);
     return cached == null ? const [] : _supported(_decodeListings(cached));
   }
+}
+
+/// The learning path's listing: every course but the placement (change:
+/// add-music-placement-test), which has its own entry points.
+@riverpod
+Future<List<CourseListing>> courses(Ref ref) async {
+  final all = await ref.watch(allCoursesProvider.future);
+  return all.where((l) => l.track != kPlacementTrack).toList();
+}
+
+/// The placement course, or null when the server publishes none (change:
+/// add-music-placement-test) — then nothing is offered.
+@riverpod
+Future<CourseListing?> placementCourse(Ref ref) async {
+  final all = await ref.watch(allCoursesProvider.future);
+  return all.where((l) => l.track == kPlacementTrack).firstOrNull;
 }
 
 /// A single course's parsed manifest, reconciled with an offline cache: fetches
