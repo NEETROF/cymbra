@@ -17,22 +17,36 @@ import 'package:flutter/material.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../theme/cymbra_theme.dart';
 import '../theme/scoring_style.dart';
+import 'celebration_surface.dart';
 
 /// A small celebratory dialog for a gamified reward moment (change: add-curation-
-/// rewards): a level-up, a badge earned, or a reward redeemed. Mirrors the
-/// [showSessionSummary] modal convention (a centered [Dialog]).
+/// rewards): a level-up, a badge earned, a reward redeemed, a piece passed, a
+/// streak milestone. Mirrors the [showSessionSummary] modal convention (a
+/// centered [Dialog]); animated through the shared [CelebrationSurface]
+/// (change: add-music-motion-and-celebrations).
 ///
 /// Honors the gamified-feedback colour discipline: the accent is the flawless
 /// feedback-tier colour (`4.tierColor`, lilac), NOT a plain success green.
+/// [counterTo] / [counterFrom] show a number counting up (points) under the
+/// message; [counterFormat] localizes it.
 Future<void> showRewardCelebration(
   BuildContext context, {
   required String title,
   required String message,
   IconData icon = Icons.celebration,
+  int? counterTo,
+  int? counterFrom,
+  String Function(int value)? counterFormat,
 }) => showDialog<void>(
   context: context,
-  builder: (context) =>
-      _CelebrationDialog(title: title, message: message, icon: icon),
+  builder: (context) => _CelebrationDialog(
+    title: title,
+    message: message,
+    icon: icon,
+    counterTo: counterTo,
+    counterFrom: counterFrom,
+    counterFormat: counterFormat,
+  ),
 );
 
 class _CelebrationDialog extends StatelessWidget {
@@ -40,11 +54,17 @@ class _CelebrationDialog extends StatelessWidget {
     required this.title,
     required this.message,
     required this.icon,
+    this.counterTo,
+    this.counterFrom,
+    this.counterFormat,
   });
 
   final String title;
   final String message;
   final IconData icon;
+  final int? counterTo;
+  final int? counterFrom;
+  final String Function(int value)? counterFormat;
 
   @override
   Widget build(BuildContext context) {
@@ -56,53 +76,24 @@ class _CelebrationDialog extends StatelessWidget {
       backgroundColor: CymbraColors.surfaceContainerLow,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 360),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, size: 44, color: accent),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: accent,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: CymbraColors.onSurfaceVariant,
-                  fontSize: 14.5,
-                  height: 1.35,
-                ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(backgroundColor: accent),
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(l10n.rewardCelebrationClose),
-                ),
-              ),
-            ],
+      child: CelebrationSurface(
+        icon: icon,
+        accent: accent,
+        title: title,
+        subtitle: message,
+        counterTo: counterTo,
+        counterFrom: counterFrom,
+        counterFormat: counterFormat,
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: accent),
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(l10n.rewardCelebrationClose),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

@@ -15,8 +15,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../courses/course_manifest.dart' show resolveInline;
 import '../l10n/gen/app_localizations.dart';
+import '../state/achievements_notifier.dart';
 import '../state/curator_profile_notifier.dart';
+import '../state/session_notifier.dart';
 import 'reward_celebration.dart';
 
 /// Dedicated listener widget for the player subtree (architecture rule 4:
@@ -51,11 +54,46 @@ class PlayRewardListeners extends ConsumerWidget {
         context,
         title: l10n.rewardCelebrationLevelUpTitle,
         message: l10n.rewardCelebrationLevelUpMessage(after),
+        // The points count up to the new lifetime total (change:
+        // add-music-motion-and-celebrations).
+        counterFrom: previous?.valueOrNull?.lifetimePoints,
+        counterTo: next.valueOrNull?.lifetimePoints,
+        counterFormat: l10n.curatorPointsValue,
       );
     });
+    // A badge earned by playing (change: add-music-motion-and-celebrations):
+    // the first badge the refreshed read holds that the previous one did not.
+    // A first load and a failed read have no "before". Badges are account
+    // data: a guest's run reads none at all.
+    final online = ref.watch(canUseOnlineServicesProvider);
+    if (online) {
+      ref.listen(achievementsProvider, (previous, next) {
+        final before = previous?.valueOrNull;
+        final after = next.valueOrNull;
+        if (before == null || after == null) return;
+        final newly = _earnedKeys(after).difference(_earnedKeys(before));
+        if (newly.isEmpty) return;
+        final tile = after.families
+            .expand((f) => f.tiles)
+            .firstWhere((t) => newly.contains(t.badge.key));
+        showRewardCelebration(
+          context,
+          title: l10n.rewardCelebrationBadgeTitle,
+          message: resolveInline(tile.badge.label, after.languageCode),
+          icon: Icons.military_tech,
+        );
+      });
+      ref.watch(achievementsProvider);
+    }
     // Keeps the standing loaded while the player is on screen, so the listener
     // above has something to compare the post-award value against.
     ref.watch(curatorProfileProvider);
     return child;
   }
 }
+
+Set<String> _earnedKeys(AchievementsView view) => {
+  for (final f in view.families)
+    for (final t in f.tiles)
+      if (t.earned) t.badge.key,
+};

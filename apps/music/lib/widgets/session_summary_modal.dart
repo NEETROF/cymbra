@@ -25,6 +25,7 @@ import '../state/post_play_rating_notifier.dart';
 import '../state/session_summary.dart';
 import '../theme/cymbra_theme.dart';
 import '../theme/scoring_style.dart';
+import 'animated_counter.dart';
 import 'leaderboard_view.dart';
 import 'post_play_rating.dart';
 
@@ -442,8 +443,12 @@ class _PointsCue extends ConsumerWidget {
           children: [
             Icon(Icons.stars_rounded, size: 15, color: accent),
             const SizedBox(width: 6),
-            Text(
-              l10n.playPointsCue(points),
+            // Counts up from zero as the ack lands (change:
+            // add-music-motion-and-celebrations).
+            AnimatedCounter(
+              value: points,
+              initialFrom: 0,
+              format: l10n.playPointsCue,
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,

@@ -4276,5 +4276,39 @@
               "type": "String"
           }
       }
+  },
+  "celebrationPiecePassedTitle": "Piece passed!",
+  "@celebrationPiecePassedTitle": {
+      "description": "Celebration title when a lesson's piece step is passed (change: add-music-motion-and-celebrations)."
+  },
+  "celebrationPiecePassedMessage": "{title} · {pct} %",
+  "@celebrationPiecePassedMessage": {
+      "description": "Celebration line under the title: the piece's title and the run's overall synchronisation.",
+      "placeholders": {
+          "title": {
+              "type": "String"
+          },
+          "pct": {
+              "type": "int"
+          }
+      }
+  },
+  "streakMilestoneTitle": "{days}-day streak!",
+  "@streakMilestoneTitle": {
+      "description": "Celebration title when the practice streak reaches a milestone (7, 14, 30, 60, 100, 365 days).",
+      "placeholders": {
+          "days": {
+              "type": "int"
+          }
+      }
+  },
+  "streakMilestoneMessage": "You showed up {days} days in a row. Keep it going.",
+  "@streakMilestoneMessage": {
+      "description": "Celebration message for a streak milestone.",
+      "placeholders": {
+          "days": {
+              "type": "int"
+          }
+      }
   }
 }

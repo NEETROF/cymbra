@@ -18,6 +18,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../services/achievements_service.dart';
 import '../services/preferences_service.dart';
 import 'app_locale.dart';
+import 'curator_profile_notifier.dart';
+import 'play_reward_cue.dart';
 
 part 'achievements_notifier.freezed.dart';
 part 'achievements_notifier.g.dart';
@@ -237,6 +239,14 @@ class AchievementsSeen extends _$AchievementsSeen {
 class Achievements extends _$Achievements {
   @override
   Future<AchievementsView> build() async {
+    // A reward landing (a delivered run, a redeem) may have earned a badge:
+    // re-read, so a badge-earned moment can be noticed (change:
+    // add-music-motion-and-celebrations). Reactive, never poked by a sibling.
+    ref.listen(rewardRevisionProvider, (_, _) => ref.invalidateSelf());
+    ref.listen(
+      playRewardCueProvider.select((s) => s.seq),
+      (_, _) => ref.invalidateSelf(),
+    );
     final languageCode = ref.watch(appLocaleProvider).languageCode;
     final lastSeen = await ref.read(achievementsSeenProvider.future);
     final badges = await ref

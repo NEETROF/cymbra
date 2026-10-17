@@ -22,6 +22,7 @@ import '../services/streak_service.dart';
 import '../state/curator_profile_notifier.dart';
 import '../state/streak_notifier.dart';
 import '../theme/cymbra_theme.dart';
+import 'animated_counter.dart';
 import 'streak_sheet.dart';
 
 /// The compact curator standing pill for the app bar (change: add-curation-
@@ -34,6 +35,12 @@ import 'streak_sheet.dart';
 /// tapping it opens the account menu (which routes to the profile, where the full
 /// rewards live). It reads the reward providers directly (a value read), so it
 /// stays live as level/points change.
+const TextStyle _labelStyle = TextStyle(
+  color: CymbraColors.onSurface,
+  fontSize: 12.5,
+  fontWeight: FontWeight.w700,
+);
+
 class CuratorStandingPill extends ConsumerWidget {
   const CuratorStandingPill({super.key});
 
@@ -43,9 +50,15 @@ class CuratorStandingPill extends ConsumerWidget {
     final rewards = ref.watch(curatorProfileProvider).valueOrNull;
     final hasUnseen = ref.watch(curatorHasUnseenAwardsProvider);
 
-    final label = rewards == null
-        ? l10n.curatorEntryTooltip
-        : l10n.curatorChipLabel(rewards.level, rewards.lifetimePoints);
+    // The points count up when they grow (change:
+    // add-music-motion-and-celebrations); a spend shows at once.
+    final Widget label = rewards == null
+        ? Text(l10n.curatorEntryTooltip, style: _labelStyle)
+        : AnimatedCounter(
+            value: rewards.lifetimePoints,
+            format: (v) => l10n.curatorChipLabel(rewards.level, v),
+            style: _labelStyle,
+          );
 
     return Container(
       key: const Key('curator-chip'),
@@ -82,14 +95,7 @@ class CuratorStandingPill extends ConsumerWidget {
             ],
           ),
           const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: CymbraColors.onSurface,
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          label,
           const _StreakSegment(),
         ],
       ),

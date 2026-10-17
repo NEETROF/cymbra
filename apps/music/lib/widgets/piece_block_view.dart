@@ -26,6 +26,7 @@ import '../state/player_data.dart';
 import '../state/score_catalog.dart';
 import '../state/session_summary.dart';
 import '../theme/cymbra_theme.dart';
+import 'reward_celebration.dart';
 
 /// The `piece` step of a lesson (change: add-music-piece-lessons): the piece,
 /// the settings the step imposes as chips, the bar to clear, and the outcome
@@ -61,6 +62,11 @@ class _PieceBlockViewState extends ConsumerState<PieceBlockView> {
   PieceOpenOutcome? _unavailable;
   bool _opening = false;
 
+  /// Whether the run that just ended cleared the bar — celebrated once the
+  /// learner is back on the lesson (change: add-music-motion-and-celebrations),
+  /// never over the player.
+  bool _passedThisRun = false;
+
   PieceBlock get block => widget.block;
 
   Future<void> _open() async {
@@ -68,6 +74,7 @@ class _PieceBlockViewState extends ConsumerState<PieceBlockView> {
     setState(() {
       _opening = true;
       _unavailable = null;
+      _passedThisRun = false;
     });
     final lesson = LessonContext(
       lessonTitle: widget.lessonTitle,
@@ -101,6 +108,22 @@ class _PieceBlockViewState extends ConsumerState<PieceBlockView> {
     // Unavailable is not the learner's fault: the gate opens, the step is
     // simply not passed.
     if (outcome != PieceOpenOutcome.opened) widget.onAnswered(flawless: false);
+    final pct = _lastPct;
+    if (_passedThisRun && pct != null) {
+      final l10n = AppLocalizations.of(context);
+      final lang = Localizations.localeOf(context).languageCode;
+      unawaited(
+        showRewardCelebration(
+          context,
+          title: l10n.celebrationPiecePassedTitle,
+          message: l10n.celebrationPiecePassedMessage(
+            _pieceTitle(l10n, lang),
+            pct.round(),
+          ),
+          icon: Icons.music_note,
+        ),
+      );
+    }
   }
 
   /// Each finished run of this lesson's player, passed or not. Recorded
@@ -112,6 +135,7 @@ class _PieceBlockViewState extends ConsumerState<PieceBlockView> {
       setState(() {
         _lastPct = result.overallSyncPct;
         _passedThisSession = _passedThisSession || passed;
+        _passedThisRun = _passedThisRun || passed;
       });
     }
     unawaited(

@@ -17,14 +17,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
+import 'package:music/services/achievements_service.dart';
 import 'package:music/services/curator_rewards_service.dart';
+import 'package:music/services/preferences_service.dart';
 import 'package:music/state/play_reward_cue.dart';
+import 'package:music/state/session_notifier.dart';
 import 'package:music/widgets/play_reward_listeners.dart';
 
 import '../support/localized.dart';
+import '../support/prefs_fakes.dart';
 import 'play_reward_listeners_test.mocks.dart';
 
-@GenerateNiceMocks([MockSpec<CuratorRewardsService>()])
+@GenerateNiceMocks([
+  MockSpec<CuratorRewardsService>(),
+  MockSpec<AchievementsService>(),
+])
 CuratorRewardsView _standing(int level) => CuratorRewardsView(
   lifetimePoints: level * 100,
   spendableBalance: level * 100,
@@ -38,12 +45,28 @@ CuratorRewardsView _standing(int level) => CuratorRewardsView(
   recent: const [],
 );
 
+/// One badge as the server would send it.
+AchievementBadgeView _badge(String key, {bool earned = false}) =>
+    AchievementBadgeView(
+      key: key,
+      family: 'play',
+      metric: 'session_count',
+      threshold: 10,
+      earned: earned,
+      value: earned ? 10 : 3,
+      earnedAt: earned ? DateTime.utc(2026, 10, 17) : null,
+      label: {'en': 'Ten sessions', 'fr': 'Dix séances'},
+    );
+
 /// Mounts the listener over a root container (the repo convention for keepAlive
-/// overrides) whose standing seam returns [levels] in order, one per read.
+/// overrides) whose standing seam returns [levels] in order, one per read, and
+/// whose achievements seam returns [badges] in order the same way (the last
+/// list repeats; empty → an always-locked badge).
 Future<ProviderContainer> _mount(
   WidgetTester tester,
   List<int> levels, {
   bool failFirst = false,
+  List<List<AchievementBadgeView>> badges = const [],
 }) async {
   final service = MockCuratorRewardsService();
   var call = 0;
@@ -53,8 +76,22 @@ Future<ProviderContainer> _mount(
     if (!failFirst) call++;
     return _standing(levels[i]);
   });
+  final achievements = MockAchievementsService();
+  var read = 0;
+  when(achievements.getAchievements()).thenAnswer((_) async {
+    if (badges.isEmpty) return [_badge('ten')];
+    final i = (read++).clamp(0, badges.length - 1);
+    return badges[i];
+  });
   final c = ProviderContainer(
-    overrides: [curatorRewardsServiceProvider.overrideWithValue(service)],
+    overrides: [
+      curatorRewardsServiceProvider.overrideWithValue(service),
+      achievementsServiceProvider.overrideWithValue(achievements),
+      // The achievements read the "seen" mark from preferences first.
+      preferencesServiceProvider.overrideWithValue(FakePreferencesService()),
+      // Badges are account data: only a signed-in player reads them.
+      canUseOnlineServicesProvider.overrideWithValue(true),
+    ],
   );
   addTearDown(c.dispose);
   await tester.pumpWidget(
@@ -84,6 +121,50 @@ void main() {
       expect(find.byKey(const Key('reward-celebration')), findsOneWidget);
       expect(find.text('Level up!'), findsOneWidget);
       expect(find.textContaining('level 2'), findsOneWidget);
+      // The points count up to the new lifetime total (change:
+      // add-music-motion-and-celebrations).
+      expect(find.byKey(const Key('celebration-counter')), findsOneWidget);
+      expect(find.text('200 pts'), findsOneWidget);
+    });
+
+    testWidgets('a badge earned by playing is celebrated with its label', (
+      tester,
+    ) async {
+      final c = await _mount(
+        tester,
+        [1, 1],
+        badges: [
+          [_badge('ten')],
+          [_badge('ten', earned: true)],
+        ],
+      );
+      expect(find.byKey(const Key('reward-celebration')), findsNothing);
+
+      c.read(playRewardCueProvider.notifier)
+        ..arm('s1')
+        ..report('s1', 3); // the achievements re-read off this
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('reward-celebration')), findsOneWidget);
+      expect(find.text('Badge earned!'), findsOneWidget);
+      expect(find.text('Ten sessions'), findsOneWidget);
+    });
+
+    testWidgets('a badge already earned on first load celebrates nothing', (
+      tester,
+    ) async {
+      final c = await _mount(
+        tester,
+        [1, 1],
+        badges: [
+          [_badge('ten', earned: true)],
+        ],
+      );
+      c.read(playRewardCueProvider.notifier)
+        ..arm('s1')
+        ..report('s1', 3);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('reward-celebration')), findsNothing);
     });
 
     testWidgets('an award that crosses no level celebrates nothing', (

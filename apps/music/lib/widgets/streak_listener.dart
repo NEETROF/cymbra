@@ -21,6 +21,7 @@ import '../l10n/gen/app_localizations.dart';
 import '../services/streak_service.dart';
 import '../state/streak_notifier.dart';
 import 'app_snackbar.dart';
+import 'reward_celebration.dart';
 
 /// Dedicated listener widget for the practice streak (change: add-practice-
 /// streak, tasks 5.2/5.3), mounted near the top of the home subtree.
@@ -78,7 +79,28 @@ class _StreakListenerState extends ConsumerState<StreakListener> {
     ref.listenManual(streakProvider, fireImmediately: true, (previous, next) {
       final streak = next.valueOrNull;
       if (streak != null) _maybeNudge(streak);
+      _maybeMilestone(previous?.valueOrNull, streak);
       _reportOutcome(previous, next);
+    });
+  }
+
+  /// Streak lengths worth a celebration (change:
+  /// add-music-motion-and-celebrations). Only a RISE onto one of them between
+  /// two loaded snapshots celebrates: a first load at 30 is not an arrival.
+  static const Set<int> _milestones = {7, 14, 30, 60, 100, 365};
+
+  void _maybeMilestone(StreakView? before, StreakView? after) {
+    if (before == null || after == null) return;
+    if (after.current <= before.current) return;
+    if (!_milestones.contains(after.current)) return;
+    _afterFrame(() {
+      final l10n = AppLocalizations.of(context);
+      showRewardCelebration(
+        context,
+        title: l10n.streakMilestoneTitle(after.current),
+        message: l10n.streakMilestoneMessage(after.current),
+        icon: Icons.local_fire_department,
+      );
     });
   }
 

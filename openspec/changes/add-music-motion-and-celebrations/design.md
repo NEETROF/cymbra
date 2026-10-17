@@ -25,11 +25,14 @@ Reduced motion is not read anywhere. See proposal.md — Why.
 
 ## Decisions
 
-### D1 — Tokens in `theme/motion.dart`, read through `MotionScale`
+### D1 — Tokens in `theme/motion.dart`, read through `Motion.of`
 `Motion.quick = 160 ms`, `standard = 280 ms`, `celebrate = 900 ms`, curves `easeOutCubic`
-and `easeOutBack`. A `MotionScale` inherited widget multiplies every duration by 1 or 0
-from `MediaQuery.disableAnimations`; widgets never read the platform flag themselves.
-The player's existing controllers adopt the tokens where their literal already matches.
+and `easeOutBack`. `Motion.of(context, duration)` returns the duration, or zero when
+`MediaQuery.disableAnimations` is set; widgets never read the platform flag themselves.
+No inherited widget of our own: `MediaQuery` already is one, and a second layer would only
+be a place for the two to disagree. The door switch adopts the tokens (its literal already
+matched); the player's countdown and the path pulse keep their own timings, which match no
+token.
 
 ### D2 — One `CelebrationSurface`, six callers
 Alternatives: animate each dialog separately.

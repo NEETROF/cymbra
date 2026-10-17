@@ -512,6 +512,56 @@ void main() {
     });
   });
 
+  group('streak milestones (change: add-music-motion-and-celebrations)', () {
+    /// A listener whose service answers [before] first, then [after] on the
+    /// re-read the revision bump triggers.
+    Future<void> rise(WidgetTester tester, int before, int after) async {
+      final service = MockStreakService();
+      var reads = 0;
+      when(service.getStreak()).thenAnswer(
+        (_) async => _streak(current: reads++ == 0 ? before : after),
+      );
+      await tester.pumpWidget(_hostListener(service));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('reward-celebration')), findsNothing);
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(StreakListener)),
+      );
+      container.read(streakRevisionProvider.notifier).bump();
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('arriving on a milestone celebrates it', (tester) async {
+      await rise(tester, 6, 7);
+      expect(find.byKey(const Key('reward-celebration')), findsOneWidget);
+      expect(find.text('7-day streak!'), findsOneWidget);
+      expect(find.textContaining('7 days in a row'), findsOneWidget);
+    });
+
+    testWidgets('a day past a milestone is no milestone', (tester) async {
+      await rise(tester, 7, 8);
+      expect(find.byKey(const Key('reward-celebration')), findsNothing);
+    });
+
+    testWidgets('a first load on a milestone is not an arrival', (
+      tester,
+    ) async {
+      final service = MockStreakService();
+      when(service.getStreak()).thenAnswer((_) async => _streak(current: 30));
+      await tester.pumpWidget(_hostListener(service));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('reward-celebration')), findsNothing);
+    });
+
+    testWidgets('a recovered streak landing on a milestone celebrates too', (
+      tester,
+    ) async {
+      // 0 → 14 after a buy-back: a rise onto a milestone, whatever the step.
+      await rise(tester, 0, 14);
+      expect(find.text('14-day streak!'), findsOneWidget);
+    });
+  });
+
   group('streak notifier', () {
     test('recover reports through state, not a return value', () async {
       final service = MockStreakService();

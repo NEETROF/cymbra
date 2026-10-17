@@ -183,6 +183,15 @@ void main() {
     Navigator.of(tester.element(find.byType(PlayerScreen))).pop();
     await _frames(tester, 20);
     expect(find.byType(LessonPlayerScreen), findsOneWidget);
+    // The pass is celebrated back on the lesson, never over the player
+    // (change: add-music-motion-and-celebrations).
+    expect(find.byKey(const Key('reward-celebration')), findsOneWidget);
+    expect(find.text('Piece passed!'), findsOneWidget);
+    expect(find.text('Ode — right hand · 84 %'), findsOneWidget);
+    await _frames(tester, 24);
+    await tester.tap(find.text('Nice!'));
+    await _frames(tester, 10);
+    expect(find.byKey(const Key('reward-celebration')), findsNothing);
     expect(find.text('Step passed · 84 %'), findsOneWidget);
     expect(find.byKey(const Key('piece-retry')), findsOneWidget);
     expect(find.byKey(const Key('lesson-next')), findsOneWidget);
@@ -229,6 +238,8 @@ void main() {
     expect(find.byKey(const Key('piece-retry')), findsOneWidget);
     expect(find.byKey(const Key('lesson-next')), findsOneWidget);
     expect(container.read(courseCompletionProvider).isPassed('c1'), isFalse);
+    // A run below the bar is no celebration.
+    expect(find.byKey(const Key('reward-celebration')), findsNothing);
     await _teardown(tester);
   });
 

@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/gen/app_localizations.dart';
 import '../theme/cymbra_theme.dart';
+import 'celebration_surface.dart';
 
 /// What the learner chose on the end-of-lesson celebration.
 enum LessonCelebrationAction {
@@ -30,7 +31,8 @@ enum LessonCelebrationAction {
 /// reward-accent moment naming what was accomplished, the first-try stat when
 /// the lesson had gated exercises, and — when a next lesson exists — a one-tap
 /// "continue" into it. Follows the app's gamified-colour discipline: reward
-/// moments wear the lilac accent, never the success green.
+/// moments wear the lilac accent, never the success green. Animated through the
+/// shared [CelebrationSurface] (change: add-music-motion-and-celebrations).
 Future<LessonCelebrationAction> showLessonCelebration(
   BuildContext context, {
   required String lessonTitle,
@@ -71,91 +73,50 @@ class _LessonCelebrationDialog extends StatelessWidget {
     return Dialog(
       backgroundColor: CymbraColors.surfaceContainerLow,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 380),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
-          // Scrollable so a short landscape-phone viewport can never make the
-          // celebration overflow — it scrolls instead.
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.school, size: 40, color: accent),
+      child: CelebrationSurface(
+        icon: Icons.school,
+        accent: accent,
+        title: l10n.lessonCelebrationTitle,
+        subtitle: lessonTitle,
+        extra: gated > 0
+            ? Text(
+                l10n.lessonCelebrationFlawless(flawless, gated),
+                key: const Key('lesson-celebration-stat'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: CymbraColors.onSurfaceVariant,
+                  fontSize: 13,
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  l10n.lessonCelebrationTitle,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: accent,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                  ),
+              )
+            : null,
+        actions: [
+          if (nextLessonTitle != null)
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                key: const Key('lesson-celebration-next'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: CymbraColors.primaryContainer,
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  lessonTitle,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: CymbraColors.onSurface,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
+                onPressed: () =>
+                    Navigator.of(context).pop(LessonCelebrationAction.next),
+                child: Text(
+                  '${l10n.lessonContinueNext} — $nextLessonTitle',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                if (gated > 0) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    l10n.lessonCelebrationFlawless(flawless, gated),
-                    key: const Key('lesson-celebration-stat'),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: CymbraColors.onSurfaceVariant,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 20),
-                if (nextLessonTitle != null)
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      key: const Key('lesson-celebration-next'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: CymbraColors.primaryContainer,
-                      ),
-                      onPressed: () => Navigator.of(
-                        context,
-                      ).pop(LessonCelebrationAction.next),
-                      child: Text(
-                        '${l10n.lessonContinueNext} — $nextLessonTitle',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                TextButton(
-                  key: const Key('lesson-celebration-close'),
-                  onPressed: () =>
-                      Navigator.of(context).pop(LessonCelebrationAction.close),
-                  child: Text(
-                    l10n.lessonFinish,
-                    style: const TextStyle(
-                      color: CymbraColors.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ],
+              ),
+            ),
+          TextButton(
+            key: const Key('lesson-celebration-close'),
+            onPressed: () =>
+                Navigator.of(context).pop(LessonCelebrationAction.close),
+            child: Text(
+              l10n.lessonFinish,
+              style: const TextStyle(color: CymbraColors.onSurfaceVariant),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

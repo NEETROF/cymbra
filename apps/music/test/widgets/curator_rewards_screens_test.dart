@@ -20,6 +20,7 @@ import 'package:mockito/mockito.dart';
 import 'package:music/screens/curator_activity_screen.dart';
 import 'package:music/services/curator_rewards_service.dart';
 import 'package:music/services/preferences_service.dart';
+import 'package:music/state/curator_profile_notifier.dart';
 import 'package:music/widgets/curator_chip.dart';
 import 'package:music/widgets/curator_rewards_section.dart';
 
@@ -28,32 +29,34 @@ import '../support/prefs_fakes.dart';
 import 'curator_rewards_screens_test.mocks.dart';
 
 @GenerateNiceMocks([MockSpec<CuratorRewardsService>()])
-CuratorRewardsView _rewards({List<RewardActivityView> recent = const []}) =>
-    CuratorRewardsView(
-      lifetimePoints: 200,
-      spendableBalance: 200,
-      level: 2,
-      levelFloor: 150,
-      nextLevelAt: 350,
-      totalRatings: 12,
-      coverageContribution: 7,
-      alignmentRate: 0.75,
-      badges: const [
-        CuratorBadgeView(
-          key: 'first_note',
-          metric: 'rating_count',
-          threshold: 1,
-          earned: true,
-        ),
-        CuratorBadgeView(
-          key: 'curator_2',
-          metric: 'rating_count',
-          threshold: 100,
-          earned: false,
-        ),
-      ],
-      recent: recent,
-    );
+CuratorRewardsView _rewards({
+  List<RewardActivityView> recent = const [],
+  int lifetimePoints = 200,
+}) => CuratorRewardsView(
+  lifetimePoints: lifetimePoints,
+  spendableBalance: 200,
+  level: 2,
+  levelFloor: 150,
+  nextLevelAt: 350,
+  totalRatings: 12,
+  coverageContribution: 7,
+  alignmentRate: 0.75,
+  badges: const [
+    CuratorBadgeView(
+      key: 'first_note',
+      metric: 'rating_count',
+      threshold: 1,
+      earned: true,
+    ),
+    CuratorBadgeView(
+      key: 'curator_2',
+      metric: 'rating_count',
+      threshold: 100,
+      earned: false,
+    ),
+  ],
+  recent: recent,
+);
 
 List<Override> _overrides(CuratorRewardsService service) => [
   curatorRewardsServiceProvider.overrideWithValue(service),
@@ -86,6 +89,43 @@ void main() {
     // The pill carries the level (2) and lifetime points (200).
     expect(find.textContaining('2'), findsWidgets);
     expect(find.textContaining('200'), findsWidgets);
+  });
+
+  testWidgets('the pill counts up after a reward lands, and shows a debit at '
+      'once (change: add-music-motion-and-celebrations)', (tester) async {
+    final service = MockCuratorRewardsService();
+    final points = [200, 260, 100];
+    var read = 0;
+    when(service.getRewards()).thenAnswer(
+      (_) async => _rewards(lifetimePoints: points[(read++).clamp(0, 2)]),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: _overrides(service),
+        child: localizedApp(
+          const Scaffold(body: Center(child: CuratorStandingPill())),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('200'), findsOneWidget);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(CuratorStandingPill)),
+    );
+
+    // A rise: the pill counts from the old value to the new one.
+    container.read(rewardRevisionProvider.notifier).bump();
+    await tester.pump();
+    await tester.pump();
+    expect(find.textContaining('260'), findsNothing, reason: 'still counting');
+    await tester.pumpAndSettle();
+    expect(find.textContaining('260'), findsOneWidget);
+
+    // A debit shows at once — honesty over show.
+    container.read(rewardRevisionProvider.notifier).bump();
+    await tester.pump();
+    await tester.pump();
+    expect(find.textContaining('100'), findsOneWidget);
   });
 
   testWidgets('curator rewards section renders level, points, balance, stats', (

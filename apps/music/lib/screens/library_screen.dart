@@ -29,6 +29,7 @@ import '../state/saved_catalog_scores.dart';
 import '../state/score_catalog.dart';
 import '../state/session_notifier.dart';
 import '../theme/cymbra_theme.dart';
+import '../theme/motion.dart';
 import '../widgets/catalog_access_widgets.dart';
 import '../courses/course_manifest.dart';
 import '../services/course_catalog_service.dart';
@@ -531,7 +532,6 @@ class _DoorBody extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final door = ref.watch(effectiveHomeDoorProvider);
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     final Widget body = switch (door) {
       HomeDoor.learn => const LearnDoorBody(),
       HomeDoor.play => KeyedSubtree(
@@ -542,11 +542,9 @@ class _DoorBody extends ConsumerWidget {
       ),
     };
     return AnimatedSwitcher(
-      duration: reduceMotion
-          ? Duration.zero
-          : const Duration(milliseconds: 280),
-      switchInCurve: Curves.easeOutCubic,
-      switchOutCurve: Curves.easeOutCubic,
+      duration: Motion.of(context, Motion.standard),
+      switchInCurve: Motion.enter,
+      switchOutCurve: Motion.enter,
       transitionBuilder: (child, animation) => FadeTransition(
         opacity: animation,
         child: SlideTransition(

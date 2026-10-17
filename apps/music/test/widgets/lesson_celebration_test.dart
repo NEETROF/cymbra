@@ -13,29 +13,34 @@
 // limitations under the License.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/l10n/gen/app_localizations.dart';
 import 'package:music/widgets/lesson_celebration.dart';
 
 Future<void> _open(WidgetTester tester) async {
   await tester.pumpWidget(
-    MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      locale: const Locale('fr'),
-      home: Builder(
-        builder: (context) => Scaffold(
-          body: Center(
-            child: FilledButton(
-              key: const Key('go'),
-              onPressed: () => showLessonCelebration(
-                context,
-                lessonTitle: 'Majeur ou mineur',
-                flawless: 3,
-                gated: 4,
-                nextLessonTitle: 'Do, fa, sol : les trois piliers',
+    // The celebration surface reads the haptics seam (change:
+    // add-music-motion-and-celebrations).
+    ProviderScope(
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: const Locale('fr'),
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: FilledButton(
+                key: const Key('go'),
+                onPressed: () => showLessonCelebration(
+                  context,
+                  lessonTitle: 'Majeur ou mineur',
+                  flawless: 3,
+                  gated: 4,
+                  nextLessonTitle: 'Do, fa, sol : les trois piliers',
+                ),
+                child: const Text('go'),
               ),
-              child: const Text('go'),
             ),
           ),
         ),

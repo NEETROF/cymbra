@@ -957,5 +957,9 @@
   "summaryGoalMet": "Objetivo {pct} % alcanzado",
   "summaryGoalMissed": "Objetivo {pct} % · todavía no",
   "playerLessonHeader": "Lección · {title} · objetivo {pct} %",
-  "prePlaySetByLesson": "Ajustes definidos por la lección «{title}»"
+  "prePlaySetByLesson": "Ajustes definidos por la lección «{title}»",
+  "celebrationPiecePassedTitle": "¡Pieza superada!",
+  "celebrationPiecePassedMessage": "{title} · {pct} %",
+  "streakMilestoneTitle": "¡Racha de {days} días!",
+  "streakMilestoneMessage": "Has venido {days} días seguidos. Sigue así."
 }
