@@ -50,6 +50,7 @@ import '../widgets/keep_screen_awake.dart';
 import '../widgets/kit_piece_labels.dart';
 import '../widgets/coach_mark.dart';
 import '../widgets/countdown_overlay.dart';
+import '../widgets/lesson_hero.dart';
 import '../widgets/mic_free_run_listener.dart';
 import '../widgets/mistake_replay.dart';
 import '../widgets/notation_help_area.dart';
@@ -2078,19 +2079,38 @@ class _TopBarLead extends ConsumerWidget {
             fontWeight: FontWeight.w800,
           ),
         ),
-        Text(
-          l10n.nowPlaying(title ?? '—'),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: CymbraColors.onSurfaceVariant,
-            fontSize: subtitleSize,
+        _heroed(
+          context,
+          ref.watch(selectedScoreProvider)?.id,
+          Text(
+            l10n.nowPlaying(title ?? '—'),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: CymbraColors.onSurfaceVariant,
+              fontSize: subtitleSize,
+            ),
           ),
         ),
       ],
     );
   }
 }
+
+/// Wraps the now-playing line in the score's shared-element tag when the
+/// player was opened from a card (change: add-music-learn-play-home); plain
+/// text otherwise (a lesson run or a deep link has no card to fly from).
+Widget _heroed(BuildContext context, String? entryId, Widget child) =>
+    entryId == null
+    ? child
+    : Hero(
+        tag: scoreHeroTag(entryId),
+        child: Material(
+          type: MaterialType.transparency,
+          textStyle: DefaultTextStyle.of(context).style,
+          child: child,
+        ),
+      );
 
 /// The exit from an endless practice loop (change: add-measure-range-practice).
 ///

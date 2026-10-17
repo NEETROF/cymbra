@@ -19,6 +19,8 @@ const FR: Record<string, string> = {
   "onboarding.enabled": "Parcours d’accueil (onboarding).",
   "drums.enabled":
     "Coupe-circuit de la batterie MIDI : activé (par défaut), tous les joueurs voient et peuvent envoyer des partitions de batterie ; désactivé, elles sont masquées pour tout le monde, staff compris.",
+  "music.learn_door.enabled":
+    "Coupe-circuit de l’accueil à deux portes de Cymbra Music (Jouer / Apprendre) : activé (par défaut), l’en-tête propose les deux portes ; désactivé, l’accueil redevient la bibliothèque seule avec la carte des cours au-dessus des favoris.",
   "platform.maintenance": "Coupe-circuit partagé : bascule toutes les apps en mode maintenance.",
   "rating.review.min_votes": "Nombre de votes requis avant qu’une note de partition soit ré-évaluée.",
   "rating.review.threshold": "Seuil de note moyenne en dessous duquel une partition est signalée pour révision.",

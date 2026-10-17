@@ -4112,5 +4112,26 @@
   "inputDeviceSystemDefault": "System default",
   "@inputDeviceSystemDefault": {
     "description": "Input-device picker entry that follows the operating system's default microphone."
+  },
+  "homeDoorPlay": "Play",
+  "@homeDoorPlay": {
+      "description": "Home header door switcher: the library as it always was (change: add-music-learn-play-home)."
+  },
+  "homeDoorLearn": "Learn",
+  "@homeDoorLearn": {
+      "description": "Home header door switcher: the piano learning path (change: add-music-learn-play-home)."
+  },
+  "homeContinueLearning": "Continue learning · {lesson}",
+  "@homeContinueLearning": {
+      "description": "Play door chip linking back to the Learn door while a lesson is in progress; {lesson} is the next lesson's title.",
+      "placeholders": {
+          "lesson": {
+              "type": "String"
+          }
+      }
+  },
+  "learnDoorEmpty": "Courses are on their way. Meanwhile, the Play door is one tap away.",
+  "@learnDoorEmpty": {
+      "description": "Learn door body when no course is available (none published, or unreachable with no cache)."
   }
 }

@@ -39,6 +39,7 @@ import 'state/selected_piano.dart';
 import 'state/acoustic_input_access.dart';
 import 'state/session_notifier.dart';
 import 'state/drums_access.dart';
+import 'state/learn_door_access.dart';
 import 'state/plan_notifier.dart';
 import 'state/screen_wake.dart';
 import 'state/usage_tracking_notifier.dart';
@@ -87,6 +88,12 @@ Future<void> main() async {
       ),
       // Microphone input visibility (change: add-acoustic-piano-input): plain
       // `false` in tests, the remote `acoustic_input.enabled` flag in the app.
+      // The two-door home kill-switch (change: add-music-learn-play-home):
+      // plain `true` in tests, the remote `music.learn_door.enabled` flag in
+      // the app — shown until the server says off.
+      learnDoorEnabledProvider.overrideWith(
+        (ref) => learnDoorEnabledIn(ref.watch(flagsProvider)),
+      ),
       acousticInputEnabledProvider.overrideWith(
         (ref) => ref
             .watch(flagsProvider)

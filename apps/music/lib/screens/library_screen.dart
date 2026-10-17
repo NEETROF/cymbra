@@ -22,13 +22,20 @@ import '../state/contributed_scores.dart';
 import '../state/drums_access.dart';
 import '../state/instrument_context.dart';
 import '../state/favorite_scores.dart';
+import '../state/home_door.dart';
+import '../state/learn_door_access.dart';
 import '../state/player_preferences.dart';
 import '../state/saved_catalog_scores.dart';
 import '../state/score_catalog.dart';
 import '../state/session_notifier.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/catalog_access_widgets.dart';
+import '../courses/course_manifest.dart';
+import '../services/course_catalog_service.dart';
+import '../state/course_completion_notifier.dart';
 import '../widgets/courses_section.dart';
+import '../widgets/home_door_switcher.dart';
+import '../widgets/learn_door_body.dart';
 import '../widgets/instrument_context_widgets.dart';
 import '../widgets/library_listeners.dart';
 import '../widgets/rating_invite_banner.dart';
@@ -72,6 +79,9 @@ class LibraryScreen extends ConsumerWidget {
     // visible (change: add-instrument-context); everyone else gets today's
     // header untouched.
     final drumsVisible = ref.watch(drumsEnabledProvider);
+    // The Play / Learn door switcher (change: add-music-learn-play-home) shares
+    // that header row; both are absent when their feature is off.
+    final learnDoor = ref.watch(learnDoorEnabledProvider);
 
     return LibraryListeners(
       child: Scaffold(
@@ -79,13 +89,10 @@ class LibraryScreen extends ConsumerWidget {
         appBar: AppBar(
           title: Text(l10n.libraryTitle),
           backgroundColor: CymbraColors.surfaceContainerLowest,
-          bottom: drumsVisible
+          bottom: (drumsVisible || learnDoor)
               ? const PreferredSize(
                   preferredSize: Size.fromHeight(54),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: InstrumentSwitcher(),
-                  ),
+                  child: _HeaderSwitchers(),
                 )
               : null,
           actions: [
@@ -153,9 +160,7 @@ class LibraryScreen extends ConsumerWidget {
         body: InstrumentChoiceListener(
           child: SafeArea(
             top: false,
-            child: signedIn
-                ? _SignedInBody(l10n: l10n)
-                : _bundledBody(context, ref),
+            child: _DoorBody(signedIn: signedIn, l10n: l10n),
           ),
         ),
       ),
@@ -165,7 +170,7 @@ class LibraryScreen extends ConsumerWidget {
   /// Signed-out: the bundled demo catalog, grouped by level (open-only) and
   /// seeded from the instrument context (change: add-instrument-context) —
   /// drums shows the bundled grooves, keyboard the piano repertoire.
-  Widget _bundledBody(BuildContext context, WidgetRef ref) {
+  static Widget _bundledBody(BuildContext context, WidgetRef ref) {
     final catalog = ref.watch(scoreCatalogProvider);
     final wantsDrums =
         ref.watch(effectiveInstrumentContextProvider) == AppInstrument.drums;
@@ -181,12 +186,18 @@ class LibraryScreen extends ConsumerWidget {
     }
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
-      children: _levelSections(
-        context,
-        shown,
-        onOpen: (entry) => _open(context, ref, entry),
-        actionFor: (_) => null,
-      ),
+      children: [
+        // A guest's local completions deserve the way back too (change:
+        // add-music-learn-play-home).
+        if (!wantsDrums && ref.watch(learnDoorEnabledProvider))
+          const _ContinueLearningChip(),
+        ..._levelSections(
+          context,
+          shown,
+          onOpen: (entry) => _open(context, ref, entry),
+          actionFor: (_) => null,
+        ),
+      ],
     );
   }
 
@@ -316,6 +327,11 @@ class _SignedInBody extends ConsumerWidget {
       for (final e in entries)
         if ((e.instrument == ScoreInstrument.percussion) == wantsDrums) e,
     ];
+    // With the two-door home on, the courses live behind the Learn door and
+    // the Play door keeps a one-line way back (change:
+    // add-music-learn-play-home); with it off, the courses card sits above the
+    // favorites as before.
+    final learnDoor = ref.watch(learnDoorEnabledProvider);
     return CustomScrollView(
       slivers: [
         // Nudge to rate scores after a lull (renders nothing when not due).
@@ -326,7 +342,10 @@ class _SignedInBody extends ConsumerWidget {
         // Interactive courses (change: add-notation-courses), above the
         // favorites; omits itself when there are none. No drum course exists
         // yet, so the card steps aside under the drums context.
-        if (!wantsDrums) const SliverToBoxAdapter(child: CoursesSection()),
+        if (!wantsDrums && !learnDoor)
+          const SliverToBoxAdapter(child: CoursesSection()),
+        if (!wantsDrums && learnDoor)
+          const SliverToBoxAdapter(child: _ContinueLearningChip()),
         switch (favorites) {
           AsyncData(:final value) when byContext(value).isEmpty => _fill(
             wantsDrums
@@ -452,6 +471,139 @@ class _Empty extends StatelessWidget {
               onPressed: () => LibraryScreen._openHub(context),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The header's switcher row (change: add-music-learn-play-home): the
+/// instrument switcher on the left while drums are visible, the Play / Learn
+/// door switcher on the right while the two-door home is on. Each hides itself
+/// when its feature is off, so the row degrades to today's header.
+class _HeaderSwitchers extends StatelessWidget {
+  const _HeaderSwitchers();
+
+  @override
+  Widget build(BuildContext context) {
+    // Each switcher scales down rather than overflowing when the header is
+    // narrow (a portrait phone in the widget tests, a shrunken desktop
+    // window): the row must never paint an overflow stripe over the home.
+    return Padding(
+      padding: const EdgeInsets.only(right: 16, bottom: 10),
+      child: Row(
+        children: const [
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              // Pads itself (16, 0, 16, 10); shrinks away while drums are hidden.
+              child: InstrumentSwitcher(),
+            ),
+          ),
+          Spacer(),
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: EdgeInsets.only(left: 16),
+                child: HomeDoorSwitcher(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The body behind the door (change: add-music-learn-play-home): Play is the
+/// library as it always was (favorites signed in, the bundled demo signed out),
+/// Learn is the learning path. Switching cross-fades and slides the body; a
+/// reduced-motion platform swaps it at once.
+class _DoorBody extends ConsumerWidget {
+  const _DoorBody({required this.signedIn, required this.l10n});
+
+  final bool signedIn;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final door = ref.watch(effectiveHomeDoorProvider);
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final Widget body = switch (door) {
+      HomeDoor.learn => const LearnDoorBody(),
+      HomeDoor.play => KeyedSubtree(
+        key: const Key('play-door-body'),
+        child: signedIn
+            ? _SignedInBody(l10n: l10n)
+            : LibraryScreen._bundledBody(context, ref),
+      ),
+    };
+    return AnimatedSwitcher(
+      duration: reduceMotion
+          ? Duration.zero
+          : const Duration(milliseconds: 280),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeOutCubic,
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 0.04),
+            end: Offset.zero,
+          ).animate(animation),
+          child: child,
+        ),
+      ),
+      child: body,
+    );
+  }
+}
+
+/// The Play door's one-line way back to a lesson in progress (change:
+/// add-music-learn-play-home): shown only while the learner has started the
+/// path and not finished it; a link, not a card. Tapping switches the door.
+class _ContinueLearningChip extends ConsumerWidget {
+  const _ContinueLearningChip();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Nothing completed → nothing in progress, and no reason to fetch the
+    // course listing from here (a guest who never learned stays offline).
+    final completed = ref.watch(
+      courseCompletionProvider.select((s) => s.completed),
+    );
+    if (completed.isEmpty) return const SizedBox.shrink();
+    final courses = ref.watch(coursesProvider).valueOrNull ?? const [];
+    final started = courses.any((c) => completed.contains(c.id));
+    final next = courses.where((c) => !completed.contains(c.id)).firstOrNull;
+    if (!started || next == null) return const SizedBox.shrink();
+    final l10n = AppLocalizations.of(context);
+    final lang = Localizations.localeOf(context).languageCode;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        child: ActionChip(
+          key: const Key('home-continue-learning-chip'),
+          avatar: const Icon(
+            Icons.play_arrow,
+            size: 18,
+            color: CymbraColors.primary,
+          ),
+          label: Text(
+            l10n.homeContinueLearning(resolveInline(next.title, lang)),
+            style: const TextStyle(
+              color: CymbraColors.primary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          backgroundColor: CymbraColors.surfaceContainerHigh,
+          side: BorderSide(color: CymbraColors.primary.withValues(alpha: 0.5)),
+          onPressed: () =>
+              ref.read(homeDoorChoiceProvider.notifier).select(HomeDoor.learn),
         ),
       ),
     );

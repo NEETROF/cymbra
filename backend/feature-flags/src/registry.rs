@@ -45,6 +45,12 @@ pub const DRUMS_ENABLED: &str = "drums.enabled";
 /// never requests the microphone permission.
 pub const ACOUSTIC_INPUT_ENABLED: &str = "acoustic_input.enabled";
 
+/// The two-door Music home, Play / Learn (change: add-music-learn-play-home).
+/// A kill-switch, not a rollout gate: it defaults **on**; turning it off folds
+/// the home back into its single body (courses card above the favorites) for
+/// every caller, with no release.
+pub const MUSIC_LEARN_DOOR_ENABLED: &str = "music.learn_door.enabled";
+
 /// Shared cross-app kill-switch: when on, apps show an "under maintenance" state.
 pub const PLATFORM_MAINTENANCE: &str = "platform.maintenance";
 
@@ -386,6 +392,13 @@ pub fn builtin() -> Vec<KeyDef> {
             false,
             false,
             "Acoustic piano input: the microphone input source is visible for the caller.",
+        ),
+        flag(
+            MUSIC_LEARN_DOOR_ENABLED,
+            APP_MUSIC,
+            true,
+            false,
+            "Two-door Music home (Play / Learn) kill-switch: on (default) the home header offers both doors; off folds the home back to the single library with the courses card above the favorites.",
         ),
         flag(
             ONBOARDING_ENABLED,

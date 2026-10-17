@@ -289,6 +289,79 @@ void main() {
     await watch(tester);
   });
 
+  // The two-door home (change: add-music-learn-play-home): Learn and back, the
+  // choice remembered across a relaunch. Courses come from the server, which
+  // this offline run cannot reach, so the Learn door shows its quiet empty
+  // state — the doors, the switch and the memory are what is exercised here.
+  testWidgets('home doors: Learn, back to Play, remembered on relaunch', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    // One device storage for both launches, first run already done.
+    final prefs = _MemoryPrefs({
+      Onboarding.languagePrefsKey: 'true',
+      Onboarding.welcomePrefsKey: 'true',
+    });
+    List<Override> overrides() => [
+      scoreCatalogProvider.overrideWithValue(const [kFixtureCatalogEntry]),
+      scoreAssetSourceProvider.overrideWithValue(
+        const FixtureScoreAssetSource(),
+      ),
+      tokenStoreProvider.overrideWithValue(const _GuestTokenStore()),
+      connectivityServiceProvider.overrideWithValue(const _FakeConnectivity()),
+      deviceLocaleProvider.overrideWithValue(const Locale('en')),
+      preferencesServiceProvider.overrideWithValue(prefs),
+    ];
+    Future<void> settle([int frames = 8]) async {
+      for (var i = 0; i < frames; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    await tester.pumpWidget(
+      ProviderScope(overrides: overrides(), child: const CymbraApp()),
+    );
+    await settle(12);
+
+    // The library opens on the Play door: the fixture score is listed and the
+    // switcher sits in the header.
+    expect(find.text('Cymbra — Score Library'), findsOneWidget);
+    expect(find.byKey(const Key('home-door-switcher')), findsOneWidget);
+    expect(find.byKey(const Key('play-door-body')), findsOneWidget);
+    expect(find.text('Ode to Joy (theme)'), findsOneWidget);
+    await watch(tester);
+
+    // Learn: the path's body replaces the library.
+    await tester.tap(find.text('Learn'));
+    await settle(6);
+    expect(find.byKey(const Key('learn-door-body')), findsOneWidget);
+    expect(find.text('Ode to Joy (theme)'), findsNothing);
+    await watch(tester);
+
+    // And back.
+    await tester.tap(find.text('Play'));
+    await settle(6);
+    expect(find.byKey(const Key('play-door-body')), findsOneWidget);
+    expect(find.text('Ode to Joy (theme)'), findsOneWidget);
+    await watch(tester);
+
+    // Leave it on Learn, then relaunch against the same device storage.
+    await tester.tap(find.text('Learn'));
+    await settle(6);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    await tester.pumpWidget(
+      ProviderScope(overrides: overrides(), child: const CymbraApp()),
+    );
+    await settle(12);
+    expect(find.byKey(const Key('learn-door-body')), findsOneWidget);
+    expect(find.byKey(const Key('play-door-body')), findsNothing);
+    await watch(tester);
+  });
+
   testWidgets('contribution wizard: import → verify → confirm → submit', (
     tester,
   ) async {

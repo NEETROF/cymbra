@@ -22,6 +22,7 @@ import '../screens/lesson_player_screen.dart';
 import '../services/course_catalog_service.dart';
 import '../state/course_completion_notifier.dart';
 import '../theme/cymbra_theme.dart';
+import 'lesson_hero.dart';
 
 /// The home-screen "Courses" section (change: add-notation-courses): one
 /// **continue card** carrying the learner's next lesson — title, unit, unit
@@ -33,7 +34,11 @@ import '../theme/cymbra_theme.dart';
 /// now answers the only home-screen question that matters — "where was I?" —
 /// in one tap, and defers browsing to the path screen.
 class CoursesSection extends ConsumerWidget {
-  const CoursesSection({super.key});
+  const CoursesSection({super.key, this.showPathLink = true});
+
+  /// Whether the header carries the "see the path" link. Off on the Learn door
+  /// (change: add-music-learn-play-home), where the path sits right below.
+  final bool showPathLink;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -75,14 +80,15 @@ class CoursesSection extends ConsumerWidget {
                 ),
               ),
               const Spacer(),
-              TextButton(
-                key: const Key('courses-see-path'),
-                onPressed: () => openLearningPath(context),
-                child: Text(
-                  l10n.coursesSeeAll,
-                  style: const TextStyle(color: CymbraColors.secondary),
+              if (showPathLink)
+                TextButton(
+                  key: const Key('courses-see-path'),
+                  onPressed: () => openLearningPath(context),
+                  child: Text(
+                    l10n.coursesSeeAll,
+                    style: const TextStyle(color: CymbraColors.secondary),
+                  ),
                 ),
-              ),
             ],
           ),
         ),
@@ -136,15 +142,24 @@ class CoursesSection extends ConsumerWidget {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                          Text(
-                            resolveInline(next.title, lang),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: CymbraColors.onSurface,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              height: 1.2,
+                          // The title flies into the lesson player's app bar
+                          // (change: add-music-learn-play-home).
+                          Hero(
+                            tag: lessonHeroTag(next.id),
+                            child: Material(
+                              type: MaterialType.transparency,
+                              textStyle: DefaultTextStyle.of(context).style,
+                              child: Text(
+                                resolveInline(next.title, lang),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: CymbraColors.onSurface,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.2,
+                                ),
+                              ),
                             ),
                           ),
                           if (unitLessons.length > 1) ...[

@@ -72,7 +72,9 @@ Future<void> _teardown(WidgetTester tester, ProviderContainer container) async {
 }
 
 Future<void> _pump(WidgetTester tester, ProviderContainer container) async {
-  await tester.binding.setSurfaceSize(const Size(1400, 900));
+  // Tall enough for the three level sections below the header's switcher row
+  // (change: add-music-learn-play-home).
+  await tester.binding.setSurfaceSize(const Size(1400, 1000));
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,

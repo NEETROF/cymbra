@@ -34,6 +34,7 @@ import 'package:music/services/score_upload_service.dart';
 import 'package:music/screens/score_hub_screen.dart';
 import 'package:music/state/drums_access.dart';
 import 'package:music/state/instrument_context.dart';
+import 'package:music/state/learn_door_access.dart';
 import 'package:music/state/score_catalog.dart';
 import 'package:music/state/session_notifier.dart';
 import 'package:music/widgets/courses_section.dart';
@@ -250,6 +251,10 @@ ProviderContainer _container(
   _FakeUpload upload, {
   bool signedIn = true,
   bool withCourses = false,
+  // The two-door home (change: add-music-learn-play-home) is on by default,
+  // like in the shipped app; the courses-card tests below pin the flag-OFF
+  // fallback, where the card still sits above the favorites.
+  bool learnDoor = true,
   bool online = true,
   bool drumsVisible = false,
   List<CatalogEntry> bundled = _bundled,
@@ -265,6 +270,7 @@ ProviderContainer _container(
         prefs ?? FakePreferencesService(),
       ),
       drumsEnabledProvider.overrideWithValue(drumsVisible),
+      learnDoorEnabledProvider.overrideWithValue(learnDoor),
       scoreCatalogProvider.overrideWithValue(bundled),
       scoreAssetSourceProvider.overrideWithValue(FakeScoreAssetSource()),
       notationEngineProvider.overrideWithValue(FakeNotationEngine()),
@@ -361,6 +367,7 @@ void main() {
         for (var i = 0; i < 4; i++) _upload('u$i', 'Fav Upload $i'),
       ]),
       withCourses: true,
+      learnDoor: false,
     );
     // A phone viewport: the courses card alone would leave the favorites a
     // sliver of screen if each had its own scroll view.
@@ -496,6 +503,7 @@ void main() {
       ]),
       _FakeUpload(const []),
       withCourses: true,
+      learnDoor: false,
       drumsVisible: true,
       prefs: prefs,
       bundled: [..._bundled, drumEntry],

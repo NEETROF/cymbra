@@ -26,6 +26,7 @@ import '../theme/cymbra_theme.dart';
 import 'catalog_access_widgets.dart';
 import 'difficulty_badge.dart';
 import 'leaderboard_view.dart';
+import 'lesson_hero.dart';
 
 /// A friendly name for a crawler source code, or `null` to omit (dev/unknown).
 String? _sourceLabel(String? source) => switch (source) {
@@ -167,15 +168,24 @@ class ScoreCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      entry.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: CymbraColors.onSurface,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        height: 1.15,
+                    // The title flies into the player's top bar (change:
+                    // add-music-learn-play-home).
+                    Hero(
+                      tag: scoreHeroTag(entry.id),
+                      child: Material(
+                        type: MaterialType.transparency,
+                        textStyle: DefaultTextStyle.of(context).style,
+                        child: Text(
+                          entry.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: CymbraColors.onSurface,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            height: 1.15,
+                          ),
+                        ),
                       ),
                     ),
                     if (entry.composer.isNotEmpty) ...[

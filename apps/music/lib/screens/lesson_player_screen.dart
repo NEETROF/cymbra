@@ -29,6 +29,7 @@ import '../widgets/course_diagram.dart';
 import '../widgets/ear_choice_view.dart';
 import '../widgets/keep_screen_awake.dart';
 import '../widgets/lesson_celebration.dart';
+import '../widgets/lesson_hero.dart';
 import '../widgets/lesson_keyboard.dart';
 import '../widgets/lesson_midi_chip.dart';
 import '../widgets/lesson_staff.dart';
@@ -170,10 +171,24 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
         backgroundColor: CymbraColors.background,
         appBar: AppBar(
           backgroundColor: CymbraColors.surfaceContainerLowest,
-          title: Text(
-            async.valueOrNull == null
-                ? ''
-                : resolveInline(async.value!.title, lang),
+          // The title the learner tapped flies in here (change:
+          // add-music-learn-play-home).
+          title: Hero(
+            tag: lessonHeroTag(widget.courseId),
+            // A Builder, so the Material keeps the APP BAR's title style (set
+            // around the title, below this screen's own context) rather than
+            // the body text style.
+            child: Builder(
+              builder: (titleContext) => Material(
+                type: MaterialType.transparency,
+                textStyle: DefaultTextStyle.of(titleContext).style,
+                child: Text(
+                  async.valueOrNull == null
+                      ? ''
+                      : resolveInline(async.value!.title, lang),
+                ),
+              ),
+            ),
           ),
           actions: const [LessonMidiChip(), SizedBox(width: 4)],
         ),
