@@ -37,7 +37,8 @@ longer than a short set of five to seven exercises plus one piece.
 
 ### Requirement: The result is a starting unit, chosen by the first miss
 On finishing the placement the app SHALL compute the starting unit as the unit of the first
-exercise not solved at first try, a skipped exercise counting as a miss; when every exercise
+exercise not solved at first try, a skipped exercise counting as a miss, and the placement
+SHALL end at that first miss; when every exercise
 is solved the starting unit SHALL be the unit after the last one probed. The learner SHALL
 be shown the result and MAY adjust it one unit up or down before confirming.
 
@@ -48,6 +49,10 @@ be shown the result and MAY adjust it one unit up or down before confirming.
 #### Scenario: Solving everything starts after the last probed unit
 - **WHEN** the learner solves every exercise first try
 - **THEN** the result proposes the unit after the last probed one
+
+#### Scenario: The placement stops at the first miss
+- **WHEN** the learner misses the unit 2 exercise, or says they do not know it yet
+- **THEN** the result is shown at once, without the exercises of the later units
 
 #### Scenario: The learner adjusts the result
 - **WHEN** the result proposes unit 3 and the learner picks unit 2 before confirming

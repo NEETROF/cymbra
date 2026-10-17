@@ -8,7 +8,7 @@
 
 ## 2. Header switcher
 
-- [x] 2.1 Add `widgets/home_door_switcher.dart` (SegmentedButton, Play / Learn, icon-only under 600 px) wired to the notifier; verify with widget tests for selection, compact mode and the drums rule (Play only when the instrument context is drums).
+- [x] 2.1 Add `widgets/home_door_switcher.dart` (SegmentedButton, Play / Learn, icon-only under 600 px) wired to the notifier; verify with widget tests for selection, compact mode and the drums rule (Play only when the instrument context is drums). *(Dogfood fix: the code made every phone icon-only; it now follows the 600 px rule, so a landscape phone shows the words.)*
 - [x] 2.2 Mount it in the home app bar's bottom slot beside the instrument switcher, absent when the flag is off; verify with widget tests for both switchers visible, instrument switcher alone, and flag-off.
 - [x] 2.3 Add the four-locale strings (door labels, "Continue learning" chip); verify `melos run analyze` and the ARB alignment test pass.
 

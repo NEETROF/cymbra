@@ -83,6 +83,7 @@ Future<PieceOpenOutcome> runPieceStep(
   required String courseId,
   required String lessonTitle,
   required PieceBlock block,
+  String? stepKey,
   void Function(SessionResult result)? onResult,
 }) async {
   double? lastPct;
@@ -101,6 +102,7 @@ Future<PieceOpenOutcome> runPieceStep(
               courseId,
               passed: passed,
               syncPct: result.overallSyncPct,
+              stepKey: stepKey,
             ),
       );
       unawaited(ref.read(dailyLedgerProvider.notifier).markPiece(courseId));

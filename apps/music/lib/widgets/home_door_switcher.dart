@@ -16,7 +16,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
-import '../layout/device_class.dart';
 import '../state/home_door.dart';
 import '../state/learn_door_access.dart';
 import '../theme/cymbra_theme.dart';
@@ -28,8 +27,11 @@ import '../theme/cymbra_theme.dart';
 /// door is keyboard-only — so the control stays where the eye expects it
 /// without promising a path that does not exist for drums yet.
 ///
-/// On a phone the segments are icon-only (the header shares its row with the
-/// instrument switcher); the labels stay available to assistive tech.
+/// The segments carry their words — "Play", "Learn" — wherever the header has
+/// the width: the Learn door is the way into the path, and an unlabelled
+/// school icon was not read as one (found while dogfooding on a landscape
+/// phone, which has plenty of room). Only a genuinely narrow header (under
+/// 600 px) drops to icon-only segments, the labels kept for assistive tech.
 class HomeDoorSwitcher extends ConsumerWidget {
   const HomeDoorSwitcher({super.key});
 
@@ -39,7 +41,7 @@ class HomeDoorSwitcher extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final learnAvailable = ref.watch(learnDoorAvailableProvider);
     final current = ref.watch(effectiveHomeDoorProvider);
-    final compact = context.isPhoneLayout;
+    final compact = MediaQuery.sizeOf(context).width < 600;
 
     // Compact: the icon alone, carrying the label for assistive tech (no
     // tooltip — Material pre-builds a tooltip's text in the tree, which would

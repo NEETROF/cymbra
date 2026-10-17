@@ -53,6 +53,7 @@ class DailyItem {
     required this.subtitle,
     required this.done,
     this.piece,
+    this.pieceStep,
     this.block,
   });
 
@@ -68,6 +69,9 @@ class DailyItem {
 
   /// The piece step to run, when the manifest was available.
   final PieceBlock? piece;
+
+  /// That step's index among the lesson's shown steps (its standing's key).
+  final int? pieceStep;
 
   /// The drill block the review runs, when the manifest was available.
   final CourseBlock? block;
@@ -283,7 +287,12 @@ DailySession composeDailySession({
 
   // Piece.
   DailyItem pieceItem(CourseListing l, {required bool done}) {
-    final block = manifests[l.id]?.blocks.whereType<PieceBlock>().firstOrNull;
+    final steps = [
+      for (final b in manifests[l.id]?.blocks ?? const <CourseBlock>[])
+        if (b is! UnsupportedBlock) b,
+    ];
+    final at = steps.indexWhere((b) => b is PieceBlock);
+    final block = at < 0 ? null : steps[at] as PieceBlock;
     return DailyItem(
       kind: DailyItemKind.piece,
       courseId: l.id,
@@ -292,6 +301,7 @@ DailySession composeDailySession({
       subtitle: l.title,
       done: done,
       piece: block,
+      pieceStep: at < 0 ? null : at,
     );
   }
 

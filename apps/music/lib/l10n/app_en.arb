@@ -4256,7 +4256,7 @@
           }
       }
   },
-  "playerLessonHeader": "Lesson · {title} · goal {pct} %",
+  "playerLessonHeader": "Lesson · goal {pct} % · {title}",
   "@playerLessonHeader": {
       "description": "Player top bar in a lesson run: {title} is the lesson's title, {pct} the step's threshold.",
       "placeholders": {
@@ -4522,5 +4522,9 @@
               "type": "int"
           }
       }
+  },
+  "placementDontKnow": "I don't know yet",
+  "@placementDontKnow": {
+      "description": "Placement: skips an exercise the learner cannot do yet; the placement ends there."
   }
 }

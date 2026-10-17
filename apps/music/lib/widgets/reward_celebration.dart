@@ -88,7 +88,12 @@ class _CelebrationDialog extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: accent),
+              // Dark text on the light lilac: white on it was barely legible
+              // (found while dogfooding).
+              style: FilledButton.styleFrom(
+                backgroundColor: accent,
+                foregroundColor: CymbraColors.background,
+              ),
               onPressed: () => Navigator.of(context).pop(),
               child: Text(l10n.rewardCelebrationClose),
             ),

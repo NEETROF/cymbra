@@ -54,6 +54,12 @@ sealed class CourseCompletionState with _$CourseCompletionState {
     /// (change: add-music-daily-session).
     @Default(<String, int>{}) Map<String, int> completedAtMs,
     @Default(<String, int>{}) Map<String, int> passedAtMs,
+
+    /// Best overall synchronisation per piece STEP, keyed by [pieceStepKey]
+    /// — device-local (found while dogfooding: a lesson chaining two piece
+    /// steps showed its second step "passed" before it was played, from the
+    /// course-level best). The server keeps the course-level aggregate.
+    @Default(<String, double>{}) Map<String, double> stepBest,
   }) = _CourseCompletionState;
 
   /// Whether course [id] is marked completed.
@@ -74,6 +80,11 @@ sealed class CourseCompletionState with _$CourseCompletionState {
 const String _kCompletedKey = 'courses.completed.v1';
 const String _kPassedKey = 'courses.passed.v1';
 const String _kBestKey = 'courses.best.v1';
+const String _kStepBestKey = 'courses.stepbest.v1';
+
+/// The key of one piece step of a course: the course and the step's index
+/// among the steps the lesson player shows.
+String pieceStepKey(String courseId, int stepIndex) => '$courseId#$stepIndex';
 
 /// Owns the completed-course set: restores it, and marks a course completed once
 /// (idempotent) when the lesson player reaches the end. Persistence goes through
@@ -172,20 +183,8 @@ class CourseCompletion extends _$CourseCompletion {
     final prefs = ref.read(preferencesServiceProvider);
     final ids = await _restoreIds(prefs, _kCompletedKey);
     final passed = await _restoreIds(prefs, _kPassedKey);
-    var best = <String, double>{};
-    try {
-      final raw = await prefs.getString(_kBestKey);
-      if (raw != null) {
-        final decoded = jsonDecode(raw);
-        if (decoded is Map) {
-          best = {
-            for (final e in decoded.entries)
-              if (e.key is String && e.value is num)
-                e.key as String: (e.value as num).toDouble(),
-          };
-        }
-      }
-    } catch (_) {}
+    final best = await _restoreMap(prefs, _kBestKey);
+    final stepBest = await _restoreMap(prefs, _kStepBestKey);
     // Union with anything already marked in memory: a completion recorded before
     // the restore finished (a race) must not be clobbered by the restored set.
     final mergedBest = {...best};
@@ -193,12 +192,39 @@ class CourseCompletion extends _$CourseCompletion {
       final stored = mergedBest[id];
       if (stored == null || b > stored) mergedBest[id] = b;
     });
+    final mergedStepBest = {...stepBest};
+    state.stepBest.forEach((k, b) {
+      final stored = mergedStepBest[k];
+      if (stored == null || b > stored) mergedStepBest[k] = b;
+    });
     state = state.copyWith(
       loaded: true,
       completed: {...ids, ...state.completed},
       passed: {...passed, ...state.passed},
       bestPct: mergedBest,
+      stepBest: mergedStepBest,
     );
+  }
+
+  /// A persisted id → percentage map, or empty when absent/unreadable.
+  static Future<Map<String, double>> _restoreMap(
+    PreferencesService prefs,
+    String key,
+  ) async {
+    try {
+      final raw = await prefs.getString(key);
+      if (raw != null) {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map) {
+          return {
+            for (final e in decoded.entries)
+              if (e.key is String && e.value is num)
+                e.key as String: (e.value as num).toDouble(),
+          };
+        }
+      }
+    } catch (_) {}
+    return {};
   }
 
   /// A persisted id set, or empty when absent/unreadable (storage unavailable →
@@ -230,19 +256,30 @@ class CourseCompletion extends _$CourseCompletion {
     String id, {
     required bool passed,
     required double syncPct,
+    String? stepKey,
   }) async {
     final best = state.bestPct[id];
     final nextBest = best == null || syncPct > best ? syncPct : best;
     final nextPassed = passed ? {...state.passed, id} : state.passed;
-    if (nextBest == best && nextPassed.length == state.passed.length) return;
+    final stepB = stepKey == null ? null : state.stepBest[stepKey];
+    final stepRises = stepKey != null && (stepB == null || syncPct > stepB);
+    if (nextBest == best &&
+        nextPassed.length == state.passed.length &&
+        !stepRises) {
+      return;
+    }
     state = state.copyWith(
       passed: nextPassed,
       bestPct: {...state.bestPct, id: nextBest},
+      stepBest: stepRises
+          ? {...state.stepBest, stepKey: syncPct}
+          : state.stepBest,
     );
     final prefs = ref.read(preferencesServiceProvider);
     try {
       await prefs.setString(_kPassedKey, jsonEncode(state.passed.toList()));
       await prefs.setString(_kBestKey, jsonEncode(state.bestPct));
+      await prefs.setString(_kStepBestKey, jsonEncode(state.stepBest));
     } catch (_) {}
     if (ref.read(canUseOnlineServicesProvider)) {
       try {

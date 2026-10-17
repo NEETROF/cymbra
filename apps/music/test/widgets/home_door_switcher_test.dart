@@ -87,9 +87,17 @@ void main() {
     expect(button.selected, {HomeDoor.learn});
   });
 
-  testWidgets('a phone viewport shows icon-only segments that keep their '
-      'labels for assistive tech', (tester) async {
+  testWidgets('a landscape phone has the width: the doors are named', (
+    tester,
+  ) async {
     await _pump(tester, size: const Size(844, 390));
+    expect(find.text('Play'), findsOneWidget);
+    expect(find.text('Learn'), findsOneWidget);
+  });
+
+  testWidgets('a narrow header shows icon-only segments that keep their '
+      'labels for assistive tech', (tester) async {
+    await _pump(tester, size: const Size(560, 390));
     expect(_switcher, findsOneWidget);
     expect(find.text('Play'), findsNothing);
     expect(find.text('Learn'), findsNothing);

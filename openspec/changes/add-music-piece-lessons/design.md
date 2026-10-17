@@ -90,6 +90,14 @@ A `piece` step whose score bytes are not cached while offline shows the library'
 "not available offline" state and still offers *Next*; nothing in the lesson blocks on
 the network.
 
+### D7 — Each piece step keeps its own standing on the device
+Found while dogfooding: a closing lesson chains two piece steps on one tune (slowly in
+Wait Mode, then in rhythm), and the second step showed "Step passed · 99 %" before it was
+played — the step read the course-level best. Each step's best is now kept on the device
+under `<course>#<step index>`; a step shows its own record, or — when it is the lesson's
+only piece step — the course-level one, which is what syncs across devices. The server
+keeps the course-level aggregate unchanged (first pass, greatest best).
+
 ## Risks / Trade-offs
 
 - [The player's many entry points assume preferences] → the lesson context is read in

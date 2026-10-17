@@ -376,14 +376,36 @@ class _SummaryDialog extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton(
-            onPressed: () => Navigator.of(context).pop(SummaryAction.replay),
-            child: Text(l10n.summaryReplay),
-          ),
+        // The two secondary actions share a row: on a landscape phone the
+        // summary's scroll area is a few lines tall, and a third full-width
+        // button pushed the goal line below it (found while dogfooding).
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () =>
+                    Navigator.of(context).pop(SummaryAction.replay),
+                child: Text(
+                  l10n.summaryReplay,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => Navigator.of(context).pop(SummaryAction.retry),
+                child: Text(
+                  l10n.summaryRetry,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          ],
         ),
-      ] else
+      ] else ...[
         // Primary action: see the mistakes on the score. Quit is the close cross.
         SizedBox(
           width: double.infinity,
@@ -395,21 +417,22 @@ class _SummaryDialog extends StatelessWidget {
             child: Text(l10n.summaryReplay),
           ),
         ),
-      const SizedBox(height: 8),
-      // Sole secondary action. Drilling a passage is no longer offered here: the
-      // range is picked in the play screen itself (long-press the rewind), so the
-      // summary stays about the run that just ended.
-      SizedBox(
-        width: double.infinity,
-        child: OutlinedButton(
-          onPressed: () => Navigator.of(context).pop(SummaryAction.retry),
-          child: Text(
-            l10n.summaryRetry,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+        const SizedBox(height: 8),
+        // Sole secondary action. Drilling a passage is no longer offered here: the
+        // range is picked in the play screen itself (long-press the rewind), so the
+        // summary stays about the run that just ended.
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: () => Navigator.of(context).pop(SummaryAction.retry),
+            child: Text(
+              l10n.summaryRetry,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ),
-      ),
+      ],
     ],
   );
 
@@ -643,30 +666,36 @@ class _SummaryStarsState extends ConsumerState<_SummaryStars> {
     final after = starsFor(widget.result.overallSyncPct);
     final before = starsFor(_before);
     final gained = after > before;
+    Widget fadeIn(Widget child) => TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Motion.of(context, Motion.celebrate),
+      curve: const Interval(0.5, 1, curve: Motion.enter),
+      builder: (context, v, child) => Opacity(opacity: v, child: child),
+      child: child,
+    );
+    // The headline rides on the stars' own line: on a landscape phone the
+    // summary's scroll area ends right under the stars, and a line below them
+    // was cut in half (found while dogfooding).
     return Padding(
       padding: const EdgeInsets.only(top: 6),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          StarRow(
-            key: const Key('summary-stars'),
-            stars: after,
-            compact: false,
-            animateFrom: before,
-          ),
-          if (gained) ...[
-            const SizedBox(height: 4),
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: 1),
-              duration: Motion.of(context, Motion.celebrate),
-              curve: const Interval(0.5, 1, curve: Motion.enter),
-              builder: (context, v, child) => Opacity(opacity: v, child: child),
-              child: Column(
-                key: const Key('summary-new-star'),
-                mainAxisSize: MainAxisSize.min,
-                children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              StarRow(
+                key: const Key('summary-stars'),
+                stars: after,
+                compact: false,
+                animateFrom: before,
+              ),
+              if (gained) ...[
+                const SizedBox(width: 10),
+                fadeIn(
                   Text(
                     l10n.summaryNewStar.toUpperCase(),
+                    key: const Key('summary-new-star'),
                     style: const TextStyle(
                       color: CymbraColors.primary,
                       fontSize: 13,
@@ -674,23 +703,26 @@ class _SummaryStarsState extends ConsumerState<_SummaryStars> {
                       letterSpacing: 0.8,
                     ),
                   ),
-                  Text(
-                    _before == null
-                        ? l10n.summaryNewStarFirst(after)
-                        : l10n.summaryNewStarDetail(
-                            before,
-                            after,
-                            _before!.round(),
-                          ),
-                    style: const TextStyle(
-                      color: CymbraColors.onSurfaceVariant,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
+                ),
+              ],
+            ],
+          ),
+          if (gained)
+            fadeIn(
+              Text(
+                _before == null
+                    ? l10n.summaryNewStarFirst(after)
+                    : l10n.summaryNewStarDetail(
+                        before,
+                        after,
+                        _before!.round(),
+                      ),
+                style: const TextStyle(
+                  color: CymbraColors.onSurfaceVariant,
+                  fontSize: 12,
+                ),
               ),
             ),
-          ],
         ],
       ),
     );

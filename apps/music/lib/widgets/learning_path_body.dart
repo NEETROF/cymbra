@@ -531,9 +531,11 @@ class _LessonNodeState extends State<_LessonNode>
       _NodeState.next => CymbraColors.primary,
       _NodeState.later => CymbraColors.surfaceContainerHigh,
     };
+    // The row has a fixed height: with the stars under it, the title keeps to
+    // one line (two overflowed it — found while dogfooding).
     final titleText = Text(
       title,
-      maxLines: 2,
+      maxLines: widget.bestPct == null ? 2 : 1,
       overflow: TextOverflow.ellipsis,
       style: TextStyle(
         color: widget.state == _NodeState.later

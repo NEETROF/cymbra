@@ -37,7 +37,17 @@ class PieceBlockView extends ConsumerStatefulWidget {
     required this.courseId,
     required this.lessonTitle,
     required this.onAnswered,
+    this.stepIndex = 0,
+    this.soleStep = true,
   });
+
+  /// This step's index among the lesson's shown steps — its own standing is
+  /// kept under it, apart from the lesson's other piece steps.
+  final int stepIndex;
+
+  /// Whether this is the lesson's only piece step: then the course-level
+  /// standing (synced across devices) is this step's too.
+  final bool soleStep;
 
   final PieceBlock block;
   final String courseId;
@@ -73,6 +83,7 @@ class _PieceBlockViewState extends ConsumerState<PieceBlockView> {
       courseId: widget.courseId,
       lessonTitle: widget.lessonTitle,
       block: block,
+      stepKey: pieceStepKey(widget.courseId, widget.stepIndex),
       onResult: _onResult,
     );
     if (!mounted) return;
@@ -103,10 +114,20 @@ class _PieceBlockViewState extends ConsumerState<PieceBlockView> {
     final l10n = AppLocalizations.of(context);
     final lang = Localizations.localeOf(context).languageCode;
     final completion = ref.watch(courseCompletionProvider);
-    // Course-level standing from earlier sessions, so a learner coming back
-    // sees where they stand before pressing Play.
-    final passed = _passedThisSession || completion.isPassed(widget.courseId);
-    final best = _lastPct ?? completion.bestPct[widget.courseId];
+    // This step's standing from earlier sessions, so a learner coming back
+    // sees where they stand before pressing Play: its own record, or — for a
+    // lesson's only piece step — the course-level one, synced across devices.
+    // Never another step's (a chain's second step is not passed by the first).
+    final key = pieceStepKey(widget.courseId, widget.stepIndex);
+    final stepBest = completion.stepBest[key];
+    final earlierBest =
+        stepBest ??
+        (widget.soleStep ? completion.bestPct[widget.courseId] : null);
+    final earlierPassed =
+        (stepBest != null && stepBest >= block.passPct) ||
+        (widget.soleStep && completion.isPassed(widget.courseId));
+    final passed = _passedThisSession || earlierPassed;
+    final best = _lastPct ?? earlierBest;
 
     final title = pieceTitleOf(ref, block, l10n, lang);
     final (stateLabel, stateColor, stateIcon) = switch ((passed, best)) {

@@ -19,6 +19,8 @@
 - [x] 3.4 Add `widgets/placement_offer_card.dart` with its timing rule and the path-header entry; verify widget tests for first visit, after a completed lesson, after a placement.
 - [x] 3.5 Add the four-locale strings; verify ARB alignment and `dart run custom_lint`.
 
+- [x] 3.6 Dogfood fix: end the run at the first miss and offer "I don't know yet" at once on a probe; verify widget tests for a mistake, a skip and the immediate skip control.
+
 ## 4. Integration
 
 - [x] 4.1 Integration test: take the placement with scripted misses on unit 3, confirm, see units 1 and 2 collapsed and the continue card on unit 3, clear and see the full path; verify `melos run integration` passes.

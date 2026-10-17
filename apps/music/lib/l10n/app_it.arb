@@ -956,7 +956,7 @@
   "summaryBackToLesson": "Torna alla lezione",
   "summaryGoalMet": "Obiettivo {pct} % raggiunto",
   "summaryGoalMissed": "Obiettivo {pct} % · non ancora",
-  "playerLessonHeader": "Lezione · {title} · obiettivo {pct} %",
+  "playerLessonHeader": "Lezione · obiettivo {pct} % · {title}",
   "prePlaySetByLesson": "Impostazioni definite dalla lezione “{title}”",
   "celebrationPiecePassedTitle": "Brano superato!",
   "celebrationPiecePassedMessage": "{title} · {pct} %",
@@ -1000,5 +1000,6 @@
   "starsA11y": "{count, plural, =1{1 stella su 3} other{{count} stelle su 3}}",
   "summaryNewStar": "Nuova stella!",
   "summaryNewStarDetail": "{from} → {to} stelle · miglior precedente {pct} %",
-  "summaryNewStarFirst": "{count, plural, =1{1 stella} other{{count} stelle}} al primo passaggio"
+  "summaryNewStarFirst": "{count, plural, =1{1 stella} other{{count} stelle}} al primo passaggio",
+  "placementDontKnow": "Non lo so ancora"
 }

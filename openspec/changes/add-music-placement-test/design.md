@@ -40,6 +40,13 @@ when nothing follows it. A skipped step counts as a miss. `piece` steps count as
 when passed. The run ends on the result screen (replacing the player's route), never on a
 completion: nothing is recorded against the placement course.
 
+The run **stops at the first miss** (found while dogfooding): the result is that unit, so
+the probes after it would ask the learner for nothing — the "two minutes" promise held
+only for someone who knows everything. A probe answered after a mistake, or skipped, ends
+the run on the result screen. And on a probe the skip control reads "I don't know yet" and
+is offered at once, not after the lesson player's twelve-second wait: in a placement,
+not knowing is an answer, not something to wait out.
+
 ### D3 — Skipped-by-placement is a path display state, not completion
 `PlacementState { startUnit?, takenAt? }` persisted locally. The path renders units before
 `startUnit` collapsed with a "skipped by placement — open" affordance; their courses keep
@@ -54,8 +61,9 @@ learners ask, the pointer can move to the account later without changing this sp
 behaviour.
 
 ### D5 — Offer timing
-The offer card shows on the Learn door while no placement was taken and no lesson was
-completed on this device; it disappears for good once the learner completes a lesson or
+The offer card shows at the top of the Learn door — above today's session, which would
+otherwise fill a landscape phone and push it below the fold (found while dogfooding) —
+while no placement was taken and no lesson was completed on this device; it disappears for good once the learner completes a lesson or
 takes the placement, and the placement stays reachable from the path header.
 
 ## Risks / Trade-offs

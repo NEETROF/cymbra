@@ -513,8 +513,9 @@ void main() {
     expect(find.byType(LessonPlayerScreen), findsOneWidget);
     await tester.tap(find.byKey(const Key('lesson-next'))); // the hook
     await settle(4);
-    await answer([true, true, false]);
-    await tester.tap(find.byKey(const Key('lesson-next'))); // the recap
+    await answer([true, true]);
+    // The first miss ends the placement at once.
+    await tester.tap(find.byKey(const Key('lesson-option-1')));
     await settle(8);
 
     // The result: unit 3, confirmed.
@@ -542,8 +543,8 @@ void main() {
     await settle(8);
     await tester.tap(find.byKey(const Key('lesson-next')));
     await settle(4);
-    await answer([false, false, false]);
-    await tester.tap(find.byKey(const Key('lesson-next')));
+    // "I don't know yet" on the very first probe: unit 1.
+    await tester.tap(find.byKey(const Key('lesson-skip')));
     await settle(8);
     expect(find.text('Unit 1'), findsOneWidget);
     await tester.tap(find.byKey(const Key('placement-restart')));
@@ -622,7 +623,7 @@ void main() {
     // The real player, no setup modal, the lesson in the header.
     expect(find.byKey(const Key('onscreen-keyboard')), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Play'), findsNothing);
-    expect(find.text('Lesson · Fa et sol · goal 80 %'), findsOneWidget);
+    expect(find.text('Lesson · goal 80 % · Fa et sol'), findsOneWidget);
     await watch(tester);
 
     // Leave the player: the lesson is where we left it, the step still open.
@@ -866,8 +867,6 @@ class _GuestTokenStore implements TokenStore {
   Future<void> clear() async {}
 }
 
-/// One lesson with a single piece step on the bundled Ode to Joy (change:
-/// add-music-piece-lessons), for the piece-lesson scenario.
 /// Three one-lesson units plus a placement of three questions, one per unit.
 class _PlacementCatalog implements CourseCatalogService {
   const _PlacementCatalog();
@@ -947,6 +946,8 @@ class _DailyCatalog implements CourseCatalogService {
       '"blocks": [{"type": "text", "text": {"en": "Five lines, four spaces."}}]}';
 }
 
+/// One lesson with a single piece step on the bundled Ode to Joy (change:
+/// add-music-piece-lessons), for the piece-lesson scenario.
 class _PieceLessonCatalog implements CourseCatalogService {
   const _PieceLessonCatalog();
 

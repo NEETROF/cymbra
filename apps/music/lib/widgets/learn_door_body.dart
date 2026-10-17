@@ -38,6 +38,12 @@ class LearnDoorBody extends ConsumerWidget {
     return CustomScrollView(
       key: const Key('learn-door-body'),
       slivers: [
+        // The placement offer, at the first visit (change:
+        // add-music-placement-test) — first, because "where do I start?" is
+        // the question of a first visit, and today's session would otherwise
+        // fill a landscape phone and push the offer below the fold (found
+        // while dogfooding).
+        const SliverToBoxAdapter(child: PlacementOfferCard()),
         // Today's session (change: add-music-daily-session).
         const SliverToBoxAdapter(
           child: KeyedSubtree(
@@ -45,9 +51,6 @@ class LearnDoorBody extends ConsumerWidget {
             child: DailySessionBlock(),
           ),
         ),
-        // The placement offer, at the first visit (change:
-        // add-music-placement-test).
-        const SliverToBoxAdapter(child: PlacementOfferCard()),
         switch (courses) {
           AsyncData(:final value) when value.isEmpty => SliverFillRemaining(
             hasScrollBody: false,

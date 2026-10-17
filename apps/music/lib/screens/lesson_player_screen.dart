@@ -108,6 +108,10 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
 
   static const Duration _kSkipDelay = Duration(seconds: 12);
 
+  /// Whether this run is the placement (change: add-music-placement-test):
+  /// known once the manifest is, false for an ordinary lesson.
+  bool _placementRun = false;
+
   /// The blocks the player can show — dropping the ones it doesn't render
   /// (unsupported/unknown), so a forward-incompatible block never traps the user.
   List<CourseBlock> _steps(CourseManifest m) =>
@@ -140,6 +144,13 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
     _skipTimer?.cancel();
     _skipVisible = false;
     if (!_gates(block) || _satisfied.contains(_index)) return;
+    // A placement asks what the learner already knows: "I don't know yet" is
+    // an answer, offered at once rather than after a wait (change:
+    // add-music-placement-test).
+    if (_placementRun) {
+      _skipVisible = true;
+      return;
+    }
     _skipTimer = Timer(_kSkipDelay, () {
       if (mounted) setState(() => _skipVisible = true);
     });
@@ -202,11 +213,15 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
   /// add-music-placement-test, D2): the unit of the first probe not solved
   /// first try — a skipped step is a miss — adjustable before it is confirmed.
   /// Nothing is recorded against any course.
+  /// The unit each shown step probes, by step index (null for an untagged
+  /// step) — the blocks the player shows, carrying the tags kept by block.
+  static List<String?> _stepUnits(CourseManifest m) => <String?>[
+    for (final (i, b) in m.blocks.indexed)
+      if (b is! UnsupportedBlock) m.placementUnits[i],
+  ];
+
   void _finishPlacement(CourseManifest m, List<CourseBlock> steps) {
-    final stepUnits = <String?>[
-      for (final (i, b) in m.blocks.indexed)
-        if (b is! UnsupportedBlock) m.placementUnits[i],
-    ];
+    final stepUnits = _stepUnits(m);
     final listings = ref.read(coursesProvider).valueOrNull ?? const [];
     final units = unitOrder(listings);
     final outcome = computePlacement(
@@ -288,6 +303,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
 
   Widget _run(CourseManifest m, AppLocalizations l10n, String lang) {
     final steps = _steps(m);
+    _placementRun = m.track == kPlacementTrack;
     if (steps.isEmpty) {
       // Nothing to show — treat as instantly complete.
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -305,6 +321,13 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
     // Advancing — used by the Next control, by a satisfied gate, and by the
     // late skip escape hatch.
     void advance() => isLast ? _finish(m, steps) : goTo(index + 1);
+
+    // A placement stops at its first miss (change: add-music-placement-test,
+    // D2): the result is that unit, so the remaining probes would ask for
+    // nothing. A probe answered after a mistake, or skipped, ends the run.
+    final stepUnits = _placementRun ? _stepUnits(m) : const <String?>[];
+    bool probes(int i) => i < stepUnits.length && stepUnits[i] != null;
+    void missed() => _finishPlacement(m, steps);
 
     // A gated step holds Next until its exercise reports completion; the
     // exercise records this run's first-try stat as it does.
@@ -326,6 +349,8 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
               l10n: l10n,
               courseId: widget.courseId,
               lessonTitle: resolveInline(m.title, lang),
+              stepIndex: index,
+              soleStep: steps.whereType<PieceBlock>().length == 1,
               // The legacy playKey gate has no wrong-answer concept (stray
               // keys just don't count), so satisfying it counts as first-try.
               onSatisfied: () {
@@ -338,6 +363,10 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
               onCompleted: ({required bool flawless}) {
                 _flawless[index] = flawless;
                 _satisfied.add(index);
+                if (_placementRun && !flawless && probes(index)) {
+                  missed();
+                  return;
+                }
                 advance();
               },
               // A question satisfies its gate WITHOUT advancing: the learner
@@ -349,6 +378,11 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
                   _skipTimer?.cancel();
                   _skipVisible = false;
                 });
+                if (_placementRun &&
+                    _flawless[index] == false &&
+                    probes(index)) {
+                  missed();
+                }
               },
             ),
           ),
@@ -358,9 +392,11 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
           isLast: isLast,
           gated: gate,
           skipVisible: _skipVisible,
+          skipLabel: _placementRun ? l10n.placementDontKnow : l10n.lessonSkip,
           l10n: l10n,
           onBack: () => goTo(index - 1),
-          onNext: advance,
+          // Skipping a probe is a miss: the placement ends there.
+          onNext: _placementRun && gate && probes(index) ? missed : advance,
         ),
       ],
     );
@@ -391,6 +427,7 @@ class _ControlBar extends StatelessWidget {
     required this.isLast,
     required this.gated,
     required this.skipVisible,
+    required this.skipLabel,
     required this.l10n,
     required this.onBack,
     required this.onNext,
@@ -398,6 +435,7 @@ class _ControlBar extends StatelessWidget {
 
   final bool canGoBack;
   final bool isLast;
+  final String skipLabel;
 
   /// The current step's exercise has not been done yet: Next yields to the
   /// exercise itself, and only the late [skipVisible] escape hatch advances.
@@ -431,7 +469,7 @@ class _ControlBar extends StatelessWidget {
             key: const Key('lesson-skip'),
             onPressed: onNext,
             child: Text(
-              l10n.lessonSkip,
+              skipLabel,
               style: const TextStyle(color: CymbraColors.onSurfaceVariant),
             ),
           ),
@@ -455,9 +493,16 @@ class _BlockView extends StatelessWidget {
     required this.onSatisfied,
     required this.onCompleted,
     required this.onAnswered,
+    this.stepIndex = 0,
+    this.soleStep = true,
   });
 
   final CourseBlock block;
+
+  /// The step's index and whether it is the lesson's only piece step — a
+  /// piece step keeps its own standing (change: add-music-piece-lessons).
+  final int stepIndex;
+  final bool soleStep;
   final String lang;
   final AppLocalizations l10n;
 
@@ -581,6 +626,8 @@ class _BlockView extends StatelessWidget {
         courseId: courseId,
         lessonTitle: lessonTitle,
         onAnswered: onAnswered,
+        stepIndex: stepIndex,
+        soleStep: soleStep,
       ),
       UnsupportedBlock() => const SizedBox.shrink(),
     };

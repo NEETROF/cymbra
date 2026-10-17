@@ -34,3 +34,4 @@
 
 - [x] 5.1 Integration test: open unit 1's closing lesson, run the right-hand step with the fixture score, return to the lesson, see it visited or passed, relaunch and see the state kept; verify `melos run integration` passes.
 - [x] 5.2 Coverage gates ≥ 80 % on both ecosystems; verify `cargo llvm-cov` and the Flutter lcov check pass.
+- [x] 5.3 Dogfood fix: keep each piece step's standing apart (D7); verify a widget test where the second step of a chain is not shown passed by the first.

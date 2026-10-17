@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -59,9 +61,29 @@ String _manifest({String bundled = 'ode-to-joy'}) =>
 }
 ''';
 
+/// A lesson chaining two piece steps on the same tune (steps 1 and 3).
+const String _chain = '''
+{
+  "schemaVersion": 2, "id": "c1",
+  "title": {"en": "Fa et sol"},
+  "blocks": [
+    {"type": "text", "text": {"en": "Your turn."}},
+    {"type": "piece", "score": {"bundled": "ode-to-joy"}, "hands": "right",
+     "speed": 0.6, "waitMode": true, "passPct": 80,
+     "title": {"en": "Ode — slowly"}},
+    {"type": "text", "text": {"en": "Now in rhythm."}},
+    {"type": "piece", "score": {"bundled": "ode-to-joy"}, "hands": "right",
+     "speed": 1.0, "waitMode": false, "passPct": 80,
+     "title": {"en": "Ode — in rhythm"}},
+    {"type": "text", "text": {"en": "Well done."}}
+  ]
+}
+''';
+
 Future<ProviderContainer> _pump(
   WidgetTester tester, {
   String? bundled,
+  String? manifest,
   FakePreferencesService? prefs,
 }) async {
   final midi = FakeMidiService();
@@ -69,7 +91,7 @@ Future<ProviderContainer> _pump(
   final container = ProviderContainer(
     overrides: [
       courseCatalogServiceProvider.overrideWithValue(
-        _FakeService(_manifest(bundled: bundled ?? 'ode-to-joy')),
+        _FakeService(manifest ?? _manifest(bundled: bundled ?? 'ode-to-joy')),
       ),
       preferencesServiceProvider.overrideWithValue(
         prefs ?? FakePreferencesService(),
@@ -166,7 +188,7 @@ void main() {
     // No pre-play setup: the lesson imposed everything.
     expect(find.widgetWithText(FilledButton, 'Play'), findsNothing);
     expect(
-      find.text('Lesson · Fa et sol · goal 80 %'),
+      find.text('Lesson · goal 80 % · Fa et sol'),
       findsOneWidget,
       reason: 'the header names the lesson and its bar',
     );
@@ -266,6 +288,36 @@ void main() {
     );
     expect(find.text('Step passed · 88 %'), findsOneWidget);
     expect(find.byKey(const Key('piece-retry')), findsOneWidget);
+    await _teardown(tester);
+  });
+
+  testWidgets('in a chain, each piece step keeps its own standing: the '
+      'second step is not passed by the first (found while dogfooding)', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      manifest: _chain,
+      prefs: FakePreferencesService({
+        'courses.passed.v1': jsonEncode(['c1']),
+        'courses.best.v1': jsonEncode({'c1': 99}),
+        'courses.stepbest.v1': jsonEncode({'c1#1': 99}),
+      }),
+    );
+    // Step 1 shows its own pass.
+    expect(find.text('Step passed · 99 %'), findsOneWidget);
+    expect(find.byKey(const Key('piece-retry')), findsOneWidget);
+    // Past it (the late skip: no run this session), then the bridging text.
+    await tester.pump(const Duration(seconds: 13));
+    await tester.tap(find.byKey(const Key('lesson-skip')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('lesson-next')));
+    await tester.pumpAndSettle();
+    // Step 3 has never been run: not passed, Play, not Try again.
+    expect(find.text('Ode — in rhythm'), findsOneWidget);
+    expect(find.text('Step passed · 99 %'), findsNothing);
+    expect(find.byKey(const Key('piece-start')), findsOneWidget);
+    expect(find.byKey(const Key('piece-retry')), findsNothing);
     await _teardown(tester);
   });
 }

@@ -17,6 +17,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:music/courses/course_manifest.dart';
 import 'package:music/services/course_catalog_service.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/state/rating_activity_notifier.dart' show nowFnProvider;
@@ -28,14 +29,17 @@ import '../support/daily_fixtures.dart';
 import '../support/localized.dart';
 import '../support/prefs_fakes.dart';
 
-ProviderContainer _container(Map<String, String> prefs) {
+ProviderContainer _container(
+  Map<String, String> prefs, {
+  CourseCatalogService catalog = const DailyFakeCatalog(),
+}) {
   final c = ProviderContainer(
     overrides: [
       preferencesServiceProvider.overrideWithValue(
         FakePreferencesService(prefs),
       ),
       nowFnProvider.overrideWithValue(() => DateTime(2026, 10, 17, 9)),
-      courseCatalogServiceProvider.overrideWithValue(const DailyFakeCatalog()),
+      courseCatalogServiceProvider.overrideWithValue(catalog),
       canUseOnlineServicesProvider.overrideWithValue(false),
     ],
   );
@@ -106,6 +110,33 @@ void main() {
       });
       await _pump(tester, c, const DailySessionBlock());
       expect(_filledIn(tester, const Key('daily-piece-stars')), 1);
+    });
+
+    testWidgets('a starred node with a long title keeps to its row (it '
+        'overflowed while dogfooding)', (tester) async {
+      final c = _container(
+        {
+          'courses.best.v1': jsonEncode({'a3': 85}),
+        },
+        catalog: DailyFakeCatalog([
+          dailyListing('a1', 'u1', 101),
+          const CourseListing(
+            id: 'a3',
+            schemaVersion: 2,
+            unit: 'u1',
+            unitTitle: {'en': 'Unit u1'},
+            sortOrder: 103,
+            title: {
+              'en':
+                  'Your turn: Au clair de la lune, the whole tune with the '
+                  'right hand',
+            },
+          ),
+        ]),
+      );
+      await _pump(tester, c, const LearningPathBody());
+      expect(find.byKey(const Key('path-stars-a3')), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 }

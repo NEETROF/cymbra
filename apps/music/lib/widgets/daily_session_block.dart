@@ -317,6 +317,9 @@ class _ItemRow extends ConsumerWidget {
           courseId: item.courseId,
           lessonTitle: resolveInline(item.subtitle, lang),
           block: block,
+          stepKey: item.pieceStep == null
+              ? null
+              : pieceStepKey(item.courseId, item.pieceStep!),
         );
         // Never traps: a piece that cannot open sends the learner to the
         // lesson that holds it instead.

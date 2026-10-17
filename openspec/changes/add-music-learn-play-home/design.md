@@ -70,7 +70,9 @@ missing flag server-side never hides the doors.
 ## Risks / Trade-offs
 
 - [Two switchers in one header on a phone] → the door switcher uses icon-only segments
-  below 600 px of width; verified in the responsive widget tests.
+  below 600 px of width only — a landscape phone has the width, and dogfooding showed an
+  unlabelled school icon is not read as the way into the path; verified in the responsive
+  widget tests.
 - [Players who liked courses above favorites lose that glance] → the Play door keeps a
   one-line "Continue learning" chip in the header area when a lesson is in progress, linking
   to the Learn door; it is a link, not a card.

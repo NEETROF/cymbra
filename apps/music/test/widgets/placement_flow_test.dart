@@ -220,9 +220,10 @@ void main() {
       expect(find.byType(LessonPlayerScreen), findsOneWidget);
       await tester.tap(find.byKey(const Key('lesson-next'))); // the hook
       await _settle(tester);
-      await _answer(tester, [true, true, false]);
-      // The recap, then the result instead of a celebration.
-      await tester.tap(find.byKey(const Key('lesson-next')));
+      await _answer(tester, [true, true]);
+      // The first miss ends the run at once: no remaining probe, no recap,
+      // the result instead of a celebration.
+      await tester.tap(find.byKey(const Key('lesson-option-1')));
       await _settle(tester);
       expect(find.byType(PlacementResultScreen), findsOneWidget);
       expect(find.text('Unit 3'), findsOneWidget);
@@ -257,6 +258,28 @@ void main() {
       await _settle(tester);
       expect(find.text('Unit 3'), findsOneWidget);
       expect(find.textContaining('everything solved'), findsOneWidget);
+    });
+
+    testWidgets('"I don\'t know yet" is offered at once on a probe, and '
+        'skipping ends the run on that unit', (tester) async {
+      final c = _container();
+      await _pump(tester, c, const Scaffold(body: LearnDoorBody()));
+      await tester.tap(find.byKey(const Key('placement-offer-start')));
+      await _settle(tester);
+      // The hook is not a probe: no skip there.
+      expect(find.byKey(const Key('lesson-skip')), findsNothing);
+      await tester.tap(find.byKey(const Key('lesson-next')));
+      await _settle(tester);
+      await _answer(tester, [true]);
+      // Unit 2's probe: the skip is there without any wait.
+      expect(find.byKey(const Key('lesson-skip')), findsOneWidget);
+      expect(find.text("I don't know yet"), findsOneWidget);
+      await tester.tap(find.byKey(const Key('lesson-skip')));
+      await _settle(tester);
+      expect(find.byType(PlacementResultScreen), findsOneWidget);
+      expect(find.text('Unit 2'), findsOneWidget);
+      expect(find.textContaining('1 exercise solved'), findsOneWidget);
+      expect(c.read(courseCompletionProvider).completed, isEmpty);
     });
   });
 
