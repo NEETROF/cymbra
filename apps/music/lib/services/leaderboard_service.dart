@@ -104,6 +104,9 @@ class GrpcLeaderboardService implements LeaderboardService {
           mode: s.mode == 'reaction'
               ? LeaderboardMode.reaction
               : LeaderboardMode.tempo,
+          bestOverallSyncPct: s.hasBestOverallSyncPct()
+              ? s.bestOverallSyncPct
+              : null,
         ),
     };
   });

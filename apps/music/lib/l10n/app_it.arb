@@ -996,5 +996,9 @@
   "placementConfirm": "Inizia dall'unità {n}",
   "placementRestart": "Inizia dall'inizio",
   "placementSkippedUnit": "Saltata dal collocamento",
-  "placementOpenUnit": "Apri"
+  "placementOpenUnit": "Apri",
+  "starsA11y": "{count, plural, =1{1 stella su 3} other{{count} stelle su 3}}",
+  "summaryNewStar": "Nuova stella!",
+  "summaryNewStarDetail": "{from} → {to} stelle · miglior precedente {pct} %",
+  "summaryNewStarFirst": "{count, plural, =1{1 stella} other{{count} stelle}} al primo passaggio"
 }

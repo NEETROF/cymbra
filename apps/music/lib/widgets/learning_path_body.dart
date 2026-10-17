@@ -24,10 +24,12 @@ import '../screens/lesson_player_screen.dart';
 import '../services/course_catalog_service.dart';
 import '../state/course_completion_notifier.dart';
 import '../state/placement_core.dart';
+import '../state/piece_stars_core.dart';
 import '../state/placement_notifier.dart';
 import '../theme/cymbra_theme.dart';
 import '../theme/motion.dart';
 import 'lesson_hero.dart';
+import 'star_row.dart';
 
 part 'learning_path_body.g.dart';
 
@@ -433,6 +435,9 @@ class _UnitSectionState extends ConsumerState<_UnitSection>
                     indent: pathNodeIndent(i),
                     lang: widget.lang,
                     hero: widget.heroes,
+                    // A piece lesson's stars, from its best run (change:
+                    // add-music-piece-stars); none before any run.
+                    bestPct: completion.bestPct[unit.lessons[i].id],
                   ),
               ],
             ),
@@ -452,6 +457,7 @@ class _LessonNode extends StatefulWidget {
     required this.indent,
     required this.lang,
     required this.hero,
+    this.bestPct,
   });
 
   final CourseListing listing;
@@ -459,6 +465,9 @@ class _LessonNode extends StatefulWidget {
   final double indent;
   final String lang;
   final bool hero;
+
+  /// The best overall synchronisation of this lesson's piece step, when run.
+  final double? bestPct;
 
   @override
   State<_LessonNode> createState() => _LessonNodeState();
@@ -591,13 +600,27 @@ class _LessonNodeState extends State<_LessonNode>
                 const SizedBox(width: 12),
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 230),
-                  child: widget.hero
-                      ? Hero(
-                          tag: lessonHeroTag(widget.listing.id),
-                          flightShuttleBuilder: heroTextFlight,
-                          child: titleText,
-                        )
-                      : titleText,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      widget.hero
+                          ? Hero(
+                              tag: lessonHeroTag(widget.listing.id),
+                              flightShuttleBuilder: heroTextFlight,
+                              child: titleText,
+                            )
+                          : titleText,
+                      if (widget.bestPct case final pct?)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: StarRow(
+                            key: Key('path-stars-${widget.listing.id}'),
+                            stars: starsFor(pct),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ],
             ),

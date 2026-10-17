@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -25,8 +27,14 @@ import '../state/post_play_rating_notifier.dart';
 import '../state/session_summary.dart';
 import '../theme/cymbra_theme.dart';
 import '../theme/scoring_style.dart';
+import '../services/haptics_service.dart';
+import '../state/my_standings_notifier.dart';
+import '../state/piece_bests.dart';
+import '../state/piece_stars_core.dart';
+import '../theme/motion.dart';
 import 'animated_counter.dart';
 import 'leaderboard_view.dart';
+import 'star_row.dart';
 import 'post_play_rating.dart';
 
 /// What the player chose to do from the summary modal.
@@ -130,6 +138,9 @@ class _SummaryDialog extends StatelessWidget {
                           color: CymbraColors.outline,
                         ),
                       ),
+                      // This run's stars, and the new-star moment (change:
+                      // add-music-piece-stars).
+                      _SummaryStars(result: result),
                       // The step's bar, met or not (change:
                       // add-music-piece-lessons). Never the success green on
                       // a miss, never a celebration here either.
@@ -330,8 +341,12 @@ class _SummaryDialog extends StatelessWidget {
         fontSize: 12,
         color: CymbraColors.onSurfaceVariant,
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      // A Wrap, not a Row: two-digit counts on a long piece used to overflow
+      // the dialog by a few pixels; they now fall to a second line instead.
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        spacing: 10,
+        runSpacing: 2,
         children: [
           Text(l10n.summaryPerfect(perfect)),
           Text(l10n.summaryOff(off)),
@@ -567,6 +582,116 @@ class _StandingLine extends ConsumerWidget {
           color: CymbraColors.onSurfaceVariant,
         ),
         textAlign: TextAlign.center,
+      ),
+    );
+  }
+}
+
+/// This run's stars under the overall percentage (change:
+/// add-music-piece-stars, D3): the stars the run reached, the ones gained over
+/// the best known before it popping in, and a "new star" line when there are
+/// any — the run's percentage is then recorded as the device's best. The
+/// "before" is the greater of the device's record and the last standing seen
+/// for the piece; neither known reads as no stars, so a first run celebrates.
+class _SummaryStars extends ConsumerStatefulWidget {
+  const _SummaryStars({required this.result});
+
+  final SessionResult result;
+
+  @override
+  ConsumerState<_SummaryStars> createState() => _SummaryStarsState();
+}
+
+class _SummaryStarsState extends ConsumerState<_SummaryStars> {
+  double? _before;
+
+  @override
+  void initState() {
+    super.initState();
+    final id = widget.result.pieceId;
+    final local = ref.read(localPieceBestsProvider.notifier).bestOf(id);
+    final server = ref
+        .read(myStandingsProvider.notifier)
+        .known(id)
+        ?.bestOverallSyncPct;
+    _before = switch ((local, server)) {
+      (null, null) => null,
+      (final a?, null) => a,
+      (null, final b?) => b,
+      (final a?, final b?) => a >= b ? a : b,
+    };
+    // Writes wait for the frame: a provider is never modified while the tree
+    // builds.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(
+        ref
+            .read(localPieceBestsProvider.notifier)
+            .record(id, widget.result.overallSyncPct),
+      );
+      if (starsFor(widget.result.overallSyncPct) > starsFor(_before)) {
+        unawaited(
+          ref.read(hapticsServiceProvider).light().catchError((Object _) {}),
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final after = starsFor(widget.result.overallSyncPct);
+    final before = starsFor(_before);
+    final gained = after > before;
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          StarRow(
+            key: const Key('summary-stars'),
+            stars: after,
+            compact: false,
+            animateFrom: before,
+          ),
+          if (gained) ...[
+            const SizedBox(height: 4),
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: 1),
+              duration: Motion.of(context, Motion.celebrate),
+              curve: const Interval(0.5, 1, curve: Motion.enter),
+              builder: (context, v, child) => Opacity(opacity: v, child: child),
+              child: Column(
+                key: const Key('summary-new-star'),
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    l10n.summaryNewStar.toUpperCase(),
+                    style: const TextStyle(
+                      color: CymbraColors.primary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  Text(
+                    _before == null
+                        ? l10n.summaryNewStarFirst(after)
+                        : l10n.summaryNewStarDetail(
+                            before,
+                            after,
+                            _before!.round(),
+                          ),
+                    style: const TextStyle(
+                      color: CymbraColors.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

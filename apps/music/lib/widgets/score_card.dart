@@ -20,12 +20,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
 import '../state/my_standings_notifier.dart';
+import '../state/piece_stars.dart';
 import '../state/score_catalog.dart';
 import '../state/score_preview_playback.dart';
 import '../theme/cymbra_theme.dart';
 import 'catalog_access_widgets.dart';
 import 'difficulty_badge.dart';
 import 'leaderboard_view.dart';
+import 'star_row.dart';
 import 'lesson_hero.dart';
 
 /// A friendly name for a crawler source code, or `null` to omit (dev/unknown).
@@ -197,6 +199,12 @@ class ScoreCard extends StatelessWidget {
                         ),
                       ),
                     ],
+                    // The player's stars on the piece (change:
+                    // add-music-piece-stars); nothing signed out.
+                    PieceStarsRow(
+                      pieceId: entry.id,
+                      catalogId: entry.catalogId,
+                    ),
                     // The score's instrument (change: add-drums-access) — a
                     // mixed listing stays legible at a glance. An unknown
                     // instrument shows nothing (no placeholder).
@@ -754,6 +762,29 @@ class _LeaderboardBadge extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The card's star row: the piece's stars from the best known here and on the
+/// server (change: add-music-piece-stars). Nothing for a guest, three empty
+/// stars for a piece never scored.
+class PieceStarsRow extends ConsumerWidget {
+  const PieceStarsRow({super.key, required this.pieceId, this.catalogId});
+
+  final String pieceId;
+  final String? catalogId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stars = ref.watch(
+      pieceStarsProvider(pieceId: pieceId, catalogId: catalogId),
+    );
+    if (stars == null) return const SizedBox.shrink();
+    // Tight: the text column of a phone card has a few pixels to spare.
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: StarRow(key: Key('piece-stars-$pieceId'), stars: stars),
     );
   }
 }

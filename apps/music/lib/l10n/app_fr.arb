@@ -996,5 +996,9 @@
   "placementConfirm": "Commencer à l'unité {n}",
   "placementRestart": "Commencer du début",
   "placementSkippedUnit": "Sautée par le placement",
-  "placementOpenUnit": "Ouvrir"
+  "placementOpenUnit": "Ouvrir",
+  "starsA11y": "{count, plural, =1{1 étoile sur 3} other{{count} étoiles sur 3}}",
+  "summaryNewStar": "Nouvelle étoile !",
+  "summaryNewStarDetail": "{from} → {to} étoiles · meilleur précédent {pct} %",
+  "summaryNewStarFirst": "{count, plural, =1{1 étoile} other{{count} étoiles}} dès le premier passage"
 }

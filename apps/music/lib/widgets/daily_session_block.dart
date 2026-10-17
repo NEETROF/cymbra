@@ -29,8 +29,11 @@ import '../state/session_notifier.dart';
 import '../state/streak_notifier.dart';
 import '../state/today_ledger.dart';
 import '../theme/cymbra_theme.dart';
+import '../state/course_completion_notifier.dart';
+import '../state/piece_stars_core.dart';
 import 'animated_counter.dart';
 import 'piece_run.dart';
+import 'star_row.dart';
 
 /// Today's session at the top of the Learn door (change:
 /// add-music-daily-session): the items, the ring over the goal, the streak as
@@ -356,6 +359,13 @@ class _ItemRow extends ConsumerWidget {
           : resolveInline(item.subtitle, lang);
     }
     final subtitle = resolveInline(item.subtitle, lang);
+    // A piece's stars from the lesson's best run (change:
+    // add-music-piece-stars); empty before any run.
+    final bestPct = item.kind == DailyItemKind.piece
+        ? ref.watch(
+            courseCompletionProvider.select((s) => s.bestPct[item.courseId]),
+          )
+        : null;
     return InkWell(
       key: Key('daily-item-${item.kind.name}'),
       borderRadius: BorderRadius.circular(10),
@@ -403,6 +413,14 @@ class _ItemRow extends ConsumerWidget {
                       style: const TextStyle(
                         color: CymbraColors.onSurfaceVariant,
                         fontSize: 12,
+                      ),
+                    ),
+                  if (item.kind == DailyItemKind.piece)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: StarRow(
+                        key: const Key('daily-piece-stars'),
+                        stars: starsFor(bestPct),
                       ),
                     ),
                 ],

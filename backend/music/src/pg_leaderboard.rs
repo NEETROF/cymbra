@@ -97,18 +97,24 @@ impl LeaderboardRepo for PgLeaderboardRepo {
         // then earlier achieved_at). A worse/equal replay is a no-op — idempotent.
         sqlx::query(
             "INSERT INTO music.leaderboard_bests \
-             (user_id, catalog_score_id, mode, best_subscore, tiebreak_metric, achieved_at) \
-             VALUES ($1, $2, $3, $4, $5, $6) \
+             (user_id, catalog_score_id, mode, best_subscore, tiebreak_metric, achieved_at, \
+              best_overall_sync_pct) \
+             VALUES ($1, $2, $3, $4, $5, $6, $7) \
              ON CONFLICT (user_id, catalog_score_id, mode) DO UPDATE \
-             SET best_subscore = EXCLUDED.best_subscore, \
-                 tiebreak_metric = EXCLUDED.tiebreak_metric, \
-                 achieved_at = EXCLUDED.achieved_at \
-             WHERE EXCLUDED.best_subscore > music.leaderboard_bests.best_subscore \
-                OR (EXCLUDED.best_subscore = music.leaderboard_bests.best_subscore \
-                    AND EXCLUDED.tiebreak_metric < music.leaderboard_bests.tiebreak_metric) \
-                OR (EXCLUDED.best_subscore = music.leaderboard_bests.best_subscore \
-                    AND EXCLUDED.tiebreak_metric = music.leaderboard_bests.tiebreak_metric \
-                    AND EXCLUDED.achieved_at < music.leaderboard_bests.achieved_at)",
+             SET best_subscore = CASE WHEN better THEN EXCLUDED.best_subscore \
+                                      ELSE music.leaderboard_bests.best_subscore END, \
+                 tiebreak_metric = CASE WHEN better THEN EXCLUDED.tiebreak_metric \
+                                        ELSE music.leaderboard_bests.tiebreak_metric END, \
+                 achieved_at = CASE WHEN better THEN EXCLUDED.achieved_at \
+                                    ELSE music.leaderboard_bests.achieved_at END, \
+                 best_overall_sync_pct = GREATEST(music.leaderboard_bests.best_overall_sync_pct, \
+                                                  EXCLUDED.best_overall_sync_pct) \
+             FROM (SELECT ($4::real > b.best_subscore \
+                        OR ($4::real = b.best_subscore AND $5::real < b.tiebreak_metric) \
+                        OR ($4::real = b.best_subscore AND $5::real = b.tiebreak_metric \
+                            AND $6::timestamptz < b.achieved_at)) AS better \
+                   FROM music.leaderboard_bests b \
+                   WHERE b.user_id = $1 AND b.catalog_score_id = $2 AND b.mode = $3) AS cmp",
         )
         .bind(user_id)
         .bind(catalog_score_id)
@@ -116,6 +122,7 @@ impl LeaderboardRepo for PgLeaderboardRepo {
         .bind(best.subscore)
         .bind(best.tiebreak_metric)
         .bind(achieved_at)
+        .bind(best.overall_sync_pct)
         .execute(&self.pool)
         .await
         .map_err(internal)?;
@@ -128,7 +135,8 @@ impl LeaderboardRepo for PgLeaderboardRepo {
         };
         let rows = sqlx::query(
             "SELECT user_id::text AS user_id, best_subscore, tiebreak_metric, \
-             (extract(epoch FROM achieved_at) * 1000)::bigint AS achieved_at_ms \
+             (extract(epoch FROM achieved_at) * 1000)::bigint AS achieved_at_ms, \
+             best_overall_sync_pct \
              FROM music.leaderboard_bests \
              WHERE catalog_score_id = $1 AND mode = $2 \
              ORDER BY best_subscore DESC, tiebreak_metric ASC, achieved_at ASC",
@@ -145,6 +153,7 @@ impl LeaderboardRepo for PgLeaderboardRepo {
                 subscore: r.get("best_subscore"),
                 tiebreak_metric: r.get("tiebreak_metric"),
                 achieved_at_ms: r.get::<i64, _>("achieved_at_ms"),
+                best_overall_sync_pct: r.get::<Option<f32>, _>("best_overall_sync_pct"),
             })
             .collect())
     }

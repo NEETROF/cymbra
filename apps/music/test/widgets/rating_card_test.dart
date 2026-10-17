@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/l10n/gen/app_localizations.dart';
 import 'package:music/state/score_catalog.dart';
@@ -34,18 +35,22 @@ Future<void> _pump(
   WidgetTester tester,
   CatalogEntry entry,
 ) => tester.pumpWidget(
-  MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    home: Scaffold(
-      // Bound the card in both dimensions so the ScoreCard's cover-ratio + flex
-      // layout resolves in the test surface (unbounded width overflows its title
-      // column; unbounded height breaks its inner Expanded).
-      body: Center(
-        child: SizedBox(
-          width: 320,
-          height: 460,
-          child: RatingCard(entry: entry),
+  // The card reads the piece's stars from providers (change:
+  // add-music-piece-stars).
+  ProviderScope(
+    child: MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: Scaffold(
+        // Bound the card in both dimensions so the ScoreCard's cover-ratio + flex
+        // layout resolves in the test surface (unbounded width overflows its title
+        // column; unbounded height breaks its inner Expanded).
+        body: Center(
+          child: SizedBox(
+            width: 320,
+            height: 460,
+            child: RatingCard(entry: entry),
+          ),
         ),
       ),
     ),

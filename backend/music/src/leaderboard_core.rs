@@ -43,6 +43,10 @@ const MAX_REACTION_MS: f64 = 10_000.0;
 pub struct Candidates {
     pub accepted: Vec<BestCandidate>,
     pub rejected: Vec<String>,
+    /// The session's overall synchronisation, 0..100, when the record carries a
+    /// plausible one (change: add-music-piece-stars). Not a board candidate —
+    /// it rides beside the per-mode bests as a monotonic max.
+    pub overall_sync_pct: Option<f32>,
 }
 
 /// Derive the board candidates from a session-result record (`session_result_json`
@@ -71,6 +75,11 @@ pub fn candidates_from_result(json: &str, achieved_at_ms: i64) -> Result<Candida
     let i64_of = |key: &str| obj.get(key).and_then(serde_json::Value::as_i64);
 
     let mut out = Candidates::default();
+
+    // The overall synchronisation, kept when plausible (stars derive from it).
+    out.overall_sync_pct = f64_of("overallSyncPct")
+        .filter(|p| p.is_finite() && (0.0..=100.0).contains(p))
+        .map(|p| p as f32);
 
     // Tempo board — from the free-run sub-score.
     if let Some(sub) = f64_of("freeSyncPct") {
@@ -191,7 +200,29 @@ mod tests {
             subscore: sub,
             tiebreak_metric: tie,
             achieved_at_ms: at,
+            best_overall_sync_pct: None,
         }
+    }
+
+    /// The overall synchronisation rides beside the candidates when plausible
+    /// (change: add-music-piece-stars); garbage is dropped, never an error.
+    #[test]
+    fn overall_sync_is_kept_when_plausible() {
+        let ok = candidates_from_result(
+            r#"{"overallSyncPct": 83.5, "freeSyncPct": 80, "freeOnsetCount": 10}"#,
+            1,
+        )
+        .unwrap();
+        assert_eq!(ok.overall_sync_pct, Some(83.5));
+        let out_of_range = candidates_from_result(
+            r#"{"overallSyncPct": 140, "freeSyncPct": 80, "freeOnsetCount": 10}"#,
+            1,
+        )
+        .unwrap();
+        assert_eq!(out_of_range.overall_sync_pct, None);
+        let absent =
+            candidates_from_result(r#"{"freeSyncPct": 80, "freeOnsetCount": 10}"#, 1).unwrap();
+        assert_eq!(absent.overall_sync_pct, None);
     }
 
     #[test]

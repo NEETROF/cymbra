@@ -996,5 +996,9 @@
   "placementConfirm": "Empezar en la unidad {n}",
   "placementRestart": "Empezar desde el principio",
   "placementSkippedUnit": "Saltada por la nivelación",
-  "placementOpenUnit": "Abrir"
+  "placementOpenUnit": "Abrir",
+  "starsA11y": "{count, plural, =1{1 estrella de 3} other{{count} estrellas de 3}}",
+  "summaryNewStar": "¡Nueva estrella!",
+  "summaryNewStarDetail": "{from} → {to} estrellas · mejor anterior {pct} %",
+  "summaryNewStarFirst": "{count, plural, =1{1 estrella} other{{count} estrellas}} en tu primera pasada"
 }

@@ -41,6 +41,11 @@ class MyStandings extends _$MyStandings {
   final Set<String> _pending = {};
   bool _flushScheduled = false;
 
+  /// What was loaded before the last delivery reset — the "before" a run's
+  /// stars are compared to (change: add-music-piece-stars), since the reset
+  /// lands about when the summary opens.
+  Map<String, LeaderboardStanding> _previous = const {};
+
   @override
   Map<String, LeaderboardStanding> build() {
     // On delivery (pending outbox count drops), forget what we loaded so the next
@@ -48,11 +53,18 @@ class MyStandings extends _$MyStandings {
     ref.listen(playSyncNotifierProvider, (previous, next) {
       if (previous != null && next < previous) {
         _requested.clear();
+        _previous = {..._previous, ...state};
         state = const {};
       }
     });
     return const {};
   }
+
+  /// The last standing seen for [scoreId], across the delivery reset: the
+  /// current one when loaded, else the one held before the reset. Null when
+  /// this piece was never requested on this screen (reads as no stars yet).
+  LeaderboardStanding? known(String scoreId) =>
+      state[scoreId] ?? _previous[scoreId];
 
   /// Ask for `scoreId`'s standing. Cheap + idempotent: already-known ids are
   /// skipped, and new ids are batched into one RPC on the next microtask, so many

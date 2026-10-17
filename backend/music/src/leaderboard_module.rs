@@ -118,6 +118,10 @@ pub struct MyStanding {
     pub rank: i32,
     pub subscore: f32,
     pub mode: Mode,
+    /// The caller's best overall synchronisation on the piece across both
+    /// boards (change: add-music-piece-stars); `None` for the not-ranked marker
+    /// and when never recorded.
+    pub best_overall_sync_pct: Option<f32>,
 }
 
 /// Leaderboard reads + the ingest maintenance hook, over the bests store and the
@@ -194,6 +198,7 @@ impl LeaderboardModule {
                     subscore: candidate.subscore,
                     tiebreak_metric: candidate.tiebreak_metric,
                     achieved_at_ms: candidate.achieved_at_ms,
+                    overall_sync_pct: candidates.overall_sync_pct,
                 })
                 .await?;
         }
@@ -377,6 +382,8 @@ impl LeaderboardModule {
             // The first mode whose PUBLIC listing is non-empty — so a not-ranked
             // caller still gets a bare-trophy badge that opens a real board.
             let mut public_mode: Option<Mode> = None;
+            // The best overall across both boards (change: add-music-piece-stars).
+            let mut overall: Option<f32> = None;
             for mode in MODES {
                 let bests = boards
                     .get(&(score_id.clone(), mode))
@@ -391,6 +398,10 @@ impl LeaderboardModule {
                     public_mode = Some(mode);
                 }
                 if let Some(own) = bests.iter().find(|b| b.user_id == viewer_id) {
+                    overall = match (overall, own.best_overall_sync_pct) {
+                        (Some(a), Some(b)) => Some(a.max(b)),
+                        (a, b) => a.or(b),
+                    };
                     let rank = leaderboard_core::own_rank(&public, own);
                     // Keep the smaller rank across the two modes (ties keep first).
                     let better = match &best {
@@ -403,11 +414,13 @@ impl LeaderboardModule {
                             rank,
                             subscore: own.subscore,
                             mode,
+                            best_overall_sync_pct: None,
                         });
                     }
                 }
             }
-            if let Some(standing) = best {
+            if let Some(mut standing) = best {
+                standing.best_overall_sync_pct = overall;
                 out.push(standing);
             } else if let Some(mode) = public_mode {
                 // Not ranked, but the board has public entries: emit a `rank == 0`
@@ -418,6 +431,7 @@ impl LeaderboardModule {
                     rank: 0,
                     subscore: 0.0,
                     mode,
+                    best_overall_sync_pct: None,
                 });
             }
         }
@@ -731,9 +745,38 @@ mod tests {
             subscore: sub,
             tiebreak_metric: 5.0,
             achieved_at_ms: at,
+            overall_sync_pct: Some(sub),
         })
         .await
         .unwrap();
+    }
+
+    /// The standings carry the caller's best OVERALL synchronisation across
+    /// both boards (change: add-music-piece-stars): the max of what each mode's
+    /// row stored, absent for the not-ranked marker.
+    #[tokio::test]
+    async fn my_standings_carry_the_best_overall_across_modes() {
+        let repo = Arc::new(FakeLeaderboardRepo::default());
+        repo.accept("p1");
+        repo.accept("p2");
+        seed(&repo, "me", "p1", Mode::Tempo, 70.0, 1).await;
+        seed(&repo, "me", "p1", Mode::Reaction, 88.0, 2).await;
+        seed(&repo, "other", "p2", Mode::Tempo, 90.0, 3).await;
+        let m = module(repo, &["me", "other"]);
+        let out = m
+            .my_standings(
+                &BoardViewer::with_drums("me"),
+                &["p1".into(), "p2".into()],
+                today(),
+            )
+            .await
+            .unwrap();
+        let p1 = out.iter().find(|s| s.score_id == "p1").unwrap();
+        assert_eq!(p1.best_overall_sync_pct, Some(88.0));
+        // Not ranked on p2 (others are): the marker carries no best.
+        let p2 = out.iter().find(|s| s.score_id == "p2").unwrap();
+        assert_eq!(p2.rank, 0);
+        assert_eq!(p2.best_overall_sync_pct, None);
     }
 
     #[tokio::test]

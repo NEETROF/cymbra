@@ -78,6 +78,10 @@ pub struct LeaderboardBest {
     pub subscore: f32,
     pub tiebreak_metric: f32,
     pub achieved_at_ms: i64,
+    /// The session's overall synchronisation (change: add-music-piece-stars);
+    /// stored as a monotonic max beside the per-mode best. `None` when the
+    /// record carried none.
+    pub overall_sync_pct: Option<f32>,
 }
 
 /// A stored best as read back for ranking. No sensitive fields: the display
@@ -88,6 +92,9 @@ pub struct StoredBest {
     pub subscore: f32,
     pub tiebreak_metric: f32,
     pub achieved_at_ms: i64,
+    /// The owner's best overall synchronisation on the piece (change:
+    /// add-music-piece-stars), `None` when never recorded.
+    pub best_overall_sync_pct: Option<f32>,
 }
 
 /// Storage surface for leaderboard bests.
@@ -195,6 +202,14 @@ impl LeaderboardRepo for FakeLeaderboardRepo {
             best.mode.as_str().to_string(),
         );
         let mut map = self.bests.lock().unwrap();
+        // The overall best only ever rises, whatever the per-mode ranking says.
+        let overall = match (
+            map.get(&key).and_then(|c| c.overall_sync_pct),
+            best.overall_sync_pct,
+        ) {
+            (Some(a), Some(b)) => Some(a.max(b)),
+            (a, b) => a.or(b),
+        };
         let raise = match map.get(&key) {
             None => true,
             Some(cur) => crate::leaderboard_core::is_better(
@@ -207,7 +222,15 @@ impl LeaderboardRepo for FakeLeaderboardRepo {
             ),
         };
         if raise {
-            map.insert(key, best.clone());
+            map.insert(
+                key,
+                LeaderboardBest {
+                    overall_sync_pct: overall,
+                    ..best.clone()
+                },
+            );
+        } else if let Some(cur) = map.get_mut(&key) {
+            cur.overall_sync_pct = overall;
         }
         Ok(())
     }
@@ -222,6 +245,7 @@ impl LeaderboardRepo for FakeLeaderboardRepo {
                 subscore: b.subscore,
                 tiebreak_metric: b.tiebreak_metric,
                 achieved_at_ms: b.achieved_at_ms,
+                best_overall_sync_pct: b.overall_sync_pct,
             })
             .collect();
         rows.sort_by(|a, b| {

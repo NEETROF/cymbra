@@ -57,6 +57,9 @@ message MyStanding {
   int32 rank = 2;      // best (smallest) rank across the two boards
   float subscore = 3;  // the sub-score behind that rank
   string mode = 4;     // "tempo" | "reaction" — the board of the best rank
+  // The caller's best OVERALL synchronisation on the piece, 0..100 (change:
+  // add-music-piece-stars) — absent when the caller never scored on it.
+  optional float best_overall_sync_pct = 5;
 }
 message GetMyStandingsResponse {
   repeated MyStanding standings = 1; // only pieces the caller is ranked on

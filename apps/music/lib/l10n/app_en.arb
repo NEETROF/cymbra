@@ -4485,5 +4485,42 @@
   "placementOpenUnit": "Open",
   "@placementOpenUnit": {
       "description": "Expands a path unit the placement skipped."
+  },
+  "starsA11y": "{count, plural, =1{1 of 3 stars} other{{count} of 3 stars}}",
+  "@starsA11y": {
+      "description": "Accessibility label of a piece's star row.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "summaryNewStar": "New star!",
+  "@summaryNewStar": {
+      "description": "Headline in the end-of-run summary when the run earned a star the player did not have."
+  },
+  "summaryNewStarDetail": "{from} → {to} stars · previous best {pct} %",
+  "@summaryNewStarDetail": {
+      "description": "Detail line under the new-star headline.",
+      "placeholders": {
+          "from": {
+              "type": "int"
+          },
+          "to": {
+              "type": "int"
+          },
+          "pct": {
+              "type": "int"
+          }
+      }
+  },
+  "summaryNewStarFirst": "{count, plural, =1{1 star} other{{count} stars}} on your first run",
+  "@summaryNewStarFirst": {
+      "description": "Detail line under the new-star headline for a piece never scored before.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
   }
 }

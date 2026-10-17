@@ -97,10 +97,15 @@ class LeaderboardStanding {
     required this.rank,
     required this.subscore,
     required this.mode,
+    this.bestOverallSyncPct,
   });
 
   final String scoreId;
   final int rank;
   final double subscore;
   final LeaderboardMode mode;
+
+  /// The caller's best overall synchronisation on the piece, as the server
+  /// keeps it (change: add-music-piece-stars); null when never scored.
+  final double? bestOverallSyncPct;
 }

@@ -27,15 +27,33 @@ overall percentage. The piece step's default pass threshold is 80 %. See proposa
 Alternatives: computing stars server-side; rejected because the leaderboards already send
 the best and a second derived field would be a second source of truth.
 
+The best a piece's stars read is the greater of two records: the server's (D2) and a
+**device-local record of the best per piece** (`LocalPieceBests`, written as each scored
+run's summary opens). The local record is what a **bundled** piece has — the authored
+lesson tunes have no catalogue id and so no board — and what covers the moments between a
+run's end and its delivery. Both are monotonic, so the merge is too. On the learning path
+and in today's session, a piece lesson's stars read the lesson's own best piece run
+(`CourseCompletion.bestPct`, the same runs recorded by `add-music-piece-lessons`), which
+needs no manifest to know which score the lesson plays.
+
 ### D2 — Reuse `MyStandings`, extend the standing with the best percentage
-`LeaderboardStanding.best_overall_sync_pct` (float, additive). Cards already request their
-piece's standing; the star row reads the same map, so a page of cards still costs one call
-and refreshes on delivery like the rank badge.
+`MyStanding.best_overall_sync_pct` (optional float, additive, `leaderboard.proto`). The
+boards stored only the per-mode sub-scores, so the overall best is now **stored beside
+them** (`leaderboard_bests.best_overall_sync_pct`, migration 0034): the ingest raises it
+with `GREATEST` on every accepted session, whatever the per-mode ranking decides for the
+row, and the standings read returns the max across the two modes. Cards already request
+their piece's standing; the star row reads the same map, so a page of cards still costs
+one call and refreshes on delivery like the rank badge.
 
 ### D3 — The summary compares the run to the previous best
 The summary shows the stars this run reached; if the run's stars exceed the stars of the
-standing known before the run, it raises the new-star cue once. A standing not loaded yet
-counts as zero stars, so the first scored run on a piece always celebrates its stars.
+best known before the run — the local record, or the last standing seen for the piece,
+kept across the delivery reset (`MyStandings.known`), whichever is greater — it raises
+the new-star moment once, inline: the gained stars pop in, a "New star!" line names the
+jump, one light haptic. A best not known yet counts as zero stars, so the first scored run
+on a piece always celebrates its stars. The run is then recorded as the device's best.
+A measure-range practice run is never scored and opens no summary (`add-measure-range-
+practice`), so practice touches no star.
 
 ### D4 — Empty stars on unplayed pieces
 Three outlined stars, no text: the invitation is the design.

@@ -160,6 +160,7 @@ impl LeaderboardService for LeaderboardGrpc {
                     rank: s.rank,
                     subscore: s.subscore,
                     mode: s.mode.as_str().to_string(),
+                    best_overall_sync_pct: s.best_overall_sync_pct,
                 })
                 .collect(),
         }))
