@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 844 390" width="844" height="390" role="img" aria-label="Learning path drawn as a curve: filled to the last completed node, dashed beyond, next node pulsing">
+<title>Learning path drawn as a curve: filled to the last completed node, dashed beyond, next node pulsing</title>
+<rect x="0" y="0" width="844" height="390" rx="0" fill="#0B1326" opacity="1"/>
+<rect x="0" y="0" width="844" height="48" rx="0" fill="#060E20" opacity="1"/>
+<text x="18" y="30.0" font-family="Helvetica Neue, Arial, sans-serif" font-size="17" font-weight="700" fill="#DAE2FD" text-anchor="start" opacity="1">Bibliothèque</text>
+<circle cx="814" cy="24" r="10" fill="#222A3D" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<circle cx="774" cy="24" r="10" fill="#222A3D" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<circle cx="734" cy="24" r="10" fill="#222A3D" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<circle cx="694" cy="24" r="10" fill="#222A3D" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<rect x="662" y="14" width="56" height="20" rx="10" fill="#222A3D" opacity="1"/>
+<text x="690" y="28" font-family="Helvetica Neue, Arial, sans-serif" font-size="9.5" font-weight="700" fill="#D2BBFF" text-anchor="middle" opacity="1">Niv. 4</text>
+<rect x="0" y="48" width="844" height="46" rx="0" fill="#060E20" opacity="1"/>
+<rect x="16" y="56" width="192" height="30" rx="15" fill="#222A3D" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<rect x="18" y="58" width="92" height="26" rx="13" fill="#7C3AED" opacity="1"/>
+<text x="64.0" y="75.5" font-family="Helvetica Neue, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#DAE2FD" text-anchor="middle" opacity="1">Clavier</text>
+<text x="160.0" y="75.5" font-family="Helvetica Neue, Arial, sans-serif" font-size="12.5" font-weight="500" fill="#CCC3D8" text-anchor="middle" opacity="1">Batterie</text>
+<rect x="592" y="56" width="236" height="30" rx="15" fill="#222A3D" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<text x="651.0" y="75.5" font-family="Helvetica Neue, Arial, sans-serif" font-size="12.5" font-weight="500" fill="#CCC3D8" text-anchor="middle" opacity="1">Jouer</text>
+<rect x="712" y="58" width="114" height="26" rx="13" fill="#7C3AED" opacity="1"/>
+<text x="769.0" y="75.5" font-family="Helvetica Neue, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#DAE2FD" text-anchor="middle" opacity="1">Apprendre</text>
+<rect x="16" y="106" width="812" height="34" rx="10" fill="#222A3D" opacity="1" stroke="#4EDEA3" stroke-width="1"/>
+<text x="30" y="128" font-family="serif" font-size="20" font-weight="400" fill="#D2BBFF" text-anchor="start" opacity="1">𝄞</text>
+<text x="56" y="128" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" font-weight="800" fill="#DAE2FD" text-anchor="start" opacity="1">La portée et tes premières notes</text>
+<rect x="584" y="119" width="180" height="8" rx="4" fill="#0B1326" opacity="1"/>
+<rect x="584" y="119" width="120" height="8" rx="4" fill="#7C3AED" opacity="1"/>
+<text x="794" y="128" font-family="Helvetica Neue, Arial, sans-serif" font-size="11" font-weight="700" fill="#CCC3D8" text-anchor="middle" opacity="1">4/6</text>
+<path d="M60,214 C125.0,214 125.0,274 190,274 C260.0,274 260.0,204 330,204 C400.0,204 400.0,284 470,284 C540.0,284 540.0,214 610,214" stroke="#4EDEA3" stroke-width="5" fill="none" opacity="1" stroke-linecap="round"/>
+<path d="M610,214 C685.0,214 685.0,274 760,274" stroke="#4A4455" stroke-width="4" fill="none" opacity="1" stroke-dasharray="8 8" stroke-linecap="round"/>
+<circle cx="60" cy="214" r="17" fill="#4EDEA3" opacity="1"/>
+<path d="M51.2,214 L58.4,221.2 L69.6,206.8" stroke="#060E20" stroke-width="3" fill="none" opacity="1" stroke-linecap="round"/>
+<text x="60" y="252" font-family="Helvetica Neue, Arial, sans-serif" font-size="10.5" font-weight="500" fill="#DAE2FD" text-anchor="middle" opacity="1">Le piano et le do</text>
+<circle cx="190" cy="274" r="17" fill="#4EDEA3" opacity="1"/>
+<path d="M181.2,274 L188.4,281.2 L199.6,266.8" stroke="#060E20" stroke-width="3" fill="none" opacity="1" stroke-linecap="round"/>
+<text x="190" y="312" font-family="Helvetica Neue, Arial, sans-serif" font-size="10.5" font-weight="500" fill="#DAE2FD" text-anchor="middle" opacity="1">La portée</text>
+<circle cx="330" cy="204" r="17" fill="#4EDEA3" opacity="1"/>
+<path d="M321.2,204 L328.4,211.2 L339.6,196.8" stroke="#060E20" stroke-width="3" fill="none" opacity="1" stroke-linecap="round"/>
+<text x="330" y="242" font-family="Helvetica Neue, Arial, sans-serif" font-size="10.5" font-weight="500" fill="#DAE2FD" text-anchor="middle" opacity="1">La clé de sol</text>
+<circle cx="470" cy="284" r="17" fill="#4EDEA3" opacity="1"/>
+<path d="M461.2,284 L468.4,291.2 L479.6,276.8" stroke="#060E20" stroke-width="3" fill="none" opacity="1" stroke-linecap="round"/>
+<text x="470" y="322" font-family="Helvetica Neue, Arial, sans-serif" font-size="10.5" font-weight="500" fill="#DAE2FD" text-anchor="middle" opacity="1">Do, ré, mi</text>
+<circle cx="610" cy="214" r="30" fill="#7C3AED" opacity="0.18"/>
+<circle cx="610" cy="214" r="24" fill="#7C3AED" opacity="0.3"/>
+<circle cx="610" cy="214" r="17" fill="#7C3AED" opacity="1"/>
+<polygon points="606.4,209.2 606.4,218.8 615.2,214" fill="#DAE2FD"/>
+<text x="610" y="252" font-family="Helvetica Neue, Arial, sans-serif" font-size="10.5" font-weight="700" fill="#DAE2FD" text-anchor="middle" opacity="1">Fa et sol</text>
+<circle cx="760" cy="274" r="17" fill="#222A3D" opacity="1" stroke="#4A4455" stroke-width="1.2"/>
+<ellipse cx="757.9" cy="277.5" rx="4.48" ry="3.08" fill="#958DA1" transform="rotate(-20 757.9 277.5)"/>
+<line x1="761.82" y1="276.8" x2="761.82" y2="266.3" stroke="#958DA1" stroke-width="2.2" opacity="1" stroke-linecap="round"/>
+<text x="760" y="312" font-family="Helvetica Neue, Arial, sans-serif" font-size="10.5" font-weight="500" fill="#CCC3D8" text-anchor="middle" opacity="1">Bilan</text>
+<text x="16" y="369" font-family="Helvetica Neue, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#CCC3D8" text-anchor="start" opacity="1">Au retour d’une leçon terminée : le nœud coche (160 ms), puis le trait se remplit jusqu’au nœud suivant (280 ms) ; l’en-tête d’unité s’allume une fois quand 6/6.</text>
+<rect x="0" y="368" width="844" height="22" rx="0" fill="#000000" opacity="0.35"/>
+<text x="422.0" y="383" font-family="Helvetica Neue, Arial, sans-serif" font-size="11" font-weight="500" fill="#CCC3D8" text-anchor="middle" opacity="1">E2 — Parcours dessiné : courbe continue, remplie jusqu’au dernier nœud terminé, pointillée au-delà ; le prochain nœud garde sa pulsation</text>
+</svg>

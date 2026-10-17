@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 844 390" width="844" height="390" role="img" aria-label="Lesson step: a piece block before the run">
+<title>Lesson step: a piece block before the run</title>
+<rect x="0" y="0" width="844" height="390" rx="0" fill="#0B1326" opacity="1"/>
+<rect x="0" y="0" width="844" height="48" rx="0" fill="#060E20" opacity="1"/>
+<text x="18" y="30.0" font-family="Helvetica Neue, Arial, sans-serif" font-size="17" font-weight="700" fill="#DAE2FD" text-anchor="start" opacity="1">Fa et sol  ·  étape 6 / 7</text>
+<text x="824" y="30" font-family="Helvetica Neue, Arial, sans-serif" font-size="16" font-weight="400" fill="#CCC3D8" text-anchor="end" opacity="1">✕</text>
+<rect x="16" y="58" width="812" height="6" rx="3" fill="#222A3D" opacity="1"/>
+<rect x="16" y="58" width="696.0" height="6" rx="3" fill="#7C3AED" opacity="1"/>
+<text x="32" y="100" font-family="Helvetica Neue, Arial, sans-serif" font-size="20" font-weight="800" fill="#DAE2FD" text-anchor="start" opacity="1">À toi de jouer : Ode à la joie, main droite</text>
+<text x="32" y="122" font-family="Helvetica Neue, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#CCC3D8" text-anchor="start" opacity="1">Tu connais maintenant do, ré, mi, fa et sol. Joue le thème à la main droite, au ralenti, le lecteur t’attend à chaque note.</text>
+<rect x="32" y="140" width="98.6" height="24" rx="12" fill="#222A3D" opacity="1" stroke="#7FB2FF" stroke-width="1"/>
+<circle cx="44" cy="152" r="4" fill="#7FB2FF" opacity="1"/>
+<text x="54" y="156" font-family="Helvetica Neue, Arial, sans-serif" font-size="11" font-weight="600" fill="#DAE2FD" text-anchor="start" opacity="1">Main droite</text>
+<rect x="138.6" y="140" width="105.19999999999999" height="24" rx="12" fill="#222A3D" opacity="1" stroke="#44E2CD" stroke-width="1"/>
+<circle cx="150.6" cy="152" r="4" fill="#44E2CD" opacity="1"/>
+<text x="160.6" y="156" font-family="Helvetica Neue, Arial, sans-serif" font-size="11" font-weight="600" fill="#DAE2FD" text-anchor="start" opacity="1">Vitesse 60 %</text>
+<rect x="251.79999999999998" y="140" width="105.19999999999999" height="24" rx="12" fill="#222A3D" opacity="1" stroke="#D2BBFF" stroke-width="1"/>
+<circle cx="263.79999999999995" cy="152" r="4" fill="#D2BBFF" opacity="1"/>
+<text x="273.79999999999995" y="156" font-family="Helvetica Neue, Arial, sans-serif" font-size="11" font-weight="600" fill="#DAE2FD" text-anchor="start" opacity="1">Mode attente</text>
+<rect x="365.0" y="140" width="111.8" height="24" rx="12" fill="#222A3D" opacity="1" stroke="#958DA1" stroke-width="1"/>
+<circle cx="377.0" cy="152" r="4" fill="#958DA1" opacity="1"/>
+<text x="387.0" y="156" font-family="Helvetica Neue, Arial, sans-serif" font-size="11" font-weight="600" fill="#DAE2FD" text-anchor="start" opacity="1">Métronome off</text>
+<rect x="484.8" y="140" width="158.0" height="24" rx="12" fill="#222A3D" opacity="1" stroke="#D2BBFF" stroke-width="1"/>
+<circle cx="496.8" cy="152" r="4" fill="#D2BBFF" opacity="1"/>
+<text x="506.8" y="156" font-family="Helvetica Neue, Arial, sans-serif" font-size="11" font-weight="600" fill="#DAE2FD" text-anchor="start" opacity="1">Aide : nom des notes</text>
+<rect x="32" y="178" width="360" height="70" rx="12" fill="#171F33" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<text x="48" y="202" font-family="Helvetica Neue, Arial, sans-serif" font-size="10" font-weight="700" fill="#CCC3D8" text-anchor="start" opacity="1">OBJECTIF</text>
+<text x="48" y="228" font-family="Helvetica Neue, Arial, sans-serif" font-size="14" font-weight="700" fill="#DAE2FD" text-anchor="start" opacity="1">80 % de synchro pour réussir l’étape</text>
+<circle cx="360" cy="213" r="22" fill="none" opacity="1" stroke="#222A3D" stroke-width="7"/>
+<text x="360" y="217" font-family="Helvetica Neue, Arial, sans-serif" font-size="12" font-weight="700" fill="#CCC3D8" text-anchor="middle" opacity="1">—</text>
+<rect x="416" y="178" width="396" height="70" rx="12" fill="#131B2E" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<line x1="430" y1="193" x2="798" y2="193" stroke="#4A4455" stroke-width="1" opacity="1" stroke-linecap="round"/>
+<line x1="430" y1="202" x2="798" y2="202" stroke="#4A4455" stroke-width="1" opacity="1" stroke-linecap="round"/>
+<line x1="430" y1="211" x2="798" y2="211" stroke="#4A4455" stroke-width="1" opacity="1" stroke-linecap="round"/>
+<line x1="430" y1="220" x2="798" y2="220" stroke="#4A4455" stroke-width="1" opacity="1" stroke-linecap="round"/>
+<line x1="430" y1="229" x2="798" y2="229" stroke="#4A4455" stroke-width="1" opacity="1" stroke-linecap="round"/>
+<ellipse cx="466.8" cy="211.0" rx="4.5" ry="3.2" fill="#7FB2FF"/>
+<ellipse cx="503.6" cy="207.4" rx="4.5" ry="3.2" fill="#7FB2FF"/>
+<ellipse cx="540.4" cy="203.8" rx="4.5" ry="3.2" fill="#7FB2FF"/>
+<ellipse cx="577.2" cy="200.2" rx="4.5" ry="3.2" fill="#7FB2FF"/>
+<ellipse cx="614.0" cy="200.2" rx="4.5" ry="3.2" fill="#7FB2FF"/>
+<ellipse cx="650.8" cy="203.8" rx="4.5" ry="3.2" fill="#7FB2FF"/>
+<ellipse cx="687.5999999999999" cy="207.4" rx="4.5" ry="3.2" fill="#7FB2FF"/>
+<ellipse cx="724.4000000000001" cy="211.0" rx="4.5" ry="3.2" fill="#7FB2FF"/>
+<rect x="32" y="268" width="200" height="42" rx="21" fill="#7C3AED" opacity="1"/>
+<polygon points="56.4,284.2 56.4,293.8 65.2,289" fill="#DAE2FD"/>
+<text x="132" y="294" font-family="Helvetica Neue, Arial, sans-serif" font-size="14" font-weight="700" fill="#DAE2FD" text-anchor="middle" opacity="1">Jouer le morceau</text>
+<text x="300" y="294" font-family="Helvetica Neue, Arial, sans-serif" font-size="12.5" font-weight="500" fill="#CCC3D8" text-anchor="middle" opacity="1">Passer cette étape</text>
+<rect x="664" y="268" width="150" height="42" rx="21" fill="none" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<text x="739" y="294" font-family="Helvetica Neue, Arial, sans-serif" font-size="14" font-weight="700" fill="#958DA1" text-anchor="middle" opacity="1">Suivant</text>
+<rect x="0" y="368" width="844" height="22" rx="0" fill="#000000" opacity="0.35"/>
+<text x="422.0" y="383" font-family="Helvetica Neue, Arial, sans-serif" font-size="11" font-weight="500" fill="#CCC3D8" text-anchor="middle" opacity="1">B1 — Bloc « morceau » : réglages imposés visibles, objectif chiffré, Jouer / Passer / Suivant (jamais bloquant)</text>
+</svg>

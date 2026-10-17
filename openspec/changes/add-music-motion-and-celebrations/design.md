@@ -73,3 +73,16 @@ through the seam and never fires on a miss or an error.
   pinned-actions rules; the burst is clipped to the dialog.
 - [Replayed celebrations on rebuild] → every celebration is driven by an explicit cue from
   a listener widget, never by `build`.
+
+## Mockups
+
+Wireframes in the app's palette (landscape phone, French copy as the app's French locale would show it); illustrative, not pixel specs. SVG, editable as text, rendered by GitHub.
+
+![E1](mockups/e1-celebration-surface.svg)
+
+*E1 — The shared celebration surface: icon scaling in, drawn confetti in the reward accent, the counter counting up, actions enabled at the end.*
+
+![E2](mockups/e2-path-drawn.svg)
+
+*E2 — The path drawn as a curve: filled to the last completed node, dashed beyond, the next node pulsing.*
+

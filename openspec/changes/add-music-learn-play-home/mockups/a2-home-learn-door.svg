@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 844 390" width="844" height="390" role="img" aria-label="Home, Learn door: reserved daily-session slot, continue card, learning path">
+<title>Home, Learn door: reserved daily-session slot, continue card, learning path</title>
+<rect x="0" y="0" width="844" height="390" rx="0" fill="#0B1326" opacity="1"/>
+<rect x="0" y="0" width="844" height="48" rx="0" fill="#060E20" opacity="1"/>
+<text x="18" y="30.0" font-family="Helvetica Neue, Arial, sans-serif" font-size="17" font-weight="700" fill="#DAE2FD" text-anchor="start" opacity="1">Bibliothèque</text>
+<circle cx="814" cy="24" r="10" fill="#222A3D" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<circle cx="774" cy="24" r="10" fill="#222A3D" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<circle cx="734" cy="24" r="10" fill="#222A3D" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<circle cx="694" cy="24" r="10" fill="#222A3D" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<rect x="662" y="14" width="56" height="20" rx="10" fill="#222A3D" opacity="1"/>
+<text x="690" y="28" font-family="Helvetica Neue, Arial, sans-serif" font-size="9.5" font-weight="700" fill="#D2BBFF" text-anchor="middle" opacity="1">Niv. 4</text>
+<rect x="0" y="48" width="844" height="46" rx="0" fill="#060E20" opacity="1"/>
+<rect x="16" y="56" width="192" height="30" rx="15" fill="#222A3D" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<rect x="18" y="58" width="92" height="26" rx="13" fill="#7C3AED" opacity="1"/>
+<text x="64.0" y="75.5" font-family="Helvetica Neue, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#DAE2FD" text-anchor="middle" opacity="1">Clavier</text>
+<text x="160.0" y="75.5" font-family="Helvetica Neue, Arial, sans-serif" font-size="12.5" font-weight="500" fill="#CCC3D8" text-anchor="middle" opacity="1">Batterie</text>
+<rect x="592" y="56" width="236" height="30" rx="15" fill="#222A3D" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<text x="651.0" y="75.5" font-family="Helvetica Neue, Arial, sans-serif" font-size="12.5" font-weight="500" fill="#CCC3D8" text-anchor="middle" opacity="1">Jouer</text>
+<rect x="712" y="58" width="114" height="26" rx="13" fill="#7C3AED" opacity="1"/>
+<text x="769.0" y="75.5" font-family="Helvetica Neue, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#DAE2FD" text-anchor="middle" opacity="1">Apprendre</text>
+<rect x="16" y="104" width="812" height="44" rx="12" fill="none" opacity="1" stroke="#958DA1" stroke-width="1" stroke-dasharray="6 5"/>
+<text x="422.0" y="130" font-family="Helvetica Neue, Arial, sans-serif" font-size="11.5" font-weight="500" fill="#CCC3D8" text-anchor="middle" opacity="1">Emplacement réservé : séance du jour (change add-music-daily-session)</text>
+<rect x="16" y="158" width="812" height="60" rx="14" fill="#222A3D" opacity="1" stroke="#D2BBFF" stroke-width="1"/>
+<circle cx="48" cy="188" r="20" fill="#7C3AED" opacity="0.35"/>
+<polygon points="43.5,182.0 43.5,194.0 54.5,188" fill="#D2BBFF"/>
+<text x="80" y="180" font-family="Helvetica Neue, Arial, sans-serif" font-size="10" font-weight="600" fill="#CCC3D8" text-anchor="start" opacity="1">LA PORTÉE ET TES PREMIÈRES NOTES</text>
+<text x="80" y="200" font-family="Helvetica Neue, Arial, sans-serif" font-size="15" font-weight="700" fill="#DAE2FD" text-anchor="start" opacity="1">Fa et sol</text>
+<rect x="624" y="182" width="160" height="8" rx="4" fill="#0B1326" opacity="1"/>
+<rect x="624" y="182" width="96" height="8" rx="4" fill="#7C3AED" opacity="1"/>
+<text x="794" y="190" font-family="Helvetica Neue, Arial, sans-serif" font-size="11" font-weight="700" fill="#CCC3D8" text-anchor="middle" opacity="1">4/6</text>
+<text x="16" y="244" font-family="Helvetica Neue, Arial, sans-serif" font-size="12" font-weight="800" fill="#D2BBFF" text-anchor="start" opacity="1">PARCOURS</text>
+<rect x="16" y="252" width="812" height="34" rx="10" fill="#222A3D" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<text x="30" y="274" font-family="serif" font-size="20" font-weight="400" fill="#D2BBFF" text-anchor="start" opacity="1">𝄞</text>
+<text x="56" y="274" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" font-weight="800" fill="#DAE2FD" text-anchor="start" opacity="1">La portée et tes premières notes</text>
+<rect x="584" y="265" width="180" height="8" rx="4" fill="#0B1326" opacity="1"/>
+<rect x="584" y="265" width="120" height="8" rx="4" fill="#7C3AED" opacity="1"/>
+<text x="794" y="274" font-family="Helvetica Neue, Arial, sans-serif" font-size="11" font-weight="700" fill="#CCC3D8" text-anchor="middle" opacity="1">4/6</text>
+<circle cx="96" cy="320" r="16" fill="#4EDEA3" opacity="1"/>
+<path d="M87.2,320 L94.4,327.2 L105.6,312.8" stroke="#060E20" stroke-width="3" fill="none" opacity="1" stroke-linecap="round"/>
+<text x="96" y="354" font-family="Helvetica Neue, Arial, sans-serif" font-size="10.5" font-weight="500" fill="#DAE2FD" text-anchor="middle" opacity="1">Le piano et le do centra</text>
+<line x1="114" y1="320" x2="208" y2="320" stroke="#4EDEA3" stroke-width="2.5" opacity="1" stroke-linecap="round"/>
+<circle cx="226" cy="320" r="16" fill="#4EDEA3" opacity="1"/>
+<path d="M217.2,320 L224.4,327.2 L235.6,312.8" stroke="#060E20" stroke-width="3" fill="none" opacity="1" stroke-linecap="round"/>
+<text x="226" y="354" font-family="Helvetica Neue, Arial, sans-serif" font-size="10.5" font-weight="500" fill="#DAE2FD" text-anchor="middle" opacity="1">La portée</text>
+<line x1="244" y1="320" x2="338" y2="320" stroke="#4EDEA3" stroke-width="2.5" opacity="1" stroke-linecap="round"/>
+<circle cx="356" cy="320" r="16" fill="#4EDEA3" opacity="1"/>
+<path d="M347.2,320 L354.4,327.2 L365.6,312.8" stroke="#060E20" stroke-width="3" fill="none" opacity="1" stroke-linecap="round"/>
+<text x="356" y="354" font-family="Helvetica Neue, Arial, sans-serif" font-size="10.5" font-weight="500" fill="#DAE2FD" text-anchor="middle" opacity="1">La clé de sol</text>
+<line x1="374" y1="320" x2="468" y2="320" stroke="#4EDEA3" stroke-width="2.5" opacity="1" stroke-linecap="round"/>
+<circle cx="486" cy="320" r="16" fill="#4EDEA3" opacity="1"/>
+<path d="M477.2,320 L484.4,327.2 L495.6,312.8" stroke="#060E20" stroke-width="3" fill="none" opacity="1" stroke-linecap="round"/>
+<text x="486" y="354" font-family="Helvetica Neue, Arial, sans-serif" font-size="10.5" font-weight="500" fill="#DAE2FD" text-anchor="middle" opacity="1">Do, ré, mi</text>
+<line x1="504" y1="320" x2="598" y2="320" stroke="#4A4455" stroke-width="2.5" opacity="1" stroke-linecap="round"/>
+<circle cx="616" cy="320" r="22" fill="#7C3AED" opacity="0.25"/>
+<circle cx="616" cy="320" r="16" fill="#7C3AED" opacity="1"/>
+<polygon points="612.4,315.2 612.4,324.8 621.2,320" fill="#DAE2FD"/>
+<text x="616" y="354" font-family="Helvetica Neue, Arial, sans-serif" font-size="10.5" font-weight="700" fill="#DAE2FD" text-anchor="middle" opacity="1">Fa et sol</text>
+<line x1="634" y1="320" x2="728" y2="320" stroke="#4A4455" stroke-width="2.5" opacity="1" stroke-dasharray="5 5" stroke-linecap="round"/>
+<circle cx="746" cy="320" r="16" fill="#222A3D" opacity="1"/>
+<ellipse cx="743.9" cy="323.5" rx="4.48" ry="3.08" fill="#958DA1" transform="rotate(-20 743.9 323.5)"/>
+<line x1="747.82" y1="322.8" x2="747.82" y2="312.3" stroke="#958DA1" stroke-width="2.2" opacity="1" stroke-linecap="round"/>
+<text x="746" y="354" font-family="Helvetica Neue, Arial, sans-serif" font-size="10.5" font-weight="500" fill="#CCC3D8" text-anchor="middle" opacity="1">Bilan : tes cinq notes</text>
+<rect x="0" y="368" width="844" height="22" rx="0" fill="#000000" opacity="0.35"/>
+<text x="422.0" y="383" font-family="Helvetica Neue, Arial, sans-serif" font-size="11" font-weight="500" fill="#CCC3D8" text-anchor="middle" opacity="1">A2 — Porte « Apprendre » : emplacement réservé, carte « Continuer », puis le parcours par unité ; le prochain nœud pulse</text>
+</svg>

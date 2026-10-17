@@ -62,3 +62,12 @@ takes the placement, and the placement stays reachable from the path header.
   its piece step last; on an app without the block it is skipped and the result uses the
   exercises alone.
 - [Tagging drift as units are renamed] → the corpus test ties tags to existing unit slugs.
+
+## Mockups
+
+Wireframes in the app's palette (landscape phone, French copy as the app's French locale would show it); illustrative, not pixel specs. SVG, editable as text, rendered by GitHub.
+
+![D1](mockups/d1-placement-offer-and-result.svg)
+
+*D1 — The offer card at the first Learn visit (left) and the result screen with ±1 adjustment and the earlier units skipped but open (right).*
+

@@ -78,3 +78,16 @@ missing flag server-side never hides the doors.
   only; the rest fades.
 - [Flag flipped off mid-session] → the switcher disappears on the next flag refresh and the
   body falls back to Play; the persisted preference is kept for when it returns.
+
+## Mockups
+
+Wireframes in the app's palette (landscape phone, French copy as the app's French locale would show it); illustrative, not pixel specs. SVG, editable as text, rendered by GitHub.
+
+![A1](mockups/a1-home-play-door.svg)
+
+*A1 — Play door: favorites start at the top, no courses card; a "Continue learning" chip links to the Learn door.*
+
+![A2](mockups/a2-home-learn-door.svg)
+
+*A2 — Learn door: the reserved daily-session slot, the continue card, the path by unit with the next node pulsing.*
+

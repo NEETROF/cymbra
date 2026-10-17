@@ -46,3 +46,12 @@ Three outlined stars, no text: the invitation is the design.
   the first delivered run creates the standing.
 - [A practice-range run has no score] → stars are untouched by practice; the summary for a
   practice run shows no star row.
+
+## Mockups
+
+Wireframes in the app's palette (landscape phone, French copy as the app's French locale would show it); illustrative, not pixel specs. SVG, editable as text, rendered by GitHub.
+
+![F1](mockups/f1-stars-cards-and-summary.svg)
+
+*F1 — Stars on score cards (left) and in the end-of-run summary with the "New star!" moment (right).*
+

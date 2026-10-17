@@ -100,3 +100,20 @@ the network.
 Deploy backend first (migration + RPC fields, backward compatible), then seed the new
 content, then release the app. Rollback: unpublish the piece lessons (status) — older and
 newer apps both keep working; columns stay.
+
+## Mockups
+
+Wireframes in the app's palette (landscape phone, French copy as the app's French locale would show it); illustrative, not pixel specs. SVG, editable as text, rendered by GitHub.
+
+![B1](mockups/b1-piece-block.svg)
+
+*B1 — A piece block before the run: imposed settings as chips, the numeric target, Play / Skip / Next.*
+
+![B2](mockups/b2-player-lesson-context.svg)
+
+*B2 — The player in lesson context: lesson title and target in the header, settings locked "by the lesson", no setup modal.*
+
+![B3](mockups/b3-summary-back-to-lesson.svg)
+
+*B3 — End-of-run summary in lesson context: "Back to the lesson" is the primary action; see mistakes and retry remain.*
+

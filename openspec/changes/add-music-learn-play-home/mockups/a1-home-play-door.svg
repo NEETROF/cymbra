@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 844 390" width="844" height="390" role="img" aria-label="Home, Play door: favorites start at the top, a Continue-learning chip links to Learn">
+<title>Home, Play door: favorites start at the top, a Continue-learning chip links to Learn</title>
+<rect x="0" y="0" width="844" height="390" rx="0" fill="#0B1326" opacity="1"/>
+<rect x="0" y="0" width="844" height="48" rx="0" fill="#060E20" opacity="1"/>
+<text x="18" y="30.0" font-family="Helvetica Neue, Arial, sans-serif" font-size="17" font-weight="700" fill="#DAE2FD" text-anchor="start" opacity="1">Bibliothèque</text>
+<circle cx="814" cy="24" r="10" fill="#222A3D" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<circle cx="774" cy="24" r="10" fill="#222A3D" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<circle cx="734" cy="24" r="10" fill="#222A3D" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<circle cx="694" cy="24" r="10" fill="#222A3D" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<rect x="662" y="14" width="56" height="20" rx="10" fill="#222A3D" opacity="1"/>
+<text x="690" y="28" font-family="Helvetica Neue, Arial, sans-serif" font-size="9.5" font-weight="700" fill="#D2BBFF" text-anchor="middle" opacity="1">Niv. 4</text>
+<rect x="0" y="48" width="844" height="46" rx="0" fill="#060E20" opacity="1"/>
+<rect x="16" y="56" width="192" height="30" rx="15" fill="#222A3D" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<rect x="18" y="58" width="92" height="26" rx="13" fill="#7C3AED" opacity="1"/>
+<text x="64.0" y="75.5" font-family="Helvetica Neue, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#DAE2FD" text-anchor="middle" opacity="1">Clavier</text>
+<text x="160.0" y="75.5" font-family="Helvetica Neue, Arial, sans-serif" font-size="12.5" font-weight="500" fill="#CCC3D8" text-anchor="middle" opacity="1">Batterie</text>
+<rect x="592" y="56" width="236" height="30" rx="15" fill="#222A3D" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<rect x="594" y="58" width="114" height="26" rx="13" fill="#7C3AED" opacity="1"/>
+<text x="651.0" y="75.5" font-family="Helvetica Neue, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#DAE2FD" text-anchor="middle" opacity="1">Jouer</text>
+<text x="769.0" y="75.5" font-family="Helvetica Neue, Arial, sans-serif" font-size="12.5" font-weight="500" fill="#CCC3D8" text-anchor="middle" opacity="1">Apprendre</text>
+<rect x="16" y="104" width="236" height="26" rx="13" fill="#222A3D" opacity="1" stroke="#D2BBFF" stroke-width="1"/>
+<polygon points="28.85,112.8 28.85,121.2 36.55,117" fill="#D2BBFF"/>
+<text x="44" y="121" font-family="Helvetica Neue, Arial, sans-serif" font-size="11" font-weight="600" fill="#D2BBFF" text-anchor="start" opacity="1">Continuer à apprendre · Fa et sol</text>
+<text x="16" y="156" font-family="Helvetica Neue, Arial, sans-serif" font-size="12" font-weight="800" fill="#D2BBFF" text-anchor="start" opacity="1">DÉBUTANT</text>
+<rect x="16" y="166" width="150" height="118" rx="12" fill="#171F33" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<rect x="26" y="176" width="130" height="52" rx="8" fill="#131B2E" opacity="1"/>
+<line x1="32" y1="186" x2="150" y2="186" stroke="#4A4455" stroke-width="1" opacity="1" stroke-linecap="round"/>
+<line x1="32" y1="195" x2="150" y2="195" stroke="#4A4455" stroke-width="1" opacity="1" stroke-linecap="round"/>
+<line x1="32" y1="204" x2="150" y2="204" stroke="#4A4455" stroke-width="1" opacity="1" stroke-linecap="round"/>
+<line x1="32" y1="213" x2="150" y2="213" stroke="#4A4455" stroke-width="1" opacity="1" stroke-linecap="round"/>
+<line x1="32" y1="222" x2="150" y2="222" stroke="#4A4455" stroke-width="1" opacity="1" stroke-linecap="round"/>
+<ellipse cx="52.0" cy="199.4" rx="4" ry="3" fill="#7FB2FF"/>
+<ellipse cx="71.5" cy="191.6" rx="4" ry="3" fill="#FFB454"/>
+<ellipse cx="91.0" cy="199.4" rx="4" ry="3" fill="#7FB2FF"/>
+<ellipse cx="110.5" cy="207.2" rx="4" ry="3" fill="#FFB454"/>
+<ellipse cx="130.0" cy="191.6" rx="4" ry="3" fill="#7FB2FF"/>
+<text x="26" y="246" font-family="Helvetica Neue, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#DAE2FD" text-anchor="start" opacity="1">Ode à la joie</text>
+<text x="26" y="261" font-family="Helvetica Neue, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#CCC3D8" text-anchor="start" opacity="1">Thème · 1 page</text>
+<text x="26" y="277" font-family="Helvetica Neue, Arial, sans-serif" font-size="10" font-weight="600" fill="#D2BBFF" text-anchor="start" opacity="1">Débutant</text>
+<rect x="182" y="166" width="150" height="118" rx="12" fill="#171F33" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<rect x="192" y="176" width="130" height="52" rx="8" fill="#131B2E" opacity="1"/>
+<line x1="198" y1="186" x2="316" y2="186" stroke="#4A4455" stroke-width="1" opacity="1" stroke-linecap="round"/>
+<line x1="198" y1="195" x2="316" y2="195" stroke="#4A4455" stroke-width="1" opacity="1" stroke-linecap="round"/>
+<line x1="198" y1="204" x2="316" y2="204" stroke="#4A4455" stroke-width="1" opacity="1" stroke-linecap="round"/>
+<line x1="198" y1="213" x2="316" y2="213" stroke="#4A4455" stroke-width="1" opacity="1" stroke-linecap="round"/>
+<line x1="198" y1="222" x2="316" y2="222" stroke="#4A4455" stroke-width="1" opacity="1" stroke-linecap="round"/>
+<ellipse cx="218.0" cy="199.4" rx="4" ry="3" fill="#7FB2FF"/>
+<ellipse cx="237.5" cy="191.6" rx="4" ry="3" fill="#FFB454"/>
+<ellipse cx="257.0" cy="199.4" rx="4" ry="3" fill="#7FB2FF"/>
+<ellipse cx="276.5" cy="207.2" rx="4" ry="3" fill="#FFB454"/>
+<ellipse cx="296.0" cy="191.6" rx="4" ry="3" fill="#7FB2FF"/>
+<text x="192" y="246" font-family="Helvetica Neue, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#DAE2FD" text-anchor="start" opacity="1">Twinkle, Twinkle</text>
+<text x="192" y="261" font-family="Helvetica Neue, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#CCC3D8" text-anchor="start" opacity="1">Comptine · 1 page</text>
+<text x="192" y="277" font-family="Helvetica Neue, Arial, sans-serif" font-size="10" font-weight="600" fill="#D2BBFF" text-anchor="start" opacity="1">Débutant</text>
+<rect x="348" y="166" width="150" height="118" rx="12" fill="#171F33" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<rect x="358" y="176" width="130" height="52" rx="8" fill="#131B2E" opacity="1"/>
+<line x1="364" y1="186" x2="482" y2="186" stroke="#4A4455" stroke-width="1" opacity="1" stroke-linecap="round"/>
+<line x1="364" y1="195" x2="482" y2="195" stroke="#4A4455" stroke-width="1" opacity="1" stroke-linecap="round"/>
+<line x1="364" y1="204" x2="482" y2="204" stroke="#4A4455" stroke-width="1" opacity="1" stroke-linecap="round"/>
+<line x1="364" y1="213" x2="482" y2="213" stroke="#4A4455" stroke-width="1" opacity="1" stroke-linecap="round"/>
+<line x1="364" y1="222" x2="482" y2="222" stroke="#4A4455" stroke-width="1" opacity="1" stroke-linecap="round"/>
+<ellipse cx="384.0" cy="199.4" rx="4" ry="3" fill="#7FB2FF"/>
+<ellipse cx="403.5" cy="191.6" rx="4" ry="3" fill="#FFB454"/>
+<ellipse cx="423.0" cy="199.4" rx="4" ry="3" fill="#7FB2FF"/>
+<ellipse cx="442.5" cy="207.2" rx="4" ry="3" fill="#FFB454"/>
+<ellipse cx="462.0" cy="191.6" rx="4" ry="3" fill="#7FB2FF"/>
+<text x="358" y="246" font-family="Helvetica Neue, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#DAE2FD" text-anchor="start" opacity="1">Premiers pas</text>
+<text x="358" y="261" font-family="Helvetica Neue, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#CCC3D8" text-anchor="start" opacity="1">Exercice · 8 mesures</text>
+<text x="358" y="277" font-family="Helvetica Neue, Arial, sans-serif" font-size="10" font-weight="600" fill="#D2BBFF" text-anchor="start" opacity="1">Débutant</text>
+<text x="524" y="156" font-family="Helvetica Neue, Arial, sans-serif" font-size="12" font-weight="800" fill="#D2BBFF" text-anchor="start" opacity="1">INTERMÉDIAIRE</text>
+<rect x="524" y="166" width="150" height="118" rx="12" fill="#171F33" opacity="1" stroke="#4A4455" stroke-width="1"/>
+<rect x="534" y="176" width="130" height="52" rx="8" fill="#131B2E" opacity="1"/>
+<line x1="540" y1="186" x2="658" y2="186" stroke="#4A4455" stroke-width="1" opacity="1" stroke-linecap="round"/>
+<line x1="540" y1="195" x2="658" y2="195" stroke="#4A4455" stroke-width="1" opacity="1" stroke-linecap="round"/>
+<line x1="540" y1="204" x2="658" y2="204" stroke="#4A4455" stroke-width="1" opacity="1" stroke-linecap="round"/>
+<line x1="540" y1="213" x2="658" y2="213" stroke="#4A4455" stroke-width="1" opacity="1" stroke-linecap="round"/>
+<line x1="540" y1="222" x2="658" y2="222" stroke="#4A4455" stroke-width="1" opacity="1" stroke-linecap="round"/>
+<ellipse cx="560.0" cy="199.4" rx="4" ry="3" fill="#7FB2FF"/>
+<ellipse cx="579.5" cy="191.6" rx="4" ry="3" fill="#FFB454"/>
+<ellipse cx="599.0" cy="199.4" rx="4" ry="3" fill="#7FB2FF"/>
+<ellipse cx="618.5" cy="207.2" rx="4" ry="3" fill="#FFB454"/>
+<ellipse cx="638.0" cy="191.6" rx="4" ry="3" fill="#7FB2FF"/>
+<text x="534" y="246" font-family="Helvetica Neue, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#DAE2FD" text-anchor="start" opacity="1">Menuet en sol</text>
+<text x="534" y="261" font-family="Helvetica Neue, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#CCC3D8" text-anchor="start" opacity="1">Bach · 2 pages</text>
+<text x="534" y="277" font-family="Helvetica Neue, Arial, sans-serif" font-size="10" font-weight="600" fill="#D2BBFF" text-anchor="start" opacity="1">Intermédiaire</text>
+<text x="16" y="306" font-family="Helvetica Neue, Arial, sans-serif" font-size="12" font-weight="800" fill="#D2BBFF" text-anchor="start" opacity="0.5">INTERMÉDIAIRE (suite)</text>
+<rect x="16" y="316" width="500" height="60" rx="12" fill="#171F33" opacity="0.5"/>
+<rect x="0" y="368" width="844" height="22" rx="0" fill="#000000" opacity="0.35"/>
+<text x="422.0" y="383" font-family="Helvetica Neue, Arial, sans-serif" font-size="11" font-weight="500" fill="#CCC3D8" text-anchor="middle" opacity="1">A1 — Porte « Jouer » : la bibliothèque telle qu’aujourd’hui, sans carte des cours ; une puce « Continuer à apprendre » renvoie vers la porte Apprendre</text>
+</svg>

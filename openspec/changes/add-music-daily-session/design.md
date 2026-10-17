@@ -69,3 +69,12 @@ ships a plain toast; the motion change replaces it.
   look done today, never any recorded data.
 - [Learner finishes the path] → the composition has an explicit "path finished" mode tested
   on its own.
+
+## Mockups
+
+Wireframes in the app's palette (landscape phone, French copy as the app's French locale would show it); illustrative, not pixel specs. SVG, editable as text, rendered by GitHub.
+
+![C1](mockups/c1-daily-session.svg)
+
+*C1 — Today's session at the top of the Learn door: lesson · piece · review, the 1/2 ring, the streak read from the server, the goal setting.*
+
