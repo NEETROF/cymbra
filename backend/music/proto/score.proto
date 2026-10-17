@@ -486,6 +486,9 @@ message CourseProgress {
   int32 play_count = 3;
   int64 passed_at_ms = 4;
   optional float best_sync_pct = 5;
+  // When the course was first completed, 0 when never (change:
+  // add-music-daily-session — "done today" on another device).
+  int64 completed_at_ms = 6;
 }
 
 // One piece-step run of a course (change: add-music-piece-lessons). The client

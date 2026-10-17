@@ -4310,5 +4310,91 @@
               "type": "int"
           }
       }
+  },
+  "dailySessionTitle": "Today's session",
+  "@dailySessionTitle": {
+      "description": "Title of the daily session block on the Learn door."
+  },
+  "dailySessionAbout": "About 10 minutes",
+  "@dailySessionAbout": {
+      "description": "How long the daily session takes, under its title."
+  },
+  "dailySessionToday": "today",
+  "@dailySessionToday": {
+      "description": "Word under the daily session ring, after the done/goal count."
+  },
+  "dailyItemLesson": "Lesson",
+  "@dailyItemLesson": {
+      "description": "Kind label of the daily session's lesson item."
+  },
+  "dailyItemPiece": "Piece",
+  "@dailyItemPiece": {
+      "description": "Kind label of the daily session's piece item."
+  },
+  "dailyItemReview": "Review",
+  "@dailyItemReview": {
+      "description": "Kind label of the daily session's review item."
+  },
+  "dailyItemReplay": "Replay",
+  "@dailyItemReplay": {
+      "description": "Kind label of the daily session's replay suggestion."
+  },
+  "dailyItemDone": "done",
+  "@dailyItemDone": {
+      "description": "Shown on a daily session item already done today."
+  },
+  "dailyGoalLabel": "Goal",
+  "@dailyGoalLabel": {
+      "description": "Label before the daily goal choice."
+  },
+  "dailyGoalLight": "light (1)",
+  "@dailyGoalLight": {
+      "description": "Daily goal of one item."
+  },
+  "dailyGoalNormal": "normal (2)",
+  "@dailyGoalNormal": {
+      "description": "Daily goal of two items."
+  },
+  "dailyGoalFull": "full (3)",
+  "@dailyGoalFull": {
+      "description": "Daily goal of three items."
+  },
+  "dailyStreakDays": "{days, plural, =1{1-day streak} other{{days}-day streak}}",
+  "@dailyStreakDays": {
+      "description": "Streak length in the daily session block.",
+      "placeholders": {
+          "days": {
+              "type": "int"
+          }
+      }
+  },
+  "dailyStreakCovered": "today covered",
+  "@dailyStreakCovered": {
+      "description": "After the streak length when today is already secured."
+  },
+  "dailyStreakNotYet": "not yet today",
+  "@dailyStreakNotYet": {
+      "description": "After the streak length when today is not secured yet."
+  },
+  "dailyStreakNone": "No streak yet — today starts one",
+  "@dailyStreakNone": {
+      "description": "Streak line when the streak is zero."
+  },
+  "dailySessionCompleteTitle": "Session complete!",
+  "@dailySessionCompleteTitle": {
+      "description": "Title of the moment raised when the daily goal is reached."
+  },
+  "dailySessionCompleteMessage": "{count, plural, =1{1 item done today} other{{count} items done today}}. See you tomorrow.",
+  "@dailySessionCompleteMessage": {
+      "description": "Message of the daily session completion moment.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "dailyReviewFallback": "Quick review",
+  "@dailyReviewFallback": {
+      "description": "Title of a review item whose block has no prompt."
   }
 }

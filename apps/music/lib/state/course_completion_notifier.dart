@@ -47,6 +47,13 @@ sealed class CourseCompletionState with _$CourseCompletionState {
     /// Best overall synchronisation reached on each course's piece steps.
     /// Monotonic: a later, lower run never lowers it.
     @Default(<String, double>{}) Map<String, double> bestPct,
+
+    /// The server's first-completion / first-pass moments (epoch millis), as
+    /// of the last reconciliation — never persisted locally. Today's ledger
+    /// reads them so a course done today on another device counts here
+    /// (change: add-music-daily-session).
+    @Default(<String, int>{}) Map<String, int> completedAtMs,
+    @Default(<String, int>{}) Map<String, int> passedAtMs,
   }) = _CourseCompletionState;
 
   /// Whether course [id] is marked completed.
@@ -127,6 +134,14 @@ class CourseCompletion extends _$CourseCompletion {
       completed: {...state.completed, ...serverIds},
       passed: {...state.passed, ...serverPassed},
       bestPct: mergedBest,
+      completedAtMs: {
+        for (final r in records)
+          if (r.completedAtMs > 0) r.courseId: r.completedAtMs,
+      },
+      passedAtMs: {
+        for (final r in records)
+          if (r.passedAtMs > 0) r.courseId: r.passedAtMs,
+      },
     );
     if (next != state) state = next;
     for (final id in state.completed.difference(serverIds)) {

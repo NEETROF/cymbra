@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -21,12 +19,9 @@ import '../courses/course_manifest.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../screens/open_score.dart';
 import '../state/course_completion_notifier.dart';
-import '../state/lesson_context.dart';
-import '../state/player_data.dart';
-import '../state/score_catalog.dart';
 import '../state/session_summary.dart';
 import '../theme/cymbra_theme.dart';
-import 'reward_celebration.dart';
+import 'piece_run.dart';
 
 /// The `piece` step of a lesson (change: add-music-piece-lessons): the piece,
 /// the settings the step imposes as chips, the bar to clear, and the outcome
@@ -62,11 +57,6 @@ class _PieceBlockViewState extends ConsumerState<PieceBlockView> {
   PieceOpenOutcome? _unavailable;
   bool _opening = false;
 
-  /// Whether the run that just ended cleared the bar — celebrated once the
-  /// learner is back on the lesson (change: add-music-motion-and-celebrations),
-  /// never over the player.
-  bool _passedThisRun = false;
-
   PieceBlock get block => widget.block;
 
   Future<void> _open() async {
@@ -74,31 +64,16 @@ class _PieceBlockViewState extends ConsumerState<PieceBlockView> {
     setState(() {
       _opening = true;
       _unavailable = null;
-      _passedThisRun = false;
     });
-    final lesson = LessonContext(
-      lessonTitle: widget.lessonTitle,
-      hands: switch (block.hands) {
-        LessonHands.right => Hand.right,
-        LessonHands.left => Hand.left,
-        LessonHands.both => Hand.both,
-      },
-      speed: block.speed,
-      waitMode: block.waitMode,
-      metronome: block.metronome,
-      readingAid: switch (block.readingAid) {
-        LessonReadingAid.off => NoteReadingAid.off,
-        LessonReadingAid.name => NoteReadingAid.name,
-        LessonReadingAid.nameAndRhythm => NoteReadingAid.nameAndRhythm,
-      },
-      passPct: block.passPct,
-      onResult: _onResult,
-    );
-    final outcome = await openScoreForLesson(
+    // The runner records the run, writes today's ledger and celebrates a
+    // pass once the learner is back here.
+    final outcome = await runPieceStep(
       context,
       ref,
-      score: block.score,
-      lesson: lesson,
+      courseId: widget.courseId,
+      lessonTitle: widget.lessonTitle,
+      block: block,
+      onResult: _onResult,
     );
     if (!mounted) return;
     setState(() {
@@ -108,45 +83,18 @@ class _PieceBlockViewState extends ConsumerState<PieceBlockView> {
     // Unavailable is not the learner's fault: the gate opens, the step is
     // simply not passed.
     if (outcome != PieceOpenOutcome.opened) widget.onAnswered(flawless: false);
-    final pct = _lastPct;
-    if (_passedThisRun && pct != null) {
-      final l10n = AppLocalizations.of(context);
-      final lang = Localizations.localeOf(context).languageCode;
-      unawaited(
-        showRewardCelebration(
-          context,
-          title: l10n.celebrationPiecePassedTitle,
-          message: l10n.celebrationPiecePassedMessage(
-            _pieceTitle(l10n, lang),
-            pct.round(),
-          ),
-          icon: Icons.music_note,
-        ),
-      );
-    }
   }
 
-  /// Each finished run of this lesson's player, passed or not. Recorded
-  /// against the course (first pass wins, best only rises) and reported to the
-  /// lesson, which opens its gate.
+  /// Each finished run of this lesson's player, passed or not: the step's
+  /// own standing, and the lesson's gate.
   void _onResult(SessionResult result) {
     final passed = result.overallSyncPct >= block.passPct;
     if (mounted) {
       setState(() {
         _lastPct = result.overallSyncPct;
         _passedThisSession = _passedThisSession || passed;
-        _passedThisRun = _passedThisRun || passed;
       });
     }
-    unawaited(
-      ref
-          .read(courseCompletionProvider.notifier)
-          .recordPieceResult(
-            widget.courseId,
-            passed: passed,
-            syncPct: result.overallSyncPct,
-          ),
-    );
     widget.onAnswered(flawless: passed);
   }
 
@@ -160,7 +108,7 @@ class _PieceBlockViewState extends ConsumerState<PieceBlockView> {
     final passed = _passedThisSession || completion.isPassed(widget.courseId);
     final best = _lastPct ?? completion.bestPct[widget.courseId];
 
-    final title = _pieceTitle(l10n, lang);
+    final title = pieceTitleOf(ref, block, l10n, lang);
     final (stateLabel, stateColor, stateIcon) = switch ((passed, best)) {
       (true, final b?) => (
         l10n.piecePassed(b.round()),
@@ -306,18 +254,6 @@ class _PieceBlockViewState extends ConsumerState<PieceBlockView> {
 
   /// The piece's name: the step's own title, else the bundled entry's, else a
   /// generic catalogue label (the hit is only resolved when the run opens).
-  String _pieceTitle(AppLocalizations l10n, String lang) {
-    final own = resolveInline(block.title, lang);
-    if (own.isNotEmpty) return own;
-    if (block.score.bundled case final id?) {
-      final entry = ref
-          .read(scoreCatalogProvider)
-          .where((e) => e.id == id)
-          .firstOrNull;
-      if (entry != null) return entry.title;
-    }
-    return l10n.pieceCatalogPiece;
-  }
 
   String _handsLabel(AppLocalizations l10n) => switch (block.hands) {
     LessonHands.right => l10n.pieceHandsRight,

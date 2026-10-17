@@ -23,6 +23,7 @@ import '../l10n/gen/app_localizations.dart';
 import '../services/audio_service.dart';
 import '../services/course_catalog_service.dart';
 import '../state/course_completion_notifier.dart';
+import '../state/today_ledger.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/build_chord_view.dart';
 import '../widgets/course_diagram.dart';
@@ -49,14 +50,39 @@ void openLessonPlayer(BuildContext context, String courseId) =>
       ),
     );
 
+/// A review mini-lesson (change: add-music-daily-session): one drill block of
+/// a completed lesson, wrapped in a synthetic manifest and run by the lesson
+/// player. Finishing it writes [key] into today's ledger — no course is
+/// completed, nothing is celebrated: the session's ring is the feedback.
+class ReviewRun {
+  const ReviewRun({required this.key, required this.manifest});
+
+  /// The ledger key, `review:<course>#<block>`.
+  final String key;
+  final CourseManifest manifest;
+}
+
+/// Opens the lesson player on a review (change: add-music-daily-session).
+void openReviewLesson(BuildContext context, ReviewRun run) =>
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => LessonPlayerScreen(courseId: run.key, review: run),
+      ),
+    );
+
 /// Runs a course's blocks at the user's pace: read, watch, answer. Skippable and
 /// leaveable at any time; reaching the end marks the course completed (via
 /// [CourseCompletion]) and it stays replayable. All block types render here
 /// (text, diagram, image/video, question, playKey, score).
 class LessonPlayerScreen extends ConsumerStatefulWidget {
-  const LessonPlayerScreen({super.key, required this.courseId});
+  const LessonPlayerScreen({super.key, required this.courseId, this.review});
 
   final String courseId;
+
+  /// Set for a review mini-lesson: its manifest is used instead of the
+  /// catalogue's, and finishing writes today's ledger instead of completing a
+  /// course.
+  final ReviewRun? review;
 
   @override
   ConsumerState<LessonPlayerScreen> createState() => _LessonPlayerScreenState();
@@ -130,7 +156,15 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
   }
 
   Future<void> _finish(CourseManifest m, List<CourseBlock> steps) async {
+    if (widget.review case final run?) {
+      ref.read(dailyLedgerProvider.notifier).markReview(run.key);
+      Navigator.of(context).pop();
+      return;
+    }
     ref.read(courseCompletionProvider.notifier).markCompleted(widget.courseId);
+    // Today's ledger: a lesson completed today (change:
+    // add-music-daily-session).
+    ref.read(dailyLedgerProvider.notifier).markLesson(widget.courseId);
     if (steps.isEmpty) {
       // Nothing was shown — nothing to celebrate.
       Navigator.of(context).pop();
@@ -162,7 +196,9 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final lang = Localizations.localeOf(context).languageCode;
-    final async = ref.watch(courseManifestProvider(widget.courseId));
+    final AsyncValue<CourseManifest?> async = widget.review == null
+        ? ref.watch(courseManifestProvider(widget.courseId))
+        : AsyncData(widget.review!.manifest);
     // Keep the catalogue warm so the celebration knows the next lesson.
     ref.watch(coursesProvider);
 

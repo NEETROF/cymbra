@@ -33,6 +33,9 @@ pub struct CourseProgress {
     pub course_id: String,
     pub completed: bool,
     pub play_count: i64,
+    /// When the course was first completed — the client's "done today on
+    /// another device" (change: add-music-daily-session).
+    pub completed_at: Option<chrono::DateTime<chrono::Utc>>,
     pub passed_at: Option<chrono::DateTime<chrono::Utc>>,
     pub best_sync_pct: Option<f32>,
 }
@@ -121,7 +124,7 @@ impl CourseProgressStore for PgCourseProgressStore {
         };
         let rows = sqlx::query(
             "SELECT course_id, completed_at IS NOT NULL AS completed, play_count, \
-                    passed_at, best_sync_pct \
+                    completed_at, passed_at, best_sync_pct \
              FROM music.course_progress WHERE user_id = $1 ORDER BY course_id",
         )
         .bind(user)
@@ -134,6 +137,7 @@ impl CourseProgressStore for PgCourseProgressStore {
                 course_id: r.get::<String, _>("course_id"),
                 completed: r.get::<bool, _>("completed"),
                 play_count: r.get::<i32, _>("play_count") as i64,
+                completed_at: r.get::<Option<chrono::DateTime<chrono::Utc>>, _>("completed_at"),
                 passed_at: r.get::<Option<chrono::DateTime<chrono::Utc>>, _>("passed_at"),
                 best_sync_pct: r.get::<Option<f32>, _>("best_sync_pct"),
             })
@@ -198,6 +202,7 @@ struct FakeRow {
     course_id: String,
     /// `None` until the first completion (a piece run alone creates the row).
     play_count: Option<i64>,
+    completed_at: Option<chrono::DateTime<chrono::Utc>>,
     passed_at: Option<chrono::DateTime<chrono::Utc>>,
     best_sync_pct: Option<f32>,
 }
@@ -223,6 +228,7 @@ impl FakeCourseProgressStore {
             user_id: user_id.to_string(),
             course_id: course_id.to_string(),
             play_count: None,
+            completed_at: None,
             passed_at: None,
             best_sync_pct: None,
         });
@@ -238,6 +244,9 @@ impl CourseProgressStore for FakeCourseProgressStore {
         let newly = row.play_count.is_none();
         let count = row.play_count.unwrap_or(0) + 1;
         row.play_count = Some(count);
+        if newly {
+            row.completed_at = Some(chrono::Utc::now());
+        }
         Ok(CompletionOutcome {
             newly_completed: newly,
             play_count: count,
@@ -255,6 +264,7 @@ impl CourseProgressStore for FakeCourseProgressStore {
                 course_id: r.course_id.clone(),
                 completed: r.play_count.is_some(),
                 play_count: r.play_count.unwrap_or(0),
+                completed_at: r.completed_at,
                 passed_at: r.passed_at,
                 best_sync_pct: r.best_sync_pct,
             })

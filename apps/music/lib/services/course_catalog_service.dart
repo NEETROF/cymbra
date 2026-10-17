@@ -132,10 +132,18 @@ class CourseProgressRecord {
     required this.completed,
     required this.passed,
     required this.bestSyncPct,
+    this.completedAtMs = 0,
+    this.passedAtMs = 0,
   });
 
   final String courseId;
   final bool completed;
+
+  /// Epoch millis of the first completion / first pass, 0 when none — so a
+  /// course done today on another device reads as done today here (change:
+  /// add-music-daily-session).
+  final int completedAtMs;
+  final int passedAtMs;
 
   /// Whether a piece step of this course was ever passed.
   final bool passed;
@@ -190,6 +198,8 @@ class GrpcCourseProgressService implements CourseProgressService {
           completed: p.completed,
           passed: p.passedAtMs > 0,
           bestSyncPct: p.hasBestSyncPct() ? p.bestSyncPct : null,
+          completedAtMs: p.completedAtMs.toInt(),
+          passedAtMs: p.passedAtMs.toInt(),
         ),
     ];
   });

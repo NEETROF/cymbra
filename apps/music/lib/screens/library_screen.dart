@@ -35,6 +35,7 @@ import '../courses/course_manifest.dart';
 import '../services/course_catalog_service.dart';
 import '../state/course_completion_notifier.dart';
 import '../widgets/courses_section.dart';
+import '../widgets/daily_session_listener.dart';
 import '../widgets/home_door_switcher.dart';
 import '../widgets/learn_door_body.dart';
 import '../widgets/instrument_context_widgets.dart';
@@ -541,21 +542,25 @@ class _DoorBody extends ConsumerWidget {
             : LibraryScreen._bundledBody(context, ref),
       ),
     };
-    return AnimatedSwitcher(
-      duration: Motion.of(context, Motion.standard),
-      switchInCurve: Motion.enter,
-      switchOutCurve: Motion.enter,
-      transitionBuilder: (child, animation) => FadeTransition(
-        opacity: animation,
-        child: SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0, 0.04),
-            end: Offset.zero,
-          ).animate(animation),
-          child: child,
+    // The daily session's completion moment lives here, under the door
+    // switcher, so it survives a door change (change: add-music-daily-session).
+    return DailySessionListener(
+      child: AnimatedSwitcher(
+        duration: Motion.of(context, Motion.standard),
+        switchInCurve: Motion.enter,
+        switchOutCurve: Motion.enter,
+        transitionBuilder: (child, animation) => FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.04),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
         ),
+        child: body,
       ),
-      child: body,
     );
   }
 }

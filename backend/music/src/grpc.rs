@@ -788,6 +788,7 @@ impl ScoreService for ScoreGrpc {
                 play_count: p.play_count as i32,
                 passed_at_ms: p.passed_at.map_or(0, |t| t.timestamp_millis()),
                 best_sync_pct: p.best_sync_pct,
+                completed_at_ms: p.completed_at.map_or(0, |t| t.timestamp_millis()),
             })
             .collect();
         Ok(Response::new(GetCourseProgressResponse { progress }))

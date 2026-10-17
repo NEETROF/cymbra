@@ -19,10 +19,11 @@ import '../l10n/gen/app_localizations.dart';
 import '../services/course_catalog_service.dart';
 import '../theme/cymbra_theme.dart';
 import 'courses_section.dart';
+import 'daily_session_block.dart';
 import 'learning_path_body.dart';
 
-/// The Learn door's body (change: add-music-learn-play-home): a slot reserved
-/// for today's session (filled by add-music-daily-session), the continue card,
+/// The Learn door's body (change: add-music-learn-play-home): today's session
+/// (change: add-music-daily-session), the continue card,
 /// then the whole learning path by unit — the path is the home here, not a
 /// route the learner has to find. Works signed out exactly like the courses
 /// card does (completion local until sign-in).
@@ -36,9 +37,12 @@ class LearnDoorBody extends ConsumerWidget {
     return CustomScrollView(
       key: const Key('learn-door-body'),
       slivers: [
-        // Reserved: today's session lands here (change: add-music-daily-session).
+        // Today's session (change: add-music-daily-session).
         const SliverToBoxAdapter(
-          child: SizedBox.shrink(key: Key('daily-session-slot')),
+          child: KeyedSubtree(
+            key: Key('daily-session-slot'),
+            child: DailySessionBlock(),
+          ),
         ),
         switch (courses) {
           AsyncData(:final value) when value.isEmpty => SliverFillRemaining(

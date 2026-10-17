@@ -27,6 +27,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:music/main.dart';
+import 'package:music/screens/lesson_player_screen.dart';
 import 'package:music/services/connectivity_service.dart';
 import 'package:music/services/file_picker_service.dart';
 import 'package:music/services/preferences_service.dart';
@@ -365,6 +366,98 @@ void main() {
     await watch(tester);
   });
 
+  // Today's session (change: add-music-daily-session): the Learn door opens
+  // on the block, its lesson item opens the lesson, finishing it advances the
+  // ring, and the same day's ledger survives a relaunch. Courses come from a
+  // two-lesson fake catalogue (the server is unreachable offline).
+  testWidgets('daily session: the block, the lesson item, the ring advances '
+      'and is kept on relaunch', (tester) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final prefs = _MemoryPrefs({
+      Onboarding.languagePrefsKey: 'true',
+      Onboarding.welcomePrefsKey: 'true',
+    });
+    List<Override> overrides() => [
+      scoreCatalogProvider.overrideWithValue(const [kFixtureCatalogEntry]),
+      scoreAssetSourceProvider.overrideWithValue(
+        const FixtureScoreAssetSource(),
+      ),
+      tokenStoreProvider.overrideWithValue(const _GuestTokenStore()),
+      connectivityServiceProvider.overrideWithValue(const _FakeConnectivity()),
+      deviceLocaleProvider.overrideWithValue(const Locale('en')),
+      preferencesServiceProvider.overrideWithValue(prefs),
+      courseCatalogServiceProvider.overrideWithValue(const _DailyCatalog()),
+    ];
+    Future<void> settle([int frames = 8]) async {
+      for (var i = 0; i < frames; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    await tester.pumpWidget(
+      ProviderScope(overrides: overrides(), child: const CymbraApp()),
+    );
+    await settle(12);
+    await tester.tap(find.text('Learn'));
+    await settle(10);
+
+    // The block, with the lesson item and an empty ring over the goal.
+    expect(find.byKey(const Key('daily-session-block')), findsOneWidget);
+    expect(find.byKey(const Key('daily-item-lesson')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('daily-ring')),
+        matching: find.text('0/2'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('daily-done-lesson')), findsNothing);
+    await watch(tester);
+
+    // The lesson item opens its lesson; one text step, then the end.
+    await tester.tap(find.byKey(const Key('daily-item-lesson')));
+    await settle(8);
+    expect(find.byType(LessonPlayerScreen), findsOneWidget);
+    expect(find.text('Where the notes live'), findsWidgets);
+    await watch(tester);
+    await tester.tap(find.byKey(const Key('lesson-next')));
+    await settle(14);
+    await tester.tap(find.byKey(const Key('lesson-celebration-close')));
+    await settle(14);
+
+    // Back on the door: the item is done and the ring moved.
+    expect(find.byKey(const Key('daily-done-lesson')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('daily-ring')),
+        matching: find.text('1/2'),
+      ),
+      findsOneWidget,
+    );
+    await watch(tester);
+
+    // Relaunch against the same device storage, the same day: kept.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    await tester.pumpWidget(
+      ProviderScope(overrides: overrides(), child: const CymbraApp()),
+    );
+    await settle(14);
+    expect(find.byKey(const Key('learn-door-body')), findsOneWidget);
+    expect(find.byKey(const Key('daily-done-lesson')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('daily-ring')),
+        matching: find.text('1/2'),
+      ),
+      findsOneWidget,
+    );
+    await watch(tester);
+  });
+
   // A lesson's piece step (change: add-music-piece-lessons) sends the learner
   // to the REAL player — real Rust parse and layout of the piece — with the
   // lesson's settings imposed, and takes them back. Courses come from the
@@ -674,6 +767,36 @@ class _GuestTokenStore implements TokenStore {
 
 /// One lesson with a single piece step on the bundled Ode to Joy (change:
 /// add-music-piece-lessons), for the piece-lesson scenario.
+/// Two text-only lessons for the daily-session scenario.
+class _DailyCatalog implements CourseCatalogService {
+  const _DailyCatalog();
+
+  @override
+  Future<List<CourseListing>> listCourses() async => const [
+    CourseListing(
+      id: 'it-daily-1',
+      schemaVersion: 2,
+      unit: 'u1',
+      unitTitle: {'en': 'First notes'},
+      sortOrder: 101,
+      title: {'en': 'Where the notes live'},
+    ),
+    CourseListing(
+      id: 'it-daily-2',
+      schemaVersion: 2,
+      unit: 'u1',
+      unitTitle: {'en': 'First notes'},
+      sortOrder: 102,
+      title: {'en': 'The treble clef'},
+    ),
+  ];
+
+  @override
+  Future<String?> getCourseManifestJson(String id) async =>
+      '{"schemaVersion": 2, "id": "$id", "title": {"en": "Where the notes live"}, '
+      '"blocks": [{"type": "text", "text": {"en": "Five lines, four spaces."}}]}';
+}
+
 class _PieceLessonCatalog implements CourseCatalogService {
   const _PieceLessonCatalog();
 

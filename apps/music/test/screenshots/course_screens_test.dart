@@ -38,6 +38,7 @@ import 'package:music/services/preferences_service.dart';
 import 'package:music/theme/cymbra_theme.dart';
 import 'package:music/widgets/build_chord_view.dart';
 import 'package:music/widgets/courses_section.dart';
+import 'package:music/widgets/daily_session_block.dart';
 import 'package:music/widgets/ear_choice_view.dart';
 import 'package:music/widgets/lesson_celebration.dart';
 import 'package:music/widgets/name_note_view.dart';
@@ -147,6 +148,27 @@ void main() {
       child: Padding(padding: const EdgeInsets.all(20), child: child),
     ),
   );
+
+  testWidgets('daily session block', (tester) async {
+    // Unit 1 done: the session is unit 2's first lesson, a piece to replay,
+    // and a review drawn from unit 1 (change: add-music-daily-session).
+    await shoot(
+      tester,
+      const Scaffold(
+        backgroundColor: CymbraColors.background,
+        body: SafeArea(
+          child: SingleChildScrollView(child: DailySessionBlock()),
+        ),
+      ),
+      'daily-session',
+      completed: ids.where((i) => i.startsWith('sol-u1-')).toSet(),
+      act: (t) async {
+        for (var i = 0; i < 6; i++) {
+          await t.pump(const Duration(milliseconds: 150));
+        }
+      },
+    );
+  });
 
   testWidgets('home continue card', (tester) async {
     await shoot(
