@@ -82,7 +82,7 @@ including the apostrophe is a token of its own, and the rule runs again on what 
 | `cos'` | `cosa` |
 | `quand'` | `quando` |
 | `dev'` | `deve` |
-| `diss'` | `disse` |
+| `diss'` | `disse`; `dissi` before `io` (« diss'io », Dante and Manzoni), as French reads `s'` by the next word |
 | `quest'` | `questo` |
 | `quell'` | `quello` |
 | `anch'` | `anche` |
@@ -161,7 +161,10 @@ as `lo`, one token spanning the apostrophe, as French reads « l’ » alone thr
 quote of « ‘ciao’ », the apostrophe that stands for an accent in « perche' » — stays outside the
 word, as the rule of no language leaves it (`‘ciao’` is `ciao`, `perche'` is `perche`); change 10
 extends the list with its reviewed spellings, which is where `perche'` belongs. A listed word
-whose last character is an apostrophe is then one token whose span holds the apostrophe. A
+whose last character is an apostrophe is then one token whose span holds the apostrophe — unless
+the character before the word is an opening quote (`‘` or `'`): « ‘due anni fa’ » is a quoted
+phrase whose last word happens to be a truncation's base, and reads `fa`, not `fai`; one check
+in the seam. A
 truncation's read word is final: `da'` → `dai` is not re-read by D4, while a written `dai` is
 `da` + `i` by I7 — the verb « dai! » is the cost, named in Risks. When the lowercased word is on the list, it is read as the word it stands for:
 
@@ -203,8 +206,9 @@ the pre-pass writes where it lacks them (change 5's holds the plain articles, pr
 `e`, `è`, `o`) — the articles `il`, `lo`, `la`, `i`, `gli`, `le`, `una`; `di`,
 `a`, `da`, `in`, `su`, `con`; the clitics `ci`, `vi`, `mi`, `ti`, `si`, `ne`; `che`, `dove`,
 `come`, `questo`, `quello`, `anche`, `senza`, `tutto`, `bello`, `grande`, `santo`, `mezzo`,
-`niente`, `quanto`; `dello`, `della`, `dei`, `degli`, `delle`; `poco`, `modo`, `fai`, `vai`,
-`dai`, `stai`, `dici`, `bene` — so the golden shows them resolved, not unglossed. The support
+`niente`, `quanto`, `cosa`, `quando`, `deve`, `disse`, `dissi`, `buona`, `povero`, `cento`,
+`venti`, `sotto`, `nessuna`, `qualcosa`, `qualcuna`, `ciascuna`, `alcuna`; `dello`, `della`,
+`dei`, `degli`, `delle`; `poco`, `modo`, `fai`, `vai`, `dai`, `stai`, `dici`, `bene` — so the golden shows them resolved, not unglossed. The support
 module's phrase and grammar probes gain « C'è un po' di pane », « all'alba » and « Nel mezzo del
 cammin » (Dante, a line in the public domain), and (`l’`, `lo`), (`al`, `a`).
 
@@ -224,8 +228,8 @@ are not touched.
   word's gender, which no tokeniser has.
 - [A rare elision outside the list] → read as written, as French leaves `prud'homme`; the list is
   reviewed by the owner (task 4.1) and can grow at a later analyser bump.
-- [A truncation that is also a word] → none of the eight is; `da'` and `di'` with the apostrophe
-  are distinct from `da` and `di`.
+- [A truncation that is also a word] → none of the eight is, apostrophe included; a quoted phrase
+  ending in a base (« ‘due anni fa’ ») is told by the opening quote before the word (D5).
 - [« dai! », the verb, read as `da` + `i`] → I7's split; the verb's card is reached through `da'`
   and its other forms; named for the owner (task 4.1).
 - [`s'`, `d'`, `mezz'`, `pover'` read as their commoner word] → the piece's text is the word the
