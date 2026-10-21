@@ -107,7 +107,7 @@ The core SHALL flag as function words, in a word-by-word gloss in Italian, the I
 - **THEN** `non`, `lo` and `né` are function words, and `mai` is not
 
 #### Scenario: Words that look closed but carry meaning
-- **WHEN** « più », « mai », « sto parlando », « stare », « voglio » and « il secondo giorno » are glossed word by word as Italian with a pack filing `sto` under `stare` and `voglio` under `volere`
+- **WHEN** « più », « mai », « sto parlando », « stare », « voglio », « il secondo giorno » and « molto tempo » are glossed word by word as Italian with a pack filing `sto` under `stare` and `voglio` under `volere`
 - **THEN** none of `più`, `mai`, `stare`, `volere` and `secondo` is a function word, and `molto` in « molto tempo » is one
 
 #### Scenario: The pieces of a contraction and of an elision

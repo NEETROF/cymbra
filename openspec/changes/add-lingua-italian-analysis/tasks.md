@@ -40,7 +40,7 @@
 
 ## 9. Owner
 
-- [ ] 9.1 [manual] The owner reads D3's tables and their left-out words (`stare`, `mai`, `più`, `anche`), D4's two Italian readings of the names rule, and D2's candidate rules kept or dropped, and may move a word before the golden is blessed.
+- [ ] 9.1 [manual] The owner reads D3's tables and their left-out words (`volere`, `secondo`, `lungo`, `stare`, `mai`, `più`, `anche`), D4's two Italian readings of the names rule, and D2's candidate rules kept or dropped, and may move a word before the golden is blessed.
 
 ## 10. Gates
 
