@@ -1,0 +1,7 @@
+schema: spec-driven
+created: 2026-10-21
+archiveAfter:
+  - add-lingua-french-baseline
+  - add-lingua-french-analysis
+  - ignore-lingua-soft-hyphens
+  - add-lingua-native-language-sync-client
