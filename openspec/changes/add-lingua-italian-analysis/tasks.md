@@ -7,13 +7,13 @@
 ## 2. The cascade (crates/lingua-core)
 
 - [ ] 2.1 `analysis/italian.rs` (new, beside `spanish.rs` and `french.rs`): `lemmatize` in the order of D2 — the pack's forms; the enclitic rule (the combined clitics then the singles, longest first; a base accepted as an infinitive with its `-e`/`-re` restored, a gerund, an imperative the lexicon files under a verb, one of the five monosyllabic imperatives with the doubling undone and read by the table of five, or `ecco`; one split only); the unlisted plural with its guards; the form; `lemmatize.rs` dispatches to it; the module doc states the contract and the rules measured and dropped (D6).
-- [ ] 2.2 Unit tests in `italian.rs`: a listed form wins; `parlarmi`, `dirlo`, `porlo`, `condurlo` → their infinitives; `dirmelo`, `dargliela`, `andarsene`, `vedermene` → theirs; `parlandogli`, `scrivimi`, `prendetelo`, `andiamocene` → theirs; `dammi`, `fallo`, `vattene`, `dimmi`, `stacci`, `dagli`, `digli` → `dare`, `fare`, `andare`, `dire`, `stare`, `dare`, `dire`; `eccolo`, `eccomi` → `ecco`; `cinema`, `sistema`, `tema`, `vela` listed are never split; `zorbarmi` with no `zorbare` stays; `megaliti` → `megalito`, `amiche` → `amica`, `fuochi` → `fuoco`, `laghi` → `lago`; `vite` with `vita` listed stays `vite`; `porte` filed under `porta` is `porta`; `andai`, `tre`, `l'ora` left alone; the result lowercase and in NFC.
+- [ ] 2.2 Unit tests in `italian.rs`: a listed form wins; `parlarmi`, `dirlo`, `porlo`, `condurlo` → their infinitives; `dirmelo`, `dargliela`, `andarsene`, `vedermene` → theirs; `parlandogli`, `scrivimi`, `prendetelo`, `andiamocene` → theirs; `dammi`, `fallo`, `vattene`, `dimmi`, `stacci`, `digli`, `fagli` → `dare`, `fare`, `andare`, `dire`, `stare`, `dire`, `fare`; `eccolo`, `eccomi` → `ecco`; `cinema`, `sistema`, `tema`, `vela` listed are never split; `zorbarmi` with no `zorbare` stays; `tavoli` → `tavolo`, `amiche` → `amica`, `botteghe` → `bottega`, `fuochi` → `fuoco`, `laghi` → `lago`; `vite` with `vita` listed stays `vite`; `porte` filed under `porta` is `porta`; `andai`, `tre`, `l'ora` left alone; the result lowercase and in NFC.
 - [ ] 2.3 `cargo llvm-cov -p lingua-core` keeps the crate's line coverage at or above its current figure; `cargo clippy --workspace --all-targets -- -D warnings` and `cargo fmt --all --check` pass.
 
 ## 3. Italian's closed classes (crates/lingua-core)
 
-- [ ] 3.1 `analysis/function_words.rs`: six sorted Italian tables (D3) — determiners, pronouns (the clitics and their combined forms included), prepositions, conjunctions, auxiliaries and modals, negation — behind `is_function_word` and `is_preposition` for Italian; the words left out named in a doc comment with their reason.
-- [ ] 3.2 Tests: every Italian table sorted, so free of duplicates; « Non ho visto il cane di Marco », « non lo so », « né oggi né mai », « più », « mai », « sto parlando », « al mare », « l'uomo » answer as the spec's scenarios say; `the` as Italian and `il` as English, Spanish and French are not function words; the English, Spanish and French tables' tests unchanged.
+- [ ] 3.1 `analysis/function_words.rs`: six sorted Italian tables (D3) — determiners, pronouns (the clitics and their combined forms included), prepositions, conjunctions, auxiliaries and modals, negation — behind `is_function_word` and `is_preposition` for Italian; the quantifiers among the determiners; the words left out (`volere`, `secondo`, `lungo`, `mai`, `più`, `stare`…) named in a doc comment with their reason.
+- [ ] 3.2 Tests: every Italian table sorted, so free of duplicates; « Non ho visto il cane di Marco », « non lo so », « né oggi né mai », « più », « mai », « sto parlando », « voglio », « il secondo giorno », « molto tempo », « al mare », « l'uomo » answer as the spec's scenarios say; `the` as Italian and `il` as English, Spanish and French are not function words; the English, Spanish and French tables' tests unchanged.
 
 ## 4. An Italian document's names (crates/lingua-core)
 
@@ -21,7 +21,7 @@
 
 ## 5. Italian's version (crates/lingua-core, apps/lingua-extension)
 
-- [ ] 5.1 `analysis/mod.rs`: `ITALIAN_ANALYZER_VERSION = "1.0.0"`, its doc saying what `1.0.0` adds (NFC, the cascade and its enclitic rule, the closed classes, the names rule) (D5); the tests that read `0.2.0` rewritten with the rule they now state; `apps/lingua-extension/test/packs.spec.ts`: `coreAnalyzerVersion("it", modRs)` reads `1.0.0`; `yarn test test/packs.spec.ts` passes.
+- [ ] 5.1 `analysis/mod.rs`: `ITALIAN_ANALYZER_VERSION = "1.0.0"`, its doc saying what `1.0.0` adds (NFC, the cascade and its enclitic rule, the closed classes, the names rule) (D5); the tests that read `0.2.0` rewritten with the rule they now state; `apps/lingua-extension/test/packs.spec.ts`: `coreAnalyzerVersion("it", modRs)` matches a version at or above `1.0.0` (a pattern, as French's, so later bumps pass); `yarn test test/packs.spec.ts` passes.
 
 ## 6. Italian fixtures (crates/lingua-core)
 
@@ -32,11 +32,11 @@
 - [ ] 7.1 `scripts/lingua-data/testdata/it-fr/`: `manifest.json` at `1.0.0`; `forms.tsv` gains the verbs and forms D7 names (`dire`, `dare`, `andare`, `fare`, `parlare`, `scrivere`, `prendere`, their imperatives and gerunds, `ecco`); `gloss.tsv` their glosses; verify `cargo test -p lingua-pack --test pipeline_testdata` builds it.
 - [ ] 7.2 `tests/support/italian.rs`: `PHRASES` gains « Non lo so, dimmelo tu » and « Eccolo, è arrivato dall'Italia »; `GRAMMAR` gains (`dirmelo`, `dire`) and (`vattene`, `andare`); the module doc says Italian has its analysis at `1.0.0`.
 - [ ] 7.3 `tests/italian_baseline.rs`: `what_the_baseline_shows_today` asserts the clitic resolutions, the NFD block's words resolved, the function words dropped from the phrase probes, the names of `nomi` set aside, Italian's own version; re-bless once with `LINGUA_BLESS=1 cargo test -p lingua-wasm --test italian_baseline`, `tests/baseline/it-fr.golden` committed; the pull request lists what moved (D7) and what did not; verify the test passes without re-blessing afterwards.
-- [ ] 7.4 `tests/languages.rs` and `tests/languages_wasm.rs` where they assert Italian's version: `1.0.0`; `cargo test -p lingua-wasm` passes.
+- [ ] 7.4 `tests/languages.rs` and `tests/languages_wasm.rs` where they assert Italian's version: the constant, no longer `0.x`; `cargo test -p lingua-wasm` passes.
 
 ## 8. Measurement
 
-- [ ] 8.1 `scripts/lingua-data/measure/it-ud.sh` after `fr-ud.sh`: the cascade's lemmas against UD Italian-PUD and MarkIT's test section at their pinned commits, the three figures printed; run once change 9's tables are on `main` and its figures recorded in that pull request; until then, D2's candidate rules measured on the raw corpus and on PUD with a stand-in lexicon, the figures and the rules kept or dropped recorded in this change's pull request and in `italian.rs`'s doc (D6).
+- [ ] 8.1 `scripts/lingua-data/measure/it-ud.sh` after `fr-ud.sh`: the cascade's lemmas against UD Italian-PUD and MarkIT's test section at their pinned commits, the three figures printed; run once change 9's tables are on `main` and its figures recorded in that pull request; until then, D2's candidate rules measured on PUD and MarkIT with a pack built from a prototype of change 9's forms tables, `prima` and `stare` counted on MarkIT, the figures and the rules kept or dropped recorded in this change's pull request and in `italian.rs`'s doc; without such a prototype, the candidate rules are decided at change 9 (D6).
 
 ## 9. Owner
 

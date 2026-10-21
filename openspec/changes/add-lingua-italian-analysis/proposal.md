@@ -32,16 +32,18 @@ treebanks sets the gates this cascade is held to), 10 (the apostrophe-accent spe
   off a form the pack does not list one clitic (`mi`, `ti`, `si`, `ci`, `vi`, `lo`, `la`, `li`,
   `le`, `ne`, `gli`) or one combined clitic (`melo`… `mene`, `telo`…, `selo`…, `celo`…, `velo`…,
   `glielo`… `gliene`), and accepts the rest only as a base the pack lists shaped to take clitics:
-  an infinitive with its final `-e` restored (`dir` → `dire`, `por` → `porre`), a gerund, an
+  an infinitive with its ending restored (`dir` → `dire`; `por` → `porre`, `-re` tried where `-e` lists nothing), a gerund, an
   imperative the pack files under a verb, one of the five monosyllabic imperatives whose doubled
   consonant is undone (`dammi`, `fallo`, `vattene`, `dimmi`, `stacci`), or `ecco`. Italian's
   clitics move no written accent, so Spanish's stress check has no counterpart.
 - **Italian's closed classes** (`analysis/function_words.rs`): determiners, pronouns,
-  prepositions, conjunctions, the auxiliaries and modals `essere`, `avere`, `potere`, `dovere`,
-  `volere`, and the negation `non`, `no`, `né`; `mai`, `più`, `neanche`, `nemmeno` and `neppure`
-  left out as adverbs that carry meaning, each measured on the treebank (D3).
-- **An Italian document's names are set aside** (`engine.rs`): Spanish's rule, a capital right
-  after an elided piece counting as mid-sentence (`l'Italia`, `dell'Europa`), a hyphenated run the
+  prepositions, conjunctions, the quantifiers among the determiners, the auxiliaries and modals `essere`, `avere`, `potere`,
+  `dovere`, and the negation `non`, `no`, `né`; `mai`, `più`, `neanche`, `nemmeno` and `neppure`
+  left out as adverbs that carry meaning, `volere` as a content verb, `secondo` and `lungo` as
+  adjectives, with the sibling tables (D3).
+- **An Italian document's names are set aside** (`engine.rs`): Spanish's rule — a form never
+  written in lowercase, capitalised at least once mid-sentence, not a dictionary word —, a capital
+  right after an elided piece counting as mid-sentence (`l'Italia`, `dell'Europa`), a hyphenated run the
   pack does not list read as one form (D4) — an explicit arm, where change 5 returned early.
 - **Italian's analyser version leaves `0.x`**: `1.0.0`. The spec states the version without
   pinning a number a later bump would contradict (change 8's guard follows). The fixture's
@@ -84,7 +86,7 @@ nothing new is offered to them.
 - `crates/lingua-wasm/tests/{italian_baseline.rs, support/italian.rs, languages.rs}` and
   `baseline/it-fr.golden` (re-blessed once); `scripts/lingua-data/testdata/it-fr/` (the manifest at
   `1.0.0`, the forms the probes need).
-- `apps/lingua-extension/test/packs.spec.ts` (`coreAnalyzerVersion("it", modRs)` reads `1.0.0`).
+- `apps/lingua-extension/test/packs.spec.ts` (`coreAnalyzerVersion("it", modRs)` reads a version at or above `1.0.0`, by a pattern as French's).
 - `scripts/lingua-data/measure/it-ud.sh` (new): the cascade's lemmas against UD Italian-PUD and
   MarkIT's test section, run once change 9's tables exist.
 - Untouched: every committed table and pin, the six goldens, the English, Spanish and French arms,

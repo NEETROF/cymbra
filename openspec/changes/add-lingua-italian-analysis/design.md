@@ -17,8 +17,8 @@ See proposal.md — Why. What constrains the shape:
   (`analysis/french.rs`): the pack's forms → an unlisted lowercase plural whose singular is
   unlisted too → the form; an acronym step before it (change 43c); no enclitics (French's are
   hyphenated and split by the pre-pass).
-- `document_names` (`engine.rs`) runs Spanish's base rule — a capitalised form appearing only
-  mid-sentence, never in lowercase, not a dictionary word — in every language, with a French flag
+- `document_names` (`engine.rs`) runs Spanish's base rule — a form the document never writes in
+  lowercase and capitalises at least once in mid-sentence, not a dictionary word — in every language, with a French flag
   (a capital after an elided piece counts as mid-sentence; a hyphenated run as one form) and an
   English one (the pronoun *I*, a levelled lemma); change 5 gave Italian an early return.
 - The closed classes are six sorted tables per language in `function_words.rs`, flagged by the
@@ -26,15 +26,16 @@ See proposal.md — Why. What constrains the shape:
   measurement on a treebank.
 - Italian's clitics: `mi`, `ti`, `si`, `ci`, `vi`, `lo`, `la`, `li`, `le`, `ne`, `gli`, and the
   combined forms the first five make with the last six (`me lo` → `melo`, `te ne` → `tene`,
-  `glie` + `lo`, `la`, `li`, `le`, `ne`). They attach to an infinitive, which drops its final `-e`
-  (`parlarmi`, `dirmelo`, `porlo` from `porre`), to a gerund (`parlandogli`), to an imperative
+  `glie` + `lo`, `la`, `li`, `le`, `ne`). They attach to an infinitive, which drops its final `-e`, or its `-re` after an `-r`
+  (`parlarmi`, `dirmelo`; `porlo` from `porre`), to a gerund (`parlandogli`), to an imperative
   (`parlami`, `prendetelo`), to `ecco` (`eccolo`), and to a past participle in literary use
   (`andatosene`). Five monosyllabic imperatives double the clitic's first consonant: `da'`, `fa'`,
   `va'`, `di'`, `sta'` give `dammi`, `fallo`, `vattene`, `dimmi`, `stacci` — not before `gli`
-  (`dagli`). No clitic moves a written accent.
+  (`digli`). No clitic moves a written accent.
 - UD Italian-PUD (1,000 sentences) and MarkIT (CC BY 4.0) are the licence-clean treebanks; the
-  gates French's cascade was held to (99.0 % resolved, 95.9 % content lemmas, 99.9 % AUX on PUD)
-  are measured with the tables, which change 9 commits.
+  gates French's cascade was held to on PUD — 98.5 % of words resolved, 93.5 % of content lemmas,
+  97 % of auxiliary lemmas (`measure/fr-ud.sh`; French measured 99.12 / 96.48 / 99.90) — are
+  measured with the tables, which change 9 commits.
 
 ## Goals / Non-Goals
 
@@ -75,23 +76,26 @@ token, lowercased (`’` read as `'`) and in NFC:
    `gliene`; `melo`, `mela`, `meli`, `mele`, `mene`, and likewise with `te`, `se`, `ce`, `ve`), then
    the singles (`gli`, `mi`, `ti`, `si`, `ci`, `vi`, `lo`, `la`, `li`, `le`, `ne`). The rest is
    accepted as a base when the lexicon lists it shaped to take clitics:
-   - an infinitive with its final `-e` restored: a rest ending in `-r` is tried as `-re`
-     (`parlar` → `parlare`, `dir` → `dire`), a rest ending in `-rr` as `-rre` (`por` → `porre`,
-     `condur` → `condurre`); the lemma is the base's;
+   - an infinitive with its ending restored: a rest ending in `-r` is tried with `-e` restored
+     (`parlar` → `parlare`, `dir` → `dire`) and, when the lexicon does not list that, with `-re`
+     (`por` → `porre`, `condur` → `condurre`); the lemma is the base's;
    - a gerund: a rest ending in `-ando` or `-endo` the lexicon lists;
    - an imperative: a rest the lexicon files under a verb — a lemma ending in `-are`, `-ere`,
      `-ire` or `-rre` — (`parla`, `scrivi`, `prendete`, `andiamo`);
    - a monosyllabic imperative: a rest of `da`, `fa`, `va`, `di` or `sta` when the clitic's first
      consonant was doubled (`dammi` = `da` + `mmi`), the doubling undone and the base read as
      `dare`, `fare`, `andare`, `dire`, `stare` by a table of five — the lexicon lists `da` and `di`
-     as prepositions, so the table, not the lexicon, names the verb; `dagli` and `digli`, without
-     doubling, go the same way;
+     as prepositions, so the table, not the lexicon, names the verb; `digli`, `fagli`, `stagli` and `vagli`, without
+     doubling, go the same way — `dagli` never reaches the cascade: change 6's pre-pass splits it
+     as the articulated preposition `da` + `gli`, the imperative reading being the cost change 6
+     named for `dai`;
    - `ecco`.
    Spanish's stress check has no counterpart: Italian spelling moves no accent when a clitic
    attaches. One split only: `dirmelo` is `dir` + `melo`, never `dirme` + `lo`.
 3. **an unlisted plural** — only for a form written in lowercase, of four letters or more, that the
    pack does not hold and whose singular it does not hold either: `-chi` → `-co`, `-ghi` → `-go`,
-   any other `-i` → `-o`, `-e` → `-a`. Left alone: an elided or hyphenated word, and a form ending
+   any other `-i` → `-o`; `-che` → `-ca`, `-ghe` → `-ga` (the plural inserts the `h`: `amica` →
+   `amiche`, `bottega` → `botteghe`), any other `-e` → `-a`. Left alone: an elided or hyphenated word, and a form ending
    in `-ai`, `-ei` or `-ii` (verb endings);
 4. **the form itself**.
 
@@ -100,9 +104,9 @@ The order is the determinism contract. **The tables decide**: step 2 never split
 never reads a form as a word the pack lists: `vite` (vines; lives) stays itself when the pack
 lists `vita` — the rule would rename it, and the tables' choice stands.
 
-*Measured at implementation, kept or rejected by the treebanks' figures (D6):* step 3's `-e` →
-`-a` (feminine plurals against `-e` singulars such as `cane` → `cani`, which `-i` → `-o` would
-also mis-read), a past participle base, `-ci`/`-gi` plurals (`amici` → `amico`, `baci` → `bacio`:
+*Measured at implementation, kept or rejected by the treebanks' figures (D6):* step 3's `-i` →
+`-o` and `-e` → `-a` against the `-e` singulars (`cane` → `cani`, which `-i` → `-o` reads as `cano`;
+`megalite` → `megaliti`, read as `megalito`), a past participle base, `-ci`/`-gi` plurals (`amici` → `amico`, `baci` → `bacio`:
 the rule reads `baci` as `baco`; the tables list both). Each that moves tokens for the worse is
 dropped from the cascade and named in `italian.rs`'s doc, as French's rejected rules are.
 
@@ -120,14 +124,17 @@ possessives `mio`, `tuo`, `suo`, `nostro`, `vostro`, `loro`; `ogni`, `qualche`, 
 forms, `che`, `cui`, `chi`, `quale`, `ciò`, `qualcosa`, `qualcuno`, `ognuno`, `chiunque`,
 `niente`, `nulla`), prepositions (`di`, `a`, `da`, `in`, `con`, `su`, `per`, `tra`, `fra`,
 `senza`, `verso`, `contro`, `sopra`, `sotto`, `dentro`, `fuori`, `dopo`, `prima`, `durante`,
-`secondo`, `tranne`, `presso`, `oltre`, `attraverso`, `mediante`, `circa`, `lungo`, `entro`),
+`tranne`, `presso`, `oltre`, `attraverso`, `mediante`, `circa`, `entro`),
 conjunctions (`e`, `ed`, `o`, `od`, `ma`, `però`, `anzi`, `né`, `che`, `se`, `perché`, `poiché`,
 `siccome`, `quando`, `mentre`, `come`, `dunque`, `quindi`, `perciò`, `infatti`, `cioè`, `sebbene`,
 `benché`, `affinché`, `finché`, `purché`, `oppure`, `ovvero`, `tuttavia`, `eppure`), auxiliaries and
-modals (`essere`, `avere`, `potere`, `dovere`,
-`volere`), negation (`non`, `no`, `né`). Left out, as words that carry meaning: `mai`, `più`,
-`neanche`, `nemmeno`, `neppure`, `anche`, `ancora`, `molto`, `tanto`, `poco`, `tutto` (a
-quantifier the reader learns), and `stare` (the progressive auxiliary is also *to stay*, as
+modals (`essere`, `avere`, `potere`, `dovere`), negation (`non`, `no`, `né`). The determiners
+hold the quantifiers `molto`, `tanto`, `poco`, `tutto`, `troppo`, as Spanish's hold `mucho`,
+`poco`, `tanto`, `todo` and French's `beaucoup`, `peu`, `tant`, `tout`. Left out, as words that
+carry meaning: `volere` (a content verb, as French leaves `vouloir` and Spanish `querer` out),
+`secondo` and `lungo` (everyday adjectives — « il secondo giorno », « un lungo viaggio » — which a
+preposition's row would hide in every gloss, as French measured `certain` out), `mai`, `più`,
+`neanche`, `nemmeno`, `neppure`, `anche`, `ancora`, and `stare` (the progressive auxiliary is also *to stay*, as
 Spanish's table keeps `estar` but French's leaves `aller` out — measured on MarkIT at
 implementation, kept out unless the treebank files `stare` as AUX in the clear majority of its
 occurrences). The owner reads the tables (task 9.1).
@@ -149,10 +156,16 @@ constant map reads it.
 
 `scripts/lingua-data/measure/it-ud.sh`, after `fr-ud.sh`: the cascade's lemmas against UD
 Italian-PUD and MarkIT's test section, once change 9's tables exist (the cascade over the fixture
-measures nothing). Until then, the candidate rules of D2 are measured on the raw corpus and on
-PUD with a stand-in lexicon built from PUD's own lemmas, as change 41 measured its rejected rules
-before change 43's tables; the figures and the rules kept or dropped are recorded in the pull
-request and in `italian.rs`'s doc.
+measures nothing). Until then, the candidate rules of D2 are measured on PUD and on MarkIT with a
+pack built from a prototype of change 9's forms tables, as change 41 measured its cascade on
+change 43's prototype tables: a lexicon of lemmas alone cannot measure this cascade — step 3's
+guard would block every right plural (`libri` stays, `libro` being a lemma) and let only the
+misreads fire, and a gerund or an imperative base is no lemma, so only the infinitive shape and
+`ecco` would be exercised. The prototype's figures and the rules kept or dropped are recorded in
+the pull request and in `italian.rs`'s doc; `prima` (preposition or adverb) and `stare` (D3) are
+counted on MarkIT there. Where no prototype of change 9's tables is at hand, the candidate rules
+are decided at change 9, and this change ships the enclitic rule and `-chi`/`-ghi`/`-i` → `-o`
+alone.
 
 ### D7 — What the Italian golden shows, and what cannot move
 
@@ -183,7 +196,8 @@ change 6: this change archives after them.
   owner reads the tables.
 - [A name after `dell'`] → French's reading, tested on `dell'Europa`.
 - [The fixture's imperative forms] → the fixture files `parla`, `scrivi`, `prendete` under their
-  verbs so the rule has bases to accept; change 16's tables do the same for real.
+  verbs so the rule has bases to accept; change 9's forms tables do the same for real, and replace the
+  fixture in the golden at change 16.
 
 ## Migration Plan
 
