@@ -1,0 +1,7 @@
+schema: spec-driven
+created: 2026-10-21
+archiveAfter:
+  - add-lingua-italian-analysis
+  - add-lingua-italian-forms-tables
+  - leave-lingua-names-out-of-english-and-spanish-words
+  - keep-lingua-french-acronyms-in-capitals
