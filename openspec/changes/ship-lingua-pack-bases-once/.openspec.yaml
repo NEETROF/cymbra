@@ -2,3 +2,7 @@ schema: spec-driven
 created: 2026-10-21
 archiveAfter:
   - split-lingua-pack-format
+  - enable-lingua-spanish
+  - enable-lingua-english-speakers
+  - enable-lingua-spanish-speakers
+  - enable-lingua-french
