@@ -32,6 +32,8 @@ en or es. Its listings, the site's Lingua pages and the account pages follow.
 
 Out of scope: YouTube captions (an amendment only, as D7), remote translation (parked), a fourth
 language (which would make a split pack format worth it, see Architecture).
+Italian, the fourth language, has its own programme since 2026-10-21:
+[italian-programme.md](italian-programme.md); it splits the pack format first (its I3).
 
 ## The product owner's decisions
 
