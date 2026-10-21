@@ -40,7 +40,8 @@ pack is today's pack, every named section byte for byte, and a whole pack still 
 - **Nothing in the data moves** (D5): no table, no pin, no pinned pool, no golden. The whole pack's
   pool — the pinned pool, the readings' tags, then the sense-only tags — is what the base and the
   layer reproduce between them; the sense ids a layer stores are those of the assembled pool, as
-  today.
+  today. A split needs the language's pinned pool, which every committed language has; the test
+  fixtures, pinless, keep building whole packs.
 - **One base per studied language** (D6): the base built from any pair's inputs of a language is
   byte-identical to the base built from its reference pair's; the committed-tables checks fail,
   naming both pairs and the field, when not. This is the invariant change 4 ships on.

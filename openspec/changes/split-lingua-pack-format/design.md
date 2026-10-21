@@ -28,8 +28,12 @@ See proposal.md — Why. What constrains the shape:
   with `Pack::load` and skipping what fails (`lingua-agent-capture`, M17); the goldens build their
   packs from the committed tables at test time (`tests/support/committed.rs`), and five tests embed
   a whole test pack (`fixtures/pack.lingua`).
-- `pack_version` is the pair's; every pin records the whole pack's sha256 and size, `pin.json`'s
-  `studied` record the studied tables' digests, and `build.sh` refuses a pack that does not match.
+- `pack_version` is the pair's; every pin records the whole pack's sha256 and size, a reader
+  pair's `pin.json` records its studied tables' digests in its `studied` record, and `build.sh`
+  refuses a pack that does not match.
+- A language's pinned pool is what makes the pool's blocks: without `tags.tsv`, `tag_pool` is one
+  sorted union of the readings' and senses' tags, where no two blocks can be told apart. Every
+  committed language has a pin; the testdata fixtures have none.
 
 ## Goals / Non-Goals
 
@@ -78,7 +82,7 @@ Base: `forms`, `lemmas`, `freq`, then the optional `levels`, `lexical`, `tags`, 
 its `tags` is the pinned pool followed by the readings' tags outside it, sorted — the whole pack's
 pool without its last block. Layer: `gloss.zst`, then the optional `senses.zst`, `senses.tags` (the
 tags only the pair's senses carry, outside the base's pool, sorted, one per line, as the whole
-pack's pool ends; absent when there are none, as for es-fr and es-en), `expr`, `expr.zst`,
+pack's pool ends; absent when there are none, as for en-fr, es-fr and es-en), `expr`, `expr.zst`,
 `expr.names.zst`, `expr.others`, and `notice`.
 
 The layer's `notice` and `licences` are the pair's full stack, exactly the whole pack's: the
@@ -127,6 +131,15 @@ the base's `tags` and its last block as the layer's `senses.tags`, and stores th
 alone — the same base whichever pair of the language built it — and the assembled pool is the
 whole pack's, byte for byte. No pinned pool changes, no pin moves, no requirement on a pool moves.
 
+The split needs a pinned pool: without one the pool is a single sorted union of the readings' and
+senses' tags, interleaved, which no two blocks reproduce and which `senses.zst`'s ids index as a
+whole. So `build_split` refuses inputs that carry no `tags.tsv`, naming it — every committed
+language has one — and the testdata fixtures, pinless, keep building whole packs byte for byte;
+change 4 gives them a pin (the sorted union each carries today, so their bytes stay) when its test
+packages need parts. A base writes its `tags` whenever its language has a pinned pool, readings or
+not, and `build_pack` follows the same gate, so a base never owes its `tags` to a pair's senses:
+no committed pack moves (every language has readings), and the pinless fixtures are untouched.
+
 *Alternatives.* Pinning the sense-only tags in each language's `tags.tsv` so the base holds the
 whole pool: French's pin is specified as its readings' tags and nothing else, in byte order (an
 open change holds it, and the committed-tables checks hold the order), the fifteen bare tags its
@@ -160,9 +173,8 @@ one; `build_pack` stays and is what `build.sh`, the pins and the agent keep usin
 checked per part, with a remedy the part carries: a layer names its expression table when it has
 one (longest entries, then rarest), else its glossed lemmas; a base names the readings of its
 rarest dictionary forms. A base without readings is under the budget by construction at today's
-lemma counts (the largest, Spanish's, is 1.6 MB with its readings) and, should it ever exceed it,
-fails naming its lemma count, the only lever left once the FST and the frequencies are what every
-analysis depends on. Nothing is written when either part is over. `lingua-pack-build --split
+lemma counts (the largest, Spanish's, is 1.6 MB with its readings); should it ever exceed it, the
+build fails naming no remedy, its forms and frequencies being what every analysis depends on. Nothing is written when either part is over. `lingua-pack-build --split
 <studied-dir> <pair-dir> <base.lingua> <layer.lingua>` exposes it — a testdata folder holds both
 sides and is passed twice; `build.sh` learns it in change 4.
 
