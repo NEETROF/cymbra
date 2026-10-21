@@ -6,7 +6,8 @@ Change 6 of the [Italian programme](../../../docs/lingua/italian-programme.md), 
 (2026-10-21). Change 5 (`add-lingua-italian-baseline`) made Italian a studied language served by the
 baseline analysis, and its golden shows what that costs on raw Italian text: « l'uomo » is one
 token with the lemma « l'uomo », « c'è » hides *essere* in the commonest verb phrase of the
-language, « nella » hides *in* and *la*, « un po' » hides *poco*. Italian writes its articles,
+language, « nella » hides *in* and *la*, « un po' » is read as `po` — the rule of no language trims a
+trailing apostrophe — and so is « perche' » as `perche`. Italian writes its articles,
 pronouns and prepositions joined to the next word far more often than French does: an elision in
 nearly every sentence, an articulated preposition in most. A reader cannot be glossed, counted or
 asked about *lo*, *di*, *in* or *poco* while they are glued to other words.
@@ -38,6 +39,9 @@ an accent (`perche'`, `E'`) is change 10's; the expression keys that read the pi
     `i`; the two tokens sharing the source span, as Spanish's `al` and French's `au` do; the
     elided ones (`all'`, `dall'`, `nell'`, `sull'`) → the preposition + `lo`, sharing the span,
     apostrophe included.
+  - **A trailing apostrophe belongs to its word**: Italian's words seam keeps it, where the
+    edge trim of every language drops it today, so that the truncations can be read and the
+    apostrophe that stands for an accent is kept for change 10.
   - **Truncation**: a word ending in an apostrophe with no letter after it, from a closed list —
     `po'`, `mo'`, `fa'`, `va'`, `da'`, `sta'`, `di'`, `be'` — is read as the word it stands for
     (`poco`, `modo`, `fai`, `vai`, `dai`, `stai`, `dici`, `bene`), one token, its span holding the

@@ -12,9 +12,11 @@ See proposal.md — Why. What constrains the shape:
   piece, the read word capitalised on its own first letter), `au`/`aux` split sharing the span,
   `du`/`des` whole, hyphenated inversions. `Token` holds a text and a source span; two tokens may
   share a span (a contraction's halves) or each hold its own (an elision's pieces).
-- Change 5 gave Italian the baseline arm: `nfc_for` returns the text as it came,
-  `split_contraction` answers `None`, no elision; its golden records « l'uomo », « nella » and
-  « po' » as one token each at `0.1.0`.
+- Change 5 gave Italian the baseline arm: the words seam is UAX #29, `nfc_for` returns the text
+  as it came, `split_contraction` answers `None`, no elision; its golden records « l'uomo » and
+  « nella » as one token each at `0.1.0`, and « po' », « perche' » and « e' » as `po`, `perche`
+  and `e`: the edge-apostrophe trim is a rule of no language (`sailors'` → `sailors`), and UAX #29
+  leaves a trailing apostrophe outside the word.
 - The owner's I7: the `di` family whole — also the partitive article, as French's `du`/`des` —, the
   others split with their own spans, as `au`/`aux`; elision pieces with their own spans, as
   French's; truncations read as their word.
@@ -138,8 +140,11 @@ partitive read as a definite article; I7 settled it as M21 did for `du`/`des`.
 
 ### D5 — Truncation: a closed list of words ending in an apostrophe
 
-A word whose last character is an apostrophe with no letter after it is one token whose span holds
-the apostrophe. When the lowercased word is on the list, it is read as the word it stands for:
+Italian's words seam (D2's counterpart of `french_words`) re-attaches a trailing apostrophe —
+straight or typographic — to the word before it when a letter precedes it, so that the arm reads
+`po'`, `perche'` and `e'` whole where every other language's edge trim drops the apostrophe. A
+word whose last character is an apostrophe with no letter after it is then one token whose span
+holds the apostrophe. When the lowercased word is on the list, it is read as the word it stands for:
 
 | Written | Read as |
 |---|---|
@@ -183,9 +188,10 @@ cammin » (Dante, a line in the public domain), and (`l’`, `lo`), (`al`, `a`).
 The re-bless of `it-fr.golden` is the diff of this change: every elision of the `elisioni`,
 `manzoni`, `nomi` and `narrativa` pages becomes pieces, every `al`/`nel`/`sul`/`dal`/`col` of
 the `preposizioni` page two tokens, the `di` family unchanged, `po'` read as `poco`, the
-sentence-initial elisions no longer set aside as names (there is no names rule yet, but they were
-outside the lexicon; now they are pack words). The `informale` page's `perche'` and `e'` do not
-move. The six goldens, S0 and every pin are byte for byte; the English, Spanish and French arms
+sentence-initial elisions now pack words. The `informale` page's `perche'`, `piu'`, `citta'`, `e'`
+and `E'` move from `perche`, `piu`, `citta`, `e`, `E` to the words as written, apostrophe kept —
+`e'` loses the gloss of *e* it had by accident — until change 10 reads them as `perché`, `più`,
+`città`, `è`. The six goldens, S0 and every pin are byte for byte; the English, Spanish and French arms
 are not touched.
 
 ## Risks / Trade-offs
@@ -197,8 +203,9 @@ are not touched.
   reviewed by the owner (task 4.1) and can grow at a later analyser bump.
 - [A truncation that is also a word] → none of the eight is; `da'` and `di'` with the apostrophe
   are distinct from `da` and `di`.
-- [The corpus's `informale` page] → its apostrophe-accent words stay as written here and move with
-  change 10, whose diff then shows them alone.
+- [The corpus's `informale` page] → its apostrophe-accent words are read as written here, their
+  apostrophe kept, and move with change 10, whose diff then shows them alone; `e'` is unglossed
+  meanwhile where it was glossed as *e* by the trim.
 
 ## Migration Plan
 
