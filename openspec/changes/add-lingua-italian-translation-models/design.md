@@ -37,7 +37,8 @@ See proposal.md — Why. What constrains the shape:
 - Marking a selection in an Italian pair (`MARKED_PAIRS`): rows 17, 22, 27, 36, 47, 51 measure and
   add each pair.
 - The Italian corpus of selections (row 17).
-- Anything the setting shows an Italian-native reader: the interface is change 31's.
+- Anything the setting shows an Italian-native reader: `add-lingua-italian-native-language`
+  (change 32) and `add-lingua-italian-interface` (33).
 
 ## Decisions
 
@@ -54,9 +55,9 @@ would then not be at those versions. Ids `it-en/base-memory/2.0` and `en-it/base
 `assemble_model_site.mjs` run locally over the new catalogue proves both entries: it keeps a file
 only when every digest holds.
 
-*Alternative.* Pinning it-en 1.0 or en-it 2.0 (older, smaller?) — no: the sizes are the same
-family, and Remote Settings serve the latest to Firefox; a version Mozilla moved on from is one
-the mirror alone would keep alive.
+*Alternative.* Pinning it-en 1.0 or en-it 2.0 — no: the sizes are those of the same model family,
+Remote Settings serve the latest to Firefox, and a version Mozilla moved on from is one the mirror
+alone would keep alive.
 
 ### D2 — Six routes, appended, two models at most
 
@@ -69,10 +70,16 @@ native language, so the bundled catalogue loads. Nothing a reader of today holds
 
 Per native language, the union of the routes now needs three models (French: en-fr, es-en, it-en;
 English: es-en, fr-en, it-en; Spanish: en-es, fr-en, it-en; Italian: en-it, fr-en, es-en) where
-change 50 counted two. The device keeps what the reader's pairs need; the engine still holds two
-at a time — a route's — and evicts the model no current route needs (change 9). The cost the
-setting states is the sum over the reader's pairs' models, as the requirement *The setting's cost
-comes from the catalogue* says; an Italian-native reader is change 31's and change 43's concern.
+change 50's requirement *French is translated into English directly, and into Spanish through
+English* bounds them at two together; that requirement is modified here (three once Italian's
+pairs are routed, loaded two at a time), and its test — `test/model-manifest.spec.ts`, *Every
+native language's pairs*, which asserts the routes into each native and the download sums —
+is rewritten for the four natives. The device keeps what the reader's pairs need; the engine
+still holds two at a time — a route's — and evicts the model no current route needs (change 9).
+The cost the setting states is the sum over the reader's pairs' models, as the requirement *The
+setting's cost comes from the catalogue* says; an Italian-native reader is
+`add-lingua-italian-native-language` (32), `add-lingua-italian-interface` (33) and
+`enable-lingua-italian-speakers` (45)'s concern.
 
 ### D3 — A file the two models share
 
@@ -83,28 +90,31 @@ es-en and en-es, with the same consequence for the cost shown (counted twice, fe
 
 ### D4 — Three soaks by hand, the fourth deferred
 
-`tool/soak_engine.mjs --pair en-it|fr-it|es-it --models <dir> --isolate` over the English, French
-and Spanish corpora: the en-it model is the new one on every route, and each corpus is the route's
-studied language's. The it-en model has no corpus to run over until row 17 selects the Italian one
-(`select_corpus.mjs` over UD Italian-PUD, the rule every language shares); its soak is row 17's,
-before it-fr ships (row 18). Figures and trapping ids go to `TRANSLATION.md`, as en-es's did.
+`node --experimental-strip-types tool/soak_engine.mjs --pair en-it|fr-it|es-it --models <dir>
+--isolate` over the English, French and Spanish corpora: the en-it model is the new one on every
+route, and each corpus is the route's studied language's. The it-en model has no corpus to run over
+until row 19 (`measure-lingua-it-fr-translation-marks`) selects the Italian one (`select_corpus.mjs`
+over UD Italian-PUD, the rule every language shares) — run on it-en today, the tool reports no
+selection rather than refusing; its soak is row 19's, before it-fr ships (row 20,
+`enable-lingua-italian`). Figures and trapping ids go to `TRANSLATION.md`, as en-es's did.
 
 ### D5 — Documents and tests
 
-`TRANSLATION.md` (the models, the routes, the shared vocabulary, the soaks), `tool/marks/README.md`
-(the pairs the harness can route; the Italian corpus named as row 17's), `REVIEWERS.md` (the models
-the add-on may download), `tool/soak_engine.mjs`'s usage (the twelve routes).
+`TRANSLATION.md` (the models, the routes, the shared vocabulary, the soaks, its « four models …
+two together » notes), `tool/marks/README.md` (the pairs the harness can route; its *Soaking a
+route* bound paragraph; the Italian corpus named as row 19's), `REVIEWERS.md` (« lists four
+models » becomes six), `tool/soak_engine.mjs`'s usage (the twelve routes).
 `test/model-manifest.spec.ts` holds the catalogue exactly, and a test over today's shipped list
 shows that no reader's pairs need an Italian route and no reader fetches an Italian model, in the
 shape of *A route of a pair studying French*.
 
 ### D6 — The merge and the deploy
 
-Merging the implementation makes every release refuse until the owner dispatches
-`lingua-model-deploy` (the host must serve it-en 2.0 and en-it 2.1; the workflow creates the two
-mirror releases on the way). The implementation is merged when the owner can dispatch right after,
-and the pull request says so in its body — the matrix's change 25 was merged with a release window
-open, and the gate held every submission until the deploy.
+Merging the implementation makes every store submission of the extension and every App Store
+delivery of the app refuse until the owner dispatches `lingua-model-deploy` (the host must serve
+it-en 2.0 and en-it 2.1; the workflow creates the two mirror releases on the way); builds and
+pull requests pass. The implementation is merged when the owner can dispatch right after, and the
+pull request says so in its body.
 
 ## Risks / Trade-offs
 
@@ -112,7 +122,8 @@ open, and the gate held every submission until the deploy.
   Italian speaker is offered it; a trap costs one respawn (change 9).
 - [The it-en model is pinned without a soak] → no Italian pair ships before row 17 soaks it over
   the Italian corpus; the pin alone changes nothing for a reader.
-- [Releases blocked between the merge and the deploy] → D6: merged when the owner can dispatch.
+- [Submissions and deliveries blocked between the merge and the deploy] → D6: merged when the
+  owner can dispatch.
 - [Mozilla withdraws or moves a file] → the mirror releases, filled by the deploy, serve it.
 - [Three models per native language instead of two] → stored, not loaded: the engine's bound is
   per route; the setting's cost is the catalogue's sum, as specified.

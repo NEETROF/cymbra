@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Italian is translated to and from English directly, and to and from French and Spanish through English
-The catalogue SHALL carry Mozilla's it-en model, version 2.0, and en-it model, version 2.1, each pinned like every model and verifiable against Mozilla's publications of it. it-en's route SHALL be the it-en model alone and en-it's the en-it model alone; it-fr's route SHALL be it-en then en-fr, it-es's it-en then en-es, fr-it's fr-en then en-it, and es-it's es-en then en-it, each a route of two models the engine loads once and translates through in one request. A file the two Italian models share — their vocabulary decompresses to the same bytes — SHALL be stored once on a device and kept while either model is kept. These routes SHALL be inert until their pair ships: a reader's pairs are the shipped pairs of their native language, so nothing SHALL be downloaded, kept or loaded for a route whose pair no package ships.
+The catalogue SHALL carry Mozilla's it-en model, version 2.0, and en-it model, version 2.1, each pinned like every model and verifiable against Mozilla's publications of each. it-en's route SHALL be the it-en model alone and en-it's the en-it model alone; it-fr's route SHALL be it-en then en-fr, it-es's it-en then en-es, fr-it's fr-en then en-it, and es-it's es-en then en-it, each a route of two models the engine loads once and translates through in one request. A file the two Italian models share — their vocabulary decompresses to the same bytes — SHALL be stored once on a device and kept while either model is kept. These routes SHALL be inert until their pair ships: a reader's pairs are the shipped pairs of their native language, so nothing SHALL be downloaded, kept or loaded for a route whose pair no package ships.
 
 #### Scenario: An English-native reader of Italian
 - **WHEN** it-en ships and a reader whose native language is English ticks « Traduction étendue »
@@ -17,10 +17,6 @@ The catalogue SHALL carry Mozilla's it-en model, version 2.0, and en-it model, v
 - **WHEN** en-it and fr-it ship and a reader whose native language is Italian translates on an English page, then on a French page, then on an English page again
 - **THEN** the device and the engine hold the en-it and fr-en models, en-it serving both routes, and nothing is deleted
 
-#### Scenario: Every native language's pairs
-- **WHEN** the routes of the pairs glossed in each native language are taken together, Italian's included
-- **THEN** they need three models each: en-fr, es-en and it-en for French; es-en, fr-en and it-en for English; en-es, fr-en and it-en for Spanish; en-it, fr-en and es-en for Italian — and the engine still holds two at a time, a route's
-
 #### Scenario: Pinned against Mozilla's publications
 - **WHEN** the it-en and en-it entries are written
 - **THEN** each file's decompressed sha256 equals the one Mozilla publishes for it-en 2.0 and en-it 2.1, and the model host's assembly keeps every file
@@ -29,15 +25,38 @@ The catalogue SHALL carry Mozilla's it-en model, version 2.0, and en-it model, v
 - **WHEN** a device holds the it-en model and then needs the en-it model
 - **THEN** the vocabulary is not downloaded again, and it is kept while either model is kept
 
-#### Scenario: A route of an Italian pair before it ships
-- **WHEN** the catalogue routes the six Italian pairs and no shipped pair studies Italian or is glossed in it
-- **THEN** no reader's pairs need those routes: nothing is downloaded, kept or loaded for them, and no reader fetches the it-en or the en-it model
-
 #### Scenario: The host misses an Italian model
 - **WHEN** the model host does not serve a file of the it-en or the en-it model
 - **THEN** the check run before a submission fails, naming that file
 
 ## MODIFIED Requirements
+
+### Requirement: French is translated into English directly, and into Spanish through English
+The catalogue SHALL carry Mozilla's fr-en model, version 2.0, pinned like every model and verifiable against Mozilla's publications of it. fr-en's route SHALL be the fr-en model alone, and fr-es's route SHALL be the fr-en model then the en-es model, through English, since Mozilla publishes no model between French and Spanish. A route SHALL be needed only by a reader whose pairs include its pair. For each native language, the routes of all the pairs glossed in it SHALL need at most three models together once Italian's pairs are routed — two until then —, the engine loading two at a time, a route's, so that a reader who keeps their native language makes the engine delete a model only when a third pair's route needs the room.
+
+#### Scenario: An English-native reader of French
+- **WHEN** fr-en ships and a reader whose native language is English ticks « Traduction étendue »
+- **THEN** the fr-en model alone is downloaded, and a French sentence is translated by it in one step
+
+#### Scenario: A Spanish-native reader of French
+- **WHEN** fr-es ships and a reader whose native language is Spanish ticks « Traduction étendue »
+- **THEN** the fr-en and en-es models are downloaded, and a French sentence comes back in Spanish from fr-en then en-es, in one request to the engine
+
+#### Scenario: A Spanish-native reader of English and French
+- **WHEN** en-es and fr-es ship and a reader whose native language is Spanish translates on an English page, then on a French page, then on an English page again
+- **THEN** the device and the engine hold the en-es and fr-en models, en-es serving both routes, and nothing is deleted
+
+#### Scenario: Every native language's pairs
+- **WHEN** the routes of the pairs glossed in each native language are taken together, Italian's included
+- **THEN** they need three models each: en-fr, es-en and it-en for French; es-en, fr-en and it-en for English; en-es, fr-en and it-en for Spanish; en-it, fr-en and es-en for Italian — and the engine holds two at a time, a route's
+
+#### Scenario: Pinned against Mozilla's publications
+- **WHEN** the fr-en entry is written
+- **THEN** each file's decompressed sha256 equals the one Mozilla publishes for fr-en 2.0, and the model host's assembly keeps every file
+
+#### Scenario: A vocabulary fr-en shares with en-fr
+- **WHEN** a device holds the en-fr model and its reader's pairs come to need the fr-en model
+- **THEN** the vocabulary file, the same bytes once decompressed, is kept while either model is needed and is not downloaded again
 
 ### Requirement: Translation models are listed in one catalogue, with a route per pair
 The package SHALL carry one catalogue of the translation models it may download, each file pinned by its address, its size as served, its decompressed size and the sha256 of its decompressed bytes, and SHALL give for each pair the route of models that translates its studied language into its native language, in order. A route SHALL be keyed `<studied>-<native>`, SHALL name only models of the catalogue, SHALL start from the pair's studied language, SHALL chain each model's target to the next model's source, and SHALL end in the pair's native language; a catalogue that breaks any of these SHALL be refused, and nothing SHALL be fetched from it. The assembly of the model host, its mirror releases and the check run before a package is submitted SHALL cover every model of the catalogue.

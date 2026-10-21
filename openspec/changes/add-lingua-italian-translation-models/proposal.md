@@ -17,7 +17,7 @@ routes, one per pair of the matrix. Italian adds six pairs and none of them is r
 Pinning now, before any Italian pack exists, lets the owner redeploy the model host once for the
 whole programme (the release gate refuses a package whose catalogue names a model the host does
 not serve), lets the marks harness measure each Italian pair through the catalogue's route when its
-row comes (rows 17, 22, 27, 36, 47, 51), and lets the soak try the en-it model over the three
+row comes (rows 19, 24, 29, 38, 49, 53), and lets the soak try the en-it model over the three
 corpora that exist (M25: a manual tool) before any Italian speaker is offered it. The routes are
 inert until their pair ships: a reader's pairs are the shipped pairs of their native language.
 
@@ -37,15 +37,16 @@ inert until their pair ships: a reader's pairs are the shipped pairs of their na
   to the same bytes (812,724 B, one sha256), stored once on a device, as es-en's and en-es's are.
 - **Three soaks by hand** (D4): the en-it model through `en-it`, `fr-it` and `es-it` over the
   English, French and Spanish corpora, each selection isolated, the figures and the ids that trap
-  recorded in `TRANSLATION.md`. The it-en model is soaked by row 17, which brings the Italian
-  corpus; it does not exist yet.
+  recorded in `TRANSLATION.md`. The it-en model is soaked by row 19 (`measure-lingua-it-fr-translation-marks`), which
+  brings the Italian corpus; it does not exist yet, and the soak tool run on it-en today would
+  report no selection at all.
 - **The documents that name the models** — `TRANSLATION.md`, `tool/marks/README.md`,
   `REVIEWERS.md`, the soak tool's usage — and **the tests**: `test/model-manifest.spec.ts` holds the
   new catalogue exactly and shows that no reader of today's shipped pairs needs an Italian route or
   model.
-- **The owner redeploys the model host after the merge** (D6): until then, every release of the
-  extension and of the Apple app is refused by the gate that checks the host serves every pinned
-  model. The implementation merges when the owner can dispatch `lingua-model-deploy` right after.
+- **The owner redeploys the model host after the merge** (D6): until then, every store submission
+  of the extension and every App Store delivery of the Apple app is refused by the gate that checks
+  the host serves every pinned model. The implementation merges when the owner can dispatch `lingua-model-deploy` right after.
 - Not in this change: the marks of any Italian pair (`MARKED_PAIRS` keeps its five), the Italian
   corpus, any pack, any Italian in the interface.
 
@@ -60,19 +61,25 @@ None.
 - `lingua-translation`: ADDED *Italian is translated to and from English directly, and to and
   from French and Spanish through English*; MODIFIED *Translation models are listed in one
   catalogue, with a route per pair* — its scenario *Every reader today* names the six models and
-  twelve routes, every scenario kept, one added (a route of an Italian pair). The requirement is
-  held by two open changes, `add-lingua-translation-matrix-models` (25) and
-  `add-lingua-french-translation` (50): this change archives after both, and its text is 50's with
-  the Italian models and routes added.
+  twelve routes, every scenario kept, one added (a route of an Italian pair); MODIFIED *French is
+  translated into English directly, and into Spanish through English* — its bound of two models
+  per native language becomes three once Italian's pairs are routed, loaded two at a time, and its
+  scenario *Every native language's pairs* counts them. Both requirements are held by open
+  changes — the catalogue's by `add-lingua-translation-matrix-models` (25) and
+  `add-lingua-french-translation` (50), the French one by 50: this change archives after both, and
+  its texts are 50's with the Italian models, routes and count added.
 
 ## Impact
 
 Lingua only. Nothing is consumed from Cymbra ID, Music, Live, the back office or the site, and
 nothing new is offered to them.
 
-- `apps/lingua-extension/model-manifest.json`: two models, six routes; `test/model-manifest.spec.ts`;
+- `apps/lingua-extension/model-manifest.json`: two models, six routes; `test/model-manifest.spec.ts`
+  (its *Every native language's pairs* test counts three models per native) and
+  `test/model-residency.spec.ts` (its en-it placeholder becomes the pinned id);
   `TRANSLATION.md`, `tool/marks/README.md`, `REVIEWERS.md`, `tool/soak_engine.mjs`'s usage.
-- The model host (`models.cymbra.app`): two models more, ≈ 69 MB served, deployed by the owner;
-  two mirror releases the deploy workflow creates.
+- The model host (`models.cymbra.app`): two models more — ≈ 52 MB served as gzip, by analogy
+  with the four pinned models, measured in task 1.1; 73.6 MB decompressed — deployed by the
+  owner; two mirror releases the deploy workflow creates.
 - No engine change, no core, no server, no pack, no store listing. A reader of today downloads,
   keeps and loads exactly what they do now.
