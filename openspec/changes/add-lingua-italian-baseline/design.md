@@ -9,11 +9,19 @@ See proposal.md — Why. What constrains the shape:
   its whichlang class, its tag and its analyser version constant (`analysis/mod.rs`); `ALL` lists
   them; the extension's `tool/packs.mjs` maps each tag to its constant and `test/packs.spec.ts`
   holds that map to `language.rs`.
-- Every seam that branches on the language — `nfc_for`, `split_contraction`, `lemmatize`,
-  `is_function_word`, `document_names`, the detection's candidates, the baselines' harness — is an
-  exhaustive match: a fourth variant must be answered at each, and the French baseline (matrix
-  change 39) answered it verbatim for French with the baseline analysis the spec defines for a
-  language whose rules are not written (`lemmatize_baseline`, no pre-pass, no table).
+- The seams that branch on the language are exhaustive matches a fourth variant must answer: the
+  tokeniser's words seam (`french_words` for French, UAX #29 for the others), `nfc_for`,
+  `split_contraction`, `lemmatize` (which dispatches to English's rules and to Spanish's and
+  French's cascades — the baseline function the French baseline wrote was retired with French's
+  cascade, #832), `is_function_word` and `is_preposition`, `expression_piece` and
+  `expression_window` in `engine.rs`, and `pack_gloss` in `crates/lingua-wasm/src/lib.rs`, the
+  per-language expression lookup. `document_names` is not one: it runs in every language, with
+  French and English flags over Spanish's base rule, so a new variant inherits Spanish's names
+  rule unless it returns early. The French baseline (matrix change 39) answered each seam
+  verbatim for French with the baseline analysis the spec defines for a language whose rules are
+  not written.
+- The edge-apostrophe trim is a rule of no language: a trailing apostrophe is outside the word
+  (`sailors'` → `sailors`), an inner one kept (`l'uomo`).
 - whichlang knows Italian (`Lang::Ita`) and nothing of Catalan, Galician, Latin, Corsican or
   Sardinian, which it files under its nearest class — Catalan and Galician as Italian, as the
   French and Spanish baselines' comments record. Italian has no guard until change 8.
@@ -63,13 +71,18 @@ in declaration order, and no state names Italian yet.
 
 ### D2 — Italian's arm is the baseline analysis, exactly as the spec defines it
 
-At each seam Italian takes the arm French took in change 39 before its rules: `nfc_for` returns
-the text as it came; `split_contraction` answers `None`; `lemmatize` takes `lemmatize_baseline`
-(the pack's lemma for the lowercased form, else the lowercased form); `is_function_word` and
-`is_preposition` answer false; `document_names` answers none; detection names Italian among the
-candidates a learner of Italian asks for and excludes it from the others'. So « l'uomo »,
-« dell'acqua », « del », « dirmelo » and « po' » are one token each, lowercased, and the Spanish
-accent retry, the French elision pieces and the English contractions never run on Italian.
+At each seam Italian takes the arm French took in change 39 before its rules: the words seam is
+UAX #29; `nfc_for` returns the text as it came; `split_contraction` answers `None`; `lemmatize`
+takes `lemmatize_baseline`, written again as change 39's D3 wrote it (the pack's lemma for the
+lowercased form, else the lowercased form, with its tests); `is_function_word` and
+`is_preposition` answer false; `document_names` returns early with none — an explicit arm, since
+the function otherwise runs Spanish's base rule in every language; `expression_piece` returns the
+lemma, English's arm; `expression_window` is `EXPRESSION_WINDOW`, the value before any language
+had its own; `pack_gloss` in the wasm engine answers `pack.expression(lemma)`; detection names
+Italian among the candidates a learner of Italian asks for and excludes it from the others'. So
+« l'uomo », « dell'acqua », « del » and « dirmelo » are one token each, lowercased, « po' » is
+`po` by the edge trim every language has, and the Spanish accent retry, the French elision pieces
+and the English contractions never run on Italian.
 
 *Alternative.* Writing the first Italian rules here: the golden would be born moved, and I7's
 decisions, settled, deserve a change that shows each as a diff.
@@ -113,15 +126,17 @@ what a later change must show:
 
 The two excerpts are the only quoted texts; every other line is authored for the corpus, as the
 French pages are. Their attribution and the public-domain reasoning live in
-`support/italian.rs`'s doc comment: Manzoni died in 1873 and Collodi in 1890, so both works have
-been in the public domain in Italy for more than a century under the 70-year term and were
+`support/italian.rs`'s doc comment: Manzoni died in 1873 and Collodi in 1890, so under Italy's
+70-year term their works have been in the public domain since 1944 and 1961, and both were
 published before 1929, so they are in the public domain in the United States. The owner reads the
 pages and may swap a text before the golden is blessed (task 5.1).
 
 **Real punctuation and one NFD block.** The `narrativa` and `manzoni` pages are set as Italian is
 printed — the typographic apostrophe `’`, « » quotes, accented capitals — so that change 6's
 pieces are exercised on the punctuation a reader's page has; the `informale` page has the ASCII
-apostrophe where an accent belongs, which no page of the French corpus needed. One block of the
+apostrophe where an accent belongs, which no page of the French corpus needed — trimmed off the
+word today by the rule of no language (`perche'` is `perche`, `po'` is `po`), which change 6
+moves. One block of the
 `tecnico` page is committed in NFD; the scenario asserts it is still decomposed. The fixture lists
 one word of that block, `città` (glossed « ville »), which the corpus has nowhere else: read as it
 came, the decomposed word is not the pack's and shows no gloss, so change 7's NFC rule shows its
@@ -136,8 +151,7 @@ covering the corpus's common words (forms of *essere*, *avere*, *andare*, *fare*
 *dovere*, *volere*, *dire*, *venire*, *prendere*; articles and pronouns as plain forms; plurals and
 feminines; the single-letter words `a`, `e`, `è`, `o`, which the tokeniser drops when the lexicon
 does not list them), ranks for about a hundred lemmas, about sixty French glosses, a handful of
-expressions, 53 levels (A1 to C2) so that every probe of the harness answers, no grammar and no
-senses. The manifest studies `it`, is glossed in `fr`, carries `ITALIAN_ANALYZER_VERSION`, a pack
+expressions, levels for the lemmas the probes and cards name, no grammar and no senses. The manifest studies `it`, is glossed in `fr`, carries `ITALIAN_ANALYZER_VERSION`, a pack
 version that says « fixture », and no `levels_estimated` flag: the levels are a fixture's, not a
 decision (I8).
 
@@ -156,8 +170,9 @@ and `Deck` holds; else 3, 2 or 1 by today's rule. A backup is written in the old
 holds it, so an English reader's stays 1, a Spanish or English-native reader's 2, a French
 reader's 3, byte for byte; Italian records under any profile are version 4. The trigger is held
 by the files too: `tests/backup_format.rs` rotates every language name through the per-language
-maps and pins `fixtures/backup-v4-italian.json`, which a reader of versions 1 to 3 refuses as
-unsupported version 4. `from_backup` reads 1 to 4. Every build released since 1.5.0 reads the
+maps and pins `fixtures/backup-v4-italian.json`; `decks/backup.rs`'s own unit test, beside the one
+that reads the version 3 file at version 2, holds that a build reading version 3 refuses it as
+unsupported version 4 (`read_backup` is private to the module). `from_backup` reads 1 to 4. Every build released since 1.5.0 reads the
 version before the rest and answers `UnsupportedVersion { found: 4, supported: 3 }` — never
 malformed; `hydrateEngine` throws, the surface does not start, the store is untouched.
 
@@ -179,12 +194,16 @@ re-blessing; every pin is unchanged; `cross_native` and `languages` pass.
 
 ## Risks / Trade-offs
 
-- [whichlang files Catalan, Galician, Latin and the regional languages under Italian] → recorded
-  by the `misto` page's golden; change 8's guard moves it before any Italian pack ships.
+- [whichlang files Catalan and Galician under Italian, and Latin and the regional languages under
+  their nearest class] → the `misto` page's Catalan and Galician blocks are authored so whichlang
+  reads them as Italian, checked when the golden is blessed; where its Latin block lands, the
+  golden shows; change 8's guard moves it before any Italian pack ships.
 - [An excerpt's public-domain status] → both authors died more than seventy years ago and both
   works predate 1929; the owner reads the attribution (task 5.1).
-- [The fixture's one-tag pin] → harmless before change 4 (no grammar, nothing reads it) and what
-  change 4 requires after; the golden holds no grammar probe.
+- [The fixture's one-tag pin] → the builder reads it already and writes no grammar section while
+  readings and senses are empty, so the fixture's whole pack is unchanged until change 3's gate;
+  change 4 pins every fixture's bytes, so whichever of changes 4 and 5 lands second adds it-fr's
+  row; the golden holds no grammar probe.
 - [Backup v4 refused by an installed build] → by name, never as malformed, as v3 is; no reader
   holds Italian data before a pair ships.
 

@@ -28,8 +28,9 @@ the first Italian rule is written:
 
 The owner settled I5 (it-fr first), I7, I8 and I11 on 2026-10-21. This change depends on none of
 them: the Italian arm is the baseline analysis the specs already define for a language whose
-rules are not written — `l'uomo`, `dell'acqua`, `del`, `nel`, `dirmelo` and `po'` stay whole,
-nothing is a function word, there is no level and no second lemma. The golden shows the questions
+rules are not written — `l'uomo`, `dell'acqua`, `del`, `nel` and `dirmelo` stay whole, `po'` loses
+its trailing apostrophe as any word's edge apostrophe does today, nothing is a function word, there
+is no level and no second lemma. The golden shows the questions
 I7 settles; it answers none of them.
 
 ## What Changes
@@ -59,10 +60,11 @@ I7 settles; it answers none of them.
   released since 1.5.0 reads the version before the rest of the file, so it refuses a version 4
   backup as « unsupported version 4 », by name, never as malformed. A reader of English, Spanish
   or French keeps the version they have, byte for byte.
-- **Two compile-forced lines outside the core.** `apps/lingua-extension/tool/packs.mjs` maps `it`
+- **Three compile-forced lines outside the core.** `apps/lingua-extension/tool/packs.mjs` maps `it`
   to its constant (`test/packs.spec.ts` holds that map to `language.rs`, so a variant added there
-  fails the extension's tests first); the agent plugin's `language_name` names Italian. Neither
-  changes anything a reader sees: no pair studying Italian is listed, the extension's
+  fails the extension's tests first); the agent plugin's `language_name` names Italian; the wasm
+  engine's per-language expression lookup takes the baseline arm, the pack's expression for the
+  lemma. None changes anything a reader sees: no pair studying Italian is listed, the extension's
   `StudiedLanguage` type and its labels stay `en | es | fr`, and no Italian pack exists to install.
 - **English, Spanish and French do not move.** The six goldens are unchanged byte for byte,
   without re-blessing; every pin is unchanged.
@@ -92,14 +94,16 @@ Lingua only. Nothing is consumed from Cymbra ID, Music, Live, the back office or
 nothing new is offered to them.
 
 - `crates/lingua-core`: `analysis/language.rs` (the variant), `analysis/{tokenize,lemmatize,
-  function_words}.rs` and `engine.rs` (Italian's arm at each seam, verbatim the baseline),
+  function_words}.rs` and `engine.rs` (Italian's arm at each seam, verbatim the baseline: the
+  words seam, `nfc_for`, `split_contraction`, `lemmatize`, the function words, `document_names`,
+  `expression_piece`, `expression_window`),
   `analysis/mod.rs` (`ITALIAN_ANALYZER_VERSION`), `knowledge/profile.rs` (an Italian native
   language still maps to no studied language: there is none), `packs/pack.rs` (an `it` pack loads at
   `0.1.0`), `decks/backup.rs` (schema version 4), `tests/backup_format.rs` and a
   `fixtures/backup-v4-italian.json`.
-- `crates/lingua-wasm`: `tests/italian_baseline.rs`, `tests/support/italian.rs`,
-  `tests/baseline/pages-it.txt` and `it-fr.golden`; `tests/languages.rs` (an Italian pack added to
-  an engine glossed in French).
+- `crates/lingua-wasm`: `src/lib.rs` (`pack_gloss`'s Italian arm); `tests/italian_baseline.rs`,
+  `tests/support/italian.rs`, `tests/baseline/pages-it.txt` and `it-fr.golden`; `tests/languages.rs`
+  (an Italian pack added to an engine glossed in French).
 - `scripts/lingua-data/testdata/it-fr/`: the fixture pack's tables, with the one-tag `tags.tsv`
   change 4 gives a fixture without grammar.
 - `apps/lingua-extension/tool/packs.mjs` (`ANALYZER_CONSTANTS`), `apps/lingua-agent/rust/src/vocab.rs`
