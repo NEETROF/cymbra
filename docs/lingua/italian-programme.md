@@ -169,9 +169,9 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | Stage | # | Change | Effort | Precedent | Status |
 |---|---|---|---|---|---|
 | 0 Prerequisites | 1 | This programme and its decisions | 0.25 | — | Done (this file) |
-| 0 | 2 | `add-lingua-italian-translation-models`: it-en 2.0 and en-it 2.1 pinned, six routes; the owner redeploys the model host right after | 1–2 | 25 | Proposed ([#973](https://github.com/NEETROF/cymbra/pull/973)) |
-| 0 | 3 | `split-lingua-pack-format` (I3): a base per studied language and a layer per pair, `Pack::assemble`, the builder writing both, the wasm engine loading both; no table, pin or golden moves | 4–6.5 | 5, 7 | Proposed ([#972](https://github.com/NEETROF/cymbra/pull/972)) |
-| 0 | 4 | `ship-lingua-pack-bases-once`: the package carries each base once and each listed layer; the extension fetches a base on first need; `packs.json`, `pin.json`, the variant check, the CI comparison, the pack-update workflow, the Apple natives derivation and the source archive follow | 2.5–4 | 7, 8 | |
+| 0 | 2 | `add-lingua-italian-translation-models`: it-en 2.0 and en-it 2.1 pinned, six routes; the owner redeploys the model host right after | 1–2 | 25 | Proposal merged ([#973](https://github.com/NEETROF/cymbra/pull/973)) |
+| 0 | 3 | `split-lingua-pack-format` (I3): a base per studied language and a layer per pair, `Pack::assemble`, the builder writing both, the wasm engine loading both; no table, pin or golden moves | 4–6.5 | 5, 7 | Proposal merged ([#972](https://github.com/NEETROF/cymbra/pull/972)) |
+| 0 | 4 | `ship-lingua-pack-bases-once`: the package carries each base once and each listed layer; the extension fetches a base on first need; `packs.json`, `pin.json`, the variant check, the CI comparison, the pack-update workflow, the Apple natives derivation and the source archive follow | 2.5–4 | 7, 8 |Proposed |
 | 1 Italian studied: it-fr | 5 | `add-lingua-italian-baseline`: the variant, backup v4, the Italian corpus and golden beside the six | 3–5 | 39 | |
 | 1 | 6 | `add-lingua-italian-tokenisation` (I7): elision pieces, articulated prepositions, truncation, the apostrophe for an accent | 5–8 | 40 | |
 | 1 | 7 | `add-lingua-italian-analysis`: NFC, cascade, closed classes, names rule, enclitic pronouns; analyser 1.0.0 | 5–8 | 41 | |
