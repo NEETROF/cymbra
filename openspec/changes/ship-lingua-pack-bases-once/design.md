@@ -121,7 +121,9 @@ bases, no whole pack among them, each under 8 MB.
 ### D5 — The checks compare parts; the whole pack stays for what reads it
 
 `lingua-extension-check.yml`: the monorepo step that builds each pair's whole pack also builds its
-parts into the runner's temp folder (`build.sh --parts`); the reviewer-archive step, after
+parts into the runner's temp folder (`build.sh --parts`), the layer as `layer-<pair>.lingua` and
+the base as `base-<studied>.lingua` — a language's second pair compares its base with the first
+run's and fails on a differing byte, as `gen_pack.sh` does; the reviewer-archive step, after
 `yarn gen:pack:real`, compares the nine packaged files — six layers, three bases — with them, byte
 for byte, where it compared six packs. `tool/make_source_archive.sh` writes into the archive's
 README, for each listed pair, the recorded `layer.sha256` against `assets/packs/<pair>.lingua` and
@@ -139,8 +141,10 @@ Each `testdata/<pair>/` gains `tags.tsv`. en-fr, en-es, es-fr and es-en carry gr
 is the sorted union of their readings' and senses' tags, the pool their whole pack carries today,
 so those four whole packs keep their bytes and `build_split` accepts the inputs. fr-en and fr-es
 carry no grammar and no senses: their pin is one canonical tag, `NOUN`, which no fixture reading
-or sense uses; their whole packs gain a `tags` section of that line (change 3's gate: a base holds
-its pool whenever its language has a pin), which no test pins today — `pipeline_testdata.rs` pins
+or sense uses; their whole packs gain a `tags` section of that line once change 3's implementation
+makes `build_pack` follow the base's gate (a base holds its pool whenever its language has a pin;
+today the builder writes no grammar section when readings and senses are both empty), which no
+test pins today — `pipeline_testdata.rs` pins
 the English and Spanish fixtures' bytes alone, and gains the two French rows with their new sizes
 and digests. No fixture carries an empty pin, so change 3's reading of an empty file is never
 exercised. `yarn gen:pack` (the test packages) then builds parts as `gen:pack:real` does.
@@ -176,7 +180,7 @@ each file under the variant check's 8 MB. The store listings say nothing of size
 - [A whole pack dropped in `assets/packs` by habit] → the variant check refuses a packaged file
   that is not a listed layer or base, and `packMeta` names a whole pack by its absent `part`.
 - [Four open enable changes hold *The shipped pairs are one list*] → this change archives after
-  them (`archiveAfter`); its implementation does not wait for them.
+  them (`archiveAfter`); its implementation does not wait for them — it waits for change 3's.
 
 ## Migration Plan
 

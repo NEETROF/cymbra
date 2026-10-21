@@ -48,7 +48,7 @@ The extension's build SHALL read the language pairs it ships from one list, whos
 
 #### Scenario: English unchanged
 - **WHEN** the en-fr pack, its layer and the English base are built from their tables after this change
-- **THEN** each is byte for byte what was built before, and English stays a French-native reader's default studied language
+- **THEN** the pack is byte for byte what was built before, its layer and the English base are what change 3's checks build from the same tables, and English stays a French-native reader's default studied language
 
 #### Scenario: English speakers learning Spanish
 - **WHEN** a reader whose browser is in English installs a package built with this list

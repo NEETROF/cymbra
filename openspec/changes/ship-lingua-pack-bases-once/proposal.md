@@ -86,10 +86,12 @@ nothing new is offered to them.
   `pack_sources.py` (`record-build --base --layer`, `record-parts`, the base held to its reference
   in `check-reducer`), `pack_report.py` (a layer may move under `--identical`, a base may not),
   their tests; every pair's `pin.json` gains two records; each `testdata/<pair>/` gains `tags.tsv`;
-  `pipeline_testdata.rs` pins the two French fixtures too; the *Build* section change 3 adds to
-  `SOURCES.md`.
+  the *Build* section change 3 adds to `SOURCES.md`.
+- `crates/lingua-pack/tests/pipeline_testdata.rs`: two rows, the French fixtures' bytes once change
+  3's gate writes their pin.
 - `.github/workflows/lingua-extension-check.yml` (the comparisons), `lingua-pack-update.yml` (the
   records).
 - `docs/lingua/italian-programme.md`: row 4.
-- Untouched: `crates/*` (change 3's engine and builder are used as they are), the Safari host, the
-  agent plugin, the six goldens, every whole pack's bytes and pin record.
+- Untouched: `crates/*` but that test (change 3's engine and builder are used as they are), the
+  Safari host, the agent plugin, the six goldens, every committed pack's bytes and every pin's
+  `pack` record, the English and Spanish fixtures' bytes.
