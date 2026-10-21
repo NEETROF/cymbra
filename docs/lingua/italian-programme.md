@@ -42,7 +42,7 @@ change 56's amendment.
 |---|---|---|
 | I1 | **The full matrix: the four languages interchangeable.** Twelve pairs and an Italian interface, not one audience. | Settled (2026-10-21) |
 | I2 | **A dedicated agent reviews the Italian wording** (interface, card, listings, site), where the owner reviewed English and Spanish himself (M9). Drafts still land in each pull request. Dogfood of the Italian interface on the five targets is the owner's, or stays unverified. | Settled (2026-10-21) |
-| I3 | **The pack format is split before any Italian pack ships: one core per studied language, one layer per pair, assembled at load.** The owner first accepted a package that grows (twelve embedded packs, ≈ 27–30 MB raw against 13.5 MB today), then reversed it the same day once the saving was measured: the studied side is 59 % of the six packs and byte-identical across natives, so a split carries each language's core once — ≈ 9.5 MB today instead of 13.5, ≈ 15–18 MB with twelve pairs instead of 27–30. The matrix programme's note that a fourth language makes a split worth it is taken up (changes 3 and 4). | Settled (2026-10-21) |
+| I3 | **The pack format is split before any Italian pack ships: one base per studied language, one layer per pair, assembled at load.** The owner first accepted a package that grows (twelve embedded packs, ≈ 27–30 MB raw against 13.5 MB today), then reversed it the same day once the saving was measured: the studied side is 59 % of the six packs and byte-identical across natives, so a split carries each language's base once — ≈ 9.5 MB today instead of 13.5, ≈ 15–18 MB with twelve pairs instead of 27–30. The matrix programme's note that a fourth language makes a split worth it is taken up (changes 3 and 4). | Settled (2026-10-21) |
 | I4 | **Thin pairs ship with their coverage published, under a floor fixed before the committed measurement** (fr-es precedent, M6). Expected thin: it-es and es-it. | Recommended; settle before stage 2 |
 | I5 | **Order: it-fr first** (today's readers, no Italian text to write), then it-en and it-es, then the Italian interface with en-it, then fr-it and es-it. Stage 3 does not depend on stage 2 and may interleave with it. | Recommended; settle before stage 1 |
 | I6 | **Italian: tu, never Lei; QCER for the level acronym (M19's rule); Treccani's names for tenses and moods; Italian numbers (20.000; 96%).** | Recommended; settle before stage 3 |
@@ -74,16 +74,19 @@ The matrix programme's architecture holds. What Italian adds or stresses:
   for an accent (E', perche', piu', citta'; the precedent is French's unmarked spellings) and
   enclitic pronouns stacked on infinitives, gerunds and imperatives (dirmelo, vattene, eccolo;
   Spanish's enclitic rule is the model, without its stress shift).
-- **Pack format (I3).** A pack becomes two files: a *core* per studied language — `forms`,
-  `lemmas`, `freq`, `levels`, `tags`, `paradigms.zst`, `lexical`, the studied notice, a meta naming
-  the language, its analyser version and the tables' digest — and a *layer* per pair — `gloss.zst`,
-  `senses.zst`, the `expr*` sections, the native notice, a meta naming the pair, `pack_version` and
-  the core digest it was built against. `Pack::assemble(core, layer)` yields today's `Pack`, so
-  `PackSet`, the engine and every golden are untouched; `Pack::load` keeps reading a whole pack, so
-  the agent plugin and a test fixture still load one file. The tag pool is pinned in full in the
-  core (today en-es's pool carries one sense tag en-fr's lacks: 417 bytes against 413). The
-  extension fetches a core once per studied language and a layer per pair; the builder writes both
-  and `pin.json` records both; the 5 MiB budget applies per file.
+- **Pack format (I3).** A pack becomes two files: a *base* per studied language — `forms`,
+  `lemmas`, `freq`, `levels`, `lexical`, `paradigms.zst` and a `tags` pool of the pinned pool and
+  the readings' tags, with metadata naming the language, its analyser version, a `base_version`
+  digest of the base's own bytes and whether its levels are estimated — and a *layer* per pair —
+  `gloss.zst`, `senses.zst` and the tags only those senses carry, the `expr*` sections, the pair's
+  whole NOTICE and licences, with metadata naming the pair, `pack_version` and the `base_version` it
+  was built against. Assembled, the two are today's pack, every named section byte for byte (the
+  pool being the base's followed by the layer's sense tags, as a whole pack lays it out), so
+  `PackSet`, the engine and every golden are untouched; a whole pack keeps loading, so the agent
+  plugin and a test fixture still read one file, and every whole-pack reader refuses a part by
+  name. No table, pin or pinned pool moves. The extension fetches a base once per studied language
+  and a layer per pair (change 4); the builder writes both and `pin.json` records both; the 5 MiB
+  budget applies per file.
 - **Packs.** `tables/it/` holds the studied side once (M24); `tables/it-fr`, `it-en`, `it-es`,
   `en-it`, `fr-it` and `es-it` the native side. The `lingua-pack-update` workflow gains the six
   pairs and an `it` group (the reference pair writes `tables/it/` and brings its readers along).
@@ -112,7 +115,7 @@ The matrix programme's architecture holds. What Italian adds or stresses:
 - **Site.** `/it/` mirrors `/es/`: home, Music, Lingua, privacy, terms, support, account deletion,
   404, plus the islands' copy; `hreflang` lists four languages.
 - **Package.** 13.5 MB of packs today: 8.0 MB of studied sides, 5.5 MB of native sides. Split,
-  the six pairs are 4.0 MB of cores and 5.5 MB of layers, 9.5 MB; with twelve pairs, four cores
+  the six pairs are 4.0 MB of bases and 5.5 MB of layers, 9.5 MB; with twelve pairs, four bases
   (≈ 5.5 MB) and twelve layers (≈ 10–12 MB), ≈ 15–18 MB — against ≈ 27–30 MB embedded. No store
   limit is near either way (AMO's is 200 MB).
 
@@ -149,8 +152,9 @@ Other figures:
   1,984,066 — 13,473,847 B for six. Of these, the studied sections (`forms`, `lemmas`, `freq`,
   `levels`, `tags`, `paradigms.zst`, `lexical`) are 7,975,182 B (59 %) and the native sections
   (`gloss.zst`, `senses.zst`, `expr*`) 5,485,694 B. A studied side is byte-identical across its
-  natives (es-fr = es-en, fr-en = fr-es; en-fr = en-es but for one tag in the pool): one core per
-  language is 935,029 B for English, 1,575,403 for Spanish, 1,477,161 for French.
+  natives (es-fr = es-en, fr-en = fr-es; en-fr = en-es but for one tag in the pool, the sense tag
+  `NUM` a whole pack's pool ends with and a base's never holds): one base per language is
+  935,029 B for English, 1,575,403 for Spanish, 1,477,161 for French.
 - Precedents, in ideal days after the verifiers: the matrix's stage 1 (platform, 19 changes)
   64–110; stage 2 (two audiences, 22 changes) 54–98; stage 3 (French studied, 40 changes with its
   follow-ups) 76–134. Stage 3 went from its first proposal ([#817](https://github.com/NEETROF/cymbra/pull/817),
@@ -165,9 +169,9 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | Stage | # | Change | Effort | Precedent | Status |
 |---|---|---|---|---|---|
 | 0 Prerequisites | 1 | This programme and its decisions | 0.25 | — | Done (this file) |
-| 0 | 2 | `add-lingua-italian-translation-models`: it-en 2.0 and en-it 2.1 pinned, six routes; the owner redeploys the model host right after | 1–2 | 25 | |
-| 0 | 3 | `split-lingua-pack-format` (I3): a core per studied language and a layer per pair, `Pack::assemble`, the builder writing both, the wasm engine loading both, the fixtures; the six goldens and S0 unchanged | 4–6.5 | 5, 7 | |
-| 0 | 4 | `ship-lingua-pack-cores-once`: the package carries each core once and each listed layer; the extension fetches a core on first need; `packs.json`, `pin.json`, the variant check, the CI comparison, the pack-update workflow, the Apple natives derivation and the source archive follow | 2.5–4 | 7, 8 | |
+| 0 | 2 | `add-lingua-italian-translation-models`: it-en 2.0 and en-it 2.1 pinned, six routes; the owner redeploys the model host right after | 1–2 | 25 | Proposed ([#973](https://github.com/NEETROF/cymbra/pull/973)) |
+| 0 | 3 | `split-lingua-pack-format` (I3): a base per studied language and a layer per pair, `Pack::assemble`, the builder writing both, the wasm engine loading both; no table, pin or golden moves | 4–6.5 | 5, 7 | Proposed ([#972](https://github.com/NEETROF/cymbra/pull/972)) |
+| 0 | 4 | `ship-lingua-pack-bases-once`: the package carries each base once and each listed layer; the extension fetches a base on first need; `packs.json`, `pin.json`, the variant check, the CI comparison, the pack-update workflow, the Apple natives derivation and the source archive follow | 2.5–4 | 7, 8 | |
 | 1 Italian studied: it-fr | 5 | `add-lingua-italian-baseline`: the variant, backup v4, the Italian corpus and golden beside the six | 3–5 | 39 | |
 | 1 | 6 | `add-lingua-italian-tokenisation` (I7): elision pieces, articulated prepositions, truncation, the apostrophe for an accent | 5–8 | 40 | |
 | 1 | 7 | `add-lingua-italian-analysis`: NFC, cascade, closed classes, names rule, enclitic pronouns; analyser 1.0.0 | 5–8 | 41 | |
@@ -262,9 +266,9 @@ the model host's deploys and the store submissions, not by the volume of code.
 6. **Owner workload**: three dashboards × an Italian locale, screenshots, legal pages, five
    targets, a model host deploy. Mitigated by the stages: Italian for French speakers first costs
    him no Italian text at all.
-7. **The split moves every pack's bytes once** — two files per pair, new sha256s in every
-   `pin.json`, every loader and tool that names `<pair>.lingua`. Mitigated by the six goldens and
-   S0 running unchanged on changes 3 and 4, by `Pack::load` still reading a whole pack (the agent
-   plugin, the fixtures), and by the two changes landing before any Italian pack.
+7. **The split touches every loader and tool that names `<pair>.lingua`, and change 4 records
+   two files per pair in every `pin.json`.** Mitigated by the six goldens and S0 running unchanged
+   on changes 3 and 4, by a whole pack still loading and every whole-pack reader refusing a part
+   (the agent plugin, the fixtures), and by the two changes landing before any Italian pack.
 8. kaikki's per-language extracts are deprecated (the matrix's risk 6); the raw-dump migration
    (matrix change 38) already covers new pairs.
