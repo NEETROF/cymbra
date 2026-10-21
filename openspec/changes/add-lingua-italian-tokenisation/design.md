@@ -68,28 +68,42 @@ including the apostrophe is a token of its own, and the rule runs again on what 
 |---|---|
 | `l'` | `lo` — the form that elides before a vowel; `la` would need the next word's gender, as French's `l'` → `le` |
 | `un'` | `una` |
-| `d'` | `di` |
+| `d'` | `di` — also `da` in « d'ora in poi »; `di` is the commoner |
 | `c'` | `ci` |
 | `v'` | `vi` |
 | `m'` | `mi` |
 | `t'` | `ti` |
-| `s'` | `si` |
+| `s'` | `si` — also `se` in literary « s'io fossi »; `si` is the commoner |
 | `n'` | `ne` |
 | `ch'` | `che` |
 | `gl'` | `gli` |
 | `dov'` | `dove` |
 | `com'` | `come` |
+| `cos'` | `cosa` |
+| `quand'` | `quando` |
+| `dev'` | `deve` |
+| `diss'` | `disse` |
 | `quest'` | `questo` |
 | `quell'` | `quello` |
 | `anch'` | `anche` |
 | `senz'` | `senza` |
 | `tutt'` | `tutto` |
 | `bell'` | `bello` |
+| `buon'` | `buona` — the masculine elides without an apostrophe (`buon uomo`) |
 | `grand'` | `grande` |
+| `pover'` | `povero` — also `povera`; the masculine, as `l'` |
 | `sant'` | `santo` |
-| `mezz'` | `mezzo` |
+| `mezz'` | `mezzo` — also `mezza` in « mezz'ora », its commonest use; the tables file both under one lemma |
 | `nient'` | `niente` |
 | `quant'` | `quanto` |
+| `cent'` | `cento` |
+| `vent'` | `venti` |
+| `sott'` | `sotto` |
+| `nessun'` | `nessuna` — the masculine elides without an apostrophe |
+| `qualcos'` | `qualcosa` |
+| `qualcun'` | `qualcuna` |
+| `ciascun'` | `ciascuna` |
+| `alcun'` | `alcuna` |
 
 Matching is on the lowercased part; the read word takes the written first letter's capital on its
 own first letter (`L'` → `Lo`, `Quest’` → `Questo`), by French's casing (the read word's own first
@@ -106,9 +120,8 @@ keeping them whole when the forms tables list them would hide *essere* and *aver
 
 **The read word is the token's text**, as French's is: the pack then resolves a dictionary word
 (`lo`, `una`, `ci`), change 7's closed classes and change 12's keys read dictionary words, and the
-names rule sees a word the pack lists. Measured at `0.1.0` on the corpus: every sentence-initial
-elision (`L'uomo`, `C'era`, `Quest'anno`) is set aside as a name, being capitalised and outside
-the lexicon.
+names rule sees a word the pack lists. At `0.1.0`, `L'uomo`, `C'era` and `Quest'anno` are
+unlisted tokens (`l'uomo`, `c'era`, `quest'anno`), unglossed; here their pieces are pack words.
 
 *Rejected — reading `l'` as `il`.* `il` never elides; a reader clicking `l'` would be shown a word
 the page could not have written there. `lo` is the elided form before a vowel; the forms table
@@ -141,10 +154,16 @@ partitive read as a definite article; I7 settled it as M21 did for `du`/`des`.
 ### D5 — Truncation: a closed list of words ending in an apostrophe
 
 Italian's words seam (D2's counterpart of `french_words`) re-attaches a trailing apostrophe —
-straight or typographic — to the word before it when a letter precedes it, so that the arm reads
-`po'`, `perche'` and `e'` whole where every other language's edge trim drops the apostrophe. A
-word whose last character is an apostrophe with no letter after it is then one token whose span
-holds the apostrophe. When the lowercased word is on the list, it is read as the word it stands for:
+straight or typographic — to the word before it only when the lowercased word, apostrophe
+included, is on a list: D3's elided forms written alone (a word card hands the engine « l’ »: read
+as `lo`, one token spanning the apostrophe, as French reads « l’ » alone through
+`apostrophe_ending_a_word`) or the truncations below. Any other trailing apostrophe — the closing
+quote of « ‘ciao’ », the apostrophe that stands for an accent in « perche' » — stays outside the
+word, as the rule of no language leaves it (`‘ciao’` is `ciao`, `perche'` is `perche`); change 10
+extends the list with its reviewed spellings, which is where `perche'` belongs. A listed word
+whose last character is an apostrophe is then one token whose span holds the apostrophe. A
+truncation's read word is final: `da'` → `dai` is not re-read by D4, while a written `dai` is
+`da` + `i` by I7 — the verb « dai! » is the cost, named in Risks. When the lowercased word is on the list, it is read as the word it stands for:
 
 | Written | Read as |
 |---|---|
@@ -157,9 +176,10 @@ holds the apostrophe. When the lowercased word is on the list, it is read as the
 | `di'` | `dici` |
 | `be'` | `bene` |
 
-Any other word ending in an apostrophe (`perche'`, `e'`, `piu'`, `citta'`) is read as written:
+Any other word ending in an apostrophe (`perche'`, `e'`, `piu'`, `citta'`) loses it, as today:
 the apostrophe that stands for an accent is change 10's, where a reviewed list maps each to its
-accented word. The imperatives are read as their full second-person forms (`fai`, `vai`), which
+accented word — change 5's design placed it here; the programme's row 6 is corrected in this
+change. The imperatives are read as their full second-person forms (`fai`, `vai`), which
 the forms table files under the verb.
 
 *Alternative.* Reading the imperatives as their dictionary form (`fare`): the tokeniser reads
@@ -170,12 +190,17 @@ written words, not lemmas; `fai` is what the page could have written.
 An elided piece and the word after it each hold their own span (D3); a split articulated
 preposition's two tokens share theirs (D4); a truncation is one token (D5). This is the shape
 change 40 fixed for French, and the extension's hit test (change 40's D7) resolves a click between
-two pieces to the piece that starts there.
+two pieces to the piece that starts there. Two Italian tokens hold a span ending on an
+apostrophe — an elided form alone and a truncation —, so `is_elided`'s invariant (no other
+token's span ends on one) widens to « an elided piece or a truncation », its doc and the page
+joins' say so; harmless today (`meets_as_written` runs for French alone) and inherited by change
+12. A token's text maps `’` to `'`, as every language's does.
 
 ### D7 — `0.2.0`, the fixture, the probes
 
 `ITALIAN_ANALYZER_VERSION = "0.2.0"`, the fixture's manifest with it. The fixture gains the words
-the pre-pass writes that it lacked — the articles `il`, `lo`, `la`, `i`, `gli`, `le`, `una`; `di`,
+the pre-pass writes where it lacks them (change 5's holds the plain articles, pronouns and `a`,
+`e`, `è`, `o`) — the articles `il`, `lo`, `la`, `i`, `gli`, `le`, `una`; `di`,
 `a`, `da`, `in`, `su`, `con`; the clitics `ci`, `vi`, `mi`, `ti`, `si`, `ne`; `che`, `dove`,
 `come`, `questo`, `quello`, `anche`, `senza`, `tutto`, `bello`, `grande`, `santo`, `mezzo`,
 `niente`, `quanto`; `dello`, `della`, `dei`, `degli`, `delle`; `poco`, `modo`, `fai`, `vai`,
@@ -186,12 +211,10 @@ cammin » (Dante, a line in the public domain), and (`l’`, `lo`), (`al`, `a`).
 ### D8 — What the golden shows, and what does not move
 
 The re-bless of `it-fr.golden` is the diff of this change: every elision of the `elisioni`,
-`manzoni`, `nomi` and `narrativa` pages becomes pieces, every `al`/`nel`/`sul`/`dal`/`col` of
-the `preposizioni` page two tokens, the `di` family unchanged, `po'` read as `poco`, the
-sentence-initial elisions now pack words. The `informale` page's `perche'`, `piu'`, `citta'`, `e'`
-and `E'` move from `perche`, `piu`, `citta`, `e`, `E` to the words as written, apostrophe kept —
-`e'` loses the gloss of *e* it had by accident — until change 10 reads them as `perché`, `più`,
-`città`, `è`. The six goldens, S0 and every pin are byte for byte; the English, Spanish and French arms
+`manzoni`, `nomi`, `narrativa`, `tecnico` (`l'API`) and `notizie` pages becomes pieces, every
+`al`/`nel`/`sul`/`dal`/`col` of the `preposizioni` and `notizie` pages two tokens, the `di` family
+unchanged, `po'` read as `poco`. The `informale` page's `perche'`, `piu'`, `citta'`, `e'` and `E'`
+do not move: their trailing apostrophe stays outside the word, as at `0.1.0`, until change 10. The six goldens, S0 and every pin are byte for byte; the English, Spanish and French arms
 are not touched.
 
 ## Risks / Trade-offs
@@ -203,9 +226,11 @@ are not touched.
   reviewed by the owner (task 4.1) and can grow at a later analyser bump.
 - [A truncation that is also a word] → none of the eight is; `da'` and `di'` with the apostrophe
   are distinct from `da` and `di`.
-- [The corpus's `informale` page] → its apostrophe-accent words are read as written here, their
-  apostrophe kept, and move with change 10, whose diff then shows them alone; `e'` is unglossed
-  meanwhile where it was glossed as *e* by the trim.
+- [« dai! », the verb, read as `da` + `i`] → I7's split; the verb's card is reached through `da'`
+  and its other forms; named for the owner (task 4.1).
+- [`s'`, `d'`, `mezz'`, `pover'` read as their commoner word] → the piece's text is the word the
+  page could have written; the tables file both readings' lemmas where they differ.
+- [The corpus's `informale` page] → untouched here; change 10's diff shows it alone.
 
 ## Migration Plan
 

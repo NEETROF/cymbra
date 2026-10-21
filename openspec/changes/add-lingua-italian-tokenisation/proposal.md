@@ -26,8 +26,10 @@ an accent (`perche'`, `E'`) is change 10's; the expression keys that read the pi
 - **Italian's tokenisation pre-pass** in `crates/lingua-core/src/analysis/tokenize.rs`, Italian's
   arm alone (design D2–D6):
   - **Elision**: an elided word from a closed list — `l'`, `un'`, `d'`, `c'`, `v'`, `m'`, `t'`,
-    `s'`, `n'`, `ch'`, `gl'`, `dov'`, `com'`, `quest'`, `quell'`, `anch'`, `senz'`, `tutt'`,
-    `bell'`, `grand'`, `sant'`, `mezz'`, `nient'`, `quant'`, with the straight or the typographic
+    `s'`, `n'`, `ch'`, `gl'`, `dov'`, `com'`, `cos'`, `quand'`, `dev'`, `diss'`, `quest'`,
+    `quell'`, `anch'`, `senz'`, `tutt'`, `bell'`, `buon'`, `grand'`, `pover'`, `sant'`, `mezz'`,
+    `nient'`, `quant'`, `cent'`, `vent'`, `sott'`, `nessun'`, `qualcos'`, `qualcun'`, `ciascun'`,
+    `alcun'`, with the straight or the typographic
     apostrophe and followed by a letter — is split from the word it is joined to. Each piece is a
     token with **its own source span**, the elided piece's span holding its apostrophe, and the
     elided piece is read as the word it stands for (`lo`, `una`, `di`, `ci`, `questo`…), its
@@ -39,14 +41,15 @@ an accent (`perche'`, `E'`) is change 10's; the expression keys that read the pi
     `i`; the two tokens sharing the source span, as Spanish's `al` and French's `au` do; the
     elided ones (`all'`, `dall'`, `nell'`, `sull'`) → the preposition + `lo`, sharing the span,
     apostrophe included.
-  - **A trailing apostrophe belongs to its word**: Italian's words seam keeps it, where the
-    edge trim of every language drops it today, so that the truncations can be read and the
-    apostrophe that stands for an accent is kept for change 10.
+  - **A trailing apostrophe belongs to its word when the word is on a list** — an elided form
+    written alone, as a word card hands it, or a truncation; Italian's words seam keeps it there,
+    where the edge trim of every language drops it; any other stays outside the word, as today.
   - **Truncation**: a word ending in an apostrophe with no letter after it, from a closed list —
     `po'`, `mo'`, `fa'`, `va'`, `da'`, `sta'`, `di'`, `be'` — is read as the word it stands for
     (`poco`, `modo`, `fai`, `vai`, `dai`, `stai`, `dici`, `bene`), one token, its span holding the
-    apostrophe. Any other word ending in an apostrophe (`perche'`, `e'`) stays one token, read as
-    written, until change 10.
+    apostrophe. `perche'` and `e'` lose their apostrophe as today, until change 10's reviewed list
+    reads them — change 5's design placed that reading here; it belongs with the spellings, and the
+    programme's row 6 is corrected in this change.
   - Hyphenated runs keep the shared compound rule; an elision on a run's first piece is split off
     (`l'anglo-americano` → `lo` + `anglo-americano`). Italian has no hyphenated inversion.
   - The pieces are lemmatised as any word is: by the baseline (the pack's forms, else the lowercased

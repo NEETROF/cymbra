@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Italian tokenisation pre-pass
-The core SHALL read Italian text through a pre-pass of its own, beside the rules that belong to no language. An elided word — `l'`, `un'`, `d'`, `c'`, `v'`, `m'`, `t'`, `s'`, `n'`, `ch'`, `gl'`, `dov'`, `com'`, `quest'`, `quell'`, `anch'`, `senz'`, `tutt'`, `bell'`, `grand'`, `sant'`, `mezz'`, `nient'` or `quant'`, written with the straight or the typographic apostrophe and followed by a letter — SHALL be split from the word it is joined to, each piece a token with its own source span, the elided piece's span holding its apostrophe, the elided piece read as the word it stands for (`lo`, `una`, `di`, `ci`, `vi`, `mi`, `ti`, `si`, `ne`, `che`, `gli`, `dove`, `come`, `questo`, `quello`, `anche`, `senza`, `tutto`, `bello`, `grande`, `santo`, `mezzo`, `niente`, `quanto`) with its written capital kept. The articulated prepositions of `di` — `del`, `dello`, `della`, `dei`, `degli`, `delle`, and `dell'` read as `dello` — SHALL stay whole; every other articulated preposition — `al`, `allo`, `alla`, `ai`, `agli`, `alle`, `dal`, `dallo`, `dalla`, `dai`, `dagli`, `dalle`, `nel`, `nello`, `nella`, `nei`, `negli`, `nelle`, `sul`, `sullo`, `sulla`, `sui`, `sugli`, `sulle`, `col`, `coi`, and the elided `all'`, `dall'`, `nell'`, `sull'` read with `lo` — SHALL be split into its preposition (`a`, `da`, `in`, `su`, `con`) and its article, the two tokens sharing the source span, the first keeping the written capital. A word ending in an apostrophe with no letter after it SHALL be one token whose span holds the apostrophe: `po'`, `mo'`, `fa'`, `va'`, `da'`, `sta'`, `di'` and `be'` read as `poco`, `modo`, `fai`, `vai`, `dai`, `stai`, `dici` and `bene`; any other SHALL read as written. Nothing SHALL be split inside a hyphenated compound beyond an elision on its first piece. Italian's analyser version SHALL be `0.2.0` with this pre-pass, and no other language's tokenisation SHALL move.
+The core SHALL read Italian text through a pre-pass of its own, beside the rules that belong to no language. An elided word — `l'`, `un'`, `d'`, `c'`, `v'`, `m'`, `t'`, `s'`, `n'`, `ch'`, `gl'`, `dov'`, `com'`, `cos'`, `quand'`, `dev'`, `diss'`, `quest'`, `quell'`, `anch'`, `senz'`, `tutt'`, `bell'`, `buon'`, `grand'`, `pover'`, `sant'`, `mezz'`, `nient'`, `quant'`, `cent'`, `vent'`, `sott'`, `nessun'`, `qualcos'`, `qualcun'`, `ciascun'` or `alcun'`, written with the straight or the typographic apostrophe and followed by a letter — SHALL be split from the word it is joined to, each piece a token with its own source span, the elided piece's span holding its apostrophe, the elided piece read as the word it stands for (`lo`, `una`, `di`, `ci`, `vi`, `mi`, `ti`, `si`, `ne`, `che`, `gli`, `dove`, `come`, `cosa`, `quando`, `deve`, `disse`, `questo`, `quello`, `anche`, `senza`, `tutto`, `bello`, `buona`, `grande`, `povero`, `santo`, `mezzo`, `niente`, `quanto`, `cento`, `venti`, `sotto`, `nessuna`, `qualcosa`, `qualcuna`, `ciascuna`, `alcuna`) with its written capital kept. The articulated prepositions of `di` — `del`, `dello`, `della`, `dei`, `degli`, `delle`, and `dell'` read as `dello` — SHALL stay whole; every other articulated preposition — `al`, `allo`, `alla`, `ai`, `agli`, `alle`, `dal`, `dallo`, `dalla`, `dai`, `dagli`, `dalle`, `nel`, `nello`, `nella`, `nei`, `negli`, `nelle`, `sul`, `sullo`, `sulla`, `sui`, `sugli`, `sulle`, `col`, `coi`, and the elided `all'`, `dall'`, `nell'`, `sull'` read with `lo` — SHALL be split into its preposition (`a`, `da`, `in`, `su`, `con`) and its article, the two tokens sharing the source span, the first keeping the written capital. A word ending in an apostrophe with no letter after it SHALL keep its apostrophe, one token whose span holds it, only when the word is on a list: an elided form of this requirement written alone — « l’ » as a word card hands it — read as the word it stands for, or a truncation — `po'`, `mo'`, `fa'`, `va'`, `da'`, `sta'`, `di'` and `be'` read as `poco`, `modo`, `fai`, `vai`, `dai`, `stai`, `dici` and `bene` — whose read word is final and not re-read as an articulated preposition; any other trailing apostrophe SHALL stay outside the word, as the rule of no language leaves it, until the apostrophe that stands for an accent is read by a reviewed list. Nothing SHALL be split inside a hyphenated compound beyond an elision on its first piece. Italian's analyser version SHALL be `0.2.0` with this pre-pass, and no other language's tokenisation SHALL move.
 
 #### Scenario: An elided article
 - **WHEN** « L'uomo » is tokenised as Italian
@@ -14,8 +14,12 @@ The core SHALL read Italian text through a pre-pass of its own, beside the rules
 - **THEN** the tokens are `lo` and `amica`, `lo` spanning « l’ », apostrophe included
 
 #### Scenario: Elided words read as the words they stand for
-- **WHEN** « c'è », « un'amica », « dov'è », « quest'anno », « anch'io » and « senz'altro » are tokenised as Italian
+- **WHEN** « c'è », « un'amica », « dov'è », « quest'anno », « anch'io » and « senz'altro » are tokenised as Italian with a pack that lists `è`
 - **THEN** the tokens are `ci` and `è`, `una` and `amica`, `dove` and `è`, `questo` and `anno`, `anche` and `io`, `senza` and `altro`
+
+#### Scenario: More elided forms
+- **WHEN** « cos'è », « quand'ero », « dev'essere », « cent'anni » and « nessun'altra » are tokenised as Italian with a pack that lists `è`
+- **THEN** the tokens are `cosa` and `è`, `quando` and `ero`, `deve` and `essere`, `cento` and `anni`, `nessuna` and `altra`
 
 #### Scenario: The di family stays whole
 - **WHEN** « del pane, della casa, dei libri, dell'acqua » is tokenised as Italian
@@ -37,9 +41,9 @@ The core SHALL read Italian text through a pre-pass of its own, beside the rules
 - **WHEN** « un po' di pane, va' via » is tokenised as Italian
 - **THEN** the tokens are `un`, `poco`, `di`, `pane`, `vai`, `via`, `poco` spanning « po' » and `vai` spanning « va' »
 
-#### Scenario: An apostrophe that stands for an accent
-- **WHEN** « perche' » and « e' » are tokenised as Italian
-- **THEN** each is one token read as written, its span holding the apostrophe
+#### Scenario: An apostrophe that stands for an accent, and a closing quote
+- **WHEN** « perche' », « e' » and « ‘ciao’ » are tokenised as Italian
+- **THEN** the tokens are `perche`, `e` and `ciao`, the trailing apostrophe or closing quote outside the word as in every language, until a reviewed list reads the first two as `perché` and `è`
 
 #### Scenario: A hyphenated compound
 - **WHEN** « l'anglo-americano » and « week-end » are tokenised as Italian with a pack listing neither
@@ -63,7 +67,7 @@ The core SHALL read Italian text through a pre-pass of its own, beside the rules
 The core SHALL analyse Italian as a studied language, tagged `it` and detected as Italian, and SHALL serve it with the baseline analysis until its own rules are written, its tokenisation pre-pass excepted (*Italian tokenisation pre-pass*): segmentation, the pre-pass rules that belong to no language, and the pack's form→lemma lookup, the lowercased form when the pack does not list it; no enclitic split, no Unicode (NFC) normalisation, no exception table, no function-word table, no names rule and no detection guard. Italian SHALL carry an analyser version of its own, below `1.0.0` while the baseline serves it, which a pack studying Italian is checked against and no other language's pack is. A rule written for English, Spanish or French SHALL NOT run on Italian, and adding Italian SHALL leave the English, Spanish and French analyses byte for byte what they were.
 
 #### Scenario: An elided word is one token
-- **WHEN** « l'uomo », « un'amica », « dell'acqua » and « c'è » are tokenised as Italian with a pack that lists none of them
+- **WHEN** « l'uomo », « un'amica », « dell'acqua » and « c'è » are tokenised as Italian with a pack that lists `è` and none of the whole words
 - **THEN** « l'uomo » is `lo` and `uomo`, « un'amica » `una` and `amica`, « dell'acqua » `dello` and `acqua`, « c'è » `ci` and `è`, each piece lemmatised as itself, lowercased
 
 #### Scenario: Articulated prepositions are whole
@@ -110,7 +114,7 @@ The core's tests SHALL hold an Italian invariance baseline: the engine's output 
 - **THEN** « l'uomo » is `lo` and `uomo`, « del » is whole, « al » is `a` and `il`, « po' » is `poco`, « dirmelo » is one token, no token is a function word, the Catalan and Galician blocks are analysed as Italian, and the analysis reports `0.2.0`
 
 #### Scenario: An Italian rule lands
-- **WHEN** a later change gives Italian a lemmatisation or detection rule
+- **WHEN** a later change gives Italian a tokenisation, lemmatisation or detection rule
 - **THEN** the golden moves, and that pull request re-blesses it, bumps Italian's analyser version and says what moved
 
 #### Scenario: The committed tables replace the fixture
