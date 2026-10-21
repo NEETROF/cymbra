@@ -36,8 +36,8 @@ See proposal.md — Why. What constrains the shape:
 - Change 3 (the split) refuses a studied language whose `tags.tsv` is empty, and change 4 has the
   extension check build each pair's parts too (`build.sh --parts`) and `pin.json` record them;
   change 13 fills Italian's pool. Until then `tags.tsv` holds the one canonical tag change 4 gave
-  the French fixtures, `NOUN`, so the split never meets an empty pin (change 4: no fixture carries
-  one).
+  the French fixtures, `NOUN`: change 3 refuses an input with no `tags.tsv`, and an empty one is
+  the case change 4 says no fixture exercises, so it-fr never puts it to the test.
 
 ## Goals / Non-Goals
 
@@ -68,9 +68,10 @@ not edited.
 The Italian section as matrix change 38's catalogue derives it from the English edition's dump,
 registered in `DUMPS["it-fr"]`; MarkIT at a commit, in `PINNED["it-fr"]`, its training and
 development sections read for their counts and parts of speech (as French read GSD's two), its
-test section held out; UD Italian-PUD at a commit, in `PINNED["it-fr"]` too but read by the
-measurement alone (D8), as `es-pud.sh` and `fr-ud.sh` hold PUD out of the reduction by
-construction; wordfreq 3.1.1's `it`; Morph-it! 0.4.7 at its sha256, a `PINNED["it-fr"]` entry
+test section held out; UD Italian-PUD is no pinned source — every `PINNED` entry is fetched into
+the reduction's work folder and named by `pin.json`, which French's held-out test forbids for the
+gate —, so `measure/it-ud.sh` pins its commit and sha256, as `es-pud.sh` and `fr-ud.sh` do, and
+reads it alone (D8); wordfreq 3.1.1's `it`; Morph-it! 0.4.7 at its sha256, a `PINNED["it-fr"]` entry
 whose URL is a one-off release the owner uploads (`lingua-pack-sources-morph-it-0.4.7`), since its
 site offers no stable address and the snapshot release publishes the kaikki-derived files alone
 (`pack_sources.assets`); it is read under its CC BY-SA 2.0 option, which the 4.0 stack of
@@ -79,8 +80,8 @@ site offers no stable address and the snapshot release publishes the kaikki-deri
 ### D3 — What a form is
 
 An Italian word, lowercased and in NFC, the typographic apostrophe read as `'`, matches
-`[a-zàèéìíîòóùúäëïöüçñ]+(?:['-][a-zàèéìíîòóùúäëïöüçñ]+)*'?` — the letters the section's Italian
-entries use, the loans' included (*würstel*), words joined by hyphens or by an inner apostrophe,
+`[a-zàèéìíîòóùúâêôäëïöüçñ]+(?:['-][a-zàèéìíîòóùúâêôäëïöüçñ]+)*'?` — the letters the section's Italian
+entries use, the loans' included (*würstel*, *crêpe*), words joined by hyphens or by an inner apostrophe,
 and the elided pieces' and truncations' final apostrophe; an entry outside it is neither a form
 nor a rank, and their count is measured. A form's candidate lemmas
 come from the inflections a lemma's entry lists (less kaikki's bookkeeping and an inflection
@@ -166,10 +167,13 @@ out.
 
 `tables/it/`: `forms.tsv`, `freq.tsv`, `studied.json`, `tags.tsv` holding `NOUN` alone until
 change 13 fills the pool, an empty `lexical.tsv` (change 16); `tables/it-fr/`: an empty `gloss.tsv`, `NOTICE` (the Italian
-section, wordfreq, PUD, MarkIT, Morph-it! if kept — under its CC BY-SA 2.0 option —, credited as
-their licences require),
+section, wordfreq, MarkIT, Morph-it! if kept — under its CC BY-SA 2.0 option —, credited as
+their licences require; PUD is measured against, never shipped, as fr-en's NOTICE leaves it out),
 `manifest.json` (studies `it`, glossed in `fr`, Italian's analyser version read from lingua-core,
-`levels_estimated` absent until change 14), `pin.json`, `README.md`. `lingua-pack-update` offers
+`levels_estimated` absent until change 14), `pin.json`, `README.md`. Before the first update is dispatched, `tables/it/studied.json`
+(`{"reference": "it-fr"}`) and `tables/it/tags.tsv` (`NOUN`) are committed by hand, as French's
+were (change 43's D10): `record-build` raises when a studied language's `tags.tsv` is missing, a
+kept input nothing writes. `lingua-pack-update` offers
 it-fr in `pair` and an `it` group; the monthly check and the reduce job take it through `pairs`;
 `lingua-extension-check` builds its pack, whole and in parts, from the committed tables against
 its pin, as the six. The Italian baseline keeps its fixture and its golden: a pack of forms and

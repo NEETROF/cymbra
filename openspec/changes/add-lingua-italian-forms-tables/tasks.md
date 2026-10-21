@@ -9,14 +9,14 @@
 
 ## 2. Sources, pipeline and tables
 
-- [ ] 2.1 `pack_sources.py`: `DUMPS["it-fr"]` (the Italian section from the English edition's dump), `PINNED["it-fr"]` (MarkIT at a commit for its counts, UD Italian-PUD at a commit for the measurement alone, sha256), Morph-it! as a `PINNED` entry at the one-off release the owner uploads (`lingua-pack-sources-morph-it-0.4.7`), the `it` group; `test_pack_sources.py` covers them; `SOURCES.md` gains *IT → FR: Italian studied* with each source's licence and reduction.
+- [ ] 2.1 `pack_sources.py`: `DUMPS["it-fr"]` (the Italian section from the English edition's dump), `PINNED["it-fr"]` (MarkIT at a commit for its counts, sha256; PUD is not pinned here — `it-ud.sh` pins it, task 3.2), Morph-it! as a `PINNED` entry at the one-off release the owner uploads before any dispatch (`lingua-pack-sources-morph-it-0.4.7`, task 5.1), the `it` group; `test_pack_sources.py` covers them; `SOURCES.md` gains *IT → FR: Italian studied* with each source's licence and reduction.
 - [ ] 2.2 `.github/workflows/lingua-pack-update.yml`: it-fr in `pair`'s options, the `it` group (it-fr writes `tables/it/`); `lingua-extension-check.yml`: it-fr built from the committed tables, whole and in parts, against its pin and checked like the six; the Italian baseline listed as it is, over its fixture.
-- [ ] 2.3 [owner-dispatched] `lingua-pack-update` in mode `update` for it-fr, with the owner's go-ahead for the sources release: the workflow's pull request commits `tables/it/` and `tables/it-fr/` (D9) with the measurement's figures; `bash scripts/lingua-data/build.sh it-fr /tmp/it-fr.lingua` passes against the pin.
+- [ ] 2.3 `tables/it/studied.json` (`{"reference": "it-fr"}`) and `tables/it/tags.tsv` (`NOUN`) committed on the branch first, as French's were (`record-build` raises without `tags.tsv`); then [owner-dispatched], after the owner's Morph-it! upload (5.1) and go-ahead for the sources release, `lingua-pack-update` in mode `update` for it-fr: the workflow's pull request commits `tables/it/` and `tables/it-fr/` (D9) with the measurement's figures; `bash scripts/lingua-data/build.sh it-fr /tmp/it-fr.lingua` passes against the pin.
 
 ## 3. Checks and measurement
 
 - [ ] 3.1 `crates/lingua-pack/tests/committed_tables.rs`: Italian's tables held like French's — every word change 6's pre-pass writes is a form, no articulated preposition of the split families a form (`dai` excepted, the truncation's word), every rank on its own lemma, the pin's studied record, `tags.tsv` holding `NOUN` and `lexical.tsv` empty; `cargo test -p lingua-pack --test committed_tables` passes.
-- [ ] 3.2 `scripts/lingua-data/measure/it-ud.sh` (D8): PUD gated at 98.5 / 93.5 / 97, MarkIT's test section reported; its figures and D5's and D7's measurements (what decides the lemmas, M8's cost at 1,000 / 2,000 / 5,000, Morph-it!'s additions, the cut) recorded in the pull request and in `tables/it-fr/README.md`.
+- [ ] 3.2 `scripts/lingua-data/measure/it-ud.sh` (D8): PUD at a commit and sha256 pinned in the script, as `fr-ud.sh` pins it, gated at 98.5 / 93.5 / 97, MarkIT's test section reported; its figures and D5's and D7's measurements (what decides the lemmas, M8's cost at 1,000 / 2,000 / 5,000, Morph-it!'s additions, the cut) recorded in the pull request and in `tables/it-fr/README.md`.
 - [ ] 3.3 The Italian baseline keeps `PackSource::Testdata` (D9): `cargo test -p lingua-wasm --test italian_baseline` passes without re-blessing, and `git diff --stat` shows `tests/baseline/it-fr.golden` untouched.
 
 ## 4. Gates
@@ -27,4 +27,4 @@
 
 ## 5. Owner
 
-- [ ] 5.1 [manual] The owner approves the publication of the sources release (`lingua-pack-sources-it-fr-<snapshot>`), uploads Morph-it! 0.4.7 as the one-off release `lingua-pack-sources-morph-it-0.4.7` (D2), reads the measurements of D5 and D7 and Morph-it!'s additions, and settles whether Morph-it! stays among the pinned sources (I11's « verified at the forms change »).
+- [ ] 5.1 [manual] The owner approves the publication of the sources release (`lingua-pack-sources-it-fr-<snapshot>`), uploads — before task 2.3's dispatch — Morph-it! 0.4.7 as the one-off release `lingua-pack-sources-morph-it-0.4.7` (D2), reads the measurements of D5 and D7 and Morph-it!'s additions, and settles whether Morph-it! stays among the pinned sources (I11's « verified at the forms change »).

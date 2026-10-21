@@ -16,9 +16,9 @@ paradigms are listed form by form.
 Two things differ from French and the owner settled them as I11. There is no licence-clean Italian
 treebank of GSD's size: UD Italian-ISDT, VIT, ParTUT and PoSTWITA are non-commercial, and the two
 clean ones are small — UD Italian-PUD's 1,000 sentences (CC BY-SA 3.0) and MarkIT's ≈ 1,300
-(CC BY 4.0, students' essays of marked constructions). PUD is the gate, held out as GSD's test
-section never was read; MarkIT's training and development sections give the counts, its test
-section is reported. So the counts that choose a form's lemma are thinner, and wordfreq's
+(CC BY 4.0, students' essays of marked constructions). PUD is the gate, held out of the reduction as
+French held it; MarkIT's training and development sections give the counts, its test section is
+reported. So the counts that choose a form's lemma are thinner, and wordfreq's
 frequency decides more often. And Morph-it! (CC BY-SA 2.0 / LGPL,
 504,906 entries over 34,968 lemmas, from a newspaper corpus) is a second source of forms: it is
 read for what it adds that the Wiktionary lacks, and kept only if the measurement shows it adds
@@ -58,14 +58,17 @@ without moving the gates.
     word whose every form reads as another; their forms attested in wordfreq.
 - **Committed tables.** `tables/it/`: `forms.tsv`, `freq.tsv` (60,000 rows), `studied.json` naming
   it-fr, and the two files every studied folder holds: `tags.tsv` with the one tag change 4 pins
-  for a fixture without a pool, `NOUN`, until change 13 fills it (the split refuses an empty
-  pin), and `lexical.tsv`, empty until change 16. `tables/it-fr/`: an empty `gloss.tsv` (the
+  for a fixture without a pool, `NOUN`, until change 13 fills it (change 3 refuses an input with no
+  `tags.tsv`, and an empty one is the case change 4 says is never exercised), and `lexical.tsv`,
+  empty until change 16. `studied.json` and `tags.tsv` are committed by hand before the first
+  update is dispatched, as French's were. `tables/it-fr/`: an empty `gloss.tsv` (the
   glosses are change 16), `NOTICE`, `manifest.json` (Italian's analyser version, read from
   lingua-core), `pin.json` and `README.md`.
 - **Pinned sources.** `kaikki-Italian.jsonl`, derived from the English edition's dump and published
   under it-fr's release; MarkIT at a commit (`PINNED`), its training and development sections read
-  for their counts; UD Italian-PUD at a commit, read by the measurement alone; Morph-it! 0.4.7 at
-  its sha256, at a one-off release the owner uploads; wordfreq 3.1.1.
+  for their counts; Morph-it! 0.4.7 at its sha256, at a one-off release the owner uploads;
+  wordfreq 3.1.1. UD Italian-PUD is no pinned source: the measurement script pins its commit and
+  sha256, as French's does, so the pin never names it.
 - **A measurement** (`scripts/lingua-data/measure/it-ud.sh`): the real analyser over UD
   Italian-PUD, held to Spanish's gates (98.5 / 93.5 / 97), and over MarkIT's test section,
   reported; both fetched at a pinned commit, checked by sha256, never committed, never read by the
