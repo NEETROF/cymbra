@@ -14,5 +14,5 @@ The Spanish home page SHALL describe Cymbra Lingua from the pairs it ships. Once
 - **THEN** the card names English as the language read and no audience, and links `/es/lingua`
 
 #### Scenario: Spanish speakers learning Italian
-- **WHEN** it-es ships beside en-es and fr-es
+- **WHEN** it-es ships beside en-es and fr-es, and no other pair glossed in Spanish
 - **THEN** the card reads "Lee la web en inglés, en francés o en italiano…", names no audience, and links `/es/lingua`

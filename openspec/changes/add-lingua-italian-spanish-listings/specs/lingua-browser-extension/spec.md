@@ -51,4 +51,4 @@ Each store listing of Cymbra Lingua SHALL name every language the packages teach
 
 #### Scenario: Spanish speakers learning Italian
 - **WHEN** it-es is listed beside en-es and fr-es
-- **THEN** the Spanish texts name English, French and Italian, say that Italian's levels are estimated wherever they name levels, say whether Italian is translated — through English — and, if so, what it downloads, say that their dictionary explains fewer Italian words than English ones, pointing to the published figures; and the French, English and Italian texts that say what Spanish speakers study name Italian
+- **THEN** the Spanish texts name English, French and Italian, say that Italian's levels are estimated wherever they name levels, say whether Italian is translated — through English — and, if so, what it downloads, say that their dictionary explains fewer Italian words than English ones where it-es's committed coverage is under en-es's at each top, pointing to the published figures; and the French, English and Italian texts that say what Spanish speakers study name Italian

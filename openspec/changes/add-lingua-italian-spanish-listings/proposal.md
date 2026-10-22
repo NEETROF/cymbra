@@ -7,7 +7,7 @@ it-es for Spanish speakers, through English (I4, I11). Nothing a Spanish reader 
 Lingua knows that yet:
 - Every Spanish text of the listings names English and French.
 - Change 46's Italian texts say that Spanish speakers study English and French. No French or English
-  text says what Spanish speakers study.
+  description says what Spanish speakers study; the single purpose and the review notes do.
 - The App Store's Spanish keywords would go over 100 bytes with `italiano`.
 - The review notes are at about 4,000 of 4,000 characters once change 46 has written Italian speakers in.
 
@@ -40,9 +40,11 @@ The table on the Spanish page gains a ninth or tenth row, which no scenario cove
   against the pivot (I11) and Wikidata. The claims table gains its Italian rows.
 - **Screenshots and dashboards** (D7): one App Store es-ES capture more; the Chrome Web Store's Spanish
   set unchanged.
-- **The site** (D1): no code; a test of the Spanish home card and page with it-es listed.
-- **Implemented before change 30** (D8); the texts pasted with change 30's release. The wording is the
-  owner's (M9).
+- **The site** (D1): two tests of the Spanish home card and page with it-es listed, and the README's
+  examples. No code, unless the owner names Wikidata (D6): then the three `glossesOrigin` sentences.
+- **Implemented before change 30** (D8). Every it-es mention is pasted with change 30's release. A
+  submission before it (change 45's, if en-it is released first) pastes the variants without it-es,
+  which the files keep beside the new ones (D8). The wording is the owner's (M9).
 
 ## Capabilities
 
@@ -58,27 +60,30 @@ None.
   - *Spanish speakers learning French* holds « and not it-es »;
   - in *French speakers learning Italian* and *English speakers learning Italian*, the clause that no
     Spanish text offers Italian holds « while it-es is not listed »;
-  - *Spanish speakers learning Italian* is added;
+  - *Spanish speakers learning Italian* is added, its dictionary sentence conditional on the committed
+    figures;
   - change 46's *A listing in Italian* is kept.
 - `site-lingua-page`: MODIFIED *The coverage table reads at a phone's width* (held by
   `enable-lingua-italian-speakers`, change 45, whose *Eight pairs* and *Nine pairs on a phone* already
-  hold « and no other pair »). It adds *Nine pairs on a phone, it-es the ninth* and *Ten pairs on a
-  phone*.
+  hold « and no other pair »). *Today's pairs* holds « and no other pair »; *Nine pairs on a phone,
+  it-es the ninth* and *Ten pairs on a phone, en-it and it-es* are added.
 - `site-locales`: MODIFIED *The Spanish home page describes Lingua for the readers it serves* (held by
   `extend-site-spanish-locale`). *Spanish speakers learning English* holds « and no other pair glossed
-  in Spanish », and *Spanish speakers learning Italian* is added.
+  in Spanish », and *Spanish speakers learning Italian* is added with the same clause.
 
 ## Impact
 
 - **Products.**
   - Lingua: the two listing files (text only).
-  - The site (`apps/site`): `test/lingua-text.spec.ts`, no code.
+  - The site (`apps/site`): `test/lingua-text.spec.ts`, `test/astro/spanish-pages.spec.ts` and
+    `README.md`; `src/lib/lingua-text.ts`'s three `glossesOrigin` sentences only if the owner names
+    Wikidata (D6).
   - Untouched: the extension, the back office (Italian already named by change 21) and the backend.
 - **What a visitor sees.** Nothing before change 30. From change 30 on, Italian appears on the Spanish
   home card, the Lingua pages and the table, and in the listings once they are pasted.
 - **Order.**
-  - Implemented after changes 26 and 27, after change 29's figures and the owner's answer under M15,
-    and before change 30 (D8).
+  - Implemented after changes 21, 26 and 27, after change 29's figures and the owner's answer under
+    M15, and before change 30 (D8).
   - Archived after the changes of `.openspec.yaml`, change 46 among them (its *A listing in Italian* is
     carried here) and change 45 (whose table block this one extends).
 - **Effort, against 1.5–3 ideal days**: 1.35–2.75 (design, *Effort*).
