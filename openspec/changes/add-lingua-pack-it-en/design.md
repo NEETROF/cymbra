@@ -67,6 +67,8 @@ edition's; reproduced by the review from the raw files:
   | + the Italian Wiktionary's translations | 91.8 / 85.1 / 76.7 | 85.1 / 77.5 / 68.7 |
   | + the English tables read backwards | 92.3 / 85.7 / 77.4 | 85.9 / 78.3 / 69.5 |
   | definitions, + a carried-meaning reader of every wording | 91.7 / 84.8 / 76.3 | 84.8 / 77.1 / 68.2 |
+  | definitions, + D4's pre-pass as worded | 91.7 / 84.7 / 76.2 | 84.8 / 77.0 / 68.2 |
+  | + the Italian Wiktionary's translations | 92.0 / 85.1 / 76.7 | 85.3 / 77.5 / 68.7 |
 
   fr-en committed 93.9 / 87.2 / 76.8 (floor 91.9 / 85.1 / 74.4); es-en 93.0 / 86.5 / 76.5; it-fr's
   study 87.5 / 79.6 / 70.5 from definitions. The ranking is read from this same section, which
@@ -150,29 +152,37 @@ rules inside its reducer and it-en does not). It runs after the English edition'
 (`read_as_meanings`, as es-en calls them) and before the shared rules:
 
 1. **Reads a meaning a pointer carries, by a reviewed list of wordings**, as `refine-lingua-fr-en-glosses`'
-   D4 does with fr-en's `carried_meaning` and `_past_pointer`, plus Italian's shapes: « … for euphony;
+   D4 does with fr-en's `carried_meaning` and `_past_pointer` — without its `synonym` wording, which would
+   read `quanti` (rank 584) « who » in place of « how much, how many » —, plus Italian's shapes: « … for euphony;
    meaning », « form of the article … (“the”); meaning », and the case forms « clitic accusative of io.
    me », whose meaning follows the pointer's closing full stop (the edition's `_CASE_FORM` needs the
    case word to open the gloss and a colon). It reads `del` « some, of the, from the », `della` « of
    the, from the », `ed` « and », `ad` « to, at, in », `gli` « the » beside its pronoun senses, `mi` « me
-   », `anch'io` « me too »; not every wording, which would read `quanti` « those who » and `giu`
-   « abbreviation of giugno (“June”) » (*Measured*).
+   », `anch'io` « me too »; not every wording, which would read `giu` « abbreviation of giugno
+   (“June”) » (*Measured*).
 2. **Keeps acronyms off common words and names off function words**: the acronym half of it-fr's D5 —
    an acronym's sense glosses no lemma the section gives a lowercase entry of its own (`ad` without
-   « CEO ») — and `refine-lingua-fr-en-glosses`' D6 — a name's run under a function word goes (`io`,
-   `ora`, `meno`, `voi`, `durante`, `anzi`). Not it-fr's rule for names: on this section it strips
+   « CEO »), unless that entry only points at the acronym itself (`pil` « alternative form of PIL »
+   keeps « gross domestic product ») — and a name's run goes when the lowercase headword has a function
+   word's entry: 19 entries (`Io`, `Ora`, `Meno`, `Voi`, `Durante`, `Anzi`, `Salvo`, `Diversi`…). That is
+   wider than `refine-lingua-fr-en-glosses`' D6, which drops a name only when every lowercase entry is a
+   function word's and so keeps `io`'s moon beside its noun « ego, self »; coverage does not move. Not it-fr's rule for names: on this section it strips
    « Rome », « Christmas » and « Earth » from the commonest rows (*Measured*). A name beside a common
    word's senses stays; the 1,009 rows where it follows them are change 23's to order.
 3. **Glosses no word with a letter's name**: the English edition's own pre-passes for the Latin
-   letters, as es-en calls them, and a sense naming a Greek letter (« mu (Greek letter) ») here.
+   letters, as es-en calls them, and here a sense naming a Greek letter (« mu (Greek letter) ») where
+   the row has another sense — `eta`, `ro` and `psi`, whose only sense is the letter, keep it.
 4. **Takes out notes that are not glosses**: « (all senses) », « See Category:… ».
 5. **Reads the words without a space that Italian's pre-pass splits**, which the shared
    `reduce_expressions` drops: the section's glossed with a meaning (`d'accordo`, `all'improvviso`),
    and the Italian Wiktionary's (6: `all'inizio`, `all'antica`, `sott'acqua`), as it-fr's D6 reads its
    tables' — a reader in this module after fr-en's `split_word`, which cannot be imported.
 
-Task 0.1 measures items 1–5 together on change 9's committed ranks; their worth is at the top (`del`,
-`gli`, `mi`, `ad`, `io`), not in the figure (a reader of every wording moved it 0.1 point).
+Measured together on the study's ranking (*Measured*, before the `pil` and single-letter exemptions):
+91.7 / 84.7 / 76.2 from definitions, 92.0 / 85.1 / 76.7 with the Italian Wiktionary; 315 rows of the
+20,000 change (142 of the 5,000); `del`, `della`, `ed`, `ad`, `gli` and `mi` read as above, `natale`
+and `roma` keep « Christmas » and « Rome ». Their worth is at the top, not in the figure; task 0.1
+re-measures them on change 9's committed ranks.
 
 ### D5 — Expressions
 
@@ -244,7 +254,9 @@ or left unglossed (`gran` by kaikki's target, `alcun` across the determiner and 
 bracketed construction and auxiliary notes (86 rows of the 20,000); « etc » without its period; names'
 runs after a common word's (1,009 rows, fr-en's class); the Italian Wiktionary's rows repeating a sense
 across parts of speech (11: `ex`, `beige`, `wow`, `horror`); `negra` « black, nigger », unlabelled; the
-species among the expressions (302); the `del` family's runs read as `X` (kaikki's `contraction`).
+species among the expressions (302); the `del` family's runs read as `X` (kaikki's `contraction`); the
+carried meanings D4.1 reads first where a row's own senses come before (`colla` opening on « with the »
+before « glue », `soldi` on « penny, cent » before « money »).
 
 ## Risks / Trade-offs
 
@@ -253,7 +265,8 @@ species among the expressions (302); the `del` family's runs read as `X` (kaikki
   `gli`, `mi`, `ad`, `io`); the rest are listed, and change 25 lists it-en only after change 23, as
   fr-en shipped after 48b.
 - [A reviewed list of carried wordings misses some] → those left unglossed stay so (change 23); a
-  reading of every wording would gloss more and mis-read the commonest (`quanti`).
+  reading of every wording would gloss more and mis-read the commonest (`giu`), fr-en's `synonym`
+  wording `quanti`.
 - [A pre-pass module beside the English edition's] → one more file in it-en's digest; the English
   edition stays shared and untouched.
 

@@ -38,7 +38,8 @@ names off common words is not taken: on this section it would strip « Rome », 
 - **it-en's own pre-pass** (D4), `reduce_italian_en.py`: meanings carried by a pointer, by a reviewed
   list of wordings (the `di` family, `ed`, `ad`, `gli`, `mi`); acronyms off common words and names off
   function words; letters' names, Greek ones included, gloss nothing; notes such as « (all senses) »
-  out; the split words without a space read.
+  out; the split words without a space read. Measured: 91.7 / 84.7 / 76.2 from definitions,
+  92.0 / 85.1 / 76.7 with the Italian Wiktionary.
 - **Expressions** (D5): the section's (8,523), the Italian Wiktionary's (1,192), and the split single
   words with a meaning (`d'accordo`), keyed by change 12's rules.
 - **The acronym rows** (D6) glossed by change 11's rule from it-en's glosses.
