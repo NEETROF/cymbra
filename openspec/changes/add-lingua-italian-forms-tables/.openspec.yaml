@@ -1,0 +1,6 @@
+schema: spec-driven
+created: 2026-10-21
+archiveAfter:
+  - migrate-lingua-pack-sources-to-raw-dumps
+  - add-lingua-italian-baseline
+  - add-lingua-italian-tokenisation
