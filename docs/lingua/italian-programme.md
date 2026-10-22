@@ -203,7 +203,7 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 2 | 27a | `add-lingua-it-es-pivot-sources` (I4, I11): seven Wiktionaries' translation tables kept by sense for a pivot, the Italian Wiktionary's Spanish section, Wikidata Lexemes — derived and pinned | 2.5–4 | — | Proposal merged ([#1005](https://github.com/NEETROF/cymbra/pull/1005)) |
 | 2 | 27 | `add-lingua-pack-it-es` (I4): the floor fixed first; the Spanish Wiktionary's Italian section, the Italian Wiktionary's Spanish translations, the Spanish tables read backwards, then change 27a's sources | 4–7 | 49 | Proposal merged ([#1006](https://github.com/NEETROF/cymbra/pull/1006)) |
 | 2 | 28 | `refine-lingua-it-es-glosses` | 2–3.5 | 49b | |
-| 2 | 29 | `measure-lingua-it-es-translation-marks` | 1–2 | 26 | |
+| 2 | 29 | `measure-lingua-it-es-translation-marks`: modifies *A pair's marks are measured before they are shown* as change 38 leaves it, and archives after it | 1–2 | 26 | |
 | 2 | 30 | `enable-lingua-italian-for-spanish-speakers` (it-es) | 4–7.5 | 35 | |
 | 2 | 31 | `add-lingua-italian-spanish-listings`: archives after change 46, carries its scenario *A listing in Italian*, and updates the Italian texts' line on what Spanish speakers study; if it-es ships before en-it, narrows *Eight pairs on a phone* and adds the ninth pair's scenario (change 42's leftover) | 1.5–3 | 37 | |
 | 3 Italian speakers: en-it | 32 | `add-lingua-italian-native-language`: the variant, the native list and names, every enumeration of fr/en/es, inert until a pair is glossed in Italian | 1–2 | 4, 20 | Proposal merged ([#1003](https://github.com/NEETROF/cymbra/pull/1003)) |
@@ -212,7 +212,7 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 3 | 35 | `add-lingua-italian-edition-rules`: the Italian Wiktionary's rules in the gloss reducer | 2–3 | 6 | Proposal merged ([#1011](https://github.com/NEETROF/cymbra/pull/1011)) |
 | 3 | 36 | `add-lingua-pack-en-it` (I11): the Italian Wiktionary's English section, then both Wiktionaries' tables; the floor fixed first | 3.5–6 | 22 | Proposal merged ([#1016](https://github.com/NEETROF/cymbra/pull/1016)) |
 | 3 | 37 | `refine-lingua-en-it-glosses` | 2–4 | 24b | |
-| 3 | 38 | `measure-lingua-en-it-translation-marks` | 1–2 | 26 | |
+| 3 | 38 | `measure-lingua-en-it-translation-marks`: the English selections through en-it, judged in Italian by two agent judges (I2) | 1–2 | 26 | Proposed ([#1020](https://github.com/NEETROF/cymbra/pull/1020)) |
 | 3 | 39 | `localise-lingua-manifest-italian`: `_locales/it` | 0.5–1 | 27 | Proposal merged ([#1009](https://github.com/NEETROF/cymbra/pull/1009)) |
 | 3 | 40 | `localise-lingua-apple-host-italian`: `copy.js`, `SignInCopy`, `app_localizations.sh` | 1.5–3 | 28 | Proposal merged ([#1013](https://github.com/NEETROF/cymbra/pull/1013)) |
 | 3 | 41 | `add-site-italian-locale`: `/it/` home, Music, Lingua's Italian text, privacy, terms, support, account deletion, 404, and Lingua's Italian leaving page, pinned before the extension build that compiles it into `LEAVING_PAGES.it` (change 45) ships; the islands | 6–10 | 29, 29b | Proposal merged ([#1014](https://github.com/NEETROF/cymbra/pull/1014)) |

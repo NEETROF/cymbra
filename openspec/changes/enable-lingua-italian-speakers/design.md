@@ -34,7 +34,7 @@ refreshes.
 - the site's one-language shot set;
 - the three « not yet » tests;
 - the stale `pinnedBy` source;
-- dropping en-it's route if change 38 withholds translation.
+- dropping en-it's route if the owner withholds its translation under M15.
 
 ## Goals / Non-Goals
 
@@ -103,8 +103,7 @@ stays as written; this change adds « preset to Italian ».
 
 en-it's route is change 2's (`model-manifest.json`). Change 38 measures en-it's marks; the owner
 decides under M15, at this change, what follows:
-- **on the first tier**: `MARKED_PAIRS` (`src/translate/markup.ts`) gains en-it, with
-  `translate-relay.spec.ts`'s case;
+- **on the first tier**: listed in `MARKED_PAIRS` by change 38, by the tier rule; nothing here;
 - **offered without a mark**: nothing changes, M15's default;
 - **withheld**: this change drops en-it's route, or the site would say « direct »
   (`apps/site/src/lib/lingua-pairs.ts`), modifies change 2's route requirements on that branch (hence
@@ -261,7 +260,7 @@ it-IT listing points at it.
 
 For the owner, all recorded elsewhere and gathered here:
 1. en-it's floor (change 36's task 0.1).
-2. en-it's translation (change 38).
+2. en-it's translation, under M15, on change 38's figures.
 3. Whether en-it is listed only after change 37's refinement (recommended, as change 25).
 4. The macOS menu bar (change 40).
 5. The English reviewer fields (change 46).

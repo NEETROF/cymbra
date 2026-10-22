@@ -26,7 +26,8 @@ tests; the rest is this change's, listed in the design.
   - `deleteAccountUrl` gains the Spanish arm change 29 never landed, beside Italian's;
   - the account locale follows an Italian interface (I10).
 - **The tests changes 32, 33 and 40 wrote for « not yet »** flip (D3).
-- **Models** (D4): en-it's route is change 2's, and its translation is as change 38 decides; withheld,
+- **Models** (D4): en-it's route is change 2's; change 38 measures its marks and the owner decides
+  under M15, at this change, whether its translation is offered unmarked or not at all; withheld,
   the route is dropped.
 - **Captures** (D5): the capture harness gains a one-language mode for an Italian reader studying English
   alone. Its run makes the site's and the stores' Italian captures, with an Italian « second » shot taken
