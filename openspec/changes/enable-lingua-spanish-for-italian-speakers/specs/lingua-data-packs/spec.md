@@ -88,4 +88,4 @@ The extension's build SHALL read the language pairs it ships from one list, whos
 
 #### Scenario: Italian speakers learning Spanish
 - **WHEN** es-it is listed and a reader whose native language is Italian uses a package built with this list
-- **THEN** English stays their default studied language, Spanish is offered after it — and after French where fr-it is listed first —, and a Spanish page is read through es-it, the Spanish base and es-it's layer fetched on first need
+- **THEN** English stays their default studied language, Spanish is offered after it — and after French where fr-it is listed —, and a Spanish page is read through es-it, the Spanish base and es-it's layer fetched on first need

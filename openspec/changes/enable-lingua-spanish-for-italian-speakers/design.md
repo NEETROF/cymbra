@@ -51,16 +51,20 @@ Spanish into Italian since change 20's D5.
 ### D4 — Translation: two models, es-en then en-it
 
 As change 50's D4, at change 53's figures; if not offered, `routes["es-it"]` is dropped and the route
-texts are MODIFIED from their latest holders.
+texts are MODIFIED from their latest holders, change 2 (`add-lingua-italian-translation-models`) and
+change 20 (`enable-lingua-italian`, *Every reader today*) named in `archiveAfter`.
 
 ### D5 — The memory sentence's Italian cases
 
 es-en is 26,241,052 B; en-it's served size comes from change 2's catalogue (change 49's trial measured
 26,509,835 B):
-- Spanish alone: es-en and en-it, about 340 MB, the download their sum (≈ 52,750,887 B, « 52,8 MB »);
-- English, French and Spanish: en-it, fr-en and es-en, held two at a time, about 340 MB (≈ 78,985,602 B,
-  « 79,0 MB »);
-- English and Spanish: the same two models as Spanish alone, en-it serving both routes.
+- Spanish alone, or English and Spanish: es-en and en-it, about 340 MB, the download their sum
+  (52,750,887 B with the trial's en-it, « 52,8 MB » while en-it's served size is between 26,508,948 and
+  26,608,947 B — 887 B above the window's floor);
+- English, French and Spanish, or French and Spanish: en-it, fr-en and es-en, held two at a time, about
+  340 MB (78,985,602 B, « 79,0 MB » while en-it is between 26,474,233 and 26,574,232 B).
+
+D7's listing sizes are read from the catalogue when the texts are pasted, never from these figures.
 
 ### D6 — The Italian description and activation page
 
@@ -75,14 +79,16 @@ characters (drafts for the reviewer agent, I2):
 With three languages « Offline e » gives way (120 with it), as change 50's D6 foresaw. The activation
 page's `it` `lede` and `step3` name Spanish beside French: « Leggi il web in inglese, in francese o in
 spagnolo: … », and « Per il francese o lo spagnolo, selezionalo nelle <strong>{settings}</strong>
-dell'estensione, scheda <strong>{language tab}</strong>, poi scegli il suo livello. » The page grows by
-a few words; the dogfood reads it on an iPhone.
+dell'estensione, scheda <strong>{language tab}</strong>, poi scegli il suo livello. » Without fr-it
+(change 50 withdrawn): « Leggi il web in inglese o in spagnolo: … » and « Per lo spagnolo, selezionalo… ».
+The page grows by a few words; the dogfood reads it on an iPhone.
 
 ### D7 — The Italian listings name Spanish
 
 Drafted by analogy with change 50's French sentences, for the reviewer agent, counted when change 46's and
 50's texts exist: the languages named (« in inglese, in francese o in spagnolo »); the card (« in
-spagnolo, «passato remoto» », the gender of Spanish nouns); the levels (« per il francese e lo spagnolo,
+spagnolo, «passato remoto» », the gender of Spanish nouns); without fr-it, the subtitle « Inglese o
+spagnolo, leggendo » (28 / 30); the levels (« per il francese e lo spagnolo,
 livelli stimati… »); translation (« dal francese e dallo spagnolo, passando per l'inglese »); the sizes
 (« 52,8 MB con lo spagnolo, 79,0 MB con i due »); the dictionary sentence naming Spanish if es-it's
 committed coverage is under en-it's at each top; the App Store it-IT subtitle « Inglese, francese o
@@ -96,7 +102,8 @@ passes change 44's glossary test.
 Data-driven, as change 50's D8. The Italian captures keep French as the second studied language where
 fr-it is listed; where es-it is listed and fr-it is not, they are taken again with Spanish
 (`STUDIED.it = ["en", "es"]`, the seed state recorded again, the second shot's alt text rewritten). The
-Italian media stay within change 41's 50 MB budget.
+Italian media stay within change 41's 50 MB budget. One App Store it-IT capture on a Spanish page is added
+by hand, as change 50 adds one on a French page.
 
 ### D9 — Tests and documents
 
@@ -113,7 +120,7 @@ Change 50's D10 with Spanish: offered after English (and French), Spanish pages,
 read-aloud, extended translation with Spanish alone and with three languages, online translation from
 Spanish into Italian, an Italian-native install of change 50's release updated in place, the other
 natives unchanged, sync, the rollback to change 50's release, the host app's Italian page on an iPhone,
-the Italian Lingua page and home card. A sample of es-it's pivot glosses is read against their Spanish.
+an Italian review of a Spanish card in the app (#925), the Italian Lingua page and home card. A sample of es-it's pivot glosses is read against their Spanish.
 
 ### D11 — The release
 
@@ -122,22 +129,40 @@ then the listings pasted.
 
 ### D12 — Requirements true of their time
 
-MODIFIED, each copied whole from change 50 as it then stands: the list; the memory sentence; *Guided
-activation*; the listings (*Italian speakers learning French* narrowed to « and es-it is not »); the
-coverage table; the showcase; the Italian home card. ADDED *Spanish is studied by readers of Italian*.
-RENAMED change 51's « …, and not shipped ». Still true as change 50 leaves them: change 40's host
-requirement (narrowed by change 50), change 50's *French for an Italian speaker* (« es-it is not »), its
-*The Italian page with French*, and its home card's *Italian speakers learning French* (« and no other
-pair glossed in Italian »).
+MODIFIED, each copied whole from change 50 as it then stands:
+- the list: es-it in its clause and in *Building the listed packs*, *A list widened too early* and *French
+  for English speakers alone*; *Italian speakers learning Spanish* added;
+- the memory sentence: English and Spanish, French and Spanish, Spanish alone, and the three languages;
+- *Guided activation*: *Spanish for an Italian speaker* and *French and Spanish for an Italian speaker*;
+- the listings: *Italian speakers learning French* names Spanish too where es-it is listed, keeping every
+  French duty; *Italian speakers learning Spanish* added;
+- the coverage table: change 50's eleven-pair scenario renamed *…, en-it, it-es and fr-it*; ten, eleven
+  and twelve pairs with es-it added;
+- the showcase: *The Italian page with Spanish* added;
+- the Italian home card: two scenarios added.
 
-### D13 — Against change 50
+ADDED *Spanish is studied by readers of Italian*. RENAMED change 51's « …, and not shipped ».
 
-Change 50's D13 rule: whichever of changes 50 and 54 is implemented later re-copies the earlier's shared
-blocks and names it in `archiveAfter`. This change is recommended after change 50 and copies its blocks.
-If it is implemented first, it re-copies from change 50's holders (changes 30, 31, 45, 46, 41, 25 and
-40, by change 50's own D13), drops change 50 from `archiveAfter`, and its list names es-it without
-fr-it; change 50 then re-copies this change's blocks and names it, and French is offered after English
-and Spanish in the list's order.
+True as written, so not modified: change 2's routes (« es-it's es-en then en-it ») and *Every native
+language's pairs*; change 39's manifest requirement (« en-it the only pair glossed in Italian » is its
+own condition); change 40's host requirement as change 50 narrowed it; change 45's requirements and its
+*The Italian page*; change 46's *A listing in Italian* (« neither fr-it nor es-it »); the stores' summary
+requirement, which forces D6; change 50's *French for an Italian speaker* (« es-it is not ») and *The
+Italian page with French*.
+
+### D13 — After changes 30, 31 and 50
+
+Changes 30, 31 and 50 are **implemented before this change** (I5's order: it-es before the Italian
+speakers' pairs, fr-it before es-it); they are hard prerequisites, not recommendations. This change
+copies change 50's blocks, which already carry changes 30's and 31's, and archives after all three, so no
+order can cycle: change 30's D13 rule (« whichever of 30, 50 and 54 is implemented later re-copies the
+earlier's ») is met by this change being the later one, and change 31 archives before it.
+
+If change 50 is withdrawn (fr-it under its floor, say), this change re-copies each block from change 50's
+own source as it then stands — the list, the memory sentence and *Guided activation* from change 30, the
+listings and the coverage table from change 31, the showcase from change 45, the home card from change 41
+— drops change 50 from `archiveAfter`, and names no fr-it in its clauses but as the scenarios already
+condition it.
 
 ## Risks / Trade-offs
 
@@ -149,7 +174,8 @@ and Spanish in the list's order.
 ## Migration Plan
 
 Nothing to migrate: Spanish is offered, never added. Rollback is change 50's release, which knows `es`
-and `it` but lists no es-it.
+and `it` but lists no es-it: an Italian reader's Spanish is left out of what it accepts, and kept in the
+backup, until this release returns.
 
 ## Effort
 

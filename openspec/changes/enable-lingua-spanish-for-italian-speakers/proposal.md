@@ -24,9 +24,9 @@ The listings travel in the same change, as change 50's do.
   first; nothing new is typed.
 - **Translation** (D4): es-en then en-it, marked if change 53 put es-it on the tier; otherwise offered
   without a mark, the owner deciding only under 75 % correct or over 30 % withheld (M15).
-- **The memory sentence's Italian cases** (D5): Spanish alone needs es-en and en-it (about 340 MB,
-  ≈ 52.8 MB); English, French and Spanish need three models, held two at a time (about 340 MB,
-  ≈ 79.0 MB).
+- **The memory sentence's Italian cases** (D5): Spanish alone, or English and Spanish, needs es-en and
+  en-it (memory about 340 MB, download ≈ 52.8 MB); French and Spanish, with or without English, need
+  three models held two at a time (memory about 340 MB, download ≈ 79.0 MB).
 - **The Italian description and activation page** (D6): with fr-it listed, « Il web in inglese, francese
   o spagnolo: parole sconosciute evidenziate, percentuale reale. Senza tracciamento. » (110), « Offline
   e » giving way as change 50 foresaw; the page's `lede` and `step3` name Spanish. The Italian reviewer
@@ -71,9 +71,9 @@ None.
   `step3`, and the App Store listing; `test_gloss_coverage.py`; `committed_tables.rs`;
   `src/data/lingua-coverage.json`, the fixtures and the site's tests. The backend, ID, Music, Live and
   the back office are untouched; so are the packs, tables and goldens.
-- **Prerequisites, the owner's**: changes 50 (implemented and released, recommended), 51 (at or above its
-  floor), 52, 53 and the owner's answer under M15; the reviewer agent's reading; test accounts.
+- **Prerequisites, the owner's**: changes 30, 31 and 50 implemented (change 50 released, recommended), 51
+  (at or above its floor), 52, 53 and the owner's answer under M15; the reviewer agent's reading; test accounts.
 - **Release**: on its own, TestFlight first; the site deployed first; the listings pasted after it.
-- **Order**: after changes 50–53. Against change 50, whichever is implemented later re-copies the
-  earlier's blocks (D13). Archived after the changes of `.openspec.yaml`.
+- **Order**: after changes 30, 31 and 50–53, changes 30, 31 and 50 being hard prerequisites (D13), so the
+  archive order cannot cycle. Archived after the changes of `.openspec.yaml`.
 - **Effort, against the row's 3–6 ideal days, raised to 4.5–9** (design, *Effort*).

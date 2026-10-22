@@ -1,6 +1,6 @@
 # Tasks
 
-Implemented once the prerequisites of proposal.md (Impact) are on `main`: changes 50 (released, recommended), 51, 52 and 53.
+Implemented once the prerequisites of proposal.md (Impact) are on `main`: changes 30, 31 and 50 (change 50 released, recommended), 51, 52 and 53.
 
 ## 1. The list
 
@@ -31,7 +31,7 @@ Implemented once the prerequisites of proposal.md (Impact) are on `main`: change
 
 - [ ] 5.1 In `apps/lingua-extension`: `yarn gen:pack`, `yarn gen:pack:real`, `yarn lint`, `yarn format:check`, `yarn typecheck`, `yarn test`, `yarn build`, `yarn check:variants`, `yarn check:version`; each zipped package's size in the pull request.
 - [ ] 5.2 Nothing else moves: `cargo test -p lingua-pack`, `cargo test -p lingua-wasm` without re-blessing; `git diff --stat origin/main -- crates/lingua-core crates/lingua-wasm scripts/lingua-data/tables ':!*README.md'` empty; `cargo fmt --all --check`; `cargo clippy --workspace --all-targets -- -D warnings`.
-- [ ] 5.3 `openspec validate enable-lingua-spanish-for-italian-speakers --strict`; the archive order; the MODIFIED blocks re-copied as D13 says, only D12's clauses differing.
+- [ ] 5.3 `openspec validate enable-lingua-spanish-for-italian-speakers --strict`; the archive order; the MODIFIED blocks re-copied from change 50 as it then stands (from its sources if it is withdrawn, D13), only D12's clauses differing.
 
 ## 6. Dogfood and release (owner)
 

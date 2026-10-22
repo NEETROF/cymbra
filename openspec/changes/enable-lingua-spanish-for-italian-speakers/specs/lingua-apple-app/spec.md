@@ -55,4 +55,4 @@ The app SHALL guide the user through enabling the Safari extension, which Safari
 
 #### Scenario: French and Spanish for an Italian speaker
 - **WHEN** fr-it and es-it are listed and the app is opened on a device in Italian before the extension has run
-- **THEN** the page is the Italian copy, its `lang` is `it`, and it says the web is read in English, French or Spanish, and its last step has the level of English chosen, then French or Spanish ticked in the extension's settings, under its language tab, and its level chosen
+- **THEN** the page is the Italian copy, its `lang` is `it`, and it says the web is read in English, French or Spanish, and its last step has the level of English chosen, then French or Spanish ticked in the extension's settings, under its language tab, as the Italian interface names them, and its level chosen

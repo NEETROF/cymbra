@@ -61,6 +61,14 @@ The translation setting SHALL state the memory of two models when the reader's p
 - **WHEN** es-it is listed, extended translation serves it, and a reader whose native language is Italian accepts Spanish alone
 - **THEN** the setting says, in the Italian interface, that it downloads es-en's and en-it's files once, their sum read from the catalogue, and uses about 340 MB, as the Italian interface writes it, the two models es-it's route goes through
 
+#### Scenario: An Italian speaker reading English and Spanish
+- **WHEN** es-it is listed, extended translation serves en-it and es-it, and a reader whose native language is Italian accepts English and Spanish
+- **THEN** the setting says, in the Italian interface, that it downloads en-it's and es-en's files once, their sum read from the catalogue, and uses about 340 MB, as the Italian interface writes it, en-it serving both routes
+
+#### Scenario: An Italian speaker reading French and Spanish
+- **WHEN** fr-it and es-it are listed, extended translation serves both, and a reader whose native language is Italian accepts French and Spanish
+- **THEN** the setting says, in the Italian interface, that it downloads fr-en's, es-en's and en-it's files once, their sum read from the catalogue, and uses about 340 MB, as the Italian interface writes it, the engine holding two of the three at a time
+
 #### Scenario: An Italian speaker reading English, French and Spanish
 - **WHEN** fr-it and es-it are listed, extended translation serves en-it, fr-it and es-it, and a reader whose native language is Italian accepts English, French and Spanish
 - **THEN** the setting says, in the Italian interface, that it downloads en-it's, fr-en's and es-en's files once, their sum read from the catalogue, and uses about 340 MB, as the Italian interface writes it, the engine holding two of the three at a time

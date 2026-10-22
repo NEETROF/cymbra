@@ -37,13 +37,17 @@ While every shipped pair is glossed in one language, the Lingua page's coverage 
 - **WHEN** fr-it ships beside the eight pairs and en-it, and no other pair, and the Italian page is shown 375 pixels wide
 - **THEN** the table has ten rows, English → Italian and French → Italian first, and the page does not scroll sideways
 
-#### Scenario: Eleven pairs on a phone
+#### Scenario: Eleven pairs on a phone, en-it, it-es and fr-it
 - **WHEN** en-it, it-es and fr-it ship beside the eight pairs, and no other pair, and the Italian page is shown 375 pixels wide
 - **THEN** the table has eleven rows, English → Italian and French → Italian first, and the page does not scroll sideways
 
 #### Scenario: Ten pairs on a phone, en-it and es-it
 - **WHEN** es-it ships beside the eight pairs and en-it, and no other pair, and the Italian page is shown 375 pixels wide
 - **THEN** the table has ten rows, English → Italian and Spanish → Italian first, and the page does not scroll sideways
+
+#### Scenario: Eleven pairs on a phone, en-it, it-es and es-it
+- **WHEN** en-it, it-es and es-it ship beside the eight pairs, and no other pair, and the Italian page is shown 375 pixels wide
+- **THEN** the table has eleven rows, English → Italian and Spanish → Italian first, and the page does not scroll sideways
 
 #### Scenario: Eleven pairs on a phone, en-it, fr-it and es-it
 - **WHEN** en-it, fr-it and es-it ship beside the eight pairs, and no other pair, and the Italian page is shown 375 pixels wide
