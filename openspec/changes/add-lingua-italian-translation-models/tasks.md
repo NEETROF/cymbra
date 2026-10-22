@@ -19,4 +19,4 @@
 
 ## 4. Owner
 
-- [ ] 4.1 [manual] The owner dispatches `lingua-model-deploy` right after the merge (it creates `lingua-model-it-en-base-memory-2.0` and `lingua-model-en-it-base-memory-2.1` and deploys the host); `check_model_host` passes from outside, and the next store submission and App Store delivery are not refused by the model gate (D6).
+- [x] 4.1 [manual] The owner dispatches `lingua-model-deploy` right after the merge (it creates `lingua-model-it-en-base-memory-2.0` and `lingua-model-en-it-base-memory-2.1` and deploys the host); `check_model_host` passes from outside, and the next store submission and App Store delivery are not refused by the model gate (D6).
