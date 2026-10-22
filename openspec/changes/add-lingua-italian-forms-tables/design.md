@@ -96,6 +96,24 @@ the Wiktionary reads is never moved; a form it lists under a lemma the tables do
 out. Measured: how many forms Morph-it! adds, of which lemmas, and the gates with and without
 them; kept only if the gates do not fall.
 
+**The tables' stress marks.** The section's conjugation tables write every form with its stress
+marked — `dàre`, `darèbbe`, `dièdi`, `dàto`, `hà` — which no Italian text writes: measured on the
+extract, 543,375 of the 615,286 distinct table forms carry a mark on a non-final vowel, and 37,978
+a mark on the final vowel alone, where Italian's written accent sits (`darà`, `darò`) but which is
+also the table's stress mark on a monosyllable the standard writes bare (`hà`, `dò`). A table form
+is read as its own entry's spelling: every non-final mark dropped (`dàre` → `dare`; 335,949 of the
+543,375 then match a headword of the section, the rest being cells no entry lists, read bare the
+same way), and a final mark kept only when the section has an entry for the marked spelling and
+none for the bare one (`darà` kept; `hà` → `ha`: 23,257 of the 37,978 final-marked forms are
+headwords as written, 7,627 have a bare headword). The form's own entry decides where both exist.
+
+**A table row written with its pronoun.** 148,386 table forms hold a space: a reflexive verb's
+rows carry the clitic (`mi làvo`, `si làva`, `ci laviàmo`; `si` 51,295, `mi` 23,511, `ci` 21,092,
+`ti` 20,261, `vi` 20,066). The pronoun is dropped and the bare form is the candidate, as French's
+pronominal verbs are read (matrix change 43): under the plain verb where the section has one
+(`lavo` → *lavare*, not *lavarsi*; change 7's enclitic rule reads `lavarsi` itself), under the
+reflexive lemma where no plain verb exists (`pentirsi`, `vergognarsi`: `pento` → *pentirsi*).
+
 ### D4 — The tables serve I7, as change 6 writes it
 
 Every word the pre-pass writes is a form: the elided pieces' words (`lo`, `una`, `di`, `ci`, …,

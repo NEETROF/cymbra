@@ -28,7 +28,9 @@ without moving the gates.
 
 - **A reducer for Italian's reference pair** (`scripts/lingua-data/reduce-it-fr.py`), with
   Italian's studied rules in it, as fr-en's holds French's; no shared module is edited:
-  - **forms** from the Italian section's tagged inflections and form-of links, a doubtful or
+  - **forms** from the Italian section's tagged inflections and form-of links — the tables' stress
+    marks dropped (`dàre` → `dare`; a final accent kept where the entry writes it: `darà`, not
+    `hà`), a reflexive row's pronoun dropped (`mi làvo` → `lavo`, under *lavare*) —, a doubtful or
     alternative inflection left out, and a form of a form reaching the word it is a form of along
     one part of speech (`creduta` → `creduto` → *credere*);
   - **I7, as change 6 writes it**: every word its pre-pass writes a form; the elided pieces forms
