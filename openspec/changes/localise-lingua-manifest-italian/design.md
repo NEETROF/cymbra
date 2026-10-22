@@ -44,7 +44,9 @@ Each command's description contains the words the Italian Réglages gives that c
 (`src/i18n/it/settings.ts`'s `shortcutCapture`, `shortcutDrawer` and `shortcutSidePanel`, change 33), so
 that the browser's page and Réglages name one command alike. That is a test (D3), and it already holds
 for French, English and Spanish. It also means Réglages' Italian lines are imperative
-(« cattura la selezione »), which change 33's implementation follows.
+(« cattura la selezione »). Change 33 is implemented first and its design does not fix the verb's
+form; if it lands an infinitive, this change's implementation edits `src/i18n/it/settings.ts` so that
+the test passes.
 
 Drafts, under M9's rule for drafts and reviewed under I2:
 
@@ -94,16 +96,16 @@ line of `check_version.mjs` changes.
     `_locales/it`;
   - with today's list, no package carries it;
   - the test at its top that expects the committed folders to be exactly `["en", "es", "fr"]` becomes
-    `["en", "es", "fr", "it"]`, its title with it.
+    `["en", "es", "fr", "it"]`, its title with it;
+  - the Italian line of the test that reads what each description names its own readers study names
+    « inglese », not « italiano ».
 - **`test/check-version.spec.ts`**:
   - its expected committed set (`["en", "es", "fr"]`) gains `it`;
   - with en-it listed, the committed Italian description passes `summaryProblems`;
-  - one naming « francese » fails, naming the Italian description and « Francese »;
-  - the Italian line of the test that reads each description's languages names « inglese », not
-    « italiano ».
-- **Settings and shortcuts alike**: for each of fr, en, es and it, each Réglages shortcut line's text
-  after the keys is contained, case-insensitively, in the matching `_locales/<language>` command's
-  message.
+  - one naming « francese » fails, naming the Italian description and « Francese ».
+- **Settings and shortcuts alike**, a new `test/locales-shortcuts.spec.ts`: for each of fr, en, es and
+  it, each Réglages shortcut line's text after the keys is contained, case-insensitively, in the
+  matching `_locales/<language>` command's message.
 
 `check_variants`' rule that a localised manifest's folders are exactly the shipped natives already
 covers the packages.

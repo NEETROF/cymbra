@@ -48,7 +48,8 @@ None.
 
 - **Products.** Cymbra Lingua only: `apps/lingua-extension/_locales/it/messages.json` (new),
   `tool/check_version.mjs` (`LANGUAGE_NAMES.it`), `test/check-version.spec.ts`,
-  `test/manifests.spec.ts`. ID, Music, Live, the back office and the site are untouched; the Apple host
+  `test/manifests.spec.ts`, `test/locales-shortcuts.spec.ts` (new), and `src/i18n/it/settings.ts` if
+  change 33 words its shortcut lines otherwise. ID, Music, Live, the back office and the site are untouched; the Apple host
   is change 40.
 - **No byte moves** in any package: the three packages are built exactly as before while `packs.json`
   lists no pair glossed in Italian.

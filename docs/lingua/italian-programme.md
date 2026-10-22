@@ -218,7 +218,7 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 3 | 42 | `extend-site-lingua-matrix-pages-italian`: Italian's pairs and coverage on the Lingua pages; `hreflang` | 1–2 | 30 | |
 | 3 | 43 | `localise-cymbra-id-email-legal-links-italian` (I10): Italian e-mails link `/it/` pages; the privacy annex in Italian | 1–2 | 31, 32 | |
 | 3 | 44 | `review-lingua-italian-wording` (I2): the dedicated agent's pass over interface, card, manifest (`_locales/it`), listings and site | 2–4 | 33 | |
-| 3 | 45 | `enable-lingua-italian-speakers` (en-it): the Italian interface shown, en-it ships; the extension's privacy, leaving and deletion links moved to the `/it/` pages (after 41) | 4–7.5 | 35 | |
+| 3 | 45 | `enable-lingua-italian-speakers` (en-it): the Italian interface shown, en-it ships; the extension's privacy, leaving and deletion links moved to the `/it/` pages (after 41); its dogfood checks the shortcuts page and about:addons in Italian (change 39's D3) | 4–7.5 | 35 | |
 | 3 | 46 | `add-lingua-italian-audience-listings` (I9): Chrome Web Store, AMO, App Store it-IT | 2–5.5 | 37 | |
 | 4 Italian speakers: fr-it, es-it | 47 | `add-lingua-pack-fr-it` | 3.5–6 | 22, 49 | |
 | 4 | 48 | `refine-lingua-fr-it-glosses` | 2–4 | 49b | |
