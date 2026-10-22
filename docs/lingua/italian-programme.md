@@ -164,7 +164,10 @@ Other figures:
 
 ## Programme
 
-In merge order within a stage (1 change = 1 pull request, none above ≈ 10 ideal days). Effort is
+In merge order within a stage (1 change = 1 pull request, none above ≈ 10 ideal days), but for one
+inversion: change 21's description of Italian on the site (its names, `STUDIED.it`) and in the back
+office is implemented before change 20 lists it-fr, which the site's build would otherwise refuse —
+as the matrix's change 53 (#868) was before 52 (#880). Effort is
 in ideal days, min–max, by analogy with the measured change of the matrix programme named in the
 *Precedent* column; it measures size, not calendar. Stage 3 does not depend on stage 2.
 
@@ -185,11 +188,11 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 1 | 13 | `add-lingua-italian-grammar-tables`: UD tags (passato remoto `Tense=Past`, imperfetto `Tense=Imp`, checked against it_isdt already) | 3–5 | 45 | Proposal merged ([#984](https://github.com/NEETROF/cymbra/pull/984)) |
 | 1 | 14 | `add-lingua-italian-levels` (I8): the estimated ladder | 1.5–3 | 46 | Proposal merged ([#985](https://github.com/NEETROF/cymbra/pull/985)) |
 | 1 | 15 | `add-lingua-italian-read-aloud`: it-IT and it-CH voices | 1–2 | 47 | Proposal merged ([#986](https://github.com/NEETROF/cymbra/pull/986)) |
-| 1 | 16 | `add-lingua-pack-it-fr`: the French Wiktionary's Italian section; coverage committed; the dictionary words, which narrow change 14's levels | 3–5 | 48 | Proposed ([#987](https://github.com/NEETROF/cymbra/pull/987)) |
+| 1 | 16 | `add-lingua-pack-it-fr`: the French Wiktionary's Italian section; coverage committed; the dictionary words, which narrow change 14's levels | 3–5 | 48 | Proposal merged ([#987](https://github.com/NEETROF/cymbra/pull/987)) |
 | 1 | 17 | `refine-lingua-it-fr-glosses`: change 16's *Known data defects* | 2–3.5 | 48b | |
 | 1 | 18 | `add-lingua-italian-word-card`: readings and tense names of an Italian word, in French, English and Spanish | 3.5–6 | 51 | Proposal merged ([#988](https://github.com/NEETROF/cymbra/pull/988)) |
 | 1 | 19 | `measure-lingua-it-fr-translation-marks` | 1–2 | 26, 50 | Proposal merged ([#990](https://github.com/NEETROF/cymbra/pull/990)) |
-| 1 | 20 | `enable-lingua-italian` (it-fr): packs.json, the five targets, the owner's go-ahead | 4–7.5 | 52 | |
+| 1 | 20 | `enable-lingua-italian` (it-fr): packs.json, the five targets, the owner's go-ahead | 4–7.5 | 52 | Proposed ([#992](https://github.com/NEETROF/cymbra/pull/992)) |
 | 1 | 21 | `add-lingua-italian-listings`: the French listings and the site's French Lingua pages name Italian | 1.5–3 | 53 | |
 | 2 Italian studied: it-en, it-es | 22 | `add-lingua-pack-it-en`: the English Wiktionary's Italian section | 3–5 | 48 | |
 | 2 | 23 | `refine-lingua-it-en-glosses` | 2–3.5 | 48b | |

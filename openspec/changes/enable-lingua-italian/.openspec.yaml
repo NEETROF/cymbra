@@ -1,0 +1,24 @@
+schema: spec-driven
+created: 2026-10-22
+archiveAfter:
+  - add-lingua-apple
+  - localise-lingua-apple-host
+  - enable-lingua-french
+  - read-lingua-card-in-another-studied-language
+  - add-lingua-italian-translation-models
+  - split-lingua-pack-format
+  - ship-lingua-pack-bases-once
+  - add-lingua-italian-baseline
+  - add-lingua-italian-tokenisation
+  - add-lingua-italian-analysis
+  - add-lingua-italian-detection-guard
+  - add-lingua-italian-forms-tables
+  - read-lingua-italian-unmarked-spellings
+  - keep-lingua-italian-acronyms-and-names
+  - add-lingua-italian-expression-keys
+  - add-lingua-italian-grammar-tables
+  - add-lingua-italian-levels
+  - add-lingua-italian-read-aloud
+  - add-lingua-pack-it-fr
+  - add-lingua-italian-word-card
+  - measure-lingua-it-fr-translation-marks
