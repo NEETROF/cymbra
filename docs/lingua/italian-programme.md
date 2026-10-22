@@ -212,7 +212,7 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 3 | 36 | `add-lingua-pack-en-it` (I11) | 3.5–6 | 22 | |
 | 3 | 37 | `refine-lingua-en-it-glosses` | 2–4 | 24b | |
 | 3 | 38 | `measure-lingua-en-it-translation-marks` | 1–2 | 26 | |
-| 3 | 39 | `localise-lingua-manifest-italian`: `_locales/it` | 0.5–1 | 27 | |
+| 3 | 39 | `localise-lingua-manifest-italian`: `_locales/it` | 0.5–1 | 27 | Proposed ([#1009](https://github.com/NEETROF/cymbra/pull/1009)) |
 | 3 | 40 | `localise-lingua-apple-host-italian`: `copy.js`, `SignInCopy`, `app_localizations.sh` | 1.5–3 | 28 | |
 | 3 | 41 | `add-site-italian-locale`: `/it/` home, Music, Lingua, privacy, terms, support, account deletion, 404, and Lingua's Italian leaving page, pinned before the extension build that compiles it into `LEAVING_PAGES.it` (change 45) ships; the islands | 5–9 | 29, 29b | |
 | 3 | 42 | `extend-site-lingua-matrix-pages-italian`: Italian's pairs and coverage on the Lingua pages; `hreflang` | 1–2 | 30 | |
