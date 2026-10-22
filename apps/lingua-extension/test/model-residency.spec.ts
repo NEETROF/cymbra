@@ -21,6 +21,7 @@ const EN_FR = "en-fr/base-memory/2.0";
 const ES_EN = "es-en/base-memory/2.0";
 const EN_ES = "en-es/base-memory/2.1";
 const FR_EN = "fr-en/base-memory/2.0";
+const EN_IT = "en-it/base-memory/2.1";
 const ROUTE: Record<string, LoadedRoute> = {
   "en-fr": { pair: "en-fr", models: [EN_FR] },
   "es-fr": { pair: "es-fr", models: [ES_EN, EN_FR] },
@@ -280,7 +281,7 @@ describe("The worker's bookkeeping follows the decision: what it holds is the un
     // es-fr held; a route over es-en and a model that cannot be built: en-fr goes by the bound and
     // es-fr with it, es-en stays for the route — which fails. Kept, es-en would be held for nothing.
     w.load(ROUTE["es-fr"]!);
-    const decision = w.failToLoad({ pair: "es-it", models: [ES_EN, "en-it/base-memory/2.0"] }, []);
+    const decision = w.failToLoad({ pair: "es-it", models: [ES_EN, EN_IT] }, []);
     expect(decision.evict).toEqual([EN_FR]);
     expect(decision.drop).toEqual(["es-fr"]);
     expect(w.residency()).toEqual([]);
@@ -319,6 +320,8 @@ describe("The committed catalogue's routes: a reader who keeps their native lang
     expect(committed("fr-en")).toEqual(ROUTE["fr-en"]);
     expect(committed("fr-es")).toEqual(ROUTE["fr-es"]);
     for (const pair of ["en-fr", "es-fr", "es-en", "en-es"]) expect(committed(pair), pair).toEqual(ROUTE[pair]);
+    // The es-it route a build fails on above is the catalogue's (add-lingua-italian-translation-models D2).
+    expect(committed("es-it")).toEqual({ pair: "es-it", models: [ES_EN, EN_IT] });
   });
 
   it("A Spanish-native reader of English and French: en-es, then fr-es, then en-es again — en-es serves both routes, en-es and fr-en held, nothing deleted", () => {

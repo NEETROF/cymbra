@@ -153,6 +153,82 @@
           }
         }
       }
+    },
+    "it-en/base-memory/2.0": {
+      "from": "it",
+      "to": "en",
+      "licence": "MPL-2.0",
+      "mirror": "https://github.com/NEETROF/cymbra/releases/download/lingua-model-it-en-base-memory-2.0/",
+      "files": {
+        "model": {
+          "path": "it-en/base-memory/2.0/21b70978ce2f3b4da7a06b5de86a09abe3acd30b9eee1b2ebb3582b9bad790bf/model.bin.gz",
+          "size": 23301774,
+          "unpacked": 31561787,
+          "sha256": "21b70978ce2f3b4da7a06b5de86a09abe3acd30b9eee1b2ebb3582b9bad790bf",
+          "source": {
+            "path": "models/it-en/retrain_hr_d1nPDwVeSD6t-HdtWA4xNg/exported/model.iten.intgemm.alphas.bin.gz",
+            "sha256": "0bc7221c2730723ac4477e8aa1d1d5bd0b9c3450cb8d006a6f86fe5da9129c27"
+          }
+        },
+        "lex": {
+          "path": "it-en/base-memory/2.0/0700d6d70b30490e68ff9deca0b45b80310745b491855bde3a13e1692d0cbce1/lex.bin.gz",
+          "size": 2532929,
+          "unpacked": 4713616,
+          "sha256": "0700d6d70b30490e68ff9deca0b45b80310745b491855bde3a13e1692d0cbce1",
+          "source": {
+            "path": "models/it-en/retrain_hr_d1nPDwVeSD6t-HdtWA4xNg/exported/lex.50.50.iten.s2t.bin.gz",
+            "sha256": "504877085b31edfa3d31a1918a9a42c20fcbf85ff018caf46c54641db5538e62"
+          }
+        },
+        "vocab": {
+          "path": "it-en/base-memory/2.0/3ef0211d4ae6db21440892f180f2019fe2bfc110a330ffa9d2eca9665e4f2bc5/vocab.spm.gz",
+          "size": 407598,
+          "unpacked": 812724,
+          "sha256": "3ef0211d4ae6db21440892f180f2019fe2bfc110a330ffa9d2eca9665e4f2bc5",
+          "source": {
+            "path": "models/it-en/retrain_hr_d1nPDwVeSD6t-HdtWA4xNg/exported/vocab.iten.spm.gz",
+            "sha256": "df05fae498f519a828eb388cd08ec1b7205a8bcaf2405a5feb9f5e30c49a0977"
+          }
+        }
+      }
+    },
+    "en-it/base-memory/2.1": {
+      "from": "en",
+      "to": "it",
+      "licence": "MPL-2.0",
+      "mirror": "https://github.com/NEETROF/cymbra/releases/download/lingua-model-en-it-base-memory-2.1/",
+      "files": {
+        "model": {
+          "path": "en-it/base-memory/2.1/248f47568788ecc351da7e5e07064d4153b4f71e011364ae2c931ffeec4d1cc2/model.bin.gz",
+          "size": 23892889,
+          "unpacked": 31561787,
+          "sha256": "248f47568788ecc351da7e5e07064d4153b4f71e011364ae2c931ffeec4d1cc2",
+          "source": {
+            "path": "models/en-it/retrain_hr_fix_names_GPSr_u8PSmC9fOx1ZDCHoA/exported/model.enit.intgemm.alphas.bin.gz",
+            "sha256": "cfff470e9f29e27132723589a8bc985648f92773410e5f6fc43293d9e19f97f1"
+          }
+        },
+        "lex": {
+          "path": "en-it/base-memory/2.1/8b21914804625b2777dae7fdb636eb78f02a3eb8b7bceaa50f29ac740961da93/lex.bin.gz",
+          "size": 2209348,
+          "unpacked": 4133192,
+          "sha256": "8b21914804625b2777dae7fdb636eb78f02a3eb8b7bceaa50f29ac740961da93",
+          "source": {
+            "path": "models/en-it/retrain_hr_fix_names_GPSr_u8PSmC9fOx1ZDCHoA/exported/lex.50.50.enit.s2t.bin.gz",
+            "sha256": "cd7ef06c0b872c15286a9796f105eb62693f14665490546ac70ce1c6c8f16d47"
+          }
+        },
+        "vocab": {
+          "path": "en-it/base-memory/2.1/3ef0211d4ae6db21440892f180f2019fe2bfc110a330ffa9d2eca9665e4f2bc5/vocab.spm.gz",
+          "size": 407598,
+          "unpacked": 812724,
+          "sha256": "3ef0211d4ae6db21440892f180f2019fe2bfc110a330ffa9d2eca9665e4f2bc5",
+          "source": {
+            "path": "models/en-it/retrain_hr_fix_names_GPSr_u8PSmC9fOx1ZDCHoA/exported/vocab.enit.spm.gz",
+            "sha256": "8f99a6f493bf7e1a03fbba19928d7dc7bf9a1b7938238467f3e80a58c0d50485"
+          }
+        }
+      }
     }
   },
   "routes": {
@@ -161,6 +237,12 @@
     "es-en": ["es-en/base-memory/2.0"],
     "en-es": ["en-es/base-memory/2.1"],
     "fr-en": ["fr-en/base-memory/2.0"],
-    "fr-es": ["fr-en/base-memory/2.0", "en-es/base-memory/2.1"]
+    "fr-es": ["fr-en/base-memory/2.0", "en-es/base-memory/2.1"],
+    "it-en": ["it-en/base-memory/2.0"],
+    "en-it": ["en-it/base-memory/2.1"],
+    "it-fr": ["it-en/base-memory/2.0", "en-fr/base-memory/2.0"],
+    "it-es": ["it-en/base-memory/2.0", "en-es/base-memory/2.1"],
+    "fr-it": ["fr-en/base-memory/2.0", "en-it/base-memory/2.1"],
+    "es-it": ["es-en/base-memory/2.0", "en-it/base-memory/2.1"]
   }
 }
