@@ -34,8 +34,8 @@ rendered with macOS `say`, the audio compared byte for byte), as French's change
   voice names the accented letter, as it does `à`, `ò`, `ì`, `ù`); « è. » is the vowel, 0.18 s —
   and « È vero » is byte for byte « E' vero », so in a sentence the voice reads it right.
 
-And Réglages cannot yet say "no Italian voice is installed", nor offer an Italian sample, nor name
-Italian's estimated level: those words live in the catalogue's `languages` modules, which name
+And Réglages cannot yet say "no Italian voice is installed", nor offer an Italian sample, nor hold the words
+Italian's level titles will take: those words live in the catalogue's `languages` modules, which name
 English, Spanish and French only.
 
 Nothing of this is visible before `enable-lingua-italian` (change 20) lists an Italian pair.
