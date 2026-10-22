@@ -1,0 +1,15 @@
+schema: spec-driven
+created: 2026-10-22
+archiveAfter:
+  - add-lingua-expression-table
+  - add-lingua-french-expression-keys
+  - add-lingua-spanish-expression-keys
+  - match-lingua-french-elided-pieces
+  - match-lingua-french-contracted-pieces
+  - pick-lingua-expression-written-as-the-page
+  - pick-lingua-spanish-expression-written-as-the-page
+  - add-lingua-french-word-card
+  - choose-lingua-overlapping-expressions
+  - add-lingua-italian-baseline
+  - add-lingua-italian-tokenisation
+  - add-lingua-italian-analysis

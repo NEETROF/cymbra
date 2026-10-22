@@ -177,11 +177,11 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 1 Italian studied: it-fr | 5 | `add-lingua-italian-baseline`: the variant, backup v4, the Italian corpus and golden beside the six | 3–5 | 39 | Proposal merged ([#975](https://github.com/NEETROF/cymbra/pull/975)) |
 | 1 | 6 | `add-lingua-italian-tokenisation` (I7): elision pieces, articulated prepositions, truncation (the apostrophe for an accent is change 10's) | 5–8 | 40 | Proposal merged ([#976](https://github.com/NEETROF/cymbra/pull/976)) |
 | 1 | 7 | `add-lingua-italian-analysis`: NFC, cascade, closed classes, names rule, enclitic pronouns; analyser 1.0.0 | 5–8 | 41 | Proposal merged ([#977](https://github.com/NEETROF/cymbra/pull/977)) |
-| 1 | 8 | `add-lingua-italian-detection-guard`: Catalan, Galician, Venetian, Sicilian, Neapolitan, Sardinian, Corsican, Friulian pooled and measured; Latin, Occitan, Romanian measured, out by default | 3–6 | 42, 42b | Proposed ([#980](https://github.com/NEETROF/cymbra/pull/980)) |
-| 1 | 9 | `add-lingua-italian-forms-tables` (I11): the English Wiktionary's Italian section, MarkIT's parts of speech, Morph-it! verified | 8.5–14 | 43 | Proposed ([#978](https://github.com/NEETROF/cymbra/pull/978)) |
-| 1 | 10 | `read-lingua-italian-unmarked-spellings`: E', perche', piu', citta', and the dictionary's own accent-less spellings | 2–4 | 43d, 43e | Proposed ([#981](https://github.com/NEETROF/cymbra/pull/981)) |
+| 1 | 8 | `add-lingua-italian-detection-guard`: Catalan, Galician, Venetian, Sicilian, Neapolitan, Sardinian, Corsican, Friulian pooled and measured; Latin, Occitan, Romanian measured, out by default | 3–6 | 42, 42b | Proposal merged ([#980](https://github.com/NEETROF/cymbra/pull/980)) |
+| 1 | 9 | `add-lingua-italian-forms-tables` (I11): the English Wiktionary's Italian section, MarkIT's parts of speech, Morph-it! verified | 8.5–14 | 43 | Proposal merged ([#978](https://github.com/NEETROF/cymbra/pull/978)) |
+| 1 | 10 | `read-lingua-italian-unmarked-spellings`: E', perche', piu', citta', and the dictionary's own accent-less spellings | 2–4 | 43d, 43e | Proposal merged ([#981](https://github.com/NEETROF/cymbra/pull/981)) |
 | 1 | 11 | `keep-lingua-italian-acronyms-and-names`: acronyms in capitals stay acronyms; names leave the words to learn (the rows' gloss and `lexical.tsv` land with change 16) | 1.5–3 | 43c, 24c | Proposal merged ([#979](https://github.com/NEETROF/cymbra/pull/979)) |
-| 1 | 12 | `add-lingua-italian-expression-keys`: expressions keyed as Italian is read; the expression written as the page | 2–4 | 44, 44c–44e | |
+| 1 | 12 | `add-lingua-italian-expression-keys`: expressions keyed as Italian is read; the expression written as the page | 2–4 | 44, 44c–44e | Proposed ([#982](https://github.com/NEETROF/cymbra/pull/982)) |
 | 1 | 13 | `add-lingua-italian-grammar-tables`: UD tags (passato remoto `Tense=Past`, imperfetto `Tense=Imp`, checked against it_isdt already) | 3–5 | 45 | |
 | 1 | 14 | `add-lingua-italian-levels` (I8): the estimated ladder | 1.5–3 | 46 | |
 | 1 | 15 | `add-lingua-italian-read-aloud`: it-IT and it-CH voices | 1–2 | 47 | |
