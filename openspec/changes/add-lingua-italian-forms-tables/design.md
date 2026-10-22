@@ -14,9 +14,11 @@ See proposal.md — Why. What constrains the shape:
   readers along, a group per studied language. French's reducer (`reduce-fr-en.py`) holds
   French's studied rules; `reduce_french_treebank.py` reads UD French-GSD's two sections for the
   counts that choose a form's lemma and the part of speech a gloss row opens on.
-- The English Wiktionary's Italian section, as kaikki derives it from the English edition's dump
-  (`kaikki-Italian.jsonl`, 770,859,636 B on 2026-10-21, regenerated 2026-10-03; the French section's
-  is 583,677,104 B): 719,680 senses, 589,335 distinct forms; verb paradigms listed form by form,
+- The English Wiktionary's Italian section, as `pack_sources.derive` writes it from the English
+  edition's dump of 2026-10-03 (`kaikki-Italian.jsonl`, 656,480,462 B, 623,702 entries) — measured
+  here on kaikki.org's own extract of the section, 770,859,636 B on 2026-10-21, the same 623,702
+  entries laid out differently (where `categories`, `derived`, `related` and `synonyms` sit) (the French section's extract is 583,677,104 B): 719,680
+  senses, 589,335 distinct forms; verb paradigms listed form by form,
   participles with their agreement, nouns with their plurals, adjectives with their four forms.
 - wordfreq 3.1.1 has an Italian large list (`it`), as it has for Spanish and French; its tokeniser
   splits a piece of one or two letters before a vowel (`l'uomo` → `l` + `uomo`) and strips a
