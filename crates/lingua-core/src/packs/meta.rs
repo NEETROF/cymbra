@@ -272,16 +272,12 @@ mod tests {
         let whole = container(&serde_json::from_str::<PackMeta>(WITHOUT).unwrap());
         let (base, layer) = (container(&base_meta(false)), container(&layer_meta()));
         for (bytes, found) in [(&layer, Some(Part::Layer)), (&whole, None)] {
-            match BaseMeta::read(bytes) {
-                Err(err @ PackError::WrongPart { .. }) => {
-                    assert!(matches!(
-                        err,
-                        PackError::WrongPart { expected: Part::Base, found: f } if f == found
-                    ));
-                    assert!(err.to_string().contains("expected a pack's base"), "{err}");
-                }
-                other => panic!("expected WrongPart, got {:?}", other.map(|_| ())),
-            }
+            let err = BaseMeta::read(bytes).expect_err("not a base");
+            assert!(err.to_string().contains("expected a pack's base"), "{err}");
+            assert!(matches!(
+                err,
+                PackError::WrongPart { expected: Part::Base, found: f } if f == found
+            ));
         }
         for (bytes, found) in [(&base, Some(Part::Base)), (&whole, None)] {
             assert!(matches!(

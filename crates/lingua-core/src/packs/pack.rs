@@ -2468,18 +2468,15 @@ pub(crate) mod tests {
             (&parts.base, Part::Base, Part::Layer),
             (&parts.layer, Part::Layer, Part::Base),
         ] {
-            let refused = |result: Result<(), PackError>| match result {
-                Err(err @ PackError::NotAWholePack { .. }) => {
-                    assert!(matches!(
-                        err,
-                        PackError::NotAWholePack { part: p, needs: n } if p == part && n == needs
-                    ));
-                    let message = err.to_string();
-                    assert!(message.contains(&format!("a pack's {part}")), "{message}");
-                    assert!(message.contains(&format!("with its {needs}")), "{message}");
-                }
-                Err(other) => panic!("expected NotAWholePack, got {other}"),
-                Ok(()) => panic!("a {part} was read as a whole pack"),
+            let refused = |result: Result<(), PackError>| {
+                let err = result.expect_err("a part is no whole pack");
+                let message = err.to_string();
+                assert!(message.contains(&format!("a pack's {part}")), "{message}");
+                assert!(message.contains(&format!("with its {needs}")), "{message}");
+                assert!(matches!(
+                    err,
+                    PackError::NotAWholePack { part: p, needs: n } if p == part && n == needs
+                ));
             };
             refused(Pack::load(bytes).map(|_| ()));
             refused(Pack::studied_in(bytes).map(|_| ()));
@@ -2495,10 +2492,10 @@ pub(crate) mod tests {
     #[test]
     fn each_part_is_refused_where_the_other_is_expected() {
         let parts = split(&[]);
-        let refused = |base: &[u8], layer: &[u8]| match Pack::assemble(base, layer) {
-            Err(err @ PackError::WrongPart { .. }) => err,
-            Err(other) => panic!("expected WrongPart, got {other}"),
-            Ok(_) => panic!("assembled"),
+        let refused = |base: &[u8], layer: &[u8]| {
+            Pack::assemble(base, layer)
+                .err()
+                .expect("a part given for the other")
         };
         let swapped = refused(&parts.layer, &parts.base);
         assert!(matches!(
@@ -2534,38 +2531,33 @@ pub(crate) mod tests {
             &[],
             ("base-digest", "base-digest"),
         );
-        match Pack::assemble(&english.base, &spanish.layer) {
-            Err(err @ PackError::LayerOfAnotherLanguage { .. }) => {
-                let message = err.to_string();
-                assert!(
-                    message.contains("\"es\"") && message.contains("\"en\""),
-                    "{message}"
-                );
-            }
-            Err(other) => panic!("expected LayerOfAnotherLanguage, got {other}"),
-            Ok(_) => panic!("an es-fr layer assembled with an English base"),
-        }
+        let err = Pack::assemble(&english.base, &spanish.layer)
+            .err()
+            .expect("an es-fr layer is refused beside an English base");
+        let message = err.to_string();
+        assert!(
+            message.contains("\"es\"") && message.contains("\"en\""),
+            "{message}"
+        );
+        assert!(matches!(err, PackError::LayerOfAnotherLanguage { .. }));
         assert!(Pack::assemble(&spanish.base, &spanish.layer).is_ok());
     }
 
     #[test]
     fn spec_scenario_a_layer_built_against_another_base() {
         let parts = split_with("en", "es", ANALYZER_VERSION, &["NUM"], ("aaaa", "bbbb"));
-        match Pack::assemble(&parts.base, &parts.layer) {
-            Err(err @ PackError::BaseVersionMismatch { .. }) => {
-                assert!(matches!(
-                    &err,
-                    PackError::BaseVersionMismatch { base, layer } if base == "aaaa" && layer == "bbbb"
-                ));
-                let message = err.to_string();
-                assert!(
-                    message.contains("aaaa") && message.contains("bbbb"),
-                    "{message}"
-                );
-            }
-            Err(other) => panic!("expected BaseVersionMismatch, got {other}"),
-            Ok(_) => panic!("a layer assembled with a base it was not built against"),
-        }
+        let err = Pack::assemble(&parts.base, &parts.layer)
+            .err()
+            .expect("a layer built against another base is refused");
+        let message = err.to_string();
+        assert!(
+            message.contains("aaaa") && message.contains("bbbb"),
+            "{message}"
+        );
+        assert!(matches!(
+            &err,
+            PackError::BaseVersionMismatch { base, layer } if base == "aaaa" && layer == "bbbb"
+        ));
     }
 
     #[test]
