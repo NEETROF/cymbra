@@ -1,0 +1,10 @@
+schema: spec-driven
+created: 2026-10-22
+archiveAfter:
+  - add-lingua-italian-interface
+  - add-lingua-italian-card-wording
+  - localise-lingua-manifest-italian
+  - localise-lingua-apple-host-italian
+  - add-site-italian-locale
+  - add-lingua-italian-audience-listings
+  - enable-lingua-italian-speakers
