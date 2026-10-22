@@ -13,3 +13,4 @@ archiveAfter:
   - add-lingua-italian-baseline
   - add-lingua-italian-tokenisation
   - add-lingua-italian-analysis
+  - add-lingua-pack-it-fr
