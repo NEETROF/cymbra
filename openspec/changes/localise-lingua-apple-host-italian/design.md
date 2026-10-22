@@ -11,9 +11,9 @@ prefixed `ext:` (`apps/lingua-extension/`).
 | Surface | Copy | Language chosen by |
 |---|---|---|
 | Activation page (iOS, macOS) | `Shared (App)/Resources/copy.js`, one table per language: 15 keys (12 nodes, 3 pre-macOS-13 variants), 159 / 158 / 166 words in fr / en / es; the French also in `Base.lproj/Main.html`, held equal by `ext:test/apple-activation-page.spec.ts` | `ViewController.swift` injects `window.linguaLanguage`, from `SignInLanguage.shown(InterfaceLanguageStore.current(), in: .main)`: the language the extension stored in the App Group, else the device's preferred localisation among `CFBundleLocalizations`, else English once offered, else French |
-| Extension's sign-in sheet | `SignInCopy` in `LinguaSignIn/Sources/LinguaSignIn/SignInFlow.swift`, 11 entries, 97 / 100 / 109 words | the link's `lang` (`SignInLink.language(from:)`), when offered |
+| Extension's sign-in sheet | `SignInCopy` in `LinguaSignIn/Sources/LinguaSignIn/SignInFlow.swift`, 11 entries, 97 / 100 / 109 words | `SignInLanguage.shown(link, in: .main)` (`SceneDelegate.swift`, macOS `AppDelegate.swift`): the link's `lang` (`SignInLink.language(from:)`) when offered, then the same chain as the page |
 | App's own sign-in sheet (from the review page) | the same `SignInCopy`, 7 entries | the App Group language, as the page |
-| In-app review page | the extension's `app` build, `ext:src/i18n/<lang>/` | change 33's, through the extension's interface language |
+| In-app review page | the extension's `app` build, `ext:src/i18n/<lang>/` | change 33's, through the extension's interface language, with `window.linguaLanguage` as its fallback (`ext:src/app/app.ts`) |
 | macOS menu bar | `macOS (App)/Base.lproj/Main.storyboard`, 7 English titles | nothing: English for every reader |
 | System-drawn | Sign in with Apple's button, the web-authentication consent, StoreKit's rating prompt | the system, from the bundle's localisations |
 
@@ -25,10 +25,10 @@ prefixed `ext:` (`apps/lingua-extension/`).
 - `SignInFlow.swift`: `SignInLink.language(from:)` reads `lang=it` as no language. `SignInCopy` has
   an exhaustive switch and three tables.
 - `NativeMessage.swift` answers `interface.language` = `it` with `unknownLanguage`.
-- `copy.js` has three tables. Its fallback fills a missing key from French.
+- `copy.js` has three tables. An unknown language leaves `Main.html`'s French; every table holds every key, which the page test checks (a missing key would render « undefined »).
 - `tool/app_localizations.sh` already accepts any native: with `en-it.lingua` it writes
   `["fr","en","es","it"]` and region `en`. It also warns "it-native packs ship, but the app has no copy
-  in it", and its order list names fr, en and es.
+  in it", and its order list and a comment name fr, en and es.
 
 **What the open changes do here:**
 - Changes 20 and 25 rewrite `copy.js`'s `fr` and `en` `lede` and `step3` to name Italian.
@@ -79,7 +79,8 @@ A failure names its provider and never reads as a password error (the existing t
 
 ### D3 — The activation page's Italian
 
-`copy.js` gains an `it` table of its 15 keys, about 145 words. It names English only, the language
+`copy.js` gains an `it` table of its 15 keys, about 145 words, no longer than the Spanish page's 166:
+the iOS page does not scroll. It names English only, the language
 en-it studies, as the English and Spanish pages first named one language, and as `_locales/it` does
 (change 39). The language names are lowercase with their articles (« l'inglese », « il tuo livello di
 inglese »), and the page never names « italiano ».
@@ -96,16 +97,29 @@ en-it among the packs gives `["fr","en","es","it"]`, region `en`, and no warning
 
 ### D5 — Tests
 
-- **Swift**: `SignInLanguageTests` (Italian offered and preferred, a stored `it`); `SignInFlowTests`
-  (`lang=it` parsed; the Italian draft is not the French; Italian addresses the reader with « tu »);
-  `NativeMessage`'s Italian case.
-- **`ext:test/apple-activation-page.spec.ts`**: it assumes every native has a listed pair (`named1()`
-  takes `pairsOf(language)[0]!`). It gains Italian, and its checks that name a native's studied
-  languages, or that step 3 says where a second language is ticked, apply to the natives the listed
-  pairs have, so Italian is checked from change 45. The expected names gain `it`, from change 33's
-  catalogue.
-- **`ext:test/native-signin.spec.ts`**: the `it` case once `hostAppSignInUrl` takes it (change 33's
-  alias).
+- **Swift**:
+  - `SignInLanguageTests`: Italian offered and preferred; a stored `it`; `NativeMessage`'s Italian
+    case (its tests live there);
+  - an **inert** test: a bundle declaring `[fr, en, es]` (the file's bundle helper) never shows `.it`,
+    even when `.it` is requested;
+  - `SignInFlowTests`: `lang=it` parsed; the Italian draft is not the French; Italian addresses the
+    reader with « tu »;
+  - `AppSessionStoreTests`, which lists `[.fr, .en, .es]` for `appLede` and `emailButton`: Italian
+    among them.
+- **`ext:test/apple-activation-page.spec.ts`**:
+  - `LANGUAGES` gains `it` (the test of the languages the table holds fails as soon as `COPY` does);
+  - the "no copy of the French" check and the fill loop cover Italian;
+  - a « tu » check like Spanish's, refusing « aprite », « attivate », « scegliete », « Apra », « Attivi »,
+    « Scelga »;
+  - the naming checks run against an explicit pair list (`pairsOf("it", ["en-it"])`), so Italian's page is
+    pinned at this change's merge;
+  - the check that step 3 says where a second language is ticked (`drawer.settings`,
+    `settings.tabLanguage`) applies only to natives with two listed pairs or more. A native with one
+    pair is held to naming that language's level and no Settings tab, as the one-language pages of the
+    precedent were. `named1()` is not called for a native with no pair.
+- **`ext:test/native-signin.spec.ts`**: the teller does not send `it` while `INTERFACE_LANGUAGES` lacks
+  it, which keeps this change inert. Today `NativeMessage` refuses `it`; after this change it stores it,
+  so the guarantee moves to the extension, and the test pins it.
 
 ### D6 — Reviewed by the Italian reviewer agent
 
@@ -128,12 +142,20 @@ release at the latest, and carries this change's tables with it. It declares `[f
 build's natives check guarantees, so nothing visible changes and Apple validates the same shape it
 accepts today. The release is the owner's (I12).
 
+release-please assigns a commit to a component by the paths it touches, not by its scope
+(`release-please-config.json` has no plugins or excluded paths). This change's implementation touches
+`apps/lingua-apple` and `apps/lingua-extension/test`, so its commit bumps both the host app and the
+extension, which change 32's D4 needs anyway. Only change 32 needs a host-app release before change 45;
+this change's code ships in the same bundle as en-it. Once it lands, change 45 may touch nothing under
+`apps/lingua-apple`, and then release-please would cut no host-app release for en-it; row 45 records
+that change 45 touches `apps/lingua-apple` or carries `Release-As`.
+
 ### D8 — Not here
 
 - **The macOS menu bar** stays English for every reader, as it is today for French, English and
   Spanish readers. Translating it (a Swift table applied at launch, about 0.25–0.5 day for four
-  languages) would change what French readers see, which is the owner's call; it belongs to a change of
-  its own if wanted.
+  languages) would change what French readers see, which is the owner's call (*Open Questions*); it
+  belongs to a change of its own if wanted.
 - **Whether `preferredLocalizations` honours `CFBundleLocalizations` without `.lproj` folders, and
   which `_locales` Safari picks** (the precedent's task 4.5, still open): checked for Italian in change
   45's dogfood, with a device in Italian.
@@ -153,9 +175,15 @@ accepts today. The release is the owner's (I12).
 
 Nothing deploys. The host-app release (D7) is the owner's. Rollback is a revert.
 
+## Open Questions
+
+For the owner, not blocking this change:
+1. **The macOS menu bar**: English for every reader, as today, or its seven titles translated into the
+   four languages? The precedent deferred it to matrix change 33's review, which recorded nothing.
+
 ## Effort
 
-1.75–2.75 ideal days, against the programme's 1.5–3:
+1.6–2.75 ideal days, against the programme's 1.5–3:
 
 | Part | Ideal days |
 |---|---|

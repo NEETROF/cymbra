@@ -32,8 +32,8 @@ that lists en-it. This change makes it ready ahead, inert until then.
 - **Tests** (D5): the Swift tests for Italian, and the activation page's tests, which assume every
   native has a listed pair.
 - **Reviewed by the Italian reviewer agent** (D6, I2), not by the owner.
-- **Released before change 45** (D7): this change's host-app release is the one change 32 requires
-  live before Italian is shown. It declares `[fr, en, es]`, as today.
+- **Released before change 45** (D7): this change's release carries the host-app release change 32's
+  D4 requires before Italian is shown. It declares `[fr, en, es]`, as today.
 
 ## Capabilities
 
@@ -43,9 +43,9 @@ None.
 
 ### Modified Capabilities
 
-- `lingua-apple-app`: ADDED *The host app speaks Italian once a pair glossed in Italian ships*.
+- `lingua-apple-app`: ADDED *The host app holds Italian before a pair glossed in Italian ships*.
   *Guided activation* and *The sign-in sheet speaks the extension's language* (held by open changes)
-  already name "the languages of the shipped natives", so they are not modified.
+  already read the languages of the shipped pairs' natives, so they are not modified.
 
 ## Impact
 
@@ -62,6 +62,6 @@ None.
 - **Nothing visible changes** until change 45: every build declares French, English and Spanish, as
   today.
 - **Prerequisites**: changes 32 and 33 implemented. Change 33 provides the Italian catalogue whose
-  names and labels the page quotes, and the reviewer agent.
+  language names the page uses, and the reviewer agent.
 - **Order**: before change 45, released in the host app ahead of it.
-- **Effort, against 1.5–3 ideal days**: 1.75–2.75 (design, *Effort*).
+- **Effort, against 1.5–3 ideal days**: 1.6–2.75 (design, *Effort*).

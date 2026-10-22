@@ -1,11 +1,11 @@
 ## ADDED Requirements
 
-### Requirement: The host app speaks Italian once a pair glossed in Italian ships
-The host app SHALL hold Italian copy for its activation page and its sign-in sheets, addressing the reader as « tu », and SHALL accept Italian wherever it reads a language: the device's preferred localisation, the language the extension stores, and the sign-in link's `lang`. It SHALL offer Italian only when a shipped pair is glossed in Italian, as it offers every language. The activation page's Italian SHALL name the languages the shipped pairs glossed in Italian study.
+### Requirement: The host app holds Italian before a pair glossed in Italian ships
+The host app SHALL hold Italian copy for its activation page and its sign-in sheets, addressing the reader as « tu », and SHALL accept Italian wherever it reads a language: the device's preferred localisation, the language the extension stores, and the sign-in link's `lang`.
 
 #### Scenario: A device in Italian before a pair glossed in Italian ships
-- **WHEN** the app is opened on a device in Italian and no shipped pair is glossed in Italian
-- **THEN** the page is in the language it shows today, and the app declares no Italian localisation
+- **WHEN** the app is opened on a device whose only language is Italian, before the extension has run, and no shipped pair is glossed in Italian
+- **THEN** the page and an older link's sheet are in English, as before, and the app declares French, English and Spanish only
 
 #### Scenario: A device in Italian once en-it ships
 - **WHEN** en-it ships and the app is opened on a device in Italian before the extension has run
