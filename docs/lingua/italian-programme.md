@@ -170,7 +170,7 @@ inversion: change 21's description of Italian on the site (its names, `STUDIED.i
 office is implemented before change 20 lists it-fr, which the site's build would otherwise refuse —
 as the matrix's change 53 (#868) was before 52 (#880). Effort is
 in ideal days, min–max, by analogy with the measured change of the matrix programme named in the
-*Precedent* column; it measures size, not calendar. Stage 3 does not depend on stage 2.
+*Precedent* column; it measures size, not calendar. Stage 3 does not depend on stage 2, but for change 45 (I5).
 
 | Stage | # | Change | Effort | Precedent | Status |
 |---|---|---|---|---|---|

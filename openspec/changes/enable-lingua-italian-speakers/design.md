@@ -243,7 +243,7 @@ merge, as changes 33, 39, 40 and 46 do (I2).
 
 - **Many changes must land first** → D9's list is the checklist; a missing one fails a named gate
   (*Context*).
-- **The site claims a translation en-it lacks** → D4: the route dropped when change 38 withholds it.
+- **The site claims a translation en-it lacks** → D4: the route dropped when the owner withholds it under M15.
 - **A French reader with an Italian browser now sends `fr`** → I10's decision; an account that has a
   language keeps it (Cymbra ID records a locale only on an account with none).
 - **Italian shown without a native reader** → change 44's pass, the dogfood, and change 55.
@@ -251,8 +251,10 @@ merge, as changes 33, 39, 40 and 46 do (I2).
 ## Migration Plan
 
 Readers update through the stores. An installed reader is unaffected unless their native language is
-Italian, when Italian becomes offered and their interface Italian. Rollback is a store rollback onto the
-previous release, the repository untouched: `/it/lingua/` stays built, since it is pinned and change 46's
+Italian, when Italian becomes offered and their interface Italian, but for the Spanish and Italian
+deletion links and I10's account locale (D2). Rollback is the previous build re-published, through each
+store's own means (the Chrome Web Store's rollback, AMO's disabled version, a new App Store build), the
+repository untouched: `/it/lingua/` stays built, since it is pinned and change 46's
 it-IT listing points at it.
 
 ## Open Questions
@@ -276,7 +278,7 @@ The dogfood is the owner's, or left unverified (I2).
 | The switch, its tests, the links, the account tests | 1.25–2 |
 | The capture harness's one-language mode | 0.5–1 |
 | The site: the coverage write, media and captions, the one-language set, change 42's leftovers, the pins | 1.1–2.25 |
-| The requirements (eight MODIFIED, one ADDED) | 0.5–0.75 |
+| The requirements (twelve MODIFIED, one ADDED) and the reviewer agent's pass | 0.5–0.75 |
 | The checks | 0.25–0.5 |
 | The dogfood | 1.25–2.5 |
 | The Apple touch and the release notes | 0.1–0.25 |
