@@ -14,10 +14,17 @@
 #                                                     # … keeping the English edition's recorded bytes
 #   scripts/lingua-data/build.sh --dry en-fr <out.lingua>      # Update into a scratch folder
 #   scripts/lingua-data/build.sh --testdata en-fr <out>        # the tiny fixture
+#   scripts/lingua-data/build.sh --parts en-fr <base.lingua> <layer.lingua>
+#                                       # Build, as the package carries it: the base and the layer
+#   scripts/lingua-data/build.sh --testdata --parts en-fr <base.lingua> <layer.lingua>
+#                                       # … of the tiny fixture
 #
 # Build mode is what every release and every pull request runs: lingua-pack-build on
 # tables/<pair>/ and its studied language's tables/<studied>/, then the pack's sha256 against
-# tables/<pair>/pin.json. It reads nothing from the network and needs no Python. The other modes
+# tables/<pair>/pin.json. With --parts (ship-lingua-pack-bases-once D3), read after the mode's flag,
+# the same tables are built as the studied language's base and the pair's layer — what a package
+# carries — each checked against its own record of pin.json (`base`, `layer`). It reads nothing
+# from the network and needs no Python. The other modes
 # reduce raw sources into tables again — the pinned bytes when the reduction rules change, today's
 # bytes to take in upstream changes — and are run by a person, or by the lingua-pack-update
 # workflow; they write tables/<pair>/ and pin.json — and tables/<studied>/ when the pair is its
@@ -45,7 +52,13 @@ sha256_of() {
 # The pack's sha256 as pin.json records it — read without Python: the file is written by
 # pack_sources.py, which puts `"sha256"` on its own line inside `"pack"`.
 recorded_pack_sha256() {
-  sed -n '/"pack": {/,/}/s/.*"sha256": *"\([0-9a-f]\{64\}\)".*/\1/p' "$1" | head -n1
+  recorded_sha256 "$1" pack
+}
+
+# recorded_sha256 <pin> <record>: the sha256 of the `pack`, `base` or `layer` record, read the same
+# way; empty when the pin has no such record.
+recorded_sha256() {
+  sed -n "/\"$2\": {/,/}/s/.*\"sha256\": *\"\([0-9a-f]\{64\}\)\".*/\1/p" "$1" | head -n1
 }
 
 # build_pack <studied dir> <pair dir> <out>; the testdata fixture holds both sides in one folder.
@@ -54,6 +67,33 @@ build_pack() {
   # The builder writes the file but not its folder, which a fresh checkout may lack.
   mkdir -p "$(dirname "$out")"
   cargo run --quiet --release -p lingua-pack --bin lingua-pack-build -- --studied "$studied" "$input" "$out"
+}
+
+# build_parts <studied dir> <pair dir> <base> <layer>: the same inputs as build_pack, written as the
+# studied language's base and the pair's layer (split-lingua-pack-format D8): neither is written
+# when either fails.
+build_parts() {
+  local studied="$1" input="$2" base="$3" layer="$4"
+  mkdir -p "$(dirname "$base")" "$(dirname "$layer")"
+  cargo run --quiet --release -p lingua-pack --bin lingua-pack-build -- --split "$studied" "$input" "$base" "$layer"
+}
+
+# check_part <pin> <record> <file>: the part against its record, a mismatch named with its file.
+check_part() {
+  local pin="$1" record="$2" file="$3" want got
+  want="$(recorded_sha256 "$pin" "$record")"
+  got="$(sha256_of "$file")"
+  if [[ -z "$want" ]]; then
+    echo "error: $pair: tables/$pair/pin.json records no $record: record the parts the committed tables build" >&2
+    echo "  (pack_sources.py record-parts --pin tables/$pair/pin.json --base <base> --layer <layer>)." >&2
+    return 1
+  fi
+  if [[ "$got" != "$want" ]]; then
+    echo "error: $pair: $file has sha256 $got, but the committed tables build the $record $want (tables/$pair/pin.json)." >&2
+    echo "  The builder, a dependency or the tables changed the $record; if that is intended, record it in the same" >&2
+    echo "  pull request (pack_sources.py record-parts, or reduce $pair again)." >&2
+    return 1
+  fi
 }
 
 # How many lemmas a pair keeps by default: Spanish keeps 60,000, for which the forms of the
@@ -90,8 +130,23 @@ mode=build
 case "${1:-}" in
   --testdata | --reduce | --update | --dry) mode="${1#--}"; shift ;;
 esac
+# A pack's parts (ship-lingua-pack-bases-once D3): the flag read after the mode's, in the two modes
+# that build from tables already reduced.
+parts=0
+if [[ "${1:-}" == --parts ]]; then
+  if [[ "$mode" != build && "$mode" != testdata ]]; then
+    echo "error: --parts builds from the committed tables or the testdata; --$mode builds and records the parts itself." >&2
+    exit 2
+  fi
+  parts=1
+  shift
+fi
 pair="${1:?pair, e.g. en-fr}"
 out="${2:?output path}"
+if [[ "$parts" == 1 ]]; then
+  base="$out"
+  layer="${3:?usage: build.sh [--testdata] --parts <pair> <base.lingua> <layer.lingua>}"
+fi
 root="$here/tables"
 tables="$root/$pair"
 studied="$root/${pair%%-*}"
@@ -124,7 +179,11 @@ done
 
 case "$mode" in
   testdata)
-    build_pack "$here/testdata/$pair" "$here/testdata/$pair" "$out"
+    if [[ "$parts" == 1 ]]; then
+      build_parts "$here/testdata/$pair" "$here/testdata/$pair" "$base" "$layer"
+    else
+      build_pack "$here/testdata/$pair" "$here/testdata/$pair" "$out"
+    fi
     ;;
 
   build)
@@ -133,6 +192,15 @@ case "$mode" in
       echo "error: $pair studies ${pair%%-*}, but tables/${pair%%-*}/ holds no studied tables ($studied/studied.json)." >&2
       echo "  Add tables/${pair%%-*}/: the reduction of its reference pair writes it (build.sh --reduce <pair>)." >&2
       exit 2
+    fi
+    if [[ "$parts" == 1 ]]; then
+      build_parts "$studied" "$tables" "$base" "$layer"
+      failed=0
+      check_part "$pin" base "$base" || failed=1
+      check_part "$pin" layer "$layer" || failed=1
+      [[ "$failed" == 0 ]] || exit 1
+      echo "Built $base and $layer from the committed $pair tables (sha256 $(sha256_of "$base"), $(sha256_of "$layer"))."
+      exit 0
     fi
     build_pack "$studied" "$tables" "$out"
     want="$(recorded_pack_sha256 "$pin")"
@@ -159,7 +227,10 @@ case "$mode" in
     reduce "$pair" "$work" "$snapshot" "$version"
     file_sides "$work" "$root"
     build_pack "$studied" "$tables" "$out"
-    "$PYTHON" "$here/pack_sources.py" record-build --pin "$pin" --pack "$out" --reducer "$here/reduce-$pair.py"
+    # The parts the package carries, from the same tables, recorded beside the whole pack.
+    build_parts "$studied" "$tables" "$work/base.lingua" "$work/layer.lingua"
+    "$PYTHON" "$here/pack_sources.py" record-build --pin "$pin" --pack "$out" \
+      --base "$work/base.lingua" --layer "$work/layer.lingua" --reducer "$here/reduce-$pair.py"
     ;;
 
   update | dry)
@@ -183,7 +254,9 @@ case "$mode" in
     reduce "$pair" "$work" "$snapshot" "$version"
     file_sides "$work" "$root"
     build_pack "$studied" "$tables" "$out"
-    "$PYTHON" "$here/pack_sources.py" record-build --pin "$pin" --pack "$out" --reducer "$here/reduce-$pair.py"
+    build_parts "$studied" "$tables" "$work/base.lingua" "$work/layer.lingua"
+    "$PYTHON" "$here/pack_sources.py" record-build --pin "$pin" --pack "$out" \
+      --base "$work/base.lingua" --layer "$work/layer.lingua" --reducer "$here/reduce-$pair.py"
     echo "Reduced today's $pair sources into $tables (snapshot $snapshot)."
     ;;
 esac

@@ -2134,6 +2134,42 @@ class ReaderPair(unittest.TestCase):
         self.assertIn("it was edited, and es-en was left behind: reduce es-en again from its pinned sources", message)
         self.assertNotIn("reduction moved it", message)
 
+    def test_spec_scenario_a_reader_pair_s_base(self):
+        # ship-lingua-pack-bases-once D3: every pair of a language ships its reference's base, so a
+        # reader pair's pin records the reference's; one that records another fails, naming the
+        # pair, its reference and both bases.
+        base, other = self.root / "es.lingua", self.root / "es-moved.lingua"
+        base.write_bytes(b"LINGUA base")
+        other.write_bytes(b"LINGUA base, reduced again")
+        layers = {pair: self.root / f"{pair}.lingua" for pair in self.pins}
+        for pair, layer in layers.items():
+            layer.write_bytes(f"LINGUA {pair} layer".encode())
+            ps.record_build(self.pins[pair], self.pack, self.root / f"reduce-{pair}.py", base=base, layer=layer)
+        self.check("es-en")
+        # es-fr reduced again moves the base, and es-en is not recorded again: left behind.
+        ps.record_build(self.pins["es-fr"], self.pack, self.root / "reduce-es-fr.py", base=other, layer=layers["es-fr"])
+        self.check("es-fr")
+        with self.assertRaises(ps.PinError) as caught:
+            self.check("es-en")
+        message = str(caught.exception)
+        self.assertRegex(message, rf"^es-en: pin.json records the base {ps.sha256(base)} for es/, ")
+        self.assertIn(f"and es-fr's pin.json records {ps.sha256(other)}", message)
+        self.assertIn("es-en was left behind: reduce es-en again from its pinned sources", message)
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            code = ps.main(
+                ["check-reducer", "--pin", str(self.pins["es-en"]), "--reducer", str(self.root / "reduce-es-en.py")]
+            )
+        self.assertEqual(code, 1)
+        self.assertIn("es-en: pin.json records the base", err.getvalue())
+        # Recorded again on the reference's base, es-en passes; a reader pin with no base fails.
+        ps.record_parts(self.pins["es-en"], other, layers["es-en"])
+        self.check("es-en")
+        record = ps.load(self.pins["es-en"])
+        del record["base"]
+        ps.save(self.pins["es-en"], record)
+        with self.assertRaisesRegex(ps.PinError, r"^es-en: pin.json records the base none for es/"):
+            self.check("es-en")
+
     def test_spec_scenario_an_updated_dictionary_for_a_reader_pair(self):
         # A reader pair's pack_version names the studied tables it read, so it moves when one of
         # them does though nothing of the pair's own moved (lingua-data-packs, *An updated
@@ -2254,6 +2290,60 @@ class Record(unittest.TestCase):
         ps.check_pack(self.pin, self.pack)
         ps.check_reducer(self.pin, self.reducer)
 
+    def test_record_build_records_the_base_and_the_layer_beside_the_pack(self):
+        # ship-lingua-pack-bases-once D3: the three records, in the pin's order, each its file's
+        # sha256 and size.
+        base, layer = self.root / "en.lingua", self.root / "en-fr.lingua"
+        base.write_bytes(b"LINGUA base")
+        layer.write_bytes(b"LINGUA en-fr layer")
+        with contextlib.redirect_stderr(io.StringIO()):
+            code = ps.main(
+                ["record-build", "--pin", str(self.pin), "--pack", str(self.pack)]
+                + ["--base", str(base), "--layer", str(layer), "--reducer", str(self.reducer)]
+            )
+        self.assertEqual(code, 0)
+        record = ps.load(self.pin)
+        self.assertEqual(list(record), ["snapshot", "pack", "base", "layer", "reducer", "sources"])
+        self.assertEqual(record["base"], {"sha256": ps.sha256(base), "size": len(b"LINGUA base")})
+        self.assertEqual(record["layer"], {"sha256": ps.sha256(layer), "size": len(b"LINGUA en-fr layer")})
+        self.assertEqual(record["pack"], {"sha256": ps.sha256(self.pack), "size": len(b"LINGUA pack")})
+        # The command takes the parts: a pack recorded without them would leave the pin naming
+        # parts its tables no longer build.
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            ps.main(["record-build", "--pin", str(self.pin), "--pack", str(self.pack), "--reducer", str(self.reducer)])
+        # Recorded without them (the function, as the older tests call it), the stale records go.
+        ps.record_build(self.pin, self.pack, self.reducer)
+        self.assertEqual(list(ps.load(self.pin)), ["snapshot", "pack", "reducer", "sources"])
+
+    def test_record_parts_writes_the_two_records_alone(self):
+        # ship-lingua-pack-bases-once D3: how the committed pins gain their parts without a
+        # reduction — every other record byte for byte, the whole pack's above all.
+        ps.record_build(self.pin, self.pack, self.reducer)
+        before = ps.load(self.pin)
+        base, layer = self.root / "en.lingua", self.root / "en-fr.lingua"
+        base.write_bytes(b"LINGUA base")
+        layer.write_bytes(b"LINGUA en-fr layer")
+        with contextlib.redirect_stderr(io.StringIO()):
+            code = ps.main(["record-parts", "--pin", str(self.pin), "--base", str(base), "--layer", str(layer)])
+        self.assertEqual(code, 0)
+        after = ps.load(self.pin)
+        self.assertEqual(list(after), ["snapshot", "pack", "base", "layer", "reducer", "sources"])
+        self.assertEqual({k: v for k, v in after.items() if k not in ps.PARTS}, before)
+        self.assertEqual(after["base"], {"sha256": ps.sha256(base), "size": base.stat().st_size})
+        self.assertEqual(after["layer"], {"sha256": ps.sha256(layer), "size": layer.stat().st_size})
+        # Recorded again, the parts move and nothing else does.
+        layer.write_bytes(b"LINGUA en-fr layer, another pack_version")
+        ps.record_parts(self.pin, base, layer)
+        self.assertEqual(ps.load(self.pin)["layer"]["sha256"], ps.sha256(layer))
+        self.assertEqual(ps.load(self.pin)["base"], after["base"])
+        ps.check_pack(self.pin, self.pack)
+        ps.check_reducer(self.pin, self.reducer)
+        # A pin that records no pack has no tables built yet: there is nothing to record parts of.
+        empty = self.root / "es-fr" / "pin.json"
+        ps.save(empty, {"snapshot": "2026.10.08"})
+        with self.assertRaisesRegex(ps.PinError, "records no pack"):
+            ps.record_parts(empty, base, layer)
+
     def test_a_pack_that_differs_is_refused(self):
         ps.record_build(self.pin, self.pack, self.reducer)
         self.pack.write_bytes(b"LINGUA pack, rebuilt by another zstd")
@@ -2364,17 +2454,29 @@ class Record(unittest.TestCase):
             ps.get(ps.load(self.pin), "pack.sha256")
 
     def test_build_sh_reads_the_pack_hash_without_python(self):
-        # build.sh's Build mode reads pack.sha256 with sed, from the file save() writes.
-        ps.record_build(self.pin, self.pack, self.reducer)
+        # build.sh's Build mode reads pack.sha256 with sed, from the file save() writes — and, with
+        # --parts, base.sha256 and layer.sha256 the same way (ship-lingua-pack-bases-once D3).
+        base, layer = self.root / "en.lingua", self.root / "en-fr.lingua"
+        base.write_bytes(b"LINGUA base")
+        layer.write_bytes(b"LINGUA en-fr layer")
+        ps.record_build(self.pin, self.pack, self.reducer, base=base, layer=layer)
         script = (HERE / "build.sh").read_text()
-        body = re.search(r"recorded_pack_sha256\(\) \{\n(.*?)\n\}", script, re.S).group(1)
-        got = subprocess.run(
-            ["bash", "-c", f"recorded_pack_sha256() {{\n{body}\n}}\nrecorded_pack_sha256 {self.pin}"],
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout.strip()
-        self.assertEqual(got, ps.sha256(self.pack))
+        functions = "\n".join(
+            re.search(rf"{name}\(\) \{{\n.*?\n\}}", script, re.S).group(0)
+            for name in ("recorded_pack_sha256", "recorded_sha256")
+        )
+
+        def read(call):
+            return subprocess.run(
+                ["bash", "-c", f"{functions}\n{call}"], check=True, capture_output=True, text=True
+            ).stdout.strip()
+
+        self.assertEqual(read(f"recorded_pack_sha256 {self.pin}"), ps.sha256(self.pack))
+        for record, path in (("pack", self.pack), ("base", base), ("layer", layer)):
+            self.assertEqual(read(f"recorded_sha256 {self.pin} {record}"), ps.sha256(path), record)
+        # A pin without the parts reads as none.
+        ps.record_build(self.pin, self.pack, self.reducer)
+        self.assertEqual(read(f"recorded_sha256 {self.pin} base"), "")
 
     def test_a_build_is_recorded_only_beside_the_pinned_tag_pool(self):
         # add-lingua-pack-lexical-layer D4: tags.tsv is an input no reducer writes; tables reduced
