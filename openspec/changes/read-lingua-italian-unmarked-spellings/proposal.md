@@ -53,8 +53,8 @@ the four commonest web spellings unread; and it marks `perchè`, `nè` and `caff
   the owner settles**, outside the method as 43e's `sure` → *sûr*: `perche` → *perché*, `cosi` →
   *così*, `citta` → *città*, `caffe` → *caffè*, each the section's rare homograph against the web's
   commonest spelling. Left out, by group: the words of their own (`e`, `da`, `si`, `se`, `ne`,
-  `la`, `li`), `papa` (commoner than *papà*: 5.15 against 4.66), `eta` and `pero` (Spanish writes
-  them more: 4.10 against 3.73, 6.57 against 4.42), `cafe` (English's, 4.09 against 3.33).
+  `la`, `li`), `papa` (commoner than *papà*: 5.15 against 4.66), `eta` and `pero` (the Greek letter, the pear
+  tree; Spanish writes them more besides: 4.10 against 3.73, 6.57 against 4.42), `cafe` (English's, 4.09 against 3.33).
 - **A spelling carries nothing of its own** (D4): no rank, no level, no gloss, no dictionary word;
   the card shows the accented word; once change 13 gives Italian readings, a spelling carries its
   word's.
