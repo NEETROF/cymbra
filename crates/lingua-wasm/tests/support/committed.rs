@@ -35,6 +35,12 @@ pub fn pack(pair: &str) -> Vec<u8> {
     build(&inputs(pair))
 }
 
+/// The base and the layer of `pair`'s pack, built from the committed tables in one run
+/// (split-lingua-pack-format D8): assembled, the pack [`pack`] builds.
+pub fn split(pair: &str) -> lingua_pack::SplitPack {
+    lingua_pack::build_split(&inputs(pair)).unwrap_or_else(|e| panic!("split {pair}: {e}"))
+}
+
 fn build(inputs: &lingua_pack::PackInputs) -> Vec<u8> {
     lingua_pack::build_pack(inputs).unwrap_or_else(|e| panic!("build the pack: {e}"))
 }

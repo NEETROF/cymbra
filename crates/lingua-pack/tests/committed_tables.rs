@@ -35,14 +35,18 @@ use lingua_core::engine::{
 };
 use lingua_core::knowledge::level::{CefrLevel, CefrLevels};
 use lingua_core::knowledge::state::FrequencyRanks;
-use lingua_core::packs::Pack;
 use lingua_core::packs::format::read_container;
 use lingua_core::packs::grammar::Tag;
+use lingua_core::packs::meta::{BaseMeta, LayerMeta};
 use lingua_core::packs::pack::section;
+use lingua_core::packs::{Pack, PackError};
 use lingua_pack::studied_of;
-use lingua_pack::tables::{STUDIED_RECORD, check_committed_tables};
+use lingua_pack::tables::{
+    STUDIED_RECORD, check_committed_tables, check_one_base, first_section_difference,
+};
 use lingua_pack::{
-    MAX_PACK_BYTES, PAIR_SIDE, STUDIED_SIDE, build_pack, inputs_from_dirs, inputs_from_tables,
+    MAX_PACK_BYTES, PAIR_SIDE, STUDIED_SIDE, SplitPack, base_version, build_pack, build_split,
+    build_whole_and_split, inputs_from_dirs, inputs_from_tables,
 };
 use sha2::{Digest, Sha256};
 
@@ -2442,4 +2446,208 @@ fn every_headword_of_a_shared_spanish_key_is_kept_in_change_44_s_order() {
             "{pair} carries the section"
         );
     }
+}
+
+// — a base and a layer (split-lingua-pack-format D6) —
+
+/// The committed pairs, each studied language's reference first.
+const COMMITTED: [&str; 6] = ["en-fr", "en-es", "es-fr", "es-en", "fr-en", "fr-es"];
+
+/// A committed pair built whole and as a base and a layer in one pass, once per test binary. The
+/// build refuses a part over the size budget, and a base that would depend on its pair, so every
+/// committed part this answers is under budget and its language's alone.
+fn whole_and_split(pair: &str) -> &'static (Vec<u8>, SplitPack) {
+    static BUILT: [OnceLock<(Vec<u8>, SplitPack)>; 6] = [const { OnceLock::new() }; 6];
+    let at = COMMITTED
+        .iter()
+        .position(|p| *p == pair)
+        .unwrap_or_else(|| panic!("{pair} is no committed pair"));
+    BUILT[at].get_or_init(|| {
+        let inputs = inputs_from_tables(&tables(), pair).unwrap_or_else(|e| panic!("{pair}: {e}"));
+        build_whole_and_split(&inputs).unwrap_or_else(|e| panic!("split {pair}: {e}"))
+    })
+}
+
+/// A committed pair's base and layer.
+fn split_of(pair: &str) -> &'static SplitPack {
+    &whole_and_split(pair).1
+}
+
+/// The tags French's pairs' senses carry outside its pinned pool: the fifteen parts of speech its
+/// runs name bare, and the two genders a noun's runs take from its readings.
+const FRENCH_SENSE_TAGS: [&str; 17] = [
+    "ADJ",
+    "ADP",
+    "ADV",
+    "CCONJ",
+    "DET",
+    "INTJ",
+    "NOUN",
+    "NOUN|Gender=Fem",
+    "NOUN|Gender=Masc",
+    "NUM",
+    "PART",
+    "PRON",
+    "PROPN",
+    "SCONJ",
+    "SYM",
+    "VERB",
+    "X",
+];
+
+#[test]
+fn spec_scenario_the_assembled_pack_is_the_whole_pack() {
+    // Every committed pair, built whole and as a base and a layer from the same tables: the parts
+    // assemble into every named section of the whole pack — the one its pin records — with the
+    // same bytes, the pool included, and its metadata as the whole pack writes it.
+    for pair in COMMITTED {
+        let (whole, split) = whole_and_split(pair);
+        assert!(
+            *whole == *committed_pack(pair),
+            "{pair}: the pass that splits built another whole pack"
+        );
+        let (meta, assembled) = Pack::assemble_sections(&split.base, &split.layer)
+            .unwrap_or_else(|e| panic!("assemble {pair}: {e}"));
+        let (whole_meta, whole_sections) = read_container(whole).unwrap();
+        assert_eq!(
+            first_section_difference(&assembled, &whole_sections),
+            None,
+            "{pair}: assembled against whole"
+        );
+        assert_eq!(
+            serde_json::to_vec(&meta).unwrap(),
+            whole_meta,
+            "{pair}: metadata"
+        );
+        let pack = Pack::assemble(&split.base, &split.layer).unwrap();
+        assert_eq!(pack.pair().key(), pair);
+        assert_eq!(
+            pack.notice(),
+            std::fs::read_to_string(tables().join(pair).join("NOTICE")).unwrap(),
+            "{pair}: the layer carries the pair's whole NOTICE"
+        );
+    }
+}
+
+#[test]
+fn spec_scenario_the_pool_is_the_base_s_and_the_layer_s() {
+    // The base's pool is the pinned pool and its readings' tags; the layer's sense tags are those
+    // only its senses carry: `NUM` for en-es, French's seventeen for fr-en and fr-es, none for
+    // en-fr, es-fr and es-en, whose pools are their bases'.
+    let sense_tags = |pair: &str| -> Option<Vec<String>> {
+        section_of(&sections(&split_of(pair).layer), section::SENSES_TAGS).map(|data| {
+            std::str::from_utf8(data)
+                .unwrap()
+                .split('\n')
+                .map(str::to_owned)
+                .collect()
+        })
+    };
+    assert_eq!(sense_tags("en-es"), Some(vec!["NUM".to_owned()]));
+    for pair in ["fr-en", "fr-es"] {
+        assert_eq!(
+            sense_tags(pair),
+            Some(FRENCH_SENSE_TAGS.map(str::to_owned).to_vec()),
+            "{pair}"
+        );
+    }
+    for pair in ["en-fr", "es-fr", "es-en"] {
+        assert_eq!(sense_tags(pair), None, "{pair}");
+    }
+    for pair in COMMITTED {
+        let base = sections(&split_of(pair).base);
+        let pool = section_of(&base, section::TAGS).expect("a base's pool");
+        let pin =
+            std::fs::read_to_string(tables().join(studied_of(pair)).join("tags.tsv")).unwrap();
+        let pin: Vec<&str> = pin.lines().collect();
+        let pool: Vec<&str> = std::str::from_utf8(pool).unwrap().split('\n').collect();
+        assert_eq!(pool[..pin.len()], pin[..], "{pair}: the pin first");
+        let whole = committed_pack(pair);
+        let whole_pool = section_of(&sections(&whole), section::TAGS)
+            .unwrap()
+            .to_vec();
+        let whole_pool: Vec<&str> = std::str::from_utf8(&whole_pool)
+            .unwrap()
+            .split('\n')
+            .collect();
+        assert_eq!(
+            whole_pool[..pool.len()],
+            pool[..],
+            "{pair}: the whole pool's first blocks"
+        );
+        assert_eq!(
+            whole_pool.len() - pool.len(),
+            sense_tags(pair).map_or(0, |tags| tags.len()),
+            "{pair}"
+        );
+    }
+}
+
+#[test]
+fn spec_scenario_one_base_per_studied_language() {
+    // en-fr's and en-es's bases are byte-identical, and so are es-fr's and es-en's, and fr-en's
+    // and fr-es's: the language's base, which change 4 ships once.
+    for (reference, pair) in [("en-fr", "en-es"), ("es-fr", "es-en"), ("fr-en", "fr-es")] {
+        let (a, b) = (&split_of(reference).base, &split_of(pair).base);
+        check_one_base((reference, a), (pair, b)).unwrap_or_else(|e| panic!("{e}"));
+    }
+    // Three bases, one per studied language, each named by its own digest.
+    let versions: BTreeSet<String> = COMMITTED
+        .iter()
+        .map(|pair| BaseMeta::read(&split_of(pair).base).unwrap().base_version)
+        .collect();
+    assert_eq!(versions.len(), 3, "{versions:?}");
+}
+
+#[test]
+fn spec_scenario_a_pair_whose_manifest_disagrees_with_its_language_s_reference() {
+    // A second pair studying Spanish whose manifest declares its levels estimated otherwise than
+    // es-fr's, or another analyser version: the checks name both pairs and the field.
+    let reference = &split_of("es-fr").base;
+    let disagreeing = |change: &dyn Fn(&mut lingua_pack::PackInputs)| {
+        let mut inputs = inputs_from_tables(&tables(), "es-en").unwrap();
+        change(&mut inputs);
+        let split = build_split(&inputs).unwrap();
+        check_one_base(("es-fr", reference), ("es-en", &split.base)).unwrap_err()
+    };
+    let err = disagreeing(&|inputs| inputs.meta.levels_estimated = !inputs.meta.levels_estimated);
+    assert!(
+        err.contains("es-fr") && err.contains("es-en") && err.contains("levels_estimated"),
+        "{err}"
+    );
+    let err = disagreeing(&|inputs| inputs.meta.analyzer_version = "0.0.0".into());
+    assert!(
+        err.contains("es-fr") && err.contains("es-en") && err.contains("analyzer_version"),
+        "{err}"
+    );
+}
+
+#[test]
+fn spec_scenario_a_layer_and_its_base() {
+    // en-es's base and layer, built in one run, assemble, and the layer names the base by the
+    // digest any reader of the base recomputes; es-fr's layer is refused beside English's base.
+    let en_es = split_of("en-es");
+    let layer = LayerMeta::read(&en_es.layer).unwrap();
+    assert_eq!(
+        Some(layer.base_version.clone()),
+        base_version(&en_es.base),
+        "the digest of the base's sections"
+    );
+    assert_eq!(
+        layer.base_version,
+        BaseMeta::read(&en_es.base).unwrap().base_version
+    );
+    assert!(Pack::assemble(&en_es.base, &en_es.layer).is_ok());
+    match Pack::assemble(&en_es.base, &split_of("es-fr").layer) {
+        Err(PackError::LayerOfAnotherLanguage { base, layer }) => {
+            assert_eq!((base.as_str(), layer.as_str()), ("en", "es"));
+        }
+        Err(other) => panic!("expected LayerOfAnotherLanguage, got {other}"),
+        Ok(_) => panic!("an es-fr layer assembled with English's base"),
+    }
+    // A whole pack is no part: every reader of whole packs refuses a part by name.
+    assert!(matches!(
+        Pack::pair_in(&en_es.layer),
+        Err(PackError::NotAWholePack { .. })
+    ));
 }

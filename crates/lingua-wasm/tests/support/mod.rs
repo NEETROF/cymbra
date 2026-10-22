@@ -133,6 +133,35 @@ fn loadable(pack: Vec<u8>, pair: &str, manifest_dir: &Path) -> Vec<u8> {
     pack
 }
 
+/// A pair's pack as an engine takes it: whole, as the extension loads it today, or as the base
+/// and the layer the engine assembles (split-lingua-pack-format D7).
+pub enum Held {
+    Whole(Vec<u8>),
+    Parts(lingua_pack::SplitPack),
+}
+
+impl Held {
+    /// The size of the pack held: the whole pack's, or that of the container the parts assemble
+    /// into — the whole pack's too, since the assembled pack holds every named section of the
+    /// whole pack with the same bytes, and its metadata.
+    fn size(&self) -> usize {
+        match self {
+            Held::Whole(pack) => pack.len(),
+            Held::Parts(parts) => {
+                let (meta, sections) =
+                    lingua_core::packs::Pack::assemble_sections(&parts.base, &parts.layer)
+                        .unwrap_or_else(|e| panic!("the parts assemble: {e}"));
+                let sections: Vec<(&str, &[u8])> = sections
+                    .iter()
+                    .map(|s| (s.name.as_str(), s.data.as_slice()))
+                    .collect();
+                lingua_core::packs::write_container(&serde_json::to_vec(&meta).unwrap(), &sections)
+                    .len()
+            }
+        }
+    }
+}
+
 /// What one pair's baseline asks the engine.
 pub struct Scenario {
     /// The pair whose output is frozen, e.g. `en-fr`.
@@ -224,11 +253,11 @@ impl Scenario {
     }
 
     /// `pair, N bytes, pack_version …, analyzer_version …`.
-    fn pack_line(pair: &str, pack: &[u8], source: PackSource) -> String {
+    fn pack_line(pair: &str, pack: &Held, source: PackSource) -> String {
         let manifest = Self::manifest(pair, source);
         format!(
             "{pair}, {} bytes, pack_version {}, analyzer_version {}",
-            pack.len(),
+            pack.size(),
             manifest["meta"]["pack_version"],
             manifest["meta"]["analyzer_version"],
         )
@@ -245,13 +274,31 @@ impl Scenario {
 
     /// An engine started on the first pack, the others added in order.
     pub fn engine(packs: &[(&str, Vec<u8>)]) -> LinguaEngine {
+        let held: Vec<(&str, Held)> = packs
+            .iter()
+            .map(|(pair, pack)| (*pair, Held::Whole(pack.clone())))
+            .collect();
+        Self::engine_holding(&held)
+    }
+
+    /// An engine started on the first pack, whole (`new`) or from its parts (`assemble`), the
+    /// others added in order, whole (`addPack`) or from their parts (`addParts`).
+    pub fn engine_holding(packs: &[(&str, Held)]) -> LinguaEngine {
         let (first, rest) = packs.split_first().expect("at least one pack");
-        let mut engine = match LinguaEngine::new(&first.1) {
+        let started = match &first.1 {
+            Held::Whole(pack) => LinguaEngine::new(pack),
+            Held::Parts(parts) => LinguaEngine::assemble(&parts.base, &parts.layer),
+        };
+        let mut engine = match started {
             Ok(e) => e,
             Err(_) => panic!("the {} pack loads", first.0),
         };
         for (pair, pack) in rest {
-            if engine.add_pack(pack).is_err() {
+            let added = match pack {
+                Held::Whole(pack) => engine.add_pack(pack),
+                Held::Parts(parts) => engine.add_parts(&parts.base, &parts.layer),
+            };
+            if added.is_err() {
                 panic!("the {pair} pack is added");
             }
         }
@@ -298,10 +345,30 @@ impl Scenario {
         self.render_with(self.packs(), language)
     }
 
+    /// [`Scenario::render`] through every pack as its base and its layer, built from the committed
+    /// tables and assembled by the engine (`assemble`, `addParts`; split-lingua-pack-format D7):
+    /// the golden the whole packs give, probe for probe.
+    pub fn render_parts(&self, language: Option<&str>) -> String {
+        let packs = self
+            .beside
+            .iter()
+            .chain(std::iter::once(&self.pair))
+            .map(|pair| {
+                assert_eq!(
+                    self.source_of(pair),
+                    PackSource::Tables,
+                    "{pair}: only the committed tables pin their pool, which the parts need"
+                );
+                (*pair, Held::Parts(committed::split(pair)))
+            })
+            .collect();
+        self.render_seeded(packs, language, true)
+    }
+
     /// [`Scenario::render`] through the packs given, the pair's last: every probe of the
     /// scenario, answered by an engine holding them (the cross-native invariance test).
     pub fn render_with(&self, packs: Vec<(&str, Vec<u8>)>, language: Option<&str>) -> String {
-        self.render_seeded(packs, language, true)
+        self.render_seeded(whole(packs), language, true)
     }
 
     /// [`Scenario::render_with`] without the reader's level seeding: the two `seed-level` probes
@@ -309,13 +376,13 @@ impl Scenario {
     /// level seeds are those the pack glosses, so they follow the native language
     /// (seed-lingua-decks-with-glossed-lemmas D4); every other probe is answered as before.
     pub fn render_unseeded(&self, packs: Vec<(&str, Vec<u8>)>, language: Option<&str>) -> String {
-        self.render_seeded(packs, language, false)
+        self.render_seeded(whole(packs), language, false)
     }
 
     /// Every probe of the scenario, the reader's level seeding included when `seeded`.
     fn render_seeded(
         &self,
-        packs: Vec<(&str, Vec<u8>)>,
+        packs: Vec<(&str, Held)>,
         language: Option<&str>,
         seeded: bool,
     ) -> String {
@@ -339,7 +406,7 @@ impl Scenario {
         }
 
         // A new reader: no level, no calibration, no history.
-        let fresh = Self::engine(&packs);
+        let fresh = Self::engine_holding(&packs);
         for (name, blocks) in &pages {
             g.probe(
                 &format!("analyse new-reader {name}"),
@@ -375,7 +442,7 @@ impl Scenario {
 
         // A reader with a history: calibration, a declared level, every kind of status (one of
         // them withdrawn), exposures on three days, cards added, seeded and retired, a review.
-        let mut reader = Self::engine(&packs);
+        let mut reader = Self::engine_holding(&packs);
         reader.set_calibration(3_000, lang()).unwrap();
         reader.set_declared_level_at("B1", T_MS, lang()).unwrap();
         for (lemma, status, offset_ms) in self.statuses {
@@ -486,6 +553,14 @@ impl Scenario {
         }
         Some(self.committed_golden())
     }
+}
+
+/// Packs held whole.
+fn whole(packs: Vec<(&str, Vec<u8>)>) -> Vec<(&str, Held)> {
+    packs
+        .into_iter()
+        .map(|(pair, pack)| (pair, Held::Whole(pack)))
+        .collect()
 }
 
 /// The golden text: one `### probe` line, then the binding's output exactly as returned.

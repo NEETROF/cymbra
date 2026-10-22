@@ -2658,6 +2658,7 @@ name = "lingua-agent"
 version = "0.1.0"
 dependencies = [
  "lingua-core",
+ "lingua-pack",
  "rusqlite",
  "serde",
  "serde_json",

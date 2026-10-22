@@ -27,7 +27,7 @@ use super::format::{FormatError, Section, read_container};
 use super::grammar::{
     IndexedBlob, ParadigmEntry, Tag, decode_paradigm, decode_runs, decode_tag_pool,
 };
-use super::meta::PackMeta;
+use super::meta::{BaseMeta, LayerMeta, PackMeta, Part, probe_part};
 
 /// Canonical section names in a `pack.lingua`.
 pub mod section {
@@ -86,6 +86,11 @@ pub mod section {
     /// zstd-compressed gloss runs, keyed by lemma id: the tag of each run of
     /// consecutive senses of the lemma's gloss, in gloss order.
     pub const SENSES_ZST: &str = "senses.zst";
+    /// A layer's tags only its senses carry (split-lingua-pack-format D2): the last block of a
+    /// whole pack's [`TAGS`] pool — outside its base's pool, sorted, one per line —, which
+    /// assembly appends to the base's pool. Absent when the pair's senses carry none. Never in a
+    /// whole pack.
+    pub const SENSES_TAGS: &str = "senses.tags";
     /// The pack's dictionary words, when they are not the lemmas it glosses
     /// (add-lingua-pack-lexical-layer D1): one bit per lemma id, least
     /// significant bit first, `ceil(lemma count / 8)` bytes. Optional and
@@ -95,6 +100,35 @@ pub mod section {
     pub const LEXICAL: &str = "lexical";
     /// The attribution NOTICE (UTF-8).
     pub const NOTICE: &str = "notice";
+
+    /// The sections a base holds: its studied language's (split-lingua-pack-format D2).
+    pub const BASE: [&str; 7] = [FORMS, LEMMAS, FREQ, LEVELS, LEXICAL, TAGS, PARADIGMS_ZST];
+
+    /// The sections a layer holds: its pair's (split-lingua-pack-format D2).
+    pub const LAYER: [&str; 8] = [
+        GLOSS_ZST,
+        SENSES_ZST,
+        SENSES_TAGS,
+        EXPR,
+        EXPR_ZST,
+        EXPR_NAMES_ZST,
+        EXPR_OTHERS,
+        NOTICE,
+    ];
+
+    /// The part that holds the section `name` ([`BASE`], [`LAYER`]); `None` for a section this
+    /// core does not know, which assembly passes on as a whole pack's reader ignores it (a
+    /// table only a new interface reads is additive).
+    pub fn part_of(name: &str) -> Option<crate::packs::meta::Part> {
+        use crate::packs::meta::Part;
+        if BASE.contains(&name) {
+            Some(Part::Base)
+        } else if LAYER.contains(&name) {
+            Some(Part::Layer)
+        } else {
+            None
+        }
+    }
 }
 
 /// Why a pack failed to load.
@@ -121,6 +155,20 @@ pub enum PackError {
     Malformed(&'static str),
     /// Gloss decompression failed.
     Decompress,
+    /// The bytes are a base or a layer, given to a reader of whole packs
+    /// (split-lingua-pack-format D1): it is assembled with the other part.
+    NotAWholePack { part: Part, needs: Part },
+    /// The bytes are not the part asked for: the other part, or a whole pack (`found` `None`).
+    WrongPart { expected: Part, found: Option<Part> },
+    /// A layer given with a base of another studied language (D3).
+    LayerOfAnotherLanguage { base: String, layer: String },
+    /// A layer built against another base than the one given (D3, D4).
+    BaseVersionMismatch { base: String, layer: String },
+    /// A part carrying a section the other part holds (D2): a base's `senses.tags`, a layer's
+    /// `tags`.
+    MisplacedSection { part: Part, section: String },
+    /// A section carried twice, by both parts or twice by one.
+    DuplicateSection(String),
 }
 
 impl std::fmt::Display for PackError {
@@ -149,6 +197,34 @@ impl std::fmt::Display for PackError {
             PackError::Lexicon(e) => write!(f, "pack lexicon: {e}"),
             PackError::Malformed(s) => write!(f, "pack section {s:?} is malformed"),
             PackError::Decompress => write!(f, "pack glosses could not be decompressed"),
+            PackError::NotAWholePack { part, needs } => write!(
+                f,
+                "these bytes are a pack's {part}, not a whole pack: a {part} loads only assembled \
+                 with its {needs}; refusing to load"
+            ),
+            PackError::WrongPart { expected, found } => match found {
+                Some(found) => write!(f, "expected a pack's {expected}, found a {found}"),
+                None => write!(f, "expected a pack's {expected}, found a whole pack"),
+            },
+            PackError::LayerOfAnotherLanguage { base, layer } => write!(
+                f,
+                "the layer studies {layer:?} and the base {base:?}; refusing to assemble"
+            ),
+            PackError::BaseVersionMismatch { base, layer } => write!(
+                f,
+                "the layer was built against base {layer}, and the base given is {base}; refusing \
+                 to assemble"
+            ),
+            PackError::MisplacedSection { part, section } => write!(
+                f,
+                "the {part} carries the {section:?} section, which the {} holds; refusing to \
+                 assemble",
+                part.other()
+            ),
+            PackError::DuplicateSection(section) => write!(
+                f,
+                "the {section:?} section is carried twice; refusing to assemble"
+            ),
         }
     }
 }
@@ -210,7 +286,43 @@ impl Pack {
     /// it studies, so no partial analysis is ever produced.
     pub fn load(bytes: &[u8]) -> Result<Self, PackError> {
         let (meta, pair, sections) = read_meta(bytes)?;
+        Self::from_sections(meta, pair, &sections)
+    }
 
+    /// Assembles a pack from its base and its layer (split-lingua-pack-format D3): the pack
+    /// their whole container holds, every named section with the same bytes, refused for the
+    /// reasons [`Pack::assemble_sections`] gives and then for those [`Pack::load`] gives a
+    /// whole pack's sections, so no partial pack is ever produced.
+    pub fn assemble(base: &[u8], layer: &[u8]) -> Result<Self, PackError> {
+        let (meta, pair, sections) = assembled(base, layer)?;
+        Self::from_sections(meta, pair, &sections)
+    }
+
+    /// The metadata and the sections a base and a layer assemble into, gathered by name, before
+    /// any is parsed (split-lingua-pack-format D3): the base's sections and the layer's, the
+    /// pool being the base's `tags` followed by the layer's [`section::SENSES_TAGS`], joined as a
+    /// whole pack's pool is encoded; the metadata naming the layer's pair, `pack_version` and
+    /// licences, and the base's analyser version and levels. Refused when either part is not
+    /// what it is given as, when the layer studies another language than the base, when the
+    /// base was built for another analyser generation of its language, when the layer is
+    /// glossed in a native language this core does not know or in the language it studies,
+    /// and when the layer was built against another base, in that order. What the builder's
+    /// checks compare with the whole pack, section by name.
+    pub fn assemble_sections(
+        base: &[u8],
+        layer: &[u8],
+    ) -> Result<(PackMeta, Vec<Section>), PackError> {
+        assembled(base, layer).map(|(meta, _, sections)| (meta, sections))
+    }
+
+    /// The pack a whole pack's metadata, its checked pair and its sections make: the path
+    /// [`Pack::load`] takes once its sections are read, and [`Pack::assemble`] once they are
+    /// gathered.
+    fn from_sections(
+        meta: PackMeta,
+        pair: LanguagePair,
+        sections: &[Section],
+    ) -> Result<Self, PackError> {
         let take = |name: &'static str| -> Result<&[u8], PackError> {
             sections
                 .iter()
@@ -270,7 +382,7 @@ impl Pack {
             .find(|s| s.name == section::NOTICE)
             .map(|s| String::from_utf8_lossy(&s.data).into_owned())
             .unwrap_or_default();
-        let grammar = parse_grammar(&sections)?;
+        let grammar = parse_grammar(sections)?;
 
         Ok(Self {
             meta,
@@ -782,26 +894,141 @@ fn zstd_decode(zst: &[u8]) -> Result<Vec<u8>, PackError> {
 }
 
 /// A pack's metadata and studied language, checked as `load` checks them, with
-/// its sections still unread.
+/// its sections still unread. A base or a layer is refused by name before its metadata is read
+/// as a whole pack's, which it is not (split-lingua-pack-format D1).
 fn read_meta(bytes: &[u8]) -> Result<(PackMeta, LanguagePair, Vec<Section>), PackError> {
     let (meta_json, sections) = read_container(bytes).map_err(PackError::Format)?;
+    if let Some(part) = probe_part(&meta_json).map_err(PackError::BadMeta)? {
+        return Err(PackError::NotAWholePack {
+            part,
+            needs: part.other(),
+        });
+    }
     let meta: PackMeta = serde_json::from_slice(&meta_json).map_err(PackError::BadMeta)?;
-    let studied = StudiedLanguage::from_tag(&meta.studied)
-        .ok_or_else(|| PackError::UnknownLanguage(meta.studied.clone()))?;
-    if !analyzer_compatible(studied, &meta.analyzer_version) {
+    let studied = checked_studied(&meta.studied, &meta.analyzer_version)?;
+    let pair = checked_pair(studied, &meta.native)?;
+    Ok((meta, pair, sections))
+}
+
+/// The studied language a pack names, refused when this core cannot analyse it or when the
+/// pack was built for another analyser generation of it.
+fn checked_studied(tag: &str, analyzer_version: &str) -> Result<StudiedLanguage, PackError> {
+    let studied =
+        StudiedLanguage::from_tag(tag).ok_or_else(|| PackError::UnknownLanguage(tag.to_owned()))?;
+    if !analyzer_compatible(studied, analyzer_version) {
         return Err(PackError::IncompatibleAnalyzer {
-            pack: meta.analyzer_version.clone(),
+            pack: analyzer_version.to_owned(),
             core: studied.analyzer_version().to_owned(),
         });
     }
-    // After the studied language and the analyser, so their errors keep their precedence
-    // (generalise-lingua-native-language D1).
-    let native = NativeLanguage::from_tag(&meta.native)
-        .ok_or_else(|| PackError::UnknownNative(meta.native.clone()))?;
+    Ok(studied)
+}
+
+/// The pair a pack serves, its native language refused when this core does not know it or when
+/// it is the studied one. Checked after the studied language and the analyser, so their errors
+/// keep their precedence (generalise-lingua-native-language D1).
+fn checked_pair(studied: StudiedLanguage, native: &str) -> Result<LanguagePair, PackError> {
+    let native = NativeLanguage::from_tag(native)
+        .ok_or_else(|| PackError::UnknownNative(native.to_owned()))?;
     if native.studied() == Some(studied) {
         return Err(PackError::NativeStudied(studied));
     }
-    Ok((meta, LanguagePair { studied, native }, sections))
+    Ok(LanguagePair { studied, native })
+}
+
+/// A part's metadata and sections, refused as [`PackError::WrongPart`] when the container holds
+/// the other part or a whole pack.
+pub(super) fn read_part<T: serde::de::DeserializeOwned>(
+    bytes: &[u8],
+    expected: Part,
+) -> Result<(T, Vec<Section>), PackError> {
+    let (meta_json, sections) = read_container(bytes).map_err(PackError::Format)?;
+    let found = probe_part(&meta_json).map_err(PackError::BadMeta)?;
+    if found != Some(expected) {
+        return Err(PackError::WrongPart { expected, found });
+    }
+    let meta = serde_json::from_slice(&meta_json).map_err(PackError::BadMeta)?;
+    Ok((meta, sections))
+}
+
+/// [`Pack::assemble_sections`], with the pair checked as `load` checks a whole pack's.
+fn assembled(
+    base: &[u8],
+    layer: &[u8],
+) -> Result<(PackMeta, LanguagePair, Vec<Section>), PackError> {
+    let (base_meta, base_sections) = read_part::<BaseMeta>(base, Part::Base)?;
+    let (layer_meta, layer_sections) = read_part::<LayerMeta>(layer, Part::Layer)?;
+    if layer_meta.studied != base_meta.studied {
+        return Err(PackError::LayerOfAnotherLanguage {
+            base: base_meta.studied,
+            layer: layer_meta.studied,
+        });
+    }
+    let studied = checked_studied(&base_meta.studied, &base_meta.analyzer_version)?;
+    let pair = checked_pair(studied, &layer_meta.native)?;
+    if layer_meta.base_version != base_meta.base_version {
+        return Err(PackError::BaseVersionMismatch {
+            base: base_meta.base_version,
+            layer: layer_meta.base_version,
+        });
+    }
+    // Each part carries its own sections (D2), each once: a section on the wrong side, or twice,
+    // would shadow or be dropped. A section this core does not know passes, as it does in a whole
+    // pack.
+    for (part, sections) in [(Part::Base, &base_sections), (Part::Layer, &layer_sections)] {
+        if let Some(misplaced) = sections
+            .iter()
+            .find(|s| section::part_of(&s.name) == Some(part.other()))
+        {
+            return Err(PackError::MisplacedSection {
+                part,
+                section: misplaced.name.clone(),
+            });
+        }
+    }
+    let mut seen = std::collections::BTreeSet::new();
+    if let Some(twice) = base_sections
+        .iter()
+        .chain(&layer_sections)
+        .find(|s| !seen.insert(s.name.as_str()))
+    {
+        return Err(PackError::DuplicateSection(twice.name.clone()));
+    }
+    // The pool: the base's blocks, then the layer's sense-only block, one tag per line with no
+    // line after the last, as `encode_tag_pool` writes a whole pack's.
+    let find = |sections: &[Section], name: &str| -> Vec<u8> {
+        sections
+            .iter()
+            .find(|s| s.name == name)
+            .map(|s| s.data.clone())
+            .unwrap_or_default()
+    };
+    let mut pool = find(&base_sections, section::TAGS);
+    let senses = find(&layer_sections, section::SENSES_TAGS);
+    if !pool.is_empty() && !senses.is_empty() {
+        pool.push(b'\n');
+    }
+    pool.extend_from_slice(&senses);
+    let mut sections: Vec<Section> = base_sections
+        .into_iter()
+        .chain(layer_sections)
+        .filter(|s| s.name != section::TAGS && s.name != section::SENSES_TAGS)
+        .collect();
+    if !pool.is_empty() {
+        sections.push(Section {
+            name: section::TAGS.to_owned(),
+            data: pool,
+        });
+    }
+    let meta = PackMeta {
+        studied: layer_meta.studied,
+        native: layer_meta.native,
+        pack_version: layer_meta.pack_version,
+        analyzer_version: base_meta.analyzer_version,
+        licences: layer_meta.licences,
+        levels_estimated: base_meta.levels_estimated,
+    };
+    Ok((meta, pair, sections))
 }
 
 #[cfg(test)]
@@ -2063,5 +2290,449 @@ pub(crate) mod tests {
         let pack = Pack::load(&bytes).expect("load");
         assert_eq!(pack.gloss("run"), None);
         assert_eq!(pack.rank("run"), None);
+    }
+
+    // — a base and a layer (split-lingua-pack-format) —
+
+    /// The tags of the sample's pool its base holds: the pin and the readings' tags.
+    const STUDIED_TAGS: [&str; 2] = ["VERB", PAST];
+
+    /// A whole pack, and the base and the layer holding its sections (D2), built in memory from
+    /// the same sections: the sample's lexicon, ranks, levels, dictionary words, a paradigm, an
+    /// expression and a gloss whose runs use `sense_only` tags past the base's pool. The base
+    /// is named `base_version`, the layer is built against `against`.
+    struct Split {
+        whole: Vec<u8>,
+        base: Vec<u8>,
+        layer: Vec<u8>,
+    }
+
+    fn split_with(
+        studied: &str,
+        native: &str,
+        analyzer: &str,
+        sense_only: &[&str],
+        (base_version, against): (&str, &str),
+    ) -> Split {
+        use super::super::grammar::{
+            FormEdit, SenseRun, encode_indexed, encode_paradigm, encode_runs, encode_tag_pool,
+        };
+        let (forms, lemmas) = build_lexicon_blobs(
+            &[("running", "run"), ("ran", "run"), ("cities", "city")],
+            &["run", "city", "seldom"],
+        )
+        .expect("lexicon");
+        let lex = FstLexicon::from_slices(forms.clone(), &lemmas).unwrap();
+        let id = |lemma: &str| lex.id_of(lemma).unwrap() as u32;
+        let mut freq = vec![0u8; lex.lemma_count() * 4];
+        freq[id("run") as usize * 4..][..4].copy_from_slice(&500u32.to_le_bytes());
+        freq[id("city") as usize * 4..][..4].copy_from_slice(&1_200u32.to_le_bytes());
+        let mut levels = vec![0u8; lex.lemma_count()];
+        levels[id("run") as usize] = CefrLevel::A1.to_code();
+        let lexical = vec![1u8 << id("run")];
+        let gloss = build_gloss_zst(&[(id("run"), "courir; course"), (id("city"), "ville")]);
+        let (expr, expr_zst) = build_expr_sections(&[("run city", "course urbaine")]);
+        let all: Vec<String> = STUDIED_TAGS
+            .iter()
+            .chain(sense_only)
+            .map(|t| (*t).to_owned())
+            .collect();
+        let pool = encode_tag_pool(&all);
+        let base_pool = encode_tag_pool(&all[..STUDIED_TAGS.len()]);
+        let senses_tags = encode_tag_pool(&all[STUDIED_TAGS.len()..]);
+        let paradigm = encode_paradigm(&[ParadigmEntry::Reading {
+            form: FormEdit::between("run", "ran").unwrap(),
+            tag: 1,
+        }]);
+        let paradigms =
+            zstd::encode_all(encode_indexed(&[(id("run"), paradigm)]).as_slice(), 19).unwrap();
+        // The noun run points past the base's pool when the pair's senses carry a tag of their
+        // own, at the verb otherwise.
+        let noun = if sense_only.is_empty() { 0 } else { 2 };
+        let runs = encode_runs(&[
+            SenseRun { tag: 0, count: 1 },
+            SenseRun {
+                tag: noun,
+                count: 1,
+            },
+        ]);
+        let senses = zstd::encode_all(encode_indexed(&[(id("run"), runs)]).as_slice(), 19).unwrap();
+        let notice: &[u8] = b"AGID: permissive. wordfreq: CC BY-SA. kaikki: CC BY-SA.";
+        let licences = vec!["AGID".to_owned(), "kaikki CC BY-SA".to_owned()];
+        let whole_meta = PackMeta {
+            studied: studied.into(),
+            native: native.into(),
+            pack_version: "2026.10.21".into(),
+            analyzer_version: analyzer.into(),
+            licences: licences.clone(),
+            levels_estimated: true,
+        };
+        let base_meta = BaseMeta {
+            part: Part::Base,
+            studied: studied.into(),
+            analyzer_version: analyzer.into(),
+            base_version: base_version.into(),
+            levels_estimated: true,
+        };
+        let layer_meta = LayerMeta {
+            part: Part::Layer,
+            studied: studied.into(),
+            native: native.into(),
+            pack_version: "2026.10.21".into(),
+            base_version: against.into(),
+            licences,
+        };
+        // The builder's whole order: the two sides interleaved.
+        let whole: Vec<(&str, &[u8])> = vec![
+            (section::FORMS, &forms),
+            (section::LEMMAS, lemmas.as_bytes()),
+            (section::FREQ, &freq),
+            (section::LEVELS, &levels),
+            (section::LEXICAL, &lexical),
+            (section::EXPR, &expr),
+            (section::EXPR_ZST, &expr_zst),
+            (section::TAGS, &pool),
+            (section::PARADIGMS_ZST, &paradigms),
+            (section::SENSES_ZST, &senses),
+            (section::GLOSS_ZST, &gloss),
+            (section::NOTICE, notice),
+        ];
+        let base: Vec<(&str, &[u8])> = vec![
+            (section::FORMS, &forms),
+            (section::LEMMAS, lemmas.as_bytes()),
+            (section::FREQ, &freq),
+            (section::LEVELS, &levels),
+            (section::LEXICAL, &lexical),
+            (section::TAGS, &base_pool),
+            (section::PARADIGMS_ZST, &paradigms),
+        ];
+        let mut layer: Vec<(&str, &[u8])> =
+            vec![(section::GLOSS_ZST, &gloss), (section::SENSES_ZST, &senses)];
+        if !sense_only.is_empty() {
+            layer.push((section::SENSES_TAGS, &senses_tags));
+        }
+        layer.extend([
+            (section::EXPR, expr.as_slice()),
+            (section::EXPR_ZST, expr_zst.as_slice()),
+            (section::NOTICE, notice),
+        ]);
+        Split {
+            whole: write_container(&serde_json::to_vec(&whole_meta).unwrap(), &whole),
+            base: write_container(&serde_json::to_vec(&base_meta).unwrap(), &base),
+            layer: write_container(&serde_json::to_vec(&layer_meta).unwrap(), &layer),
+        }
+    }
+
+    fn split(sense_only: &[&str]) -> Split {
+        split_with(
+            "en",
+            "fr",
+            ANALYZER_VERSION,
+            sense_only,
+            ("base-digest", "base-digest"),
+        )
+    }
+
+    /// A container's sections, by name.
+    fn by_name(sections: Vec<Section>) -> BTreeMap<String, Vec<u8>> {
+        sections.into_iter().map(|s| (s.name, s.data)).collect()
+    }
+
+    #[test]
+    fn spec_scenario_the_assembled_pack_is_the_whole_pack() {
+        for sense_only in [&["NOUN", "NUM"][..], &[]] {
+            let parts = split(sense_only);
+            let (whole_json, whole_sections) = read_container(&parts.whole).unwrap();
+            let (meta, sections) = Pack::assemble_sections(&parts.base, &parts.layer).unwrap();
+            // Every named section with the same bytes, the pool included, and no other.
+            assert_eq!(by_name(sections), by_name(whole_sections), "{sense_only:?}");
+            // The same metadata, written as the whole pack's.
+            assert_eq!(serde_json::to_vec(&meta).unwrap(), whole_json);
+
+            let whole = Pack::load(&parts.whole).unwrap();
+            let assembled = Pack::assemble(&parts.base, &parts.layer).unwrap();
+            assert_eq!(assembled.meta(), whole.meta());
+            assert_eq!(assembled.pair(), whole.pair());
+            assert_eq!(assembled.pair().key(), "en-fr");
+            assert_eq!(assembled.gloss("run"), Some("courir; course"));
+            assert_eq!(assembled.gloss("city"), whole.gloss("city"));
+            assert_eq!(assembled.rank("city"), Some(1_200));
+            assert_eq!(assembled.level("run"), Some(CefrLevel::A1));
+            assert!(assembled.levels_estimated());
+            assert_eq!(assembled.dictionary_words(), whole.dictionary_words());
+            assert_eq!(assembled.dictionary_words(), [("run", 500)]);
+            assert_eq!(
+                assembled.expression("run city"),
+                Some("course urbaine"),
+                "the layer's expression table"
+            );
+            assert_eq!(assembled.notice(), whole.notice());
+            let readings = |pack: &Pack| uds(&pack.readings("run", "ran"));
+            assert_eq!(readings(&assembled), [PAST]);
+            assert_eq!(readings(&assembled), readings(&whole));
+            let runs = |pack: &Pack| -> Vec<(Option<String>, usize)> {
+                pack.sense_runs("run")
+                    .into_iter()
+                    .map(|(tag, n)| (tag.map(Tag::to_ud), n))
+                    .collect()
+            };
+            assert_eq!(runs(&assembled), runs(&whole));
+            let noun = if sense_only.is_empty() {
+                "VERB"
+            } else {
+                "NOUN"
+            };
+            assert_eq!(
+                runs(&assembled),
+                [(Some("VERB".to_owned()), 1), (Some(noun.to_owned()), 1)]
+            );
+        }
+    }
+
+    #[test]
+    fn the_pool_is_the_base_s_then_the_layer_s_sense_tags() {
+        let parts = split(&["NUM"]);
+        let (_, sections) = Pack::assemble_sections(&parts.base, &parts.layer).unwrap();
+        let sections = by_name(sections);
+        assert_eq!(
+            sections[section::TAGS],
+            format!("VERB\n{PAST}\nNUM").into_bytes()
+        );
+        assert!(!sections.contains_key(section::SENSES_TAGS));
+        // Without the layer's block, the pool is the base's alone.
+        let (_, sections) = Pack::assemble_sections(&split(&[]).base, &split(&[]).layer).unwrap();
+        assert_eq!(
+            by_name(sections)[section::TAGS],
+            format!("VERB\n{PAST}").into_bytes()
+        );
+        // A base without a pool takes the layer's block as the whole pool, and two parts
+        // without either carry none.
+        let strip = |bytes: &[u8], name: &str| {
+            let (meta, sections) = read_container(bytes).unwrap();
+            let kept: Vec<(&str, &[u8])> = sections
+                .iter()
+                .filter(|s| s.name != name)
+                .map(|s| (s.name.as_str(), s.data.as_slice()))
+                .collect();
+            write_container(&meta, &kept)
+        };
+        let poolless = strip(&parts.base, section::TAGS);
+        let (_, sections) = Pack::assemble_sections(&poolless, &parts.layer).unwrap();
+        assert_eq!(by_name(sections)[section::TAGS], b"NUM");
+        let senseless = strip(&parts.layer, section::SENSES_TAGS);
+        let (_, sections) = Pack::assemble_sections(&poolless, &senseless).unwrap();
+        assert!(!by_name(sections).contains_key(section::TAGS));
+    }
+
+    #[test]
+    fn spec_scenario_a_part_given_to_a_reader_of_whole_packs() {
+        let parts = split(&["NUM"]);
+        for (bytes, part, needs) in [
+            (&parts.base, Part::Base, Part::Layer),
+            (&parts.layer, Part::Layer, Part::Base),
+        ] {
+            let refused = |result: Result<(), PackError>| {
+                let err = result.expect_err("a part is no whole pack");
+                let message = err.to_string();
+                assert!(message.contains(&format!("a pack's {part}")), "{message}");
+                assert!(message.contains(&format!("with its {needs}")), "{message}");
+                assert!(matches!(
+                    err,
+                    PackError::NotAWholePack { part: p, needs: n } if p == part && n == needs
+                ));
+            };
+            refused(Pack::load(bytes).map(|_| ()));
+            refused(Pack::studied_in(bytes).map(|_| ()));
+            refused(Pack::pair_in(bytes).map(|_| ()));
+        }
+        // The whole pack still loads, and says its pair.
+        assert_eq!(Pack::pair_in(&parts.whole).unwrap().key(), "en-fr");
+        // A part named otherwise than the two is bad metadata to every reader.
+        let core = write_container(br#"{"part":"core","studied":"en"}"#, &[]);
+        assert!(matches!(Pack::pair_in(&core), Err(PackError::BadMeta(_))));
+    }
+
+    #[test]
+    fn each_part_is_refused_where_the_other_is_expected() {
+        let parts = split(&[]);
+        let refused = |base: &[u8], layer: &[u8]| {
+            Pack::assemble(base, layer)
+                .err()
+                .expect("a part given for the other")
+        };
+        let swapped = refused(&parts.layer, &parts.base);
+        assert!(matches!(
+            swapped,
+            PackError::WrongPart {
+                expected: Part::Base,
+                found: Some(Part::Layer)
+            }
+        ));
+        assert!(swapped.to_string().contains("found a layer"), "{swapped}");
+        let whole = refused(&parts.base, &parts.whole);
+        assert!(matches!(
+            whole,
+            PackError::WrongPart {
+                expected: Part::Layer,
+                found: None
+            }
+        ));
+        assert!(whole.to_string().contains("found a whole pack"), "{whole}");
+        assert!(matches!(
+            Pack::assemble(b"not a pack", &parts.layer),
+            Err(PackError::Format(_))
+        ));
+    }
+
+    #[test]
+    fn spec_scenario_a_layer_of_another_language() {
+        let english = split(&[]);
+        let spanish = split_with(
+            "es",
+            "fr",
+            SPANISH_ANALYZER_VERSION,
+            &[],
+            ("base-digest", "base-digest"),
+        );
+        let err = Pack::assemble(&english.base, &spanish.layer)
+            .err()
+            .expect("an es-fr layer is refused beside an English base");
+        let message = err.to_string();
+        assert!(
+            message.contains("\"es\"") && message.contains("\"en\""),
+            "{message}"
+        );
+        assert!(matches!(err, PackError::LayerOfAnotherLanguage { .. }));
+        assert!(Pack::assemble(&spanish.base, &spanish.layer).is_ok());
+    }
+
+    #[test]
+    fn spec_scenario_a_layer_built_against_another_base() {
+        let parts = split_with("en", "es", ANALYZER_VERSION, &["NUM"], ("aaaa", "bbbb"));
+        let err = Pack::assemble(&parts.base, &parts.layer)
+            .err()
+            .expect("a layer built against another base is refused");
+        let message = err.to_string();
+        assert!(
+            message.contains("aaaa") && message.contains("bbbb"),
+            "{message}"
+        );
+        assert!(matches!(
+            &err,
+            PackError::BaseVersionMismatch { base, layer } if base == "aaaa" && layer == "bbbb"
+        ));
+    }
+
+    /// `bytes` with `extra` appended to its sections.
+    fn with_section(bytes: &[u8], extra: (&str, &[u8])) -> Vec<u8> {
+        let (meta, sections) = read_container(bytes).unwrap();
+        let sections: Vec<(&str, &[u8])> = sections
+            .iter()
+            .map(|s| (s.name.as_str(), s.data.as_slice()))
+            .chain(std::iter::once(extra))
+            .collect();
+        write_container(&meta, &sections)
+    }
+
+    #[test]
+    fn a_section_on_the_wrong_side_or_carried_twice_is_refused_by_name() {
+        let parts = split(&["NUM"]);
+        // A base carrying the layer's sense tags, a layer carrying a pool.
+        let err = Pack::assemble(
+            &with_section(&parts.base, (section::SENSES_TAGS, b"NUM")),
+            &parts.layer,
+        )
+        .err()
+        .expect("a base's senses.tags is refused");
+        assert!(err.to_string().contains("\"senses.tags\""), "{err}");
+        assert!(err.to_string().contains("which the layer holds"), "{err}");
+        assert!(matches!(
+            &err,
+            PackError::MisplacedSection { part: Part::Base, section } if section == section::SENSES_TAGS
+        ));
+        let err = Pack::assemble(
+            &parts.base,
+            &with_section(&parts.layer, (section::TAGS, b"X")),
+        )
+        .err()
+        .expect("a layer's tags is refused");
+        assert!(matches!(
+            &err,
+            PackError::MisplacedSection { part: Part::Layer, section } if section == section::TAGS
+        ));
+        // A section both parts carry, or one carries twice.
+        let err = Pack::assemble(
+            &with_section(&parts.base, ("future", b"x")),
+            &with_section(&parts.layer, ("future", b"y")),
+        )
+        .err()
+        .expect("a section carried twice is refused");
+        assert!(err.to_string().contains("\"future\""), "{err}");
+        assert!(matches!(&err, PackError::DuplicateSection(name) if name == "future"));
+        assert!(matches!(
+            Pack::assemble(&with_section(&parts.base, (section::FORMS, b"x")), &parts.layer),
+            Err(PackError::DuplicateSection(name)) if name == section::FORMS
+        ));
+        // A section this core does not know is passed on, as a whole pack's reader ignores it.
+        let future = with_section(&parts.layer, ("future", b"y"));
+        let (_, sections) = Pack::assemble_sections(&parts.base, &future).unwrap();
+        assert!(sections.iter().any(|s| s.name == "future"));
+        assert!(Pack::assemble(&parts.base, &future).is_ok());
+        assert_eq!(section::part_of(section::TAGS), Some(Part::Base));
+        assert_eq!(section::part_of(section::SENSES_TAGS), Some(Part::Layer));
+        assert_eq!(section::part_of("future"), None);
+    }
+
+    #[test]
+    fn assembly_refuses_what_load_refuses_and_in_its_order() {
+        let assemble = |studied, native, analyzer| {
+            let parts = split_with(studied, native, analyzer, &[], ("x", "x"));
+            Pack::assemble(&parts.base, &parts.layer).map(|_| ())
+        };
+        assert!(matches!(
+            assemble("en", "de", ANALYZER_VERSION),
+            Err(PackError::UnknownNative(tag)) if tag == "de"
+        ));
+        assert!(matches!(
+            assemble("es", "es", SPANISH_ANALYZER_VERSION),
+            Err(PackError::NativeStudied(StudiedLanguage::Spanish))
+        ));
+        assert!(matches!(
+            assemble("en", "fr", "0.0.0-from-another-era"),
+            Err(PackError::IncompatibleAnalyzer { .. })
+        ));
+        assert!(matches!(
+            assemble("pt", "fr", ANALYZER_VERSION),
+            Err(PackError::UnknownLanguage(tag)) if tag == "pt"
+        ));
+        // The analyser wins over the native language, and the native language over the base
+        // version, as for a whole pack.
+        assert!(matches!(
+            assemble("en", "en", "0.0.0-from-another-era"),
+            Err(PackError::IncompatibleAnalyzer { .. })
+        ));
+        let mismatched = split_with("en", "de", ANALYZER_VERSION, &[], ("x", "y"));
+        assert!(matches!(
+            Pack::assemble(&mismatched.base, &mismatched.layer),
+            Err(PackError::UnknownNative(_))
+        ));
+        // A section the assembled pack cannot read is refused as `load` refuses it.
+        let parts = split(&[]);
+        let (meta, sections) = read_container(&parts.base).unwrap();
+        let broken: Vec<(&str, &[u8])> = sections
+            .iter()
+            .map(|s| {
+                let data: &[u8] = if s.name == section::FREQ {
+                    b"xyz"
+                } else {
+                    &s.data
+                };
+                (s.name.as_str(), data)
+            })
+            .collect();
+        assert!(matches!(
+            Pack::assemble(&write_container(&meta, &broken), &parts.layer),
+            Err(PackError::Malformed(section::FREQ))
+        ));
     }
 }

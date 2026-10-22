@@ -87,8 +87,9 @@ nothing new is offered to them.
   in `check-reducer`), `pack_report.py` (a layer may move under `--identical`, a base may not),
   their tests; every pair's `pin.json` gains two records; each `testdata/<pair>/` gains `tags.tsv`;
   the *Build* section change 3 adds to `SOURCES.md`.
-- `crates/lingua-pack/tests/pipeline_testdata.rs`: two rows, the French fixtures' bytes once change
-  3's gate writes their pin.
+- `crates/lingua-pack/tests/pipeline_testdata.rs`: two rows edited, the French fixtures' bytes once
+  change 3's gate writes their pin; the English fixtures' `forms.tsv` gain a row per lemma they gloss
+  and their forms do not hold, which moves no byte.
 - `.github/workflows/lingua-extension-check.yml` (the comparisons), `lingua-pack-update.yml` (the
   records).
 - `docs/lingua/italian-programme.md`: row 4.
