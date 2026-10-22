@@ -30,7 +30,8 @@ into the language of the reader's glosses, fetched once per video when the line 
 shown whole-line under a label in the interface language (French interface: « Traduction
 automatique YouTube »). It SHALL NOT be presented as aligned word by word, SHALL NOT mark a word,
 SHALL NOT be mixed with an engine's answer, and SHALL NOT be offered outside YouTube. For a track
-YouTube does not translate, with no engine, the line SHALL say that no translation is available
+YouTube does not translate, or whose translation YouTube does not return, with no engine, the line
+SHALL say that no translation is available
 (French interface: « Pas de traduction pour ces sous-titres »). In degraded mode, YouTube's
 translation SHALL NOT be shown; an engine SHALL translate the line on screen.
 
@@ -44,7 +45,11 @@ translation SHALL NOT be shown; an engine SHALL translate the line on screen.
 
 #### Scenario: No engine, for an Italian-speaking reader
 - **WHEN** a reader whose native language is Italian, with no engine, shows the translation line on a video with English captions
-- **THEN** the line shows YouTube's automatic translation into Italian, labelled as YouTube's automatic translation in the reader's interface language, or says there is no translation for these captions when YouTube offers none
+- **THEN** the line shows YouTube's automatic translation into Italian, labelled as YouTube's automatic translation in the reader's interface language
+
+#### Scenario: A track YouTube does not translate
+- **WHEN** a reader with no engine shows the translation line on a video whose track YouTube does not translate, or whose translation request YouTube does not answer
+- **THEN** the line says that no translation is available for these captions, in the reader's interface language (French interface: « Pas de traduction pour ces sous-titres »), and no model is downloaded
 
 #### Scenario: An engine ready
 - **WHEN** a reader whose engine is ready for English shows the translation line and plays the video

@@ -84,8 +84,7 @@ on YouTube's consent page and is handed a different token, so it cannot answer).
 - Tracks in a studied language other than English. The Spanish programme keeps Spanish out of this
   change (`docs/lingua/spanish-programme.md`, decision D7); the language matrix programme keeps
   French out the same way (`docs/lingua/language-matrix-programme.md`, Scope), and the Italian
-  programme Italian (`docs/lingua/italian-programme.md`, Scope): Italian's automatic tracks are
-  lowercase and unpunctuated, which defeats its names and acronyms rules. The mode reads English
+  programme Italian (`docs/lingua/italian-programme.md`, Scope). The mode reads English
   tracks for a reader who studies English, whatever other languages the reader studies and
   whatever their native language (French, Spanish or Italian). A reader who studies Spanish, French
   or Italian and not English is not offered it.

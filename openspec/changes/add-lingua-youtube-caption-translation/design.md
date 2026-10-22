@@ -52,8 +52,8 @@ for; the engine is the better answer whenever it is there.
 
 With no engine, the first time the line is shown on a video the mode replays the caption request it
 already rebuilt (A's task 2.3) with `tlang=<gloss language>` (`fr`, `es` or `it`, the reader's native
-language; `tlang=it` is unverified by the spike, and a refusal shows « Pas de traduction pour ces
-sous-titres »), only when the track list says YouTube translates that track. The answer is parsed by A's
+language; `tlang=es` and `tlang=it` are unverified, the spike and P2 trying `fr` only, and a refusal
+shows « Pas de traduction pour ces sous-titres »), only when the track list says YouTube translates that track. The answer is parsed by A's
 json3 parser and shown **per cue**, since its sentences are redistributed across cues; it is never
 cut into words, never used to mark one, and never reaches a card. It adds no third party — YouTube
 already serves the video — and it sends no reader text, so it respects "a reader who chose nothing:

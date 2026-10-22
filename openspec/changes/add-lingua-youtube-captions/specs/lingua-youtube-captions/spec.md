@@ -11,8 +11,8 @@ out of this change's scope (the Spanish programme's decision D7, `docs/lingua/sp
 carried by the language matrix programme, `docs/lingua/language-matrix-programme.md`, and by the
 Italian programme, `docs/lingua/italian-programme.md`): a reader who studies Spanish, French or
 Italian as well as English is offered the mode on English captions only, and a reader who does not
-study English (an English speaker reading Spanish, French or Italian, or a French or Spanish speaker
-reading Italian alone) is not offered it, whatever their native language.
+study English — an English speaker reading Spanish, French or Italian, or a French, Spanish or Italian
+speaker reading only languages other than English — is not offered it, whatever their native language.
 Shorts, live streams and premieres in progress, players embedded in other sites, YouTube's mobile
 site, and Safari on iPhone and iPad SHALL NOT be offered it. Where the mode is not offered, the
 player SHALL be left untouched, and the popup SHALL say why when the page is a watch page
