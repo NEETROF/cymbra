@@ -34,9 +34,9 @@ See proposal.md — Why. What constrains the shape:
 
 **Non-Goals:**
 
-- Marking a selection in an Italian pair (`MARKED_PAIRS`): rows 17, 22, 27, 36, 47, 51 measure and
+- Marking a selection in an Italian pair (`MARKED_PAIRS`): rows 19, 24, 29, 38, 49, 53 measure and
   add each pair.
-- The Italian corpus of selections (row 17).
+- The Italian corpus of selections (row 19).
 - Anything the setting shows an Italian-native reader: `add-lingua-italian-native-language`
   (change 32) and `add-lingua-italian-interface` (33).
 
@@ -120,7 +120,7 @@ pull request says so in its body.
 
 - [The en-it model traps the engine on some inputs, as en-es did] → the three soaks before any
   Italian speaker is offered it; a trap costs one respawn (change 9).
-- [The it-en model is pinned without a soak] → no Italian pair ships before row 17 soaks it over
+- [The it-en model is pinned without a soak] → no Italian pair ships before row 19 soaks it over
   the Italian corpus; the pin alone changes nothing for a reader.
 - [Submissions and deliveries blocked between the merge and the deploy] → D6: merged when the
   owner can dispatch.
