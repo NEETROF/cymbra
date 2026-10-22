@@ -22,6 +22,18 @@ use lingua_core::packs::grammar::Tag;
 
 use crate::{BuildError, PackInputs};
 
+/// A pack's tag pool, and where its studied blocks end.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct TagPool {
+    /// The pool, id = index.
+    pub(crate) tags: Vec<String>,
+    /// With a pin, how many of the first tags are the studied language's — the pin and the
+    /// readings' tags outside it, a base's `tags` —, the rest being the sense-only block, a
+    /// layer's `senses.tags` (split-lingua-pack-format D2, D5). `None` without a pin: one sorted
+    /// union, where no two blocks can be told apart.
+    pub(crate) studied: Option<usize>,
+}
+
 /// The tag pool the grammar blobs index into (add-lingua-pack-lexical-layer D4).
 ///
 /// Without a pin, every tag in one sorted pool, as before. With one — the studied
@@ -33,11 +45,14 @@ pub(crate) fn tag_pool(
     pin: Option<&[String]>,
     reading_tags: BTreeSet<String>,
     sense_tags: BTreeSet<String>,
-) -> Result<Vec<String>, BuildError> {
+) -> Result<TagPool, BuildError> {
     let Some(pin) = pin else {
         let mut all = reading_tags;
         all.extend(sense_tags);
-        return Ok(all.into_iter().collect());
+        return Ok(TagPool {
+            tags: all.into_iter().collect(),
+            studied: None,
+        });
     };
     let mut pinned = BTreeSet::new();
     for line in pin {
@@ -64,7 +79,11 @@ pub(crate) fn tag_pool(
         .into_iter()
         .filter(|tag| !pinned.contains(tag.as_str()) && !reading_tags.contains(tag))
         .collect();
-    Ok(pin.iter().cloned().chain(readings).chain(senses).collect())
+    let studied = pin.len() + readings.len();
+    Ok(TagPool {
+        tags: pin.iter().cloned().chain(readings).chain(senses).collect(),
+        studied: Some(studied),
+    })
 }
 
 /// A gloss's runs as the builder files them: the dictionary form, then each run's canonical

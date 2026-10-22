@@ -31,6 +31,9 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
+use lingua_core::packs::format::{Section, read_container};
+use lingua_core::packs::meta::BaseMeta;
+
 use crate::{
     LEXICAL_TABLE, Manifest, STUDIED_SIDE, TAG_POOL_TABLE, read_lines, read_senses, tsv_pairs,
 };
@@ -290,6 +293,80 @@ pub fn check_committed_tables(root: &Path) -> Result<Vec<String>, String> {
         check_studied(dir, &pairs)?;
     }
     Ok(pairs.into_iter().map(|p| p.name).collect())
+}
+
+/// One base per studied language (split-lingua-pack-format D6): the base `pair` builds is
+/// byte for byte the one its language's `reference` builds, so the language's base can ship once.
+/// An error names both pairs and what differs — a field of their metadata, which a pair's manifest
+/// sets (`analyzer_version`, `levels_estimated`), or the first section by name — and either is
+/// refused when it is no base.
+pub fn check_one_base(reference: (&str, &[u8]), pair: (&str, &[u8])) -> Result<(), String> {
+    let read = |(name, bytes): (&str, &[u8])| {
+        let meta = BaseMeta::read(bytes).map_err(|e| format!("{name}'s base: {e}"))?;
+        let (_, sections) = read_container(bytes).map_err(|e| format!("{name}'s base: {e}"))?;
+        Ok::<_, String>((meta, sections))
+    };
+    let ((theirs, their_sections), (ours, our_sections)) = (read(reference)?, read(pair)?);
+    let differs = |what: &str, here: &dyn std::fmt::Debug, there: &dyn std::fmt::Debug| {
+        format!(
+            "{}'s base is not {}'s, its studied language's reference: {what} is {here:?} in {} \
+             and {there:?} in {}",
+            pair.0, reference.0, pair.0, reference.0
+        )
+    };
+    if ours.studied != theirs.studied {
+        return Err(differs("studied", &ours.studied, &theirs.studied));
+    }
+    if ours.analyzer_version != theirs.analyzer_version {
+        return Err(differs(
+            "analyzer_version",
+            &ours.analyzer_version,
+            &theirs.analyzer_version,
+        ));
+    }
+    if ours.levels_estimated != theirs.levels_estimated {
+        return Err(differs(
+            "levels_estimated",
+            &ours.levels_estimated,
+            &theirs.levels_estimated,
+        ));
+    }
+    let names: BTreeSet<&str> = our_sections
+        .iter()
+        .chain(&their_sections)
+        .map(|s| s.name.as_str())
+        .collect();
+    let find = |sections: &[Section], name: &str| {
+        sections
+            .iter()
+            .find(|s| s.name == name)
+            .map(|s| s.data.clone())
+    };
+    for name in names {
+        let (here, there) = (find(&our_sections, name), find(&their_sections, name));
+        if here != there {
+            return Err(differs(
+                &format!("the {name:?} section's size"),
+                &here.map(|data| data.len()),
+                &there.map(|data| data.len()),
+            ));
+        }
+    }
+    if ours.base_version != theirs.base_version {
+        return Err(differs(
+            "base_version",
+            &ours.base_version,
+            &theirs.base_version,
+        ));
+    }
+    if pair.1 != reference.1 {
+        return Err(format!(
+            "{}'s base is not {}'s, its studied language's reference: their containers differ \
+             though their fields and sections are the same",
+            pair.0, reference.0
+        ));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -598,5 +675,102 @@ mod tests {
         let root = matrix("broken-gloss");
         root.remove("es-fr/gloss.tsv");
         assert!(root.error().contains("es-fr/gloss.tsv"));
+    }
+
+    // — one base per studied language (split-lingua-pack-format D6) —
+
+    use lingua_core::packs::format::write_container;
+    use lingua_core::packs::meta::{LayerMeta, Part};
+
+    /// A base's container: `meta` over the sections given.
+    fn base(meta: &BaseMeta, sections: &[(&str, &[u8])]) -> Vec<u8> {
+        write_container(&serde_json::to_vec(meta).unwrap(), sections)
+    }
+
+    fn spanish(levels_estimated: bool, analyzer_version: &str) -> BaseMeta {
+        BaseMeta {
+            part: Part::Base,
+            studied: "es".into(),
+            analyzer_version: analyzer_version.into(),
+            base_version: "v".into(),
+            levels_estimated,
+        }
+    }
+
+    const SECTIONS: [(&str, &[u8]); 2] = [("forms", b"abc"), ("lemmas", b"casa")];
+
+    #[test]
+    fn spec_scenario_a_pair_whose_manifest_disagrees_with_its_language_s_reference() {
+        let reference = base(&spanish(true, "1.5.0"), &SECTIONS);
+        assert_eq!(
+            check_one_base(("es-fr", &reference), ("es-en", &reference)),
+            Ok(())
+        );
+        for (other, field) in [
+            (spanish(false, "1.5.0"), "levels_estimated"),
+            (spanish(true, "1.4.0"), "analyzer_version"),
+        ] {
+            let err = check_one_base(("es-fr", &reference), ("es-en", &base(&other, &SECTIONS)))
+                .unwrap_err();
+            assert!(err.contains("es-en's base is not es-fr's"), "{err}");
+            assert!(err.contains(field), "{err}");
+        }
+        let french = BaseMeta {
+            studied: "fr".into(),
+            ..spanish(true, "1.5.0")
+        };
+        let err = check_one_base(("es-fr", &reference), ("fr-en", &base(&french, &SECTIONS)))
+            .unwrap_err();
+        assert!(err.contains("studied"), "{err}");
+    }
+
+    #[test]
+    fn a_base_whose_sections_differ_names_the_first_that_does() {
+        let meta = spanish(true, "1.5.0");
+        let reference = base(&meta, &SECTIONS);
+        let other = base(&meta, &[("forms", b"abc"), ("lemmas", b"casas")]);
+        let err = check_one_base(("es-fr", &reference), ("es-en", &other)).unwrap_err();
+        assert!(err.contains("\"lemmas\" section"), "{err}");
+        let missing = base(&meta, &SECTIONS[..1]);
+        let err = check_one_base(("es-fr", &reference), ("es-en", &missing)).unwrap_err();
+        assert!(
+            err.contains("\"lemmas\" section") && err.contains("None"),
+            "{err}"
+        );
+        // The same sections in another order: another digest.
+        let reordered = base(
+            &BaseMeta {
+                base_version: "w".into(),
+                ..meta.clone()
+            },
+            &[SECTIONS[1], SECTIONS[0]],
+        );
+        let err = check_one_base(("es-fr", &reference), ("es-en", &reordered)).unwrap_err();
+        assert!(err.contains("base_version"), "{err}");
+        // Every field and section the same, the containers not.
+        let reordered = base(&meta, &[SECTIONS[1], SECTIONS[0]]);
+        let err = check_one_base(("es-fr", &reference), ("es-en", &reordered)).unwrap_err();
+        assert!(err.contains("their containers differ"), "{err}");
+    }
+
+    #[test]
+    fn a_part_that_is_no_base_is_refused_by_name() {
+        let reference = base(&spanish(true, "1.5.0"), &SECTIONS);
+        let layer = write_container(
+            &serde_json::to_vec(&LayerMeta {
+                part: Part::Layer,
+                studied: "es".into(),
+                native: "en".into(),
+                pack_version: "p".into(),
+                base_version: "v".into(),
+                licences: vec![],
+            })
+            .unwrap(),
+            &[],
+        );
+        let err = check_one_base(("es-fr", &reference), ("es-en", &layer)).unwrap_err();
+        assert!(err.starts_with("es-en's base: "), "{err}");
+        let err = check_one_base(("es-fr", b"not a pack"), ("es-en", &reference)).unwrap_err();
+        assert!(err.starts_with("es-fr's base: "), "{err}");
     }
 }

@@ -25,8 +25,11 @@ use lingua_core::analysis::lexicon::Lexicon;
 use lingua_core::analysis::{ANALYZER_VERSION, FRENCH_ANALYZER_VERSION};
 use lingua_core::knowledge::state::FrequencyRanks;
 use lingua_core::packs::Pack;
+use lingua_core::packs::format::read_container;
 use lingua_core::packs::pack::section;
-use lingua_pack::{MAX_PACK_BYTES, build_pack, inputs_from_dir};
+use lingua_pack::{
+    BuildError, MAX_PACK_BYTES, TAG_POOL_TABLE, build_pack, build_split, inputs_from_dir,
+};
 use sha2::{Digest, Sha256};
 
 fn testdata_dir() -> PathBuf {
@@ -346,4 +349,139 @@ fn lingua_pack_build_names_the_lexicon_it_refuses() {
     );
     assert!(out.exists());
     std::fs::remove_dir_all(&dir).unwrap();
+}
+
+// — a base and a layer (split-lingua-pack-format) —
+
+#[test]
+fn spec_scenario_the_fixtures_build_whole_as_before_and_no_parts() {
+    // D5: the fixtures carry no pinned pool, so they keep building whole packs byte for byte —
+    // each to the sha256 it built to before the split (recorded on `main` at 2efe503f4) — and a
+    // split of any of them is refused, naming the pool file; change 4 gives them one.
+    let root = testdata_dir().parent().unwrap().to_path_buf();
+    for (pair, size, sha256) in [
+        (
+            "en-fr",
+            1932,
+            "94e3e29c5548cd0367bdf67334fc29404dd3f476c0ca7503ac32c96afe42a187",
+        ),
+        (
+            "en-es",
+            1985,
+            "300e0e9b8a05765a7f9f7843c7308c11a50cae5669bda89d4744773fcfdf2e53",
+        ),
+        (
+            "es-fr",
+            1342,
+            "a0f0db9bb6a1088391e3a7ff086bd07ac2ebf48cd8957ff7412e153f6ffb0c3f",
+        ),
+        (
+            "es-en",
+            1356,
+            "6868b62b0f3531897c89453a3b612a7f7fafc9eff0cf4c38aa8f873a580800d9",
+        ),
+        (
+            "fr-en",
+            5856,
+            "e8b9e8c9daa6f8287a217b6f25154c0dad1395543d63855f68b655b44e2074cc",
+        ),
+        (
+            "fr-es",
+            5731,
+            "223be53de235e8169110d4e77c6d8a4d44021ae43ece86466a66d1ef4fd07ac7",
+        ),
+    ] {
+        let inputs = inputs_from_dir(&root.join(pair)).unwrap_or_else(|e| panic!("{pair}: {e}"));
+        assert!(inputs.tag_pool.is_none(), "{pair} pins no pool");
+        let bytes = build_pack(&inputs).unwrap_or_else(|e| panic!("build {pair}: {e}"));
+        assert_eq!(
+            (bytes.len(), sha256_hex(&bytes).as_str()),
+            (size, sha256),
+            "{pair}"
+        );
+        match build_split(&inputs) {
+            Err(e @ BuildError::NoPinnedPool) => {
+                assert!(e.to_string().contains(TAG_POOL_TABLE), "{pair}: {e}");
+            }
+            other => panic!("{pair}: expected NoPinnedPool, got {other:?}"),
+        }
+    }
+}
+
+/// `lingua-pack-build` run with `args`: whether it succeeded, and what it said on stderr.
+fn lingua_pack_build(args: &[&std::path::Path]) -> (bool, String) {
+    let run = std::process::Command::new(env!("CARGO_BIN_EXE_lingua-pack-build"))
+        .args(args)
+        .output()
+        .expect("run lingua-pack-build");
+    (
+        run.status.success(),
+        String::from_utf8_lossy(&run.stderr).trim_end().to_owned(),
+    )
+}
+
+#[test]
+fn lingua_pack_build_writes_a_base_and_a_layer() {
+    // D8: `--split <studied-dir> <pair-dir> <base> <layer>`, a fixture folder passed twice. The
+    // fixture as committed pins no pool: refused, naming `tags.tsv`, neither file written.
+    let dir = fixture_with_forms("split", "");
+    let split = std::path::Path::new("--split");
+    let (base, layer) = (dir.join("base.lingua"), dir.join("layer.lingua"));
+    let (ok, stderr) = lingua_pack_build(&[split, &dir, &dir, &base, &layer]);
+    assert!(!ok);
+    assert!(stderr.contains(TAG_POOL_TABLE), "{stderr}");
+    assert!(!base.exists() && !layer.exists(), "no part written");
+    // Pinned with the pool it carries today — its sorted union, so its whole pack keeps its
+    // bytes —, it writes both, which assemble into its whole pack.
+    let whole = build_pack(&inputs_from_dir(&dir).unwrap()).unwrap();
+    let (_, sections) = read_container(&whole).unwrap();
+    let pool = sections
+        .iter()
+        .find(|s| s.name == section::TAGS)
+        .map(|s| String::from_utf8(s.data.clone()).unwrap())
+        .expect("the fixture's pool");
+    std::fs::write(dir.join(TAG_POOL_TABLE), format!("{pool}\n")).unwrap();
+    assert_eq!(build_pack(&inputs_from_dir(&dir).unwrap()).unwrap(), whole);
+    let (ok, stderr) = lingua_pack_build(&[split, &dir, &dir, &base, &layer]);
+    assert!(ok, "{stderr}");
+    let (base, layer) = (
+        std::fs::read(&base).unwrap(),
+        std::fs::read(&layer).unwrap(),
+    );
+    let (_, assembled) = Pack::assemble_sections(&base, &layer).expect("assemble");
+    let by_name = |sections: Vec<lingua_core::packs::Section>| {
+        sections
+            .into_iter()
+            .map(|s| (s.name, s.data))
+            .collect::<std::collections::BTreeMap<_, _>>()
+    };
+    assert!(by_name(assembled) == by_name(sections));
+    std::fs::remove_dir_all(&dir).unwrap();
+    // A pair whose manifest studies another language than its studied folder is refused by
+    // name, and nothing is written.
+    let tables = testdata_dir().join("../../tables");
+    let out = std::env::temp_dir().join(format!("lingua-split-mismatch-{}", std::process::id()));
+    std::fs::create_dir_all(&out).unwrap();
+    let (base, layer) = (out.join("base.lingua"), out.join("layer.lingua"));
+    let (ok, stderr) = lingua_pack_build(&[
+        split,
+        &tables.join("en"),
+        &tables.join("es-fr"),
+        &base,
+        &layer,
+    ]);
+    assert!(!ok);
+    assert!(
+        stderr.contains("es-fr/manifest.json studies \"es\""),
+        "{stderr}"
+    );
+    assert!(!base.exists() && !layer.exists(), "no part written");
+    // The usage names both forms.
+    let (ok, usage) = lingua_pack_build(&[split]);
+    assert!(!ok);
+    assert!(
+        usage.contains("<output.lingua>") && usage.contains("--split <studied-dir> <pair-dir>"),
+        "{usage}"
+    );
+    std::fs::remove_dir_all(&out).unwrap();
 }

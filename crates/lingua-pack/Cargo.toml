@@ -28,9 +28,8 @@ serde_json = { workspace = true }
 # C-backed zstd for high-ratio gloss compression. Native-only: this crate is
 # never targeted to WASM (the reader in lingua-core uses pure-Rust ruzstd).
 zstd = { workspace = true }
-
-[dev-dependencies]
-# The shipped packs' sha256, held to their pins (tests/committed_tables.rs).
+# A base's `base_version`, the sha256 of its sections (split-lingua-pack-format D4); native-only,
+# like the rest of the builder. The tests also hold the shipped packs' sha256 to their pins.
 sha2 = { workspace = true }
 
 [lints]
