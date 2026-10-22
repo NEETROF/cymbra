@@ -36,8 +36,6 @@ did for French. Where things stand on `main`:
 - The French summary and `LANGUAGE_NAMES` (change 20).
 - English and Spanish texts for readers of Italian (stage 2: it-en and it-es), Italian listings and
   the App Store's it-IT locale (stage 3, I9), the site in Italian (stage 3).
-- The remote-code answer's « one model per pair » after the pack split: changes 3 and 4 make « a pack
-  per pair » a base and a layer; their documents say so, not this change.
 
 ## Measured
 
@@ -49,22 +47,25 @@ count the files record):
 | Chrome Web Store and AMO, French description | 2,835 | 2,924 | 16,000 |
 | App Store fr-FR subtitle | 29 | 28 | 30 |
 | App Store fr-FR promotional text | 154 | 165 | 170 |
-| App Store fr-FR keywords | 93 bytes | 91 bytes | 100 bytes |
+| App Store fr-FR keywords | 92 (93 bytes) | 95 (96 bytes) | 100 bytes |
 | App Store fr-FR description | 3,186 | 3,299 | 4,000 |
-| App Store fr-FR « What's New » (new) | — | 455 | 4,000 |
+| App Store fr-FR « What's New » paragraph (new) | — | 232 | 4,000 |
 | Test instructions (CWS, AMO) | 998 | 993 | 1,000 |
-| App Store review notes | 3,984 | 3,989 (3,978 without Morph-it!) | 4,000 |
+| App Store review notes | 3,956 for the next submission (#994) | 3,989 (3,978 without Morph-it!) | 4,000 |
 | CWS single purpose | 593 | 602 | — |
 
-- **Too long said directly**: the subtitle « … en lisant » with a third language (32); the keywords
-  with `italien,` added (101 bytes); the test instructions with step 6 widened (1,007); the review
-  notes with the audience, MarkIT and the chained route (4,030 before D5's cuts).
+- **Too long said directly**: the subtitle « … en lisant » with a third language (36, or 38 with
+  « ou »); the keywords with `italien,` added (101 bytes); the test instructions with step 6 widened
+  (1,007); the review notes with Italian added to the newer block alone (4,017), and 4,044 with step 7
+  and the IMPORTANT line before D5's cuts.
 - **The site**, simulated by bundling the real `lingua-text.ts` with Italian's names, `STUDIED.it`
   and an it-fr row: the build passes; the French page reads « Conçue pour les francophones qui
   apprennent l'anglais, l'espagnol ou l'italien », « En espagnol, en italien et en français, la carte
   nomme aussi le temps et le genre », « Pour l'espagnol, l'italien et le français, les niveaux sont
   estimés », a row « Italien → français »; the French home card « Lisez le web en anglais, en espagnol
-  ou en italien »; the English and Spanish pages name it in their sentences. Without change 2's
+  ou en italien »; the English and Spanish pages name it in their sentences, and only `/lingua/`,
+  `/en/lingua/`, `/es/lingua/` and `/` change — with the names but no it-fr row, `dist/` is byte for
+  byte `main`'s. Without change 2's
   it-fr route the note reads « Pas encore pour l'italien vers le français »; with it, « l'italien vers
   le français (en passant par l'anglais) ». Three tests of `test/lingua-text.spec.ts` (around lines
   263, 399 and 481) take Italian as their example of an unnamed language; `:474` already takes German.
@@ -72,9 +73,13 @@ count the files record):
   (« Italien → français »), 115.1 px ("Italian → French") and 128.8 px (« Italiano → francés »),
   under each page's widest (147.9, 131.3 and 134.8 px) and its corner cell (162.1 to 178.0 px): the
   column does not widen. Measured as text, not in a browser.
-- **The review notes**: two texts. The dashboard holds 1.7.0's (3,976, carried to 1.8.1), with step 7
-  — the app reviews the deck — and « No analytics »; the file's newer block (3,984) names the
-  anonymous counts but lacks step 7.
+- **The review notes**: the dashboard holds 1.7.0's (3,976, carried to 1.8.1), with step 7 — the app
+  reviews the deck — and « No analytics », which `add-lingua-usage-counts`' requirement forbids since
+  the anonymous counts shipped in 1.8.1; the file's newer block (3,984) names the counts but lacks
+  step 7 and was never pasted. #994 (outside this programme, the owner's to merge) records that block
+  made true of 1.7.0 — step 7 restored, the IMPORTANT line fixed, three phrases cut — at 3,956, for
+  the next submission, which comes before change 20's (change 20's D4: a release reading backup
+  schema 4 first).
 - **Screenshots**: the Chrome Web Store's French set is five captures, the store's cap
   (`tool/capture/plan.mjs`: card, second language, review, statistics, reader), English then Spanish;
   the App Store's, captured by hand, takes up to ten per slot.
@@ -88,15 +93,17 @@ count the files record):
 and `STUDIED.it = { namesTenseAndGender: true, levelsEstimated: true }` — the card names Italian's
 tense and gender (changes 13 and 18), its levels are estimated (I8, change 14). The three tests that
 took Italian as their unnamed language take German, as `:474` does. `apps/site/README.md`'s note on
-`STUDIED` names Italian. Nothing renders differently until `lingua-coverage.json` lists it-fr, which
-change 20 writes; the byte-pinned fixtures (`test/fixtures/lingua/`) are built from stand-in lists
-and do not move. A test feeds a seven-pair list with an it-fr route and asserts D1's sentences.
+`STUDIED`, and its JSDoc in `lingua-text.ts`, name Italian. Nothing renders differently until
+`lingua-coverage.json` lists it-fr, which change 20 writes: the byte-pinned fixtures
+(`test/fixtures/lingua/`, the real build's `<main>` taken with the six pairs) do not move here, and
+change 20 refreshes them. A test feeds a seven-pair list with an it-fr route and asserts D1's
+sentences.
 
 ### D2 — The coverage table's seventh row
 
 *The coverage table reads at a phone's width* already turns the table into one row per pair; it-fr
 is the seventh, French readers' pairs first on the French page. *Measured* shows no column widening;
-task 2.2 checks the page at 375 px in a browser, the table scrolling within its box if it must.
+task 1.3 checks the page at 375 px in a browser, the table scrolling within its box if it must.
 
 ### D3 — The French texts name Italian
 
@@ -112,22 +119,23 @@ Drafts (M9: the owner's words; counts in *Measured*):
   - subtitle `Anglais, espagnol ou italien` (« en lisant » no longer fits);
   - promotional text « Les mots d'anglais, d'espagnol ou d'italien que vous ne connaissez pas encore,
     surlignés sur la page que vous lisez. L'analyse tourne sur votre appareil, hors ligne. »;
-  - keywords `anglais,espagnol,italien,vocabulaire,lecture,traduction,apprendre,mots,révision,CECRL,deck`
-    — `extension` gives way, the app's category and name already saying it (Open Question 2);
+  - keywords `anglais,espagnol,italien,vocabulaire,lecture,traduction,extension,apprendre,révision,CECRL,deck`
+    (95; 96 bytes) — `mots`, the most general, gives way; neither the app's name nor its category says
+    « extension », so it stays (Open Question 2);
   - description: the first sentence as the Chrome text's; step 3 « Pour l'espagnol ou l'italien,
     cochez-le dans les Réglages de l'extension, onglet Langue, puis choisissez son niveau. », as change
-    20's activation page says it; LIRE as the Chrome text; RÉVISER « pour l'espagnol et l'italien, des
+    20's activation page says it; LIRE as the Chrome text, no example added; RÉVISER « pour l'espagnol et l'italien, des
     niveaux estimés d'après la fréquence des mots » — the requirement asks a text that names levels to
     say Italian's are estimated; TRADUCTION and the dictionary sentence as the Chrome text; the last
     line « … qui apprennent l'anglais, l'espagnol et l'italien … ».
-- **« What's New » fr-FR, for the release of change 20** — the first French notes for a studied
-  language: « Cymbra Lingua lit maintenant l'italien : cochez-le dans les Réglages de l'extension,
-  onglet Langue, puis choisissez votre niveau. Les mots italiens arrivent avec leur sens en français,
-  écrit par des personnes ; la carte nomme le temps et le genre (« passé simple »), et votre niveau
-  d'italien est estimé d'après la fréquence des mots. La traduction étendue traduit votre sélection en
-  italien vers le français, en passant par l'anglais, sur votre appareil. »
-- **The summary**: `## Summary` quotes change 20's (« Le web en anglais, espagnol ou italien : … »,
-  or the owner's words).
+- **« What's New » fr-FR, for the release of change 20** — its first paragraph, modelled on 1.5.0's
+  for Spanish (« Espagnol : lisez aussi l'espagnol. … une voix d'Espagne … »): « Italien : lisez aussi
+  l'italien. Cochez-le dans Réglages › Langue : mots surlignés, carte avec le temps et le genre,
+  niveaux estimés, une voix d'Italie pour la lecture à voix haute, et la traduction étendue en passant
+  par l'anglais. » (232; the voice is change 15's). The rest of the notes is written with the release.
+- **The summary**: `## Summary` quotes change 20's draft (« Le web en anglais, espagnol ou italien :
+  … », or the owner's words) as committed by the pull request that lists it-fr, and its sentence « The
+  French summary does not move » goes.
 
 ### D4 — The English and Spanish texts say what French speakers study
 
@@ -135,34 +143,37 @@ One sentence each, nothing offered to their own readers: the Chrome text in Engl
 also teaches English, Spanish and Italian to French speakers, in French. »; in Spanish, « … enseña
 inglés, español e italiano a los francohablantes, en francés … »; the App Store's en-US/en-GB
 description « … who learn English, Spanish and Italian. » and es-ES/es-MX « … que aprenden inglés,
-español e italiano; … ». The texts kept for a release without fr-es are history, not edited. The
+español e italiano; … ». The texts kept for a release without fr-es are not edited. The
 files' notes that say what French speakers study (the listing languages, the claims table's « who
 learns what », the graphics' French set, the permissions' introduction, the App Store's locales)
-follow.
+follow, and the texts kept for a release without fr-es are labelled as history.
+
+**The claims table** (the extension file's « what each claim rests on ») gains rows for the French
+texts' Italian claims: the card's « passé simple » and « nom féminin » for Italian (change 18's
+renderer, the it-fr card snapshot); Italian through English and its sizes (`model-manifest.json`'s
+it-fr route, it-en 2.0 then en-fr 2.0, and the catalogue's sums); the dictionary sentence (it-fr's
+committed coverage against en-fr's); Italian's levels estimated (change 14's `levels_estimated`);
+step 3 (change 20's `copy.js` `fr.step3`).
 
 ### D5 — The fields one per store, within their limits
 
 - **Single purpose**: "English, Spanish or Italian for French speakers" (602).
-- **Remote code**: the packs listed gain it-fr; the models a French speaker may download gain it-en
-  for Italian, through English.
-- **Test instructions** (993 / 1,000): step 6 « "Français" English, Spanish and Italian »; to make
+- **Remote code**: « the language packs, one per pair » becomes « the language data — a base per
+  studied language (`assets/bases/`) and a layer per listed pair (`assets/packs/`), it-fr's among
+  them — », as change 20's package carries them after changes 3 and 4; the models a French speaker
+  may download gain it-en for Italian, through English.
+- **Test instructions** (993 / 1,000; 1,000 if a dashboard counted each line break as two): step 6 « "Français" English, Spanish and Italian »; to make
   room, step 1 « Pick a level (B1) at … » and « With none, every word is highlighted, the score 0%. ».
   No step or label lost.
-- **App Store review notes** (3,989 / 4,000): based on the file's newer block, which names the
-  anonymous counts, with 1.7.0's step 7 restored (« 7. Open the app: it reviews the deck built in
-  Safari (on the device). ») and the IMPORTANT line made true of it (« IMPORTANT - this app hosts a
-  Safari extension: enable it in Safari first. »); Italian: « Readers study English, Spanish or
+- **App Store review notes** (3,989 / 4,000): #994's block for the next submission (3,956: the
+  anonymous counts named, 1.7.0's step 7 restored, the IMPORTANT line true of it, three phrases cut),
+  with Italian added: « Readers study English, Spanish or
   French, other than their own; French speakers Italian too. », « French to Spanish and Italian to
   French chain two » (26.3 MB the range's top, D6), « the UD Spanish-GSD, French-GSD and
   Italian-MarkIT treebanks, Morph-it! » (MarkIT is CC BY 4.0, credited; Morph-it! only if change 9
   keeps it), « the English, French, Spanish and Italian Wiktionaries » (it-fr reads the Italian
-  Wiktionary's translations). Cut to fit: the account's « (words, deck, level, statistics) », the
-  engine's « WebAssembly », « in place ». Every step, the deletion path, every external service and
-  every source stay.
-- **The dashboard's « No analytics »**: 1.7.0's notes, still on the dashboard at 1.8.1, say it while
-  the extension sends anonymous counts since #958 (2026-10-15). Not Italian's, but the next
-  submission's notes must not say it; this change's text does not, and the owner is told (Open
-  Question 4).
+  Wiktionary's translations). To make room, the audience sentence takes 1.7.0's shorter
+  form. Every step, the deletion path, every external service and every source stay.
 
 ### D6 — Figures the texts quote, taken when they are known
 
@@ -185,14 +196,18 @@ languages are named in the console's language* already asks for a name; no requi
 ### D8 — Screenshots and dashboards
 
 - **App Store fr-FR**: one capture more, by hand, on an Italian page with the card open on a
-  passato remoto form (« passé simple »), on each slot already sent — as `add-lingua-french-listings`
-  added one on a French page. Taken from change 20's dogfood build.
+  passato remoto form (« passé simple »), in each of the three fr-FR slots (iPhone and iPad already
+  sent, macOS still to capture) — as `add-lingua-french-listings` added one on a French page to the
+  en-US and es-ES sets. Taken from change 20's dogfood build. The file's *Screenshots* section and its
+  fr-FR row say so, and *What the app itself says* quotes change 20's step 3.
 - **Chrome Web Store French set**: at its five-capture cap, unchanged; swapping its second capture
   from Spanish to Italian would need Italian capture fixtures and moves the site's alt texts (Open
   Question 3).
-- **Dashboards**: no language is added (Italian ships no `_locales/it`); the French listing and
-  summary are pasted by `add-lingua-french-listings`'s procedure, and what each dashboard shows is
-  recorded.
+- **Dashboards**: no language is added (Italian ships no `_locales/it`). `add-lingua-french-listings`'
+  procedure does not fit — its French step keeps the summary, which change 20 moves — so the extension
+  file gains « The dashboards' languages: Italian studied (change 20's submission) »: `fr` replaced
+  (the description, and the new summary checked), `en` and `es` one sentence each, the fields one per
+  store, the AMO paste, and a table of what each dashboard shows.
 
 ### D9 — Order
 
@@ -225,8 +240,8 @@ test, the 375 px check) 0.5–1; the back office 0.1; docs 0.1. 1.45–2.45.
 
 For the owner:
 1. **The drafts** (D3–D5): as written, or other words (M9).
-2. **The keywords** (D3): `extension` gives way to `italien`, or `deck` does.
+2. **The keywords** (D3): `mots` gives way to `italien` (recommended), or `deck` does.
 3. **The Chrome Web Store's French screenshots** (D8): unchanged (recommended), or the second
    capture moved to an Italian page.
-4. **« No analytics » on the dashboard** (D5): the next submission's review notes name the anonymous
-   counts; this change's text does.
+4. **The review notes for the next submission** (D5): #994 records them, outside this programme; it
+   is the owner's to merge and to paste.

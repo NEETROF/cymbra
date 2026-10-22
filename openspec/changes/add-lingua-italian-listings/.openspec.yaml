@@ -2,6 +2,7 @@ schema: spec-driven
 created: 2026-10-22
 archiveAfter:
   - add-lingua-french-listings
+  - add-site-lingua-showcase
   - add-lingua-italian-translation-models
   - add-lingua-italian-grammar-tables
   - add-lingua-italian-levels

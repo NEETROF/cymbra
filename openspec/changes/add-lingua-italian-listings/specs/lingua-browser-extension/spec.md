@@ -39,4 +39,4 @@ Each store listing of Cymbra Lingua SHALL name every language the packages teach
 
 #### Scenario: French speakers learning Italian
 - **WHEN** it-fr is listed
-- **THEN** the French texts name English, Spanish and Italian, say that Italian's levels are estimated wherever they name levels, say that Italian is translated through English and what it downloads, and point to the published coverage; no English or Spanish text offers Italian to its readers, each saying only that French speakers study it
+- **THEN** the French texts name English, Spanish and Italian, say that Italian's levels are estimated wherever they name levels, say whether Italian is translated — through English — and, if so, what it downloads, and point to the published coverage; no English or Spanish text offers Italian to its readers, each saying only that French speakers study it

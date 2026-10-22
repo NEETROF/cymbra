@@ -28,19 +28,20 @@ Cymbra Lingua does not know it:
   coverage table name Italian with no further edit.
 - **The French texts name Italian** (D3): the Chrome Web Store and AMO description, the App Store's
   fr-FR subtitle (`Anglais, espagnol ou italien`), promotional text, keywords (`italien` in for
-  `extension`), description (step 3 as change 20's activation page; Italian's levels said estimated)
-  and a first French « What's New » for a studied language. Within every limit (design *Measured*).
+  `mots`), description (step 3 as change 20's activation page; Italian's levels said estimated) and a
+  « What's New » paragraph modelled on 1.5.0's for Spanish. Within every limit (design *Measured*);
+  the claims table gains the French texts' Italian claims.
 - **The English and Spanish texts** say French speakers study Italian too, one sentence each (D4).
-- **The fields one per store** (D5): the single purpose, the remote-code answer, the test
-  instructions (993 / 1,000, two phrases cut) and the App Store review notes (3,989 / 4,000: the
-  file's newer block with 1.7.0's step 7 restored, Italian's route, MarkIT and the Italian Wiktionary
-  credited, three phrases cut).
+- **The fields one per store** (D5): the single purpose, the remote-code answer (the bases and
+  layers of changes 3 and 4, it-fr's among them), the test instructions (993 / 1,000, two phrases cut)
+  and the App Store review notes (3,989 / 4,000: #994's block for the next submission, which names the
+  anonymous counts, with Italian's route, MarkIT and the Italian Wiktionary credited).
 - **Figures taken when known** (D6): it-en's size from change 2's catalogue, the dictionary sentence
   from change 16's committed coverage, translation as change 19 and the owner leave it.
 - **The back office names Italian** (D7): « Italien », "Italian", inert until a device reports it.
 - **Screenshots and dashboards** (D8): one App Store fr-FR capture more on an Italian page; the
   Chrome Web Store's French set at its cap, unchanged unless the owner says otherwise; no new
-  dashboard language.
+  dashboard language, and a dashboard procedure for change 20's submission.
 - **Merged before change 20** (D9); the texts pasted with change 20's release. The wording is the
   owner's (M9).
 
@@ -59,6 +60,10 @@ None.
   are* and *The coverage table reads at a phone's width* (both held by `add-lingua-french-listings`):
   every word and scenario kept, *Italian studied* and *Seven pairs on a phone* added.
 
+- `site-locales`: MODIFIED *The French home page describes Lingua for the readers it serves* (held by
+  `add-site-lingua-showcase`): *Today's pairs* reads « and no other pair glossed in French », *Italian
+  studied* added — the card then reads « Lisez le web en anglais, en espagnol ou en italien… ».
+
 *The stores' summary names what its readers can study* holds as written: change 20 commits the French
 summary. The back office's *The studied languages are named in the console's language* already asks
 for a name.
@@ -69,11 +74,12 @@ for a name.
   (`apps/site`): `src/lib/lingua-text.ts`, `README.md`, `test/lingua-text.spec.ts`. The back office:
   `src/i18n/locales/{fr,en}.json`, `test/lingua.spec.ts`. Nothing of the extension's code, packs,
   engine or interface; Cymbra ID, Music, Live and the backend untouched.
-- **What a visitor sees before change 20**: nothing; from change 20, Italian on the French Lingua
-  page, the French home card, the table, and in the listings once pasted.
+- **What a visitor sees before change 20**: nothing; from change 20, Italian on the French, English
+  and Spanish Lingua pages, the French home card and the table, and in the listings once pasted.
 - **Order.** Merged before change 20, whose pull request lists it-fr (D9). Builds on changes 2, 13, 14,
-  16, 18 and 19 (the facts the texts state) and on `add-lingua-french-listings`; archived after them
-  and change 20 (`.openspec.yaml`).
+  16, 18 and 19 (the facts the texts state), on `add-lingua-french-listings` and
+  `add-site-lingua-showcase`; archived after them and change 20 (`.openspec.yaml`). The review notes
+  it builds on are #994's, outside the programme.
 - **Effort, against 1.5–3 ideal days**: 1.45–2.45 (design, *Effort*).
 - **The owner** reads the drafts (M9), answers the open questions, captures the App Store screenshot,
   and pastes the listings with change 20's release after the site deploy that publishes it-fr's
