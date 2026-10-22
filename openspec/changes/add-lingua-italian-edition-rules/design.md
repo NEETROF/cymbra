@@ -167,7 +167,11 @@ Heraldic senses (`topics` heraldry: 1,803 en, 1,731 fr, 679 es) take two rules:
   « affibbiatura », `vivre` « biscia… », `faux` « falce… », `défense` « testa di leopardo »), of which a
   table glosses 94; the Spanish 32 (`en` « posto, ordinato »), of which 31; the English 13 (the letters
   `s`, `p`, `o`, `v`, `g`, and `plate`, `vol`, `barry`, `er`, `embrace`, `alternate`, `bout`, `hart`), of
-  which 8. This rule never touches a word with another meaning, so `anchor` keeps « ancora ».
+  which 8. This rule never touches a word with another meaning, so `anchor` keeps « ancora ». It holds
+  for a headword of several words as for one (amended by change 36): it takes 424 of the English
+  section's 1,804 expressions out of the definitions (1,804 → 1,380), and the tables gloss 312 of them
+  again (« arms of alliance » « arma d'alleanza »); a phrase glossed only by its heraldic sense is the
+  heraldic term, which a reader rarely means.
 - **A word with other senses has its heraldic ones written last**, in their entry: 12 / 13 / 16 English
   rows change, the first sense of 3 / 4 / 4. The obsolete and heraldic rules change no row in common.
 

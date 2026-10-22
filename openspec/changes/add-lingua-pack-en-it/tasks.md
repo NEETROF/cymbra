@@ -6,12 +6,13 @@
 
 ## 1. The sources
 
-- [ ] 1.1 `pack_sources.py` (D7): `EDITIONS["en"]` gains `kaikki-en-traductions-it.jsonl`; `EDITIONS["it"]` gains `kaikki-it-Inglese.jsonl`, and `kaikki-it-traductions-en.jsonl` if change 22 has not registered it; `DUMPS["en-it"]`; `test_pack_sources.py`'s catalogue tests; `SOURCES.md`; every committed pair's rule files, digests and `pack_version` unchanged.
+- [ ] 1.1 `pack_sources.py` (D7): `EDITIONS["en"]` gains `kaikki-en-traductions-it.jsonl`; `EDITIONS["it"]` gains `kaikki-it-Inglese.jsonl`, and `kaikki-it-traductions-en.jsonl` if change 22 has not registered it; `DUMPS["en-it"]`; `test_pack_sources.py`'s two English-catalogue tests; `SOURCES.md`; every committed pair's rule files, digests and `pack_version` unchanged.
 
 ## 2. The reducer
 
 - [ ] 2.1 `reduce-en-it.py` (D1–D5): `tables/en/` as committed; the sources in D2's order with the Italian edition's rules; en-es's table readers copied (D3); the expressions; writes `tables/en-it/{gloss.tsv, senses.tsv, mwe.tsv, NOTICE, manifest.json}`, the table share measured, both sides credited; its rule digest `reduce-en-it.py`, `reduce_common.py`, `reduce_edition_it.py`.
-- [ ] 2.2 `test_reduce_en_it.py`: each source's place in the order; a word listed once; letters out; the translators' typography; a definition first; the expressions' keys; the Python tests pass.
+- [ ] 2.2 `test_reduce_en_it.py`: each source's place in the order; a word listed once; letters out; a translator's note (`enrichment`); a definition first; the expressions' keys. `test_reduce_editions.py`: the Italian edition's digest test names en-it, rule files `[reduce-en-it.py, reduce_common.py, reduce_edition_it.py]`, and no other committed pair. The Python tests pass.
+- [x] 2.3 Change 35 amended in this proposal's pull request: its heraldry-only rule holds for a headword, word or expression (D5).
 
 ## 3. The pipeline and the tables
 
@@ -21,7 +22,7 @@
 ## 4. The baseline and the checks
 
 - [ ] 4.1 `crates/lingua-wasm/tests/en_it_baseline.rs` and `baseline/en-it.golden` (en-es's 40 extra lemmas; the studied side en-fr's), blessed in task 3.2's pull request; `cross_native.rs` with en-it; both workflows run it (D8).
-- [ ] 4.2 `crates/lingua-pack/tests/committed_tables.rs` and `testdata/en-it/`: en-it built to its pin, its credits, listed in no package while the list does not name it.
+- [ ] 4.2 `crates/lingua-pack/tests/committed_tables.rs`: en-it built to its pin, its credits, listed in no package while the list does not name it; `scripts/lingua-data/testdata/en-it/` (`pipeline_testdata.rs`); `tables/en-fr/README.md` names en-it among the pairs reading `../en/`.
 - [ ] 4.3 `apps/lingua-extension/test/row-gloss-tables.spec.ts` with en-it; `test/word-card-en-it.spec.ts` and `test/baseline/word-card-en-it.txt`, the card in Italian over en-it's golden, re-blessed with it (D8).
 
 ## 5. Gates

@@ -24,7 +24,7 @@ names, which the Italian Wiktionary writes fewer of.
 - **en-es's table rules, copied** (D3), not shared, so that en-es's pin does not move:
   - letters out;
   - a word listed once across a row's parts of speech (19 / 69 / 285 inverted rows at the 5,000 / 10,000
-    / 20,000);
+    / 20,000), ordered by Italian frequency;
   - the translators' typography.
 - **Expressions** (D5): 13,374 keyed as en-es keys them.
 - **The floor** (D6): fixed before the first committed measurement at the measured figures less two
@@ -38,7 +38,9 @@ names, which the Italian Wiktionary writes fewer of.
   - both workflows;
   - the full card snapshot in Italian that change 34 hands over (`word-card-en-it.spec.ts`).
 - **Coverage, share and sample published** (D9): the README shows the coverage by source, the 12.8 %
-  of the 10,000 glossed by a table, and a sample of 100 marked by source.
+  of the 8,273 glossed among the 10,000 that a table glosses, and a sample of 100 marked by source.
+- **Change 35 amended** (D5): its heraldry-only rule holds for an expression as for a word. **I11's
+  text** names the Italian Wiktionary's own tables read backwards (D2).
 - **Known defects listed for change 37** (D10): names on common words, contractions, function words
   described rather than glossed, Italian plurals in the inverted table, and the rest.
 - **Not shipped** (D11): no package lists en-it before change 45.
@@ -61,10 +63,13 @@ None.
   - `scripts/lingua-data/`:
     - new: `reduce-en-it.py`, `test_reduce_en_it.py`, `tables/en-it/`;
     - changed: `pack_sources.py` (`EDITIONS`, `DUMPS`), `test_pack_sources.py`, `gloss_coverage.py`
-      (`FLOORS["en-it"]`), `test_gloss_coverage.py`, `test_reduce_loops.py`, `SOURCES.md`.
+      (`FLOORS["en-it"]`), `test_gloss_coverage.py`, `test_reduce_editions.py`, `test_reduce_loops.py`,
+      `SOURCES.md`, `tables/en-fr/README.md`, `testdata/en-it/`.
+  - `openspec/changes/add-lingua-italian-edition-rules/` (the heraldry amendment) and
+    `docs/lingua/italian-programme.md` (I11, the *Measured figures*).
   - `.github/workflows/{lingua-pack-update.yml, lingua-extension-check.yml}`.
   - `crates/lingua-wasm/tests/{en_it_baseline.rs, baseline/en-it.golden, cross_native.rs}`.
-  - `crates/lingua-pack/tests/committed_tables.rs` and `testdata/en-it/`.
+  - `crates/lingua-pack/tests/committed_tables.rs`.
   - `apps/lingua-extension/test/{row-gloss-tables.spec.ts, word-card-en-it.spec.ts,
     baseline/word-card-en-it.txt}`.
 
@@ -75,4 +80,4 @@ None.
   `kaikki-it-traductions-en.jsonl`; if stage 3 lands first (I5), this change registers it, under the
   same name and kind.
 - **Order**: before changes 37, 38 and 45.
-- **Effort, against 3.5–6 ideal days**: 3.5–5.75 (design, *Effort*).
+- **Effort, against 3.5–6 ideal days**: 3.5–6 (design, *Effort*).

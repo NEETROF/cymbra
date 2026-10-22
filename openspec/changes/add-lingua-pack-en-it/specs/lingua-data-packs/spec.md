@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: English is glossed in Italian from the Italian Wiktionary's English section and the two Wiktionaries' translation tables
-en-it's glosses SHALL be reduced from the Italian Wiktionary's English section with the Italian edition's rules, then, for what that section leaves out, from the English Wiktionary's Italian translation tables, then from the Italian Wiktionary's English translations read backwards — words people wrote in Italian, at most three per part of speech from each table, with no pivot and no machine translation —, reading the committed English studied tables as a reader pair does and loading no other pair's reducer. A table's letters SHALL be left out, and the translators' marks in a table's words (sense numbers, « ... ») cleaned as en-es cleans them; in the table read backwards, an Italian word SHALL be listed under one part of speech of an English word only. Its expressions SHALL be keyed as en-es's are. The share of glossed lemmas among the 10,000 commonest whose gloss came from a translation table SHALL be measured and shown.
+en-it's glosses SHALL be reduced from the Italian Wiktionary's English section with the Italian edition's rules, then, for what that section leaves out, from the English Wiktionary's Italian translation tables, then from the Italian Wiktionary's English translations read backwards — words people wrote in Italian, at most three per part of speech from each table, with no pivot and no machine translation —, reading the committed English studied tables as a reader pair does and loading no other pair's reducer. No translation table SHALL gloss a letter: a letter's entry, a one-letter word's noun entry and an entry whose every translation is its own letter are left out of both tables, and, read backwards, every one-letter English word. In the direct table a word labelled disused SHALL NOT be listed, and a translator's note inside a word — a sense number, a loanword's respelling, a label holding no word wordfreq's Italian list rates at 1.0 Zipf or more, a usage note opening on « with » — SHALL be taken out and the word kept. Read backwards, an Italian word SHALL be listed once per English word, under the first of its parts of speech English's readings name, or else the first listed, the words ordered by Italian frequency. Every table word SHALL be written in the Italian edition's typography, for words and expressions alike. Its expressions SHALL be keyed as en-es's are. The share of glossed lemmas among the 10,000 commonest whose gloss came from a translation table SHALL be measured and shown. The Italian edition's rules SHALL be read by en-it and by no other committed pair.
 
 #### Scenario: A definition first
 - **WHEN** the Italian Wiktionary's English section defines `summer` and a translation table also gives it Italian words
@@ -15,6 +15,14 @@ en-it's glosses SHALL be reduced from the Italian Wiktionary's English section w
 - **WHEN** the Italian Wiktionary's tables, read backwards, give `left-hand` « sinistro » under three parts of speech
 - **THEN** « sinistro » is listed once
 
+#### Scenario: A translator's note
+- **WHEN** the English Wiktionary's Italian table gives `enrichment` « arricchimento (1,2) »
+- **THEN** en-it's gloss reads « arricchimento »
+
+#### Scenario: A rule of the Italian edition
+- **WHEN** a rule of the Italian edition changes
+- **THEN** en-it's rule digest moves, and no other committed pair's does
+
 #### Scenario: Nothing else moves
 - **WHEN** en-it's tables are committed
 - **THEN** every other pair's tables, pins, packs and goldens are unchanged
@@ -24,7 +32,7 @@ en-it's native side SHALL be reduced from its own pin — the Italian Wiktionary
 
 #### Scenario: The floor holds
 - **WHEN** en-it is reduced and its coverage is at or above `FLOORS["en-it"]`
-- **THEN** the tables are committed and the coverage is shown in their README
+- **THEN** the tables are committed and the coverage, by source, is shown in their README
 
 #### Scenario: Under the floor
 - **WHEN** a pull request re-reduces en-it and its committed tables measure under `FLOORS["en-it"]`
