@@ -45,10 +45,12 @@ no readable `pack.lingua`. A pack glossed in another language (`es-en.lingua` be
 packs) is skipped, as a pack that does not load is; `lingua vocab` names it after its listing, while
 the hook and the statusline stay silent.
 
-To get the packs, build the extension's real ones (`yarn gen:pack:real` in
-`apps/lingua-extension`, then copy `assets/packs/en-fr.lingua` to `~/.lingua/pack.lingua` and
-`assets/packs/es-fr.lingua` beside it), or a tiny test pack with
-`scripts/lingua-data/build.sh --testdata en-fr ~/.lingua/pack.lingua`.
+To get the packs, build each pair's whole pack from the committed tables, checked against its pin
+(`scripts/lingua-data/build.sh en-fr ~/.lingua/pack.lingua`, then
+`scripts/lingua-data/build.sh es-fr ~/.lingua/es-fr.lingua` beside it), or a tiny test pack with
+`scripts/lingua-data/build.sh --testdata en-fr ~/.lingua/pack.lingua`. The extension's
+`yarn gen:pack:real` writes each pack as a base and a layer (ship-lingua-pack-bases-once), which the
+plugin does not read: it skips a part, as any file that is not a whole pack.
 
 With several languages, each MCP tool takes a `language` (`en`, `es`): `add_words`,
 `due_cards` and `answer_card` refuse a call without one, so a review never mixes languages;

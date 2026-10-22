@@ -9,7 +9,7 @@ import { engineProblems } from "./engine_pin.mjs";
 import { LOCALES_DIR, readLocales } from "./locales.mjs";
 import { defaultLocale, localised } from "./manifests.mjs";
 import { modelsOf, readCatalogue, ROLES } from "./model-catalogue.mjs";
-import { packFile, shippedNatives, shippedPairs } from "./packs.mjs";
+import { baseFile, packFile, packMeta, shippedNatives, shippedPairs, shippedStudied } from "./packs.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const failures = [];
@@ -338,16 +338,33 @@ expect(
   JSON.stringify(pairs) === JSON.stringify(SHIPPED_PAIRS),
   `packs.json lists ${JSON.stringify(pairs)}; a package ships ${JSON.stringify(SHIPPED_PAIRS)}`,
 );
+// Each pack ships as two parts (ship-lingua-pack-bases-once D4): the listed pairs' layers at the
+// pairs' paths, and their studied languages' bases, once each — and nothing else of the kind: no
+// whole pack, at a listed path or any other, and each part under the 8 MB no packaged file reaches.
+const layers = pairs.map(packFile);
+const bases = shippedStudied(pairs).map(baseFile);
+const listed = [...layers, ...bases].sort();
 for (const target of ["chromium", "firefox", "safari"]) {
-  const packed = filesOf(target)
-    .filter((f) => f.startsWith(join("assets", "packs")))
-    .map((f) => f.split("\\").join("/"))
+  const posix = (f) => f.split("\\").join("/");
+  const packaged = filesOf(target)
+    .map(posix)
+    .filter((f) => f.startsWith("assets/packs/") || f.startsWith("assets/bases/") || f.endsWith(".lingua"))
     .sort();
-  const listed = pairs.map(packFile).sort();
   expect(
-    JSON.stringify(packed) === JSON.stringify(listed),
-    `${target}: packs ${JSON.stringify(packed)} differ from the list ${JSON.stringify(listed)}`,
+    JSON.stringify(packaged) === JSON.stringify(listed),
+    `${target}: packs ${JSON.stringify(packaged)} differ from the list's layers and bases ${JSON.stringify(listed)}`,
   );
+  for (const file of packaged) {
+    const path = join(root, `dist-${target}`, file);
+    const wanted = layers.includes(file) ? "layer" : bases.includes(file) ? "base" : null;
+    const { part } = packMeta(readFileSync(path));
+    expect(
+      wanted === null || part === wanted,
+      `${target}: ${file} is ${part ? `a ${part}` : "a whole pack, or no pack"}, not a ${wanted}`,
+    );
+    const size = statSync(path).size;
+    expect(size < 8_000_000, `${target}: ${file} is ${size} bytes — no packaged part is that large`);
+  }
   expect(
     !existsSync(join(root, `dist-${target}`, "assets", "pack.lingua")),
     `${target}: packages the old assets/pack.lingua`,

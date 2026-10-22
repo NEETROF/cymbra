@@ -15,7 +15,14 @@ import { engineFiles, engineProblems } from "./tool/engine_pin.mjs";
 import { bundledCatalogue, readCatalogue } from "./tool/model-catalogue.mjs";
 import { LOCALES_DIR, readLocales } from "./tool/locales.mjs";
 import { buildManifest } from "./tool/manifests.mjs";
-import { assertPacksMatchEngine, packFile, shippedNatives, shippedPairs } from "./tool/packs.mjs";
+import {
+  assertPacksMatchEngine,
+  baseFile,
+  packFile,
+  shippedNatives,
+  shippedPairs,
+  shippedStudied,
+} from "./tool/packs.mjs";
 
 const root = dirname(fileURLToPath(import.meta.url));
 const requested = process.argv.slice(2).filter((a) => !a.startsWith("-"));
@@ -48,28 +55,37 @@ const distDirOf = (target) => DIST_DIR || `dist-${target}`;
 // default studied language, the engine's first pack.
 const PAIRS = shippedPairs();
 
-// Guard: every listed pack is its pair's — its studied and its native language — and was built for
-// its language's analyser version (tool/packs.mjs).
+// Guard: every listed pair's layer is its pair's — its studied and its native language — and was
+// built against the base packaged for its language, and every base was built for its language's
+// analyser version (tool/packs.mjs, ship-lingua-pack-bases-once D4).
 assertPacksMatchEngine({ appDir: root, pairs: PAIRS });
 
 // Guard: src/wasm/pkg is gitignored and only refreshed by `yarn gen:wasm`, so a build can
 // bundle an engine older than the code calling it — the stats view then stops on its first
 // missing method (vocabularyEstimate, #439) with nothing on screen. Every method the
 // extension calls is declared on `WasmEngine` (src/analyzer/engine.ts); the wasm-bindgen
-// glue's `LinguaEngine` class must provide each of them.
+// glue's `LinguaEngine` class must provide each of them — and each static factory declared on
+// `WasmEngineClass` (`assemble`, ship-lingua-pack-bases-once D2), which the glue writes as a
+// `static` method, beside its instance methods.
 function assertWasmMatchesEngine() {
   const gluePath = join(root, "src/wasm/pkg/lingua_wasm.js");
   if (!existsSync(gluePath)) {
     throw new Error("src/wasm/pkg is missing — run `yarn gen:wasm` before building.");
   }
-  const declared = readFileSync(join(root, "src/analyzer/engine.ts"), "utf8").match(
-    /interface WasmEngine \{([\s\S]*?)\n\}/,
-  )?.[1];
+  const engineTs = readFileSync(join(root, "src/analyzer/engine.ts"), "utf8");
+  const declared = engineTs.match(/interface WasmEngine \{([\s\S]*?)\n\}/)?.[1];
   if (!declared) throw new Error("`interface WasmEngine` not found in src/analyzer/engine.ts.");
+  const factories = engineTs.match(/interface WasmEngineClass \{([\s\S]*?)\n\}/)?.[1];
+  if (!factories) throw new Error("`interface WasmEngineClass` not found in src/analyzer/engine.ts.");
   const called = [...declared.matchAll(/^ {2}(\w+)\(/gm)].map((m) => m[1]);
+  const calledStatic = [...factories.matchAll(/^ {2}(\w+)\(/gm)].map((m) => m[1]);
   const glue = readFileSync(gluePath, "utf8").match(/export class LinguaEngine \{([\s\S]*?)\n\}/)?.[1] ?? "";
   const provided = new Set([...glue.matchAll(/^ {4}(\w+)\(/gm)].map((m) => m[1]));
-  const missing = called.filter((name) => !provided.has(name));
+  const providedStatic = new Set([...glue.matchAll(/^ {4}static (\w+)\(/gm)].map((m) => m[1]));
+  const missing = [
+    ...called.filter((name) => !provided.has(name)),
+    ...calledStatic.filter((name) => !providedStatic.has(name)).map((name) => `static ${name}`),
+  ];
   // The glue's functions the extension calls beside the engine's methods (`WasmModule`).
   const glueText = readFileSync(gluePath, "utf8");
   for (const name of ["reprofileBackup"]) {
@@ -229,7 +245,9 @@ const staticCopies = [
   ["src/styles/settings.css", "settings.css"],
   ["src/wasm/pkg/lingua_wasm.js", "wasm/lingua_wasm.js"],
   ["src/wasm/pkg/lingua_wasm_bg.wasm", "wasm/lingua_wasm_bg.wasm"],
+  // Each listed pair's layer, and each listed language's base once (ship-lingua-pack-bases-once D1).
   ...PAIRS.map((pair) => [packFile(pair), packFile(pair)]),
+  ...shippedStudied(PAIRS).map((studied) => [baseFile(studied), baseFile(studied)]),
 ];
 
 for (const target of targets) {
@@ -237,6 +255,7 @@ for (const target of targets) {
   rmSync(dist, { recursive: true, force: true });
   mkdirSync(join(dist, "wasm"), { recursive: true });
   mkdirSync(join(dist, "assets", "packs"), { recursive: true });
+  mkdirSync(join(dist, "assets", "bases"), { recursive: true });
 
   const common = {
     absWorkingDir: root,
@@ -323,7 +342,7 @@ for (const target of targets) {
   }
 
   // The variant's manifest, and the languages it speaks (tool/manifests.mjs): the committed source
-  // transformed for the target, package.json's version stamped on, the packs exposed, the backend
+  // transformed for the target, package.json's version stamped on, the layers and bases exposed, the backend
   // origin granted, the Chromium id pinned, the reader injected statically where the browser needs
   // it — and, once a pair glossed in another language than French ships, the description and the
   // commands read from `_locales`. While only French-native pairs ship, byte for byte today's.
@@ -400,7 +419,7 @@ if (wanted.includes(APP)) {
     ["src/stats/stats.css", "stats.css"],
     // The email sign-in's card (add-lingua-app-email-signin D2): the account page's own styles.
     ["src/account/account.css", "account.css"],
-    // No pack: the app serves the ones of the Safari extension it embeds, never a second copy.
+    // No pack: the app serves the parts of the Safari extension it embeds, never a second copy.
     ["src/wasm/pkg/lingua_wasm_bg.wasm", "wasm/lingua_wasm_bg.wasm"],
   ]) {
     cpSync(join(root, from), join(dist, to));

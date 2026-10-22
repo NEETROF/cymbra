@@ -13,7 +13,16 @@ import type {
   StatusChangeIn,
   StatusOp,
 } from "./port.ts";
-import { DEFAULT_NATIVE, defaultPair, packPath, pairFor, pairsOf, SHIPPED_PAIRS } from "./pairs.ts";
+import {
+  basePath,
+  DEFAULT_NATIVE,
+  defaultPair,
+  packPath,
+  pairFor,
+  pairsOf,
+  SHIPPED_PAIRS,
+  studiedOf,
+} from "./pairs.ts";
 import type {
   CefrLevel,
   LemmaStatus,
@@ -36,7 +45,9 @@ import type {
 // MV3 loading notes: a classic content script cannot statically import the wasm-pack
 // ES module, and init()'s bare auto-fetch is unreliable under chrome-extension://, so
 // we dynamic-import the glue by its extension URL and hand init() the explicit .wasm
-// Response. The glue, the _bg.wasm and every listed pack are web_accessible_resources.
+// Response. The glue, the _bg.wasm, every listed pair's layer and every listed language's base are
+// web_accessible_resources: a pair's pack is its studied language's base and its own layer,
+// assembled by the engine (ship-lingua-pack-bases-once D2).
 
 /** The engine's own surface (lingua-wasm). A language-bound binding takes the studied
  * language last; without one it answers in the language of the first pack loaded. */
@@ -111,6 +122,8 @@ interface WasmEngine {
   promoteByExposure(thresholdDays: number, atMs: number, language?: string | null): number;
   seedLevel(level: string, count: number, order: string, at: number, language?: string | null): number;
   addPack(packBytes: Uint8Array): string;
+  /** Another studied language's pack, from its base and its layer (split-lingua-pack-format D7). */
+  addParts(base: Uint8Array, layer: Uint8Array): string;
   languages(): string;
   nativeLanguage(): string;
   profileNativeLanguage(): string;
@@ -121,9 +134,19 @@ interface WasmEngine {
   free(): void;
 }
 
+/**
+ * The glue's `LinguaEngine` class: its constructor over a whole pack, and its static factory over a
+ * pack's base and layer (split-lingua-pack-format D7), which the engine starts with. build.mjs holds
+ * the glue to every static method declared here, as it holds it to `WasmEngine`'s.
+ */
+interface WasmEngineClass {
+  new (packBytes: Uint8Array): WasmEngine;
+  assemble(base: Uint8Array, layer: Uint8Array): WasmEngine;
+}
+
 export interface WasmModule {
   default: (init: Response | string | URL) => Promise<unknown>;
-  LinguaEngine: new (packBytes: Uint8Array) => WasmEngine;
+  LinguaEngine: WasmEngineClass;
   /** A backup with another profile: a pure function of the glue, no engine and no pack (D2). */
   reprofileBackup(backup: string, native: string, studied: string[]): string;
   /** A backup's review outlook as JSON: a pure function of the glue, no engine and no pack. */
@@ -218,15 +241,37 @@ export async function reviewOutlookJson(
   return mod.reviewOutlook(backup, now, dayStart);
 }
 
-/** A pair's pack, read from the package. */
-async function fetchPack(pair: string): Promise<Uint8Array> {
-  return new Uint8Array(await (await fetch(packageUrl(packPath(pair)))).arrayBuffer());
+/** A packaged file's bytes. */
+async function fetchPart(path: string): Promise<Uint8Array> {
+  return new Uint8Array(await (await fetch(packageUrl(path))).arrayBuffer());
+}
+
+/** A studied language's base, read from the package: one per language, whatever pair it serves. */
+function fetchBase(studied: string): Promise<Uint8Array> {
+  return fetchPart(basePath(studied));
+}
+
+/** A pair's layer, read from the package at the pair's path. */
+function fetchLayer(pair: string): Promise<Uint8Array> {
+  return fetchPart(packPath(pair));
+}
+
+/**
+ * A pair's base and layer, fetched together, the base first: a pair's pack is the two assembled
+ * (ship-lingua-pack-bases-once D2). Rejects when either fetch does.
+ */
+function fetchParts(pair: string): Promise<[Uint8Array, Uint8Array]> {
+  return Promise.all([fetchBase(studiedOf(pair)), fetchLayer(pair)]);
 }
 
 export class WasmAnalyzerPort implements LinguaPort {
   private enginePromise: Promise<WasmEngine> | null = null;
   private nativePromise: Promise<NativeLanguage> | null = null;
-  /** The packs added after the default's, one load per language (package-lingua-packs-per-pair). */
+  /**
+   * The packs added after the default's, one load per language (package-lingua-packs-per-pair): a
+   * base and a layer each, so a language's base is fetched once per engine — the engine holds one
+   * pair per studied language (ship-lingua-pack-bases-once D2).
+   */
   private readonly added = new Map<string, Promise<void>>();
   /**
    * The engine built for a backup of another native language than this one's (`restore`, D3): the
@@ -269,7 +314,8 @@ export class WasmAnalyzerPort implements LinguaPort {
   }
 
   /**
-   * Instantiated once per tab, on the first call, with the native language's default pair's pack.
+   * Instantiated once per tab, on the first call, with the native language's default pair's pack —
+   * its language's base and its layer.
    * The native language is known before the build is cached, so a store that failed to answer never
    * leaves a failed build behind for every later call (generalise-lingua-native-language D7).
    */
@@ -282,9 +328,10 @@ export class WasmAnalyzerPort implements LinguaPort {
     const pair = defaultPair(native, this.pairs) as string;
     const mod = await this.loadGlue();
     await initialise(mod);
-    const packBytes = await fetchPack(pair);
-    // Throws if the pack is malformed or built for an incompatible analyzer_version.
-    return new mod.LinguaEngine(packBytes);
+    const [base, layer] = await fetchParts(pair);
+    // Throws if a part is malformed, if the two do not assemble (a layer of another base), or if
+    // the base was built for an incompatible analyzer_version.
+    return mod.LinguaEngine.assemble(base, layer);
   }
 
   /**
@@ -305,12 +352,15 @@ export class WasmAnalyzerPort implements LinguaPort {
     return engine;
   }
 
-  /** Adds `pair`'s pack to the engine once: a pending load is shared, a failed one forgotten. */
+  /**
+   * Adds `pair`'s pack — its base and its layer — to the engine once: a pending load is shared, and
+   * a failed one, whichever part failed, forgotten whole.
+   */
   private addPack(engine: WasmEngine, language: string, pair: string): Promise<void> {
     let load = this.added.get(language);
     if (!load) {
-      const attempt = fetchPack(pair).then((bytes) => {
-        engine.addPack(bytes);
+      const attempt = fetchParts(pair).then(([base, layer]) => {
+        engine.addParts(base, layer);
       });
       // A failed load is retried by the next call rather than remembered.
       attempt.catch(() => {

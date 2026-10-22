@@ -116,11 +116,14 @@ describe("the manifest step while every shipped pair is French-native", () => {
     expect(manifest.version).toBe("1.7.0");
     expect(manifest.name).toBe("Cymbra Lingua");
     expect(manifest.host_permissions).toEqual(["https://api.cymbra.app/*"]);
+    // Each pair's layer, then each studied language's base, once (ship-lingua-pack-bases-once D4).
     expect((manifest.web_accessible_resources as { resources: string[] }[])[0]!.resources).toEqual([
       "wasm/lingua_wasm.js",
       "wasm/lingua_wasm_bg.wasm",
       "assets/packs/en-fr.lingua",
       "assets/packs/es-fr.lingua",
+      "assets/bases/en.lingua",
+      "assets/bases/es.lingua",
     ]);
     const permissions = manifest.permissions as string[];
     if (target === "chromium") {
@@ -271,18 +274,35 @@ describe("the manifest step once es-en ships (the scenario *An English-glossed p
   it.each(TARGETS)(
     "%s: change 52 adds fr-en's and fr-es's packs and moves nothing else of change 35's manifest",
     (target) => {
-      // The French pairs add no native language (enable-lingua-french D7): the same _locales, the same default.
+      // The French pairs add no native language (enable-lingua-french D7): the same _locales, the same
+      // default. Their packs are their two layers and French's base, once (ship-lingua-pack-bases-once).
       const before = step(target, WITH_BOTH);
       const after = step(target, WITH_FRENCH);
       expect(after.locales).toEqual(before.locales);
       const exposed = (after.manifest.web_accessible_resources as { resources: string[] }[])[0]!;
-      expect(exposed.resources).toEqual(
-        expect.arrayContaining(["assets/packs/fr-en.lingua", "assets/packs/fr-es.lingua"]),
-      );
-      exposed.resources = exposed.resources.filter(
-        (r) => r !== "assets/packs/fr-en.lingua" && r !== "assets/packs/fr-es.lingua",
-      );
+      const french = ["assets/packs/fr-en.lingua", "assets/packs/fr-es.lingua", "assets/bases/fr.lingua"];
+      expect(exposed.resources).toEqual(expect.arrayContaining(french));
+      exposed.resources = exposed.resources.filter((r) => !french.includes(r));
       expect(text(after.manifest)).toBe(text(before.manifest));
+    },
+  );
+
+  it.each(TARGETS)(
+    "%s: exposes the six layers, then the three bases, once each (ship-lingua-pack-bases-once D4)",
+    (target) => {
+      const { manifest } = step(target, WITH_FRENCH);
+      const resources = (manifest.web_accessible_resources as { resources: string[] }[])[0]!.resources;
+      expect(resources.filter((r) => r.startsWith("assets/"))).toEqual([
+        "assets/packs/en-fr.lingua",
+        "assets/packs/es-fr.lingua",
+        "assets/packs/es-en.lingua",
+        "assets/packs/en-es.lingua",
+        "assets/packs/fr-en.lingua",
+        "assets/packs/fr-es.lingua",
+        "assets/bases/en.lingua",
+        "assets/bases/es.lingua",
+        "assets/bases/fr.lingua",
+      ]);
     },
   );
 
