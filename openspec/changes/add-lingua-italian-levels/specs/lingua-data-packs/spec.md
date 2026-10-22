@@ -14,8 +14,8 @@ Italian's level table SHALL be estimated from word frequency, as Spanish's and F
 - **THEN** `tables/it/level.tsv` holds 8,302 lemmas, as many at each level as English's CEFR lists, each a ranked lemma of `tables/it/freq.tsv`
 
 #### Scenario: What a CEFR list leaves out
-- **WHEN** it-fr is reduced, the section writes `Milano` only as a place with a capital and does not list `km`, gives `k` only as a letter's name and `r` only as another word's spelling, gives `the` only as a misspelling of *tè*, and the acronym table holds `NATO`
-- **THEN** `milano`, `km`, `k`, `r`, `the` and `NATO` have no level, while `e` and `o`, conjunctions, are A1
+- **WHEN** it-fr is reduced, the section writes `Milano` only as a place with a capital and does not list `km`, gives `k` only as a letter, `u` only as a letter and a letter's name, and `r` only as a letter, an abbreviation or another word's spelling, gives `the` only as a misspelling of *tè*, and the acronym table holds `NATO`
+- **THEN** `milano`, `km`, `k`, `u`, `r`, `the` and `NATO` have no level, while `e` and `o`, conjunctions, are A1
 
 #### Scenario: A lemma whose own form reads as another
 - **WHEN** it-fr is reduced, `porta` is a ranked lemma, and the forms table maps the form `porta` to *portare*

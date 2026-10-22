@@ -15,15 +15,15 @@ French and D1 did Spanish: **Italian levels are estimated** from word frequency 
 The derivation is French's (matrix change 46). Measured on a prototype — wordfreq's Italian list
 read with the English Wiktionary's Italian section (the extract change 9 reduces), each word ranked by
 its own string as change 9's D6 ranks lemmas, French's rules ported to Italian (design, *Measured*):
-- **8,302 lemmas levelled**, A1 from rank 1 to 1,092 and C2 from 9,442 to 10,760 (French's committed
-  table: 1–1,080 and 9,413–10,762); within that span left out: 906 written only as names, 1,519
-  unknown to the section, 18 that only spell another word, 15 single letters that are no word.
+- **8,302 lemmas levelled**, A1 from rank 1 to 1,094 and C2 from 9,446 to 10,768 (French's committed
+  table: 1–1,080 and 9,413–10,762); within that span left out: 907 written only as names, 1,523
+  unknown to the section, 18 that only spell another word, 18 single characters that are no word.
 - **Against the English level of each word's translation**, one script over the three languages
   (the first word of the English glosses that English's committed CEFR table levels): Italian's
-  estimate agrees exactly for 23.1 % and within one level for 54.9 %; French's committed table, by
+  estimate agrees exactly for 22.9 % and within one level for 54.0 %; French's committed table, by
   the same script, 23.4 % and 54.9 %; Spanish's, 24.6 % and 56.1 %. Skipping a leading "to", "a",
-  "an" or "the" in the gloss: Italian 25.3 % and 59.7 %, French 26.4 % and 62.6 %, Spanish 27.5 % and
-  62.8 %. Of Italian's A1 words, 55.2 % translate to an English A1 word and 77.5 % to A1 or A2
+  "an" or "the" in the gloss: Italian 25.0 % and 59.4 %, French 26.4 % and 62.6 %, Spanish 27.5 % and
+  62.8 %. Of Italian's A1 words, 55.7 % translate to an English A1 word and 77.6 % to A1 or A2
   (French 58.2 % and 80.1 %, Spanish 55.0 % and 76.7 %).
 
 Measured one way, Italian's estimate reads like French's and Spanish's, which readers already have.
@@ -40,8 +40,8 @@ that nor Spanish's 29.4 % and 65.9 %, so the figures compare only with each othe
   - a word the section does not know (`km`) or knows only as a name (`milano`, `giovanni`, written
     there only with a capital);
   - a single character that is no word — every sense a letter's, a symbol's, a name's, an
-    abbreviation's, or only another word's spelling (`b`, `k`, `r` « alternative spelling of er »,
-    `à` « obsolete spelling of ha ») —, while `a`, `e` and `o` are A1 (`è` and `i` are no lemmas of
+    abbreviation's, or only another word's spelling (`b`, `k`, `u` « the name of the Latin script
+    letter U/u », `r` « alternative spelling of er », `à` « obsolete spelling of ha ») —, while `a`, `e` and `o` are A1 (`è` and `i` are no lemmas of
     their own: change 9 reads them as *essere* and *il*);
   - a word whose every sense only spells another, by French's prefixes (`the` « misspelling of tè »,
     `perchè`) — not a contraction or an apocope (`del`, `della`, `un` are A1);

@@ -22,7 +22,7 @@ See proposal.md — Why. What constrains the shape:
   studied languages are widened to Italian by change 20.
 - The Italian fixture (change 5) carries hand levels for the lemmas the probes and cards name and no
   `levels_estimated` flag; the Italian golden runs over it until change 16.
-- Measured (proposal, Why) on a prototype: wordfreq 3.1.1's Italian list, surface words in its order,
+- Measured (proposal, Why) on a prototype: wordfreq 3.1.1's Italian list, each word ranked by its own string,
   inflected forms skipped, read with the section's own entries; English's committed `tables/en/
   level.tsv` (8,302 lemmas) for the translation check.
 
@@ -61,12 +61,13 @@ are English's (D5), so the sizes must be English's for the two to mean the same.
 
 French's D2 rules, for Italian, read from the section the forms come from:
 1. **unknown or name-only**: the section gives the lemma no sense that is not a form of another word
-   (`km`), or only a name's (`milano`, `giovanni`, written there only with a capital) — 1,519 unknown
-   and 906 names in the prototype's span;
-2. **a single character that is no word**: every sense a letter's, a symbol's, a name's, an
-   abbreviation's, or only another word's spelling (`b`, `k`, `r` « alternative spelling of er », `à`
-   « obsolete spelling of ha ») — while `a`, `e`, `o` are words (the preposition, the conjunctions);
-   `è` and `i` are no lemmas (change 9 reads them as *essere* and *il*) — 15;
+   (`km`), or only a name's (`milano`, `giovanni`, written there only with a capital) — 1,523 unknown
+   and 907 names in the prototype's span;
+2. **a single character that is no word**: every sense a letter's — a letter's name read by its
+   gloss, as French's `_LETTER_GLOSS` reads it, so `u` « the name of the Latin script letter U/u »,
+   filed as a noun, is a letter —, a symbol's, a name's, an abbreviation's, or only another word's
+   spelling (`b`, `k`, `u`, `r` « alternative spelling of er », `à` « obsolete spelling of ha ») — while `a`, `e`, `o` are words (the preposition, the conjunctions);
+   `è` and `i` are no lemmas (change 9 reads them as *essere* and *il*) — 18;
 3. **only a spelling**: every sense only spells another word, by French's `_SPELLING_OF` prefixes
    (`_only_spells_another`), not kaikki's `alt_of` flag — `the` « misspelling of tè », `perchè` —,
    so a contraction or an apocope stays a word (`del` « contraction of di + il », `un` « apocopic
@@ -111,13 +112,13 @@ are hand-written, and no `levels_estimated` flag is set on it (change 5's D5). C
 re-blesses on the committed tables, which then show the estimated levels and the flag; if change 16
 lands before this change, this change re-blesses the golden, naming the level probes (French's 46
 D7). Under the split (changes 3, 4), `levels_estimated` lives in the base's metadata, held per
-language by change 4's check, and the level table in the base: the base grows by it (measured at
+language by change 3's check (its D6), and the level table in the base: the base grows by it (measured at
 task 2.1, as French's D9 measured +60,035 B).
 
 ### D7 — Tests and what cannot move
 
 - `test_reduce_it_fr.py`: each rule on fixture entries (unknown, a name, a letter, `e` a word,
-  `perchè` a spelling, `porta` elsewhere, `NATO` an acronym row); the bands' sizes; a left-out lemma
+  `perchè` a spelling, `km` unknown, `milano` a name, `k`, `u` and `r` no words, `del` levelled, a lemma whose form reads as another left out by the guard); the bands' sizes; a left-out lemma
   giving its slot; the constant equal to fr-en's.
 - `committed_tables.rs`: Italian's 8,302 levels, as many at each level as English's, each a ranked
   lemma of `tables/it/freq.tsv`; it-fr's pack gives each its level (*A level reaches the lemma it is
@@ -146,7 +147,7 @@ its own string (change 9's D6), a word skipped when the section gives it only as
 another, French's rules of D2 ported; the same translation check run on French's and Spanish's
 committed `level.tsv` and their English glosses (`fr-en/gloss.tsv`, `es-en/gloss.tsv`) — the figures
 of the proposal. Folding inflected forms into their lemma by summed frequency (which French's D1
-rejected) moves them by under a point. Re-run on change 9's committed ranks at task 2.1.
+rejected) moves the agreement figures by under a point and the A1 figure from 55.2 % to 60.1 %. Re-run on change 9's committed ranks at task 2.1.
 
 ## Open Questions
 
@@ -157,5 +158,5 @@ waits for it.
 ## Effort
 
 1.5–2.25 ideal days, against the programme's 1.5–3: the reducer's bands, rules and report 0.5–0.75;
-their tests 0.25–0.5; the reduction, the manifest, the NOTICE and the README 0.25; the committed
+their tests and the engine's test 0.5–0.75; the reduction, the manifest, the NOTICE and the README 0.25; the committed
 checks 0.25; the measurement on change 9's ranks 0.25–0.5.

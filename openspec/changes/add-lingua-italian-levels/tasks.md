@@ -2,8 +2,8 @@
 
 ## 1. The reducer (scripts/lingua-data)
 
-- [ ] 1.1 `reduce-it-fr.py`: `ENGLISH_BANDS` equal to fr-en's, `no_level` with D2's rules (unknown or name-only, a single character that is no word or only a spelling, only a spelling by French's prefixes, elsewhere as a guard; `words` read when given), `estimated_levels` (a left-out lemma giving its slot), the report line; `tables/it/level.tsv` written; `levels_estimated: true` in it-fr's manifest and the NOTICE line (D1–D3).
-- [ ] 1.2 `test_reduce_it_fr.py`: each rule on fixture entries (`km`, `milano`, `k`, `r`, `e`, `the`, `perchè`, `del` levelled, a lemma whose form reads as another left out); the bands' sizes; a left-out lemma giving its slot; `words` narrowing the levels when given; the constant equal to `reduce-fr-en.py`'s; `python3 -m unittest discover -s scripts/lingua-data -p "test_reduce_it_fr.py"` passes.
+- [ ] 1.1 `reduce-it-fr.py`: `ENGLISH_BANDS` equal to fr-en's, `no_level` with D2's rules (unknown or name-only, a single character that is no word — a letter's name read by its gloss — or only a spelling, only a spelling by French's prefixes, elsewhere as a guard; `words` read when given), `estimated_levels` (a left-out lemma giving its slot), the report line; `tables/it/level.tsv` written; `levels_estimated: true` in it-fr's manifest and the NOTICE line (D1–D3).
+- [ ] 1.2 `test_reduce_it_fr.py`: each rule on fixture entries (`km`, `milano`, `k`, `u`, `r`, `e`, `the`, `perchè`, `del` levelled, a lemma whose form reads as another left out); the bands' sizes; a left-out lemma giving its slot; `words` narrowing the levels when given; the constant equal to `reduce-fr-en.py`'s; `python3 -m unittest discover -s scripts/lingua-data -p "test_reduce_it_fr.py"` passes.
 
 ## 2. The tables
 
@@ -17,7 +17,7 @@
 
 ## 4. Gates
 
-- [ ] 4.1 Nothing else moves (D7): no table, pin or golden of the six pairs touched; the six baselines pass without re-blessing; the Italian golden does not move.
+- [ ] 4.1 Nothing else moves (D7): no table, pin or golden of the six pairs touched; the six baselines pass without re-blessing; the Italian golden does not move — unless change 16 landed first, then it is re-blessed once, naming the level probes (D6).
 - [ ] 4.2 `python3 -m unittest discover -s scripts/lingua-data -p "test_*.py"`; `cargo fmt --all --check`; `cargo clippy --workspace --all-targets -- -D warnings`; `cargo test --workspace`; `cargo llvm-cov --workspace --fail-under-lines 80 --ignore-filename-regex "$(cat .github/coverage-ignore-regex.txt)"`.
 - [ ] 4.3 `openspec validate add-lingua-italian-levels --strict` passes; `python3 scripts/openspec_archive_order.py add-lingua-italian-levels` names its prerequisites; `docs/lingua/italian-programme.md` row 14's status names this change's pull requests.
 
