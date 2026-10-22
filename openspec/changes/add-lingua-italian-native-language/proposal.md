@@ -7,7 +7,7 @@ Italian speakers. Before an Italian interface, an Italian-glossed pack or a list
 and the extension must know Italian as a *native* language, as the matrix's changes 4 and 20 made the
 native language a variable before a second one shipped. Today `NativeLanguage` is French, English and
 Spanish (Italian was removed from it by #733); a pack glossed in `it` is refused at build and at load,
-and a day counted under `it` by the Safari app is dropped. Measured on a scratch copy, appending the
+and a day counted under `it` by the Cymbra Lingua app is dropped. Measured on a scratch copy, appending the
 variant breaks one exhaustive match outside the core and four tests that pin or use `it`; in the
 extension, the native type is an alias of the interface type, so widening it alone would require the
 Italian interface's 24 modules — change 33's.
@@ -20,7 +20,7 @@ Italian interface's 24 modules — change 33's.
 - **The extension's native type** (D2): `it` added; the interface type kept to French, English and
   Spanish until change 33, `INTERFACE_LANGUAGES` unchanged.
 - **The guards and names** (D3): a native list for the offer, the native-language message, the stored
-  record and reason, and the Safari app's day counts; the profile's name `Italian`; « Italiano » as
+  record and reason, and the Cymbra Lingua app's day counts; the profile's name `Italian`; « Italiano » as
   Italian's own name in every interface.
 - **Released before anyone can choose Italian** (D4): a build without the variant reads an Italian
   native's backup as malformed, so this change reaches every store before change 45.

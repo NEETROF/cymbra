@@ -11,7 +11,7 @@ Implemented after changes 5, 15 and 20.
 ## 2. The extension
 
 - [ ] 2.1 `src/analyzer/types.ts`: `NativeLanguage` gains `"it"`; `src/i18n/language.ts`: `InterfaceLanguage = Exclude<NativeLanguage, "it">`, `INTERFACE_LANGUAGES` unchanged; one `interfaceOf(native)` for the store's two typed mirrors and `rememberInterfaceLanguage`, mapping `it` to English, a test holding it unreachable while no pair is glossed in Italian (D2).
-- [ ] 2.2 `NATIVE_LANGUAGES` (fr, en, es, it) read by `isNativeLanguage`, `recordedNative`, `reasonOf` and the Safari app's day counts; `state/profile.ts` `NATIVE_NAMES` with `Italian`; `ownNames.italian` « Italiano » in `src/i18n/{fr,en,es}/languages.ts` and `language-labels.ts`; « Italiano » in `test/i18n.spec.ts`'s `SAME_EVERYWHERE` (D3).
+- [ ] 2.2 `NATIVE_LANGUAGES` (fr, en, es, it) read by `isNativeLanguage`, `recordedNative`, `reasonOf` and the Cymbra Lingua app's day counts; `state/profile.ts` `NATIVE_NAMES` with `Italian`; `ownNames.italian` « Italiano » in `src/i18n/{fr,en,es}/languages.ts` and `language-labels.ts`; « Italiano » in `test/i18n.spec.ts`'s `SAME_EVERYWHERE` (D3).
 - [ ] 2.3 Tests: the offer and the preset with no pair glossed in Italian (French, English, Spanish; an Italian browser preset to English); the native-language message with `it` refused `no-pair`; `reasonOf` and `recordedNative` accepting `it`, `recordedNative("it")` reading `fr` with no pair; `nativeLanguageName(fr|en|es, "it")` « Italiano »; an `it` day label from the app kept; a backup naming an Italian native restored and kept; `profile.spec.ts` reading `Italian`; the casts of `apple-activation-page.spec.ts`; `yarn format:check`; `yarn typecheck`, `yarn lint`, `yarn test`, `yarn build`, `yarn check:variants`.
 
 ## 3. Checks

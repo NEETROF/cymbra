@@ -51,11 +51,12 @@ On a scratch copy of `main` at `a5969fa2b`, nothing of stages 1–2 implemented:
   and 43's. With the interface type kept to fr, en and es, eight remain: change 15's two
   (`language-labels.ts` `NAMED`, `words()`), change 20's test-local map, two casts in
   `apple-activation-page.spec.ts`, the store's two mirrors of the native as the interface language
-  (D2) and the own-names table (D3); D2 and D3 applied, the type check and the lint are clean. vitest then fails two « drafts are whole » checks until « Italiano »
+  (D2) and the own-names table (D3); D2 and D3 applied, the type check and the lint are clean.
+  vitest then fails two « drafts are whole » checks until « Italiano »
   joins `SAME_EVERYWHERE`; after that 4,347 of 4,347 pass.
 - **Runtime guards** read "is an interface language" for "is a native language": `isNativeLanguage`
   (the offer and the native-language message), `recordedNative` and `reasonOf` (`state/store.ts`), the
-  Safari app's day counts (`state/app-relay.ts`), and the profile's `NATIVE_NAMES`. With a native list
+  Cymbra Lingua app's day counts (`state/app-relay.ts`), and the profile's `NATIVE_NAMES`. With a native list
   of four, the offer stays French, English and Spanish and an Italian browser is preset to English while
   no pair is glossed in Italian.
 - **The backend** refuses nothing (`language_core.rs` `normalise_or`, a free `TEXT` column, Cymbra ID's
