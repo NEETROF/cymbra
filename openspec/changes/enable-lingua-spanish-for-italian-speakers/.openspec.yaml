@@ -1,0 +1,15 @@
+schema: spec-driven
+created: 2026-10-22
+archiveAfter:
+  - enable-lingua-french-for-italian-speakers
+  - enable-lingua-italian-for-spanish-speakers
+  - enable-lingua-italian-speakers
+  - add-lingua-italian-spanish-listings
+  - add-lingua-italian-audience-listings
+  - add-site-italian-locale
+  - add-lingua-pack-es-it
+  - refine-lingua-es-it-glosses
+  - measure-lingua-es-it-translation-marks
+  - add-lingua-italian-translation-models
+  - add-lingua-italian-interface
+  - add-lingua-italian-card-wording
