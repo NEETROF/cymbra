@@ -89,7 +89,8 @@ tagged alternative, obsolete, archaic, rare, dated, uncommon, misspelt, nonstand
 abbreviated, and a row naming a derived word — the `diminutive` (492), `augmentative` (180),
 `pejorative` (140), `derogatory` (47) and `endearing` (12) rows of a noun (`casa` → `casétta`,
 `casàccia`), the same rows of an adjective (≈ 80) and an adjective's `adverb` row (67: `vero` →
-`veramente`), which name other words, each a headword of its own), from the `form_of` targets of the form's own entry, never from a gender or number
+`veramente`), which name other words, read from their own entry where the section has one — 491 of the 1,006 rows
+have one, the other 515 (`abatone`, `camerona`) are simply no form), from the `form_of` targets of the form's own entry, never from a gender or number
 marker, and from a form of a form along one part of speech (`creduta` → `creduto` → *credere*; `parlata`,
 the participle and a noun, *parlance*, goes by D5, whose own-entry rule keeps the noun; `vite`,
 both the vine and *vita*'s plural, by the first choice of D5). Then **Morph-it!**, when the
@@ -119,9 +120,9 @@ verb's rows carrying the clitic (`mi làvo`, `si làva`, `ci laviàmo`; `si` 51,
 21,092, `ti` 20,261, `vi` 20,066), and the 12,161 others are a multi-word lemma's cells (`stare
 zitto` → `stò zitto`), a `canonical` row with its auxiliary in brackets (`esìstere [auxiliary
 essere]`) and rows listing alternatives (`puote, pote`, tagged archaic) — all three give no form (an
-expression is change 12's, the bracket is bookkeeping, the alternatives are marked); a row whose
-verb carries a clitic cluster (`me ne vàdo`, `ce la fàccio`, `gliela fàccio`, ≈ 3,600) gives no form
-either — a page writes the cluster's words apart, and the plain verb's own rows carry the cell. For a
+expression is change 12's, the bracket is bookkeeping, the alternatives are marked); a row of a
+verb carrying a clitic other than the reflexive one, alone or in a cluster (`la hò`, `le prèndo`,
+`me ne vàdo`, `ce la fàccio`, ≈ 3,600), gives no form either — a page writes the cluster's words apart, and the plain verb's own rows carry the cell. For a
 reflexive row the pronoun is dropped and the bare form is the candidate — this change's own
 decision, not French's: change 45's readings pass reads a pronominal row bare (`without_pronoun`)
 under the table's own entry, and change 43's forms pass drops spaced rows — filed under the plain
@@ -207,7 +208,7 @@ out.
 ### D9 — Committed tables and the pipeline
 
 `tables/it/`: `forms.tsv`, `freq.tsv`, `studied.json`, `tags.tsv` holding `NOUN` alone until
-change 13 fills the pool, an empty `lexical.tsv` (change 16); `tables/it-fr/`: an empty `gloss.tsv`, `NOTICE` (the Italian
+change 13 fills the pool, a `lexical.tsv` holding nothing until change 11's acronym rows and change 16's dictionary words; `tables/it-fr/`: an empty `gloss.tsv`, `NOTICE` (the Italian
 section, wordfreq, MarkIT, Morph-it! if kept — under its CC BY-SA 2.0 option —, credited as
 their licences require; PUD is measured against, never shipped, as fr-en's NOTICE leaves it out),
 `manifest.json` (studies `it`, glossed in `fr`, Italian's analyser version read from lingua-core,
