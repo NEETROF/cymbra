@@ -30,8 +30,8 @@ fr-it's glosses, sense runs and expressions SHALL be reduced from the Italian Wi
 - **THEN** neither is glossed by them
 
 #### Scenario: Listed once
-- **WHEN** the Italian Wiktionary's `mio`, read backwards, lists `mon` under both its adjective and its pronoun
-- **THEN** « mio » is listed once in the gloss of `mon`
+- **WHEN** neither the section nor the direct table glosses a French lemma, and one Italian entry, read backwards, lists it under two of its parts of speech
+- **THEN** that Italian word is listed once in the lemma's gloss, under the first part of speech French's readings name
 
 #### Scenario: The studied word is no definition
 - **WHEN** the section defines `igloo` only as « igloo », and the French Wiktionary's table translates it « iglù, iglò »

@@ -17,7 +17,7 @@
   - reduces the expressions;
   - writes `tables/fr-it/{gloss.tsv, senses.tsv, mwe.tsv, NOTICE, manifest.json}`, with the table share measured and both sides credited;
   - its rule digest is `reduce-fr-it.py`, `reduce_common.py`, `reduce_edition_it.py`, `reduce_french_acronyms.py`.
-- [ ] 2.2 `test_reduce_fr_it.py`: each source's place in the order; a definition first (`maison`); a word only a table glosses; a borrowed gloss giving way (`fond`), the direct table first, and kept when no table glosses; the apostrophe (`chef-d'œuvre` « capolavoro »); letters out (`h`, `x`); a word listed once (`mon`); the studied word as no definition (`igloo`) and a cognate kept; `ce` read as a determiner; the typography; the expressions' keys.
+- [ ] 2.2 `test_reduce_fr_it.py`: each source's place in the order; a definition first (`maison`); a word only a table glosses; a borrowed gloss giving way (`fond`), the direct table first, and kept when no table glosses; the apostrophe (`chef-d'œuvre` « capolavoro »); letters out (`h`, `x`); a word listed once, read backwards; the studied word as no definition (`igloo`) and a cognate kept; `ce` read as a determiner; the typography; the expressions' keys.
 - [ ] 2.3 `test_reduce_editions.py`: the Italian edition's digest test names en-it and fr-it, and no other committed pair. The Python tests pass.
 
 ## 3. The pipeline and the tables
