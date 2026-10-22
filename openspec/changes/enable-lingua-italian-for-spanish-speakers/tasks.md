@@ -4,7 +4,7 @@ Implemented once the prerequisites of proposal.md (Impact) are on `main`: change
 
 ## 1. The list
 
-- [ ] 1.1 `packs.json` gains `"it-es"` after `"it-en"`, or after `"en-it"` if change 45 has listed it (D1, D13). `check_variants`'s `SHIPPED_PAIRS` is the same, and its comment names this change.
+- [ ] 1.1 `packs.json` gains `"it-es"` at the end of the list, after `"it-en"` or after any Italian-native pair listed first (D1, D13). `check_variants`'s `SHIPPED_PAIRS` is the same, and its comment names this change.
 - [ ] 1.2 `scripts/lingua-data/testdata/it-es/`: the it-fr fixture glossed in Spanish, its Italian files byte for byte `testdata/it-fr/`'s.
 - [ ] 1.3 `crates/lingua-pack/tests/pipeline_testdata.rs`: `the_it_es_fixture_is_the_italian_fixture_glossed_in_spanish` and it-es's row in the fixtures' pins.
 - [ ] 1.4 `gloss_coverage.py --write` with it-es's figures; `test_gloss_coverage.py`: it-es « published once listed », and `ListedFloorsTest` naming it (D2, D7).
@@ -38,11 +38,11 @@ Implemented once the prerequisites of proposal.md (Impact) are on `main`: change
   - `cargo test -p lingua-pack` and `cargo test -p lingua-wasm`, every baseline without re-blessing;
   - `git diff --stat origin/main -- crates/lingua-core crates/lingua-wasm scripts/lingua-data/tables ':!*README.md'` is empty;
   - `cargo fmt --all --check` and `cargo clippy --workspace --all-targets -- -D warnings`.
-- [ ] 4.3 The Python tests and `gloss_coverage.py --check`. In `apps/site`: `node test/support/refresh-lingua-fixtures.mjs`, `test/astro/lingua-page.spec.ts` counting nine rows (ten if change 45 has listed en-it), `yarn test`, `yarn build`, `yarn check:routes`. The `lingua-apple-build` workflow green, `CFBundleLocalizations` unchanged by this change.
+- [ ] 4.3 The Python tests and `gloss_coverage.py --check`. In `apps/site`: `node test/support/refresh-lingua-fixtures.mjs`, `test/astro/lingua-page.spec.ts` counting a row per listed pair (nine to eleven), `yarn test`, `yarn build`, `yarn check:routes`. The `lingua-apple-build` workflow green, `CFBundleLocalizations` unchanged by this change.
 - [ ] 4.4 OpenSpec:
   - `openspec validate enable-lingua-italian-for-spanish-speakers --strict`;
   - the archive order, `refine-lingua-it-es-glosses` named;
-  - the MODIFIED blocks re-copied as D13 says: from change 45 if implemented, else from change 25 with `enable-lingua-italian-speakers` dropped from `archiveAfter` (or from `openspec/specs/` if archived), only D12's clauses differing, in the branch's wording of the list (D13);
+  - the MODIFIED blocks re-copied as D13 says: from change 50 if implemented, else from change 45 if implemented, else from change 25 with `enable-lingua-italian-speakers` dropped from `archiveAfter` (or from `openspec/specs/` if archived), only D12's clauses differing, in the branch's wording of the list (D13);
   - the archive simulated on a scratch copy of `openspec/`.
 
 ## 5. Dogfood and release (owner)
