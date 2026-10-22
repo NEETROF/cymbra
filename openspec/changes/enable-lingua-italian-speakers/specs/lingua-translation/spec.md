@@ -36,5 +36,5 @@ The translation setting SHALL state the memory of two models when the reader's p
 - **THEN** the setting says, in the English interface, that it downloads es-en's, fr-en's and it-en's files once, their sum read from the catalogue, and uses "about 340 MB", the engine holding two of the three at a time
 
 #### Scenario: An Italian speaker reading English
-- **WHEN** en-it is listed and a reader whose native language is Italian accepts English
+- **WHEN** en-it is listed, extended translation serves it, and a reader whose native language is Italian accepts English
 - **THEN** the setting says, in the Italian interface, that it downloads en-it's files once, their size read from the catalogue, and uses about 200 MB, as the Italian interface writes it

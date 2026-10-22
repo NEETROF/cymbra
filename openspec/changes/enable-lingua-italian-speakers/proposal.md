@@ -35,8 +35,9 @@ tests; the rest is this change's, listed in the design.
   - the coverage write lists en-it, and `/it/lingua/` builds with its media and captions;
   - change 42's leftovers: the ninth pair's table scenario and the Italian Lingua tests;
   - `/it/lingua/` is pinned, since it is the App Store's Italian marketing URL.
-- **The requirements** (D7): eight MODIFIED, each copied whole from its latest holder, and one ADDED,
+- **The requirements** (D7): twelve MODIFIED, each copied whole from its latest holder, and one ADDED,
   *English is studied by readers of Italian*.
+- **This change's Italian** (D10), reviewed by the Italian reviewer agent before merge (I2).
 - **The Apple host** (D8): no code; the change touches `apps/lingua-apple` so that release-please cuts
   the host app's release with en-it.
 - **The order of release** (D9): what must be merged, deployed and released first, and the owner's
@@ -70,6 +71,15 @@ None.
   - MODIFIED *The coverage table reads at a phone's width* (held by
     `add-lingua-italian-english-listings`).
 
+- `lingua-browser-extension` also: MODIFIED *Store and site captures come from the real extension, by
+  one command* (held by `add-site-lingua-showcase`).
+- `site-lingua-page` also: MODIFIED *The Lingua page shows the extension at work* (held by
+  `add-site-lingua-showcase`).
+- `lingua-usage-counts`: MODIFIED *Each browser's consent rule decides when counting starts, and one
+  switch turns it off* (held by `add-lingua-usage-counts`).
+- `lingua-apple-app`: MODIFIED *The app signs in with an email and a password through the extension's
+  own flow* (held by `add-lingua-app-email-signin`).
+
 ## Impact
 
 - **Products.** Cymbra Lingua and the site:
@@ -84,6 +94,6 @@ None.
   No backend change.
 - **The owner**: the go-ahead, the dogfood on the five targets (I2), the releases, the deploys and the
   submissions (I12).
-- **Prerequisites**: changes 2, 3, 4, 21, 32, 33, 34, 35, 36 (tables at or above their floor), 37, 38,
-  39, 40, 41 and 43 implemented, and 46 on main before submission (D9).
-- **Effort, against 4.25–8 ideal days**: 5–9 (design, *Effort*).
+- **Prerequisites**: changes 2, 3, 4, 20–26, 32–41 implemented before the pull request; change 43
+  deployed and change 46 on main before the release (D9).
+- **Effort, against 4.25–8 ideal days**: 5–9.25 (design, *Effort*).

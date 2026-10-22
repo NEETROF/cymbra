@@ -49,3 +49,30 @@ While every shipped pair is glossed in one language, the Lingua page's coverage 
 #### Scenario: Nine pairs on a phone
 - **WHEN** en-it ships beside the eight pairs, and no other pair, and the Italian page is shown 375 pixels wide
 - **THEN** the table has nine rows, English → Italian first, and the page does not scroll sideways
+
+### Requirement: The Lingua page shows the extension at work
+The site's Lingua page SHALL show, in each site language it is built in, captures of the real extension made by the capture command of `lingua-browser-extension`, whose interface is in the page's language and which read a language that the page's readers study: in the hero, a highlighted page with its percentage pill and a word card open; further down, a demo video, a page in the readers' second studied language, or a second page in the one they study when they study one, a review card, the statistics ladder and the EPUB reader. Every image SHALL declare its width and height and carry an alt text in the page's language that quotes no figure; every image below the first screen SHALL load lazily. The video SHALL have a poster, SHALL carry no audio track, SHALL show its controls, SHALL download nothing before it plays, and SHALL NOT start on its own for a visitor who prefers reduced motion, who saves data, or whose browser runs no script. The page SHALL load nothing from a third party for these media.
+
+#### Scenario: The Spanish page
+- **WHEN** a visitor opens `/es/lingua/`
+- **THEN** the hero shows the Spanish interface on an English page with a word card open, and every image's alt text is in Spanish
+
+#### Scenario: Reduced motion
+- **WHEN** a visitor whose system asks for reduced motion scrolls the video into view
+- **THEN** the video shows its poster and does not start until they press play
+
+#### Scenario: Motion welcome
+- **WHEN** a visitor who does not ask for reduced motion and does not save data scrolls the video into view
+- **THEN** it plays without sound, and pauses when it leaves the screen
+
+#### Scenario: No script
+- **WHEN** a visitor's browser runs no script
+- **THEN** the video shows its poster and controls, and nothing of it is downloaded until they press play
+
+#### Scenario: A phone
+- **WHEN** the page is shown 375 pixels wide
+- **THEN** the hero shows a close-up of the word card that can be read at that width, and the page does not scroll sideways
+
+#### Scenario: The Italian page
+- **WHEN** a visitor opens `/it/lingua/`
+- **THEN** the hero shows the Italian interface on an English page with a word card open, a second English page stands where a second studied language would, and every image's alt text is in Italian

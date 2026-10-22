@@ -14,3 +14,7 @@ archiveAfter:
   - localise-lingua-manifest-italian
   - localise-lingua-apple-host-italian
   - add-site-italian-locale
+  - add-lingua-usage-counts
+  - add-lingua-app-email-signin
+  - add-lingua-italian-translation-models
+  - measure-lingua-en-it-translation-marks
