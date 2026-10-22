@@ -74,8 +74,9 @@ first committed, en-it's 12.8 %. A definition glosses 17.4 % of all glossed lemm
   table glosses every one checked (30 of 30).
 - **Heraldry.** Change 35's heraldry-only rule removes the definitions of 98 / 162 / 262 top lemmas (`le`
   « articolo che si usa per le pezze onorevoli… », `tout`, `contre`, `tête`, `chef`); the tables gloss
-  97 / 158 / 251 of them again, at a cost of 0.0 / −0.1 / −0.1. With change 36's amendment it takes about
-  350 heraldic expressions out of the definitions (712 → 362).
+  97 / 158 / 251 of them again, at a cost of 0.0 / −0.1 / −0.1. The prototype's rule counts 98 / 97 at the
+  5,000 where change 35's D11 estimated 95 / 94; task 0.1's real reader settles it. With change 36's
+  amendment it takes about 350 heraldic expressions out of the definitions (712 → 362).
 - **Elision.** 60 section headwords open on an elided piece (59 `s'…`, one `j'`); the direct table has
   1,671 French entries with a typographic apostrophe. `l'`, `d'` and `qu'` are read as `le`, `de` and
   `que` (M21) and need no rule.
@@ -112,7 +113,10 @@ pre-pass), step by step as `reduce-fr-es.py`; nothing of the studied side is com
 the studied tables it read (fr-en's and the six French tables). Its rule digest is its own file,
 `reduce_common.py`, `reduce_edition_it.py` and `reduce_french_acronyms.py`:
 - `reduce_french_acronyms.py`, because `read_studied` leaves out the `CA` row and `acronym_glosses`
-  glosses it, as in fr-en and fr-es; an edit of that table re-pins the three French-studied pairs;
+  glosses it from fr-it's own expansions (« consiglio di amministrazione », « fatturato », « corrente
+  alternata » in the prototype's `mwe.tsv`), as in fr-en and fr-es; an edit of that table re-pins the
+  three French-studied pairs. The open `keep-lingua-french-acronyms-in-capitals` says such an edit
+  re-pins fr-en and fr-es: still true, now incomplete, and corrected when it is next touched;
 - not `reduce_edition_fr.py`: the direct table's words are Italian, typeset by the Italian edition;
 - not `reduce-fr-es.py` (D3).
 
@@ -138,12 +142,16 @@ D3); moving them to a shared module would add a rule file to fr-es and move its 
 | Letters out, in both tables | as fr-es |
 | A word listed once across a row's parts of speech, read backwards | as fr-es |
 | A typographic apostrophe read as `'` (`straight_apostrophes`) | +4 lemmas (`chef-d'œuvre`, `presqu'île`, `trompe-l'œil`, `qu'en-dira-t-on`), +1,177 expressions |
-| The studied word is no definition: a definition repeating the headword gives way to the direct table | 4 rows (`charme`, `igloo`, `profane`, `tir`) |
+| The studied word is no definition: a definition repeating the headword gives way to the direct table | 4 rows (`charme`, `igloo` « iglù, iglò », `profane`, `tir`) |
+| An adjective section tagged possessive or demonstrative read as a determiner (`french_entries`) | `ce` (rank 16), an adjective tagged demonstrative in the Italian section, reads DET and PRON as in fr-es instead of ADJ and PRON; kaikki's tags, no Spanish wording; its row count measured at task 2.1 |
 | The translators' typography | the Italian edition's (`reduce_edition_it.typography`) where fr-es uses the Spanish |
 
-fr-es's refinement rules on the tables (listed once in the direct table, the French-word rule, the name
-filter) move 130 / 234 / 419 rows and no coverage, and their word lists are Spanish; they are change
-48's (Open Question 4).
+Not copied:
+- fr-es's add-pack rule keeping a name's note off a common word: its wording is the Spanish
+  Wiktionary's, so it is change 48's to transpose (D11 counts the name notes);
+- fr-es's refinement rules on the tables (listed once in the direct table, the French-word rule, the name
+  filter), which move 130 / 234 / 419 rows and no coverage, and whose word lists are Spanish: change
+  48's (Open Question 4).
 
 ### D4 — A borrowed gloss gives way to the tables
 
@@ -152,14 +160,21 @@ There the shared rules lend the target verb's gloss, and the result is nearly al
 top lemmas are glossed only that way — `fond` « fondere », `pensée` « pensare », `habitant` « abitare »,
 `zone` « Zonare… », `privé` « privare », `chatte` « gatto; figura araldica… ».
 
-fr-it's own rule: a gloss a lemma only borrows through a pointer gives way to either table's gloss of the
-lemma, and is kept when no table glosses it. The direct table glosses 18 of the 19 at the 5,000 right
+fr-it's own rule: a gloss a lemma only borrows through a form or pointer sense gives way to the direct
+table's gloss of the lemma, else the inverted table's, and is kept when no table glosses it. The direct table glosses 18 of the 19 at the 5,000 right
 (`fond` « fondo, sfondo, sostanza », `pensée` « pensiero… », `habitant` « abitante »), 26 and 40 at the
 10,000 and 20,000. Coverage does not move; dropping borrowed glosses outright would cost 0.0 / 0.1 / 0.1
 (81.3 / 70.0 / 57.7).
 
 The rule is the pair's, not the edition's: en-it's borrowing is right (`labor` ← `labour`), so it does
 not belong in `reduce_edition_it.py`, and moving it there would move en-it.
+
+The main spec's *A word that is only a form of another takes that word's gloss* says such a form « SHALL
+be glossed with the senses of that word »: `fond`, tagged a form of `fondre`, would be « fondere ». This
+change MODIFIES that requirement, copied whole, for a pair whose reduction lets a translation table's
+gloss of the form win (fr-it), a form the Italian edition reads as a pointer included; every other pair
+reads it as before. No open change holds it. Change 35's edition rule still lends the pointer's gloss;
+fr-it's reduction then keeps the table's where one exists, as the modified requirement allows.
 
 ### D5 — Expressions
 
@@ -213,21 +228,26 @@ reuses the last release's files on a routine update.
   Italian native's other pair, and a test that the studied side is fr-en's. It needs en-it committed
   (change 36).
 - **`cross_native.rs`**: French through Italian.
-- **`crates/lingua-pack/tests/committed_tables.rs`**: fr-it in the pairs' list, and fr-es's scenarios
-  in its name — the file set (`studied` fr, `native` it); the pin's studied record naming fr-en and the
+- **`crates/lingua-pack/tests/committed_tables.rs`**: fr-it in every hard-coded list of committed pairs
+  and of French packs, among them `spec_scenario_the_committed_pairs` and
+  `spec_scenario_the_acronym_in_both_french_packs` (fr-it glossing `CA` from its own expansions, D1);
+  and fr-es's scenarios in its name — the file set (`studied` fr, `native` it); the pin's studied record naming fr-en and the
   six tables; the sources releases `lingua-pack-sources-fr-it-…` for the Italian and French dumps, no
   English one; fr-en's dictionary words; built to its pin and under 5 MiB; listed in no package while the
   list does not name it; the credits.
 - **`scripts/lingua-data/testdata/fr-it/`**, run by `pipeline_testdata.rs`.
 - **`tables/fr-en/README.md`**, which names the pairs reading `../fr/`, names fr-it.
-- **`apps/lingua-extension/test/row-gloss-tables.spec.ts`**: fr-it's rows through the selection card's
-  row cut; none of the prototype's 20,375 is empty or ends on an opening mark.
+- **`apps/lingua-extension/test/row-gloss-tables.spec.ts`**: fr-it's rows and expressions through the
+  selection card's row cut; none of the prototype's 20,375 rows is empty or ends on an opening mark, and
+  none of its 15,295 expressions is empty.
 - **The card snapshot change 34 hands over**: `test/word-card-fr-it.spec.ts` and
   `test/baseline/word-card-fr-it.txt`, the full card in Italian over fr-it's golden — change 34's
   renderer names French tenses in Treccani's terms (« passato remoto », « condizionale presente ») —,
   re-blessed with the golden.
-- **The programme's** line saying the Italian-glossed pairs' goldens run over an Italian corpus is
-  corrected: en-it's, fr-it's and es-it's run over their studied language's corpus.
+- **The programme**, corrected in this pull request: the Italian-glossed pairs' goldens run over their
+  studied language's corpus, not an Italian one; fr-it's *Measured figures* row names the inverted table
+  and the prototype's figures; rows 37 and 51 say they modify change 36's requirement as this change
+  leaves it.
 
 French is guarded in `GUARDED` already; nothing there moves.
 
@@ -250,7 +270,11 @@ entries list), CC BY-SA 4.0 + GFDL, wordfreq's French and Italian lists, and Fre
 
 Change 36's *English is glossed in Italian…* ends « The Italian edition's rules SHALL be read by en-it
 and by no other committed pair », and its scenario *A rule of the Italian edition* says no other pair's
-digest moves. Once fr-it reads `reduce_edition_it.py`, both are false. This change MODIFIES that
+digest moves. Once fr-it reads `reduce_edition_it.py`, both are false. So is its *Nothing else moves*,
+read literally: a re-reduction after an edition edit moves fr-it's pin with en-it's, and fr-it's golden
+names the en-it pack beside it. The scenario is scoped to a commit by en-it's own reducer, with no shared
+or edition module edited, fr-it's golden line naming en-it excepted; fr-it's own is scoped to its first
+commit the same way. This change MODIFIES that
 requirement, copied whole from change 36, to « by en-it and fr-it », and archives after it, as change 27
 widened fr-es's to name it-es. es-it (change 51) widens it again. Change 37 (`refine-lingua-en-it-glosses`,
 not yet proposed) refines the same requirement: whichever of 37 and this change is implemented second
@@ -268,8 +292,8 @@ Counted at the 5,000 / 10,000 / 20,000:
 | A word repeated within a row | 254 / 401 / 619 | `que` « che; che » |
 | Odd rows at the very top | | `se` « alzarsi » (read backwards), `le` « il, lo, addì; lo, la, l' », `il` described |
 | Heraldic senses shown last | 71 / 96 / 115 rows | `un` (rank 7) still opens on « articolo che si usa per le pezze secondarie… » (change 35's D8) |
-| Function words no source glosses | 380 dictionary words at the 5,000 (fr-es: 339) | `des` (rank 6), `du` (10), `ça` (26), `dont`, `parce`, `cet`, `celui`, `lors`, `ci`, `tes`, `lui-même`: the Italian Wiktionary has no French section for `du`, `des`, `ça` or `dont`, and no table lists them. M5 forbids composing a gloss: an owner's question for change 48 (Open Question 3) |
-| The determiners' heading | | `mon`, `ce`: change 34's « determinante » against « articolo » |
+| Unglossed dictionary words | 380 at the 5,000 (fr-es: 339), function words first | `des` (rank 6), `du` (10), `ça` (26), `dont`, `cet`, `celui`, `lors`, `ci`, `tes`, `lui-même`: the Italian Wiktionary has no French section for `du`, `des`, `ça` or `dont`, and no table lists them. M5 forbids composing a gloss: an owner's question for change 48 (Open Question 3) |
+| The determiners' heading in Italian | | `mon` comes out DET from the direct table and `ce` DET by D3's copied rule; the Italian name of the heading is change 34's « determinante » question |
 | kaikki's empty senses | 44 / 62 / 79 lemmas | glossed by the tables; reported upstream (Open Question 5) |
 
 fr-es's refinement table rules, transposed, change 130 / 234 / 419 rows and leave coverage unchanged;
@@ -297,7 +321,7 @@ not listed. Rollback is a revert.
 
 ## Effort
 
-3.5–6 ideal days, against the programme's 3.5–6:
+3.5–6.25 ideal days, against the programme's 3.5–6:
 
 | Part | Ideal days |
 |---|---|

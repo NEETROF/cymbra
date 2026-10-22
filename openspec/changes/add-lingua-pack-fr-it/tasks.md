@@ -13,11 +13,11 @@
 - [ ] 2.1 `reduce-fr-it.py` (D1–D5):
   - reads `tables/fr/` as committed;
   - reads the sources in D2's order with the Italian edition's rules;
-  - copies fr-es's add-pack readers (D3) and adds the borrowed-gloss rule (D4);
+  - copies fr-es's add-pack readers and its determiner rule (D3), and adds the borrowed-gloss rule (D4);
   - reduces the expressions;
   - writes `tables/fr-it/{gloss.tsv, senses.tsv, mwe.tsv, NOTICE, manifest.json}`, with the table share measured and both sides credited;
   - its rule digest is `reduce-fr-it.py`, `reduce_common.py`, `reduce_edition_it.py`, `reduce_french_acronyms.py`.
-- [ ] 2.2 `test_reduce_fr_it.py`: each source's place in the order; a definition first; a word only a table glosses; a borrowed gloss giving way (`fond`) and kept when no table glosses; the apostrophe (`chef-d'œuvre`); letters out; a word listed once; the studied word as no definition; the expressions' keys.
+- [ ] 2.2 `test_reduce_fr_it.py`: each source's place in the order; a definition first (`maison`); a word only a table glosses; a borrowed gloss giving way (`fond`), the direct table first, and kept when no table glosses; the apostrophe (`chef-d'œuvre` « capolavoro »); letters out (`h`, `x`); a word listed once (`mon`); the studied word as no definition (`igloo`) and a cognate kept; `ce` read as a determiner; the typography; the expressions' keys.
 - [ ] 2.3 `test_reduce_editions.py`: the Italian edition's digest test names en-it and fr-it, and no other committed pair. The Python tests pass.
 
 ## 3. The pipeline and the tables
@@ -32,15 +32,15 @@
 ## 4. The baseline and the checks
 
 - [ ] 4.1 `crates/lingua-wasm/tests/fr_it_baseline.rs` and `baseline/fr-it.golden`, with the studied side fr-en's, blessed in task 3.2's pull request; `cross_native.rs` with fr-it; both workflows run it (D8).
-- [ ] 4.2 `crates/lingua-pack/tests/committed_tables.rs`: fr-it built to its pin, its credits, its sources releases, listed in no package while the list does not name it. Also `scripts/lingua-data/testdata/fr-it/` (`pipeline_testdata.rs`), and `tables/fr-en/README.md` naming fr-it among the pairs reading `../fr/`.
+- [ ] 4.2 `crates/lingua-pack/tests/committed_tables.rs`: fr-it in every hard-coded list of committed pairs and French packs, among them `spec_scenario_the_committed_pairs` and `spec_scenario_the_acronym_in_both_french_packs` (`CA` glossed from fr-it's own expansions); fr-it built to its pin, its credits, its sources releases, listed in no package while the list does not name it. Also `scripts/lingua-data/testdata/fr-it/` (`pipeline_testdata.rs`), and `tables/fr-en/README.md` naming fr-it among the pairs reading `../fr/`.
 - [ ] 4.3 `apps/lingua-extension/test/row-gloss-tables.spec.ts` with fr-it; `test/word-card-fr-it.spec.ts` and `test/baseline/word-card-fr-it.txt`, the card in Italian over fr-it's golden, re-blessed with it (D8).
-- [ ] 4.4 `docs/lingua/italian-programme.md`'s baselines line: the Italian-glossed pairs' goldens run over their studied language's corpus (D8).
+- [x] 4.4 `docs/lingua/italian-programme.md`, in this proposal's pull request: the baselines line, fr-it's *Measured figures* row, rows 37 and 51 (D8, D10).
 
 ## 5. Gates
 
 - [ ] 5.1 Nothing else moves: every other pair's tables, pins, packs and goldens are unchanged.
 - [ ] 5.2 `cargo fmt --all --check`; `cargo clippy --workspace --all-targets -- -D warnings`; `cargo test --workspace`; the Python tests; `gloss_coverage.py --check`; in `apps/lingua-extension`: `yarn gen:pack`, `yarn test`.
-- [ ] 5.3 `openspec validate add-lingua-pack-fr-it --strict`; the archive order; change 36's requirement re-copied as it then stands, only D10's clause differing; `docs/lingua/italian-programme.md` row 47's status.
+- [ ] 5.3 `openspec validate add-lingua-pack-fr-it --strict`; the archive order; change 36's requirement and the main spec's form-of requirement re-copied as they then stand, only D4's and D10's clauses differing; `docs/lingua/italian-programme.md` row 47's status.
 
 ## 6. Owner
 

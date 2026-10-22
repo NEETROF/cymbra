@@ -30,10 +30,15 @@ gloss 28.8 / 20.9 / 13.8. The tables carry the pair: 70.2 % of the glossed top 1
   - a word listed once across a row's parts of speech, read backwards;
   - the apostrophe read as `'` (4 lemmas, 1,177 expressions);
   - the studied word is no definition (4 rows);
+  - an adjective tagged possessive or demonstrative read as a determiner (`ce`);
   - the Italian edition's typography.
-- **A borrowed gloss gives way** (D4), a rule of fr-it's own: a lemma glossed only through a pointer
-  sense of another word (`fond` « fondere », `pensée` « pensare ») takes either table's gloss instead
-  (18 / 26 / 40 rows fixed, coverage unchanged), and keeps the borrowed one when no table glosses it.
+
+  fr-es's name-note rule is Spanish-worded and left to change 48.
+- **A borrowed gloss gives way** (D4), a rule of fr-it's own: a lemma glossed only through a form or
+  pointer sense of another word (`fond` « fondere », `pensée` « pensare ») takes the direct table's
+  gloss, else the inverted table's (18 / 26 / 40 rows fixed, coverage unchanged), and keeps the borrowed
+  one when no table glosses it. The main spec's *A word that is only a form of another takes that
+  word's gloss* is MODIFIED to allow it for fr-it alone.
 - **Expressions** (D5): 15,295, keyed as fr-es keys them.
 - **The floor** (D6): fixed before the first committed measurement at the measured figures less two
   points, about 79.3 / 68.1 / 55.8, the owner settling it. fr-es's floor would fail fr-it at the 5,000.
@@ -65,7 +70,11 @@ None.
   - ADDED *fr-it is committed beside French's studied tables, held to a coverage floor, and not shipped*;
   - MODIFIED *English is glossed in Italian from the Italian Wiktionary's English section and the two
     Wiktionaries' translation tables* (held by `add-lingua-pack-en-it`): the Italian edition's rules are
-    read by en-it and fr-it, and *A rule of the Italian edition* moves both digests.
+    read by en-it and fr-it, *A rule of the Italian edition* moves both digests, and its *Nothing else
+    moves* is scoped to a commit by en-it's own reducer, fr-it's golden line naming en-it excepted;
+  - MODIFIED *A word that is only a form of another takes that word's gloss* (main spec; no open change
+    holds it): a pair whose reduction lets a translation table's gloss of the form win (fr-it) glosses
+    the form with the table's words, keeping the borrowed senses only when no table glosses it.
 
 ## Impact
 
@@ -91,6 +100,7 @@ None.
   - change 16 (`EDITIONS["it"]` and the two translation files);
   - change 32 (a native `it`), change 34 (the Italian renderer) and change 35 (the Italian edition's
     rules);
-  - change 36 (en-it, which the golden runs beside, and the heraldry rule for expressions).
+  - change 36 (en-it, which the golden runs beside);
+  - change 35's heraldry-only rule for expressions, as change 36's pull request amended it.
 - **Order**: before changes 48, 49's gloss columns and 50.
-- **Effort, against 3.5–6 ideal days**: 3.5–6 (design, *Effort*).
+- **Effort, against 3.5–6 ideal days**: 3.5–6.25 (design, *Effort*).
