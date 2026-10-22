@@ -39,7 +39,10 @@ None.
 
 ### Modified Capabilities
 
-- `lingua-data-packs`: MODIFIED *The shipped pairs are one list* (held by `enable-lingua-italian`):
+- `lingua-data-packs`: RENAMED change 22's *it-en is committed beside Italian's studied tables, held to a
+  coverage floor, and not shipped* to « …, and shipped once Italian is enabled for English speakers »
+  (amended by change 30's pull request). MODIFIED *The shipped pairs are one list* (held by
+  `enable-lingua-italian`):
   the list ends with it-en; three scenarios name it; *No Italian for English and Spanish speakers*
   holds while it-fr is the one Italian pair; *English speakers learning Italian* and *No Italian for
   Spanish speakers* added.

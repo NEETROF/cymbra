@@ -1,5 +1,10 @@
 # Spec Delta
 
+## RENAMED Requirements
+
+- FROM: `### Requirement: it-en is committed beside Italian's studied tables, held to a coverage floor, and not shipped`
+  TO: `### Requirement: it-en is committed beside Italian's studied tables, held to a coverage floor, and shipped once Italian is enabled for English speakers`
+
 ## MODIFIED Requirements
 
 ### Requirement: The shipped pairs are one list
