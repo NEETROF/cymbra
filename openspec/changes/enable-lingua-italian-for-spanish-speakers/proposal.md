@@ -21,7 +21,7 @@ y privado. »), is 119 characters, over Apple's 112.
 ## What Changes
 
 - **it-es ships** (design D1, D2):
-  - `packs.json` gains it-es after it-en, and after en-it if change 45 listed it first.
+  - `packs.json` gains it-es at the end of the list, after it-en and any Italian-native pair listed first.
   - `testdata/it-es/` is the it-fr fixture glossed in Spanish, for test builds.
   - it-es is listed only at or above change 27's floor, and after change 28 (Open Question 3).
 - **Spanish speakers are offered Italian** (D3), after English and French. Nothing new is typed: change

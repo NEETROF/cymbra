@@ -296,6 +296,11 @@ The extension file's « what each claim rests on » gains rows:
   (D3, D4).
 - **Against change 46**: whichever is implemented second keeps both forms of the Italian line (D3) and
   sets the review notes' final count (D4).
+- **Against change 50** (fr-it), which extends this change's listings and table blocks: this change
+  archives after change 30 whatever order they are implemented in, so if change 50 is implemented before
+  change 30 or before this change, change 50 archives first, and its pull request amends this change's
+  delta to carry change 50's scenarios and name it in `archiveAfter`, implemented or not; otherwise change
+  50 copies this change's blocks and archives after it (change 50's D13).
 - **Archived** after the changes of `.openspec.yaml`: change 46, whose *A listing in Italian* this block
   carries, and change 45, whose table block this one extends. `scripts/openspec_archive_order.py`
   ignores a named change that has no directory, so change 30 is waited for once proposed.

@@ -55,7 +55,7 @@ Each precondition below is a fact only once its change is implemented:
 
 ### D1 — The list, it-es after it-en
 
-`packs.json` gains `"it-es"` after `"it-en"`, or after `"en-it"` if change 45 has listed it first.
+`packs.json` gains `"it-es"` at the end of the list: after `"it-en"`, or after `"en-it"` and any other Italian-native pair listed first (amended by change 50's pull request).
 `SHIPPED_PAIRS` follows, and its comment names this change. A Spanish native's default pair stays
 en-es, and Italian is offered after French.
 
@@ -170,7 +170,7 @@ be the list's. The site needs no code change (change 21's tables):
 - the Spanish Lingua page names Italian for Spanish speakers;
 - the French and English Lingua pages gain it-es's row;
 - the site's fixtures are refreshed from the built pages, and `test/astro/lingua-page.spec.ts` counts
-  nine rows, or ten if change 45 has listed en-it.
+  a row per listed pair: nine, ten or eleven as en-it and fr-it are listed.
 
 The Spanish home card, which is data-driven, reads « Lee la web en inglés, en francés o en italiano… »
 from this pull request's coverage file. Change 31 is implemented first, as change 26 is before change
@@ -290,8 +290,9 @@ proposal copies change 45's blocks, today's latest holders. The rule, for both c
 implemented second re-copies the first's blocks and names it in `archiveAfter`**, so that each archives
 right after its own implementation and the published specs are never left behind.
 - **If change 45 is implemented first** (en-it listed first), this change re-copies its blocks from
-  change 45 as it then stands (or from `openspec/specs/` if archived), and `packs.json` reads
-  `…, "it-en", "en-it", "it-es"`.
+  change 45 as it then stands (or from change 50 if implemented, or from `openspec/specs/` if archived),
+  and `packs.json` reads `…, "it-en", "en-it", "it-es"`, or `…, "en-it", "fr-it", "it-es"` if fr-it was
+  listed first.
 - **If this change is implemented first** (it-es listed first), it re-copies its two shared blocks from
   change 25 instead, drops `enable-lingua-italian-speakers` from `archiveAfter`, and `packs.json` reads
   `…, "it-en", "it-es"`. Change 45 then appends en-it, re-copies this change's blocks and names it in its
@@ -309,6 +310,12 @@ The list's requirement follows the branch:
   `packs.json` first listed them » when it re-copies.
 
 *Guided activation* is not shared: change 45 does not touch it.
+
+**Against changes 50 and 54** (Italian speakers learning French and Spanish), which extend this change's
+list, memory and *Guided activation* blocks: the same rule holds, whichever is implemented later
+re-copying the earlier's blocks and naming it in `archiveAfter`; and it-es is appended at the end of
+the list whatever was listed before it, the list's clause then naming fr-it among « en-it, it-es and
+fr-it in the order `packs.json` first listed them » (amended by change 50's pull request).
 
 ## Risks / Trade-offs
 
