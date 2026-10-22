@@ -101,7 +101,7 @@ The matrix programme's architecture holds. What Italian adds or stresses:
   es-en then en-it. Two models at most per route, as es-fr; the engine's hardening (matrix change
   9) already evicts what a route no longer needs. The owner redeploys the model host before the
   first release whose catalogue names them.
-- **Interface.** A fourth module set `src/i18n/it/`, typed `typeof fr` over the 24 surfaces;
+- **Interface.** A fourth module set `src/i18n/it/`, typed `typeof fr` over the 23 text surfaces (`grammar` with change 34);
   Italian plurals through `Intl.PluralRules`; `formatNumber` and `formatPercent` learn Italian
   (20.000; 96%). `_locales/it` serves the manifest and the listings. The Apple host's `copy.js`
   and `SignInCopy` gain Italian; `app_localizations.sh` accepts `it` beside fr, en and es.
@@ -199,14 +199,14 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 2 | 24 | `measure-lingua-it-en-translation-marks` | 1–2 | 26 | Proposal merged ([#996](https://github.com/NEETROF/cymbra/pull/996)) |
 | 2 | 25 | `enable-lingua-italian-for-english-speakers` (it-en) | 4–7.5 | 34 | Proposal merged ([#999](https://github.com/NEETROF/cymbra/pull/999)) |
 | 2 | 26 | `add-lingua-italian-english-listings` | 1.5–3 | 36 | Proposal merged ([#1000](https://github.com/NEETROF/cymbra/pull/1000)) |
-| 2 | 27a | `add-lingua-it-es-pivot-sources` (I4, I11): seven Wiktionaries' translation tables kept by sense for a pivot, the Italian Wiktionary's Spanish section, Wikidata Lexemes — derived and pinned | 2.5–4 | — | Proposed ([#1005](https://github.com/NEETROF/cymbra/pull/1005)) |
+| 2 | 27a | `add-lingua-it-es-pivot-sources` (I4, I11): seven Wiktionaries' translation tables kept by sense for a pivot, the Italian Wiktionary's Spanish section, Wikidata Lexemes — derived and pinned | 2.5–4 | — | Proposal merged ([#1005](https://github.com/NEETROF/cymbra/pull/1005)) |
 | 2 | 27 | `add-lingua-pack-it-es` (I4): the floor fixed first; the Spanish Wiktionary's Italian section, the Italian Wiktionary's Spanish translations, the Spanish tables read backwards, then change 27a's sources | 3–5 | 49 | |
 | 2 | 28 | `refine-lingua-it-es-glosses` | 2–3.5 | 49b | |
 | 2 | 29 | `measure-lingua-it-es-translation-marks` | 1–2 | 26 | |
 | 2 | 30 | `enable-lingua-italian-for-spanish-speakers` (it-es) | 4–7.5 | 35 | |
 | 2 | 31 | `add-lingua-italian-spanish-listings` | 1.5–3 | 37 | |
 | 3 Italian speakers: en-it | 32 | `add-lingua-italian-native-language`: the variant, the native list and names, every enumeration of fr/en/es, inert until a pair is glossed in Italian | 1–2 | 4, 20 | Proposal merged ([#1003](https://github.com/NEETROF/cymbra/pull/1003)) |
-| 3 | 33 | `add-lingua-italian-interface`: `src/i18n/it`, 24 modules typed after the French; Italian numbers, percentages, dates and plurals; the lint; `InterfaceLanguage = NativeLanguage` restored and change 32's it→en mapping dropped (`INTERFACE_LANGUAGES` gains `it` with change 45) | 4–7 | 13–17 | |
+| 3 | 33 | `add-lingua-italian-interface`: `src/i18n/it`, 23 text modules typed after the French (`grammar.ts` is change 34's); the Italian reviewer agent defined; Italian numbers, percentages, dates and plurals; the lint; `InterfaceLanguage = NativeLanguage` restored and change 32's it→en mapping dropped (`INTERFACE_LANGUAGES` gains `it` with change 45) | 4–7 | 13–17 | Proposed ([#1007](https://github.com/NEETROF/cymbra/pull/1007)) |
 | 3 | 34 | `add-lingua-italian-card-wording`: the Italian renderer of readings; English, French and Spanish tense names for an Italian reader | 3–5.5 | 23, 24 | |
 | 3 | 35 | `add-lingua-italian-edition-rules`: the Italian Wiktionary's rules in the gloss reducer | 2–4 | 6 | |
 | 3 | 36 | `add-lingua-pack-en-it` (I11) | 3.5–6 | 22 | |
@@ -214,11 +214,11 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 3 | 38 | `measure-lingua-en-it-translation-marks` | 1–2 | 26 | |
 | 3 | 39 | `localise-lingua-manifest-italian`: `_locales/it` | 0.5–1 | 27 | |
 | 3 | 40 | `localise-lingua-apple-host-italian`: `copy.js`, `SignInCopy`, `app_localizations.sh` | 1.5–3 | 28 | |
-| 3 | 41 | `add-site-italian-locale`: `/it/` home, Music, Lingua, privacy, terms, support, account deletion, 404; the islands | 5–9 | 29, 29b | |
+| 3 | 41 | `add-site-italian-locale`: `/it/` home, Music, Lingua, privacy, terms, support, account deletion, 404, and Lingua's Italian leaving page, pinned before the extension build that compiles it into `LEAVING_PAGES.it` (change 45) ships; the islands | 5–9 | 29, 29b | |
 | 3 | 42 | `extend-site-lingua-matrix-pages-italian`: Italian's pairs and coverage on the Lingua pages; `hreflang` | 1–2 | 30 | |
 | 3 | 43 | `localise-cymbra-id-email-legal-links-italian` (I10): Italian e-mails link `/it/` pages; the privacy annex in Italian | 1–2 | 31, 32 | |
 | 3 | 44 | `review-lingua-italian-wording` (I2): the dedicated agent's pass over interface, card, listings and site | 2–4 | 33 | |
-| 3 | 45 | `enable-lingua-italian-speakers` (en-it): the Italian interface shown, en-it ships | 4–7.5 | 35 | |
+| 3 | 45 | `enable-lingua-italian-speakers` (en-it): the Italian interface shown, en-it ships; the extension's privacy, leaving and deletion links moved to the `/it/` pages (after 41) | 4–7.5 | 35 | |
 | 3 | 46 | `add-lingua-italian-audience-listings` (I9): Chrome Web Store, AMO, App Store it-IT | 2–5.5 | 37 | |
 | 4 Italian speakers: fr-it, es-it | 47 | `add-lingua-pack-fr-it` | 3.5–6 | 22, 49 | |
 | 4 | 48 | `refine-lingua-fr-it-glosses` | 2–4 | 49b | |
