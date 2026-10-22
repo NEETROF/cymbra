@@ -32,8 +32,9 @@ implemented yet: its drafts are this change's base. Where things stand:
 ## Measured
 
 Counted on `main` at `58b4ee27e` by each file's own rules, with change 21's drafts (its D3–D5) and #994's
-block applied first — every count change 21 records reproduced (Chrome Web Store French 2,924, English
-2,912; test instructions 993; review notes 3,989; App Store fr-FR description 3,299, en-US 3,046).
+block applied first — every count change 21 records reproduced (Chrome Web Store French 2,924; test
+instructions 993; review notes 3,989; App Store fr-FR description 3,299), and the English and Spanish
+texts with its D4 sentences (Chrome Web Store 2,912 and 3,426; App Store en-US 3,046, es 3,437).
 
 | Text | Change 21's base | With Italian for English speakers | Limit |
 |---|---|---|---|
@@ -51,7 +52,8 @@ block applied first — every count change 21 records reproduced (Chrome Web Sto
 | CWS single purpose | 602 | 611 | — |
 
 - **Too long said directly**: the subtitle keeping « … as you read » (36 or 38); the keywords with
-  `italian,` added (107 bytes; dropping one word is not enough); the test instructions with step 6
+  `italian,` added (107 bytes; without `words` or `deck` alone 101 or 102; without `extension` 97,
+  `reading` 99); the test instructions with step 6
   widened (1,003); the review notes with English speakers named (4,001).
 - **The site**, simulated on a scratch copy with change 21's tables and an it-en row: the build and
   `yarn check:routes` pass; only `/en/`, `/en/lingua/`, `/lingua/` and `/es/lingua/` move — the English
@@ -95,7 +97,8 @@ Drafts (M9: the owner's words):
     frequency »; EXTENDED TRANSLATION and the dictionary sentence as the Chrome text; the last line
     « …for English speakers, who learn Spanish, French and Italian, and in French for French speakers,
     who learn English, Spanish and Italian. »
-  - « What's New » for change 25's release, modelled on `enable-lingua-french`'s English paragraph:
+  - « What's New » for change 25's release, modelled on `add-lingua-french-listings`' English paragraph
+    for French's release:
     "Cymbra Lingua now reads Italian too, for English speakers: check Italian in Settings › Language.
     Italian words come with their meaning in English, written by people; the card names the tense and
     the gender ("past historic (passato remoto)"), and your Italian level is estimated from word
@@ -105,8 +108,8 @@ Drafts (M9: the owner's words):
 
 ### D3 — The French and Spanish texts say what English speakers study
 
-One sentence each, nothing offered to their own readers: the Chrome text in Spanish « …y español,
-francés e italiano a los anglohablantes, en inglés »; the App Store's es-ES/es-MX « …y en inglés para
+One sentence each, nothing offered to their own readers: the Chrome text in Spanish « …a los
+francohablantes, en francés; y español, francés e italiano a los anglohablantes, en inglés »; the App Store's es-ES/es-MX « …y en inglés para
 los anglohablantes, que aprenden español, francés e italiano »; the App Store's fr-FR last line « …et en
 anglais pour les anglophones, qui apprennent l'espagnol, le français et l'italien ». The Chrome French
 text names no other audience. The texts kept for a release without fr-es are not edited.
@@ -119,23 +122,31 @@ text names no other audience. The texts kept for a release without fr-es are not
 - **App Store review notes** (3,994 / 4,000): the audience « …; English and French speakers Italian
   too. »; to make room, step 2's « e.g. B1 » becomes « (B1) » and « No account is needed » « No account
   needed ». The route note already covers it-en (direct, within « 25.4-26.3 MB each »), the sources
-  already credit both Wiktionaries. An Italian step for the reviewer, as French's step 6, fits only with
-  two more cuts (« for the glosses », « a pinned » → « pinned »): Open Question 4.
-- **Single purpose** (611): « Spanish, French or Italian for English speakers ».
+  already credit both Wiktionaries. Widening step 6 to Italian for the reviewer, as French's, fits only
+  with two more cuts (« for the glosses », « a pinned » → « pinned »), which read worse: Open Question 4.
+- **Single purpose** (611): "— Spanish, French or Italian for English speakers; English or French for
+  Spanish speakers; English, Spanish or Italian for French speakers —", the groups set apart by
+  semicolons.
 - **Remote code**: « it-fr's among them » becomes « it-fr's and it-en's among them », and « for an English
   speaker reading Italian, it-en alone (`it-en/base-memory/2.0`), the direct model of its pair ».
-- **Notes not pasted**: the English description's header, the permissions' introduction, the App Store's
-  locales and fields table, `## Summary` quoting change 25's English summary, *What the app itself
-  says* quoting change 25's English step 3.
+- **Notes not pasted**, each saying what English speakers study: in the extension file, the *Listing
+  languages* paragraph, the English description's header, the *Description* introduction, the claims
+  table's lead sentence and its « Who learns what » and « Spanish stays the language an English reader
+  starts in » rows (it-en last, change 25), the test instructions' rationale (988, the cut), the single
+  purpose's note (611), the permissions' introduction, `## Summary` quoting change 25's English summary;
+  in the App Store file, the locales and fields table, the en-US description's lead note (change 25's
+  step 3, « 26.2–26.3 MB each »), the review notes' lead paragraphs, *What the app itself says* quoting
+  change 25's English step 3. The review-notes blocks are labelled by submission: #994's for the next,
+  change 21's for change 20's, this one for change 25's.
 
 ### D5 — Figures the texts quote, taken when they are known
 
 - **Size**: it-en's served size from change 2's catalogue; « 26.2–26.3 MB each » becomes « 26.2 MB each »
   if it rounds there.
-- **The dictionary sentence**: none for Italian while it-en's committed coverage sits beside es-en's
-  and fr-en's (the study: 92.0 / 85.1 / 76.7 against 93.0 / 86.5 / 76.5 and 93.9 / 87.2 / 76.8), as fr-en
-  got none; « For Italian, the dictionary is a little less complete than for Spanish and French. » if it
-  sits clearly under.
+- **The dictionary sentence**: « For Italian, the dictionary is a little less complete than for Spanish
+  and French. » if it-en's committed coverage is under both es-en's and fr-en's at each top; none
+  otherwise, as fr-en got none. The study (92.0 / 85.1 / 76.7 loose, against 93.0 / 86.5 / 76.5 and
+  93.9 / 87.2 / 76.8) favours it-en — 85.3 / 77.5 / 68.7 strict —, so the committed figures decide.
 - **Translation**: if change 24's figures and the owner withhold it-en's translation, its clauses go.
 
 ### D6 — The claims table
@@ -154,25 +165,27 @@ size (change 2's route, change 25's D5); the figures at cymbra.app/en/lingua (ch
 - **Chrome Web Store English set**: at its five-capture cap (`STUDIED.en = ["es", "fr"]`), unchanged;
   moving its second capture to Italian needs Italian capture fixtures and moves the site's English alt
   text (Open Question 5).
-- **Dashboards**: no language is added. For change 25's submission: `en` description and summary
-  replaced, `es` and `fr` one sentence each, the single purpose, the remote code and the test
+- **Dashboards**: no language is added. For change 25's submission: `en` description replaced and the
+  new summary checked, `es` and `fr` one sentence each, the single purpose, the remote code and the test
   instructions replaced, AMO's English and Spanish pasted; on the App Store, en-US and en-GB's subtitle,
   promotional text, keywords, description, « What's New » and the capture, es-ES, es-MX and fr-FR's
   description, the review notes; a table of what each dashboard shows.
 
 ### D8 — Order
 
-Implemented before change 25 lists it-en, as change 21 is before change 20: its site test and its
+Implemented after change 21, after changes 22, 23 and 24 and the owner's answer to change 25's Open
+Question 2 — the figures of D5 —, and before change 25 lists it-en, as change 21 is before change 20: its site test and its
 scenarios are true once it-en is listed, and its listing texts are pasted with change 25's release after
 the site deploy that publishes it-en's figures (I12, M18).
 
 ### D9 — Requirements true of their time
 
 - *The store listings name each studied language* (held by change 21): its *French speakers learning
-  Italian* says « no English … text offers Italian to its readers »; it holds « while it-fr is the one
-  listed pair studying Italian », and *English speakers learning Italian* is added.
-- *The coverage table reads at a phone's width* (held by change 21): *Six pairs on a phone* and *Seven
-  pairs on a phone* hold « and no other pair »; *Eight pairs on a phone* is added.
+  Italian* says « no English … text offers Italian to its readers »; that clause holds « while it-en is
+  not listed », its French texts' obligations unchanged, and *English speakers learning Italian* is added.
+- *The coverage table reads at a phone's width* (held by change 21): *Seven pairs on a phone* holds « and
+  no other pair »; *Eight pairs on a phone* is added. *Six pairs on a phone* is narrowed the same way in
+  change 21 itself, by this pull request, since it-fr's listing already makes it false.
 - *The English home page describes Lingua for the readers it serves* (held by
   `add-lingua-french-listings`): *English speakers learning Spanish and French* holds « and no other pair
   glossed in English »; *English speakers learning Italian* is added.
@@ -203,8 +216,10 @@ dashboards' procedure 0.25; docs 0.1. 1.35–2.1.
 ## Open Questions
 
 For the owner:
-1. **The drafts** (D2–D4): as written, or other words (M9).
-2. **The keywords**: `words` and `deck` give way (recommended), or another pair of them.
+1. **The drafts** (D2–D4): as written, or other words (M9); a subtitle that keeps "read",
+   `Read Spanish, French, Italian` (29), fits too.
+2. **The keywords**: `words` and `deck` give way (recommended), or one longer word alone (`extension`,
+   97 bytes; `reading`, 99).
 3. **« What's New »**: with the voice clause, as change 21's French paragraph (recommended), or without,
    as French's English one.
 4. **The review notes**: without an Italian step (recommended), or with one and two more cuts.

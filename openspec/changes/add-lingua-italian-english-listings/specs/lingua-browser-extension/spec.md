@@ -38,8 +38,8 @@ Each store listing of Cymbra Lingua SHALL name every language the packages teach
 - **THEN** the Spanish texts name English and French, say that French's levels are estimated, give the download of French through English, and say that their dictionary explains fewer French words than English ones, pointing to the published figures
 
 #### Scenario: French speakers learning Italian
-- **WHEN** it-fr is the one listed pair studying Italian
-- **THEN** the French texts name English, Spanish and Italian, say that Italian's levels are estimated wherever they name levels, say whether Italian is translated — through English — and, if so, what it downloads, and point to the published coverage; no English or Spanish text offers Italian to its readers, each saying only that French speakers study it
+- **WHEN** it-fr is listed
+- **THEN** the French texts name English, Spanish and Italian, say that Italian's levels are estimated wherever they name levels, say whether Italian is translated — through English — and, if so, what it downloads, and point to the published coverage; the English and Spanish texts say that French speakers study it; no Spanish text offers Italian to its readers, nor any English text while it-en is not listed
 
 #### Scenario: English speakers learning Italian
 - **WHEN** it-en is listed beside it-fr

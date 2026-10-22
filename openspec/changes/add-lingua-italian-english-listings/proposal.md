@@ -39,11 +39,11 @@ None.
 ### Modified Capabilities
 
 - `lingua-browser-extension`: MODIFIED *The store listings name each studied language* (held by
-  `add-lingua-italian-listings`): *French speakers learning Italian* holds while it-fr is the one Italian
-  pair; *English speakers learning Italian* added.
+  `add-lingua-italian-listings`): *French speakers learning Italian*'s clause that no English text offers
+  Italian holds while it-en is not listed; *English speakers learning Italian* added.
 - `site-lingua-page`: MODIFIED *The coverage table reads at a phone's width* (held by
-  `add-lingua-italian-listings`): *Six pairs* and *Seven pairs on a phone* hold « and no other pair »;
-  *Eight pairs on a phone* added.
+  `add-lingua-italian-listings`, whose *Six pairs on a phone* this pull request narrows in place):
+  *Seven pairs on a phone* holds « and no other pair »; *Eight pairs on a phone* added.
 - `site-locales`: MODIFIED *The English home page describes Lingua for the readers it serves* (held by
   `add-lingua-french-listings`): *English speakers learning Spanish and French* holds « and no other pair
   glossed in English »; *English speakers learning Italian* added.
@@ -55,7 +55,8 @@ None.
   by change 21) or the backend.
 - **What a visitor sees before change 25**: nothing; from change 25, Italian on the English home card and
   Lingua page and in the table, and in the listings once pasted.
-- **Order.** Implemented before change 25 (D8); after change 21, on whose drafts it builds. Archived after
+- **Order.** Implemented after change 21, on whose drafts it builds, and after changes 22–24 and the
+  owner's answer to change 25's Open Question 2; before change 25 (D8). Archived after
   the changes of `.openspec.yaml`.
 - **Effort, against 1.5–3 ideal days**: 1.35–2.1 (design, *Effort*).
 - **The owner** reads the drafts (M9), answers the open questions, captures the App Store screenshot and

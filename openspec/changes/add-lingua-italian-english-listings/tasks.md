@@ -1,10 +1,10 @@
 # Tasks
 
-Implemented after change 21 and before change 25 (design D8).
+Implemented after change 21, after changes 22, 23 and 24 and the owner's answer to change 25's Open Question 2; before change 25 (design D8).
 
 ## 1. The site (apps/site)
 
-- [ ] 1.1 `test/lingua-text.spec.ts`: a test feeding eight pairs with change 2's routes asserts the English home card « Read the web in Spanish, French or Italian… », the English page's audience and its row « Italian → English » (D1); `yarn test`, `yarn build`, `yarn check:routes`.
+- [ ] 1.1 `test/lingua-text.spec.ts`: a test feeding eight pairs with change 2's routes asserts the English home card « Read the web in Spanish, French or Italian… », the English page's audience and its row « Italian → English » (D1); `test/astro/english-home.spec.ts`: es-en, fr-en and it-en with change 2's it-en route render « Read the web in Spanish, French or Italian… » and the button to `/en/lingua`, as `add-lingua-french-listings` pinned each home-card scenario; `apps/site/README.md`'s home-card examples name Italian; `yarn test`, `yarn build`, `yarn check:routes`; the English Lingua page with eight pairs read at 375 px in a browser, the page not scrolling sideways.
 
 ## 2. The listings
 
