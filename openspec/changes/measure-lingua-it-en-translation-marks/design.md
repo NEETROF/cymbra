@@ -43,7 +43,7 @@ word, by change 26's written criteria, with Italian examples in English taken fr
 corpus steps and anchored on verdicts already committed, added before the run; they move no committed
 verdict, as change 50's D6 said of French's:
 - **a subject the model adds**: step 25 « Ha detto all'Andrew Marr Show »: a mark on « told », « said »
-  or « He told » is correct, on « He » alone it is not — es-en's one other wrong mark, k 25, marked
+  or « He told » is correct, on « He » alone it is not — one of es-en's two wrong marks, k 25, marked
   « he » for « said »; es-fr's k 25 « il a déclaré » was judged correct for carrying the subject the
   rendering adds. The passato remoto is one word in English as in Italian (es-en: k 65 « met », k 69
   « released », k 81 « accused »), so change 19's compound-past case does not arise; the reverse does —
