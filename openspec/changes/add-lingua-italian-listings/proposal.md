@@ -58,7 +58,8 @@ None.
   added.
 - `site-lingua-page`: MODIFIED *The Lingua page says what each studied language's card and levels
   are* and *The coverage table reads at a phone's width* (both held by `add-lingua-french-listings`):
-  every word and scenario kept, *Italian studied* and *Seven pairs on a phone* added.
+  *Six pairs on a phone* narrowed (« and no other pair »), every other word and scenario kept,
+  *Italian studied* and *Seven pairs on a phone* added.
 
 - `site-locales`: MODIFIED *The French home page describes Lingua for the readers it serves* (held by
   `add-site-lingua-showcase`): *Today's pairs* reads « and no other pair glossed in French », *Italian
