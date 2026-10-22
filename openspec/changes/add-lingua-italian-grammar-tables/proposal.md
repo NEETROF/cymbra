@@ -26,12 +26,16 @@ reduces), with the stress marks dropped as change 9's amendment reads table form
   Two families of rows give no reading of their own: the **negative imperative** (87,141 rows with
   the formal ones below; the second person singular is the infinitive, « non parlare », the plurals
   repeat the affirmative), and the **formal imperative** (`Lei`/`Loro`: the present subjunctive's
-  third persons, already read as such). A defective verb's missing cells are written `-`: no form.
+  third persons, already read as such). A defective verb's missing cells are written `-` (2,848 cells
+  over 197 verbs): no form. A reflexive verb's enclitic rows (`làvati`, `pentìrsi`: 18,264) read as
+  the bare base change 9 gives them, never as their clitic-bearing string; a derived word's row
+  (`casa` → `casétta`, 871 diminutive, augmentative, pejorative and like rows) gives no reading.
 - **Nouns**: `it-noun` heads give the gender — masculine 36,150, feminine 30,150, by sense 3,162,
-  plural-only 321, both 113 —, and 8,915 heads give no plural (invariable: `città`, `re`, `crisi`),
-  read in both numbers as Spanish's `crisis` and French's `temps`.
+  plural-only 321, both 113 —; 7,865 heads are invariable (`#`: `città`, `re`, `crisi`), read in both
+  numbers as Spanish's `crisis` and French's `temps`, and 1,090 uncountable (`-`: `gas`), read singular.
 - **Adjectives**: four forms (`rosso`, `rossa`, `rossi`, `rosse`; 18,132 feminine plurals) or two
-  (`grande`, `grandi`; 7,648 plural rows with no gender).
+  (`grande`, `grandi`; 7,648 plural rows with no gender). The article table kaikki writes under each
+  of *il*, *lo*, *la*, *gli*, *le* is shared: read whole it would make `il` a form of *lo*.
 
 ## What Changes
 

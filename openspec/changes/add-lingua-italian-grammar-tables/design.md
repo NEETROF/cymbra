@@ -24,7 +24,7 @@ See proposal.md — Why. What constrains the shape:
   singular is the infinitive, the plurals the affirmative's forms), `formal` + `imperative` +
   `second-person-semantically` (the present subjunctive's third persons, *Lei*/*Loro*) — 87,141
   negative and formal rows. `it-noun` heads: `m` 36,150, `f` 30,150, `mfbysense` 3,162, `m-p` 183,
-  `f-p` 138, `mf` 113; a second argument `#` or `-`, no plural: 8,915. Adjectives: feminine plural
+  `f-p` 138, `mf` 113; a second argument `#` (invariable) 7,865, `-` (uncountable) 1,090. Adjectives: feminine plural
   18,132, masculine plural 18,116, feminine 17,616, plural alone 7,648 (two-form adjectives).
 - UD Italian (PUD, MarkIT) writes the passato remoto `Tense=Past`, the imperfetto `Tense=Imp`, the
   future `Tense=Fut`, the conditional `Mood=Cnd|Tense=Pres`, the imperative `Mood=Imp`, the gerund
@@ -45,7 +45,7 @@ See proposal.md — Why. What constrains the shape:
 - The card's wording of Italian's forms, and merging moods on it (change 18).
 - Readings of a form the tables do not hold (a cell no text writes).
 - A reflexive verb's own readings apart from its plain verb's (change 9 files them under the plain
-  verb; the card says « lavarsi » through the enclitic rule's lemma).
+  verb; the card on « lavarsi » reads *lavare*, change 7's enclitic rule giving the base's lemma).
 - The polite imperative named on the card (`Lei`): change 18's call; the subjunctive's reading
   carries the form.
 
@@ -77,44 +77,87 @@ forms with one, `other` marks, tags) are recorded at task 2.1.
 | persons and numbers | `Person`, `Number`, with `VerbForm=Fin` |
 | `infinitive` | `VerbForm=Inf` |
 | `gerund` | `VerbForm=Ger` |
-| `participle` + `present` | `VerbForm=Part`, `Tense=Pres` (`parlante`) |
+| `participle` + `present`, the table's row | `VerbForm=Part`, `Tense=Pres`, `Number=Sing` (`parlante`; `parlanti` reads `Number=Plur` from its own entry, as UD Italian writes it) |
 | `participle` + `past`, the table's row | `VerbForm=Part`, `Tense=Past`, `Gender=Masc`, `Number=Sing` |
-| a past participle's agreed forms | its gender and number, through the participle's entry (D5) |
+| a past participle's agreed forms | its gender and number, through the participle's entry (D5): a participle sense naming an agreement without `past` is the past one, French's D3 sentence — 33,421 Italian agreed-participle senses lack `past`, 52 have it (`creduta`: `feminine`, `participle`, `singular`) |
 
 Every verb is `VERB`: `AUX` is a role in a sentence, which a card cannot see. A sense of a form's
 own entry that merges persons or moods reads as each combination; a table row names one.
 
-**Never a reading**: a negative imperative row — its second person singular is the infinitive
-(« non parlare »), read as such already, and its plurals repeat the affirmative's forms —; a formal
-imperative row — the present subjunctive's third persons, read as such already —; the `canonical`
-and `auxiliary` rows (bookkeeping); a compound tense (not one token); a defective verb's empty cell
-written `-` (68 pairs over the section's tables).
+**The tag families, each said** (measured over the section's verb tables):
+- **read as their cell**: the rows tagged `Traditional` (2,691: `dètti`, `témo`), `poetic` (386),
+  `literary` (310), `Latinate` (26) — the language's own forms, older or literary, which change 9
+  keeps as forms;
+- **no reading**: `dialectal` (41) and `hypercorrect` (52) rows, as French's D5 refuses a region's or
+  a register's; `error-unrecognized-form` rows (20, `essere`'s `són`, `siàm`, no cell tags); the
+  `it-verb` head's principal parts (`dìa`, `sìa` a subjunctive without a tense, 41; `èro` an
+  imperfect without a mood) and own-entry senses tagged `imperative` + `third-person` (the formal
+  imperative without `formal`, 16,763) — both dropped by the verb features' guards, a reading needing
+  a mood and, for the indicative and subjunctive, a tense; the `canonical` and `auxiliary` rows
+  (bookkeeping);
+- **the negative imperative** — its second person singular is the infinitive in 10,804 of 10,804
+  verbs (« non parlare »), its plurals repeat the affirmative in 26,763 of 26,764 — and **the formal
+  imperative** — the present subjunctive's third persons in 26,671 of 26,764 — give no reading of
+  their own (87,141 rows);
+- **a defective verb's empty cell**, written `-` — the source's notation for a cell the verb lacks:
+  2,848 cells over 197 verbs outside the negative and formal rows (3,497 over 222 with them) — gives
+  no form and no reading;
+- **a compound tense**: the tables list none (no `perfect` tag; the `auxiliary` row stands in), so
+  the rule is French's and vacuous here.
 
-**A reflexive verb's rows read without their pronoun**, under the lemma change 9 files the bare
-form under: `mi làvo` → `lavo`, *lavare*'s present indicative, first person singular, beside its
-own row; `mi pènto` → `pento`, *pentirsi*'s, the section having no *pentire*.
+**A reflexive verb's rows read as change 9 reads their forms.** A spaced row (`mi làvo`) reads
+without its pronoun, under the lemma change 9 files the bare form under: `lavo` *lavare*'s present
+indicative, first person singular, beside its own row; `pento` *pentirsi*'s, the section having no
+*pentire*. An enclitic row — the infinitive in `-rsi`, the gerund in `-ndosi`, the participles and
+imperatives with their clitic (`lavàrsi`, `lavàndosi`, `làvati`, `laviàmoci`, `lavàtevi`; 18,264
+such rows on clitic lemmas outside the negative and formal ones) — reads as the bare base change 9
+gives it: under a reflexive-only lemma, `pentire` `VerbForm=Inf`, `pentendo` `VerbForm=Ger`,
+`penti`, `pentiamo`, `pentite` the imperative, all of *pentirsi*; where change 9 gives no form (the
+plain verb's own rows carry the cells, as for *lavarsi*), no reading; never as its clitic-bearing
+string, which would collide with the plain verb's participle (`làvati` read `lavati`, *lavare*'s
+masculine plural participle). A row with a clitic cluster (`me ne vàdo`, `ce la fàccio`, `gliela
+fàccio`, ≈ 3,600) gives no reading: the plain verb's rows carry the cells, and a page reads the
+cluster's words apart.
 
 ### D4 — Nouns, adjectives, determiners, pronouns, numerals
 
-- **A noun's gender** comes from `it-noun`'s first argument (`m`, `f`; `mfbysense` and `mf` a
-  reading per gender; `m-p`, `f-p` plural only), else from its senses' tags. Its own form reads
-  `NOUN|Gender=…|Number=Sing` (`Plur` for a plural-only noun), its plural `Number=Plur`.
-- **A noun the dictionary gives no plural for** — `it-noun`'s second argument `#` or `-`, or a sense
-  tagged `invariable` with no plural listed: `città`, `re`, `crisi`, `film` — reads singular and
-  plural, as Spanish's `crisis` and French's `temps`: 8,915 heads over the section.
-- **A noun's irregular plural of another gender** (`uovo` → `uova`, feminine; `braccio` → `braccia`)
-  reads with the gender the head gives the plural (`NOUN|Gender=Fem|Number=Plur`), the plural's row
-  carrying it.
-- **A feminine noun's masculine row gives no reading** (`attrice`: masculine `attore`), as
-  French's D4.
+- **A noun's gender** comes from `it-noun`'s first argument — `m`, `f`; `mfbysense`, `mf`, `m,f`,
+  `f,m` (34 and 14) and the qualified ones (`eco` `f,m<l:colloquial>`) a reading per gender; `m-p`,
+  `f-p` plural only —, else from its senses' tags. Its own form reads `NOUN|Gender=…|Number=Sing`
+  (`Plur` for a plural-only noun), its plural `Number=Plur`.
+- **A noun the dictionary gives one form for** — `it-noun`'s second argument `#` (7,865 heads, 7,842
+  of them with a sense tagged `invariable`, and 95 with `#` among several plurals), or a sense tagged
+  `invariable` with no plural listed: `città`, `re`, `crisi`, `film` — reads singular and plural, as
+  Spanish's `crisis` and French's `temps`, French's reading of `#`. A noun marked `-` is
+  **uncountable** (1,090 heads, every one with its sense tagged `uncountable`: `gas`, `parlato`) and
+  reads singular only.
+- **A noun's plural of another gender** reads with the gender its row carries: `uovo`'s row `uova`
+  is tagged `feminine`, `plural` (`NOUN|Gender=Fem|Number=Plur`); where the head's plural argument is
+  left unexpanded by kaikki (24 heads, `braccio`), the plural reads from its own entry (`braccia`,
+  feminine, « plural of braccio »); rows tagged `error-unknown-tag` (`lenzuola`, `fondamenta`, `mura`,
+  `grida`) give no reading, as French's doubtful rows do, and those plurals read from their own
+  entries where the section has them.
+- **A feminine noun's masculine row gives no reading** (`attrice`: masculine `attore`), as French's.
+- **A derived word's row gives no reading**: the `diminutive` (492), `augmentative` (180),
+  `pejorative` (140), `derogatory` (47) and `endearing` (12) rows of a noun (`casa` → `casétta`,
+  `casàccia`), the same rows of an adjective (≈ 80), and an adjective's `adverb` row (67: `vero` →
+  `veramente`) name other words, not inflections; read, `casetta` would be « the feminine singular of
+  *casa* ». Change 9 is amended to keep them out of the forms too.
 - **An adjective's own form** reads `ADJ|Gender=Masc|Number=Sing` when it has a feminine of its own
   (`rosso`), `ADJ|Number=Sing` when one form serves both (`grande`); its forms read by their tags
-  (`rosse`: `Gender=Fem|Number=Plur`; `grandi`: `Number=Plur`); the apocopated masculines (`bel`,
-  `buon`, `gran`, `san`, `quel`) are masculine singulars; a superlative reads `Degree=Sup`.
-- **Determiners, the articles among them, pronouns and numerals** read their gender and number:
-  `la` of *il*, `gli` of *il*, `una` of *uno*, `questa` of *questo*. An article is a determiner,
-  as UD writes it. A pronoun's form names its gender or gives no reading, and a personal pronoun's
-  other persons and cases are other words, not inflections (French's D4).
+  (`rosse`: `Gender=Fem|Number=Plur`), or from their own entries where the head lists none (`grande`
+  lists no forms; `grandi` reads `ADJ|Number=Plur` from its entry); a comparative reads `Degree=Cmp`
+  (`piccolo` → `minore`), a superlative `Degree=Sup`. The shortened forms (`bel`, `buon`, `gran`,
+  `san`, `quel`) give no reading: their senses are `alt-of` + `apocopic` (109 of them), which D5's
+  alternative-only rule refuses, and `bello`'s rows `bel`, `bei`, `begli` are tagged
+  `error-unrecognized-form`; a card on them names no agreement (Known data defects).
+- **Determiners, the articles among them, pronouns and numerals** read their gender and number. The
+  article table kaikki writes identically under each of *il*, *lo*, *la*, *gli*, *le* gives a reading
+  only for the forms the entry's own head names — *il*: `i`, `la`; *lo*: `gli`; *la*: `le` —, its
+  other cells no reading and no `other` mark, so `il` names no *lo*; French's plural-head rule
+  carries (`le`, the pronoun, plural feminine, gives `la` no reading as its singular). An article is
+  a determiner, as UD writes it. A pronoun's form names its gender or gives no reading, and a
+  personal pronoun's other persons and cases are other words, not inflections (French's D4).
 
 ### D5 — Where a reading comes from, and what never gives one
 
@@ -125,8 +168,8 @@ French's D5, for Italian:
   of *credere*. Added only where the form has no reading of that lemma in that part of speech and
   verb form already.
 - **A reading's part of speech is one its lemma's entries hold**: a participle change 9 files under a
-  noun's or an adjective's spelling (`parlata` under the noun *parlata*, when D5 of change 9 keeps the
-  noun) gives no verb reading of that word and names its verb (*parlare*).
+  noun's spelling (`parlata` under the noun *parlata*, « parlance », which change 9's D5 keeps) gives
+  no verb reading of that word and names its verb (*parlare*), as French's `citée` names *citer*.
 - **A spelling variant** reads as the word it spells (change 10's rows): `perchè` carries
   *perché*'s readings.
 - **Never a reading**: an inflection or a sense the dictionary marks doubtful (the tags change 9
@@ -138,9 +181,9 @@ French's D5, for Italian:
 ### D6 — `other` marks, and one form, one lemma (M8)
 
 A reading of another ranked lemma is marked `other`, and the card names that word below, as
-French's `fils` names *fil*: `vite` (the vines' plural, *vite*, and *vita*'s plural, whichever
-change 9 files it under), `porti` (*portare*'s present and *porto*'s plural), `legge` (*leggere*'s
-present and the noun *legge*, when the noun is ranked). Only toward an entry of the dictionary that
+French's `fils` names *fil*: `vite` (the vine, singular, and *vita*'s plural, whichever change 9
+files it under), `porti` (*portare*'s present and *porto*'s plural), `legge` (*leggere*'s present
+and the noun *legge*, when the noun is ranked). Only toward an entry of the dictionary that
 is not only regional. The mark changes no count: the form's status, exposures, level and review
 belong to its one lemma.
 
@@ -196,12 +239,19 @@ status. Each rule of D3–D6 is switched off alone once and its effect recorded,
   `forms.tsv`, `freq.tsv`, `lexical.tsv` and `studied.json` are byte for byte change 9's (and 10's,
   11's rows).
 - **Italian's analyser version does not move**: readings are pack data; no token or lemma changes.
+- **Order**: change 14 also edits `reduce-it-fr.py` and re-records it-fr's pin; either order, the
+  second re-reduces on top of the first.
 
 ## Known data defects
 
-Filled at task 2.1 from the reduction, as French's lists `fatiguée` and `supe`: rows the section
-writes wrong, each with where its fix lives. Known before reducing: the 68 defective cells written
-`-` (no form, D3).
+For change 17 (`refine-lingua-it-fr-glosses`) and the section's editors, as French's list `fatiguée`:
+- `braccio`'s plurals unexpanded (24 heads with a qualified plural argument); `braccia`,
+  `lenzuola`, `fondamenta`, `mura`, `grida` read from their own entries where present;
+- `bello`'s rows tagged `error-unrecognized-form`, and the shortened adjectives (`bel`, `buon`,
+  `gran` « grande m or f by sense », `san`, `quel`) without an agreement on the card;
+- `uova` → « uovo m » in its own entry's head; `gli` → « the article i »;
+- `adulare`'s formal imperative `adùla`; `ottimo`'s canonical row and `migliore`'s « of buono » row.
+The `-` cells are the source's notation for a missing cell, not a defect.
 
 ## Risks / Trade-offs
 
@@ -211,6 +261,7 @@ writes wrong, each with where its fix lives. Known before reducing: the 68 defec
   card names the number alone.
 - [The formal imperative unnamed] → the subjunctive's reading carries the form; change 18 may name
   it.
+- [Derived words read as inflections] → refused here and in change 9's forms (D4).
 - [M8's cost] → counted (D6); an override row of change 9 brings a noun back.
 
 ## Migration Plan

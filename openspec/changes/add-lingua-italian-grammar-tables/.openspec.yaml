@@ -6,3 +6,5 @@ archiveAfter:
   - split-lingua-pack-format
   - ship-lingua-pack-bases-once
   - add-lingua-french-grammar-tables
+  - read-lingua-italian-unmarked-spellings
+  - keep-lingua-italian-acronyms-and-names

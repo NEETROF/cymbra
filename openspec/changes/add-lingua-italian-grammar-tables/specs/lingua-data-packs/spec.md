@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Italian's word grammar
-Italian's studied tables SHALL carry, in `tables/it/grammar.tsv`, the readings of the forms `tables/it/forms.tsv` holds under the lemmas `tables/it/freq.tsv` ranks, reduced by it-fr from the English Wiktionary's Italian section and written as Universal Dependencies tags, each table form read as change 9 reads it — its stress marks dropped, a reflexive row without its pronoun: a verb form's mood, tense, person and number — the passato remoto as the indicative past, the imperfetto as the imperfect, the conditional and the imperative with no tense —, its infinitive, its gerund, its present participle, or its past participle with its gender and number; a noun's gender on its own form and on its plural, and both numbers on a noun the dictionary gives no plural for; an adjective's, a determiner's, a pronoun's or a numeral's gender and number. A form that is a form of another form along one part of speech SHALL read as the word the forms table reaches through it, with its own agreement, and a reading's part of speech SHALL be one the dictionary holds its lemma as, when it holds that lemma as a noun, a verb, an adjective, a determiner, a pronoun or a numeral. Each reading SHALL be stored as its own tag, never merged with another, so that a present such as `parli` carries its four readings — the present indicative of the second person singular and the present subjunctive of the first, second and third — and the word card can merge them. A reading SHALL NOT come from a negative or a formal imperative row, from a compound tense, from an inflection or a sense the dictionary marks doubtful, from a form's own sense it marks regional or of a register, from a capitalised headword, from an entry that is only an alternative form of another word, from a defective verb's empty cell, or from a link toward the word a reviewed override row of the forms table sets aside, and a feminine noun's masculine SHALL NOT read as its inflection. A reading of another dictionary form the pack keeps SHALL be marked so that the card names it, only when that word is an entry of the dictionary that is not only regional; the form SHALL keep the one lemma its forms table gives it.
+Italian's studied tables SHALL carry, in `tables/it/grammar.tsv`, the readings of the forms `tables/it/forms.tsv` holds under the lemmas `tables/it/freq.tsv` ranks, reduced by it-fr from the English Wiktionary's Italian section and written as Universal Dependencies tags, each table form read as change 9 reads it — its stress marks dropped, a reflexive row without its pronoun: a verb form's mood, tense, person and number — the passato remoto as the indicative past, the imperfetto as the imperfect, the conditional and the imperative with no tense —, its infinitive, its gerund, its present participle, or its past participle with its gender and number; a noun's gender on its own form and on its plural, both numbers on a noun the dictionary gives one form for, and the singular alone on a noun it marks uncountable; an adjective's, a determiner's, a pronoun's or a numeral's gender and number. A form that is a form of another form along one part of speech SHALL read as the word the forms table reaches through it, with its own agreement, and a reading's part of speech SHALL be one the dictionary holds its lemma as, when it holds that lemma as a noun, a verb, an adjective, a determiner, a pronoun or a numeral. Each reading SHALL be stored as its own tag, never merged with another, so that a present such as `parli` carries its four readings — the present indicative of the second person singular and the present subjunctive of the first, second and third — and the word card can merge them. A reflexive verb's enclitic row SHALL read as the bare base the forms table gives it, or give no reading where it gives none, never as its clitic-bearing string. The article table the dictionary writes under several articles SHALL give each article a reading only for the forms its own head names. A reading SHALL NOT come from a negative or a formal imperative row, from a row with a clitic cluster, from a derived word's row — a diminutive, augmentative, pejorative, derogatory or endearing form, or an adjective's adverb —, from a dialectal or hypercorrect row, from a shortened form the dictionary gives only as another word's apocope, from an inflection or a sense the dictionary marks doubtful, from a form's own sense it marks regional or of a register, from a capitalised headword, from an entry that is only an alternative form of another word, from a defective verb's empty cell, or from a link toward the word a reviewed override row of the forms table sets aside, and a feminine noun's masculine SHALL NOT read as its inflection. A reading of another dictionary form the pack keeps SHALL be marked so that the card names it, only when that word is an entry of the dictionary that is not only regional; the form SHALL keep the one lemma its forms table gives it.
 
 #### Scenario: A verb form says what it is
 - **WHEN** the card asks the grammar of `parlò` as *parlare*, and of `parlavo`
@@ -14,32 +14,48 @@ Italian's studied tables SHALL carry, in `tables/it/grammar.tsv`, the readings o
 - **THEN** it answers four readings, each its own tag: `VERB|Mood=Ind|Number=Sing|Person=2|Tense=Pres|VerbForm=Fin`, and `VERB|Mood=Sub|Number=Sing|Tense=Pres|VerbForm=Fin` with `Person=1`, `Person=2` and `Person=3`
 
 #### Scenario: The conditional, the imperative, the gerund and the participles
-- **WHEN** the card asks the grammar of `parlerebbe`, `parla`, `parlando`, `parlante` and `parlata`
-- **THEN** `parlerebbe` is `VERB|Mood=Cnd|Number=Sing|Person=3|VerbForm=Fin`, with no tense; `parla` carries the present indicative third singular and the imperative second singular, with no tense; `parlando` is `VERB|VerbForm=Ger`; `parlante` is `VERB|Tense=Pres|VerbForm=Part`; and `parlata`, where the forms table files it under *parlare*, is `VERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part`
+- **WHEN** the card asks the grammar of `parlerebbe`, `parla`, `parlando`, `parlante` and `creduta`
+- **THEN** `parlerebbe` is `VERB|Mood=Cnd|Number=Sing|Person=3|VerbForm=Fin`, with no tense; `parla` carries the present indicative third singular and the imperative second singular, with no tense; `parlando` is `VERB|VerbForm=Ger`; `parlante` is `VERB|Number=Sing|Tense=Pres|VerbForm=Part`; and `creduta`, which the dictionary gives as the feminine of the participle `creduto`, is `VERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part` of *credere*
 
 #### Scenario: The table's stress marks and a reflexive row
-- **WHEN** *dare*'s table writes `dièdi` and *lavarsi*'s writes `mi làvo`, *lavare* being an entry
-- **THEN** `diedi` carries *dare*'s passato remoto, first person singular, and `lavo` *lavare*'s present indicative, first person singular
+- **WHEN** *dare*'s table writes `dièdi`, *lavarsi*'s writes `mi làvo` and `làvati`, *lavare* being an entry, and *pentirsi*'s writes `pentìrsi` and `pèntiti`, with no *pentire*
+- **THEN** `diedi` carries *dare*'s passato remoto, first person singular, `lavo` *lavare*'s present indicative, first person singular, `làvati` gives no reading, and `pentire` and `penti` carry *pentirsi*'s infinitive and imperative, second person singular
 
 #### Scenario: Rows that give no reading
 - **WHEN** a table lists the negative imperative `non parlàre` (written `parlàre` in the row), the formal imperative `parli` (Lei) and a defective verb's cell `-`
 - **THEN** `parlare` reads only as the infinitive, `parli` carries no imperative reading, and `-` is no form
 
 #### Scenario: A noun says its gender
-- **WHEN** the card asks the grammar of `case` as *casa*, and of `città` as *città*
-- **THEN** `case` is a feminine plural noun (`NOUN|Gender=Fem|Number=Plur`), and `città` a feminine noun both singular and plural
+- **WHEN** the card asks the grammar of `case` as *casa*, of `città` as *città*, of `gas` as *gas* and of `uova` as *uovo*
+- **THEN** `case` is a feminine plural noun (`NOUN|Gender=Fem|Number=Plur`), `città` a feminine noun both singular and plural, `gas` a masculine singular noun alone, and `uova` a feminine plural noun
 
 #### Scenario: Adjectives of four and of two forms
-- **WHEN** the card asks the grammar of `rosse` as *rosso* and of `grandi` as *grande*
-- **THEN** `rosse` is `ADJ|Gender=Fem|Number=Plur`, and `grandi` is `ADJ|Number=Plur`, with no gender
+- **WHEN** the card asks the grammar of `rosse` as *rosso*, of `grandi` as *grande* and of `minore`
+- **THEN** `rosse` is `ADJ|Gender=Fem|Number=Plur`, `grandi` is `ADJ|Number=Plur`, with no gender, and `minore` carries `Degree=Cmp`
+
+#### Scenario: The shared article table
+- **WHEN** the dictionary writes the same article table under *il* and under *lo*
+- **THEN** `i` and `la` read as *il*'s, `gli` as *lo*'s, and `il` names no *lo*
+
+#### Scenario: A homograph names its other dictionary form
+- **WHEN** the card asks the grammar of `porti` as *portare*, and the noun *porto* is ranked
+- **THEN** it also names *porto*, whose plural `porti` is
+
+#### Scenario: A participle filed under a noun's spelling
+- **WHEN** the forms table keeps `parlata` as the noun *parlata*, which the dictionary also gives as the feminine past participle of *parlare*
+- **THEN** the card of `parlata` answers no verb reading of the noun and names *parlare*
 
 #### Scenario: A noun the forms table reads as a verb
 - **WHEN** the forms table maps `porta` to *portare*, so that the noun *porta* is no lemma of the tables
 - **THEN** the card of `porta` as *portare* answers its verb readings, and no reading names the noun
 
 #### Scenario: What gives no reading
-- **WHEN** the tables are reduced, the dictionary lists an archaic alternative form with a conjugation table, a capitalised headword, and `attore` as the masculine of *attrice*
-- **THEN** no reading comes from the alternative form or the capitalised headword, and `attore` is no form of *attrice*
+- **WHEN** the tables are reduced, the dictionary lists an archaic alternative form with a conjugation table, a capitalised headword, `attore` as the masculine of *attrice*, `casétta` as *casa*'s diminutive and `veramente` as *vero*'s adverb
+- **THEN** no reading comes from the alternative form, the capitalised headword, the diminutive or the adverb, and `attore` is no form of *attrice*
+
+#### Scenario: The base's pool
+- **WHEN** it-fr's base is built
+- **THEN** its tag pool is the pin followed by the readings' tags outside it, and holds nothing of a pair's senses
 
 ### Requirement: Italian's pinned tag pool
 `tables/it/tags.tsv`, Italian's pinned tag pool, SHALL hold every tag Italian's readings carry, each once, one per line, and no other tag — the first reduction's in byte order, replacing the placeholder the forms tables pinned before any Italian pack shipped, a tag a later reduction adds appended after them, so that a pinned tag never changes index; it SHALL be written by a person and kept by every reduction, and the checks SHALL fail, naming the tag, when it holds a tag no reading carries or misses one a reading carries. Every base studying Italian SHALL lay its tag pool out as that pin, then any reading tag the pin lacks, and nothing of a pair's senses, so that it-fr, it-en and it-es share one base.
