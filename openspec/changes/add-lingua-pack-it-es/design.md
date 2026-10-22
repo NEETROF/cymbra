@@ -205,8 +205,8 @@ programme's *Measured figures* record the committed coverage.
 
 The main spec's *A gloss is in the reader's language, written by a person* says « never pivoted through a
 third language », its scenario *No pivot through English* that neither of two translations of one sense
-glosses the other: MODIFIED for it-es alone — the pivot qualifies after every direct source, marked by its
-source —, the scenario kept, *A pivot for it-es* added. No open change holds the requirement.
+glosses the other: MODIFIED for it-es alone — Wikidata's items after the Spanish section and the two
+Wiktionaries' tables, the pivot after every other source, each marked by its source —, the scenario kept, *A pivot for it-es* added. No open change holds the requirement.
 
 ### D11 — A baseline, and not shipped
 

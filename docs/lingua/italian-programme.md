@@ -231,7 +231,7 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 5 Wording | 55 | `refine-lingua-italian-wording`: the corrections dogfood brings, in every language | 1.5–3 | 54 | |
 | 5 | 56 | `amend-lingua-youtube-captions-italian` | 0.5–1 | 57 | |
 
-**Size.** 57 changes, 139.5–254 ideal days: stage 0 7.75–12.75, stage 1 50.5–89, stage 2 26.5–48,
+**Size.** 57 changes, 139.25–254.25 ideal days: stage 0 7.75–12.75, stage 1 50.5–89, stage 2 26.5–48,
 stage 3 33.5–64.5, stage 4 19–36, stage 5 2–4. Stage 0 and 1 together — the split, then Italian
 for today's French-speaking readers — are 58–102. The matrix programme's 57 changes were estimated at 175–311; its French stage
 merged in two calendar days of bursts. The calendar here is set the same way: by reviews, dogfood,
