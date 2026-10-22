@@ -200,7 +200,7 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 2 | 25 | `enable-lingua-italian-for-english-speakers` (it-en) | 4–7.5 | 34 | Proposal merged ([#999](https://github.com/NEETROF/cymbra/pull/999)) |
 | 2 | 26 | `add-lingua-italian-english-listings` | 1.5–3 | 36 | Proposal merged ([#1000](https://github.com/NEETROF/cymbra/pull/1000)) |
 | 2 | 27a | `add-lingua-it-es-pivot-sources` (I4, I11): seven Wiktionaries' translation tables kept by sense for a pivot, the Italian Wiktionary's Spanish section, Wikidata Lexemes — derived and pinned | 2.5–4 | — | Proposal merged ([#1005](https://github.com/NEETROF/cymbra/pull/1005)) |
-| 2 | 27 | `add-lingua-pack-it-es` (I4): the floor fixed first; the Spanish Wiktionary's Italian section, the Italian Wiktionary's Spanish translations, the Spanish tables read backwards, then change 27a's sources | 3–5 | 49 | Proposed ([#1006](https://github.com/NEETROF/cymbra/pull/1006)) |
+| 2 | 27 | `add-lingua-pack-it-es` (I4): the floor fixed first; the Spanish Wiktionary's Italian section, the Italian Wiktionary's Spanish translations, the Spanish tables read backwards, then change 27a's sources | 4–7 | 49 | Proposed ([#1006](https://github.com/NEETROF/cymbra/pull/1006)) |
 | 2 | 28 | `refine-lingua-it-es-glosses` | 2–3.5 | 49b | |
 | 2 | 29 | `measure-lingua-it-es-translation-marks` | 1–2 | 26 | |
 | 2 | 30 | `enable-lingua-italian-for-spanish-speakers` (it-es) | 4–7.5 | 35 | |
@@ -231,7 +231,7 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 5 Wording | 55 | `refine-lingua-italian-wording`: the corrections dogfood brings, in every language | 1.5–3 | 54 | |
 | 5 | 56 | `amend-lingua-youtube-captions-italian` | 0.5–1 | 57 | |
 
-**Size.** 57 changes, 138.5–252 ideal days: stage 0 7.75–12.75, stage 1 50.5–89, stage 2 25.5–46,
+**Size.** 57 changes, 139.5–254 ideal days: stage 0 7.75–12.75, stage 1 50.5–89, stage 2 26.5–48,
 stage 3 33.5–64.5, stage 4 19–36, stage 5 2–4. Stage 0 and 1 together — the split, then Italian
 for today's French-speaking readers — are 58–102. The matrix programme's 57 changes were estimated at 175–311; its French stage
 merged in two calendar days of bursts. The calendar here is set the same way: by reviews, dogfood,
