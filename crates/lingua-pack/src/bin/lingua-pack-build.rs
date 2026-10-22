@@ -25,10 +25,12 @@
 //! `tags.tsv`, `lexical.tsv`) is read from `<studied-dir>` — a committed pair's
 //! `tables/<studied>/` — and the rest from `<pair-dir>` (split-lingua-pack-tables-by-language).
 //!
-//! With `--split`, the two sides are read as with `--studied` — a `testdata/` folder, which
-//! holds both, is passed twice — and the pack is written as its studied language's base and its
-//! pair's layer (split-lingua-pack-format D8): neither file is written when either part fails.
-//! The split needs the studied language's pinned tag pool, `tags.tsv`.
+//! With `--split`, the two sides are read as with `--studied` and the pack is written as its
+//! studied language's base and its pair's layer (split-lingua-pack-format D8): neither file is
+//! written when either part fails, and both replace what the paths held only once both are
+//! written. The split needs the studied language's pinned tag pool, `tags.tsv`, which every
+//! committed language has; the `testdata/` fixtures, one folder holding both sides, have none
+//! until `ship-lingua-pack-bases-once` gives them one, and are refused.
 //!
 //! The input directory holds `manifest.json` (PackMeta + sources),
 //! `forms.tsv` (`form<TAB>lemma`), `freq.tsv` (`lemma<TAB>rank`),
@@ -77,7 +79,9 @@ fn whole(studied: &Path, dir: &Path, out: &str) -> Result<String, Box<dyn std::e
     Ok(format!("wrote {out} ({} bytes)", bytes.len()))
 }
 
-/// Both parts are built before either is written, so a part that fails leaves no file.
+/// Both parts are built before either is written, so a part that fails leaves no file; each is
+/// written beside its path first, and both are moved into place once both are written, so a
+/// write that fails never leaves a new base beside an old layer.
 fn split(
     studied: &Path,
     dir: &Path,
@@ -86,8 +90,16 @@ fn split(
 ) -> Result<String, Box<dyn std::error::Error>> {
     let inputs = inputs_from_dirs(studied, dir)?;
     let parts = build_split(&inputs)?;
-    std::fs::write(base, &parts.base)?;
-    std::fs::write(layer, &parts.layer)?;
+    let staged = |path: &str| format!("{path}.tmp");
+    let written = std::fs::write(staged(base), &parts.base)
+        .and_then(|()| std::fs::write(staged(layer), &parts.layer));
+    if let Err(e) = written {
+        let _ = std::fs::remove_file(staged(base));
+        let _ = std::fs::remove_file(staged(layer));
+        return Err(e.into());
+    }
+    std::fs::rename(staged(base), base)?;
+    std::fs::rename(staged(layer), layer)?;
     Ok(format!(
         "wrote {base} ({} bytes) and {layer} ({} bytes)",
         parts.base.len(),

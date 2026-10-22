@@ -295,6 +295,35 @@ pub fn check_committed_tables(root: &Path) -> Result<Vec<String>, String> {
     Ok(pairs.into_iter().map(|p| p.name).collect())
 }
 
+/// The first section, by name, that two containers' sections do not hold alike: `None` when every
+/// named section has the same bytes in both, whatever their order. Says how it differs — absent
+/// from one, or its size in each (`differs (N vs M bytes)`, the same size twice when the bytes
+/// alone differ) — so a parity check names what moved.
+pub fn first_section_difference(ours: &[Section], theirs: &[Section]) -> Option<String> {
+    let names: BTreeSet<&str> = ours.iter().chain(theirs).map(|s| s.name.as_str()).collect();
+    fn find<'a>(sections: &'a [Section], name: &str) -> Option<&'a [u8]> {
+        sections
+            .iter()
+            .find(|s| s.name == name)
+            .map(|s| s.data.as_slice())
+    }
+    names
+        .into_iter()
+        .find_map(|name| match (find(ours, name), find(theirs, name)) {
+            (Some(a), Some(b)) if a == b => None,
+            (Some(a), Some(b)) => Some(format!(
+                "the {name:?} section differs ({} vs {} bytes)",
+                a.len(),
+                b.len()
+            )),
+            (Some(a), None) => Some(format!(
+                "the {name:?} section is present ({} bytes) vs absent",
+                a.len()
+            )),
+            (None, _) => Some(format!("the {name:?} section is absent vs present")),
+        })
+}
+
 /// One base per studied language (split-lingua-pack-format D6): the base `pair` builds is
 /// byte for byte the one its language's `reference` builds, so the language's base can ship once.
 /// An error names both pairs and what differs — a field of their metadata, which a pair's manifest
@@ -331,26 +360,11 @@ pub fn check_one_base(reference: (&str, &[u8]), pair: (&str, &[u8])) -> Result<(
             &theirs.levels_estimated,
         ));
     }
-    let names: BTreeSet<&str> = our_sections
-        .iter()
-        .chain(&their_sections)
-        .map(|s| s.name.as_str())
-        .collect();
-    let find = |sections: &[Section], name: &str| {
-        sections
-            .iter()
-            .find(|s| s.name == name)
-            .map(|s| s.data.clone())
-    };
-    for name in names {
-        let (here, there) = (find(&our_sections, name), find(&their_sections, name));
-        if here != there {
-            return Err(differs(
-                &format!("the {name:?} section's size"),
-                &here.map(|data| data.len()),
-                &there.map(|data| data.len()),
-            ));
-        }
+    if let Some(difference) = first_section_difference(&our_sections, &their_sections) {
+        return Err(format!(
+            "{}'s base is not {}'s, its studied language's reference: {difference}, in {} against {}",
+            pair.0, reference.0, pair.0, reference.0
+        ));
     }
     if ours.base_version != theirs.base_version {
         return Err(differs(
@@ -730,11 +744,19 @@ mod tests {
         let reference = base(&meta, &SECTIONS);
         let other = base(&meta, &[("forms", b"abc"), ("lemmas", b"casas")]);
         let err = check_one_base(("es-fr", &reference), ("es-en", &other)).unwrap_err();
-        assert!(err.contains("\"lemmas\" section"), "{err}");
+        assert!(
+            err.contains("the \"lemmas\" section differs (5 vs 4 bytes)"),
+            "{err}"
+        );
         let missing = base(&meta, &SECTIONS[..1]);
         let err = check_one_base(("es-fr", &reference), ("es-en", &missing)).unwrap_err();
         assert!(
-            err.contains("\"lemmas\" section") && err.contains("None"),
+            err.contains("the \"lemmas\" section is absent vs present"),
+            "{err}"
+        );
+        let err = check_one_base(("es-fr", &missing), ("es-en", &reference)).unwrap_err();
+        assert!(
+            err.contains("the \"lemmas\" section is present (4 bytes) vs absent"),
             "{err}"
         );
         // The same sections in another order: another digest.

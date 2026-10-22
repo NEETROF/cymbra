@@ -34,5 +34,9 @@ rusqlite = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
+[dev-dependencies]
+# A base and a layer dropped among the whole packs (tests/parts.rs, split-lingua-pack-format D1).
+lingua-pack = { path = "../../../crates/lingua-pack" }
+
 [lints]
 workspace = true

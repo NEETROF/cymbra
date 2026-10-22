@@ -41,10 +41,12 @@ use lingua_core::packs::meta::{BaseMeta, LayerMeta};
 use lingua_core::packs::pack::section;
 use lingua_core::packs::{Pack, PackError};
 use lingua_pack::studied_of;
-use lingua_pack::tables::{STUDIED_RECORD, check_committed_tables, check_one_base};
+use lingua_pack::tables::{
+    STUDIED_RECORD, check_committed_tables, check_one_base, first_section_difference,
+};
 use lingua_pack::{
     MAX_PACK_BYTES, PAIR_SIDE, STUDIED_SIDE, SplitPack, base_version, build_pack, build_split,
-    inputs_from_dirs, inputs_from_tables,
+    build_whole_and_split, inputs_from_dirs, inputs_from_tables,
 };
 use sha2::{Digest, Sha256};
 
@@ -2451,22 +2453,24 @@ fn every_headword_of_a_shared_spanish_key_is_kept_in_change_44_s_order() {
 /// The committed pairs, each studied language's reference first.
 const COMMITTED: [&str; 6] = ["en-fr", "en-es", "es-fr", "es-en", "fr-en", "fr-es"];
 
-/// A committed pair built as a base and a layer, once per test binary.
-fn split_of(pair: &str) -> &'static SplitPack {
-    static SPLITS: [OnceLock<SplitPack>; 6] = [const { OnceLock::new() }; 6];
+/// A committed pair built whole and as a base and a layer in one pass, once per test binary. The
+/// build refuses a part over the size budget, and a base that would depend on its pair, so every
+/// committed part this answers is under budget and its language's alone.
+fn whole_and_split(pair: &str) -> &'static (Vec<u8>, SplitPack) {
+    static BUILT: [OnceLock<(Vec<u8>, SplitPack)>; 6] = [const { OnceLock::new() }; 6];
     let at = COMMITTED
         .iter()
         .position(|p| *p == pair)
         .unwrap_or_else(|| panic!("{pair} is no committed pair"));
-    SPLITS[at].get_or_init(|| {
+    BUILT[at].get_or_init(|| {
         let inputs = inputs_from_tables(&tables(), pair).unwrap_or_else(|e| panic!("{pair}: {e}"));
-        build_split(&inputs).unwrap_or_else(|e| panic!("split {pair}: {e}"))
+        build_whole_and_split(&inputs).unwrap_or_else(|e| panic!("split {pair}: {e}"))
     })
 }
 
-/// A container's sections, by name.
-fn sections_by_name(sections: Vec<lingua_core::packs::Section>) -> BTreeMap<String, Vec<u8>> {
-    sections.into_iter().map(|s| (s.name, s.data)).collect()
+/// A committed pair's base and layer.
+fn split_of(pair: &str) -> &'static SplitPack {
+    &whole_and_split(pair).1
 }
 
 /// The tags French's pairs' senses carry outside its pinned pool: the fifteen parts of speech its
@@ -2497,14 +2501,18 @@ fn spec_scenario_the_assembled_pack_is_the_whole_pack() {
     // assemble into every named section of the whole pack — the one its pin records — with the
     // same bytes, the pool included, and its metadata as the whole pack writes it.
     for pair in COMMITTED {
-        let whole = committed_pack(pair);
-        let split = split_of(pair);
+        let (whole, split) = whole_and_split(pair);
+        assert!(
+            *whole == *committed_pack(pair),
+            "{pair}: the pass that splits built another whole pack"
+        );
         let (meta, assembled) = Pack::assemble_sections(&split.base, &split.layer)
             .unwrap_or_else(|e| panic!("assemble {pair}: {e}"));
-        let (whole_meta, whole_sections) = read_container(&whole).unwrap();
-        assert!(
-            sections_by_name(assembled) == sections_by_name(whole_sections),
-            "{pair}: the assembled sections are not the whole pack's"
+        let (whole_meta, whole_sections) = read_container(whole).unwrap();
+        assert_eq!(
+            first_section_difference(&assembled, &whole_sections),
+            None,
+            "{pair}: assembled against whole"
         );
         assert_eq!(
             serde_json::to_vec(&meta).unwrap(),
@@ -2582,7 +2590,6 @@ fn spec_scenario_one_base_per_studied_language() {
     for (reference, pair) in [("en-fr", "en-es"), ("es-fr", "es-en"), ("fr-en", "fr-es")] {
         let (a, b) = (&split_of(reference).base, &split_of(pair).base);
         check_one_base((reference, a), (pair, b)).unwrap_or_else(|e| panic!("{e}"));
-        assert!(a == b, "{pair}'s base is not {reference}'s");
     }
     // Three bases, one per studied language, each named by its own digest.
     let versions: BTreeSet<String> = COMMITTED
@@ -2643,13 +2650,4 @@ fn spec_scenario_a_layer_and_its_base() {
         Pack::pair_in(&en_es.layer),
         Err(PackError::NotAWholePack { .. })
     ));
-}
-
-#[test]
-fn spec_scenario_every_part_under_budget() {
-    for pair in COMMITTED {
-        let split = split_of(pair);
-        assert!(split.base.len() < MAX_PACK_BYTES, "{pair}'s base");
-        assert!(split.layer.len() < MAX_PACK_BYTES, "{pair}'s layer");
-    }
 }

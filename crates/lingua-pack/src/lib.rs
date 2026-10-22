@@ -187,6 +187,9 @@ pub enum BuildError {
     /// pool, [`TAG_POOL_TABLE`] (split-lingua-pack-format D5): without one the pool is a single
     /// sorted union of the readings' and the senses' tags, which no base and layer reproduce.
     NoPinnedPool,
+    /// The base would depend on the pair it is built with (split-lingua-pack-format D6): two
+    /// pairs of one language would build two bases. Names the cause.
+    BaseFollowsPair(String),
     /// A base or a layer exceeds [`MAX_PACK_BYTES`] (split-lingua-pack-format D8): neither part
     /// is written.
     PartOverBudget {
@@ -265,6 +268,11 @@ impl std::fmt::Display for BuildError {
                 f,
                 "a base and a layer are built only from inputs carrying the studied language's \
                  pinned tag pool, {TAG_POOL_TABLE}; these carry none"
+            ),
+            BuildError::BaseFollowsPair(why) => write!(
+                f,
+                "the base would depend on the pair: {why}; a base is built from its studied \
+                 language's tables alone, the same for every pair of the language"
             ),
             BuildError::PartOverBudget {
                 part,
@@ -597,58 +605,7 @@ pub fn tsv_pairs(text: &str) -> Vec<(String, String)> {
 /// Builds a `pack.lingua` from its inputs, enforcing licence hygiene and the
 /// size budget. Deterministic: identical inputs produce byte-identical output.
 pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
-    let built = build_sections(inputs)?;
-    let meta_json = serde_json::to_vec(&inputs.meta).expect("PackMeta serialises");
-    let pool = built.grammar.pool();
-    // The two sides interleaved, in the order every pin records.
-    let mut sections: Vec<(&str, &[u8])> = vec![
-        (section::FORMS, built.forms.as_slice()),
-        (section::LEMMAS, built.lemmas.as_bytes()),
-        (section::FREQ, built.freq.as_slice()),
-    ];
-    if !built.levels.is_empty() {
-        sections.push((section::LEVELS, built.levels.as_slice()));
-    }
-    if !built.lexical.is_empty() {
-        sections.push((section::LEXICAL, built.lexical.as_slice()));
-    }
-    if !built.expr.is_empty() {
-        sections.push((section::EXPR, built.expr.as_slice()));
-        sections.push((section::EXPR_ZST, built.expr_zst.as_slice()));
-    }
-    if !built.expr_names.is_empty() {
-        sections.push((section::EXPR_NAMES_ZST, built.expr_names.as_slice()));
-    }
-    if !built.expr_others.is_empty() {
-        sections.push((section::EXPR_OTHERS, built.expr_others.as_slice()));
-    }
-    if !pool.is_empty() {
-        sections.push((section::TAGS, pool.as_slice()));
-    }
-    if !built.grammar.paradigms.is_empty() {
-        sections.push((section::PARADIGMS_ZST, built.grammar.paradigms.as_slice()));
-    }
-    if !built.grammar.senses.is_empty() {
-        sections.push((section::SENSES_ZST, built.grammar.senses.as_slice()));
-    }
-    sections.push((section::GLOSS_ZST, built.gloss.as_slice()));
-    sections.push((section::NOTICE, inputs.notice.as_bytes()));
-    let pack = write_container(&meta_json, &sections);
-
-    if pack.len() > MAX_PACK_BYTES {
-        return Err(BuildError::OverBudget {
-            size: pack.len(),
-            budget: MAX_PACK_BYTES,
-            reduce: if !built.expr.is_empty() {
-                REDUCE_EXPRESSIONS
-            } else if !built.grammar.paradigms.is_empty() {
-                REDUCE_READINGS
-            } else {
-                REDUCE_GLOSSES
-            },
-        });
-    }
-    Ok(pack)
+    whole_pack(inputs, &build_sections(inputs)?)
 }
 
 /// A pack built as its two parts (split-lingua-pack-format D2): its studied language's base and
@@ -661,61 +618,91 @@ pub struct SplitPack {
     pub layer: Vec<u8>,
 }
 
-/// Builds a pack as a base and a layer (split-lingua-pack-format D2, D4, D5, D8), from the
-/// sections [`build_pack`] writes, built once in the same pass, so the parts cannot drift from
-/// the whole.
+/// Builds a pack as a base and a layer (split-lingua-pack-format D2, D4, D5, D6, D8), from the
+/// sections [`build_pack`] writes, so the parts cannot drift from the whole.
 ///
 /// The base holds the studied language's sections and the pool's first two blocks — the pinned
 /// pool and the readings' tags outside it —; the layer the pair's, the pool's sense-only block as
 /// `senses.tags`, the pair's whole NOTICE, and the `base_version` of its base. The ids the
 /// layer's runs store are those of the whole pool, so the assembled pool is the whole pack's.
-/// Refused, naming [`TAG_POOL_TABLE`], for inputs without a pinned pool; refused, writing
+/// Refused, naming [`TAG_POOL_TABLE`], for inputs without a pinned pool; refused, naming why,
+/// when the base would depend on the pair ([`BuildError::BaseFollowsPair`]); refused, writing
 /// neither part, when either exceeds [`MAX_PACK_BYTES`], naming the part and what it carries to
 /// reduce.
 pub fn build_split(inputs: &PackInputs) -> Result<SplitPack, BuildError> {
+    split_pack(inputs, &split_sections(inputs)?)
+}
+
+/// Builds a pack whole and as a base and a layer, from one pass over its inputs
+/// (split-lingua-pack-format D8): the whole pack [`build_pack`] writes and the parts
+/// [`build_split`] writes, laid out from the same sections. Refused as either refuses.
+pub fn build_whole_and_split(inputs: &PackInputs) -> Result<(Vec<u8>, SplitPack), BuildError> {
+    let built = split_sections(inputs)?;
+    Ok((whole_pack(inputs, &built)?, split_pack(inputs, &built)?))
+}
+
+/// The sections of inputs a split accepts (split-lingua-pack-format D5, D6): they pin their
+/// studied language's pool, and nothing of the pair reaches the base. The base's lemmas are the
+/// studied tables' only when every glossed lemma is the lemma of a form or a ranked lemma — the
+/// builder adds a glossed lemma to the lexicon otherwise —, and the base carries its dictionary
+/// words only when they are not the pair's glossed lemmas — the builder leaves the lexical table
+/// out otherwise, and the reader then takes the layer's glosses for them. Either would make two
+/// pairs of one language build two bases, which the split refuses by construction rather than
+/// leave to the committed-tables checks.
+fn split_sections(inputs: &PackInputs) -> Result<Built, BuildError> {
     if inputs.tag_pool.is_none() {
         return Err(BuildError::NoPinnedPool);
     }
+    let studied: BTreeSet<&str> = inputs
+        .form_lemma
+        .iter()
+        .map(|(_, lemma)| lemma.as_str())
+        .chain(inputs.ranks.iter().map(|(lemma, _)| lemma.as_str()))
+        .collect();
+    if let Some((lemma, _)) = inputs
+        .glosses
+        .iter()
+        .find(|(lemma, _)| !studied.contains(lemma.as_str()))
+    {
+        return Err(BuildError::BaseFollowsPair(format!(
+            "{lemma:?} is glossed but is neither the lemma of a form nor a ranked lemma, so the \
+             pair's glosses would add it to the base's lemmas"
+        )));
+    }
     let built = build_sections(inputs)?;
-    let (base_pool, senses_tags) = built.grammar.split_pool();
+    if inputs.lexical.is_some() && built.lexical.is_empty() {
+        return Err(BuildError::BaseFollowsPair(format!(
+            "the dictionary words ({LEXICAL_TABLE}) are the lemmas the pair glosses, so the base \
+             would carry no lexical table and take the layer's glosses for them"
+        )));
+    }
+    Ok(built)
+}
 
-    let mut base: Vec<(&str, &[u8])> = vec![
-        (section::FORMS, built.forms.as_slice()),
-        (section::LEMMAS, built.lemmas.as_bytes()),
-        (section::FREQ, built.freq.as_slice()),
-    ];
-    if !built.levels.is_empty() {
-        base.push((section::LEVELS, built.levels.as_slice()));
+/// The whole pack: every section in [`LAYOUT`]'s order, held to [`MAX_PACK_BYTES`].
+fn whole_pack(inputs: &PackInputs, built: &Built) -> Result<Vec<u8>, BuildError> {
+    let meta_json = serde_json::to_vec(&inputs.meta).expect("PackMeta serialises");
+    let pack = write_container(&meta_json, &built.sections(None));
+    if pack.len() > MAX_PACK_BYTES {
+        return Err(BuildError::OverBudget {
+            size: pack.len(),
+            budget: MAX_PACK_BYTES,
+            reduce: if !built.expr.is_empty() {
+                REDUCE_EXPRESSIONS
+            } else if !built.paradigms.is_empty() {
+                REDUCE_READINGS
+            } else {
+                REDUCE_GLOSSES
+            },
+        });
     }
-    if !built.lexical.is_empty() {
-        base.push((section::LEXICAL, built.lexical.as_slice()));
-    }
-    if !base_pool.is_empty() {
-        base.push((section::TAGS, base_pool.as_slice()));
-    }
-    if !built.grammar.paradigms.is_empty() {
-        base.push((section::PARADIGMS_ZST, built.grammar.paradigms.as_slice()));
-    }
+    Ok(pack)
+}
 
-    let mut layer: Vec<(&str, &[u8])> = vec![(section::GLOSS_ZST, built.gloss.as_slice())];
-    if !built.grammar.senses.is_empty() {
-        layer.push((section::SENSES_ZST, built.grammar.senses.as_slice()));
-    }
-    if !senses_tags.is_empty() {
-        layer.push((section::SENSES_TAGS, senses_tags.as_slice()));
-    }
-    if !built.expr.is_empty() {
-        layer.push((section::EXPR, built.expr.as_slice()));
-        layer.push((section::EXPR_ZST, built.expr_zst.as_slice()));
-    }
-    if !built.expr_names.is_empty() {
-        layer.push((section::EXPR_NAMES_ZST, built.expr_names.as_slice()));
-    }
-    if !built.expr_others.is_empty() {
-        layer.push((section::EXPR_OTHERS, built.expr_others.as_slice()));
-    }
-    layer.push((section::NOTICE, inputs.notice.as_bytes()));
-
+/// The base and the layer: each part's sections in [`LAYOUT`]'s order, the layer naming the
+/// base's digest, each held to [`MAX_PACK_BYTES`] with the remedy it carries.
+fn split_pack(inputs: &PackInputs, built: &Built) -> Result<SplitPack, BuildError> {
+    let base = built.sections(Some(Part::Base));
     // The digest leaves the metadata out, so the base's, written with it, has the same.
     let version = base_version(&write_container(b"", &base)).expect("a container");
     let base_meta = BaseMeta {
@@ -740,13 +727,13 @@ pub fn build_split(inputs: &PackInputs) -> Result<SplitPack, BuildError> {
         ),
         layer: write_container(
             &serde_json::to_vec(&layer_meta).expect("LayerMeta serialises"),
-            &layer,
+            &built.sections(Some(Part::Layer)),
         ),
     };
     part_budget(
         Part::Base,
         split.base.len(),
-        (!built.grammar.paradigms.is_empty()).then_some(REDUCE_READINGS),
+        (!built.paradigms.is_empty()).then_some(REDUCE_READINGS),
     )?;
     part_budget(
         Part::Layer,
@@ -790,9 +777,32 @@ pub fn base_version(container: &[u8]) -> Option<String> {
     )
 }
 
+/// Every section a pack may hold, in the order a whole pack lays them out — the order every pin
+/// records —, with whether it is written when empty (split-lingua-pack-format D2, D8). `senses.tags`,
+/// which no whole pack holds, sits beside the pool it ends. The one table that decides each
+/// container: a whole pack writes every row but `senses.tags`; a part writes the rows
+/// [`section::part_of`] gives it, in this order.
+const LAYOUT: [(&str, bool); 15] = [
+    (section::FORMS, true),
+    (section::LEMMAS, true),
+    (section::FREQ, true),
+    (section::LEVELS, false),
+    (section::LEXICAL, false),
+    (section::EXPR, false),
+    (section::EXPR_ZST, false),
+    (section::EXPR_NAMES_ZST, false),
+    (section::EXPR_OTHERS, false),
+    (section::TAGS, false),
+    (section::SENSES_TAGS, false),
+    (section::PARADIGMS_ZST, false),
+    (section::SENSES_ZST, false),
+    (section::GLOSS_ZST, true),
+    (section::NOTICE, true),
+];
+
 /// Every section of a pack, built once from its inputs (split-lingua-pack-format D8): what
 /// [`build_pack`] writes as one container and [`build_split`] as two. An empty blob is a section
-/// not written.
+/// not written, unless [`LAYOUT`] writes it anyway.
 struct Built {
     forms: Vec<u8>,
     lemmas: String,
@@ -803,8 +813,57 @@ struct Built {
     expr_zst: Vec<u8>,
     expr_names: Vec<u8>,
     expr_others: Vec<u8>,
-    grammar: GrammarSections,
+    /// The whole pool, a whole pack's `tags`.
+    tags: Vec<u8>,
+    /// The pool's studied blocks, a base's `tags` (the whole pool without a pin, which no split
+    /// accepts).
+    base_tags: Vec<u8>,
+    /// The pool's sense-only block, a layer's `senses.tags`.
+    senses_tags: Vec<u8>,
+    paradigms: Vec<u8>,
+    senses: Vec<u8>,
     gloss: Vec<u8>,
+    notice: String,
+}
+
+impl Built {
+    /// The bytes of the section `name` in a whole pack (`part` `None`) or in a part: the pool is
+    /// the whole pack's in a whole pack and its studied blocks in a base.
+    fn section(&self, name: &str, part: Option<Part>) -> &[u8] {
+        match name {
+            section::FORMS => &self.forms,
+            section::LEMMAS => self.lemmas.as_bytes(),
+            section::FREQ => &self.freq,
+            section::LEVELS => &self.levels,
+            section::LEXICAL => &self.lexical,
+            section::EXPR => &self.expr,
+            section::EXPR_ZST => &self.expr_zst,
+            section::EXPR_NAMES_ZST => &self.expr_names,
+            section::EXPR_OTHERS => &self.expr_others,
+            section::TAGS if part.is_none() => &self.tags,
+            section::TAGS => &self.base_tags,
+            section::SENSES_TAGS => &self.senses_tags,
+            section::PARADIGMS_ZST => &self.paradigms,
+            section::SENSES_ZST => &self.senses,
+            section::GLOSS_ZST => &self.gloss,
+            section::NOTICE => self.notice.as_bytes(),
+            _ => &[],
+        }
+    }
+
+    /// The sections of a whole pack (`part` `None`) or of a part, in [`LAYOUT`]'s order.
+    fn sections(&self, part: Option<Part>) -> Vec<(&'static str, &[u8])> {
+        LAYOUT
+            .iter()
+            .filter(|(name, _)| match part {
+                None => *name != section::SENSES_TAGS,
+                Some(part) => section::part_of(name) == Some(part),
+            })
+            .map(|&(name, written)| (name, written, self.section(name, part)))
+            .filter(|(_, written, data)| *written || !data.is_empty())
+            .map(|(name, _, data)| (name, data))
+            .collect()
+    }
 }
 
 /// Builds every section of a pack from its inputs, enforcing licence hygiene and the lexicon's
@@ -1062,6 +1121,7 @@ fn build_sections(inputs: &PackInputs) -> Result<Built, BuildError> {
     };
 
     let grammar = grammar_sections(inputs, studied, &lex)?;
+    let (base_tags, senses_tags) = grammar.split_pool();
 
     Ok(Built {
         forms,
@@ -1073,8 +1133,13 @@ fn build_sections(inputs: &PackInputs) -> Result<Built, BuildError> {
         expr_zst,
         expr_names,
         expr_others,
-        grammar,
+        tags: encode_tag_pool(&grammar.pool),
+        base_tags,
+        senses_tags,
+        paradigms: grammar.paradigms,
+        senses: grammar.senses,
         gloss: gloss_zst,
+        notice: inputs.notice.clone(),
     })
 }
 
@@ -1091,14 +1156,9 @@ struct GrammarSections {
 }
 
 impl GrammarSections {
-    /// The whole pool, as the `tags` section encodes it: empty when there is none.
-    fn pool(&self) -> Vec<u8> {
-        encode_tag_pool(&self.pool)
-    }
-
     /// The pool's studied blocks — the base's `tags` — and its sense-only block — the layer's
-    /// `senses.tags` —, each encoded as the whole pool is (split-lingua-pack-format D2, D5).
-    /// Called only on a pinned pool, which [`build_split`] demands.
+    /// `senses.tags` —, each encoded as the whole pool is (split-lingua-pack-format D2, D5). Without
+    /// a pin, which no split accepts, the whole pool and nothing.
     fn split_pool(&self) -> (Vec<u8>, Vec<u8>) {
         let at = self.studied.unwrap_or(self.pool.len());
         (
@@ -3501,7 +3561,8 @@ mod tests {
         let (whole_meta, whole_sections) = read_container(&whole).unwrap();
         assert_eq!(by_name(sections), by_name(whole_sections));
         assert_eq!(serde_json::to_vec(&meta).unwrap(), whole_meta);
-        // What each part holds, in its order (D2).
+        // What each part holds (D2), in the whole pack's order, `senses.tags` where the pool
+        // ends.
         assert_eq!(
             names_of(&split.base),
             ["forms", "lemmas", "freq", "levels", "tags", "paradigms.zst"]
@@ -3509,11 +3570,11 @@ mod tests {
         assert_eq!(
             names_of(&split.layer),
             [
-                "gloss.zst",
-                "senses.zst",
-                "senses.tags",
                 "expr",
                 "expr.zst",
+                "senses.tags",
+                "senses.zst",
+                "gloss.zst",
                 "notice"
             ]
         );
@@ -3608,6 +3669,43 @@ mod tests {
     }
 
     #[test]
+    fn one_pass_builds_the_whole_pack_and_its_parts() {
+        let inp = pinned_inputs();
+        let (whole, split) = build_whole_and_split(&inp).expect("both");
+        assert_eq!(whole, build_pack(&inp).unwrap());
+        assert_eq!(split, build_split(&inp).unwrap());
+        // Refused as `build_split` refuses.
+        assert_eq!(
+            build_whole_and_split(&inputs_with_grammar()),
+            Err(BuildError::NoPinnedPool)
+        );
+    }
+
+    #[test]
+    fn spec_scenario_inputs_that_would_make_the_base_the_pair_s() {
+        // A glossed lemma the studied tables do not hold: the pair's glosses would add a lemma
+        // to the base.
+        let mut inp = pinned_inputs();
+        inp.glosses.push(("seldom".into(), "rarement".into()));
+        let err = build_split(&inp).unwrap_err();
+        assert!(matches!(err, BuildError::BaseFollowsPair(_)), "{err:?}");
+        assert!(err.to_string().contains("\"seldom\" is glossed"), "{err}");
+        assert!(build_pack(&inp).is_ok(), "the whole pack builds as before");
+        // Dictionary words that are the pair's glossed lemmas: the base would carry no lexical
+        // table, and read the layer's glosses as its words.
+        let mut inp = pinned_inputs();
+        inp.lexical = Some(vec!["city".into(), "leave".into(), "run".into()]);
+        let err = build_split(&inp).unwrap_err();
+        assert!(err.to_string().contains(LEXICAL_TABLE), "{err}");
+        let whole = build_pack(&inp).unwrap();
+        assert!(section_of(&whole, section::LEXICAL).is_none());
+        // Dictionary words of their own: the base carries them, and splits.
+        inp.lexical = Some(vec!["city".into(), "run".into()]);
+        let split = build_split(&inp).unwrap();
+        assert!(section_of(&split.base, section::LEXICAL).is_some());
+    }
+
+    #[test]
     fn a_language_that_pins_its_pool_writes_it_readings_or_not() {
         // No readings, no runs: the pin alone is the pool, in the whole pack and in the base.
         let mut inp = inputs();
@@ -3636,16 +3734,14 @@ mod tests {
     /// The part `build_split` refuses as over budget, and its message.
     fn over_budget_part(inp: &PackInputs) -> (Part, Option<&'static str>, String) {
         match build_split(inp) {
-            Err(e @ BuildError::PartOverBudget { .. }) => {
-                let BuildError::PartOverBudget {
+            Err(
+                e @ BuildError::PartOverBudget {
                     part,
                     size,
                     budget,
                     reduce,
-                } = e
-                else {
-                    unreachable!()
-                };
+                },
+            ) => {
                 assert_eq!(budget, MAX_PACK_BYTES);
                 assert!(size > budget);
                 (part, reduce, e.to_string())

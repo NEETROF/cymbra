@@ -27,6 +27,7 @@ use lingua_core::knowledge::state::FrequencyRanks;
 use lingua_core::packs::Pack;
 use lingua_core::packs::format::read_container;
 use lingua_core::packs::pack::section;
+use lingua_pack::tables::first_section_difference;
 use lingua_pack::{
     BuildError, MAX_PACK_BYTES, TAG_POOL_TABLE, build_pack, build_split, inputs_from_dir,
 };
@@ -354,10 +355,12 @@ fn lingua_pack_build_names_the_lexicon_it_refuses() {
 // — a base and a layer (split-lingua-pack-format) —
 
 #[test]
-fn spec_scenario_the_fixtures_build_whole_as_before_and_no_parts() {
-    // D5: the fixtures carry no pinned pool, so they keep building whole packs byte for byte —
-    // each to the sha256 it built to before the split (recorded on `main` at 2efe503f4) — and a
-    // split of any of them is refused, naming the pool file; change 4 gives them one.
+fn the_fixtures_build_whole_as_recorded_and_split_by_their_pin() {
+    // D5: each fixture builds its whole pack byte for byte — the sha256 it built to before the
+    // split (recorded on `main` at 2efe503f4), while it pins no pool — and splits by its data: a
+    // fixture without `tags.tsv` is refused, naming it; one with a pin splits into parts that
+    // assemble into its whole pack. Change 4 pins the fixtures, and edits the two French rows,
+    // whose pool its pin adds.
     let root = testdata_dir().parent().unwrap().to_path_buf();
     for (pair, size, sha256) in [
         (
@@ -392,18 +395,22 @@ fn spec_scenario_the_fixtures_build_whole_as_before_and_no_parts() {
         ),
     ] {
         let inputs = inputs_from_dir(&root.join(pair)).unwrap_or_else(|e| panic!("{pair}: {e}"));
-        assert!(inputs.tag_pool.is_none(), "{pair} pins no pool");
         let bytes = build_pack(&inputs).unwrap_or_else(|e| panic!("build {pair}: {e}"));
         assert_eq!(
             (bytes.len(), sha256_hex(&bytes).as_str()),
             (size, sha256),
             "{pair}"
         );
-        match build_split(&inputs) {
-            Err(e @ BuildError::NoPinnedPool) => {
-                assert!(e.to_string().contains(TAG_POOL_TABLE), "{pair}: {e}");
-            }
-            other => panic!("{pair}: expected NoPinnedPool, got {other:?}"),
+        if inputs.tag_pool.is_none() {
+            let refused = build_split(&inputs).expect_err("a fixture without a pin");
+            assert_eq!(refused, BuildError::NoPinnedPool, "{pair}");
+            assert!(refused.to_string().contains(TAG_POOL_TABLE), "{pair}");
+        } else {
+            let split = build_split(&inputs).unwrap_or_else(|e| panic!("split {pair}: {e}"));
+            let (_, assembled) = Pack::assemble_sections(&split.base, &split.layer)
+                .unwrap_or_else(|e| panic!("assemble {pair}: {e}"));
+            let (_, whole) = read_container(&bytes).unwrap();
+            assert_eq!(first_section_difference(&assembled, &whole), None, "{pair}");
         }
     }
 }
@@ -423,8 +430,9 @@ fn lingua_pack_build(args: &[&std::path::Path]) -> (bool, String) {
 #[test]
 fn lingua_pack_build_writes_a_base_and_a_layer() {
     // D8: `--split <studied-dir> <pair-dir> <base> <layer>`, a fixture folder passed twice. The
-    // fixture as committed pins no pool: refused, naming `tags.tsv`, neither file written.
+    // fixture without a pinned pool: refused, naming `tags.tsv`, neither file written.
     let dir = fixture_with_forms("split", "");
+    let _ = std::fs::remove_file(dir.join(TAG_POOL_TABLE));
     let split = std::path::Path::new("--split");
     let (base, layer) = (dir.join("base.lingua"), dir.join("layer.lingua"));
     let (ok, stderr) = lingua_pack_build(&[split, &dir, &dir, &base, &layer]);
@@ -432,7 +440,9 @@ fn lingua_pack_build_writes_a_base_and_a_layer() {
     assert!(stderr.contains(TAG_POOL_TABLE), "{stderr}");
     assert!(!base.exists() && !layer.exists(), "no part written");
     // Pinned with the pool it carries today — its sorted union, so its whole pack keeps its
-    // bytes —, it writes both, which assemble into its whole pack.
+    // bytes —, it writes both, which assemble into its whole pack. The lemmas it glosses and its
+    // studied tables do not hold (`leaf`, `can`, `put`) are made the lemmas of their own forms,
+    // so the base holds no lemma of the pair's alone (D6); the rows move no byte of the whole pack.
     let whole = build_pack(&inputs_from_dir(&dir).unwrap()).unwrap();
     let (_, sections) = read_container(&whole).unwrap();
     let pool = sections
@@ -441,6 +451,22 @@ fn lingua_pack_build_writes_a_base_and_a_layer() {
         .map(|s| String::from_utf8(s.data.clone()).unwrap())
         .expect("the fixture's pool");
     std::fs::write(dir.join(TAG_POOL_TABLE), format!("{pool}\n")).unwrap();
+    let inputs = inputs_from_dir(&dir).unwrap();
+    let held: std::collections::BTreeSet<&str> = inputs
+        .form_lemma
+        .iter()
+        .map(|(_, lemma)| lemma.as_str())
+        .chain(inputs.ranks.iter().map(|(lemma, _)| lemma.as_str()))
+        .collect();
+    let rows: String = inputs
+        .glosses
+        .iter()
+        .filter(|(lemma, _)| !held.contains(lemma.as_str()))
+        .map(|(lemma, _)| format!("{lemma}\t{lemma}\n"))
+        .collect();
+    let forms = dir.join("forms.tsv");
+    let table = std::fs::read_to_string(&forms).unwrap();
+    std::fs::write(&forms, format!("{table}{rows}")).unwrap();
     assert_eq!(build_pack(&inputs_from_dir(&dir).unwrap()).unwrap(), whole);
     let (ok, stderr) = lingua_pack_build(&[split, &dir, &dir, &base, &layer]);
     assert!(ok, "{stderr}");
@@ -449,13 +475,16 @@ fn lingua_pack_build_writes_a_base_and_a_layer() {
         std::fs::read(&layer).unwrap(),
     );
     let (_, assembled) = Pack::assemble_sections(&base, &layer).expect("assemble");
-    let by_name = |sections: Vec<lingua_core::packs::Section>| {
-        sections
-            .into_iter()
-            .map(|s| (s.name, s.data))
-            .collect::<std::collections::BTreeMap<_, _>>()
-    };
-    assert!(by_name(assembled) == by_name(sections));
+    assert_eq!(first_section_difference(&assembled, &sections), None);
+    // A layer that cannot be written leaves no base either, and nothing staged.
+    let (base, layer) = (dir.join("new-base.lingua"), dir.join("absent/layer.lingua"));
+    let (ok, _) = lingua_pack_build(&[split, &dir, &dir, &base, &layer]);
+    assert!(!ok);
+    assert!(!base.exists(), "no base without its layer");
+    assert!(
+        !dir.join("new-base.lingua.tmp").exists(),
+        "nothing staged left"
+    );
     std::fs::remove_dir_all(&dir).unwrap();
     // A pair whose manifest studies another language than its studied folder is refused by
     // name, and nothing is written.
