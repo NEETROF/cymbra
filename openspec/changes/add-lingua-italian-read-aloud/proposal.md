@@ -51,19 +51,21 @@ Nothing of this is visible before `enable-lingua-italian` (change 20) lists an I
   `ita-ITA-default` is a voice of Italy, named « Italie » in French, "Italy" in English, « Italia »
   in Spanish.
 - **The Italian words in the catalogue** (D3): `src/i18n/{fr,en,es}/languages.ts` gain `italian` —
-  its name and forms (« italien », « d'italien », « l'italien », « italienne »; "Italian";
-  « italiano », « el italiano », « italiana »), the Windows language a voice is installed with
-  (« Italien (Italie) », "Italian (Italy)", « Italiano (Italia) ») and the sentence a preview reads,
-  in Italian whatever the interface — read through the speaker's language, without widening the
-  extension's `StudiedLanguage` type, which change 20 widens. The same entry names Italian's
-  estimated level (change 14) in the three interfaces.
+  its name and forms (« Italien », « d'italien », « l'italien », « italienne »; "Italian";
+  « Italiano », « de italiano », « el italiano », « italiana »), the Windows language a voice is
+  installed with (« Italien (Italie) », "Italian (Italy)", « Italiano (Italia) ») and the sentence a
+  preview reads, in Italian whatever the interface — and the catalogue's named languages gain `it`
+  (`src/analyzer/language-labels.ts`), so the voice block reads them through the speaker's language,
+  without widening the extension's `StudiedLanguage` type, which change 20 widens; the level titles
+  name Italian from then.
 - **An Italian piece is heard as the page writes it** (D4): when the speaker reads Italian, a card
   opened on an elided piece reads it with the rest of the word the page writes it against (`l'` →
-  « l'uomo », `dell'` → « dell'acqua »); a piece of a split articulated preposition reads the written
-  word (« al », « nell' » with its word); a truncation reads as written (« po' », « da' »); a word
-  change 10 reads for an accent reads its accented text (« perché », and « c'è » for « c'e' »'s
-  pieces); a lone `è` is spoken « è. ». The button is labelled with what it reads; the dictionary
-  form's button is unchanged (« ▶ essere »).
+  « l'uomo », `dell'` → « dell'acqua »), and with the next token's accented text where change 10 read
+  it (« c'e' » → « c'è », the page hit carrying that text to the card); a piece of a split
+  articulated preposition reads the written word (« al »); a truncation reads as written (« po' »,
+  « da' »); any other card reads as a French card does, so « perche' » reads `perché`; then a word of
+  one vowel, accented or a capital, is spoken with a full stop (« è. », « E. ») — except « é », which a
+  stop silences. The button is labelled with the form seen, without the stop.
 - **English, Spanish and French do not move** (D5): their voice rankings over every captured list
   and every setting are pinned and pass unchanged; the card's rule reads Italian only.
 
@@ -88,7 +90,9 @@ Lingua only. Nothing is consumed from Cymbra ID, Music, Live, the back office or
 nothing new is offered to them.
 
 - `apps/lingua-extension/src/reading/speech.ts` (`PREFERRED_REGIONS.it`, `THREE_LETTER_REGIONS.ita`),
-  the card's spoken-text rule (`src/content/selection-card.ts` or where French's D5 lives),
-  `src/i18n/{fr,en,es}/languages.ts` (`italian`); their tests and the voice-ranking snapshot.
+  `src/reading/wordpopup.ts` (`heardWord`), `src/reading/session.ts` and `src/reading/selection-card.ts`
+  (the next token's text on the page hit), `src/i18n/{fr,en,es}/languages.ts` (`italian`),
+  `src/analyzer/language-labels.ts` (`NamedLanguage`); their tests, the labels lint, and the
+  voice-ranking snapshot, French pinned first.
 - Untouched: lingua-core, the packs, every golden, the server, the site.
 - **Effort, against 1–2 ideal days**: 1–1.5 (design, *Effort*).
