@@ -160,7 +160,8 @@ cluster's words apart.
   their own head names (*lo*: `gli`, an `other` mark beside *il*'s), so `il` names no *lo*. French's
   plural-head rule carries (`le`, the pronoun, plural feminine, gives `la` no reading as its
   singular); `gli`'s own article entry, whose link « the article i » is broken and whose head is
-  plural, gives nothing of its own. An article is
+  plural, gives nothing of its own; and *il*'s head row that only repeats a table cell (`i`, `plural`)
+  gives nothing, the table row (`masculine`, `plural`) giving `i` its one reading. An article is
   a determiner, as UD writes it. A pronoun's form names its gender or gives no reading, and a
   personal pronoun's other persons and cases are other words, not inflections (French's D4).
 
