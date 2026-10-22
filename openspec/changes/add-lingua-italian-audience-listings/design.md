@@ -27,12 +27,13 @@ Measured on main at `6ef0bad0c`. "ext" is `apps/lingua-extension/STORE-LISTING.m
   | Chrome Web Store / AMO description (Spanish), on main | 2,940–3,416 | 16,000 |
   | Test instructions (one field, both stores), after change 26 | 988 (995 if a dashboard counts a line break as two) | 1,000 |
   | Review notes (App Store, one English field), after change 26 | 3,994 | 4,000 |
-
-  Both figures hold only if change 31 has not touched the shared fields first.
   | App Store keywords | | 100 bytes |
   | App Store subtitle | | 30 |
   | App Store promotional text | | 170 |
   | App Store description | | 4,000 |
+
+  The two after change 26 hold only if change 31 has not touched the shared fields first.
+
 - **What is true at change 45**, en-it alone:
   - English words highlighted, the page's percentage and the card's buttons in Italian (change 33);
   - glosses from the Italian Wiktionary's English section, then the tables (change 36);
@@ -191,7 +192,7 @@ changes that modify one requirement without naming each other, hence the row.
 
 - **Italian written without a native reader, in a public listing** → the reviewer agent (I2), the claims
   table, and change 55 for corrections.
-- **A field over its cap** → D2's restructure, and the counts recorded in each heading.
+- **A field over its cap** → D2's measured cuts, every label kept; the counts where the files record them.
 - **An Italian summary over a foreign description** → D7's order and D5's procedure, upload without
   publishing before the description is filled.
 

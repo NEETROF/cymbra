@@ -46,7 +46,7 @@ None.
 - `lingua-browser-extension`: MODIFIED *The store listings name each studied language* (held by
   `add-lingua-italian-english-listings`):
   - the listings carry Italian texts for Italian speakers once a pair glossed in Italian ships;
-  - an Italian text's wording is the Italian reviewer agent's, as I2 settles;
+  - an Italian text is in wording the Italian reviewer agent has reviewed, as I2 settles;
   - a scenario *A listing in Italian* is added.
 
 ## Impact
