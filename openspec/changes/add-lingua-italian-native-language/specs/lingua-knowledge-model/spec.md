@@ -19,4 +19,4 @@ The user profile SHALL keep `native_language` (the language of comfort: glosses,
 
 #### Scenario: An Italian native
 - **WHEN** a reader's native language is Italian and they study English
-- **THEN** the profile keeps Italian as the native language, the backup is written in schema version 2, and Italian is never among the studied languages
+- **THEN** the profile keeps Italian as the native language, and a choice adding Italian to the studied languages is refused

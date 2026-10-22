@@ -44,12 +44,11 @@ None.
 ## Impact
 
 - **Products.** Lingua only: `crates/lingua-core` (`knowledge/profile.rs`, its tests, `decks/backup.rs`'s
-  test), `crates/lingua-pack` (one test), `apps/lingua-agent/rust/src/vocab.rs`, `crates/lingua-wasm`
-  (nothing but the regenerated binding); `apps/lingua-extension` (`analyzer/types.ts`,
+  test), `crates/lingua-pack` (one test), `apps/lingua-agent/rust/src/vocab.rs`; `apps/lingua-extension` (`analyzer/types.ts`,
   `i18n/language.ts`, `state/native-language.ts`, `state/store.ts`, `state/app-relay.ts`,
-  `state/profile.ts`, `analyzer/language-labels.ts`, `i18n/{fr,en,es}/languages.ts`, their tests). No
-  backend, back office, site or Apple host change.
+  `state/profile.ts`, `analyzer/language-labels.ts`, `i18n/{fr,en,es}/languages.ts`, their tests); the
+  wasm binding regenerates, nothing of it committed. No backend, back office, site or Apple host change.
 - **Order.** After changes 5, 15 and 20 (it rewrites change 5's tests, completes change 15's names,
   touches change 20's); before 33 (which restores the interface alias), 36 (which builds en-it) and 45.
-  Released before change 45's release (D4).
+  An extension release and a host-app release carrying it, before change 45's release (D4).
 - **Effort, against 1–2 ideal days**: 1–1.75 (design, *Effort*).
