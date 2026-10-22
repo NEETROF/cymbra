@@ -1,0 +1,12 @@
+schema: spec-driven
+created: 2026-10-22
+archiveAfter:
+  - add-site-spanish-locale
+  - extend-site-spanish-locale
+  - add-site-lingua-showcase
+  - add-site-music-showcase
+  - add-lingua-usage-counts
+  - add-lingua-french-listings
+  - add-lingua-italian-listings
+  - add-lingua-italian-english-listings
+  - add-lingua-italian-interface
