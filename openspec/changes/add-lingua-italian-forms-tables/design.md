@@ -96,6 +96,42 @@ the Wiktionary reads is never moved; a form it lists under a lemma the tables do
 out. Measured: how many forms Morph-it! adds, of which lemmas, and the gates with and without
 them; kept only if the gates do not fall.
 
+**The tables' stress marks.** The section's conjugation tables write every form with its stress
+marked — `dàre`, `darèbbe`, `dièdi`, `dàto`, `hà` — which no Italian text writes: measured on the
+extract, 543,375 of the 615,286 distinct table forms carry a mark on a non-final vowel, and 37,978
+a mark on the final vowel alone, where Italian's written accent sits (`darà`, `darò`) but which is
+also the table's stress mark on a monosyllable the standard writes bare (`hà`, `dò`). A table form
+is read with every non-final mark dropped (`dàre` → `dare`; 335,949 of the 543,375 then match a
+headword of the section, the rest being cells no entry lists, read bare the same way), and its
+final mark kept — the written accent — unless the entry that carries this verb's form-of link for
+the cell is the bare spelling (`hà` → `ha`, `dò` → `do`: 7,627 of the 37,978 final-marked forms
+have a bare headword; `darà` and `dà` keep theirs, `dà`'s own entry being accented and `da` the
+preposition's, not a form of *dare*; a cell with no entry at all, ≈ 7,094, keeps its mark). The
+helper is written in `reduce-it-fr.py` with the last-vowel guard: `reduce-fr-en.py`'s
+`_marks_dropped` strips every mark and lives in a hyphen-named file no other reducer imports, and
+kaikki's French tables carry no stress marks.
+
+**A table row written with its pronoun.** 148,386 table forms hold a space: 136,225 are a reflexive
+verb's rows carrying the clitic (`mi làvo`, `si làva`, `ci laviàmo`; `si` 51,295, `mi` 23,511, `ci`
+21,092, `ti` 20,261, `vi` 20,066), and the 12,161 others are a multi-word lemma's cells (`stare
+zitto` → `stò zitto`), a `canonical` row with its auxiliary in brackets (`esìstere [auxiliary
+essere]`) and rows listing alternatives (`puote, pote`, tagged archaic) — all three give no form (an
+expression is change 12's, the bracket is bookkeeping, the alternatives are marked). For a
+reflexive row the pronoun is dropped and the bare form is the candidate — this change's own
+decision, not French's: change 45's readings pass reads a pronominal row bare (`without_pronoun`)
+under the table's own entry, and change 43's forms pass drops spaced rows — filed under the plain
+verb where the section has one (`lavo` → *lavare*: one lemma for one paradigm, the reflexive being
+the same verb with a clitic, which change 7's enclitic rule reads off `lavarsi` as *lavare* only
+while `lavarsi` is unlisted), and under the reflexive lemma where no plain verb exists (`pentirsi`,
+`vergognarsi`: `pento` → *pentirsi*). So D6 ranks no reflexive lemma whose plain verb the section
+has (`lavarsi` is no lemma of the tables; *lavare* carries its rank and its forms), and a
+reflexive-only lemma's clitic-bearing rows — its infinitive, gerund and imperatives, `pentirsi`,
+`pentendosi`, `pentitevi` — give their bare base under it (`pentire`, `pentendo`, `pentite`), its own
+infinitive excepted from D4's « no form carrying clitics », so that change 7's rule has the bases
+it needs. For the measurement: UD Italian-PUD lemmatises a reflexive without its clitic (« si
+aggirerebbe » → *aggirare*, `riunirsi` → *riunire*), so forms filed under a reflexive-only lemma
+count against D8's content gate — small, and named with the figures.
+
 ### D4 — The tables serve I7, as change 6 writes it
 
 Every word the pre-pass writes is a form: the elided pieces' words (`lo`, `una`, `di`, `ci`, …,
