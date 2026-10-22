@@ -6,7 +6,7 @@ See proposal.md — Why. Where the seams stand on `main` after changes 5 to 11:
 
 | Seam | Today |
 |---|---|
-| `crates/lingua-pack` `expression_key` | every language but English keys a headword through `reading_expression_key`; so an Italian headword is tokenised by Italian's pre-pass and each token resolved as a page's (change 5's seams). `expression_piece`'s Italian arm returns the lemma (English's arm), `expression_window` gives `EXPRESSION_WINDOW` (5). The names section and `expr.others` are written for French and Spanish (`read`, `others`), and French's order among headwords of one key applies to them alone |
+| `crates/lingua-pack` `expression_key` | every language but English keys a headword through `reading_expression_key`; so an Italian headword is tokenised by Italian's pre-pass and each token resolved as a page's (change 5's seams). `expression_piece`'s Italian arm returns the lemma (English's arm), `expression_window` gives `EXPRESSION_WINDOW` (5). The names section and `expr.others` are written for French and Spanish (the `read` flag, an inline `matches!` for the others), and French's order among headwords of one key applies to them alone |
 | `crates/lingua-core` `engine::match_expressions` | `whole_words()` is French and Spanish: the article of a contraction covered (`covered_end`), the as-written checks (`meets_as_written`, French only, reading the name through French's pre-pass when it holds an apostrophe or « au »/« aux » — `holds_french_contraction`), the choice among headwords (`written_as_the_page`, French and Spanish, Spanish's clitic guard). `expression_for_run`'s retry of `du`/`des` as `de` is French's. 44f's `gives_last_word` runs in the three languages, on `built_on_verb` (the pack's grammar) and `is_preposition` |
 | `PageJoins` | `shares_span` (the second half of a split word), `elided` (`is_elided`: a span ending on an apostrophe), `hyphened`, computed for every language |
 | Italian's pre-pass (change 6) | an elided piece is a token read as its word with a span holding the apostrophe (`l'` → `lo`, `d'` → `di`, `un'` → `una`, `dell'` → `dello`); `al`, `dal`, `nel`, `sul`, `col` and their forms split into preposition + article sharing the span, `all'`/`dall'`/`nell'`/`sull'` too; the `di` family whole; the truncations `po'`, `mo'`, `fa'`, `va'`, `da'`, `sta'`, `di'`, `be'` read as their words, the apostrophe inside the span |
@@ -42,7 +42,8 @@ and 43.
 
 `reading_expression_key` already keys Italian through `headword_reading`; this change gives
 `expression_piece` and `expression_window` their Italian arms (D2, D3), writes the names and
-`expr.others` for an Italian pack (`read` and `others` become French, Spanish and Italian), and
+`expr.others` for an Italian pack (the `read` flag and the inline `others` test become French,
+Spanish and Italian), and
 applies French's order among headwords of one key (D4). The builder's English arm stays byte for
 byte, and a French or Spanish pack is built as before, measured: the six committed packs at their
 pins.
@@ -206,6 +207,6 @@ revert with the fixture's and the golden's.
 
 2.5–3.5 ideal days, against the programme's 2–4: the written list, the window, the names and
 `expr.others` for Italian, `whole_words`, the `di` retry, the per-language contraction test and
-Italian's reading in `meets_as_written`, `written_as_the_page` for Italian, 44f's list 1–1.5; the
+Italian's reading in `meets_as_written`, the `as_written()` gate for Italian, 44f's G2 gate 1–1.5; the
 builder's arms and order 0.25–0.5; review 0.25; their tests 0.5–0.75; the fixture, the probes and
 the re-bless 0.25; spec and programme 0.25.

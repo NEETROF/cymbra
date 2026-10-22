@@ -10,7 +10,7 @@
 
 ## 2. The builder (crates/lingua-pack)
 
-- [ ] 2.1 `lib.rs`: the names section, `expr.others` and French's order among headwords written for an Italian pack (`read`, `others` become French, Spanish, Italian) (D1, D4); the English arm untouched; tests over the it-fr fixture: the names present, `valere la pena`/`vale la pena` both kept under one key; the French and Spanish tests that say « English or Spanish carries no names » rewritten as « English carries none ».
+- [ ] 2.1 `lib.rs`: the names section, `expr.others` and French's order among headwords written for an Italian pack (the `read` flag and the inline `others` test of `lib.rs` become French, Spanish, Italian) (D1, D4); the English arm untouched; tests over the it-fr fixture: the names present, `valere la pena`/`vale la pena` both kept under one key; `an_english_pack_carries_no_names` holds as it is.
 - [ ] 2.2 `tests/committed_tables.rs`: the six committed packs build to their pins (nothing moves).
 
 ## 3. Review (crates/lingua-wasm)
