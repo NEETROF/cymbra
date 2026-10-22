@@ -1,0 +1,8 @@
+schema: spec-driven
+created: 2026-10-22
+archiveAfter:
+  - add-lingua-italian-baseline
+  - add-lingua-italian-forms-tables
+  - split-lingua-pack-format
+  - ship-lingua-pack-bases-once
+  - add-lingua-french-grammar-tables
