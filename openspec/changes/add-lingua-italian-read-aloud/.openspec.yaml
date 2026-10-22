@@ -1,0 +1,9 @@
+schema: spec-driven
+created: 2026-10-22
+archiveAfter:
+  - add-lingua-read-aloud
+  - localise-lingua-settings
+  - add-lingua-native-language-labels
+  - add-lingua-french-read-aloud
+  - add-lingua-italian-tokenisation
+  - read-lingua-italian-unmarked-spellings
