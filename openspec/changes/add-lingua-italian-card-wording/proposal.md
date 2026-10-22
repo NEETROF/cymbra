@@ -9,10 +9,11 @@ interface's 23 text modules and leaves the 24th, `grammar.ts`, to this change. U
 `reading-copy.ts` renders an Italian interface's cards with the English renderer, and the parity test
 exempts `grammar` for Italian. This change writes the Italian renderer.
 
-The renderer has to name the forms of every studied language: Italian's own, and English's, French's
-and Spanish's, which an Italian speaker reads with en-it, fr-it and es-it. I6 settles Treccani's names
-for Italian's tenses and moods. English has no Treccani name. Change 24's precedent for Spanish
-readers of English answers it: the native edition's form-of wording (the Italian Wiktionary writes
+The renderer names the forms an Italian speaker reads with en-it, fr-it and es-it: English's,
+French's and Spanish's. Its Italian row is required by the type and reaches no reader today (no pair
+studies its own native), but its names are the ones French and Spanish tenses take. I6 settles
+Treccani's names for Italian's tenses and moods. English has no Treccani name. Matrix change 24's
+precedent for Spanish readers of English answers it: the native edition's form-of wording (the Italian Wiktionary writes
 « passato semplice di eat », « participio presente di go ») and « forma in -ing ».
 
 ## What Changes
@@ -29,10 +30,10 @@ readers of English answers it: the native edition's form-of wording (the Italian
 - **The Italian interface reads it** (D6): `reading-copy.ts` maps Italian to the Italian renderer.
   Change 33's exemption of `grammar` ends, and its requirement on the typed catalogue is MODIFIED
   to match.
-- **Pinned before any Italian reader sees it** (D7): a grammar-only snapshot renders, in Italian, the
-  grammar lines and sense headings of every grammar probe of the en-es, es-en, fr-en and it-fr
-  goldens. A form's readings are the same whatever the native, so the probes are real forms. The
-  snapshot is re-blessed where the other card snapshots are. The full card snapshots, with glosses,
+- **Pinned before any Italian reader sees it** (D7): a snapshot renders, in Italian, the grammar
+  lines of every grammar probe of the en-es, es-en, fr-en and it-fr goldens. A form's readings are the
+  same whatever the native, so the probes are real forms; sense headings are the native side's and
+  are left out. The snapshot is re-blessed where the other card snapshots are. The full card snapshots, with glosses,
   are the en-it, fr-it and es-it packs' (changes 36, 47, 51).
 - **Reviewed by the Italian reviewer agent** (D8, I2), not by the owner; change 44 rereads it.
 - **Nothing else moves**: the French, English and Spanish renderers and every existing snapshot
@@ -47,7 +48,9 @@ None.
 ### Modified Capabilities
 
 - `lingua-browser-extension`: ADDED *An Italian interface names forms in Italian grammar's terms* and
-  *The Italian renderer is pinned on the real packs' readings*.
+  *The Italian renderer's grammar lines are pinned on the real packs' readings*. MODIFIED *An Italian
+  card names its forms in the interface language's grammar* (held by `add-lingua-italian-word-card`):
+  Italian joins its list of interface languages, with Treccani's names.
 - `lingua-interface-language`: MODIFIED *The interface's copy is kept in one typed catalogue per
   language* (held by `add-lingua-italian-interface`). The Italian modules are typed after the French
   for every surface, `grammar` included. The scenario *The drafts are whole* reads every Italian entry.
@@ -58,8 +61,9 @@ None.
   - new: `src/i18n/it/grammar.ts`, `test/word-grammar-it.spec.ts`, `test/word-card-grammar-it.spec.ts`
     and its committed snapshot;
   - changed: `src/reading/reading-copy.ts`, `src/i18n/README.md`, the comments of
-    `src/reading/grammar-description.ts` and `src/analyzer/types.ts`, and the renderer loops of
-    `test/grammar-description.spec.ts`, `test/i18n.spec.ts` and `test/wordpopup.spec.ts`;
+    `src/reading/grammar-description.ts` and `src/analyzer/types.ts`, the card harness
+    `test/word-card-french.ts` (a grammar-only export), `test/reading-copy.spec.ts`, and the renderer
+    loops of `test/grammar-description.spec.ts`, `test/i18n.spec.ts` and `test/wordpopup.spec.ts`;
   - `.github/workflows/lingua-pack-update.yml`: the snapshot is re-blessed with the goldens.
 
   ID, Music, Live, the back office, the site and every pack are untouched.
