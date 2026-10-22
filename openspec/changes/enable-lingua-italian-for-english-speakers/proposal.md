@@ -24,8 +24,8 @@ Italian on the web: … »), is 114 characters, over Apple's 112.
   Italian: unknown words highlighted, an honest percentage. Offline and private." (108); the page's
   `lede` and `step3` name Italian. The owner reads them (M9).
 - **The published coverage** (D7) and the site's Lingua pages and English home card, data-driven;
-  the fixtures refreshed. The requirements the English listings, the home card and the eight-row
-  table make false are change 26's, implemented first.
+  the fixtures refreshed. The requirements listing it-en would make false — the English listings',
+  the home card's and the eight-row table's — are change 26's, implemented first.
 - **Requirements true of their time** (D12): change 20's list, memory and activation requirements
   MODIFIED.
 - **A dogfood pass** (D10) in the English interface; released on its own, TestFlight first, with change
