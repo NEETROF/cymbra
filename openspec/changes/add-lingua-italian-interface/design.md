@@ -84,9 +84,9 @@ renderer until then (M13's fallback); the parity test expects every surface but 
 ### D3 — The format helpers
 
 `LOCALES.it = "it-IT"`; `formatNumber` and `formatCount` use Intl's Italian (« 20.000 »); under five
-digits, « 5000 » or « 5.000 » as the owner answers Open Question 1 — « 5000 » pinned with
+digits, « 5000 », the owner's answer to Open Question 1 (2026-10-22), pinned with
 `useGrouping: "min2"` (`"ES2023.Intl"` joining the extension's `tsconfig.json` `lib`, whose ES2022 types
-accept a boolean alone), so that no browser's ICU groups it, « 5.000 » with grouping always; `formatPercent`
+accept a boolean alone), so that no browser's ICU groups it; `formatPercent`
 gains an Italian branch writing « 96% », closing the latent bug, and becomes an exhaustive switch so the
 compiler flags the next language; plurals through `Intl.PluralRules("it")`, the counted messages taking
 `many` where Spanish does.
@@ -123,7 +123,7 @@ The labels lint learns Italian's names (« spagnol[oaie] », « ingles[ei] », �
 « italian[oaie] »); the settings-hosts lint and the parity test loop over Italian too, with
 `SAME_AS_FRENCH.it` (« Email ») and `SAME_SHAPE_AS_FRENCH.it`, a test's Italian copy named `itCopy`, not
 `it`, which vitest's `it` would shadow; the helpers' cases (plurals for 1, 3 and a
-million, « 20.000 », four digits per Open Question 1, « 96% », the dates, `regionName`); an explicit Italian case in
+million, « 20.000 », « 5000 », « 96% », the dates, `regionName`); an explicit Italian case in
 `language-labels.spec.ts`, whose loops over `INTERFACE_LANGUAGES` would not reach Italian; the URL cases.
 The compiler forces six tests' tables to gain Italian. No snapshot is per interface language.
 
@@ -157,5 +157,5 @@ Nothing to migrate; nothing shows. Released with the extension's next release.
 ## Open Questions
 
 For the owner:
-1. **Four-digit numbers**: « 5000 » (Intl's default, recommended, pinned with `useGrouping: "min2"`) or
-   « 5.000 » (grouping always).
+1. **Four-digit numbers**: settled on 2026-10-22, « 5000 » (Intl's default, pinned with
+   `useGrouping: "min2"`), not « 5.000 ».

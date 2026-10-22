@@ -48,10 +48,11 @@ change 56's amendment.
 | I6 | **Italian: tu, never Lei; QCER for the level acronym (M19's rule); Treccani's names for tenses and moods; Italian numbers (20.000; 96%).** | Settled (2026-10-22) |
 | I7 | **Articulated prepositions, read as M21 reads French:** the forms that are also partitives stay whole (del, dello, della, dei, degli, delle, as du/des), the others split into their two pieces with their own spans (al, allo, alla, ai, agli, alle; dal, dallo, dalla, dai, dagli, dalle; nel, nello, nella, nei, negli, nelle; sul, sullo, sulla, sui, sugli, sulle; col, coi, as au/aux). Elision pieces (l', dell', un', c', quest') get their own spans, as French's. Truncations (po', fa', va', di') read as their word. | Settled (2026-10-21) |
 | I8 | **Italian levels are estimated, as French's and Spanish's** (M7, D1): no licence-clean Italian CEFR list exists (the Profilo della lingua italiana is not free). | Settled (2026-10-21) |
-| I9 | **App Store: it-IT joins fr-FR, en-US, en-GB, es-ES and es-MX** (M16 carried); the dashboards' Italian listings are pushed from the repository like the others. | Recommended; settle before change 46 |
-| I10 | **Account e-mails and the deletion link follow the Italian interface language**, like fr, en and es: M12's special case for Italian ends the day Italian is an interface language (change 45). Until then it holds. | Recommended; settle before change 43 |
+| I9 | **App Store: it-IT joins fr-FR, en-US, en-GB, es-ES and es-MX** (M16 carried); the dashboards' Italian listings are pushed from the repository like the others. The Italian listing ships with the first build that declares Italian (change 45), as the English listing shipped with the first localised build (M13): change 45's Apple submission goes with change 46's listing. | Settled (2026-10-22) |
+| I10 | **Account e-mails and the deletion link follow the Italian interface language**, like fr, en and es: M12's special case for Italian ends the day Italian is an interface language (change 45). Until then it holds. | Settled (2026-10-22) |
 | I11 | **Sources.** Studied side: the English Wiktionary's Italian section (forms, readings, it-en glosses), wordfreq's Italian list, UD Italian-MarkIT (CC BY 4.0) for parts of speech, Morph-it! (CC BY-SA 2.0 / LGPL) as a candidate completing the forms, verified in change 9. Native side: the Italian Wiktionary's English, French and Spanish sections, then the English, French and Spanish Wiktionaries' Italian translation tables (M5: written by people). UD Italian-ISDT, VIT, ParTUT and PoSTWITA are non-commercial and never enter a pack. **For it-es only** (the owner, 2026-10-22, I4): Wikidata Lexemes (CC0, an Italian and a Spanish sense of the same item), the Italian Wiktionary's Spanish section read backwards, and the translation tables of the English, French, German, Portuguese, Russian, Polish and Dutch Wiktionaries read as a pivot — an Italian and a Spanish word under the same sense of one table, or the same entry when the table names none, each word written by a person — every pair kept, names left out; an exception to M5's « never a pivot through another language », for this pair, because no direct source reaches a shippable coverage. | Settled (2026-10-21; amended 2026-10-22 for it-es) |
 | I12 | **Merges and releases as the matrix programme (M18): merged at green CI; nothing released, deployed or submitted without the owner.** | Carried; the owner confirms |
+| I13 | **The site's Italian legal pages are courtesy translations; the French prevails.** The Italian privacy policy, terms and account deletion page (change 41) open with « Traduzione di cortesia: fa fede la versione francese », linking the French page, and are reviewed by the Italian reviewer agent (I2), with no lawyer. No one on the team reads Italian, and an Italian legal text that says more than the French could bind the publisher. | Settled (2026-10-22) |
 
 ## Architecture
 
@@ -218,16 +219,16 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 3 | 42 | `extend-site-lingua-matrix-pages-italian`: Italian's pairs and coverage on the Lingua pages; `hreflang` | 1–2 | 30 | |
 | 3 | 43 | `localise-cymbra-id-email-legal-links-italian` (I10): Italian e-mails link `/it/` pages; the privacy annex in Italian | 1–2 | 31, 32 | |
 | 3 | 44 | `review-lingua-italian-wording` (I2): the dedicated agent's pass over interface, card, manifest (`_locales/it`), listings and site | 2–4 | 33 | |
-| 3 | 45 | `enable-lingua-italian-speakers` (en-it): the Italian interface shown, en-it ships; the extension's privacy, leaving and deletion links moved to the `/it/` pages (after 41); its dogfood checks the shortcuts page and about:addons in Italian (change 39's D3) | 4–7.5 | 35 | |
+| 3 | 45 | `enable-lingua-italian-speakers` (en-it): the Italian interface shown, en-it ships; the extension's privacy, leaving and deletion links moved to the `/it/` pages (after 41); its dogfood checks the shortcuts page and about:addons in Italian (change 39's D3); its Apple submission goes with change 46's Italian listing (I9) | 4–7.5 | 35 | |
 | 3 | 46 | `add-lingua-italian-audience-listings` (I9): Chrome Web Store, AMO, App Store it-IT | 2–5.5 | 37 | |
 | 4 Italian speakers: fr-it, es-it | 47 | `add-lingua-pack-fr-it` | 3.5–6 | 22, 49 | |
 | 4 | 48 | `refine-lingua-fr-it-glosses` | 2–4 | 49b | |
 | 4 | 49 | `measure-lingua-fr-it-translation-marks` | 1–2 | 26 | |
-| 4 | 50 | `enable-lingua-french-for-italian-speakers` (fr-it), with its listings | 3–6 | 52, 53 | |
+| 4 | 50 | `enable-lingua-french-for-italian-speakers` (fr-it), with its listings; rewrites `_locales/it`'s description and the activation page's Italian copy to name French | 3–6 | 52, 53 | |
 | 4 | 51 | `add-lingua-pack-es-it` (I4): the floor fixed first | 3.5–6 | 49 | |
 | 4 | 52 | `refine-lingua-es-it-glosses` | 2–4 | 49b | |
 | 4 | 53 | `measure-lingua-es-it-translation-marks` | 1–2 | 26 | |
-| 4 | 54 | `enable-lingua-spanish-for-italian-speakers` (es-it), with its listings | 3–6 | 52, 53 | |
+| 4 | 54 | `enable-lingua-spanish-for-italian-speakers` (es-it), with its listings; rewrites `_locales/it`'s description and the activation page's Italian copy to name Spanish | 3–6 | 52, 53 | |
 | 5 Wording | 55 | `refine-lingua-italian-wording`: the corrections dogfood brings, in every language | 1.5–3 | 54 | |
 | 5 | 56 | `amend-lingua-youtube-captions-italian` | 0.5–1 | 57 | |
 
