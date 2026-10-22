@@ -34,7 +34,7 @@ French and Spanish have and Italian does not yet:
   gate is the one French has in `resolve_lemmas` and `alone_in_capitals`, opened to Italian;
   `french::acronym` is language-neutral and serves as is. Italian's pre-pass runs first: an
   articulated preposition or an elided piece written in capitals beside the acronym is a neighbour
-  in capitals (« NEGLI USA », « DELL'ONU » read by the cascade, as « CA HT » does), in lowercase it
+  in capitals (« NEGLI USA », « DEGLI USA » read by the cascade, as « CA HT » does), in lowercase it
   is not (« negli USA » reads the acronym); the pieces of « AI » are single letters, never a row.
 - **A reviewed table** (D2): `ACRONYMS` in `scripts/lingua-data/reduce_italian_acronyms.py`,
   imported by it-fr's reducer (Italian's reference) and by every pair glossing Italian — the rows
@@ -56,9 +56,11 @@ French and Spanish have and Italian does not yet:
   less those the French Wiktionary's Italian section files as proper nouns alone, by
   `dictionary_words`, plus the acronym rows, glossed or not; the committed-tables checks and the
   builder's `check_studied` hold `tables/it/lexical.tsv` to it, the rows exempted as `CA` is.
-- **Handed to change 16** (D6): it-fr's glosses and `lexical.tsv` are change 16's; this change
-  ships the rule, the table, the builder and the forms rows, and change 16 writes the rows into
-  `lexical.tsv` and glosses them by D3 and D5. This change archives after 16 and 17.
+- **The rows are dictionary words now, glossed at change 16** (D6): this change ships the rule, the
+  table, the builder, the forms rows and the rows in `tables/it/lexical.tsv` (change 9's is empty;
+  without them a page would set « NATO » aside as a name); change 16, which writes it-fr's glosses
+  and dictionary words, glosses the rows by D3 and writes `lexical.tsv` as the dictionary words plus
+  the rows (D5). This change archives after 16 and 17.
 - **Italian's analyser version bumps** (`1.2.0` → `1.3.0`); the Italian golden re-blessed on its
   version line and the two probes added (the `notizie` page writes `ONU`, `RAI`, `PIL`, `UE`, none a
   row).
@@ -93,7 +95,7 @@ nothing new is offered to them.
   `crates/lingua-pack/src/lib.rs` (a capital accepted for Italian too), `src/tables.rs`
   (`check_studied` exempts the rows), `tests/committed_tables.rs` (the rows present as forms).
 - `scripts/lingua-data/reduce_italian_acronyms.py` (new), `reduce-it-fr.py` (the rows written into
-  `forms.tsv`; the gloss and `lexical.tsv` at change 16), `tables/it/forms.tsv` and `tables/it-fr/`
+  `forms.tsv` and `lexical.tsv`; the gloss at change 16), `tables/it/{forms.tsv, lexical.tsv}` and `tables/it-fr/`
   re-reduced, `SOURCES.md`.
 - `crates/lingua-wasm/tests/{italian_baseline.rs, support/italian.rs}` and `baseline/it-fr.golden`;
   `apps/lingua-extension/test/packs.spec.ts` (Italian's version).

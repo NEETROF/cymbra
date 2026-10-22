@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Italian's acronyms are a reviewed table, glossed through their entry's expansions or synonyms
-Italian's reference reduction (it-fr's) and every pair glossing Italian SHALL read an Italian word as an acronym only from one reviewed table of an Italian rule module every pair glossing Italian imports, each row naming the acronym as written — wholly in capitals, two letters or more —, the expansions and the synonyms the English Wiktionary's Italian section's own entry for it gives, its part of speech and its reason; a row SHALL exist only where the section has an entry headed by the acronym and the acronym's lowercase is a form of another word of the tables, and a row SHALL be added only as a person's decision. The reference reduction SHALL write each row into Italian's studied tables as a form that is its own lemma, its capitals kept, with no rank and no level, the lowercase spelling keeping its own reading (`nato` stays a form of *nascere*), and, once Italian's dictionary words are written, as one of them whatever its sense runs and whether glossed. A pair SHALL gloss a row from its own glosses of the row's expansions, each cut to its first sense, in the row's order, an expansion it does not gloss passed over; when it glosses no expansion, from its own glosses of the row's synonyms the same way; and SHALL write no gloss when it glosses neither — never a gloss of its own words, a translation, or the entry's English. Editing the module SHALL re-pin it-fr, and the six other pairs' tables, pins, packs and invariance baselines SHALL NOT move.
+Italian's reference reduction (it-fr's) and every pair glossing Italian SHALL read an Italian word as an acronym only from one reviewed table of an Italian rule module every pair glossing Italian imports, each row naming the acronym as written — wholly in capitals, two letters or more —, the expansions and the synonyms the English Wiktionary's Italian section's own entry for it gives, its part of speech and its reason; a row SHALL exist only where the section has an entry headed by the acronym and the acronym's lowercase is a form of another word of the tables, and a row SHALL be added only as a person's decision. The reference reduction SHALL write each row into Italian's studied tables as a form that is its own lemma, its capitals kept, with no rank and no level, the lowercase spelling keeping its own reading (`nato` stays a form of *nascere*), and as one of Italian's dictionary words whatever its sense runs and whether glossed, from the first reduction holding the row on. A pair SHALL gloss a row from its own glosses of the row's expansions, each cut to its first sense, in the row's order, an expansion it does not gloss passed over; when it glosses no expansion, from its own glosses of the row's synonyms the same way; and SHALL write no gloss when it glosses neither — never a gloss of its own words, a translation, or the entry's English. Editing the module SHALL re-pin it-fr, and the six other pairs' tables, pins, packs and invariance baselines SHALL NOT move.
 
 #### Scenario: The rows
 - **WHEN** it-fr is reduced with the reviewed table holding `NATO` and `USA`
@@ -15,22 +15,22 @@ Italian's reference reduction (it-fr's) and every pair glossing Italian SHALL re
 
 #### Scenario: No expansion or synonym glossed
 - **WHEN** it-fr glosses `NATO`, whose entry names no expansion and no synonym
-- **THEN** it writes no gloss for the acronym, which stays a form of the pack and, once written, one of Italian's dictionary words
+- **THEN** it writes no gloss for the acronym, which stays a form of the pack and one of Italian's dictionary words
 
 #### Scenario: A row is a decision
 - **WHEN** the table is read
 - **THEN** every row is written wholly in capitals, carries its reason, is headed by an entry of the section, and names only expansions and synonyms that entry gives; a row with no entry (`ANSA`) fails the reduction naming it
 
 ### Requirement: Italian's dictionary words leave its names out
-Italian's dictionary words SHALL be its reference pair's glossed lemmas less those the reference's edition — the French Wiktionary's Italian section — files as a proper noun in every sense run, by the rule the three other studied languages follow, plus the acronym rows of *Italian's acronyms are a reviewed table, glossed through their entry's expansions or synonyms*, whatever their sense runs and whether glossed. The checks over the committed tables and the builder's check of a studied language's dictionary words SHALL hold `tables/it/lexical.tsv` to that set once it is written, the rows exempted from the rule that a dictionary word is a ranked, glossed lemma that is no name.
+Italian's dictionary words SHALL be its reference pair's glossed lemmas less those the reference's edition — the French Wiktionary's Italian section — files as a proper noun in every sense run, by the rule the three other studied languages follow, plus the acronym rows of *Italian's acronyms are a reviewed table, glossed through their entry's expansions or synonyms*, whatever their sense runs and whether glossed. The checks over the committed tables and the builder's check of a studied language's dictionary words SHALL hold `tables/it/lexical.tsv` to that set — the rows alone while the reference glosses nothing —, the rows exempted from the rule that a dictionary word is a ranked, glossed lemma that is no name.
 
 #### Scenario: A name
 - **WHEN** it-fr glosses `roma` by a proper noun's senses alone
 - **THEN** `roma` is not a dictionary word, carries its gloss, and a selection still opens its card
 
 #### Scenario: A word beside a name
-- **WHEN** it-fr glosses `bianca` by a name's sense and the adjective's
-- **THEN** `bianco`, its lemma, is a dictionary word
+- **WHEN** it-fr glosses `marco` by a name's sense run and a noun's (the coin)
+- **THEN** `marco` is a dictionary word
 
 #### Scenario: The rows are dictionary words
 - **WHEN** `tables/it/lexical.tsv` lists `NATO`, glossed by no sense run, and `USA`, glossed by a proper noun's run

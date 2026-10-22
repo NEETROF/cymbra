@@ -58,7 +58,7 @@ See proposal.md — Why. What constrains the shape:
 - Acronyms whose lowercase is no other word's form: read by the tables as their own entries, no row.
 - Acronyms the section lacks (`ANSA`): no row until the section gains an entry.
 - A headline in capitals: read as words, as French's rule reads it.
-- Changing 24c's rule or module; writing it-fr's glosses or `lexical.tsv` (change 16).
+- Changing 24c's rule or module; writing it-fr's glosses and dictionary words (change 16).
 
 ## Decisions
 
@@ -69,7 +69,7 @@ open to Italian; `french::acronym` serves Italian as is — the token as written
 lowercased, in the pack's forms; a hit is the acronym, capitals kept, and the cascade does not run.
 Italian's pre-pass runs before any of it. A neighbour is judged by its written word, as 43c's: an
 articulated preposition or an elided piece written in capitals beside the acronym is a neighbour
-in capitals — « NEGLI USA » reads `in` + `gli` + `usa`, « DELL'ONU » `dello` + `onu`, as « CA HT »
+in capitals — « NEGLI USA » reads `in` + `gli` + `usa`, « DEGLI USA » `degli` + `usa`, as « CA HT »
 reads `ça` — and in lowercase it is not: « negli USA » reads `in` + `gli` + the acronym `USA`. The
 pieces of « AI » reach the rule as any token (a shared span in capitals, no neighbour among
 themselves) and are never a row: a single letter is no acronym, and their texts (`A`, `I`) match
@@ -132,10 +132,12 @@ counted English's 3,046 and Spanish's.
 
 This change: the rule and its gates (D1), the table and `check_rows` (D2), the builder's acceptance
 and the checks' exemption (D2, D5), the rows in `tables/it/forms.tsv`, the version, the fixture and
-the golden (D7). Change 16, which writes it-fr's glosses and `lexical.tsv`: the rows' gloss (D3)
-and their place among the dictionary words (D5), by this change's requirements. Until then the rows
-are forms of the pack and no dictionary word — read as the acronym, keyed and carded, unglossed —
-which is also what the fixture shows. The programme's row stays 11: the rule, the table and the
+the golden (D7), and the rows in `tables/it/lexical.tsv` now: change 9's `lexical.tsv` is empty,
+so the widened check (D5) accepts `{NATO, USA}` as `glossed ∪ rows`, and a page counts, keys and
+cards the rows from this change on — without them in `lexical.tsv`, change 7's names rule would set
+« NATO » aside as a name (a form capitalised mid-sentence, never in lowercase, no dictionary word).
+Change 16, which writes it-fr's glosses and the dictionary words: the rows' gloss (D3) and
+`lexical.tsv` as `dictionary_words ∪ ACRONYMS` (D5), by this change's requirements. The programme's row stays 11: the rule, the table and the
 version chain (`1.2.0` → `1.3.0`) are stage 1's order, the data lands with change 16, and this
 change archives after 16 and 17.
 
