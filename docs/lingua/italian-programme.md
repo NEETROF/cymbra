@@ -215,11 +215,11 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 3 | 38 | `measure-lingua-en-it-translation-marks` | 1–2 | 26 | |
 | 3 | 39 | `localise-lingua-manifest-italian`: `_locales/it` | 0.5–1 | 27 | Proposed ([#1009](https://github.com/NEETROF/cymbra/pull/1009)) |
 | 3 | 40 | `localise-lingua-apple-host-italian`: `copy.js`, `SignInCopy`, `app_localizations.sh` | 1.5–3 | 28 | Proposed ([#1013](https://github.com/NEETROF/cymbra/pull/1013)) |
-| 3 | 41 | `add-site-italian-locale`: `/it/` home, Music, Lingua, privacy, terms, support, account deletion, 404, and Lingua's Italian leaving page, pinned before the extension build that compiles it into `LEAVING_PAGES.it` (change 45) ships; the islands | 5–9 | 29, 29b | |
+| 3 | 41 | `add-site-italian-locale`: `/it/` home, Music, Lingua's Italian text, privacy, terms, support, account deletion, 404, and Lingua's Italian leaving page, pinned before the extension build that compiles it into `LEAVING_PAGES.it` (change 45) ships; the islands | 6–10 | 29, 29b | |
 | 3 | 42 | `extend-site-lingua-matrix-pages-italian`: Italian's pairs and coverage on the Lingua pages; `hreflang` | 1–2 | 30 | |
 | 3 | 43 | `localise-cymbra-id-email-legal-links-italian` (I10): Italian e-mails link `/it/` pages; the privacy annex in Italian | 1–2 | 31, 32 | |
 | 3 | 44 | `review-lingua-italian-wording` (I2): the dedicated agent's pass over interface, card, manifest (`_locales/it`), listings and site — and the Apple host's `copy.js` and `SignInCopy` | 2–4 | 33 | |
-| 3 | 45 | `enable-lingua-italian-speakers` (en-it): the Italian interface shown, en-it ships; the extension's privacy, leaving and deletion links moved to the `/it/` pages (after 41); its dogfood checks the shortcuts page and about:addons in Italian (change 39's D3); its Apple submission goes with change 46's Italian listing (I9); its dogfood opens the host app on a device in Italian before the extension has run (change 40's D8); it touches `apps/lingua-apple` or carries `Release-As`, so that release-please cuts the host app's release with en-it (change 40's D7) | 4–7.5 | 35 | |
+| 3 | 45 | `enable-lingua-italian-speakers` (en-it): the Italian interface shown, en-it ships; the extension's privacy, leaving and deletion links moved to the `/it/` pages (after 41); its dogfood checks the shortcuts page and about:addons in Italian (change 39's D3); its Apple submission goes with change 46's Italian listing (I9); its dogfood opens the host app on a device in Italian before the extension has run (change 40's D8); it touches `apps/lingua-apple` or carries `Release-As`, so that release-please cuts the host app's release with en-it (change 40's D7); lists en-it together with `/it/lingua/`'s screenshots and demo video, rewriting `LINGUA_TEXT.it`'s captions against its captures (change 41's D6); modifies the Lingua page's `hreflang` scenario (site-discoverability) and its level-scale names (site-lingua-page: QCER for Italian) | 4–7.5 | 35 | |
 | 3 | 46 | `add-lingua-italian-audience-listings` (I9): Chrome Web Store, AMO, App Store it-IT | 2–5.5 | 37 | |
 | 4 Italian speakers: fr-it, es-it | 47 | `add-lingua-pack-fr-it` | 3.5–6 | 22, 49 | |
 | 4 | 48 | `refine-lingua-fr-it-glosses` | 2–4 | 49b | |
@@ -232,8 +232,8 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 5 Wording | 55 | `refine-lingua-italian-wording`: the corrections dogfood brings, in every language | 1.5–3 | 54 | |
 | 5 | 56 | `amend-lingua-youtube-captions-italian` | 0.5–1 | 57 | |
 
-**Size.** 57 changes, 139.75–252.25 ideal days: stage 0 7.75–12.75, stage 1 50.5–89, stage 2 26.5–48,
-stage 3 34–62.5, stage 4 19–36, stage 5 2–4. Stage 0 and 1 together — the split, then Italian
+**Size.** 57 changes, 140.75–253.25 ideal days: stage 0 7.75–12.75, stage 1 50.5–89, stage 2 26.5–48,
+stage 3 35–63.5, stage 4 19–36, stage 5 2–4. Stage 0 and 1 together — the split, then Italian
 for today's French-speaking readers — are 58–102. The matrix programme's 57 changes were estimated at 175–311; its French stage
 merged in two calendar days of bursts. The calendar here is set the same way: by reviews, dogfood,
 the model host's deploys and the store submissions, not by the volume of code.
