@@ -11,6 +11,7 @@ archiveAfter:
   - add-lingua-italian-interface
   - add-lingua-italian-card-wording
   - add-lingua-pack-en-it
+  - refine-lingua-en-it-glosses
   - localise-lingua-manifest-italian
   - localise-lingua-apple-host-italian
   - add-site-italian-locale

@@ -1,0 +1,13 @@
+schema: spec-driven
+created: 2026-10-22
+archiveAfter:
+  - enable-lingua-italian-speakers
+  - enable-lingua-italian-for-english-speakers
+  - enable-lingua-italian
+  - add-lingua-pack-it-es
+  - add-lingua-italian-translation-models
+  - refine-lingua-it-es-glosses
+  - measure-lingua-it-es-translation-marks
+  - add-lingua-italian-word-card
+  - add-lingua-italian-read-aloud
+  - add-lingua-italian-levels

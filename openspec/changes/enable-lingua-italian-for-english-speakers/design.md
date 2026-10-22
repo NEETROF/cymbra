@@ -165,7 +165,9 @@ setting's memory follows the models…* (two English scenarios added) and *Guide
 language an English speaker can study* holds « while it-en is not listed »; *Italian for an English
 speaker* added). Each MODIFIED block keeps every other word and scenario and is re-copied from change 20
 at implementation. Change 22's *Not shipped* is worded « while the list does not name it-en » in change
-22 itself, so it needs no block here.
+22 itself, so it needs no block here. Its title, « …, and not shipped », would read false once it-en is
+listed; it is RENAMED « …, and shipped once Italian is enabled for English speakers » (amended by change
+30's pull request, which renames change 27's twin the same way).
 
 True as written, so not modified: change 2's *A route of an Italian pair* (conditional) and *Every
 reader today* (it says nothing of English readers); change 2's *An English-native reader of Italian*,

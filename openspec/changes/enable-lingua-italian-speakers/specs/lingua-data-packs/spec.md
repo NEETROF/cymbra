@@ -1,3 +1,8 @@
+## RENAMED Requirements
+
+- FROM: `### Requirement: en-it is committed beside English's studied tables, held to a coverage floor, and not shipped`
+  TO: `### Requirement: en-it is committed beside English's studied tables, held to a coverage floor, and shipped once Italian is an interface language`
+
 ## MODIFIED Requirements
 
 ### Requirement: The shipped pairs are one list

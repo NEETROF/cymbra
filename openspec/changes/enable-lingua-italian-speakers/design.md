@@ -55,7 +55,7 @@ refreshes.
 
 `packs.json` appends en-it after it-en, so changes 20 and 22–26 land first: this change's list and
 its blocks are changes 25's and 26's (or after it-es, if change 30 lists it first, this change then
-re-copying change 30's blocks). `src/i18n/language.ts`'s `INTERFACE_LANGUAGES` gains `it`, and its comment
+re-copying change 30's blocks and naming it in `archiveAfter`, as change 30's D13 says). `src/i18n/language.ts`'s `INTERFACE_LANGUAGES` gains `it`, and its comment
 naming « `fr`, `en` or `es` » follows. `tool/check_variants.mjs`'s `SHIPPED_PAIRS` and its comment follow;
 it is the only `check:variants` failure.
 
