@@ -38,7 +38,8 @@ See proposal.md — Why. What constrains the shape:
 
 - A licensed Italian CEFR list (the *Profilo* is not free; a licence request is the owner's, as
   FLELex's and ELELex's were).
-- The interface's wording of the Italian level (« Niveau d'italien estimé »): change 20, with the
+- The interface's wording of the Italian level (« Niveau d'italien estimé »): its words land in
+  change 15's catalogue entry, and the level block names Italian from change 20, which widens the
   extension's studied languages.
 - Dictionary words (change 16).
 
@@ -60,18 +61,24 @@ are English's (D5), so the sizes must be English's for the two to mean the same.
 
 French's D2 rules, for Italian, read from the section the forms come from:
 1. **unknown or name-only**: the section gives the lemma no sense that is not a form of another word
-   (`the`, `km`), or only a name's (`roma`, `giovanni`, written there with a capital) — 2,613 in the
-   prototype's span;
-2. **a single character that is no word**: every sense a letter's, a symbol's, a name's or an
-   abbreviation (`b`, `k`, `x`) — while `a`, `e`, `è`, `o`, `i` are words (prepositions, the
-   conjunctions, the copula, the article) — 24;
-3. **only a spelling**: every sense only spells another word (change 10's dictionary spellings,
-   `perchè`, `nè`) — 212; the spelling rows carry no rank anyway;
-4. **elsewhere**: the lemma's own form reads as another lemma in the forms table (`porta` read as
-   *portare*): the builder keys a level by looking the lemma up as a form, so the level would land on
-   *portare* — French's D3, held by *A level reaches the lemma it is written for*;
-5. **an acronym row** (change 11): no rank, so never reached by the rank order; named for the test;
-6. **not a dictionary word**: read only once change 16 passes `words` (D4).
+   (`km`), or only a name's (`milano`, `giovanni`, written there only with a capital) — 1,519 unknown
+   and 906 names in the prototype's span;
+2. **a single character that is no word**: every sense a letter's, a symbol's, a name's, an
+   abbreviation's, or only another word's spelling (`b`, `k`, `r` « alternative spelling of er », `à`
+   « obsolete spelling of ha ») — while `a`, `e`, `o` are words (the preposition, the conjunctions);
+   `è` and `i` are no lemmas (change 9 reads them as *essere* and *il*) — 15;
+3. **only a spelling**: every sense only spells another word, by French's `_SPELLING_OF` prefixes
+   (`_only_spells_another`), not kaikki's `alt_of` flag — `the` « misspelling of tè », `perchè` —,
+   so a contraction or an apocope stays a word (`del` « contraction of di + il », `un` « apocopic
+   form of uno »: A1) — 18;
+4. **elsewhere**: the lemma's own form reads as another lemma in the forms table — a guard, as
+   French's rule 4 now is: since `fix-lingua-lemma-lookup` the builder files a level by the lemma's
+   id and refuses a ranked lemma whose own spelling reads as another (`LemmaReadsAsAnother`), and
+   change 9 ranks none, so it is expected to leave none out; a level for such a string would land on
+   no lemma, which *A level reaches the lemma it is written for* names;
+5. **not a dictionary word**: read only once change 16 passes `words` (D4).
+The acronym rows of change 11 have no rank, so the rank order never reaches them; the checks hold
+them without a level (D7).
 
 ### D3 — Every pack studying Italian says its levels are estimated
 
@@ -81,11 +88,14 @@ being read; it-en and it-es (stage 2) read `tables/it/level.tsv` as committed an
 
 ### D4 — Change 16 narrows the levels to dictionary words
 
-Once it-fr's glosses exist, `tables/it/lexical.tsv` is the dictionary words plus the acronym rows,
-and change 16 passes them as `words`, as `refine-lingua-fr-en-glosses` did for French: a level then
-goes only to a word a card can gloss, and `committed_tables.rs` gains « every Italian levelled lemma
-is a dictionary word », as Spanish's and French's checks. The table moves then, in change 16's
-pull request; the scenario *The table does not wait for the glosses* says so.
+Until it-fr's glosses are committed, `tables/it/lexical.tsv` holds the acronym rows alone (change 11)
+and the levels read no pair's glosses. Change 16 commits the glosses and the dictionary words in one
+pull request and passes them as `words`, as `refine-lingua-fr-en-glosses` did for French: a level
+then goes only to a word a card can gloss (`roma`, `marco`, `maria`, levelled through their
+lowercase senses before, keep a level only if they are dictionary words), and `committed_tables.rs`
+gains « every Italian levelled lemma is a dictionary word », as Spanish's and French's checks. The
+table moves then, in change 16's pull request; afterwards, glosses that add or remove no dictionary
+word, and another pair's glosses, leave it byte for byte (French's test).
 
 ### D5 — What the reader sees: nothing to build here
 
@@ -96,9 +106,13 @@ extension's studied languages; nothing of the core, the engine or the extension 
 
 ### D6 — The golden does not move
 
-The Italian baseline runs over its fixture pack until change 16 (change 9's D9); the fixture's hand
-levels are its own, and no `levels_estimated` flag is set on it (change 5's D5). Change 16's
-hand-over re-blesses on the committed tables, which then show the estimated levels and the flag.
+The Italian baseline runs over its fixture pack until change 16 (change 9's D9); the fixture's levels
+are hand-written, and no `levels_estimated` flag is set on it (change 5's D5). Change 16's hand-over
+re-blesses on the committed tables, which then show the estimated levels and the flag; if change 16
+lands before this change, this change re-blesses the golden, naming the level probes (French's 46
+D7). Under the split (changes 3, 4), `levels_estimated` lives in the base's metadata, held per
+language by change 4's check, and the level table in the base: the base grows by it (measured at
+task 2.1, as French's D9 measured +60,035 B).
 
 ### D7 — Tests and what cannot move
 
@@ -113,17 +127,32 @@ hand-over re-blesses on the committed tables, which then show the estimated leve
 
 ## Risks / Trade-offs
 
-- [A wider spread than French's above A1] → the prototype's surface-word ranks; re-measured on
-  change 9's lemma ranks at task 2.1, the figures recorded beside French's and Spanish's; I8 accepted
-  estimated levels with the label.
-- [Names and capitalised entries] → read as name-only, no level (D2.1).
-- [A common noun read as a verb's form] → `porta` has no level of its own (D2.4); M8's cost, as
-  French's `donnée`.
+- [An estimate, not a list] → measured by one script beside French's and Spanish's committed
+  tables (proposal); I8 accepted estimated levels with the label.
+- [Names with a lowercase homograph] → `roma` (rice), `marco` (the coin), `maria` levelled until
+  change 16 narrows the levels to dictionary words (D4).
+- [A common noun read as a verb's form] → `porta` is no lemma of change 9's tables (its D5, M8), so
+  it has no level; French's analogue is `porte`.
 
 ## Migration Plan
 
 Nothing deploys and nothing is released; no package carries it-fr. The table arrives by the update
 workflow's pull request; rollback is a revert.
+
+## Measured
+
+A scratch script over `kaikki-Italian.jsonl` and wordfreq 3.1.1's Italian list: each word ranked by
+its own string (change 9's D6), a word skipped when the section gives it only as an inflection of
+another, French's rules of D2 ported; the same translation check run on French's and Spanish's
+committed `level.tsv` and their English glosses (`fr-en/gloss.tsv`, `es-en/gloss.tsv`) — the figures
+of the proposal. Folding inflected forms into their lemma by summed frequency (which French's D1
+rejected) moves them by under a point. Re-run on change 9's committed ranks at task 2.1.
+
+## Open Questions
+
+None blocking: the numbers' and the C2 edge's treatment follow French's 46 as implemented; a licence
+request for an Italian CEFR list (the *Profilo*) is the owner's, as FLELex's was, and nothing here
+waits for it.
 
 ## Effort
 
