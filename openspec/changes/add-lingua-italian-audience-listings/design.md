@@ -20,13 +20,15 @@ Measured on main at `6ef0bad0c`. "ext" is `apps/lingua-extension/STORE-LISTING.m
 - **How listings reach the stores**: by hand. Nothing in CI submits a listing (ext's header). The release
   workflows upload packages and binaries only, and a tag publishes nothing. I9's « pushed from the
   repository » therefore means pasted from these files.
-- **The fields' room today**, against their caps:
+- **The fields' room**, against their caps:
 
-  | Field | Today | Cap |
+  | Field | Size | Cap |
   |---|---|---|
-  | Chrome Web Store / AMO description (Spanish) | 2,940–3,416 | 16,000 |
-  | Test instructions (one field, both stores) | 988 after change 26 | 1,000 |
-  | Review notes (App Store, one English field) | 3,994 after change 26 | 4,000 |
+  | Chrome Web Store / AMO description (Spanish), on main | 2,940–3,416 | 16,000 |
+  | Test instructions (one field, both stores), after change 26 | 988 (995 if a dashboard counts a line break as two) | 1,000 |
+  | Review notes (App Store, one English field), after change 26 | 3,994 | 4,000 |
+
+  Both figures hold only if change 31 has not touched the shared fields first.
   | App Store keywords | | 100 bytes |
   | App Store subtitle | | 30 |
   | App Store promotional text | | 170 |
@@ -70,6 +72,10 @@ Spanish text without fr-es (one studied language):
 | | description | about 3,000 of 4,000 |
 | | What's New | for change 45's release |
 
+The texts point to the published coverage of en-it's glosses in Italian, « cymbra.app/it/lingua », with a
+row in the claims table: `/it/lingua/` is built once en-it ships (change 41's D6) and carries en-it's
+coverage from change 42.
+
 The constants:
 - the homepage `/it/lingua/`;
 - the privacy policy `/it/privacy/`, which is a courtesy translation, the French prevailing (I13);
@@ -81,7 +87,10 @@ one. Characters App Store Connect refuses (« ᵉ ») are avoided.
 
 Each claim gets a row in ext's claims table with the file that makes it true at change 45, as change 37's
 did. While change 38 has not decided en-it's translation, both variants are drafted, offered and
-withheld, as the precedent did.
+withheld, as the precedent did; the download size is change 2's, from en-it's served model.
+
+I9 adds a sixth App Store locale for good: every later release needs an it-IT What's New and the
+promotional text re-pasted, each reviewed by the agent (I2). The Apple file's Locales note says so.
 
 ### D2 — The shared English fields
 
@@ -89,12 +98,23 @@ These fields are one per item, in English:
 - **Single purpose**: names English for Italian speakers, about +30 characters.
 - **Permission justifications**: the Italian labels beside the others, about +150.
 - **Remote code**: names en-it's direct model for an Italian speaker reading English, about +100.
-- **Test instructions**: the Italian path costs about +136 characters against 12 left. The field is
-  restructured rather than trimmed: the per-language labels give way to one sentence per step naming
-  where the interface's language is chosen, and the counts are recorded in the heading, as the file's
-  rules require.
-- **Review notes**: the Italian audience, the interface list and a device in Italian cost about +165
-  against 6 left. They are restructured the same way.
+- **Test instructions**: every existing label stays. The extension file keeps them on purpose: « an
+  approximate label sends the reviewer looking for a control that does not exist », and changes 21 and 26
+  each held « no step or label lost ». The minimal Italian path is « French, Spanish, Italian, else
+  English » plus « , "Italiano" English », 1,017 characters. Two cuts bring it to 996, every Spanish label
+  kept: « the share of the page you know » → « the share you know », « captures a selected phrase » →
+  « captures a phrase ». A dashboard that counts a line break as two needs 993 at most (seven breaks), so
+  three more characters go. Italian labels are added only where they fit.
+- **Review notes**: the audience costs nothing, since change 21's « Readers study English, Spanish or
+  French, other than their own » already covers Italian speakers studying English. The minimal path is
+  « (French, Spanish, Italian, else English) » plus « ; one in Italian, the Italian ones. », 4,037
+  characters, so about 37 are cut, every label kept.
+- **The data-usage disclosures' prose**, which quotes each interface's consent labels, gains the Italian
+  pair for consistency; it is not pasted.
+
+These fields are English, so they stay in the owner's wording (M9): the drafts land with their counts, as
+changes 21 and 26 did, the owner reviews them (task 3.2), and whether to keep every label or restructure
+the fields is the owner's question (*Open Questions*).
 
 ### D3 — The summary, quoted
 
@@ -120,20 +140,28 @@ This change lists both sets and where each is uploaded.
 ### D5 — The dashboards' procedure for Italian
 
 A section « The dashboards' languages: Italian (change 45's first submission) » repeats the Spanish
-steps:
-1. upload change 45's package without publishing;
-2. fill the Italian description;
-3. submit;
-4. run AMO's dispatch with the Italian description, and check AMO's Italian summary;
-5. record each result in its table.
+procedure's seven steps, applied to `it`:
+1. upload change 45's package without publishing (a tag publishes nothing);
+2. check the French, English and Spanish texts, the default language still `en`;
+3. fill the Italian description, the Italian addresses and the `it` screenshots;
+4. replace the single fields D2 rewrites (single purpose, permission justifications, remote code, test
+   instructions);
+5. check the Italian summary the package carries;
+6. submit, then run AMO's dispatch with the Italian description and check AMO's Italian summary;
+7. record each result in its table.
 
-The precedent's tables are still « to record »; task 3.3 asks the owner to record them, so that the
+The listings are pasted after the site deploy that follows change 45, which publishes `/it/lingua/` and
+its coverage.
+
+The precedent's tables are still « to record » (their own tasks 3.2, changes 36 and 37); task 3.3 asks the owner to close them, so that the
 Italian procedure builds on facts.
 
 ### D6 — Reviewed by the Italian reviewer agent
 
-Every Italian text is reviewed in this change's pull request by change 33's agent (I2). The programme's
-row 44 runs before row 46, so its pass does not cover this change. The points:
+Every Italian text is reviewed in this change's pull request by change 33's agent (I2). Change 44's pass,
+across every surface « once they all exist », is implemented after this change, so that it covers the
+listings too; its row says so. A finding on the summary goes to `_locales/it` (change 39, or change 45
+before its package is built), since a listing pull request cannot change a package's text. The points:
 - « tu » and imperatives (« Scegli », « Apri », « Attiva », « Tocca »);
 - no gendered participle;
 - the interface's terms (the card's buttons, « Ripasso », « Impostazioni », QCER);
@@ -148,14 +176,16 @@ row 44 runs before row 46, so its pass does not cover this change. The points:
 
 ### D7 — Timing
 
-The owner pastes from main, so this change is on main before change 45's packages are submitted. It
+The owner pastes from main, after the site deploy that follows change 45, so this change is on main before
+change 45's packages are submitted. It
 ships no code, so it need not precede change 45's pull request, as changes 21 and 26 had to precede 20
 and 25. It is written against change 45's branch, as change 37 was written for change 35 (#806 merged
 before #814).
 
 The requirement's archive order: change 31, which lists Italian for Spanish speakers and modifies the
-same requirement, archives after this change when it is proposed, or this change's block is re-copied
-over it.
+same requirement, archives after this change, carries *A listing in Italian*, and updates the Italian
+texts' line on what Spanish speakers study; its programme row says so. The archive script cannot see two
+changes that modify one requirement without naming each other, hence the row.
 
 ## Risks / Trade-offs
 
@@ -169,6 +199,12 @@ over it.
 
 Nothing deploys. The owner pastes the texts with change 45's submission. Rollback is a revert of the
 listing files.
+
+## Open Questions
+
+For the owner:
+1. **The English reviewer fields**: keep every existing label and cut elsewhere (D2's measured plan), or
+   restructure the test instructions and review notes?
 
 ## Effort
 

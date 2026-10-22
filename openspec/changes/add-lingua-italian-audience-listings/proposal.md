@@ -23,13 +23,15 @@ builds (M13; matrix changes 36 and 37).
   - each claim tied to the file that makes it true at change 45, in the claims table.
 - **The shared English fields** (D2): the single purpose, the permission justifications, the remote-code
   answer, the test instructions and the review notes name the Italian path. The test instructions (12
-  characters left) and the review notes (6 left) are restructured to fit their caps.
+  characters left, 5 if a line break counts two) and the review notes (6 left) keep every existing
+  label, with measured cuts. These fields are English, so the owner reviews them.
 - **The summary is quoted, not drafted** (D3): it is `_locales/it`'s, which the version check already
   holds to what Italian readers study.
 - **Screenshots** (D4): the Italian sets listed per store. Change 45's capture harness makes the
   extension's; the App Store's are taken by hand from change 45's build, as the precedent's were.
 - **The dashboards' procedure for Italian** (D5), with its results table, as for Spanish.
-- **Reviewed by the Italian reviewer agent** (D6, I2) in this change's pull request, not by the owner.
+- **The Italian reviewed by the Italian reviewer agent** (D6, I2) in this change's pull request; the
+  English fields by the owner.
 - **Before change 45's submission** (D7): merged before change 45's packages are submitted, since the
   owner pastes from main. Nothing is submitted here.
 
@@ -56,8 +58,10 @@ None.
 - **The owner**: the support link, the screenshots of the App Store set, and pasting the listings with
   change 45's submission (I12).
 - **Prerequisites**:
-  - changes 33 (the Italian interface the texts quote), 34 (the card's tense names), 36 (en-it's
-    glosses), 39 (`_locales/it`) and 40 (the Safari app's Italian) implemented;
+  - changes 2 (en-it's download size), 33 (the Italian interface the texts quote), 34 (the card's tense
+    names), 36 (en-it's glosses), 39 (`_locales/it`), 40 (the Safari app's Italian), 41 (`/it/lingua/`)
+    and 42 (en-it's coverage on it) implemented;
   - change 38's decision on en-it's translation, both variants drafted until then.
-- **Order**: on main before change 45's submission; written against change 45's branch.
+- **Order**: on main before change 45's submission, pasted after the site deploy that follows change 45;
+  written against change 45's branch.
 - **Effort, against 2–5.5 ideal days**: 2.25–4 (design, *Effort*).

@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: The store listings name each studied language
-Each store listing of Cymbra Lingua SHALL name every language the packages teach, in one listing per store: the Chrome Web Store, addons.mozilla.org and the App Store listing of the Safari app; each listing SHALL carry a text in each native language a shipped pair is glossed in, naming the languages the packages teach a reader of that language and never offering that reader a language they cannot study. For each language, a text SHALL say whether extended translation is offered and what it downloads, and SHALL point to the published coverage of that language's glosses in the text's language. Where a text names the levels of a language whose levels are estimated, it SHALL say that they are estimated. The App Store listing SHALL NOT call the app a beta or a trial. The listings' text SHALL be kept in the repository's listing files, in the owner's wording, and an Italian text in the Italian reviewer agent's.
+Each store listing of Cymbra Lingua SHALL name every language the packages teach, in one listing per store: the Chrome Web Store, addons.mozilla.org and the App Store listing of the Safari app; each listing SHALL carry a text in each native language a shipped pair is glossed in, naming the languages the packages teach a reader of that language and never offering that reader a language they cannot study. For each language, a text SHALL say whether extended translation is offered and what it downloads, and SHALL point to the published coverage of that language's glosses in the text's language. Where a text names the levels of a language whose levels are estimated, it SHALL say that they are estimated. The App Store listing SHALL NOT call the app a beta or a trial. The listings' text SHALL be kept in the repository's listing files, in the owner's wording; an Italian text in wording the Italian reviewer agent has reviewed.
 
 #### Scenario: Spanish ships
 - **WHEN** the packages ship en-fr and es-fr
@@ -44,5 +44,5 @@ Each store listing of Cymbra Lingua SHALL name every language the packages teach
 - **THEN** the English texts name Spanish, French and Italian, say that Italian's levels are estimated wherever they name levels, say whether Italian is translated — straight into English — and, if so, what it downloads, and point to the published coverage; the French and Spanish texts that say what English speakers study name Italian; and no Spanish text offers Italian to its readers
 
 #### Scenario: A listing in Italian
-- **WHEN** the packages ship en-it for Italian speakers learning English
-- **THEN** each store's listing carries its Italian texts, written for them, beside the French, the English and the Spanish; they name English alone as what their readers study, and the App Store listing carries them under it-IT
+- **WHEN** the packages ship en-it for Italian speakers learning English, and neither fr-it nor es-it
+- **THEN** each store's listing carries its Italian texts, written for them, beside the French, the English and the Spanish; they name English alone as what their readers study, and the App Store carries them as its Italian localisation
