@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-10-22
+archiveAfter:
+  - measure-lingua-it-fr-translation-marks
+  - add-lingua-italian-translation-models
