@@ -207,7 +207,7 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 2 | 31 | `add-lingua-italian-spanish-listings` | 1.5–3 | 37 | |
 | 3 Italian speakers: en-it | 32 | `add-lingua-italian-native-language`: the variant, the native list and names, every enumeration of fr/en/es, inert until a pair is glossed in Italian | 1–2 | 4, 20 | Proposal merged ([#1003](https://github.com/NEETROF/cymbra/pull/1003)) |
 | 3 | 33 | `add-lingua-italian-interface`: `src/i18n/it`, 23 text modules typed after the French (`grammar.ts` is change 34's); the Italian reviewer agent defined; Italian numbers, percentages, dates and plurals; the lint; `InterfaceLanguage = NativeLanguage` restored and change 32's it→en mapping dropped (`INTERFACE_LANGUAGES` gains `it` with change 45) | 4–7 | 13–17 | Proposal merged ([#1007](https://github.com/NEETROF/cymbra/pull/1007)) |
-| 3 | 34 | `add-lingua-italian-card-wording`: the Italian renderer of readings; English, French and Spanish tense names for an Italian reader | 3–5.5 | 23, 24 | |
+| 3 | 34 | `add-lingua-italian-card-wording`: the Italian renderer of readings; English, French and Spanish tense names for an Italian reader | 3.5–4.5 | 23, 24 | |
 | 3 | 35 | `add-lingua-italian-edition-rules`: the Italian Wiktionary's rules in the gloss reducer | 2–4 | 6 | |
 | 3 | 36 | `add-lingua-pack-en-it` (I11) | 3.5–6 | 22 | |
 | 3 | 37 | `refine-lingua-en-it-glosses` | 2–4 | 24b | |
@@ -231,8 +231,8 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 5 Wording | 55 | `refine-lingua-italian-wording`: the corrections dogfood brings, in every language | 1.5–3 | 54 | |
 | 5 | 56 | `amend-lingua-youtube-captions-italian` | 0.5–1 | 57 | |
 
-**Size.** 57 changes, 139.25–254.25 ideal days: stage 0 7.75–12.75, stage 1 50.5–89, stage 2 26.5–48,
-stage 3 33.5–64.5, stage 4 19–36, stage 5 2–4. Stage 0 and 1 together — the split, then Italian
+**Size.** 57 changes, 139.75–253.25 ideal days: stage 0 7.75–12.75, stage 1 50.5–89, stage 2 26.5–48,
+stage 3 34–63.5, stage 4 19–36, stage 5 2–4. Stage 0 and 1 together — the split, then Italian
 for today's French-speaking readers — are 58–102. The matrix programme's 57 changes were estimated at 175–311; its French stage
 merged in two calendar days of bursts. The calendar here is set the same way: by reviews, dogfood,
 the model host's deploys and the store submissions, not by the volume of code.
