@@ -342,10 +342,10 @@ for (const target of targets) {
   }
 
   // The variant's manifest, and the languages it speaks (tool/manifests.mjs): the committed source
-  // transformed for the target, package.json's version stamped on, the layers and bases exposed, the backend
-  // origin granted, the Chromium id pinned, the reader injected statically where the browser needs
-  // it — and, once a pair glossed in another language than French ships, the description and the
-  // commands read from `_locales`. While only French-native pairs ship, byte for byte today's.
+  // transformed for the target, package.json's version stamped on, the layers and bases exposed, the
+  // backend origin granted, the Chromium id pinned, the reader injected statically where the browser
+  // needs it — and, once a pair glossed in another language than French ships, the description and
+  // the commands read from `_locales`. While only French-native pairs ship, byte for byte today's.
   const { manifest, locales } = buildManifest({
     base: baseManifest,
     target,
