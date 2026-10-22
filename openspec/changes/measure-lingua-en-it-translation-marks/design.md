@@ -2,7 +2,7 @@
 
 ## Context
 
-Read on main at `c4f4a8bd4`, where nothing Italian is implemented yet.
+Read on main at `07211302d`, where nothing Italian is implemented yet.
 
 - **The corpus**: `apps/lingua-extension/tool/marks/corpus.json` holds 100 English selections from UD
   English-PUD (every tenth sentence, a noun, verb, noun, adjective in turn: 59 nouns, 23 verbs, 18
@@ -77,7 +77,7 @@ experiment's stem rule (« pubblicate » / « pubblicare »).
 
 ### D3 — Judged in Italian, by two agent judges
 
-Nobody on the team reads Italian (I2). So two agent judges judge, and the judgment is made checkable:
+Nobody on the team reads Italian (I13). So two agent judges judge, and the judgment is made checkable:
 1. **The criteria first.** The Italian examples below are committed to `tool/marks/README.md` before
    `results-en-it.jsonl`, so that git's order shows it, as change 26 did.
 2. **Three references per line**: the engine's sentence; UD Italian-PUD's human Italian (pinned by
@@ -110,7 +110,7 @@ Italian-PUD's human translation; the others are renderings the engine is likely 
 | A past, compound or simple; a passive: the auxiliary may be marked with the participle, never alone | PUD's one-word passato remoto: 37 « vidi », 65 « conobbe », 69 « rilasciò », 81 « accusò »; PUD's compound pasts: 17 « ha commentato », 25 « Ha detto »; the engine may write « ha visto », « ha incontrato »: the participle, with or without its auxiliary; passives 13 « sono state pubblicate », 33 « Gli viene riconosciuto », 61 « si considera » (PUD); wrong: « ha », « è », « sono state », « viene » or « si » alone | en-fr 17 « a suggéré », 30 « est mort », 65 « a rencontré » with the auxiliary; en-fr 13 « diffusées », en-es 13 « publicaron » without |
 | A dropped subject, a clitic | 9 « Vorrebbe » or « (Gli) piacerebbe »; wrong: « Gli » alone, an added « Egli » or « Lui » alone; 97 « si incontrano » (PUD) with or without « si », never « si » alone | en-fr « aimerait », en-es « gustaría »; es-en k 25 « he » judged wrong |
 | A phrasal verb or compound rendered by one Italian word | 57 « costituiscono » or « comprendono », wrong « che » alone; 77 « brancola » or « procede a tentoni », a loose rendering doubtful; 78 « sveglia »; 54 « Capodanno » (« Nuovo » if « Anno Nuovo », never « Anno » alone); 3 « sudcoreana » or « (della) Corea », never « Sud » alone; 94 « avamposti »; 75 « in grado », « riusciti » or « potuto », never « furono » alone | en-fr's one wrong mark, k 57 « qui »; en-es « conforman »; en-fr 78 « réveil » |
-| An article or articulated preposition, carried but never alone | 6 « della storia » (wrong « della » alone), 66 « all'Università », 0 « della transizione », 12 « di emoglobina », 26 « di risarcimento », 23 « erano mercati » (PUD: « mercati » with or without « erano »), 10 « I medici », 52 « in battaglia », 59 « L'Esercito », 5 « quest'area », 62 « sull'origine » (PUD) | en-fr « de l'histoire », « l'Université », « d'hémoglobine »; en-es « de compensación », « los médicos » |
+| An article or articulated preposition, carried but never alone | 6 « della storia » (wrong « della » alone), 66 « all'Università », 0 « della transizione », 12 « di emoglobina », 26 « di risarcimento », 23 « erano mercati » (PUD: « mercati », a mark also spanning « erano » doubtful), 10 « I medici », 52 « in battaglia », 59 « L'Esercito », 5 « quest'area », 62 « sull'origine » (PUD) | en-fr « de l'histoire », « l'Université », « d'hémoglobine »; en-es « de compensación », « los médicos » |
 | A noun modifier, an -ing form | 22 « delle armi », « armi », « del tiro » or PUD's « dei cacciatori » (a British "shooting lobby" is the field-sports lobby), wrong « lobby » alone; 83 « di successo », « tormentone » or « hit », wrong « canzone »; 1 « (di) insegnare » or « insegnando », wrong « Invece di » alone | en-fr « de tir », en-es « de tiro »; en-fr « d'enseigner », en-es « enseñar » |
 | A possessive | 24 « fermata » or « La mia fermata », wrong « La mia » alone, a mark also spanning « prossima » doubtful; 58 « (i suoi) nemici », wrong « suoi » alone; 91 « ultimi », wrong « (dei) suoi » alone | fr-en k 92; fr-en k 15 « their » |
 | Gender and number never decide a verdict | 93 « capitanata », 71 « stereotipata », 39, 15, 47, 67, 91, and 96 even rendered singular | en-fr « commandé », « stéréotypée »; en-es « estereotipada » |
