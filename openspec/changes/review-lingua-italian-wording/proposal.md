@@ -64,6 +64,6 @@ None.
   Cymbra ID and Music are untouched.
 - **The owner**: not asked to review Italian (I2). He reads the report's summary, decides any finding
   that changes meaning rather than wording, and deploys the site's corrections.
-- **Order**: after change 45's pull request is merged (changes 33, 34, 39, 40, 41 and 46 with it),
-  before the build the owner dogfoods and before change 45's release.
+- **Order**: after changes 45 and 46 are merged, before the build the owner dogfoods and before
+  change 45's release.
 - **Effort, against 2–4 ideal days**: 2.5–3.75 (design, *Effort*).

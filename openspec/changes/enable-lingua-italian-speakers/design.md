@@ -217,7 +217,7 @@ screenshots are taken by hand from this change's build (change 46's D4).
 
 **The owner's steps:**
 1. Go-ahead before merge (I12).
-2. Dogfood on the five targets: Chrome, Firefox (desktop and Android) and Safari (macOS and iOS). Check:
+2. Dogfood on the five targets, on a build carrying change 44's corrections: Chrome, Firefox (desktop and Android) and Safari (macOS and iOS). Check:
    - a new install in Italian;
    - the card on « went » and the QCER;
    - the three links;

@@ -115,7 +115,8 @@ records:
 - **`_locales/it`**: each `message` by key, never its `description`.
 - **`copy.js`**: loaded as `apple-activation-page.spec.ts` loads it, its fragments' markup stripped.
 
-Keys written per audience (D2's list) are excluded by design, not as exceptions.
+Keys written per audience (D2's list) are excluded from rule 1 by design, not as exceptions; rule 2 still
+reads them.
 
 **Normalisation**: NFC; U+2019 read as `'`; no-break spaces and runs of whitespace read as one space; the
 brand « Cymbra Lingua » masked, so that « Lingua » the settings tab and « Lingua » the brand never meet.
@@ -159,7 +160,7 @@ brand « Cymbra Lingua » masked, so that « Lingua » the settings tab and « L
   per audience is out by design.
 - **Text written after this pass** → the glossary is the reference, and the test fails a drifted term in
   the extension's catalogue, `_locales/it` and `copy.js`.
-- **Published captures showing corrected text** → D4's re-capture.
+- **Published captures showing uncorrected text** → D4's re-capture.
 
 ## Migration Plan
 
