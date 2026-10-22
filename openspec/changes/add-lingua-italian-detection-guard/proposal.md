@@ -52,9 +52,9 @@ on Italian — and bumps Italian's analyser version.
   not a quotation or a name.
 - **Italian's analyser version bumps** (`1.0.0` → `1.1.0`, D7): a block the guard refuses is one
   the analysis no longer counts; the fixture's manifest follows; the Italian golden is re-blessed —
-  the `misto` page's Catalan and Galician blocks leave the analysis (its Latin block too, if the
-  golden shows whichlang read it as Italian), and change 7's baseline scenario is MODIFIED to say
-  so.
+  the `misto` page's Catalan and Galician blocks leave the analysis (its Latin block too only if
+  Latin is kept and the golden shows whichlang read it as Italian; otherwise it stays as it is),
+  and change 7's baseline scenario is MODIFIED to say so.
 - **Measured before merging** (D2, D3, D6): the share of each neighbour's Wikipedia blocks
   whichlang reads as Italian, with and without the guard; the Italian corpora's blocks refused; the
   script and its corpus list committed under `scripts/lingua-data/measure/`, unlike change 42's,

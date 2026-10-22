@@ -13,7 +13,7 @@
 ## 3. The Italian baseline (crates/lingua-wasm, scripts/lingua-data/testdata)
 
 - [ ] 3.1 `scripts/lingua-data/testdata/it-fr/manifest.json`: `analyzer_version` at the new version.
-- [ ] 3.2 `tests/italian_baseline.rs`: the `misto` page's analysis holds tokens of its Italian blocks only, its Catalan and Galician blocks named as excluded (its Latin block too if the golden showed it read as Italian); re-bless once with `LINGUA_BLESS=1 cargo test -p lingua-wasm --test italian_baseline`, `tests/baseline/it-fr.golden` committed; the pull request shows the diff is the `misto` page's and the version line's (D8); verify the test passes without re-blessing afterwards.
+- [ ] 3.2 `tests/italian_baseline.rs`: the `misto` page's analysis holds tokens of its Italian blocks only, its Catalan and Galician blocks named as excluded (its Latin block too only if Latin is kept and the golden showed it read as Italian); re-bless once with `LINGUA_BLESS=1 cargo test -p lingua-wasm --test italian_baseline`, `tests/baseline/it-fr.golden` committed; the pull request shows the diff is the `misto` page's and the version line's (D8); verify the test passes without re-blessing afterwards.
 
 ## 4. Owner
 

@@ -30,8 +30,8 @@ The core SHALL refuse as Italian a block the detector reads as Italian whose fun
 - **THEN** none is Italian
 
 #### Scenario: Italian naming Catalan, Sicilian and Latin places and works is kept
-- **WHEN** « Abbiamo visitato il Castell dels Tres Dragons a Barcellona, poi il Lu Capu a Siracusa, e letto il De bello Gallico. » is offered as Italian
-- **THEN** it is Italian: its one neighbour marker, `dels` inside a name, is outnumbered by its Italian ones
+- **WHEN** « Abbiamo visitato il Castell dels Tres Dragons a Barcellona, poi il Lu Capu a Siracusa, e letto anche il De bello Gallico. » is offered as Italian
+- **THEN** it is Italian: its one neighbour marker, `dels` inside a name, is outnumbered by its Italian ones, `abbiamo` and `anche`
 
 #### Scenario: Regional Italian is kept
 - **WHEN** « Ma va', non ci credo mica che sei andato giù in piazza con quel caldo. » and « Dai, vieni su che ti faccio vedere una cosa. » are offered as Italian

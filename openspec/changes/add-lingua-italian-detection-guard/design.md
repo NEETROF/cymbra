@@ -104,14 +104,15 @@ region**, whatever the neighbour writes it for. Candidates (the measurement deci
 left out is named in the code with its Italian reading):
 
 - **Neighbour markers**: Catalan's, seeded from Spanish's `CATALAN_MARKERS` less the Italian words
-  (`dels`, `pels`, `els`, `amb`, `és`, `són`, `havia`, `eren`, `fou`, `després`, `fins`, `llavors`,
+  `per`, `però`, `sempre` (among them `dels`, `pels`, `els`, `amb`, `és`, `són`, `havia`, `eren`, `fou`, `després`, `fins`, `llavors`,
   `segons`, `seva`, `seus`, `també`, `aquest`, `això`, `ningú`), Galician's (`os`, `as`, `unha`,
   `tamén`, `xa`, `moi`, `nela`, `pola`, `coas`), Sicilian's (`lu`, `nun`, `cu`, `chistu`, `chiddu`,
   `sugnu`, `avi`, `comu`, `unni`, `pirchì`, `iddu`, `idda`), Neapolitan's (`'o`, `'a`, `'e`, `'nu`,
   `'na`, `pe`, `chesto`, `chello`, `comme`, `songo`, `tene`, `addó`, `nisciuno`), Venetian's (`el`,
   `xe`, `ze`, `ghe`, `ga`, `cussì`, `gà`, `tuti`, `zente`), Sardinian's (`sos`, `sas`, `cun`,
   `dae`, `custu`, `cussu`, `tenet`, `totu`, `at`), Friulian's (`lis`, `jè`, `cun`, `cheste`,
-  `chest`, `ancje`, `dut`, `jo`, `soi`, `je`), Corsican's (`hè`, `sò`, `ùn`, `chì`, `quessu`,
+  `chest`, `ancje`, `dut`, `jo`, `soi`, `je` — the last French's *I*, which an Italian block quoting
+  « je ne sais quoi » would count: measured, as change 42b measured `ne`), Corsican's (`hè`, `sò`, `ùn`, `chì`, `quessu`,
   `avà`, `tandu`, `u`); Latin's (`sunt`, `quae`, `quod`, `sed`, `cum`, `atque`, `enim`, `autem`,
   `ut`, `nec`, `igitur`, `ubi`, `ibi`) only if Latin is kept (D2).
   **Left out as Italian words**: `però` (Catalan), `hai` (*you have*; Galician), `polo` (« polo
@@ -125,8 +126,9 @@ left out is named in the code with its Italian reading):
 - **Italian markers**: Italian function words the neighbours rarely write — `gli`, `degli`,
   `delle`, `della`, `dello`, `nella`, `nello`, `negli`, `nelle`, `dalla`, `dalle`, `sono`, `siamo`,
   `hanno`, `abbiamo`, `anche`, `perché`, `questo`, `questa`, `quello`, `quella`, `molto`, `essere`,
-  `avere`, `nel`, `dal`, `del`, `loro`, `questi`. **Left out as the neighbours' words**: `il` and
-  `la` (Friulian's articles), `i` (Catalan's *and*), `sempre` (Sicilian's), `ci` and `vi` (Sicilian's
+  `avere`, `nel`, `dal`, `loro`, `questi` (`nel` and `dal` measured against Venetian). **Left out as
+  the neighbours' words**: `del` (Catalan's, Occitan's and Venetian's — the code records it among the
+  seven both Catalan and Occitan write), `il` and `la` (Friulian's articles), `i` (Catalan's *and*), `sempre` (Sicilian's), `ci` and `vi` (Sicilian's
   and Corsican's clitics), `lo` (Occitan's and western Catalan's article — on Italian's side it would
   make an Occitan block vote Italian, the defect change 42b fixed for Spanish), `è` (Corsican's
   *and*), `sul` (Venetian's), `una` (Sardinian's), `miei` (Friulian's), `che` (every neighbour's),
@@ -183,8 +185,8 @@ The fixture's manifest and the extension's test pattern follow.
 ### D8 — What the golden shows; what cannot move
 
 The re-bless of `it-fr.golden` is the `misto` page's: its Catalan and Galician blocks leave the
-analysis — its Latin block too if the golden shows whichlang read it as Italian, else it is already
-elsewhere —; every other page is byte for byte. Change 7's scenario « What the baseline shows
+analysis — its Latin block too only if Latin is kept (D2) and the golden shows whichlang read it as
+Italian; otherwise it stays as it is —; every other page is byte for byte. Change 7's scenario « What the baseline shows
 today » says the Catalan and Galician blocks are analysed as Italian: this change MODIFIES that
 requirement (change 7 is in `archiveAfter`) so the scenario says they are excluded. The six
 goldens, S0, every pin and the two other guards are untouched.
