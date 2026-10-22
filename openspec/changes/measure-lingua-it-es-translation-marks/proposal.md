@@ -18,10 +18,10 @@ as es-fr's (89 of 90, 10 % withheld) and fr-es's (90 of 91, 9 % withheld) showed
   function words already exist.
 - **Judged in Spanish by one judge**, as every Spanish-judged precedent was (D3):
   - the Spanish criteria are committed before the run;
-  - each line is checked against it-fr's and it-en's verdicts on the same selection, and against the
-    en-es model's own Spanish;
+  - each line is checked against it-fr's and it-en's verdicts on the same selection, and against
+    en-es's Spanish for the English sentence, as a reference on idiom;
   - a verdict departing from both precedents gives its reason;
-  - doubtful lines are named, and the tier must hold with them counted wrong;
+  - doubtful lines are named, and committed wrong where they decide the tier;
   - the owner, who reads Spanish, may re-judge any line.
 - **The list** (D4):
   - on the first tier, `MARKED_PAIRS` gains it-es, inert until change 30 lists the pair;
@@ -51,7 +51,7 @@ None.
   - `test/translate-marks.spec.ts`, and `test/translate-relay.spec.ts` if on the tier.
 
   `docs/lingua/italian-programme.md` takes row 29's figures.
-- **Prerequisites**: changes 2 (the route) and 19 (the Italian selections, UD Italian-PUD's pin, the
-  structural test) implemented. Change 24's verdicts are anchors. Change 27's tables, if committed,
-  fill the gloss experiment.
+- **Prerequisites**: changes 2 (the route), 19 (the Italian selections, UD Italian-PUD's pin, the
+  structural test, it-fr's verdicts) and 24 (it-en's results and verdicts, which the judgment reads)
+  implemented. Change 27's tables, if committed, fill the gloss experiment.
 - **Effort, against 1–2 ideal days**: 0.95–1.35 (design, *Effort*).
