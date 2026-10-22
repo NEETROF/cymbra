@@ -7,7 +7,7 @@
 
 ## 2. Elsewhere
 
-- [ ] 2.1 `docs/lingua/italian-programme.md` *Measured figures*: the sections' sizes and D11's figures in the en-it, fr-it and es-it rows; row 35's status.
+- [ ] 2.1 `docs/lingua/italian-programme.md` (its *Measured figures* rows for en-it, fr-it and es-it done in this proposal's pull request): row 35's status, and the figures re-measured on the committed tables by changes 36, 47 and 51.
 - [ ] 2.2 `openspec/changes/add-lingua-pack-it-es/{design.md, tasks.md}` (D12, done in this proposal's pull request): `reduce_italian_es.py` drops the Italian Wiktionary's notes when reading its Spanish section backwards.
 
 ## 3. Gates

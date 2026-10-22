@@ -133,9 +133,9 @@ is measured by each pair's change, as before.
 | it-fr | French Wiktionary, Italian section | 1,310,041 senses | the richest section any pair has read (en-fr reads 225,028 and covers 95.1 / 90.1 / 78.9) |
 | it-en | English Wiktionary, Italian section | 719,680 senses, 589,335 distinct forms | larger than its French section (459,894), which gave fr-en 93.9 / 87.1 / 76.4 |
 | it-es | Spanish Wiktionary, Italian section, then the Italian Wiktionary's Spanish translations, then the Spanish Wiktionary's tables read backwards | 7,810 senses (+ 13,018 translations of 7,029 Italian words; + 13,837 of 10,244) | measured on 2026-10-22 for change 27, all three sources, on change 16's study ranking: 57.8 / 46.8 / 35.0, about 25 points under fr-es's committed 83.2 / 70.9 / 57.1 — I4, settled on 2026-10-22, adds change 27a's sources (84.8 / 76.3 / 65.8 with all of them). The « + 8,665 » first written here was the Italian Wiktionary's Spanish section, es-it's source |
-| en-it | Italian Wiktionary, English section, then the English Wiktionary's Italian translation tables | 41,749 senses | as en-es was (35,167 in the Spanish Wiktionary; 93.4 / 85.2 / 71.9 with the tables) |
-| fr-it | Italian Wiktionary, French section, then the French Wiktionary's Italian translations | 35,027 senses | as fr-es was (11,143; 83.4 / 70.8 / 56.5), or better |
-| es-it | Italian Wiktionary, Spanish section, then the Spanish Wiktionary's Italian translations | 8,665 senses | thin on both sides; a floor before measuring (I4) |
+| en-it | Italian Wiktionary, English section, then the English Wiktionary's Italian translation tables | 41,754 senses, 25,700 headwords (2026-10-22) | measured for change 35 on the committed English ranks: 85.0 / 72.4 / 53.3 from the definitions with the Italian edition's rules, about 91.3 / 82.7 / 70.3 with both tables — near en-es (93.4 / 85.2 / 71.9); 741 of the 5,000 commonest English lemmas have no entry in the dump |
+| fr-it | Italian Wiktionary, French section, then the French Wiktionary's Italian translations | 35,026 senses, 26,108 headwords — 75.5 % of the senses French verb forms, 6,579 headwords with a meaning (2026-10-22) | measured for change 35: 30.7 / 22.5 / 15.1 from the definitions, about 81.5 / 70.2 / 57.9 with both tables — as fr-es (83.4 / 70.8 / 56.5) only once the tables are read |
+| es-it | Italian Wiktionary, Spanish section, then the Spanish Wiktionary's Italian translations | 8,660 senses, 6,861 headwords (2026-10-22) | measured for change 35: 34.3 / 23.9 / 15.4 from the definitions, about 64.2 / 50.0 / 36.6 with both tables — thin, as I4 expects; a floor before measuring |
 
 Other figures:
 
@@ -209,7 +209,7 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 3 Italian speakers: en-it | 32 | `add-lingua-italian-native-language`: the variant, the native list and names, every enumeration of fr/en/es, inert until a pair is glossed in Italian | 1–2 | 4, 20 | Proposal merged ([#1003](https://github.com/NEETROF/cymbra/pull/1003)) |
 | 3 | 33 | `add-lingua-italian-interface`: `src/i18n/it`, 23 text modules typed after the French (`grammar.ts` is change 34's); the Italian reviewer agent defined; Italian numbers, percentages, dates and plurals; the lint; `InterfaceLanguage = NativeLanguage` restored and change 32's it→en mapping dropped (`INTERFACE_LANGUAGES` gains `it` with change 45) | 4–7 | 13–17 | Proposal merged ([#1007](https://github.com/NEETROF/cymbra/pull/1007)) |
 | 3 | 34 | `add-lingua-italian-card-wording`: the Italian renderer of readings; English, French and Spanish tense names for an Italian reader | 3.5–4.5 | 23, 24 | Proposed ([#1010](https://github.com/NEETROF/cymbra/pull/1010)) |
-| 3 | 35 | `add-lingua-italian-edition-rules`: the Italian Wiktionary's rules in the gloss reducer | 2–4 | 6 | |
+| 3 | 35 | `add-lingua-italian-edition-rules`: the Italian Wiktionary's rules in the gloss reducer | 2–3 | 6 | |
 | 3 | 36 | `add-lingua-pack-en-it` (I11) | 3.5–6 | 22 | |
 | 3 | 37 | `refine-lingua-en-it-glosses` | 2–4 | 24b | |
 | 3 | 38 | `measure-lingua-en-it-translation-marks` | 1–2 | 26 | |
@@ -232,8 +232,8 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 5 Wording | 55 | `refine-lingua-italian-wording`: the corrections dogfood brings, in every language | 1.5–3 | 54 | |
 | 5 | 56 | `amend-lingua-youtube-captions-italian` | 0.5–1 | 57 | |
 
-**Size.** 57 changes, 139.75–253.25 ideal days: stage 0 7.75–12.75, stage 1 50.5–89, stage 2 26.5–48,
-stage 3 34–63.5, stage 4 19–36, stage 5 2–4. Stage 0 and 1 together — the split, then Italian
+**Size.** 57 changes, 139.75–252.25 ideal days: stage 0 7.75–12.75, stage 1 50.5–89, stage 2 26.5–48,
+stage 3 34–62.5, stage 4 19–36, stage 5 2–4. Stage 0 and 1 together — the split, then Italian
 for today's French-speaking readers — are 58–102. The matrix programme's 57 changes were estimated at 175–311; its French stage
 merged in two calendar days of bursts. The calendar here is set the same way: by reviews, dogfood,
 the model host's deploys and the store submissions, not by the volume of code.
