@@ -9,17 +9,24 @@ shipped. The owner had new sources researched; none written directly for the pai
 and on 2026-10-23 (I4, I11, #1004) the owner chose the full pivot: an Italian and a Spanish word listed
 under the same sense of another Wiktionary's translation table, every pair kept, with Wikidata Lexemes and
 the Italian Wiktionary's Spanish section — 84.8 / 76.3 / 65.8 together. This change brings those sources
-into the pipeline, derived and pinned; change 27 reads them into it-es's glosses.
+into the pipeline, derived and pinned, with the three planned files no edition registers yet; change 27
+reads them into it-es's glosses.
 
 ## What Changes
 
-- **A pivot file per edition** (design D1): `derive` gains a kind that keeps a translation table's sense
-  with its Italian and its Spanish words; the English and French editions gain one file each, and the
-  German, Portuguese, Russian, Polish and Dutch Wiktionaries join `EDITIONS`, one file each.
-- **The Italian Wiktionary's Spanish section** (D2), in `EDITIONS["it"]`.
-- **Wikidata Lexemes, mirrored** (D3): a dated dump published as a release asset, pinned, its Italian–Spanish
-  sense pairs derived.
-- **`DUMPS["it-es"]` and the pin** (D4); **the cost** recorded (D5): five more dumps per it-es update.
+- **The planned three registered** (design D1): the Spanish Wiktionary's Italian section and Italian
+  translations, the Italian Wiktionary's Spanish translations, in their editions' catalogues.
+- **A pivot file per edition** (D2): `derive` gains a kind that keeps a translation table's Italian and
+  Spanish words together under the sense the table names — its label, else its number, else the whole
+  entry, marked so —; the English and French editions gain one file each, and the German, Portuguese,
+  Russian, Polish and Dutch Wiktionaries join `EDITIONS`, one file each.
+- **The Italian Wiktionary's Spanish section**, and **Wikidata Lexemes read as an edition of its own**
+  (D3): the latest dated dump's identity recorded, its Italian–Spanish sense pairs derived and published
+  in it-es's sources release.
+- **`DUMPS["it-es"]` and the pin** (D4); **the cost** recorded (D5): ≈ 5.3 GB of dumps per it-es update,
+  none cached, a re-reduction reading the release.
+- **What change 27 takes from here** (D6): the measured filters and order, the decisions left open, the
+  credits, and the main spec's no-pivot requirement to MODIFY for it-es.
 - **Nothing read yet**: no pack, table or other pair moves until change 27.
 
 ## Capabilities
@@ -35,8 +42,7 @@ None.
 ## Impact
 
 - **Products.** Lingua's data pipeline only: `scripts/lingua-data/pack_sources.py` (`derive`'s pivot
-  kind, `EDITIONS`, `PINNED["it-es"]`, `DUMPS["it-es"]`), `test_pack_sources.py`, `SOURCES.md`. No pack,
-  table, extension, site or backend change.
-- **The owner**: the release asset mirroring the Wikidata Lexemes dump (D3).
+  and lexeme kinds, `EDITIONS`, `DUMPS["it-es"]`), `test_pack_sources.py`, `SOURCES.md`. No pack, table,
+  extension, site or backend change.
 - **Order.** After change 16 (`EDITIONS["it"]`) and change 22; before change 27, which reads these files.
 - **Effort**: 2.5–4 ideal days (design, *Effort*).
