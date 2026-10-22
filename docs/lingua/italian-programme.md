@@ -178,7 +178,7 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 1 | 8 | `add-lingua-italian-detection-guard`: Catalan, Galician, Occitan, Latin, Corsican, Sardinian, Sicilian, Neapolitan, Venetian, Romanian | 3–6 | 42, 42b | |
 | 1 | 9 | `add-lingua-italian-forms-tables` (I11): the English Wiktionary's Italian section, MarkIT's parts of speech, Morph-it! verified | 8.5–14 | 43 | Proposed ([#978](https://github.com/NEETROF/cymbra/pull/978)) |
 | 1 | 10 | `read-lingua-italian-unmarked-spellings`: E', perche', piu', citta', and the dictionary's own accent-less spellings | 2–4 | 43d, 43e | |
-| 1 | 11 | `keep-lingua-italian-acronyms-and-names`: acronyms in capitals stay acronyms; names leave the words to learn | 1.5–3 | 43c, 24c | Proposed ([#979](https://github.com/NEETROF/cymbra/pull/979)) |
+| 1 | 11 | `keep-lingua-italian-acronyms-and-names`: acronyms in capitals stay acronyms; names leave the words to learn (the rows' gloss and `lexical.tsv` land with change 16) | 1.5–3 | 43c, 24c | Proposed ([#979](https://github.com/NEETROF/cymbra/pull/979)) |
 | 1 | 12 | `add-lingua-italian-expression-keys`: expressions keyed as Italian is read; the expression written as the page | 2–4 | 44, 44c–44e | |
 | 1 | 13 | `add-lingua-italian-grammar-tables`: UD tags (passato remoto `Tense=Past`, imperfetto `Tense=Imp`, checked against it_isdt already) | 3–5 | 45 | |
 | 1 | 14 | `add-lingua-italian-levels` (I8): the estimated ladder | 1.5–3 | 46 | |
