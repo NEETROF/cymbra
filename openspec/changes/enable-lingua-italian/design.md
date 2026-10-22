@@ -61,19 +61,19 @@ change's. Change 14 fills none and needs none. The type checker cannot see one g
 
 **it-fr listed** (`packs.json`): 100 of 4,347 tests fail in 14 files.
 - 93 throw in `languageName` (`language-labels.ts:65`), Réglages now naming Italian: change 15's
-  catalogue entry removes them (and its D7 adds the Italian preview to `SAME_EVERYWHERE`).
-- 1, `packs.spec.ts:155`, reads no analyser version for `it` (`tool/packs.mjs` `ANALYZER_CONSTANTS`):
-  change 5's.
-- 7 are this change's: `packs.spec.ts:28`, `pairs.spec.ts:141` and `:144`, `manifests.spec.ts:253`,
-  `model-manifest.spec.ts:348`, `studied-languages-view.spec.ts:162` and `:165`,
-  `check-version.spec.ts:263` (D7) and `apple-activation-page.spec.ts:130` (D7); once change 2 is
-  implemented, its « no reader fetches the it-en model » test is one more, as change 50's was for
-  French.
+  catalogue entry removes the throw (and its D7 adds the Italian preview to `SAME_EVERYWHERE`).
+- With it, 8 still fail. One, `packs.spec.ts:155`, reads no analyser version for `it`
+  (`tool/packs.mjs` `ANALYZER_CONSTANTS`): change 5's. Seven read the list and are this change's:
+  `packs.spec.ts:28`, `pairs.spec.ts:141` (and `:144`), `manifests.spec.ts:253`,
+  `model-manifest.spec.ts:348`, `studied-languages-view.spec.ts:162` (and `:165`),
+  `check-version.spec.ts:263` (D7) and `apple-activation-page.spec.ts:130` (D7; one of the 93 until
+  change 15). Once change 2 is implemented, its « no reader fetches the it-en model » test is one
+  more, as change 50's was for French.
 - `yarn gen:pack` needs `testdata/it-fr/` (change 5), `yarn gen:pack:real` the committed tables
   (changes 9 and 16), `yarn build` the pack; `tool/check_variants.mjs:335` holds the list as a second
   literal, by design.
 - Python: `test_every_shipped_pair_is_published` fails until `gloss_coverage.py --write` runs, which
-  needs `tables/it/` (change 9). Rust: `committed_tables.rs` passes; its one read of the list asserts
+  needs `tables/it/` and `tables/it-fr/` (changes 9 and 16). Rust: `committed_tables.rs` passes; its one read of the list asserts
   fr-en. `README.md:210` quotes the list.
 
 **The offer.** `pairsOf` filters `packs.json` in order, so a French speaker's pairs are en-fr, es-fr,
@@ -92,7 +92,7 @@ alone ≈ 52.0 Mo and English, Spanish and Italian ≈ 78,2 Mo, « environ 340 M
 reads « Lisez l'anglais et l'espagnol sur le web : mots inconnus surlignés, pourcentage honnête. Hors
 ligne et privé. », 109 characters of the 112 `check_version` allows. With it-fr listed, `yarn
 check:version` fails twice — « the fr description … does not name "it" » —, the raw `"it"` because
-`LANGUAGE_NAMES` (`check_version.mjs:12`) has no Italian. The direct wording, « Lisez l'anglais,
+`LANGUAGE_NAMES` (`check_version.mjs:111`) has no Italian. The direct wording, « Lisez l'anglais,
 l'espagnol ou l'italien sur le web : … », is 120 characters. `_locales/en` (105) and `es` (109) are not
 flagged.
 
@@ -111,6 +111,12 @@ en espagnol ou en italien ». The site's tests require the file's pairs to be `p
 
 **The back office** shows « it » raw: `lingua.languages` holds en, es and fr.
 
+**Online translation** (« Traduction en ligne », for the accounts granted it): the card offers the
+button on any pair (`selection-card.ts`, `source: this.language()`), but the backend refuses a pair
+with Italian — `backend/lingua/src/online_translation_core.rs` holds `LANGUAGES = ["en", "fr",
+"es"]`, and its `language_name` would call `it` English. Every Italian sentence would answer
+« unavailable ».
+
 **Backup v4.** The released builds (extension 1.10.1, host app 1.8.1) write and read schema 3; a
 schema-4 backup is refused by name — « backup schema v4 is not supported (this build reads v1 to v3) »
 (`decks/backup.rs`). In the extension, a restored file shows « Fichier de sauvegarde non reconnu. »; a
@@ -122,8 +128,9 @@ language the device does not accept.
 before its tables exist.
 
 **« change 20 » in the code** already means other changes — the matrix programme's
-`add-lingua-native-language-choice` (`TRANSLATION.md`, `account/locale.ts`, `account/page.ts`) and the
-Spanish programme's (`measure.rs`). Comments name this change `enable-lingua-italian`, never a bare
+`add-lingua-native-language-choice` (`TRANSLATION.md`, `account/locale.ts`, `account/page.ts`,
+`test/model-controller.spec.ts`, `test/word-grammar-{en,es}.spec.ts`) and the Spanish programme's
+(`measure.rs`). Comments name this change `enable-lingua-italian`, never a bare
 number.
 
 ## Decisions
@@ -177,11 +184,12 @@ things come with the type, because nothing else can write them:
 - **`GUARDED.it`** (`src/reading/session.ts`): the languages change 8's guard keeps out of Italian, as
   its implementation settles them — by default Catalan, Galician, Venetian, Sicilian, Neapolitan,
   Sardinian, Corsican and Friulian (`ca`, `gl`, `vec`, `scn`, `nap`, `sc`, `co`, `fur`) —, with
-  `THREE_LETTER` gaining `srd` and `cos` (and `ita` for Italian itself): a word card on a page
-  declaring one of them is never read in Italian. The row is a `StudiedLanguage` key, so change 8
-  could not write it, as change 42's French row came with French's type; the requirement *No word is
-  read in a language whose guard keeps the document's language out*, which names each language's
-  list, is MODIFIED (D13).
+  `THREE_LETTER` gaining the neighbours' three-letter codes `srd` and `cos` (`fra` stays unmapped,
+  as `reading-language.spec.ts` holds, and so does `ita`): a word card on a page declaring one of them
+  is never read in Italian. The row is a `StudiedLanguage` key, so change 8 could not write it;
+  Spanish's and French's rows came with `read-lingua-card-in-another-studied-language` (#908), after
+  French's type was widened (#880). Its requirement, *No word is read in a language whose guard keeps
+  the document's language out*, names each language's list and is MODIFIED (D13).
 - **The test-local `NAMES`** of `test/native-language-view.spec.ts` gains Italian.
 
 ### D4 — Backup v4 reaches a store before Italian does
@@ -204,7 +212,14 @@ the owner has redeployed it after change 2 (its task 4.1), which `check_model_ho
 any delivery. Marks: if change 19 measured it-fr on the first tier, `MARKED_PAIRS` already lists it,
 inert until now; below the tier, M15 offers it-fr's translation without a mark unless the owner
 decided otherwise at change 19's figures (Open Question 2). Nothing in `model-manifest.json` or
-`markup.ts` changes but the comments that say « until change 20 ».
+`markup.ts` changes but the comments that say « until change 20 ». Change 2's scenario *Every reader
+today* says a French-native reader « downloads, stores and loads as before »: it gains « and the it-en
+model too once they accept Italian » (D13).
+
+**Online translation** follows the pairs (*Measured*): the requirement asks the service to accept any
+pair of Lingua's languages and the card to offer the button on every pair. `LANGUAGES` gains `it`
+and `language_name` names it Italian, with a test in `cymbra-lingua`; the backend is deployed before
+the extension's release (server first), so that no Italian sentence meets a refusal.
 
 ### D6 — The memory sentence counts two models at most
 
@@ -224,8 +239,9 @@ what French readers are told they can study:
 - **`_locales/fr`'s `extensionDescription`** names Italian, within the 112 characters
   `check_version` holds (Apple's limit) — and `check_version`'s rule (`add-lingua-french-listings`)
   that each native language's description names exactly the languages its shipped pairs study fails
-  this pull request until it does. `LANGUAGE_NAMES` gains Italian in each native's words (« italien »,
-  "Italian", « italiano »), as the interface's catalogue names it once change 15 is in. The direct
+  this pull request until it does. `LANGUAGE_NAMES` gains Italian in each native's words (« Italien »,
+  "Italian", « Italiano »), as the interface's catalogue names it once change 15 is in —
+  `check-version.spec.ts` holds the two equal, its `catalogue()` helper gaining `it`. The direct
   wording is 120 characters, so the sentence's shape changes (M9, the owner's words):
 
   | | Draft | Characters |
@@ -253,7 +269,11 @@ what French readers are told they can study:
 `python3 scripts/lingua-data/gloss_coverage.py --write` rewrites `apps/site/src/data/lingua-coverage.json`
 with it-fr's figures once it is listed, as `enable-lingua-french` published fr-en's and fr-es's;
 `test_gloss_coverage.py` (`test_every_shipped_pair_is_published`) requires it, and the site's tests
-require the file's pairs to be the list's.
+require the file's pairs to be the list's. As `enable-lingua-french` did, the site's fixtures are
+refreshed from the built pages (`node test/support/refresh-lingua-fixtures.mjs`:
+`test/fixtures/lingua/main.fr.html`, `main.en.html`, `taken-with.json`) and
+`test/astro/lingua-page.spec.ts` counts seven rows — otherwise `test/post-build/lingua.spec.ts`
+skips silently.
 
 The site refuses a studied language it does not describe (*Measured*). Describing Italian — its name
 in the fr, en and es tables of `lingua-text.ts`, `STUDIED.it` (the card names tense and gender, the
@@ -277,7 +297,8 @@ Italian with no code change. The back office's name for `it` is change 21's too.
 | Activation page | English, Spanish, Italian | unchanged | unchanged |
 
 The package carries the Italian base and it-fr's layer for every reader; only a French-native reader
-who ticks Italian fetches them (change 4).
+who ticks Italian fetches them (change 4). The Safari app's own review of the deck (#925) serves the
+embedded extension's packs: an Italian card is reviewed there with it-fr's glosses.
 
 ### D10 — Tests and documents
 
@@ -285,18 +306,22 @@ The tests that read the list, or held an Italian pair inert, are rewritten for t
 the earlier lists it named as explicit arguments; new ones are D3's (`profile.spec.ts`,
 `studied-languages-view.spec.ts`, `language-labels.spec.ts`, `settings-language.spec.ts`,
 `onboarding-level-row.spec.ts`, `popup.spec.ts`, `stats-view.spec.ts` with Italian studied in the
-French interface; `wordpopup.spec.ts` with an Italian card's words in `it`), D6's
-(`translation-setting.spec.ts`, `model-controller.spec.ts`), D7's (`check-version.spec.ts`,
-`apple-activation-page.spec.ts`) and `GUARDED`'s (`session.spec.ts` or where the French row is
-tested: a page declaring `scn`, `vec` or `srd` reads no card in Italian). `committed_tables.rs`: change 9's scenario asserts the list names
+French interface; `wordpopup.spec.ts` with an Italian card's words in `it`; `engine.spec.ts`, as
+French's: a French-native reader fetches the Italian base and it-fr's layer, an English or Spanish
+reader is refused before any fetch), D5's (`translate-relay.spec.ts`: it-fr marked if change 19
+listed it; the online-translation core's test), D6's (`translation-setting.spec.ts`,
+`model-controller.spec.ts`), D7's (`check-version.spec.ts`, `apple-activation-page.spec.ts`) and
+`GUARDED`'s (`session-reread.spec.ts`, beside Spanish's and French's rows: a page declaring `scn`,
+`vec` or `srd` reads no card in Italian). `test_gloss_coverage.py`'s `ListedFloorsTest` names it-fr
+among its candidates. `committed_tables.rs`: change 9's scenario asserts the list names
 it-fr. `test_gloss_coverage.py`: D8's publication.
 
 Documents: `README.md` and `REVIEWERS.md` (what ships: Italian for French speakers),
 `TRANSLATION.md` (it-fr's route, offered), `tool/marks/README.md`, the comments of `markup.ts`,
 `language-labels.ts` and `soak_engine.mjs`, `scripts/lingua-data/SOURCES.md` and the Italian tables'
-READMEs that name this change as the future; the full list from `git grep -n "enable-lingua-italian"`
-at implementation — not « change 20 », which the code already uses for two other programmes'
-changes (*Measured*).
+READMEs that name this change as the future; the full list from `git grep -n "enable-lingua-italian\|change 20"`
+at implementation, keeping only the Italian programme's hits — « change 20 » also names two other
+programmes' changes in the code (*Measured*).
 
 ### D11 — The dogfood pass, before merge
 
@@ -313,10 +338,13 @@ this branch with the real packs, on test accounts, in the French interface:
 4. Read-aloud, change 15's checklist (its task 4.1): Alice on macOS and iOS, Google's Italian voice
    on Chrome, Android's on Firefox for Android, an installed Windows Italian voice on Chrome for
    Windows if one is at hand; « l' » heard with its word, « è » heard as the verb.
-5. A Catalan, a Galician, a Sicilian and a Venetian page: not read as Italian (change 8).
+5. A Catalan, a Galician, a Sicilian and a Venetian page: not read as Italian (change 8); a word
+   card on a page declaring `scn` not read in Italian (D3).
 6. « Traduction étendue »: the download and « environ 340 Mo » with Italian alone and with English,
    Spanish and Italian; it-en downloaded once; Italian selections translated, marked if it-fr is
-   listed in `MARKED_PAIRS`; absent on Firefox for Android.
+   listed in `MARKED_PAIRS`; the worker's memory with Spanish and Italian studied, read from the
+   browser's task manager and on the iPhone; absent on Firefox for Android. On an account granted
+   it, « Traduction en ligne » on an Italian sentence, once the backend is deployed (D5).
 7. An English- and a Spanish-native install: Italian never offered; no Italian base fetched (the
    network panel).
 8. A French-native install of the last store release, updated in place by this build: nothing
@@ -325,11 +353,11 @@ this branch with the real packs, on test accounts, in the French interface:
    an English-native device of the account pulls no Italian card; the day's statistic stored under
    `it`.
 10. On Chrome (macOS), after step 1's reader has Italian cards: the previous store release loaded in
-    place of this build (D4) starts and keeps reading English, and this build reloaded finds the
-    Italian cards.
+    place of this build (D4) starts and keeps reading English — a reader of Italian alone too —, and
+    this build reloaded finds the Italian cards.
 11. The library: an Italian EPUB shelved under Italian.
 12. The host app's activation page on the iPhone and the Mac, the device in French: Italian named,
-    step 3 followed as written to Italian's level.
+    step 3 followed as written to Italian's level; an Italian card reviewed in the app (#925).
 
 The owner runs it on their devices, with Claude where a session can drive the browser; the findings
 go to the pull request.
@@ -344,13 +372,18 @@ the owner's (I12, M18).
 
 ### D13 — Requirements true of their time, rewritten here
 
-Three requirements of open changes say what this change ends:
+Four requirements of open changes say what this change ends:
 - change 9's *Italian's forms and frequencies* — « no package SHALL list it-fr », and its scenario
   *The reference and the pipeline*, « no package lists it-fr »: MODIFIED, the pack carried once the
   list of shipped pairs names it;
-- change 4's *The shipped pairs are one list* — the list ending with fr-es, and its scenario *No
-  French for French speakers*, « their pairs are en-fr and es-fr as before »: MODIFIED, the list
-  ending with it-fr, the scenario naming it-fr, two scenarios added;
+- change 4's *The shipped pairs are one list* — the list ending with fr-es, its scenario *No French
+  for French speakers*, « their pairs are en-fr and es-fr as before », and *French for English
+  speakers alone*, « the list ends with fr-en »: MODIFIED, the list ending with it-fr, the two
+  scenarios naming it-fr, *Building the listed packs* saying the Italian base is among the bases
+  built, two scenarios added;
+- change 2's *Translation models are listed in one catalogue, with a route per pair* — its scenario
+  *Every reader today*, a French-native reader « downloads, stores and loads as before »: MODIFIED,
+  « and the it-en model too once they accept Italian, it-fr listed »;
 - `read-lingua-card-in-another-studied-language`'s *No word is read in a language whose guard keeps
   the document's language out*, which names Spanish's and French's neighbours: MODIFIED, Italian's
   added (D3), one scenario added.
@@ -360,8 +393,10 @@ language's page to name every language its pairs study — its scenario *The Fre
 English and Spanish », is rewritten and one is added; *The setting's memory…* reads « two models or
 more » (D6), two scenarios added. Each MODIFIED block keeps every other word and scenario; each is
 archived after the change that holds it — `archiveAfter` names `ship-lingua-pack-bases-once`,
-`add-lingua-italian-forms-tables`, `read-lingua-card-in-another-studied-language` and
-`enable-lingua-french`. The blocks are re-copied from those
+`add-lingua-italian-forms-tables`, `add-lingua-italian-translation-models`,
+`read-lingua-card-in-another-studied-language` and `enable-lingua-french`, and, as
+`enable-lingua-french` does, `add-lingua-apple` and `localise-lingua-apple-host`, which hold
+*Guided activation* before it. The blocks are re-copied from those
 changes as they stand when this one is implemented, only these clauses differing (task 5.4).
 
 True as written, so not modified: change 2's *A route of an Italian pair* (« when … no shipped pair
@@ -372,6 +407,7 @@ figures.
 
 ## What moves, and what cannot
 
+In `backend/`, the online-translation core's language list and its names (D5), deployed first.
 Nothing in `crates/` but the assertions of `committed_tables.rs` that read the list (D10), nothing in
 `scripts/lingua-data/tables/`, and no `testdata/` folder: no pack, pin, table, rule, analyser version
 or golden can move. The six pairs' readers keep their pairs, routes, downloads and marks; the
@@ -407,12 +443,13 @@ Against 4–7.5 ideal days:
 - the list, the gate, the coverage and the tests that read the list: 0.5–1;
 - the extension's Italian (type, name, offer) and its tests in French: 0.75–1.5;
 - the memory sentence and its tests: 0.25–0.5;
+- online translation's language list and its test: 0.1–0.25;
 - the description, the activation page and its test, the comments and the documents: 0.25–0.5;
 - the checks (Rust, Python, site, host app): 0.25–0.5;
 - the dogfood on five targets with change 15's checklist: 1.5–3;
 - the spec and the programme: 0.25–0.5.
 
-Total 3.75–7.5.
+Total 3.85–7.75.
 
 ## Open Questions
 

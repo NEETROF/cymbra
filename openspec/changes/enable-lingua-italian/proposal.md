@@ -15,11 +15,12 @@ did for French.
 
 Measured on a scratch copy of `main` (design, *Measured*): with the type widened, four type errors,
 two filled by change 15, one by change 18, one a test of this change's; with it-fr listed, 100 of
-4,347 tests fail, 93 removed by change 15's catalogue entry, one by change 5's analyser constant, and
-7 that read the list, this change's. Two gaps no earlier change can close, because both are keyed by
-the extension's studied-language type: the word card's guard row for Italian's neighbours, and the
-French description, which the version check requires to name what French readers study and which no
-longer fits 112 characters with a third language said the direct way.
+4,347 tests fail — 93 throw until change 15's catalogue names Italian, and 8 remain then: one for
+change 5's analyser constant, seven that read the list, this change's. Three gaps no earlier change
+closes: the word card's guard row for Italian's neighbours, keyed by the studied-language type; the
+French description, which the version check requires to name what the listed pairs study and which
+no longer fits 112 characters with a third language said the direct way; and online translation,
+whose backend refuses any pair with Italian.
 
 ## What Changes
 
@@ -37,6 +38,8 @@ longer fits 112 characters with a third language said the direct way.
 - **Translation as M15 settled it** (D5): it-fr through it-en then en-fr, the model host serving it-en
   after the owner's redeploy (change 2); marked if change 19 put it on the first tier, else offered
   without a mark unless the owner decides otherwise (Open Question 2).
+- **Online translation accepts Italian** (D5): the backend's language list (`LANGUAGES`) gains `it`
+  and names it Italian, deployed before the extension's release.
 - **The memory sentence** (D6): a French speaker reading English, Spanish and Italian needs three
   models, which the engine holds two at a time: « environ 340 Mo », as for two; the download is the
   catalogue's sum, ≈ 78,2 Mo. The requirement reads « two models or more ».
@@ -53,9 +56,9 @@ longer fits 112 characters with a third language said the direct way.
   implementation — is live on every store before this change's release, so a rollback keeps an Italian
   reader's data.
 - **Requirements true of their time** (D13): change 9's « no package SHALL list it-fr », change 4's
-  list, the guard requirement's lists of neighbours, and two of `enable-lingua-french`'s
-  (*Guided activation*'s French page, the memory sentence) MODIFIED, each archived after the change
-  that holds it.
+  list, change 2's *Every reader today*, the guard requirement's lists of neighbours, and two of
+  `enable-lingua-french`'s (*Guided activation*'s French page, the memory sentence) MODIFIED, each
+  archived after the change that holds it.
 - **A dogfood pass on five targets** (D11) in the French interface, carrying change 15's voice
   checklist; TestFlight first; the owner's go-ahead before the merge and before each submission (I12).
 
@@ -68,8 +71,9 @@ None.
 ### Modified Capabilities
 
 - `lingua-data-packs`: MODIFIED *The shipped pairs are one list* (held by change 4,
-  `ship-lingua-pack-bases-once`): the list ends with it-fr; *No French for French speakers* names
-  it-fr; *French speakers learning Italian* and *No Italian for English and Spanish speakers* added.
+  `ship-lingua-pack-bases-once`): the list ends with it-fr; *No French for French speakers* and
+  *French for English speakers alone* name it-fr; *French speakers learning Italian* and *No Italian
+  for English and Spanish speakers* added.
   MODIFIED *Italian's forms and frequencies* (change 9): a package carries it-fr once the list names
   it, in the requirement and in *The reference and the pipeline*; every other word verbatim.
 - `lingua-browser-extension`: ADDED *Italian is studied by readers of French*. MODIFIED *No word is
@@ -77,37 +81,46 @@ None.
   `read-lingua-card-in-another-studied-language`): Italian's neighbours added, *A Sicilian page*
   added.
 - `lingua-translation`: MODIFIED *The setting's memory follows the models the reader's pairs need*
-  (held by `enable-lingua-french`): « two models or more », two scenarios added.
+  (held by `enable-lingua-french`): « two models or more », two scenarios added. MODIFIED
+  *Translation models are listed in one catalogue, with a route per pair* (held by change 2): *Every
+  reader today* says a French-native reader also downloads it-en once they accept Italian.
 - `lingua-apple-app`: MODIFIED *Guided activation* (held by `enable-lingua-french`): *The French page*
   names Italian once it-fr is listed; *Every language a French speaker can study* added.
 
 Change 2's *A route of an Italian pair*, change 16's « no package SHALL list it before Italian is
-enabled » and change 19's scenarios stay true as written.
+enabled » and change 19's scenarios stay true as written. The online-translation requirement already
+asks the service to accept any pair of Lingua's languages: the backend follows it, the requirement
+does not move.
 
 ## Impact
 
 - **Products.** Cymbra Lingua only:
   - `apps/lingua-extension` — *changed*: `packs.json`, `tool/check_variants.mjs`,
     `src/analyzer/types.ts`, `src/state/profile.ts`, `src/analyzer/language-labels.ts`,
-    `src/reading/session.ts` (`GUARDED`, `THREE_LETTER`), `tool/check_version.mjs`
+    `src/reading/session.ts` (`GUARDED`, `THREE_LETTER`'s `srd` and `cos`), `tool/check_version.mjs`
     (`LANGUAGE_NAMES`), `_locales/fr/messages.json` and `manifest.json`'s French literal, the
     comments that name `enable-lingua-italian` as the future, `README.md`, `REVIEWERS.md`,
     `TRANSLATION.md`, `tool/marks/README.md`; the tests of design D10.
   - `scripts/lingua-data/` — *changed*: `test_gloss_coverage.py`; *consumed*: `gloss_coverage.py`,
     every table, unchanged.
   - `crates/lingua-pack/tests/committed_tables.rs` — change 9's scenario asserts the list names it-fr.
-  - `apps/site` — `src/data/lingua-coverage.json`, written by the script; no page or text changes.
+  - `apps/site` — `src/data/lingua-coverage.json`, written by the script, and the fixtures
+    refreshed from the built pages (`test/fixtures/lingua/`, `test/astro/lingua-page.spec.ts`'s row
+    count); no page or text changes.
+  - `backend/lingua` — `src/online_translation_core.rs`: `LANGUAGES` gains `it`, `language_name`
+    names it Italian, with a test; deployed before the extension's release.
   - `apps/lingua-apple` — `Shared (App)/Resources/copy.js` (`fr` `lede`, `step3`) and
     `Base.lproj/Main.html` (its two French nodes).
 
-  ID, Music, Live, the back office (its name for `it` is change 21's) and the backend are untouched:
-  the server stores any studied language a client sends, so Italian cards, statuses and days sync
-  with no server change. lingua-core, lingua-wasm, the packs, every table and every golden: untouched.
+  ID, Music, Live and the back office (its name for `it` is change 21's) are untouched; of the
+  backend, only online translation's list moves: the server stores any studied language a client
+  sends, so Italian cards, statuses and days sync with no other change. lingua-core, lingua-wasm, the packs, every table and every golden: untouched.
 - **Prerequisites, all the owner's** (I12, M18):
   - Implementations merged: changes 2–19 of the programme, change 16's floor fixed by the owner and
     its tables committed at or above it, change 17 (Open Question 1), and change 21's description of
     Italian on the site (D8).
-  - The model host redeployed with it-en (change 2's task 4.1).
+  - The model host redeployed with it-en (change 2's task 4.1), and the backend deployed with
+    online translation's Italian (D5).
   - A release that reads backup schema 4 live on the Chrome Web Store, addons.mozilla.org and the App
     Store (D4).
   - The owner's readings: the description and the activation page's drafts (M9), change 19's
@@ -119,4 +132,4 @@ enabled » and change 19's scenarios stay true as written.
   are pasted. Nothing is submitted by this pull request.
 - **Order.** After every stage-1 change and change 21's implementation; before stage 2 (it-en, it-es),
   which widens nothing this change has not. Archived after the changes of `.openspec.yaml`.
-- **Effort, against 4–7.5 ideal days**: 3.75–7.5 (design, *Effort*), the dogfood the uncertain part.
+- **Effort, against 4–7.5 ideal days**: 3.85–7.75 (design, *Effort*), the dogfood the uncertain part.

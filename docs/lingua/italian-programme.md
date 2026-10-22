@@ -164,7 +164,10 @@ Other figures:
 
 ## Programme
 
-In merge order within a stage (1 change = 1 pull request, none above ≈ 10 ideal days). Effort is
+In merge order within a stage (1 change = 1 pull request, none above ≈ 10 ideal days), but for one
+inversion: change 21's description of Italian on the site (its names, `STUDIED.it`) and in the back
+office is implemented before change 20 lists it-fr, which the site's build would otherwise refuse —
+as the matrix's change 53 (#868) was before 52 (#880). Effort is
 in ideal days, min–max, by analogy with the measured change of the matrix programme named in the
 *Precedent* column; it measures size, not calendar. Stage 3 does not depend on stage 2.
 

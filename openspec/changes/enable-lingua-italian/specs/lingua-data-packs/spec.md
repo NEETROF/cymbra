@@ -43,7 +43,7 @@ The extension's build SHALL read the language pairs it ships from one list, whos
 
 #### Scenario: French for English speakers alone
 - **WHEN** fr-es's first committed measurement fell under its floor, so that no fr-es table is committed
-- **THEN** the list ends with fr-en, no package carries fr-es, and a reader whose native language is Spanish is offered English alone
+- **THEN** fr-en is followed by it-fr, no package carries fr-es, and a reader whose native language is Spanish is offered English alone
 
 #### Scenario: No French for French speakers
 - **WHEN** a reader whose native language is French uses a package built with this list
