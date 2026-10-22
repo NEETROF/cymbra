@@ -78,8 +78,8 @@ None.
 - `lingua-analysis`: ADDED — *The apostrophe that stands for an accent reads as the accented word*;
   MODIFIED — *Italian tokenisation pre-pass* (change 6): the apostrophe sentence, the version
   sentence (« `0.2.0` with this pre-pass » becomes « bumped with this pre-pass », the literal being
-  stale since change 7) and the « what the baseline shows today » scenario; every other scenario
-  kept.
+  stale since change 7) and the « an apostrophe that stands for an accent, and a closing quote »
+  scenario; every other scenario kept.
 - `lingua-data-packs`: ADDED — *An Italian spelling the dictionary gives only as a marked word
   reads as that word when the marked word is the commoner* and *The web's Italian spellings without
   their marks read as the words a reviewed list names*; both read change 9's tables, after which

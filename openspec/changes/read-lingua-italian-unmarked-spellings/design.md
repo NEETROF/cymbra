@@ -139,7 +139,8 @@ with its reason and its corpus counts (task 2.2), settled by the owner (task 0.1
 
 **Left out, by group**, the first failing test named: the words of their own — `e` (*and*, 7.46
 against `è` 7.10), `da`, `si`, `se`, `ne`, `la`, `li` —; `papa`, commoner than *papà* (5.15 against
-4.66); `eta` and `pero`, Spanish's first (4.10 against 3.73; 6.57 against 4.42); `cafe`, English's
+4.66); `eta` (the Greek letter) and `pero` (the pear tree), words of their own first and Spanish's
+besides (4.10 against 3.73; 6.57 against 4.42); `cafe`, English's
 (4.09 against 3.33); D2's spellings; hyphenated words wordfreq cannot count. The rows join
 `reduce-it-fr.py`'s table as one literal of `spelling → word` with one shared reason and the
 exception rows with theirs, each a form of its word.
