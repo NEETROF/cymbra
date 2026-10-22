@@ -12,14 +12,17 @@ imperative without a tense, the gerund `VerbForm=Ger`, the participles —, stor
 cannot say any of it: `StudiedLanguageCode` is `en | es | fr`, and no renderer has an Italian row.
 
 Italian is read in French first (I5: it-fr), then in English and Spanish (it-en, it-es, stage 2): unlike
-French studied, its card needs the **French** renderer too — the one renderer no studied language
-has used for a card yet (French's own row serves only the override M2 reserves).
+French studied, its card needs the **French** renderer with moods merged — the French renderer has
+named English and Spanish cards from the start, but no studied language whose moods merge has been
+shown in French yet (the `fr` row is M2's reserve).
 
 Measured on change 13's prototype readings over the Italian section's tables (441,628 form–lemma
 pairs, design *How it was measured*):
 - **the indicative and the subjunctive of one tense, person and number** — the first person plural
-  of the present (`diamo`, `parliamo`: 10,580 pairs, the imperative's too), the second person
-  singular (`parli`: 8,449), the second person plural (`date`: 1,550) — which M21's rule says once;
+  of the present (`diamo`, `parliamo`: 10,580 pairs, the imperative's too) and the second person plural
+  of `-iare` verbs (`mangiate`: 1,455) — which M21's rule says once; and `parli`, whose indicative is
+  the second person singular and whose subjunctive the first, second and third (8,392 such forms):
+  the rule names the moods apart, as French's change 51 left it;
 - **the gerund** (`parlando`, 13,093 pairs): named by no renderer for a Romance language but
   Spanish (`gerundio`);
 - **the present participle** (`parlante`): French's change 51 named it.
@@ -57,10 +60,11 @@ D6), whatever the studied language.
     « imperativo », « gerundio », « participio presente », « participio pasado ».
   Tenses come in the grammars' order — indicative, conditional, subjunctive, imperative — locked by
   the snapshot.
-- **The indicative and the subjunctive said once (M21, for Italian)** (D3): « 1re personne du pluriel
-  du présent de l’indicatif ou du subjonctif et de l’impératif de parlare », « 2e personne du
-  singulier du présent de l’indicatif ou du subjonctif, 1re et 3e personnes du singulier du présent
-  du subjonctif de parlare » — French's `Ind|Sub` keys, which Italian reaches in the present alone.
+- **The indicative and the subjunctive said once (M21, for Italian)** (D3): `CARD_NAMES.it` merges
+  the moods as French's does, where their persons are the same — « 1re personne du pluriel du présent
+  de l’indicatif ou du subjonctif et 1re personne du pluriel de l’impératif de parlare » —; `parli`'s
+  moods stay apart; whether Italian merges at all, and whether a partial merge is added, is the owner's
+  (open questions).
 - **The gerund and the present participle named** (D4).
 - **An expression named without a space** (D5): review reads an Italian card whose lemma holds no
   space but reads as two tokens or more (`d'accordo` → `di accordo`) at that key, as French's does;
@@ -84,9 +88,8 @@ None.
 - `lingua-browser-extension`: ADDED — *An Italian card names its forms in the interface language's
   grammar* and *The Italian card is pinned on the real packs*.
 - `lingua-decks-review`: ADDED — *Review finds an Italian expression card named without a space*.
-  For an Italian card, it takes the place of the sentence of *Review finds a French expression card
-  named without a space* that reads every other card as before (51, open), as change 12's review
-  requirement did; this change archives after 51, after the card wording change, and after the
+  For an Italian card whose lemma holds no space, it takes the place of the sentence of change 12's
+  *Review finds an Italian expression card by its name* that looks every other card up as before; this change archives after 51, after the card wording change, and after the
   Italian changes 6, 12, 13 and 16 whose pieces, keys, readings and golden it reads.
 
 ## Impact
@@ -95,10 +98,13 @@ Lingua only. Nothing is consumed from Cymbra ID, Music, Live, the back office or
 nothing new is offered to them.
 
 - `apps/lingua-extension/src/i18n/index.ts` (`StudiedLanguageCode`), `src/i18n/{fr,en,es}/grammar.ts`
-  (`TENSES.it`, `GERUNDS.it`, the participles), `src/reading/grammar-description.ts` where a key is
-  per language; `test/word-card-it-fr.spec.ts`, `test/baseline/word-card-it-fr.txt`, the renderers'
-  unit tests.
+  (`TENSES.it`, `GERUNDS.it`, Spanish's `PARTICIPLES.it`), `src/reading/grammar-description.ts`
+  (`CARD_NAMES.it`), `src/i18n/README.md`; `test/word-card-french.ts` (the studied code),
+  `test/word-card-it-fr.spec.ts`, `test/baseline/word-card-it-fr.txt`, `test/grammar-description.spec.ts`
+  (`CARD_NAMES`, *What each renderer names*), the renderers' unit tests;
+  `.github/workflows/lingua-pack-update.yml` (the re-bless line names the it-fr snapshot).
+- Order: implemented after the implementations of changes 12, 13 and 16 (D8).
 - `crates/lingua-wasm/src/lib.rs` (`pack_gloss`'s Italian no-space branch), its test;
   `crates/lingua-wasm/tests/support/italian.rs` (the card's probes) and `baseline/it-fr.golden`.
 - Untouched: lingua-core, the packs, the six other goldens and snapshots, the server, the site.
-- **Effort, against 3.5–6 ideal days**: 3–4.5 (design, *Effort*).
+- **Effort, against 3.5–6 ideal days**: 3.5–5 (design, *Effort*).
