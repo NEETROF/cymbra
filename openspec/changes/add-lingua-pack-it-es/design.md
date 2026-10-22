@@ -7,7 +7,7 @@ studying Italian. Like it-en (change 22), it-es is a reader pair: Italian's stud
 (changes 9, 16), read as committed. Its native side is the thinnest of the programme: the planned
 sources — the Spanish Wiktionary's Italian section, the Italian Wiktionary's Spanish translations, the
 Spanish Wiktionary's tables read backwards — gloss 57.8 / 46.8 / 35.0 % of the 5,000 / 10,000 / 20,000
-commonest Italian lemmas, 25 / 24 / 22 points under fr-es. The owner settled I4 on 2026-10-23 (#1004): it-es
+commonest Italian lemmas, 25 / 24 / 22 points under fr-es. The owner settled I4 on 2026-10-22 (#1004): it-es
 also reads Wikidata Lexemes, the Italian Wiktionary's Spanish section read backwards, and seven other
 Wiktionaries' translation tables as a pivot, every pair kept — an exception to M5 that I11 records for
 this pair. Change 27a (`add-lingua-it-es-pivot-sources`) registers, derives and pins those files; its D6
