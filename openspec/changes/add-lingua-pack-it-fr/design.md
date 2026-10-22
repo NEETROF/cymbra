@@ -18,18 +18,17 @@ See proposal.md — Why. Where things stand:
   committed tables in the same pull request; fr-es of a coverage floor fixed before the first
   committed measurement (M6, `FLOORS`).
 - `pack_sources.py`: `EDITIONS` lists the files each Wiktionary dump derives (`("entries", lang)` or
-  `("translations", from, to)`), `DUMPS[pair]` the files a pair reads by edition, `FLOORS[pair]` the
-  coverage floors.
+  `("translations", from, to)`), `DUMPS[pair]` the files a pair reads by edition; `gloss_coverage.py`:
+  `FLOORS[pair]`, the coverage floors.
 - Change 11's D3 (the acronym rows glossed by the pair's glosses of their expansions, else synonyms,
   else none; `acronym_gloss`), its D5 (`lexical.tsv` = dictionary words ∪ rows; `check_studied`
   exempting the rows); change 12's expression keys and its single words the pre-pass splits; change
   14's D4 (`words` passed to `estimated_levels`); change 5's D6 (the baseline handed to the tables by
   the pair that commits the glosses).
-- Measured (proposal, Why) on kaikki's extract of the section (2026-10-22) with scratch scripts: the
-  entries, the glossed headwords by part of speech, the expressions, the 43 senses misread as links,
-  the 243 glosses repeating the headword, and the coverage on a prototype ranking (wordfreq's Italian
-  order, a word skipped when the English section gives it as an inflection of another, the `di`
-  family kept as lemmas and the other articulated prepositions dropped, as change 9 ranks them).
+- Measured (proposal, Why) on kaikki's extract of the section (2026-10-22) with scratch scripts, then
+  re-measured by the review with the real shared rules: the entries, the glossed headwords by part of
+  speech, the expressions, the senses read as links (D4), the 243 glosses repeating the headword, and
+  the coverage on a change-9-like ranking (D7).
 
 ## Goals / Non-Goals
 
@@ -60,7 +59,7 @@ them; nothing of `reduce_common.py` or `reduce_edition_fr.py` is edited.
 As es-fr, en-es and fr-es read theirs (`sources = [(direct, …), (inverted, …)]`):
 1. **The section's definitions** (`kaikki-fr-Italien.jsonl`): the French Wiktionary's own glosses of
    its Italian entries, through `FR`'s rules (notes, typography, the form-of patterns) — 68,985
-   headwords glossed before the shared filters, after D4's and D5's pre-pass;
+   headwords glossed before the shared filters and before any pre-pass;
 2. **The Italian Wiktionary's French translations** (`kaikki-it-traductions-fr.jsonl`), the direct
    fallback: an Italian entry listing French translations, in the table's order, at most three per
    part of speech — 10,086 Italian entries with 14,410 French translations;
@@ -72,8 +71,8 @@ A typographic apostrophe in a headword, or in an Italian word of either table, i
 fr-en's and fr-es's requirements say. Sense runs (`senses.tsv`) and the grouping of a gloss by part
 of speech are the shared rules'; a noun's gender comes from change 13's readings, as French's does.
 Measured (the reviewer's re-run with the real shared rules, `reduce_gloss` and `FR`, letters out, D4
-on): 585 top-20,000 lemmas glossed by a fallback; the order moves 38 of them (`decade` « Décennie »
-from the Italian table first, « Décade » read backwards), none in or out.
+on): 585 top-20,000 lemmas glossed by a fallback; the order moves 38 of them (`app` « Appli » from the
+Italian table first, « Application » read backwards), none in or out.
 
 ### D3 — The editions' files, one release of it-fr's
 
@@ -101,9 +100,11 @@ as an inflection; `_is_form_of` is not that test (it is true of every sense tagg
 with the exact-spelling test: 34 senses with a capitalised target (`del` « Du. … », `al` « Au. »,
 `ad` « À, dans sa forme euphonique », `c’è` « Il y a », `coloro` « Celles et ceux », `accusatore`,
 `motociclista`) — 43 without the text test, which keeps « Pluriel de storia » (target « Pluriel »)
-a link — and the lowercase targets among 51 senses whose text the pattern does not read as an
-inflection (`delle`, `degli`, `dello`, `li` « …: les »), counted at implementation. The lemmas of
-change 9's tables gain a gloss (`del`, `degli`, `delle`, `dello`, `coloro`, `accusatore`); `c’è`
+a link — and, among 51 senses with a lowercase target whose text the pattern does not read as an
+inflection, those of a headword with no other glossed sense (`degli`, `delle`), counted at
+implementation. Without that condition « Article contracté souvent traduit par … » would join
+`pelle` (skin), `collo` (neck) and `colle` (hill), and `dello` a near-duplicate of its own gloss.
+The lemmas of change 9's tables gain a gloss (`del`, `degli`, `delle`, `coloro`, `accusatore`); `c’è`
 glosses the expression change 12 keys `ci essere`; `al`, no word of the tables, glosses nothing.
 `della` is not caught — its sense « Article contracté souvent traduit par De la. » links the Italian
 `la` — and takes the translation tables' gloss. `del`'s gloss is « Du. » with its usage note; the
@@ -126,11 +127,13 @@ row keeps its gloss. The lemmas left with no gloss then take the translation tab
 reviewed table, glossed through their entry's expansions or synonyms* (change 11's `acronym_gloss`):
 `stati uniti`, a synonym of `USA`, is a proper-noun entry, which `reduce_expressions` and the
 translation readers skip, so for an acronym row a synonym's gloss is read from its entry in the
-section whatever its part of speech — `USA` « États-Unis… »; `NATO` has none. **The levels** go to
+section whatever its part of speech — `USA` joins `america`'s first sense « Amérique (continent) »
+and `stati uniti`'s « États-Unis », in the row's order, as change 11 requires; `NATO` has none. **The levels** go to
 the dictionary words alone (*Italian's estimated levels*, change 14): `estimated_levels` receives
 `words`, and `committed_tables.rs` gains « every Italian levelled lemma is a dictionary word ».
 Measured at implementation and recorded: the names count (24c counted English's 3,046), the lemmas
-of the 1,425 commonest that end with no gloss and so no level (66 before the pre-pass, measured).
+of the 1,425 commonest that end as no dictionary word and so with no level (measured with D4, D5 and
+the fallbacks: 52 — 42 unglossed, 10 glossed by a name alone).
 
 ### D6 — Expressions
 
@@ -141,8 +144,10 @@ many species names: « pinguino del fiordland ») —, a typographic apostrophe 
 headwords write ’: `essere d'accordo`, `l'altro ieri`, `uomo d'affari`, lost to an ASCII pattern);
 then those the translation tables gloss (`fallback_expressions`: 7,411, `meccanica quantica`, `un
 po'` « Un peu »), as es-fr's D4 includes them; and the words without a space that change 6's
-pre-pass splits into two tokens or more (`d'accordo`, `all'improvviso`, `senz'altro`, `c’è`), read by
-it-fr's own reader as fr-en's change 48 reads French's. Each is keyed at build by change 12's rules;
+pre-pass splits into two tokens or more, from the section (`all'improvviso`, `c’è`) and from the
+translation tables (`d'accordo` « d’accord », `senz'altro`, which `fallback_expressions` skips for
+having no space), read by it-fr's own reader as fr-en's translated expressions read a word the
+tokenisation splits alone. Each is keyed at build by change 12's rules;
 a headword longer than seven tokens is left out there. Change 12's D10 figures (keys, names, the
 window, the `di` retry) are re-measured on the real `mwe.tsv` (task 2.3).
 
@@ -152,11 +157,12 @@ The prototype in the proposal ranked words its own way: it dropped what the Engl
 only with a capital or not at all — which change 9's D6 ranks, as fr-en's `ranks_for` does — and kept
 what change 9 drops (elision stems, elided compounds, clitic forms: 160 / 626 / 2,070 items in its
 5,000 / 10,000 / 20,000), and counted names apart. Re-measured with the real shared rules
-(`reduce_gloss`, `FR`, letters out, D4 on), on a change-9-like ranking: **87.6 / 79.8 / 70.6** from
-the definitions alone, **89.3 / 82.3 / 73.5** with both fallbacks; if change 9's D5 gives every word
-that is also another lemma's form (`porta`, `stato`, `fatto`) to the other lemma: 80.5 / 72.4 / 63.4,
-82.8 / 75.1 / 66.4 with fallbacks. About 1.6 points at the 5,000 are common words glossed only by a
-name, which D5's pre-pass removes.
+(`reduce_gloss`, `FR`, letters out, D4 and D5 on), on a change-9-like ranking: **87.5 / 79.6 /
+70.5** from the definitions alone, **89.2 / 82.2 / 73.4** with both fallbacks; if change 9's D5 gives
+every word that is also another lemma's form (`porta`, `stato`, `fatto`) to the other lemma: 80.3 /
+72.3 / 63.3, 82.7 / 75.0 / 66.3 with fallbacks. D5 moves them by 0.2 points at most: most lemmas it
+clears regain a real gloss (`soldi` « Sou; … », `so` « Savoir », `fatta` « Fait… », `bianca`
+« Blanc », `migliore` « Meilleur » from the table).
 
 So the floor is not fixed on the prototype. **Task 0.1** re-runs the study on change 9's committed
 ranks, with both fallbacks and D4 and D5's pre-pass, and fixes `FLOORS["it-fr"]` in
@@ -212,7 +218,10 @@ For change 17 (`refine-lingua-it-fr-glosses`), as 48b for French: what the revie
 glosses and the sample finds; already seen — the species names among the expressions; English loans
 the section does not gloss (`web`, `team`); `della` linked to `la`; the usage notes kept in
 `del`'s gloss; the lemmas left without a gloss by D5's pre-pass, and so without a level; `marco`
-glossed « Marc » alone (a first name), so no dictionary word.
+glossed « Marc » alone (a first name), so no dictionary word; `te`, cleared of its province by D5,
+glossed « Te » read backwards from the French entry « te », a letter's name (fr-es's rule that a
+letter glosses no word in either table would stop it); 27 top-20,000 fallback glosses repeating a
+word across parts of speech (« Décade; Décade », `beige`), which fr-es's listed-once rule fixes.
 
 ## Risks / Trade-offs
 

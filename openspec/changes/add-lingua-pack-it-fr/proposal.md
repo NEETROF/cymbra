@@ -16,9 +16,9 @@ glossed** (71,288 entries: 41,668 nouns, 13,278 adjectives, 12,838 verbs, 3,504 
 them expressions** (a headword with a space; 10,704 after the shared filters). The Italian
 Wiktionary adds 14,410 French translations of 10,086 Italian entries, the French Wiktionary's tables
 62,689 Italian words. Against the commonest Italian lemmas, re-measured with the real shared rules on
-a ranking like change 9's: **87.6 % of the 5,000, 79.8 % of the 10,000 and 70.6 % of the 20,000** from
-the definitions alone, **89.3 / 82.3 / 73.5** with both fallbacks (en-fr's committed coverage: 95.1 /
-90.1 / 78.9) — and 80.5 / 72.4 / 63.4 (82.8 / 75.1 / 66.4) if change 9 gives every word that is also
+a ranking like change 9's: **87.5 % of the 5,000, 79.6 % of the 10,000 and 70.5 % of the 20,000** from
+the definitions alone, **89.2 / 82.2 / 73.4** with both fallbacks (en-fr's committed coverage: 95.1 /
+90.1 / 78.9) — and 80.3 / 72.3 / 63.3 (82.7 / 75.0 / 66.3) if change 9 gives every word that is also
 another lemma's form to the other lemma (design D7). The floor is therefore fixed on change 9's
 committed ranks, before the first measurement.
 
@@ -50,17 +50,19 @@ Three of the section's defects bear on common words:
 - **A gloss read as a link is a gloss** (D4): a sense kaikki tags as a form of a word no Italian entry
   heads, by its exact spelling, whose text the French edition's form-of pattern (`FR.form_of`) does
   not read as an inflection, glosses its headword: `del` (« Du. »), `degli`, `delle`, `dello`,
-  `coloro` « Celles et ceux », and the expression `c’è` « Il y a »; `della` (linked to the Italian
-  `la`) takes the translation tables' gloss.
+  `coloro` « Celles et ceux », and the expression `c’è` « Il y a » — a lowercase target only where
+  the headword has no other glossed sense, so `pelle`, `collo` and `colle` keep theirs; `della`
+  (linked to the Italian `la`) takes the translation tables' gloss.
 - **Names and acronyms keep off common words** (D5): a name's or an acronym's sense glosses no lemma
   the section gives a lowercase entry of its own, even one of form-of senses only, as fr-es's pass
   keeps a name's note off `pierre`.
 - **Italian's dictionary words, the acronym rows, the levels** (D5): `tables/it/lexical.tsv` becomes
   the dictionary words of *Italian's dictionary words leave its names out* plus change 11's rows; the
   rows glossed by change 11's rule, a synonym's gloss read from its entry whatever its part of speech
-  (`USA` through `stati uniti`, a proper-noun entry); change 14's levels narrowed to them.
+  (`USA` joins `america`'s first sense and `stati uniti`'s « États-Unis », a proper-noun entry); change 14's levels narrowed to them.
 - **Expressions** (D6): `mwe.tsv` holds the section's glossed headwords with a space, then those the
-  translation tables gloss (7,411), then the single words change 6's pre-pass splits (`d'accordo`),
+  translation tables gloss (7,411), then the single words change 6's pre-pass splits, from the
+  section (`all'improvviso`, `c’è`) and from the tables (`d'accordo`, `senz'altro`),
   each keyed at build by change 12's rules; change 12's figures re-measured on it.
 - **M6's rule for it-fr** (D7): task 0.1 re-runs the study on change 9's committed ranks with both
   fallbacks and fixes `FLOORS["it-fr"]` (in `gloss_coverage.py`) at those figures less two points, up
@@ -88,9 +90,10 @@ None.
   to a coverage floor, and the Italian baseline runs on it*. Change 11's acronym requirement and
   change 12's expression requirements are implemented here, not modified; both changes archive after
   this one (their `.openspec.yaml` gains it in this pull request, as their tasks ask). This change
-  archives after changes 5, 9 and 13 (13 binds now that its proposal is on `main`), after change 24c
-  whose rule it reads, and after the fr-en and fr-es changes whose shape and floor rule it follows;
-  change 14 is not named — it would close the cycle 16 → 14 → 11 → 16.
+  archives after changes 5 and 9, after change 24c whose rule it reads, and after the fr-en and
+  fr-es changes whose shape and floor rule it follows. Changes 13 and 14 are not named: each archives
+  after change 11, which archives after this one (16 → 13 → 11 → 16, 16 → 14 → 11 → 16), so this
+  change archives before them anyway.
 
 ## Impact
 
