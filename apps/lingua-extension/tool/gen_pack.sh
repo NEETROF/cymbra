@@ -35,7 +35,15 @@ mkdir -p "$OUT_ABS/packs" "$OUT_ABS/bases"
 SEEN="$(mktemp -d)"
 trap 'rm -rf "$SEEN"' EXIT
 
-for pair in $(node "$SCRIPT_DIR/packs.mjs" pairs); do
+# Listed by a plain assignment, which `set -e` stops on, and refused when empty: a failing or silent
+# `$(…)` in the `for` list would build nothing and leave the run green.
+PAIRS="$(node "$SCRIPT_DIR/packs.mjs" pairs)"
+if [[ -z "$PAIRS" ]]; then
+  echo "error: tool/packs.mjs listed no shipped pair (packs.json)." >&2
+  exit 2
+fi
+
+for pair in $PAIRS; do
   studied="${pair%%-*}"
   args=(--parts)
   if [[ "$MODE" == real ]]; then

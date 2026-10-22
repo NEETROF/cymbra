@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { reprofileBackup, reviewOutlookJson, WasmAnalyzerPort, type WasmModule } from "@/analyzer/engine.ts";
 import { localDayStart } from "@/review/session.ts";
@@ -518,6 +520,32 @@ describe("WasmAnalyzerPort packs", () => {
     ]);
   });
 
+  it("names the part a failed response left out, and fetches both parts again on the next call", async () => {
+    // The Apple app's page answers a file it cannot find with a 404 and an empty body: the load fails
+    // naming the file and the status, never as a malformed container. An extension scheme's status 0
+    // is a response like any other.
+    const glue = packGlue();
+    const port = new WasmAnalyzerPort(glue.load, ["en-fr", "es-fr"]);
+    const served = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation(async (url) => {
+      const response = await served(url);
+      if (String(url) === ES)
+        return { ...response, status: 404, arrayBuffer: async () => new ArrayBuffer(0) } as Response;
+      return { ...response, status: 0 } as Response;
+    });
+
+    await port.for("en").analyse(["The lighthouse"]);
+    await expect(port.for("es").analyse(["El faro"])).rejects.toThrow(
+      "assets/bases/es.lingua could not be read (HTTP 404)",
+    );
+    expect(glue.calls.filter(([name]) => name === "addParts")).toEqual([]);
+
+    vi.mocked(fetch).mockImplementation(served);
+    await port.for("es").analyse(["El faro"]);
+    expect(packs()).toEqual([EN, EN_FR, ES, ES_FR, ES, ES_FR]);
+    expect(await port.languages()).toEqual(["en", "es"]);
+  });
+
   it("fetches each language's base once per engine, beside one layer per language", async () => {
     // The six pairs, read by an English speaker: Spanish through es-en, French through fr-en; the
     // Spanish base is es-en's whatever es-fr's is, and no file is fetched twice.
@@ -867,6 +895,48 @@ describe("WasmAnalyzerPort packs", () => {
 
     expect(packs()).toEqual([EN, EN_FR]);
     expect(glue.calls).toEqual([]);
+  });
+});
+
+describe("the committed fixture's parts (ship-lingua-pack-bases-once D6)", () => {
+  // test/fixtures/ holds the en-fr testdata pack whole and as its base and layer, all three written
+  // by `yarn gen:fixtures`: assembled, the parts answer as the whole pack does, so the tests on the
+  // real engine, which load the parts, read the pack the whole fixture is.
+  const fixture = (name: string) => new Uint8Array(readFileSync(join(__dirname, "fixtures", name)));
+
+  it("answers every analysis and gloss as the whole fixture does", () => {
+    const glue = realGlue();
+    const whole = new glue.LinguaEngine(fixture("en-fr.testdata.lingua"));
+    const parts = glue.LinguaEngine.assemble(
+      fixture("en.testdata.base.lingua"),
+      fixture("en-fr.testdata.layer.lingua"),
+    );
+    const blocks = [
+      ["The city runs; he ran and walked, seldom running."],
+      ["Leaves can put a conundrum: it went, it was gone, it does."],
+      ["Cities ran", "A conundrum seldom goes"],
+    ];
+    for (const block of blocks) expect(parts.analyse(block, "en")).toBe(whole.analyse(block, "en"));
+    for (const lemma of [
+      "run",
+      "city",
+      "seldom",
+      "conundrum",
+      "go",
+      "leave",
+      "leaf",
+      "can",
+      "put",
+      "walk",
+      "nothing",
+    ]) {
+      expect(parts.gloss(lemma, "en"), lemma).toBe(whole.gloss(lemma, "en"));
+    }
+    expect(parts.gloss("city", "en")).toBe("ville");
+    expect(parts.notice("en")).toBe(whole.notice("en"));
+    expect(parts.languages()).toBe(whole.languages());
+    whole.free();
+    parts.free();
   });
 });
 

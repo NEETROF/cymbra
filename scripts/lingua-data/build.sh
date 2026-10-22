@@ -208,7 +208,8 @@ case "$mode" in
     if [[ "$got" != "$want" ]]; then
       echo "error: $pair: $out has sha256 $got, but the committed tables build $want (tables/$pair/pin.json)." >&2
       echo "  The builder, a dependency or its studied language's tables (tables/${pair%%-*}/) changed the pack; if that" >&2
-      echo "  is intended, record it in the same pull request (update pack.sha256, or reduce $pair again)." >&2
+      echo "  is intended, record it in the same pull request (update pack.sha256 and pack.size, and the parts:" >&2
+      echo "  pack_sources.py record-parts --pin tables/$pair/pin.json --base <base> --layer <layer>; or reduce $pair again)." >&2
       exit 1
     fi
     echo "Built $out from the committed $pair tables (sha256 $got)."

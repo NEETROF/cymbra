@@ -7,7 +7,7 @@
 // A package carries each listed pair's pack as two parts (ship-lingua-pack-bases-once D1): the
 // pair's layer at the pair's path, `assets/packs/<pair>.lingua`, and its studied language's base,
 // once per language, at `assets/bases/<studied>.lingua`; the engine assembles the two at load.
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -211,8 +211,9 @@ export function assertPacksMatchEngine({
 }
 
 // For the shell scripts: `node tool/packs.mjs pairs` prints one shipped pair per line, and
-// `node tool/packs.mjs studied` one shipped studied language — one base — per line.
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+// `node tool/packs.mjs studied` one shipped studied language — one base — per line. Run through a
+// symlinked path, Node loads the module by its real path: the script's path is compared resolved.
+if (process.argv[1] && fileURLToPath(import.meta.url) === realpathSync(process.argv[1])) {
   if (process.argv[2] === "pairs") {
     console.log(shippedPairs().join("\n"));
   } else if (process.argv[2] === "studied") {

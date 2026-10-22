@@ -241,9 +241,16 @@ export async function reviewOutlookJson(
   return mod.reviewOutlook(backup, now, dayStart);
 }
 
-/** A packaged file's bytes. */
+/**
+ * A packaged file's bytes. A response the server marks as failed is refused, naming the file and
+ * the status: the Apple app's page answers a file it cannot find with a 404 and an empty body, which
+ * the engine would otherwise refuse as a malformed container without naming the file. Only a status
+ * of 400 and above is refused: an extension's own scheme answers with a status of 0.
+ */
 async function fetchPart(path: string): Promise<Uint8Array> {
-  return new Uint8Array(await (await fetch(packageUrl(path))).arrayBuffer());
+  const response = await fetch(packageUrl(path));
+  if (response.status >= 400) throw new Error(`${path} could not be read (HTTP ${response.status})`);
+  return new Uint8Array(await response.arrayBuffer());
 }
 
 /** A studied language's base, read from the package: one per language, whatever pair it serves. */

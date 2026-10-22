@@ -1448,7 +1448,9 @@ Never by hand — except `../fr/tags.tsv` and `../fr/studied.json`, which no red
   Run `scripts/lingua-data/build.sh --reduce fr-en <out>` (Python 3.12, `requirements-reduce.txt`),
   or `lingua-pack-update` with `mode=reduce`. A bump of `FRENCH_ANALYZER_VERSION` asks the same.
 - **After a builder or dependency change** that changes the pack's bytes: update `pack.sha256` and
-  `pack.size` in `pin.json` in the same pull request.
+  `pack.size` in `pin.json` in the same pull request, and the parts the package carries
+  (`pack_sources.py record-parts --pin tables/fr-en/pin.json --base <base> --layer <layer>`, the two
+  files `build.sh --parts fr-en <base> <layer>` writes).
 - **When a reduction's readings carry a tag `../fr/tags.tsv` does not pin, or no longer carry a
   pinned one**, `crates/lingua-pack/tests/committed_tables.rs` fails naming it: append the new tag
   after the pinned ones (a pinned tag never changes index), or remove the one left over, in the same

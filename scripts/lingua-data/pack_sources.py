@@ -1329,7 +1329,8 @@ def check_pack(pin: Path, pack: Path) -> None:
     if got != want:
         raise PinError(
             f"{pack} has sha256 {got}, but the committed tables build {want} (pin.json). The builder or a "
-            "dependency changed the pack: if that is intended, update pack.sha256 in the same pull request."
+            "dependency changed the pack: if that is intended, update pack.sha256 and pack.size in the same pull "
+            "request, and the parts (pack_sources.py record-parts --pin … --base … --layer …)."
         )
 
 

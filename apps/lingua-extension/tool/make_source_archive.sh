@@ -82,6 +82,15 @@ $(node -e "const p=require('$REPO_ROOT/apps/lingua-extension/engine-pin.json'); 
 \`\`\`
 EOF
 
+# The shipped pairs, listed by a plain assignment, which `set -e` stops on, and refused when empty:
+# an archive whose README names no part would send the reviewer nothing to compare.
+PAIRS="$(node "$REPO_ROOT/apps/lingua-extension/tool/packs.mjs" pairs)"
+STUDIED="$(node "$REPO_ROOT/apps/lingua-extension/tool/packs.mjs" studied)"
+if [[ -z "$PAIRS" || -z "$STUDIED" ]]; then
+  echo "error: tool/packs.mjs listed no shipped pair or no studied language (packs.json)." >&2
+  exit 2
+fi
+
 # One line per packaged part (ship-lingua-pack-bases-once D5): each shipped pair's layer (packs.json,
 # generalise-lingua-pack-build) and each of their studied languages' base, once, each built from its
 # pair's own tables and its studied language's (split-lingua-pack-tables-by-language) and checked
@@ -116,7 +125,7 @@ EOF
     for (const [studied, { sha256 }] of bases) {
       console.log(`${sha256}  apps/lingua-extension/assets/bases/${studied}.lingua`);
     }
-  ' "$REPO_ROOT" $(node "$REPO_ROOT/apps/lingua-extension/tool/packs.mjs" pairs)
+  ' "$REPO_ROOT" $PAIRS
   echo '```'
 } >>"$OUT/README.md"
 echo "Source archive assembled in $OUT"
