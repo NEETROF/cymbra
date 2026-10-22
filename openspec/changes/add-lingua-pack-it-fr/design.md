@@ -101,7 +101,7 @@ with the exact-spelling test: 34 senses with a capitalised target (`del` « Du. 
 `ad` « À, dans sa forme euphonique », `c’è` « Il y a », `coloro` « Celles et ceux », `accusatore`,
 `motociclista`) — 43 without the text test, which keeps « Pluriel de storia » (target « Pluriel »)
 a link — and, among 51 senses with a lowercase target whose text the pattern does not read as an
-inflection, those of a headword with no other glossed sense once D5 has cleared names and acronyms (`degli`,
+inflection, those of a headword with no other glossed sense once D5 has cleared the name notes and acronyms (`degli`,
 `delle`, and `li` « Accusatif masculin de loro : les », whose province `LI` would otherwise count),
 counted at implementation. Without that condition « Article contracté souvent traduit par … » would join
 `pelle` (skin), `collo` (neck) and `colle` (hill), and `dello` a near-duplicate of its own gloss.
@@ -118,9 +118,24 @@ entry into the lowercase lemma, and the archived *An acronym does not gloss the 
 like* holds only where the lowercase entry has a sense of its own. Measured on change-9-like ranks:
 102 top-20,000 lemmas (36 of the 5,000) are glossed by a proper noun or an acronym alone although the
 section has a lowercase entry — `te` « Province de Térame », `li`, `so`, `migliore`, `soldi`,
-`fatta`, `tratta`, `resta`, `valori` « Nom de famille ». So a name's or an acronym's sense glosses no
-lemma the section gives a lowercase entry of its own, even one of form-of senses only; a name's own
-row keeps its gloss. The lemmas left with no gloss then take the translation tables', or none.
+`fatta`, `tratta`, `resta`, `valori` « Nom de famille ». So an acronym's sense, and a proper noun's
+sense that only says the word is a surname, a first name or a hamlet (« Nom de famille », « Prénom… »,
+« Diminutif de… », « Hameau de… »), gloss no lemma the section gives a lowercase entry of its own, even
+one of form-of senses only, as fr-es's pass keeps a name's note off `pierre` (24b's D3); any other
+proper noun's sense stays beside the lemma's own, and a name's own row keeps its gloss. The lemmas
+left with no gloss then take the translation tables', or none.
+
+Not every proper noun's sense: measured on the change-9-like ranking (the amendment's review), that
+wording took the name from 1,044 of the 1,051 rows of the 20,000 that mix a name with a common sense
+— 827 of them only noise (640 « Nom de famille », 153 hamlets, 187 places), but with them 59 names a
+reader wants: `terra` « La Terre, planète tellurique », `luna` « Lune, satellite de la Terre »,
+`cristo` « Christ », `madonna` « Notre-Dame », the zodiac's signs, the centuries (`novecento` « XXᵉ
+siècle »), `argentina` « Argentine », Vénus, Saturne, Homère — and it left eight name-alone rows with
+nothing (`vittorio` « Victor », `como` « Côme », `nasa` « NASA »). The notes-and-acronyms rule keeps
+all 59; of the 101 rows glossed by a name alone (`li` is glossed by D4), 58 gain a real gloss (`soldi`
+« Sou; Solde du soldat; Argent… », `fatta`, `so`, `migliore`, `bianca`), 26 keep a name and 17 end
+with none; coverage moves by at most 23 rows of the 20,000. `roma`, `italia`, `milano`, `marco` and
+`francesco` have no lowercase entry in this section and move under no wording.
 
 **Dictionary words.** `tables/it/lexical.tsv` = `dictionary_words(glosses, runs)` ∪ the acronym rows
 — *Italian's dictionary words leave its names out* (change 11), by change 24c's rule in
@@ -222,7 +237,13 @@ the section does not gloss (`web`, `team`); `della` linked to `la`; the usage no
 glossed « Marc » alone (a first name), so no dictionary word; `te`, cleared of its province by D5,
 glossed « Te » read backwards from the French entry « te », a letter's name (fr-es's rule that a
 letter glosses no word in either table would stop it); 27 top-20,000 fallback glosses repeating a
-word across parts of speech (« Décade; Décade », `beige`), which fr-es's listed-once rule fixes.
+word across parts of speech (« Décade; Décade », `beige`), which fr-es's listed-once rule fixes;
+327 rows of the 20,000 still holding a name beside their common senses, about 268 of them noise
+(`vita` and `ora` « …, commune d'Italie », `era` « Héra », `qui` and `qua` « Riri » and « Loulou »,
+`regina` « Régine », constellations) — the measured candidate fix, a name spelled exactly as the word
+carrying no translation, would also lose `riga`, `congo`, `risorgimento`, `pinocchio`, `panama`,
+`trani` and `lugo`; `renato` and `nasa` left with no gloss (`nasa` better as a row of change 11's
+acronym table).
 
 ## Risks / Trade-offs
 

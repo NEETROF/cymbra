@@ -53,9 +53,10 @@ Three of the section's defects bear on common words:
   `coloro` « Celles et ceux », and the expression `c’è` « Il y a » — a lowercase target only where
   the headword has no other glossed sense, so `pelle`, `collo` and `colle` keep theirs; `della`
   (linked to the Italian `la`) takes the translation tables' gloss.
-- **Names and acronyms keep off common words** (D5): a name's or an acronym's sense glosses no lemma
-  the section gives a lowercase entry of its own, even one of form-of senses only, as fr-es's pass
-  keeps a name's note off `pierre`.
+- **Name notes and acronyms keep off common words** (D5): an acronym's sense, and a proper noun's
+  sense that only says surname, first name or hamlet, gloss no lemma the section gives a lowercase
+  entry of its own, as fr-es's pass keeps a name's note off `pierre`; any other proper noun's sense
+  stays (`luna` « Lune, satellite de la Terre », `cristo` « Christ »).
 - **Italian's dictionary words, the acronym rows, the levels** (D5): `tables/it/lexical.tsv` becomes
   the dictionary words of *Italian's dictionary words leave its names out* plus change 11's rows; the
   rows glossed by change 11's rule, a synonym's gloss read from its entry whatever its part of speech
