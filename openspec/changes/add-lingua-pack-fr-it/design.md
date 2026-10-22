@@ -128,7 +128,7 @@ the studied tables it read (fr-en's and the six French tables). Its rule digest 
    Italian word first by wordfreq's Italian list.
 
 At most three words per part of speech from each table. These are the sources I11 names for Italian
-natives; no pivot, no Wikidata (I11 keeps those for it-es alone). The inverted table adds 1.5 / 1.4 /
+natives; no pivot, no Wikidata (I11 keeps those for it-es and es-it). The inverted table adds 1.5 / 1.4 /
 1.1 points: definitions and the direct table alone reach 79.8 / 68.7 / 56.7.
 
 ### D3 — fr-es's add-pack rules, copied

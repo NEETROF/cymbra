@@ -1,0 +1,16 @@
+schema: spec-driven
+created: 2026-10-22
+archiveAfter:
+  - add-lingua-pack-fr-it
+  - add-lingua-pack-en-it
+  - add-lingua-italian-edition-rules
+  - add-lingua-pack-it-es
+  - add-lingua-it-es-pivot-sources
+  - add-lingua-pack-it-fr
+  - split-lingua-pack-format
+  - ship-lingua-pack-bases-once
+  - add-lingua-italian-native-language
+  - add-lingua-italian-card-wording
+  - add-lingua-pack-es-en
+  - leave-lingua-names-out-of-english-and-spanish-words
+  - add-lingua-spanish-expression-keys
