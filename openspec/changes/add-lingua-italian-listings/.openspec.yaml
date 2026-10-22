@@ -1,0 +1,11 @@
+schema: spec-driven
+created: 2026-10-22
+archiveAfter:
+  - add-lingua-french-listings
+  - add-lingua-italian-translation-models
+  - add-lingua-italian-grammar-tables
+  - add-lingua-italian-levels
+  - add-lingua-pack-it-fr
+  - add-lingua-italian-word-card
+  - measure-lingua-it-fr-translation-marks
+  - enable-lingua-italian
