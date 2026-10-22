@@ -17,8 +17,8 @@ change 27's first update fetches, derives, publishes and pins them. Change 27 re
 Where things stand: `pack_sources.py`'s `EDITIONS` lists, per Wiktionary dump, the files `derive` writes
 from it — `("entries", lang)`, or `("translations", lang, into)`, which keeps, for each entry of the
 edition's language, its translations into one other language with the table's `sense` string when it has
-one. `read_edition` fetches a dump once per run, derives its catalogue, and publishes the derived files
-in the pair's sources release, which the reduce job's asset cache reads back by sha256; a dump itself is
+one. `read_edition` fetches a dump once per run and derives its catalogue; `fetch_live` compresses the
+derived files and the workflow publishes them in the pair's sources release, which the reduce job's asset cache reads back by sha256; a dump itself is
 never cached. `PINNED` names a pair's files fetched as served, at a commit. Change 16 creates
 `EDITIONS["it"]`. A pair's pin records the files of `DUMPS[pair]` alone, and `check_registered` holds
 every one of them to an edition's catalogue.
@@ -101,13 +101,18 @@ records `DUMPS[pair]` alone).
   Spanish entries, read backwards by change 27 — the first gloss of each sense that is not a form, on a
   lowercase Spanish entry that is not a name or a character, split on « , » and « ; » into at most three
   parts of at most two words each, as measured. It is also es-it's future definitions file (stage 4).
-- **Wikidata Lexemes** are read like a Wiktionary dump: an edition `"wikidata"` whose URL is the latest
-  dated Lexemes dump, its identity — dated URL, decompressed sha256, size — recorded as kaikki's dumps'
-  are, and one derived file, `wikidata-lexemes-it-es.jsonl`: the pairs of an Italian and a Spanish sense
+- **Wikidata Lexemes** are read like a Wiktionary dump: an edition `"wikidata"` whose URL is
+  `https://dumps.wikimedia.org/wikidatawiki/entities/latest-lexemes.json.gz`, the dated dump it serves
+  recorded by its Last-Modified, decompressed sha256 and size, as kaikki's dumps are, and one derived
+  file, `wikidata-lexemes-it-es.jsonl`: the pairs of an Italian and a Spanish sense
   linked to the same item (P5137), the translation links between an Italian and a Spanish sense (P5972),
   and the Spanish glosses of Italian senses, each with both lemmas, their parts of speech and the item.
   Published zstd-compressed in it-es's own sources release like every derived file, it is read back from
-  there by a re-reduction; no mirror of the dump is kept. Wikidata's licence for lexemes is CC0.
+  there by a re-reduction; no mirror of the dump is kept. The kind has its own reader: the dump is one
+  JSON array whose entity lines end with « , », which `derive`'s line reader would skip silently, and a
+  pair needs every Italian (`Q652`) and Spanish (`Q1321`) lexeme read before it is written — so the
+  reader strips the comma, keeps those two languages, collects, then writes. Wikidata's licence for
+  lexemes is CC0. The pin's record of it is named for Wikidata, not kaikki.
 
 ### D4 — `DUMPS["it-es"]` and the pin
 

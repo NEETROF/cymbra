@@ -7,7 +7,8 @@ studied by Spanish speakers — measured 57.8 / 46.8 / 35.0 % of the 5,000 / 10,
 Italian lemmas glossed with its three planned sources, about 25 points under fr-es, the thinnest pair
 shipped. The owner had new sources researched; none written directly for the pair reaches fr-es's floor,
 and on 2026-10-23 (I4, I11, #1004) the owner chose the full pivot: an Italian and a Spanish word listed
-under the same sense of another Wiktionary's translation table, every pair kept, with Wikidata Lexemes and
+under the same sense of another Wiktionary's translation table, or the same entry when the table
+names none, every pair kept, with Wikidata Lexemes and
 the Italian Wiktionary's Spanish section — 84.8 / 76.3 / 65.8 together. This change brings those sources
 into the pipeline, derived and pinned, with the three planned files no edition registers yet; change 27
 reads them into it-es's glosses.
@@ -21,7 +22,7 @@ reads them into it-es's glosses.
   entry, marked so —; the English and French editions gain one file each, and the German, Portuguese,
   Russian, Polish and Dutch Wiktionaries join `EDITIONS`, one file each.
 - **The Italian Wiktionary's Spanish section**, and **Wikidata Lexemes read as an edition of its own**
-  (D3): the latest dated dump's identity recorded, its Italian–Spanish sense pairs derived and published
+  (D3), through a reader of its own: the dated dump that `latest-lexemes.json.gz` serves recorded, its Italian–Spanish sense pairs derived and published
   in it-es's sources release.
 - **`DUMPS["it-es"]` and the pin** (D4); **the cost** recorded (D5): ≈ 5.3 GB of dumps per it-es update,
   none cached, a re-reduction reading the release.
