@@ -12,18 +12,20 @@ Italian on the web: … »), is 114 characters, over Apple's 112.
 
 ## What Changes
 
-- **it-en ships** (design D1, D2): `packs.json` ends with it-en, after it-fr; `testdata/it-en/` for
-  test builds; listed only at or above change 22's floor and after change 23.
+- **it-en ships** (design D1, D2): `packs.json` ends with it-en, after it-fr; `testdata/it-en/`, the
+  it-fr fixture glossed in English, for test builds; listed only at or above change 22's floor and
+  after change 23.
 - **English speakers are offered Italian** (D3) after Spanish and French; nothing new is typed — change
   20 widened the extension's type.
 - **Translation** (D4): the it-en model alone, marked if change 24 put it on the tier.
 - **The memory sentence's English cases** (D5): Italian alone "about 200 MB"; Spanish, French and
-  Italian "about 340 MB", the download their sum (≈ 78.8 MB).
+  Italian "about 340 MB", the download their sum (≈ 78.7–78.8 MB).
 - **The English description and activation page** (D6): recommended "The web in Spanish, French or
   Italian: unknown words highlighted, an honest percentage. Offline and private." (108); the page's
   `lede` and `step3` name Italian. The owner reads them (M9).
-- **The published coverage** (D7) and the site's English Lingua page, data-driven; the fixtures
-  refreshed. The English home card is change 26's.
+- **The published coverage** (D7) and the site's Lingua pages and English home card, data-driven;
+  the fixtures refreshed. The requirements the English listings, the home card and the eight-row
+  table make false are change 26's, implemented first.
 - **Requirements true of their time** (D12): change 20's list, memory and activation requirements
   MODIFIED.
 - **A dogfood pass** (D10) in the English interface; released on its own, TestFlight first, with change
@@ -52,14 +54,17 @@ None.
 
 - **Products.** Lingua only: `apps/lingua-extension` (`packs.json`, `tool/check_variants.mjs`,
   `_locales/en/messages.json`, the tests of design D9, the documents), `scripts/lingua-data`
-  (`testdata/it-en/`, `test_gloss_coverage.py`), `crates/lingua-pack/tests/committed_tables.rs`,
+  (`testdata/it-en/`, `test_gloss_coverage.py`), `crates/lingua-pack/tests/{committed_tables.rs,
+  pipeline_testdata.rs}`,
   `apps/site` (`src/data/lingua-coverage.json`, the refreshed fixtures), `apps/lingua-apple`
   (`copy.js`'s `en` `lede` and `step3`). The backend, ID, Music, Live and the back office are
   untouched; so are the packs, tables and goldens.
 - **Prerequisites, the owner's**: changes 22, 23 and 24 implemented; change 20 implemented and
-  released; the owner's readings (M9) and the marks' answer (Open Question 2); test accounts.
+  released; change 26 implemented — its listing texts and its home-card and table scenarios —, as
+  change 21 is before change 20; the owner's readings (M9) and answers (Open Questions 2 and 3); test
+  accounts.
 - **Release**: on its own, TestFlight first, with change 26's listings; nothing submitted by this pull
   request.
-- **Order**: after changes 20 and 22–24; before change 26's release. Archived after the changes of
+- **Order**: after changes 20, 22–24 and 26's implementation. Archived after the changes of
   `.openspec.yaml`.
 - **Effort, against 4–7.5 ideal days**: 3.25–6 (design, *Effort*).

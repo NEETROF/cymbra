@@ -39,14 +39,22 @@ English interface. Each precondition below is a fact only once its change is imp
 `packs.json` becomes `["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en"]` and
 `SHIPPED_PAIRS` the same. An English native's default pair stays es-en; Italian is offered after
 French. `yarn gen:pack:real` builds it-en's layer against its pin, the Italian base already there;
-`yarn gen:pack` needs `scripts/lingua-data/testdata/it-en/`, hand-written in `testdata/it-fr/`'s
-layout and glossed in English, as `enable-lingua-french` wrote `testdata/fr-es/`.
+`yarn gen:pack` needs `scripts/lingua-data/testdata/it-en/`: the it-fr fixture glossed in English, as
+`enable-lingua-french` made fr-es's the French fixture glossed in Spanish — its Italian files
+(`forms.tsv`, `freq.tsv`, `level.tsv`, `tags.tsv`, and `grammar.tsv` and `lexical.tsv` where it-fr's
+carries them) byte for byte `testdata/it-fr/`'s, `manifest.json`'s analyser version and
+`levels_estimated` the same; only `gloss.tsv`, `senses.tsv`, `mwe.tsv`, `NOTICE` and the manifest's
+native and pack version its own. After `ship-lingua-pack-bases-once`, `gen_pack.sh` refuses two pairs
+of one studied language whose bases differ by a byte. `crates/lingua-pack/tests/pipeline_testdata.rs`
+gains `the_it_en_fixture_is_the_italian_fixture_glossed_in_english` and it-en's row in the fixtures'
+pins, as change 5's task 3.1 adds it-fr's.
 
 ### D2 — it-en by its floor, after its refinement
 
 Change 22 commits it-en at or above `FLOORS["it-en"]`; `test_gloss_coverage.py` holds every listed
-pair with a floor at or above it. it-en is listed once change 23 has merged, as change 20 lists it-fr
-after change 17 (the owner's answer to change 20's Open Question 1 applies here too).
+pair with a floor at or above it. it-en is listed once change 23 (`refine-lingua-it-en-glosses`) has
+merged, as fr-en shipped after `refine-lingua-fr-en-glosses` (48b) and as change 22's Risks say (Open
+Question 3).
 
 ### D3 — The extension: no new type, one new offer
 
@@ -66,7 +74,7 @@ first tier, else offered without a mark unless the owner decided otherwise at ch
 An English reader of Italian alone needs one model: "about 200 MB", the download it-en's served size.
 An English reader of Spanish, French and Italian needs three (es-en, fr-en, it-en), held two at a time:
 "about 340 MB", the download their sum (es-en 26,241,052 B and fr-en 26,234,715 B today; it-en's from
-the catalogue, ≈ 26.3 MB by change 20's estimate, so ≈ 78.8 MB). Change 20's requirement already reads
+the catalogue, ≈ 26.2–26.3 MB by change 20's estimate, so ≈ 78.7–78.8 MB). Change 20's requirement already reads
 « two models or more »; this change adds the two English scenarios.
 
 ### D6 — The English description and activation page
@@ -78,7 +86,7 @@ the catalogue, ≈ 26.3 MB by change 20's estimate, so ≈ 78.8 MB). Change 20's
   | | Draft | Characters |
   |---|---|---|
   | recommended, as change 20's French | "The web in Spanish, French or Italian: unknown words highlighted, an honest percentage. Offline and private." | 108 |
-  | keeps "Read" | "Read Spanish, French and Italian on the web: unknown words highlighted, an honest score. Offline and private." | 109 |
+  | keeps "Read", as change 20's alternative drops « et privé » | "Read Spanish, French and Italian on the web: unknown words highlighted, an honest percentage. Offline." | 102 |
 
 - **The activation page's `en`** `lede` and `step3` (M9):
 
@@ -94,15 +102,22 @@ the catalogue, ≈ 26.3 MB by change 20's estimate, so ≈ 78.8 MB). Change 20's
 
 `gloss_coverage.py --write` publishes it-en's figures; the site's tests require the file's pairs to be
 the list's. The English Lingua page names Italian for English speakers with no code change (change
-21's tables); the site's fixtures are refreshed from the built pages and
-`test/astro/lingua-page.spec.ts` counts eight rows, as change 20 did for seven. The English home card's
-requirement (`add-lingua-french-listings`' *The English home page describes Lingua for the readers it
-serves*) is change 26's to modify, as change 21 modified the French one.
+21's tables), and the French and Spanish Lingua pages gain it-en's row and name Italian among English
+speakers' languages; the site's fixtures are refreshed from the built pages and
+`test/astro/lingua-page.spec.ts` counts eight rows, as change 20 did for seven. The English home card,
+data-driven, reads « Read the web in Spanish, French or Italian… » from this pull request's coverage
+file: change 26 (`add-lingua-italian-english-listings`), implemented first as change 21 was before
+change 20, modifies its requirement, the listings' and the eight-row table's, so none reads false once
+it-en is listed.
 
-### D8 — What French- and Spanish-native readers see: nothing
+### D8 — What French- and Spanish-native readers see
 
-Their pairs, offers, downloads and pages are what they were; the package carries it-en's layer, which
-only an English-native reader who ticks Italian fetches.
+Their extension's pairs, offers, downloads and surfaces are what they were; the package carries
+it-en's layer, which only an English-native reader who ticks Italian fetches. Two things move: the
+site's French and Spanish Lingua pages gain it-en's row and name Italian among English speakers'
+languages (D7); and a French-native reader of Italian who switches their native language to English
+keeps Italian, now through it-en (`studiedForNative`), where before it was dropped. The Safari app's own
+review (#925) serves an Italian card glossed in English to an English-native reader.
 
 ### D9 — Tests and documents
 
@@ -112,7 +127,10 @@ The tests that read the list (change 20's seven: `packs.spec.ts`, `pairs.spec.ts
 arguments; `engine.spec.ts` — an English reader fetches the Italian base and it-en's layer;
 `translate-relay.spec.ts` — it-en marked if change 24 listed it; `translation-setting.spec.ts` and
 `model-controller.spec.ts` for D5; `test_gloss_coverage.py`'s `ListedFloorsTest`;
-`committed_tables.rs` — change 22's *Not shipped*, which holds only while the list does not name it-en.
+`committed_tables.rs` — asserts `packs.json` lists it-en, as change 20 rewrote change 9's for it-fr;
+`engine.spec.ts` — a Spanish reader still refused before any fetch, change 20's English refusal
+rewritten; `native-language.spec.ts` — a French-native reader of Italian switching to English keeps
+it; `model-residency.spec.ts` — an English reader's three one-model routes, two held at a time.
 Documents: `README.md`, `REVIEWERS.md`, `TRANSLATION.md`, `tool/marks/README.md`, the comments that
 name `enable-lingua-italian-for-english-speakers` as the future.
 
@@ -123,8 +141,14 @@ accounts: a new install in English offers Spanish, French and Italian; "Estimate
 Italian pages (news, a novel, « al mare », « dell'uomo », « un po' », « perche' »); the card in English
 ("past historic (passato remoto)"); an expression card; read-aloud with change 15's voices; "Extended
 translation" with Italian alone ("about 200 MB") and with three languages ("about 340 MB"), the
-worker's memory read; a French- and a Spanish-native install unchanged; sync across two English-native
-devices; the library; the host app's English page. The owner runs it; findings to the pull request.
+worker's memory read; "Online translation" on an Italian sentence, on an English-native account
+granted it; an English-native install of the last store release updated in place — nothing asked,
+nothing moved, Italian offered, not added; a French- and a Spanish-native install unchanged; sync
+across two English-native devices; the rollback: an English-native reader with Italian cards, change
+20's release loaded in place of this build — it knows `it` but has no it-en, so its accepted
+languages leave Italian out and sync sets the records aside — then this build reloaded finds the
+cards; the library; the host app's English page, and an Italian card glossed in English reviewed in
+the app (#925). The owner runs it; findings to the pull request.
 
 ### D11 — The release
 
@@ -143,6 +167,15 @@ speaker* added). Each MODIFIED block keeps every other word and scenario and is 
 at implementation. Change 22's *Not shipped* is worded « while the list does not name it-en » in change
 22 itself, so it needs no block here.
 
+True as written, so not modified: change 2's *A route of an Italian pair* (conditional) and *Every
+reader today* (it says nothing of English readers); change 2's *An English-native reader of Italian*,
+now live, whose « the it-en model alone » holds for a reader of Italian alone, as fr-en's twin does;
+change 20's ADDED requirement and its *Readers with no pair of Italian* (« to no other reader » and the
+condition still hold); change 22's « No package SHALL list it-en before Italian is enabled for English
+speakers »; change 24's scenarios, conditional on its figures. Change 26's to modify, implemented first:
+change 21's *French speakers learning Italian* (« no English … text offers Italian ») and *Seven pairs
+on a phone*, and `add-lingua-french-listings`' *English speakers learning Spanish and French*.
+
 ## Risks / Trade-offs
 
 - **it-en's glosses read wrong in places** → change 23 before the list (D2); the dogfood.
@@ -152,7 +185,9 @@ at implementation. Change 22's *Not shipped* is worded « while the list does no
 ## Migration Plan
 
 Nothing to migrate; Italian is offered, never added. Released by the owner after change 20's release.
-Rollback: the previous release, which reads an Italian reader's state (change 20's D4).
+Rollback: change 20's release, which reads schema 4 and knows `it` but lists no it-en — an English
+reader's Italian is left out of what it accepts, and kept in the backup, until this release returns
+(D10).
 
 ## Effort
 
@@ -167,3 +202,4 @@ For the owner:
    or other words (M9).
 2. **it-en below the marks' tier** (D4), at change 24's figures: offered without a mark (M15's
    default) or not offered.
+3. **it-en after its refinement** (D2): listed only once change 23 has merged. Recommended.
