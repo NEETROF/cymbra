@@ -21,6 +21,7 @@ const EN_FR = "en-fr/base-memory/2.0";
 const ES_EN = "es-en/base-memory/2.0";
 const EN_ES = "en-es/base-memory/2.1";
 const FR_EN = "fr-en/base-memory/2.0";
+const EN_IT = "en-it/base-memory/2.1";
 const ROUTE: Record<string, LoadedRoute> = {
   "en-fr": { pair: "en-fr", models: [EN_FR] },
   "es-fr": { pair: "es-fr", models: [ES_EN, EN_FR] },
@@ -280,7 +281,7 @@ describe("The worker's bookkeeping follows the decision: what it holds is the un
     // es-fr held; a route over es-en and a model that cannot be built: en-fr goes by the bound and
     // es-fr with it, es-en stays for the route — which fails. Kept, es-en would be held for nothing.
     w.load(ROUTE["es-fr"]!);
-    const decision = w.failToLoad({ pair: "es-it", models: [ES_EN, "en-it/base-memory/2.0"] }, []);
+    const decision = w.failToLoad({ pair: "es-it", models: [ES_EN, EN_IT] }, []);
     expect(decision.evict).toEqual([EN_FR]);
     expect(decision.drop).toEqual(["es-fr"]);
     expect(w.residency()).toEqual([]);
@@ -289,7 +290,7 @@ describe("The worker's bookkeeping follows the decision: what it holds is the un
   });
 });
 
-describe("The committed catalogue's routes: a reader who keeps their native language never evicts (add-lingua-french-translation D3)", () => {
+describe("The committed catalogue's routes: a model is deleted only when a third pair's route needs the room (add-lingua-french-translation D3, add-lingua-italian-translation-models)", () => {
   const root = join(dirname(fileURLToPath(import.meta.url)), "..");
   const catalogue = parseCatalogue(JSON.parse(readFileSync(join(root, "model-manifest.json"), "utf8")));
   /** `pair`'s route as the worker loads it: the committed catalogue's models, in order. */
@@ -319,6 +320,8 @@ describe("The committed catalogue's routes: a reader who keeps their native lang
     expect(committed("fr-en")).toEqual(ROUTE["fr-en"]);
     expect(committed("fr-es")).toEqual(ROUTE["fr-es"]);
     for (const pair of ["en-fr", "es-fr", "es-en", "en-es"]) expect(committed(pair), pair).toEqual(ROUTE[pair]);
+    // The es-it route a build fails on above is the catalogue's (add-lingua-italian-translation-models D2).
+    expect(committed("es-it")).toEqual({ pair: "es-it", models: [ES_EN, EN_IT] });
   });
 
   it("A Spanish-native reader of English and French: en-es, then fr-es, then en-es again — en-es serves both routes, en-es and fr-en held, nothing deleted", () => {
@@ -327,6 +330,22 @@ describe("The committed catalogue's routes: a reader who keeps their native lang
     expect(steps[1]!.held).toEqual([FR_EN, EN_ES]); // fr-es's two, en-es once
     expect([...heldModels(residency)].sort()).toEqual([EN_ES, FR_EN]);
     expect(pairs(residency).sort()).toEqual(["en-es", "fr-es"]);
+  });
+
+  it("An Italian-native reader of English and French: en-it, then fr-it, then en-it again — en-it serves both routes, fr-en and en-it held, nothing deleted", () => {
+    const { steps, residency } = walk(["en-it", "fr-it", "en-it"]);
+    for (const step of steps) expect(step, step.pair).toMatchObject({ evict: [], drop: [] });
+    expect([...heldModels(residency)].sort()).toEqual([EN_IT, FR_EN]);
+    expect(pairs(residency).sort()).toEqual(["en-it", "fr-it"]);
+  });
+
+  it("A French-native reader of English, Spanish and Italian: en-fr, es-fr, it-fr, es-fr — en-fr serves every route and is never deleted; es-en, then it-en, give way", () => {
+    const { steps } = walk(["en-fr", "es-fr", "it-fr", "es-fr"]);
+    expect(steps.flatMap((step) => step.evict)).not.toContain(EN_FR);
+    expect(steps[0]!.evict).toEqual([]);
+    expect(steps[1]!.evict).toEqual([]);
+    expect(steps[2]!.evict).toEqual([ES_EN]);
+    expect(steps[3]!.evict).toEqual(["it-en/base-memory/2.0"]);
   });
 
   it("An English-native reader of Spanish and French: es-en and fr-en in turn, two one-model routes held side by side, nothing deleted", () => {

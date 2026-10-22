@@ -23,7 +23,7 @@ French, added, moved no English or Spanish selection, nor any committed result.
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `select_corpus.mjs`    | The selection rule: every tenth PUD sentence, the same in every language, one word each (noun, verb, noun, adjective in turn)                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `pud.mjs`              | PUD English, Spanish and French (French at add-lingua-french-forms-tables' pin), fetched at pinned commits and checked by sha256 (CC BY-SA, never committed)                                                                                                                                                                                                                                                                                                                                                                                  |
-| `corpus.json`          | The 300 selections, 100 per studied language (`lang`: en, es, fr), each step's three from one sentence: sentence id, token, word, offsets                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `corpus.json`          | The 300 selections, 100 per studied language (`lang`: en, es, fr), each step's three from one sentence: sentence id, token, word, offsets; no Italian selection yet — the Italian corpus is row 19's (the Italian programme's `measure-lingua-it-fr-translation-marks`)                                                                                                                                                                                                                                                                       |
 | `engine.mjs`           | The pinned engine in Node with a route's models built as `engine-worker.ts` builds them: one markup string in, its translation out — shared by the harness and the soak                                                                                                                                                                                                                                                                                                                                                                       |
 | `measure.mjs`          | The loop: each selection marked exactly as `relay.ts` marks it — tagged sentence, fragment alone, reconciled — and the experiment's mark; a trap answered per request, as the extension answers it                                                                                                                                                                                                                                                                                                                                            |
 | `stop-words.mjs`       | The experiment's stop words per native language (fr, en, es): the function words skipped when the gloss is looked for in the sentence; the harness picks the route's native language's                                                                                                                                                                                                                                                                                                                                                        |
@@ -36,7 +36,12 @@ French, added, moved no English or Spanish selection, nor any committed result.
 ## Running it again
 
 One pair per run, named as the catalogue routes it; the corpus is its studied language's, the stop
-words its native language's:
+words its native language's. The catalogue routes twelve pairs — the six below, and Italian's six
+since `add-lingua-italian-translation-models` (it-en, en-it, it-fr, it-es, fr-it, es-it) — but the
+harness measures the six below only: the Italian corpus is row 19's (the Italian programme's
+`measure-lingua-it-fr-translation-marks`), the Italian stop words row 38's
+(`measure-lingua-en-it-translation-marks`), and each Italian pair is measured by its own row (19,
+24, 29, 38, 49, 53) before it ships:
 
 ```bash
 node tool/assemble_model_site.mjs /tmp/models                                                  # or read models.cymbra.app: omit --models
@@ -68,8 +73,13 @@ pair's route over the same corpus, to find the inputs that trap it — measured 
 model in the study (2026-10-06), a trap poisons the instance for every model built after it — and
 what a run costs in time and memory. It is how en-es is tried before it ships (change 35), now
 that change 25 pins the en-es route in the catalogue, and fr-en and fr-es before change 52, now that
-change 50 routes them — their runs are recorded in `TRANSLATION.md`; a pair the catalogue does not
-route is refused.
+change 50 routes them, and the en-it model through en-it, fr-it and es-it, now that the Italian
+programme's change 2 (`add-lingua-italian-translation-models`) pins it-en 2.0 and en-it 2.1 and
+routes Italian's six pairs — their runs are recorded in `TRANSLATION.md`; a pair the catalogue does
+not route is refused. The it-en soak is row 19's (`measure-lingua-it-fr-translation-marks`), with
+the Italian corpus: until then the tool reports no selection for it-en, it-fr and it-es — « 0
+selections run » and « tool/marks/corpus.json holds no it selection: nothing was soaked », exit
+status 0 — rather than refusing.
 
 ```bash
 node --experimental-strip-types tool/soak_engine.mjs --pair en-fr --models /tmp/models            # ~15 s
@@ -77,6 +87,9 @@ node --experimental-strip-types tool/soak_engine.mjs --pair es-fr --models /tmp/
 node --experimental-strip-types tool/soak_engine.mjs --pair es-fr --models /tmp/models --limit 10 # the first ten selections
 node --experimental-strip-types tool/soak_engine.mjs --pair en-es --models /tmp/models --isolate  # each sentence in a child process, ~45 s
 node --experimental-strip-types tool/soak_engine.mjs --pair fr-es --models /tmp/models --isolate  # the French selections, through English
+node --experimental-strip-types tool/soak_engine.mjs --pair en-it --models /tmp/models --isolate  # the English selections, through en-it
+node --experimental-strip-types tool/soak_engine.mjs --pair fr-it --models /tmp/models --isolate  # the French selections, fr-en then en-it
+node --experimental-strip-types tool/soak_engine.mjs --pair es-it --models /tmp/models --isolate  # the Spanish selections, es-en then en-it
 ```
 
 Each selection goes through the engine as `relay.ts` sends it: the sentence with the selection
@@ -96,12 +109,17 @@ browser's worker, and Node's figure is not like for like: read it for a run's or
 and for growth across the corpus, not against the worker's. The soak does not check the two-model
 bound of `engine-worker.ts` either: a run loads one route and deletes nothing — and a deletion
 would not show in RSS anyway, since a wasm instance's linear memory never shrinks; the bound caps
-growth, with the freed blocks reused by the next model built. The catalogue lists four models
-(en-fr, es-en, en-es, fr-en), and every native language's pairs need two together — en-fr and es-en
-for French, es-en and fr-en for English, en-es and fr-en for Spanish — so a reader who keeps their
-native language never makes a third: the eviction runs only when the native language changes while
-the worker lives (add-lingua-french-translation D3). Today's shipped pairs are French's alone, so it
-never runs in production: it is for the matrix's readers, once changes 34, 35 and 52 ship theirs.
+growth, with the freed blocks reused by the next model built. The catalogue lists six models
+(en-fr, es-en, en-es, fr-en, it-en, en-it). Every native language's shipped pairs need two at most —
+en-fr and es-en for French, es-en and fr-en for English, en-es and fr-en for Spanish — so a reader
+who keeps their native language never makes a third today: the eviction runs when the native
+language changes while the worker lives (add-lingua-french-translation D3), which production meets
+since changes 34, 35 and 52 shipped the matrix's pairs. With Italian's six routes, the pairs glossed
+in each native language need three — en-fr, es-en and it-en for French; es-en, fr-en and it-en for
+English; en-es, fr-en and it-en for Spanish; en-it, fr-en and es-en for Italian — still loaded two at
+a time, a route's: once Italian's pairs ship, a reader who keeps their native language makes the
+worker delete a model only when a third pair's route needs the room
+(add-lingua-italian-translation-models D2).
 
 ## Judging
 
