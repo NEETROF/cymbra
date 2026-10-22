@@ -162,7 +162,7 @@ changes 11 / 16 / 20 English rows, the first sense of 5 / 6 / 8; `close` (rank 3
 « vicino ».
 
 Heraldic senses (`topics` heraldry: 1,803 en, 1,731 fr, 679 es) take two rules:
-- **A word whose every sense is heraldic takes no gloss from its definitions**, so the translation
+- **A word whose every sense with a gloss is heraldic takes no gloss from its definitions**, so the translation
   tables gloss it. At the 5,000, the French section glosses 95 lemmas by heraldry alone (`le`, `vue`
   « affibbiatura », `vivre` « biscia… », `faux` « falce… », `défense` « testa di leopardo »), of which a
   table glosses 94; the Spanish 32 (`en` « posto, ordinato »), of which 31; the English 13 (the letters
@@ -254,12 +254,24 @@ rule and D8's heraldry-only rule came from the review and are re-measured at imp
 | first sense changed | 47 | 79 | 110 |
 | lemmas lost / gained | 3 / 5 | 6 / 7 | 11 / 9 |
 
-Lost at the 5,000: `fc`, `bs`, `ps` (D3). Gained: `could` (D5), `didn't`, `gonna`, `gotta` (D2, D4),
+Lost at the 5,000: `fc`, `bs`, `ps` (D3), which D2's abbreviation rule keeps. Gained: `could` (D5), `didn't`, `gonna`, `gotta` (D2, D4),
 `hear` (D4).
 
-- **fr-it** from definitions: 30.7 / 22.5 / 15.1, unchanged; 22 / 31 / 43 rows change.
-- **es-it**: 34.3 / 23.9 / 15.4 loose, unchanged; strict 34.2 / 23.9 / 15.3, `zeta` (D7) and three
-  pointer-only rows losing their gloss; 23 / 36 / 40 rows change.
+- **fr-it** from definitions: 30.7 / 22.5 / 15.1, unchanged by the second run's rules; 22 / 31 / 43
+  rows change.
+- **es-it**: 34.3 / 23.9 / 15.4 loose, unchanged by them; strict 34.2 / 23.9 / 15.3, `zeta` (D7) and
+  three pointer-only rows losing their gloss; 23 / 36 / 40 rows change.
+- **With the review's two rules** (D2's abbreviations, D8's heraldry-only words), estimated on the
+  second run's outputs, not yet measured through the pre-pass:
+
+  | Pair | Definitions alone | With both tables |
+  |---|---|---|
+  | en-it | 84.8 / 72.2 / 53.0 | 91.5 / 82.8 / 70.3 |
+  | fr-it | 28.8 / 20.9 / 13.8 | 81.4 / 70.2 / 57.8 |
+  | es-it | 33.6 / 23.4 / 14.9 | 64.2 / 50.0 / 36.6 |
+
+  The heraldry-only rule takes about 95 French and 32 Spanish lemmas at the 5,000 out of the
+  definitions, and the tables gloss them again: with both tables, the three pairs barely move.
 - **A sample** of 50 random en-it rows at the 5,000: 43 right, 5 partly, 2 wrong in the source itself
   (`prove` « prove », its verb missing; `anytime` « affatto, in nessun modo »). The partly right are
   `guy` « cavo; uomo, ragazzo » (the rope first), `treatment`, `layer`, and `belt` and `bloody`, which

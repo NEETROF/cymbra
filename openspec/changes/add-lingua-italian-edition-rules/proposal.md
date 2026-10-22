@@ -21,7 +21,7 @@ Measured on kaikki.org's Italian Wiktionary dump of 2026-10-21, derived by the r
 - **The edition writes in lower case.** 93.5–95.3 % of its senses open in lower case. Its labels
   (obsolete, vulgar, heraldry) are in kaikki's tags, not in the text.
 - **Its pointers are worded in Italian** (« plurale di », « variante statunitense di », « abbreviazione
-  di »). In the English section, 868 untagged senses only point, 51 of them in the 5,000 commonest
+  di »). In the English section, 852 untagged senses only point, 39 of them in the 5,000 commonest
   English lemmas.
 - **It writes notes to its own readers.** « vedi italiano » means the Italian word is the same.
   « definizione mancante; se vuoi, aggiungila tu » is a placeholder.
@@ -44,7 +44,7 @@ Measured on kaikki.org's Italian Wiktionary dump of 2026-10-21, derived by the r
   - « contrazione di » never makes a pointer, and « abbreviazione di » only when its word lends a
     gloss: both say what the word is, as en-es reads « Contracción de » and « Abreviatura de ».
 - **Tagged senses and nested glosses** (D4, D5): a sense kaikki tags `form-of` that is not worded as an
-  inflection is a meaning when the word has no other; a nested gloss is read by its own text.
+  inflection is a meaning when the word has no other; a gloss nested under a pointer is read by its own text.
 - **Notes and letters** (D6, D7):
   - the placeholder, « (inv) » and template residue go;
   - « vedi italiano » after a meaning goes;
@@ -58,7 +58,8 @@ Measured on kaikki.org's Italian Wiktionary dump of 2026-10-21, derived by the r
   quotes as « »; a table gloss keeps its words' case.
 - **Measured effect** (D11): en-it 85.0 / 72.4 / 53.3 from the English section's definitions alone
   (84.9 / 72.4 / 53.3 before), 115 / 166 / 213 rows changed at the 5,000 / 10,000 / 20,000, a sample of
-  50 rows 43 right, 5 partly, 2 wrong in the source itself.
+  50 rows 43 right, 5 partly, 2 wrong in the source itself — before the review's abbreviation and
+  heraldry-only rules, estimated at 84.8 / 72.2 / 53.0, and re-measured at implementation.
 - **Change 27's it-es** reads the Italian Wiktionary's Spanish section backwards. It drops the edition's
   notes itself, so it never imports this module, whose later edits would re-pin it (D12). Its design
   is amended here.
