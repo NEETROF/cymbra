@@ -21,7 +21,7 @@ articulated prepositions are pointers carrying their meaning (`del` « contracti
 the, from the ») that the shared rules leave unglossed; `ad` reads the acronym AD's « CEO », `gli` a
 pronoun only, `mi` opens on « used as ethical dative »; function words carry names (`io` « Io », `meno`
 « Main »); Greek letters gloss common words (`mi` « mu »). Those are fixed here, in a module of it-en's
-own: the English edition's rules are in es-en's and fr-en's pins and do not move. it-fr's rule keeping
+own: the English edition's rules are in es-en's and fr-en's pins and do not move. it-fr's first rule keeping
 names off common words is not taken: on this section it would strip « Rome », « Christmas » and
 « Earth » from the commonest rows.
 

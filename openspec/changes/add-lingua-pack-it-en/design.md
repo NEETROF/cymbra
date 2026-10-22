@@ -92,7 +92,8 @@ edition's; reproduced by the review from the raw files:
   - *Names*: rows glossed by capitalised entries alone 250 / 581 / 1,369, mostly real names
     (`italia`, `milano`); a name's run opens 147 rows and follows a common word's in 1,009, as fr-en's
     did; 10 function words carry one (`io` « Io », `ora`, `meno` « Main », `voi`, `durante`, `anzi`).
-    it-fr's D5, applied to this section as worded, strips the name from 1,145 of the 1,156 rows that
+    it-fr's D5 as first worded (every proper noun's sense), applied to this section, strips the name
+    from 1,145 of the 1,156 rows that
     mix a name with a common word — `roma` « a type of rice », `natale` without « Christmas », `terra`
     without « Earth », `luna` without « the Moon », `matteo` « mad, crazy » — and leaves eight
     (`giacomo`, `diego`…) with no gloss. Its acronym half alone clears `ad`.
@@ -166,9 +167,11 @@ rules inside its reducer and it-en does not). It runs after the English edition'
    keeps « gross domestic product ») — and a name's run goes when the lowercase headword has a function
    word's entry: 19 entries (`Io`, `Ora`, `Meno`, `Voi`, `Durante`, `Anzi`, `Salvo`, `Diversi`…). That is
    wider than `refine-lingua-fr-en-glosses`' D6, which drops a name only when every lowercase entry is a
-   function word's and so keeps `io`'s moon beside its noun « ego, self »; coverage does not move. Not it-fr's rule for names: on this section it strips
-   « Rome », « Christmas » and « Earth » from the commonest rows (*Measured*). A name beside a common
-   word's senses stays; the 1,009 rows where it follows them are change 23's to order.
+   function word's and so keeps `io`'s moon beside its noun « ego, self »; coverage does not move. Not it-fr's first rule for names, every proper noun's sense: on this
+   section it strips « Rome », « Christmas » and « Earth » from the commonest rows (*Measured*), and
+   it-fr's D5 now drops only a name's note (surname, first name, hamlet). Whether that note rule suits
+   the English section (« a surname », « a male given name ») is change 23's to measure. A name beside a
+   common word's senses stays; the 1,009 rows where it follows them are change 23's to order.
 3. **Glosses no word with a letter's name**: the English edition's own pre-passes for the Latin
    letters, as es-en calls them, and here a sense naming a Greek letter (« mu (Greek letter) ») where
    the row has another sense — `eta`, `ro` and `psi`, whose only sense is the letter, keep it.
