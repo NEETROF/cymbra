@@ -24,7 +24,8 @@ change 32's split of the interface type from the native type can now be undone.
 - **The interface alias restored** (D5), change 32's mapping dropped; the privacy and leaving pages
   English until the site's Italian ones.
 - **Inert until change 45** (D6): `INTERFACE_LANGUAGES` unchanged.
-- **Lints and tests** (D7); **the Italian reviewer's pass** in the pull request (D8).
+- **Lints and tests** (D7); **the Italian reviewer** defined (`.claude/agents/lingua-italian-reviewer.md`)
+  and its pass in the pull request (D8).
 
 ## Capabilities
 
@@ -42,7 +43,8 @@ None.
 
 ## Impact
 
-- **Products.** Lingua's extension only: `apps/lingua-extension/src/i18n/it/` (23 modules),
+- **Products.** Lingua's extension and the repository's agents: `.claude/agents/lingua-italian-reviewer.md`;
+  `apps/lingua-extension/src/i18n/it/` (23 modules),
   `src/i18n/{index.ts, language.ts, README.md}`, the 18 files of design *Measured*, `state/store.ts`
   (change 32's mapping removed), the tests and lints of D7. No site, Apple host, backend or pack change.
 - **Bundles**: ≈ +130–140 kB across entries before anything shows.
