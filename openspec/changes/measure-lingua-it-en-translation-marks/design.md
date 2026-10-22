@@ -12,8 +12,8 @@ See proposal.md — Why. Where things stand once changes 2 and 19 are implemente
   D2), its figures in `TRANSLATION.md`.
 - `test/translate-marks.spec.ts` reads the list as the judged pairs on the tier, every judged pair's
   results and judgments checked (change 19's D4).
-- The precedent of a direct route judged in English is es-en (matrix change 26: 94 of 96 shown marks
-  correct, 4 % withheld).
+- The precedents of a direct route judged in English are es-en (matrix change 26: 94 of 96 shown
+  marks correct, 4 % withheld) and fr-en (change 50: 95 of 96, 4 % withheld).
 
 ## Goals / Non-Goals
 
@@ -40,20 +40,37 @@ alone.
 
 One judge marks each shown mark correct or not against the English rendering of the selected Italian
 word, by change 26's written criteria, with Italian examples in English taken from change 19's
-corpus steps, added before the run:
-- **a subject the model adds**: step 37's « A Pyongyang vidi alcune persone »: a mark on « saw » or
-  « I saw » is correct, on « I » alone it is not; the passato remoto is one word in English as in
-  Italian (« conobbe » « met »), so the compound past change 19 judged for French does not arise;
+corpus steps and anchored on verdicts already committed, added before the run; they move no committed
+verdict, as change 50's D6 said of French's:
+- **a subject the model adds**: step 25 « Ha detto all'Andrew Marr Show »: a mark on « told », « said »
+  or « He told » is correct, on « He » alone it is not — es-en's one other wrong mark, k 25, marked
+  « he » for « said »; es-fr's k 25 « il a déclaré » was judged correct for carrying the subject the
+  rendering adds. The passato remoto is one word in English as in Italian (es-en: k 65 « met », k 69
+  « released », k 81 « accused »), so change 19's compound-past case does not arise; the reverse does —
+  an Italian compound past's participle (steps 5, 13, 17, 25, 31) often renders as one English simple
+  past: a mark on that word is correct, on « has » or « were » alone it is not;
 - **a word after a fused preposition**: step 6's « Nel corso della storia » (also 22, 82, 91): a mark
   on « course » or « In the course » is correct, on « In » alone it is not; an expression's rendering
   (« Throughout ») counts;
-- **a word after an elided piece**: step 86's « l'unico nel Governo »: a mark on « only » or « only
-  one » is correct, on « the » alone it is not;
-- **gender or number English does not mark**: an English rendering that drops the Italian gender
-  still counts as the word's rendering — step 79 « nemiche » « enemies » or « hostile », step 71
-  « stereotipata » « stereotyped ».
+- **a word after an elided piece**: step 86's « l'unico nel Governo »: a mark on « only », « only
+  one » or « the only (one) » is correct — the article comes from « l' » (es-en k 86 « the only one »)
+  —, on « the » alone it is not;
+- **a clitic pronoun beside the selected verb** (steps 9, 31, 33, 97; none reflexive): 33 « Gli viene
+  riconosciuto » « He is credited »: « credited » or « is credited » is correct, « He » alone is not
+  (es-en k 33 marked « credited »); 31 « l'ho scelta » « I chose it »: « chose » is correct, « it »,
+  « her » or « I » alone is not; 97 « si incontrano » « met »: « each other » alone is not; 9 « ci
+  fossero » « there were »: « were » or « be » is correct, « there » alone is not;
+- **one Italian word, an English compound**: step 54 « Il capodanno cinese » « Chinese New Year » and
+  step 78 « sveglia » « alarm clock »: the whole compound is correct; « Year », « alarm » or « clock »
+  alone is part of a compound, which the criteria count wrong — es-en's k 54 (« Year » judged correct)
+  does not carry over, its Spanish selection being « Año » alone;
+- **gender or number English does not mark, and a numeral beside the word**: step 79 « le due
+  fazioni nemiche » « the two enemy factions »: a mark on « enemy » (or « hostile », « rival ») is
+  correct, on « two » it is not, as es-en's k 79 was judged; step 71 « stereotipata » « stereotypical »
+  or « stereotyped ».
 
-`judged-it-en.tsv` committed.
+`judged-it-en.tsv` committed; if change 22's table fills the gloss experiment's columns, the judge
+judges them too, as es-en's were (75 / 78).
 
 ### D3 — The list
 
@@ -65,11 +82,20 @@ owner under M15, who settles at change 25 whether it-en's translation is offered
 all. Either way `judged-it-en.tsv` is committed, which the structural test reads as change 19 left
 it. This change decides nothing for the reader.
 
-### D4 — The documents
+### D4 — Tests and documents
 
-`tool/marks/README.md` (it-en's figures, the Judging paragraph: Italian judged in English as in
-French), `TRANSLATION.md` (it-en's figures beside its soak) and the comment above `MARKED_PAIRS`
-(it-en, if listed, inert until change 25, `enable-lingua-italian-for-english-speakers`).
+- **A test for the new scenario**, whichever the outcome: `test/translate-marks.spec.ts` « An Italian
+  selection, judged in English » holds it-en's committed totals, its tier verdict against whether it is
+  listed, and that `results("it-en")` has `results("it-fr")`'s ids; on the tier,
+  `test/translate-relay.spec.ts` gains a case marking an Italian selection through it-en, as it has
+  fr-en's.
+- `tool/marks/README.md`: the introduction's list of measured pairs, the file list, it-en's figures,
+  the Judging paragraph (Italian judged in English as in French), and the gloss experiment's row —
+  « left empty: no `tables/it-en/gloss.tsv` yet (change 22) » if the table is missing at the run.
+- `TRANSLATION.md`: the sentence naming the measured and listed pairs, it-en's figures beside its soak,
+  and the run's traps.
+- The comment above `MARKED_PAIRS`: the changes that measured the list, and it-en, if listed, inert
+  until change 25, `enable-lingua-italian-for-english-speakers`.
 
 ## Risks / Trade-offs
 
