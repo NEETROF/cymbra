@@ -268,6 +268,19 @@ mod tests {
     }
 
     #[test]
+    fn a_part_s_metadata_never_reads_as_a_whole_pack_s() {
+        // What makes a reader released before the parts refuse one: it deserialises `PackMeta`
+        // with no probe of `part`, and a base lacks `native`, `pack_version` and `licences`, a
+        // layer `analyzer_version`. Keep each part short of a field a whole pack requires.
+        for json in [
+            serde_json::to_vec(&base_meta(true)).unwrap(),
+            serde_json::to_vec(&layer_meta()).unwrap(),
+        ] {
+            assert!(serde_json::from_slice::<PackMeta>(&json).is_err());
+        }
+    }
+
+    #[test]
     fn each_part_reader_refuses_the_other_part_and_a_whole_pack() {
         let whole = container(&serde_json::from_str::<PackMeta>(WITHOUT).unwrap());
         let (base, layer) = (container(&base_meta(false)), container(&layer_meta()));

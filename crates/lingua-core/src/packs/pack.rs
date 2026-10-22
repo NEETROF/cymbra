@@ -100,6 +100,35 @@ pub mod section {
     pub const LEXICAL: &str = "lexical";
     /// The attribution NOTICE (UTF-8).
     pub const NOTICE: &str = "notice";
+
+    /// The sections a base holds: its studied language's (split-lingua-pack-format D2).
+    pub const BASE: [&str; 7] = [FORMS, LEMMAS, FREQ, LEVELS, LEXICAL, TAGS, PARADIGMS_ZST];
+
+    /// The sections a layer holds: its pair's (split-lingua-pack-format D2).
+    pub const LAYER: [&str; 8] = [
+        GLOSS_ZST,
+        SENSES_ZST,
+        SENSES_TAGS,
+        EXPR,
+        EXPR_ZST,
+        EXPR_NAMES_ZST,
+        EXPR_OTHERS,
+        NOTICE,
+    ];
+
+    /// The part that holds the section `name` ([`BASE`], [`LAYER`]); `None` for a section this
+    /// core does not know, which assembly passes on as a whole pack's reader ignores it (a
+    /// table only a new interface reads is additive).
+    pub fn part_of(name: &str) -> Option<crate::packs::meta::Part> {
+        use crate::packs::meta::Part;
+        if BASE.contains(&name) {
+            Some(Part::Base)
+        } else if LAYER.contains(&name) {
+            Some(Part::Layer)
+        } else {
+            None
+        }
+    }
 }
 
 /// Why a pack failed to load.
@@ -135,6 +164,11 @@ pub enum PackError {
     LayerOfAnotherLanguage { base: String, layer: String },
     /// A layer built against another base than the one given (D3, D4).
     BaseVersionMismatch { base: String, layer: String },
+    /// A part carrying a section the other part holds (D2): a base's `senses.tags`, a layer's
+    /// `tags`.
+    MisplacedSection { part: Part, section: String },
+    /// A section carried twice, by both parts or twice by one.
+    DuplicateSection(String),
 }
 
 impl std::fmt::Display for PackError {
@@ -180,6 +214,16 @@ impl std::fmt::Display for PackError {
                 f,
                 "the layer was built against base {layer}, and the base given is {base}; refusing \
                  to assemble"
+            ),
+            PackError::MisplacedSection { part, section } => write!(
+                f,
+                "the {part} carries the {section:?} section, which the {} holds; refusing to \
+                 assemble",
+                part.other()
+            ),
+            PackError::DuplicateSection(section) => write!(
+                f,
+                "the {section:?} section is carried twice; refusing to assemble"
             ),
         }
     }
@@ -927,6 +971,28 @@ fn assembled(
             base: base_meta.base_version,
             layer: layer_meta.base_version,
         });
+    }
+    // Each part carries its own sections (D2), each once: a section on the wrong side, or twice,
+    // would shadow or be dropped. A section this core does not know passes, as it does in a whole
+    // pack.
+    for (part, sections) in [(Part::Base, &base_sections), (Part::Layer, &layer_sections)] {
+        if let Some(misplaced) = sections
+            .iter()
+            .find(|s| section::part_of(&s.name) == Some(part.other()))
+        {
+            return Err(PackError::MisplacedSection {
+                part,
+                section: misplaced.name.clone(),
+            });
+        }
+    }
+    let mut seen = std::collections::BTreeSet::new();
+    if let Some(twice) = base_sections
+        .iter()
+        .chain(&layer_sections)
+        .find(|s| !seen.insert(s.name.as_str()))
+    {
+        return Err(PackError::DuplicateSection(twice.name.clone()));
     }
     // The pool: the base's blocks, then the layer's sense-only block, one tag per line with no
     // line after the last, as `encode_tag_pool` writes a whole pack's.
@@ -2317,7 +2383,7 @@ pub(crate) mod tests {
             licences,
         };
         // The builder's whole order: the two sides interleaved.
-        let mut whole: Vec<(&str, &[u8])> = vec![
+        let whole: Vec<(&str, &[u8])> = vec![
             (section::FORMS, &forms),
             (section::LEMMAS, lemmas.as_bytes()),
             (section::FREQ, &freq),
@@ -2350,9 +2416,6 @@ pub(crate) mod tests {
             (section::EXPR_ZST, expr_zst.as_slice()),
             (section::NOTICE, notice),
         ]);
-        if pool.is_empty() {
-            whole.retain(|(name, _)| *name != section::TAGS);
-        }
         Split {
             whole: write_container(&serde_json::to_vec(&whole_meta).unwrap(), &whole),
             base: write_container(&serde_json::to_vec(&base_meta).unwrap(), &base),
@@ -2558,6 +2621,66 @@ pub(crate) mod tests {
             &err,
             PackError::BaseVersionMismatch { base, layer } if base == "aaaa" && layer == "bbbb"
         ));
+    }
+
+    /// `bytes` with `extra` appended to its sections.
+    fn with_section(bytes: &[u8], extra: (&str, &[u8])) -> Vec<u8> {
+        let (meta, sections) = read_container(bytes).unwrap();
+        let sections: Vec<(&str, &[u8])> = sections
+            .iter()
+            .map(|s| (s.name.as_str(), s.data.as_slice()))
+            .chain(std::iter::once(extra))
+            .collect();
+        write_container(&meta, &sections)
+    }
+
+    #[test]
+    fn a_section_on_the_wrong_side_or_carried_twice_is_refused_by_name() {
+        let parts = split(&["NUM"]);
+        // A base carrying the layer's sense tags, a layer carrying a pool.
+        let err = Pack::assemble(
+            &with_section(&parts.base, (section::SENSES_TAGS, b"NUM")),
+            &parts.layer,
+        )
+        .err()
+        .expect("a base's senses.tags is refused");
+        assert!(err.to_string().contains("\"senses.tags\""), "{err}");
+        assert!(err.to_string().contains("which the layer holds"), "{err}");
+        assert!(matches!(
+            &err,
+            PackError::MisplacedSection { part: Part::Base, section } if section == section::SENSES_TAGS
+        ));
+        let err = Pack::assemble(
+            &parts.base,
+            &with_section(&parts.layer, (section::TAGS, b"X")),
+        )
+        .err()
+        .expect("a layer's tags is refused");
+        assert!(matches!(
+            &err,
+            PackError::MisplacedSection { part: Part::Layer, section } if section == section::TAGS
+        ));
+        // A section both parts carry, or one carries twice.
+        let err = Pack::assemble(
+            &with_section(&parts.base, ("future", b"x")),
+            &with_section(&parts.layer, ("future", b"y")),
+        )
+        .err()
+        .expect("a section carried twice is refused");
+        assert!(err.to_string().contains("\"future\""), "{err}");
+        assert!(matches!(&err, PackError::DuplicateSection(name) if name == "future"));
+        assert!(matches!(
+            Pack::assemble(&with_section(&parts.base, (section::FORMS, b"x")), &parts.layer),
+            Err(PackError::DuplicateSection(name)) if name == section::FORMS
+        ));
+        // A section this core does not know is passed on, as a whole pack's reader ignores it.
+        let future = with_section(&parts.layer, ("future", b"y"));
+        let (_, sections) = Pack::assemble_sections(&parts.base, &future).unwrap();
+        assert!(sections.iter().any(|s| s.name == "future"));
+        assert!(Pack::assemble(&parts.base, &future).is_ok());
+        assert_eq!(section::part_of(section::TAGS), Some(Part::Base));
+        assert_eq!(section::part_of(section::SENSES_TAGS), Some(Part::Layer));
+        assert_eq!(section::part_of("future"), None);
     }
 
     #[test]
