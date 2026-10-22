@@ -184,10 +184,15 @@ async function main() {
     throw new Error(`--limit ${limitArg ?? ""}: a positive whole number is expected`);
   }
   const items = await selections(pair, limit);
+  const isolate = flag("--isolate");
+  // No selection in the pair's language: nothing to soak, so no engine or route is loaded either.
+  if (items.length === 0) {
+    console.log(report(pair, [], 0, null, isolate));
+    return;
+  }
   const results = [];
   let rss = 0;
   let stopped = null;
-  const isolate = flag("--isolate");
   if (isolate) {
     for (const [i, item] of items.entries()) {
       const result = isolated(pair, modelsDir, item);

@@ -135,7 +135,7 @@ License 2.0 and redistributed unmodified — the models the add-on may download:
 | Model                   | Translates | Routes it serves                                                       |
 | ----------------------- | ---------- | ---------------------------------------------------------------------- |
 | `en-fr/base-memory/2.0` | `en→fr`    | `en-fr`; and `es-fr` and `it-fr`, second                               |
-| `es-en/base-memory/2.0` | `es→en`    | `es-fr`, first (Spanish goes through English); `es-en`; `es-it`, first |
+| `es-en/base-memory/2.0` | `es→en`    | `es-en`; and `es-fr` and `es-it`, first (Spanish goes through English) |
 | `en-es/base-memory/2.1` | `en→es`    | `en-es`; and `fr-es` and `it-es`, second                               |
 | `fr-en/base-memory/2.0` | `fr→en`    | `fr-en`; and `fr-es` and `fr-it`, first (French goes through English)  |
 | `it-en/base-memory/2.0` | `it→en`    | `it-en`; and `it-fr` and `it-es`, first (Italian goes through English) |

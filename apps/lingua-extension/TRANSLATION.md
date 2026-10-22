@@ -408,9 +408,8 @@ The it-en model is not soaked here: the it-en soak and the Italian corpus are ro
 UD Italian-PUD by the rule every language shares and soaks it-en over them before it-fr ships
 (row 20, `enable-lingua-italian`). `tool/marks/corpus.json` holds no Italian selection until then,
 and the soak tool reports no selection for it-en, it-fr and it-es — « 0 selections run, 0 translated, 0 trapped, 0 timed out » and « tool/marks/corpus.json
-holds no it selection: nothing was soaked », exit status 0 — rather than refusing; without
-`--isolate` it still builds the route first, so the run of 2026-10-22 loaded it-en 2.0 in this
-engine build (228.3 MiB, Node's) and translated nothing. No Italian pair ships before row 19's soak.
+holds no it selection: nothing was soaked », exit status 0 — rather than refusing, and without
+loading the engine or the route. No Italian pair ships before row 19's soak.
 
 ## What never happens
 

@@ -38,3 +38,7 @@
 - [ ] 6.1 English, Spanish and French do not move: `cargo test -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline --test fr_es_baseline --test cross_native` passes without re-blessing, and `git diff --stat` shows no golden and no `pin.json` touched.
 - [ ] 6.2 `cargo fmt --all --check`; `cargo clippy --workspace --all-targets -- -D warnings`; `cargo test --workspace`; `cargo llvm-cov --workspace --fail-under-lines 80 --ignore-filename-regex "$(cat .github/coverage-ignore-regex.txt)"` passes.
 - [ ] 6.3 `openspec validate add-lingua-italian-baseline --strict` passes and `scripts/openspec_archive_order.py add-lingua-italian-baseline` names its four prerequisites; `docs/lingua/italian-programme.md` row 5's status names this change's pull requests.
+
+## 7. Added by the Italian models' implementation (PR #1034)
+
+- [ ] 7.1 The Apple app builds its pairs through `readerPairs(studied, native)` over the shipped list (`apps/lingua-extension/src/app/app.ts`), not studied × native: once this change gives the core `StudiedLanguage::Italian`, an Italian pair is routed (change 2) and the app would otherwise fetch its models before any Italian pair ships; a test asserts the app's pairs over today's shipped list need no Italian model.

@@ -497,7 +497,8 @@ describe("the committed catalogue", () => {
     const c = parseCatalogue(committed);
     const italian = ["it-en", "en-it", "it-fr", "it-es", "fr-it", "es-it"];
     expect(Object.keys(c.routes)).toEqual(expect.arrayContaining(italian));
-    // Today's list: no shipped pair studies Italian or is glossed in it.
+    // Today's list: no shipped pair studies Italian or is glossed in it. Change 20 (enable-lingua-italian)
+    // ships it-fr, and freezes the list this test reads then, as the French test did.
     expect(SHIPPED_PAIRS.some((pair) => studiedOf(pair) === "it" || nativeOf(pair) === "it")).toBe(false);
     const languages = [["it"], ["en", "it"], ["es", "it"], ["fr", "it"], ["it", "en", "es", "fr"], ["en", "es", "fr"]];
     for (const native of ["fr", "en", "es", "it"]) {
