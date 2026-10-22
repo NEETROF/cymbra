@@ -1,0 +1,8 @@
+schema: spec-driven
+created: 2026-10-22
+archiveAfter:
+  - add-lingua-italian-baseline
+  - add-lingua-italian-forms-tables
+  - read-lingua-italian-unmarked-spellings
+  - keep-lingua-italian-acronyms-and-names
+  - add-lingua-french-levels
