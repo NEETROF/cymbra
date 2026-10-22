@@ -1,0 +1,8 @@
+schema: spec-driven
+created: 2026-10-22
+archiveAfter:
+  - localise-lingua-manifest
+  - add-lingua-french-listings
+  - enable-lingua-italian
+  - add-lingua-italian-native-language
+  - add-lingua-italian-interface
