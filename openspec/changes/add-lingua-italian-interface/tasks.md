@@ -9,7 +9,7 @@ Implemented after change 32.
 
 ## 2. Helpers, alias and wiring
 
-- [ ] 2.1 `src/i18n/index.ts`: `LOCALES.it = "it-IT"`; four-digit numbers per Open Question 1 (`useGrouping: "min2"` for « 5000 », with `"ES2023.Intl"` added to `tsconfig.json`'s `lib`); `formatPercent` an exhaustive switch with an Italian branch (« 96% »); the counted messages' `many` forms (D3).
+- [ ] 2.1 `src/i18n/index.ts`: `LOCALES.it = "it-IT"`; four-digit numbers as « 5000 » (Open Question 1, settled; `useGrouping: "min2"`, with `"ES2023.Intl"` added to `tsconfig.json`'s `lib`); `formatPercent` an exhaustive switch with an Italian branch (« 96% »); the counted messages' `many` forms (D3).
 - [ ] 2.2 `src/i18n/language.ts`: `InterfaceLanguage = NativeLanguage`; `state/store.ts`: change 32's `interfaceOf` and its test removed; the 23 sites' Italian entries; `PRIVACY_POLICY_URLS.it` and `LEAVING_PAGES.it` the English pages; `READ_AS_NOUN.it = "feminine"`; `reading-copy.ts` mapping Italian to the English renderer until change 34 (D2, D4, D5); `INTERFACE_LANGUAGES` unchanged; a test that every native of the shipped pairs is an interface language, and one that a stored `it` reads French (D6).
 
 ## 3. Lints and tests

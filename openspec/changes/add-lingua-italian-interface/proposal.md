@@ -51,4 +51,4 @@ None.
 - **Order.** After change 32; before changes 34 (the Italian renderer), 39–41 and 45. Archived after the
   changes of `.openspec.yaml`.
 - **Effort, against 4–7 ideal days**: 4–7 (design, *Effort*).
-- **The owner**: Open Question 1; the reading on the five targets from change 45 (I2).
+- **The owner**: Open Question 1, settled (« 5000 »); the reading on the five targets from change 45 (I2).
