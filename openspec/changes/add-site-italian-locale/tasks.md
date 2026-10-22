@@ -32,4 +32,4 @@
 
 - [ ] 5.1 [agent] The Italian reviewer agent's pass over every Italian text and the slugs, before the pins (D9); its findings applied or answered in the pull request.
 - [ ] 5.2 [owner] Merge the backend's release pull request, deploy the backend, then the site, before change 45's release; register `https://cymbra.app/elimina-account` on Apple's Services ID (D8, D5).
-- [ ] 5.3 In `apps/site`: `yarn check`, `yarn test`, `yarn build`, `yarn check:routes`; in `backend`: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, the server's tests; `openspec validate add-site-italian-locale --strict`; the archive order; `docs/lingua/italian-programme.md` row 41's status.
+- [ ] 5.3 In `apps/site`: `yarn check`, `yarn typecheck`, `yarn test`, `yarn build`, `yarn check:routes`; in `backend`: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, the server's tests; `openspec validate add-site-italian-locale --strict`; the archive order; `docs/lingua/italian-programme.md` row 41's status.
