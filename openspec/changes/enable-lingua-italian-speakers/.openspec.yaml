@@ -1,0 +1,16 @@
+schema: spec-driven
+created: 2026-10-22
+archiveAfter:
+  - enable-lingua-italian-for-english-speakers
+  - send-lingua-browser-locale-on-account-emails
+  - add-site-spanish-locale
+  - add-site-lingua-showcase
+  - add-lingua-italian-listings
+  - add-lingua-italian-english-listings
+  - add-lingua-italian-native-language
+  - add-lingua-italian-interface
+  - add-lingua-italian-card-wording
+  - add-lingua-pack-en-it
+  - localise-lingua-manifest-italian
+  - localise-lingua-apple-host-italian
+  - add-site-italian-locale
