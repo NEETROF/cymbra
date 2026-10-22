@@ -223,11 +223,11 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 3 | 46 | `add-lingua-italian-audience-listings` (I9): Chrome Web Store, AMO, App Store it-IT | 2–5.5 | 37 | Proposal merged ([#1017](https://github.com/NEETROF/cymbra/pull/1017)) |
 | 4 Italian speakers: fr-it, es-it | 47 | `add-lingua-pack-fr-it`: fr-es's order and add-pack rules, a borrowed gloss giving way to the tables; prototyped at 81.3 / 70.1 / 57.8, floor about 79.3 / 68.1 / 55.8; widens change 36's « Italian edition read by en-it alone » | 3.5–6 | 22, 49 | Proposed ([#1026](https://github.com/NEETROF/cymbra/pull/1026)) |
 | 4 | 48 | `refine-lingua-fr-it-glosses` | 2–4 | 49b | |
-| 4 | 49 | `measure-lingua-fr-it-translation-marks` | 1–2 | 26 | |
+| 4 | 49 | `measure-lingua-fr-it-translation-marks`: the 100 French selections already committed, through fr-en then en-it, two agent judges as change 38 (Italian judged); a trial outside the repository found 90 of 93 correct, 7 withheld; MODIFIES the requirement as change 29 leaves it, and archives after it; the gloss columns stay empty if changes 47 and 48 are not committed, change 48 then rerunning the experiment | 1–2 | 26 | Proposed ([#1027](https://github.com/NEETROF/cymbra/pull/1027)) |
 | 4 | 50 | `enable-lingua-french-for-italian-speakers` (fr-it), with its listings; rewrites `_locales/it`'s description and the activation page's Italian copy to name French | 3–6 | 52, 53 | |
 | 4 | 51 | `add-lingua-pack-es-it` (I4): the floor fixed first; modifies change 36's *English is glossed in Italian…* as change 47 leaves it (the Italian edition read by en-it, fr-it and es-it), and archives after it | 3.5–6 | 49 | |
 | 4 | 52 | `refine-lingua-es-it-glosses` | 2–4 | 49b | |
-| 4 | 53 | `measure-lingua-es-it-translation-marks` | 1–2 | 26 | |
+| 4 | 53 | `measure-lingua-es-it-translation-marks`: modifies the requirement as change 49 leaves it, and archives after it | 1–2 | 26 | |
 | 4 | 54 | `enable-lingua-spanish-for-italian-speakers` (es-it), with its listings; rewrites `_locales/it`'s description and the activation page's Italian copy to name Spanish | 3–6 | 52, 53 | |
 | 5 Wording | 55 | `refine-lingua-italian-wording`: the corrections dogfood brings, in every language | 1.5–3 | 54 | |
 | 5 | 56 | `amend-lingua-youtube-captions-italian` | 0.5–1 | 57 | |
