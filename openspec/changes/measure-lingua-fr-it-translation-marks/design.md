@@ -128,7 +128,7 @@ Italian; the others are anchors from the committed verdicts:
 | A first-leg misalignment | 30: the mark must carry « volta » (PUD « l'ultima volta »); a mark without it is wrong | fr-es 30 « la » wrong |
 | A sense the pivot shifts | Judged against the French sentence by the README's rules: the rendering of the selected word there is correct (PUD 94 « commercio »); a rendering through another sense of the English word, the mark following it, is correct but doubtful, as change 29's loose renderings are | fr-en 94 « trade », fr-es 94 « comercio » |
 | A compound carrying the selection | A mark spanning a compound with the selection's rendering inside (PUD 92 « Le tracce di sangue ») is doubtful, as fr-en's | fr-en 92 doubtful |
-| A loose rendering | Correct, doubtful only where both judges find it loose; PUD's word is plainly correct (75 « agenti », 52 « battaglia ») | fr-en 75 « officers », fr-es 75 « oficiales » |
+| A loose rendering | Correct, doubtful where a judge finds it loose (D3, item 3); PUD's word is plainly correct (75 « agenti », 52 « battaglia ») | fr-en 75 « officers », fr-es 75 « oficiales » |
 | Gender and number never decide | 19, 27, 39, 51, 71, 93 | fr-en 19, 27, 71, 93 |
 
 ### D4 — The list
