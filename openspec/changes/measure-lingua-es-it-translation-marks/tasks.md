@@ -4,7 +4,7 @@ Implemented once changes 2, 19, 38 and 49 are on `main` (proposal, Impact).
 
 ## 1. Before the run
 
-- [ ] 1.1 `tool/marks/README.md`: the Italian criteria of D3, committed before any es-it output exists.
+- [ ] 1.1 `tool/marks/README.md`: the Italian criteria and examples of D3, with their PUD examples and anchors, committed before any es-it output exists.
 - [ ] 1.2 `soak_engine.mjs --pair es-it` in one instance, beside change 2's isolated soak; the figures in `TRANSLATION.md` (D1).
 
 ## 2. The run

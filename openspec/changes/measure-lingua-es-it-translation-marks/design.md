@@ -62,8 +62,9 @@ Change 49's protocol, as change 38's:
 1. **The criteria first**: the Italian criteria below are committed to `tool/marks/README.md` before
    `results-es-it.jsonl`; no es-it output exists when they are written.
 2. **Three references per line**: es-en's verdict on the same selection; es-fr's; UD Italian-PUD's human
-   Italian for the same id (fetched at its pin, never committed). A verdict departing from both es-en's
-   and es-fr's gives its reason.
+   Italian for the same id (fetched at its pin, never committed). es-it's second leg is en-it, so
+   `results-en-it.jsonl`'s Italian for the English PUD sentence is a reference on idiom too, never a
+   verdict. A verdict departing from both es-en's and es-fr's gives its reason.
 3. **Two judges**: Judge A, the implementing agent; Judge B, change 33's Italian reviewer agent, working
    blind in a checkout at the results' commit from which this change's directory is removed, given the
    results, the criteria and the 100 PUD Italian sentences Judge A pastes into its brief, never A's
@@ -75,29 +76,35 @@ Change 49's protocol, as change 38's:
    tier, D4).
 5. **Every judgment committed**, auditable by the owner against es-en's and es-fr's anchors.
 
-**What the chain can add:** marks lost in the pivot (withheld at about es-en's plus three to six); a
-first-leg error carried through (es-en k 79 « two », carried to es-fr's « deux »); a subject pronoun the
-first leg re-adds (es-en k 25 « he »), which Italian usually drops; a sense the pivot shifts through the
-English word; a word left in English or Spanish.
+**What the chain can add:** marks lost in the pivot (withheld at about es-en's plus three to six, 7–10
+%); a first-leg error carried through (es-en k 79 « two », carried to es-fr's « deux »); a first-leg
+misalignment the second leg cannot repair (es-en's engine marked « improved » at k 72 and « alber » at k
+78, both moved by es-en's own fragment; es-fr withheld k 78); a subject pronoun the first leg re-adds
+(es-en k 25 « he »), which Italian usually drops; a sense the pivot shifts through the English word; a
+word left in English or Spanish.
 
 A mark on a word the route leaves in English, or copies through from Spanish, is wrong, unless Italian
-uses the word too. A mark on punctuation alone is wrong; a closing quote or comma carried along is not. A
-subject pronoun marked alone is wrong.
+uses the word too. A mark on punctuation alone is wrong; a colon, closing quote or comma carried along
+with the rendering is not, as the precedents judge it (es-fr k 25 « il a déclaré: », k 82 « derniers", »).
+A subject pronoun marked alone is wrong.
 
 **The Italian criteria for Spanish selections**, by case. Examples marked PUD are UD Italian-PUD's human
 Italian; the others are anchors from the committed verdicts:
 
 | Case | Rule; examples | Anchors |
 |---|---|---|
-| A past, compound or simple; a passive | The participle, with or without its auxiliary, or the simple past; the auxiliary or « si » alone is wrong. PUD: 5 « (sono) cresciuti », 13 « (sono state) pubblicate », 17 « (ha) commentato », 25 « (Ha) detto », 33 « (Gli viene) riconosciuto », 69 « rilasciò », 81 « accusò », 97 « (si) incontrano » | es-en 13 « published », 69 « released »; es-fr 13 « publiées », 69 « a sorti » |
-| A conditional; a dropped subject | The verb (PUD 9 « Vorrebbe »); an added « egli », « lui » or « lei » alone is wrong | es-en 9 « would \| like »; es-en 25 « he » wrong |
+| A past, compound or simple; a passive; an imperfect | The participle, with or without its auxiliary, or the simple past or imperfect; any Italian past or passive of the verb counts, and tense never decides (PUD 97 « (si) incontrano » is a present). PUD: 5 « (sono) cresciuti », 13 « (sono state) pubblicate », 25 « (Ha) detto », 33 « (Gli viene) riconosciuto », 53 « rappresentavano », 69 « rilasciò », 81 « accusò »; 17 PUD « (ha) commentato » renders « sugirió » loosely, and « suggerito » counts. The auxiliary or « si » alone is wrong | es-en 13 « published », 69 « released »; es-fr 13 « publiées », 69 « a sorti » |
+| A conditional; a dropped subject | The verb (PUD 9 « Vorrebbe »); a subject carried with the verb counts, as es-fr's « il a déclaré: »; an added « egli », « lui » or « lei » alone is wrong | es-en 9 « would \| like »; es-en 25 « he » wrong; es-fr 25 « il a déclaré: » correct |
 | An article or an articulated preposition | Carried with the word, never alone | es-fr 59 « L'armée », 66 « l'Université » |
-| An elision `reconcile.ts` cannot strip | PUD 7 « all'estremo »: a mark on « all'estremo » counts; « all' » alone is wrong | es-en 7 « Far »; es-fr 7 withheld |
-| An expression | The mark on the Italian expression, or its word rendering the selection, counts: PUD 4 « Tuttavia » (« sin embargo »), 6 « Nel corso » (« a lo largo »), 22 « Nel migliore (dei casi) », 52 « Tuttavia » (« de todas maneras »), 80 « A differenza », 82 « agli sgoccioli », 89 « fu in grado (di vincere) » (« consiguió »); where both precedents withheld (29, 30, 39, 89), a mark is a new verdict with its reason | es-en 4 « However », 80 « Unlike »; es-fr 4 « Cependant », 80 « Contrairement » |
+| An elision `reconcile.ts` cannot strip | PUD 7 « all'estremo », PUD 66 « all'Università »: a mark on the whole word counts; « all' » alone is wrong | es-en 7 « Far »; es-fr 7 withheld |
+| An expression | The mark on the Italian expression, or its word rendering the selection, counts: PUD 4 « Tuttavia » (« sin embargo »), 6 « Nel corso » (« a lo largo »), 22 « Nel migliore (dei casi) », 52 « Tuttavia » (« de todas maneras »), 80 « A differenza », 82 « agli sgoccioli ». Where both precedents withheld (29, 30, 89), a mark is a new verdict with its reason, against PUD's Italian (89 « fu in grado ») | es-en 4 « However », 80 « Unlike »; es-fr 4 « Cependant », 80 « Contrairement » |
+| A Spanish phrase rendered by one word | The one word counts: PUD 54 « capodanno » (« Año Nuevo »), 48 « I temporali » (« tormentas eléctricas ») | es-en 54 « Year », 48 « Thunderstorms »; es-fr 54 « An », 48 « Les orages » |
+| A compound carrying the selection | PUD 39 « franco-monegasco »: Italian writes the compound too, so a mark on the whole compound is correct but doubtful, as change 49's row | es-en and es-fr 39 withheld |
 | A first-leg error carried through | 79: « nemiche » (PUD « fazioni nemiche ») counts; « due » is wrong, as « two » and « deux » are | es-en and es-fr 79 wrong |
-| One Spanish word, one Italian compound | 54 PUD « capodanno », the whole (« Año » alone in Spanish); 78 « sveglia » | es-en 54 « Year »; es-fr 54 « An » |
-| A sense the pivot shifts, or a loose rendering | Judged by the README's rules: the rendering of the selected word is correct (PUD 94 « commercio », 75 « in grado », 86 « l'unico »); a rendering through another sense of the English word is correct but doubtful | es-en 94 « Trade », 75 « able »; es-fr 75 « pu » |
-| Gender and number never decide | 3, 15, 27, 51, 71, 93, 99 | es-en 3, 15, 27, 51, 71, 93, 99 |
+| A first-leg misalignment | 72: « metodo » counts (PUD « un metodo migliorato »), a mark on « migliorato » is wrong; 78: « sveglia » counts (PUD « la sveglia »), a leftover that is not Italian is wrong | es-en 72 « method » and 78 « alarm clock », moved from « improved » and « alber » by the fragment; es-fr 78 withheld |
+| A sense the pivot shifts | Judged against the Spanish sentence by the README's rules: the rendering of the selected word there is correct (PUD 94 « commercio »); a rendering through another sense of the English word, the mark following it, is correct but doubtful | es-en 94 « Trade » |
+| A loose rendering | Correct, doubtful where a judge finds it loose (D3.3); PUD's word is plainly correct (75 « in grado », 86 « l'unico ») | es-en 75 « able »; es-fr 75 « pu » |
+| Gender and number never decide | 3, 15, 27, 51, 71, 93, 99 | es-fr 3, 27, 51, 93, 99 |
 
 ### D4 — The list
 
@@ -132,7 +139,7 @@ paragraph with the agreement, the results and experiment rows), `TRANSLATION.md`
 
 - **Italian judged by agents alone** → change 49's protocol: criteria first and blind, three references
   per line, a blind second judge, disagreements committed wrong, the strict tier.
-- **The pivot** → measured as shipped; es-fr's precedent suggests about 97–99 % correct and 8–12 %
+- **The pivot** → measured as shipped; es-fr's precedent suggests about 97–99 % correct and 7–10 %
   withheld.
 - **A strict margin unknown before the run** → whatever it is, the tier rule decides; below it, es-it is
   translated without a mark if above 75 %.
