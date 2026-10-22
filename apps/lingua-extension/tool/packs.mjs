@@ -210,12 +210,15 @@ export function assertPacksMatchEngine({
   }
 }
 
-// For the shell scripts: `node tool/packs.mjs pairs` prints one shipped pair per line.
+// For the shell scripts: `node tool/packs.mjs pairs` prints one shipped pair per line, and
+// `node tool/packs.mjs studied` one shipped studied language — one base — per line.
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   if (process.argv[2] === "pairs") {
     console.log(shippedPairs().join("\n"));
+  } else if (process.argv[2] === "studied") {
+    console.log(shippedStudied().join("\n"));
   } else {
-    console.error("usage: node tool/packs.mjs pairs");
+    console.error("usage: node tool/packs.mjs pairs|studied");
     process.exit(2);
   }
 }

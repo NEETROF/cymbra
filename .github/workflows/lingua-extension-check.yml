@@ -96,7 +96,11 @@ jobs:
       # The real pack, from the committed tables (pin-lingua-pack-sources D5): a pull request that
       # changes the builder, the tables or a dependency so that the pack no longer matches
       # pin.json — or no longer fits its budget, which the builder enforces — fails here, not on
-      # release day. Offline: no upstream source is read.
+      # release day. Offline: no upstream source is read. Beside each whole pack, the parts a
+      # package carries (ship-lingua-pack-bases-once D5), each checked against its own record of
+      # pin.json: the pair's layer, `layer-<pair>.lingua`, and its studied language's base,
+      # `base-<studied>.lingua`, which a language's second pair builds again and must match byte
+      # for byte. The reviewer-archive step below compares the packaged files with them.
       - name: Build the real pack from the committed tables
         run: |
           set -euo pipefail
@@ -114,6 +118,18 @@ jobs:
             python3 ../../scripts/lingua-data/pack_sources.py check-reducer \
               --pin "$tables/pin.json" --reducer "../../scripts/lingua-data/reduce-$pair.py"
             bash ../../scripts/lingua-data/build.sh "$pair" "$RUNNER_TEMP/pack-$pair.lingua"
+            studied="${pair%%-*}"
+            base="$RUNNER_TEMP/base-$studied.lingua"
+            if [ -f "$base" ]; then
+              bash ../../scripts/lingua-data/build.sh --parts "$pair" "$RUNNER_TEMP/base-$pair.lingua" "$RUNNER_TEMP/layer-$pair.lingua"
+              if ! cmp "$RUNNER_TEMP/base-$pair.lingua" "$base"; then
+                echo "::error::$pair builds another $studied base than $(cat "$base.pair"): every pair of a language ships one base."
+                exit 1
+              fi
+            else
+              bash ../../scripts/lingua-data/build.sh --parts "$pair" "$base" "$RUNNER_TEMP/layer-$pair.lingua"
+              echo "$pair" > "$base.pair"
+            fi
           done
       # The invariance baselines: what the engine gives the extension over a fixed corpus, with
       # the real packs — en-fr (the Spanish programme's S0, docs/lingua/spanish-programme.md),
@@ -194,12 +210,28 @@ jobs:
           yarn install --immutable
           yarn gen:wasm
           yarn gen:proto
-          # The real pack, as the reviewer builds it: from the archive's committed tables, with no
-          # network, checked against pin.json — and so the very bytes the release ships.
+          # The real parts, as the reviewer builds them: from the archive's committed tables, with no
+          # network, checked against pin.json — and so the very bytes the release ships: the six
+          # layers and the three bases (ship-lingua-pack-bases-once D5), compared with the parts the
+          # monorepo built above, and each named in the archive's README against its path.
           yarn gen:pack:real
+          files=0
           for pair in $(node tool/packs.mjs pairs); do
-            cmp "assets/packs/$pair.lingua" "$RUNNER_TEMP/pack-$pair.lingua"
+            cmp "assets/packs/$pair.lingua" "$RUNNER_TEMP/layer-$pair.lingua"
+            grep -q "  apps/lingua-extension/assets/packs/$pair.lingua" "$src/README.md"
+            files=$((files + 1))
           done
+          for studied in $(node tool/packs.mjs studied); do
+            cmp "assets/bases/$studied.lingua" "$RUNNER_TEMP/base-$studied.lingua"
+            grep -q "  apps/lingua-extension/assets/bases/$studied.lingua" "$src/README.md"
+            files=$((files + 1))
+          done
+          named="$(grep -cE '  apps/lingua-extension/assets/(packs|bases)/' "$src/README.md")"
+          if [ "$named" != "$files" ]; then
+            echo "::error::The archive's README names $named packaged parts; the package carries $files."
+            exit 1
+          fi
+          echo "The reviewer's rebuild gives the $files packaged parts byte for byte, each named in the archive's README."
           LINGUA_GRPC_WEB_URL=https://api.cymbra.app yarn build:firefox
           test -f dist-firefox/manifest.json
 
