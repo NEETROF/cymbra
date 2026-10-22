@@ -154,8 +154,9 @@ Italian page with French*.
 
 Changes 30, 31 and 50 are **implemented before this change** (I5's order: it-es before the Italian
 speakers' pairs, fr-it before es-it); they are hard prerequisites, not recommendations. This change
-copies change 50's blocks, which already carry changes 30's and 31's, and archives after all three, so no
-order can cycle: change 30's D13 rule (« whichever of 30, 50 and 54 is implemented later re-copies the
+copies each block from its latest holder among changes 30, 31 and 50 — change 50's in the recommended
+order, changes 30's and 31's if change 50 was implemented before them (change 50's D13) — and archives
+after all three, so no order can cycle: change 30's D13 rule (« whichever of 30, 50 and 54 is implemented later re-copies the
 earlier's ») is met by this change being the later one, and change 31 archives before it.
 
 If change 50 is withdrawn (fr-it under its floor, say), this change re-copies each block from change 50's
