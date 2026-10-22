@@ -29,7 +29,7 @@ reduces), with the stress marks dropped as change 9's amendment reads table form
   third persons, already read as such). A defective verb's missing cells are written `-` (2,848 cells
   over 197 verbs): no form. A reflexive verb's enclitic rows (`làvati`, `pentìrsi`: 18,264) read as
   the bare base change 9 gives them, never as their clitic-bearing string; a derived word's row
-  (`casa` → `casétta`, 871 diminutive, augmentative, pejorative and like rows) gives no reading.
+  (`casa` → `casétta`: 871 noun rows and ≈ 150 adjective rows, diminutive, augmentative, pejorative and like, and the adverb) gives no reading.
 - **Nouns**: `it-noun` heads give the gender — masculine 36,150, feminine 30,150, by sense 3,162,
   plural-only 321, both 113 —; 7,865 heads are invariable (`#`: `città`, `re`, `crisi`), read in both
   numbers as Spanish's `crisis` and French's `temps`, and 1,090 uncountable (`-`: `gas`), read singular.
@@ -51,14 +51,17 @@ reduces), with the stress marks dropped as change 9's amendment reads table form
   - a noun's gender on its own form and its plural, both numbers on an invariable noun; an
     adjective's, a determiner's (the articles among them), a pronoun's or a numeral's gender and
     number (D4);
-  - a form of a form along one part of speech with its own agreement (`parlata`, the participle's
-    feminine, when change 9 files it under *parlare*), as change 9 maps the form; a reading's part
+  - a form of a form along one part of speech with its own agreement (`creduta`, the feminine of
+    the participle `creduto`, of *credere*), as change 9 maps the form; a reading's part
     of speech one the dictionary holds its lemma as (D5);
   - no reading from what the dictionary marks doubtful, regional or of a register, from a
     capitalised headword, from an entry that is only an alternative form, from a feminine noun's
     masculine (`attrice` → `attore`), or toward a word an override row of change 9 sets aside (D5);
   - `other` on a reading of another ranked lemma, only toward an entry of the dictionary that is not
-    only regional (D6).
+    only regional (D6);
+  - a reflexive verb's enclitic rows read as change 9's bare bases; a noun marked uncountable read
+    singular alone; the shared article table read in full under *il*; no reading from a derived
+    word's row, a clitic row or a shortened form (D3, D4).
 - **The readings are stored unmerged** (D7): `parli` carries its four readings, `parla` its two
   (present indicative third singular, imperative second singular), so that the word card (change
   18) can merge the moods as French's change 51 does — the programme's M21 read for Italian.
@@ -85,7 +88,8 @@ None.
 
 - `lingua-data-packs`: ADDED — *Italian's word grammar*, *Italian's pinned tag pool* and *Italian
   readings are measured on held-out treebanks*. None MODIFIED: change 9's scenario that `tags.tsv`
-  holds the one canonical tag reads « until change 13's pool », as its requirement says. This
+  holds the one canonical tag is scoped « until change 13's pool replaces it » by PR #989, as its
+  requirement says. This
   change archives after changes 5 and 9, after the split (3, 4) whose base carries the pool, and
   after French's grammar change, whose requirements it transposes.
 

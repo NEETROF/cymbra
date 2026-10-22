@@ -77,7 +77,7 @@ forms with one, `other` marks, tags) are recorded at task 2.1.
 | persons and numbers | `Person`, `Number`, with `VerbForm=Fin` |
 | `infinitive` | `VerbForm=Inf` |
 | `gerund` | `VerbForm=Ger` |
-| `participle` + `present`, the table's row | `VerbForm=Part`, `Tense=Pres`, `Number=Sing` (`parlante`; `parlanti` reads `Number=Plur` from its own entry, as UD Italian writes it) |
+| `participle` + `present`, the table's row | `VerbForm=Part`, `Tense=Pres`, `Number=Sing` (`parlante`; `parlanti` reads `Number=Plur` through *parlante*'s participle entry, its row there — its own entry being an adjective form —, as UD Italian writes it) |
 | `participle` + `past`, the table's row | `VerbForm=Part`, `Tense=Past`, `Gender=Masc`, `Number=Sing` |
 | a past participle's agreed forms | its gender and number, through the participle's entry (D5): a participle sense naming an agreement without `past` is the past one, French's D3 sentence — 33,421 Italian agreed-participle senses lack `past`, 52 have it (`creduta`: `feminine`, `participle`, `singular`) |
 
@@ -92,8 +92,9 @@ own entry that merges persons or moods reads as each combination; a table row na
   a register's; `error-unrecognized-form` rows (20, `essere`'s `són`, `siàm`, no cell tags); the
   `it-verb` head's principal parts (`dìa`, `sìa` a subjunctive without a tense, 41; `èro` an
   imperfect without a mood) and own-entry senses tagged `imperative` + `third-person` (the formal
-  imperative without `formal`, 16,763) — both dropped by the verb features' guards, a reading needing
-  a mood and, for the indicative and subjunctive, a tense; the `canonical` and `auxiliary` rows
+  imperative without `formal`, 16,763) — the subjunctive without a tense and the third-person imperatives are dropped by the verb
+  features' guards; a row with a tense and no mood (`èro`, `dò`, `dièdi`) is given the indicative, as
+  French's guard gives it, and reads as the cell it repeats; the `canonical` and `auxiliary` rows
   (bookkeeping);
 - **the negative imperative** — its second person singular is the infinitive in 10,804 of 10,804
   verbs (« non parlare »), its plurals repeat the affirmative in 26,763 of 26,764 — and **the formal
@@ -116,7 +117,7 @@ gives it: under a reflexive-only lemma, `pentire` `VerbForm=Inf`, `pentendo` `Ve
 plain verb's own rows carry the cells, as for *lavarsi*), no reading; never as its clitic-bearing
 string, which would collide with the plain verb's participle (`làvati` read `lavati`, *lavare*'s
 masculine plural participle). A row with a clitic cluster (`me ne vàdo`, `ce la fàccio`, `gliela
-fàccio`, ≈ 3,600) gives no reading: the plain verb's rows carry the cells, and a page reads the
+fàccio`, and a non-reflexive clitic row, `la hò`, `le prèndo` — ≈ 3,600 in all) gives no reading: the plain verb's rows carry the cells, and a page reads the
 cluster's words apart.
 
 ### D4 — Nouns, adjectives, determiners, pronouns, numerals
@@ -142,7 +143,7 @@ cluster's words apart.
   `pejorative` (140), `derogatory` (47) and `endearing` (12) rows of a noun (`casa` → `casétta`,
   `casàccia`), the same rows of an adjective (≈ 80), and an adjective's `adverb` row (67: `vero` →
   `veramente`) name other words, not inflections; read, `casetta` would be « the feminine singular of
-  *casa* ». Change 9 is amended to keep them out of the forms too.
+  *casa* ». Change 9 is amended to keep them out of the forms too (PR #989).
 - **An adjective's own form** reads `ADJ|Gender=Masc|Number=Sing` when it has a feminine of its own
   (`rosso`), `ADJ|Number=Sing` when one form serves both (`grande`); its forms read by their tags
   (`rosse`: `Gender=Fem|Number=Plur`), or from their own entries where the head lists none (`grande`
@@ -152,10 +153,14 @@ cluster's words apart.
   alternative-only rule refuses, and `bello`'s rows `bel`, `bei`, `begli` are tagged
   `error-unrecognized-form`; a card on them names no agreement (Known data defects).
 - **Determiners, the articles among them, pronouns and numerals** read their gender and number. The
-  article table kaikki writes identically under each of *il*, *lo*, *la*, *gli*, *le* gives a reading
-  only for the forms the entry's own head names — *il*: `i`, `la`; *lo*: `gli`; *la*: `le` —, its
-  other cells no reading and no `other` mark, so `il` names no *lo*; French's plural-head rule
-  carries (`le`, the pronoun, plural feminine, gives `la` no reading as its singular). An article is
+  article table kaikki writes identically under each of *il*, *lo*, *la*, *gli*, *le* reads in full
+  under *il*, the lemma change 9 files the definite articles under, as UD lemmatises them — `i`
+  masculine plural, `la` feminine singular, `gli` masculine plural, `le` feminine plural, each with
+  the gender and number its row carries; under *lo*, *la*, *gli* and *le* it reads only the forms
+  their own head names (*lo*: `gli`, an `other` mark beside *il*'s), so `il` names no *lo*. French's
+  plural-head rule carries (`le`, the pronoun, plural feminine, gives `la` no reading as its
+  singular); `gli`'s own article entry, whose link « the article i » is broken and whose head is
+  plural, gives nothing of its own. An article is
   a determiner, as UD writes it. A pronoun's form names its gender or gives no reading, and a
   personal pronoun's other persons and cases are other words, not inflections (French's D4).
 
@@ -235,7 +240,7 @@ status. Each rule of D3–D6 is switched off alone once and its effect recorded,
   `tables/es/`, `tables/fr/` or their pairs' folders; their packs rebuild to their pins and their
   goldens pass without re-blessing.
 - **it-fr moves**: `tables/it/grammar.tsv` is new, `tags.tsv` is the pin, `manifest.json`
-  (`pack_version`, the rule digest) and `pin.json` (base and layer) are recorded again;
+  (`pack_version`, the rule digest) and `pin.json` (the whole pack, base and layer) are recorded again;
   `forms.tsv`, `freq.tsv`, `lexical.tsv` and `studied.json` are byte for byte change 9's (and 10's,
   11's rows).
 - **Italian's analyser version does not move**: readings are pack data; no token or lemma changes.
