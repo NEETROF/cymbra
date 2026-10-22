@@ -47,7 +47,7 @@ inert until their pair ships: a reader's pairs are the shipped pairs of their na
 - **The owner redeploys the model host after the merge** (D6): until then, every store submission
   of the extension and every App Store delivery of the Apple app is refused by the gate that checks
   the host serves every pinned model. The implementation merges when the owner can dispatch `lingua-model-deploy` right after.
-- Not in this change: the marks of any Italian pair (`MARKED_PAIRS` keeps its five), the Italian
+- Not in this change: the marks of any Italian pair (`MARKED_PAIRS` keeps its six), the Italian
   corpus, any pack, any Italian in the interface.
 
 ## Capabilities
