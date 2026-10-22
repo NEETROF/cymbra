@@ -48,7 +48,7 @@ translation SHALL NOT be shown; an engine SHALL translate the line on screen.
 - **THEN** the line shows YouTube's automatic translation into Italian, labelled as YouTube's automatic translation in the reader's interface language
 
 #### Scenario: A track YouTube does not translate
-- **WHEN** a reader with no engine shows the translation line on a video whose track YouTube does not translate, or whose translation request YouTube does not answer
+- **WHEN** a reader with no engine, outside degraded mode, shows the translation line on a video whose track YouTube does not translate, or whose translation request YouTube does not answer
 - **THEN** the line says that no translation is available for these captions, in the reader's interface language (French interface: « Pas de traduction pour ces sous-titres »), and no model is downloaded
 
 #### Scenario: An engine ready
