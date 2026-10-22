@@ -198,14 +198,14 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 2 | 23 | `refine-lingua-it-en-glosses` | 2–3.5 | 48b | |
 | 2 | 24 | `measure-lingua-it-en-translation-marks` | 1–2 | 26 | Proposal merged ([#996](https://github.com/NEETROF/cymbra/pull/996)) |
 | 2 | 25 | `enable-lingua-italian-for-english-speakers` (it-en) | 4–7.5 | 34 | Proposal merged ([#999](https://github.com/NEETROF/cymbra/pull/999)) |
-| 2 | 26 | `add-lingua-italian-english-listings` | 1.5–3 | 36 | Proposed ([#1000](https://github.com/NEETROF/cymbra/pull/1000)) |
+| 2 | 26 | `add-lingua-italian-english-listings` | 1.5–3 | 36 | Proposal merged ([#1000](https://github.com/NEETROF/cymbra/pull/1000)) |
 | 2 | 27 | `add-lingua-pack-it-es` (I4): the floor fixed first; the Spanish Wiktionary's Italian section and the Italian Wiktionary's Spanish translations | 3–5 | 49 | |
 | 2 | 28 | `refine-lingua-it-es-glosses` | 2–3.5 | 49b | |
 | 2 | 29 | `measure-lingua-it-es-translation-marks` | 1–2 | 26 | |
 | 2 | 30 | `enable-lingua-italian-for-spanish-speakers` (it-es) | 4–7.5 | 35 | |
 | 2 | 31 | `add-lingua-italian-spanish-listings` | 1.5–3 | 37 | |
-| 3 Italian speakers: en-it | 32 | `add-lingua-italian-native-language`: the variant, the choice offered, the sync label, every enumeration of fr/en/es | 1–2 | 4, 20 | |
-| 3 | 33 | `add-lingua-italian-interface`: `src/i18n/it`, 24 modules typed after the French; Italian numbers, percentages, dates and plurals; the lint | 4–7 | 13–17 | |
+| 3 Italian speakers: en-it | 32 | `add-lingua-italian-native-language`: the variant, the native list and names, every enumeration of fr/en/es, inert until a pair is glossed in Italian | 1–2 | 4, 20 | Proposed ([#1003](https://github.com/NEETROF/cymbra/pull/1003)) |
+| 3 | 33 | `add-lingua-italian-interface`: `src/i18n/it`, 24 modules typed after the French; Italian numbers, percentages, dates and plurals; the lint; `InterfaceLanguage = NativeLanguage` restored and change 32's it→en mapping dropped (`INTERFACE_LANGUAGES` gains `it` with change 45) | 4–7 | 13–17 | |
 | 3 | 34 | `add-lingua-italian-card-wording`: the Italian renderer of readings; English, French and Spanish tense names for an Italian reader | 3–5.5 | 23, 24 | |
 | 3 | 35 | `add-lingua-italian-edition-rules`: the Italian Wiktionary's rules in the gloss reducer | 2–4 | 6 | |
 | 3 | 36 | `add-lingua-pack-en-it` (I11) | 3.5–6 | 22 | |
