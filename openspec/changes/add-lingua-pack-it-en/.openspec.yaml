@@ -1,0 +1,11 @@
+schema: spec-driven
+created: 2026-10-22
+archiveAfter:
+  - add-lingua-italian-baseline
+  - add-lingua-italian-forms-tables
+  - keep-lingua-italian-acronyms-and-names
+  - add-lingua-italian-expression-keys
+  - add-lingua-pack-it-fr
+  - add-lingua-pack-es-en
+  - add-lingua-pack-fr-en
+  - add-lingua-italian-word-card
