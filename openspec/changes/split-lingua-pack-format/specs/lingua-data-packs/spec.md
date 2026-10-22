@@ -19,7 +19,7 @@ A pack SHALL also be built as two containers of the same envelope: a *base*, hol
 
 #### Scenario: A part given to a reader of whole packs
 - **WHEN** a base, or a layer, is given to the loader of a whole pack, or to the reader of a pack's studied language or pair
-- **THEN** each refuses it with an explicit error naming the part and the other part it needs, and a plugin that follows the packs of a directory skips the file as one that cannot be loaded, names it, and follows the others
+- **THEN** each refuses it with an explicit error naming the part and the other part it needs, and a plugin that follows the packs of a directory skips the file as one that cannot be loaded and follows the others
 
 #### Scenario: The whole pack still loads
 - **WHEN** the en-fr pack built whole from its committed tables is loaded by this engine

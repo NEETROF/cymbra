@@ -16,8 +16,10 @@ See proposal.md — Why. What constrains the shape:
 - The tag pool (`tags`) is laid out as the studied language's pinned pool in its own order, then
   the readings' tags outside it, then the tags only the pair's senses carry, each part sorted (*A
   form's readings do not depend on the pack's native language*). Measured on 2026-10-21: en-fr's
-  pool ends where en-es's has one more line, `NUM`; fr-en's and fr-es's end with the same fifteen
-  bare tags their senses carry, since French's pin holds its seventy-nine reading tags and nothing
+  pool ends where en-es's has one more line, `NUM`; fr-en's and fr-es's end with the same seventeen
+  tags their senses carry (fifteen bare parts of speech, and `NOUN|Gender=Fem` and `NOUN|Gender=Masc`,
+  which noun runs take from their readings; measured at implementation), since French's pin holds its
+  seventy-nine reading tags and nothing
   else (*French's pinned tag pool*, an open change); Spanish's pin holds the bare tags, so es-fr's
   and es-en's pools are the pin. `senses.zst` indexes that pool.
 - The whole pack's `notice` and `licences` are the pair's full attribution stack, both sides; the
@@ -142,10 +144,10 @@ no committed pack moves (every language has readings), and the pinless fixtures 
 
 *Alternatives.* Pinning the sense-only tags in each language's `tags.tsv` so the base holds the
 whole pool: French's pin is specified as its readings' tags and nothing else, in byte order (an
-open change holds it, and the committed-tables checks hold the order), the fifteen bare tags its
-pairs' senses carry would have to be pinned out of order, en-fr's and en-es's pins and bytes would
+open change holds it, and the committed-tables checks hold the order), the seventeen tags its pairs'
+senses carry would have to be pinned out of order, en-fr's and en-es's pins and bytes would
 move, and `pin.json`'s record of the studied tables with them. Refusing a sense tag outside the
-pin: fr-en and fr-es carry fifteen. Neither buys anything the split needs.
+pin: fr-en and fr-es carry seventeen. Neither buys anything the split needs.
 
 ### D6 — One base per studied language, checked over the committed tables
 
