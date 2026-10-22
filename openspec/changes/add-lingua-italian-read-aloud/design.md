@@ -178,4 +178,4 @@ Rollback is a revert.
 ## Effort
 
 1–1.5 ideal days, against the programme's 1–2: the ranking and the region 0.25; the catalogue 0.25;
-`heardWord`'s Italian branch 0.25–0.5; their tests and the snapshot 0.25–0.5.
+`heardWord`'s Italian branch and the page hit's next token 0.5–0.75; their tests and the snapshot 0.25–0.5.

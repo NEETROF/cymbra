@@ -60,7 +60,7 @@ When the card's speaker reads Italian, the word button of a card opened on an el
 
 #### Scenario: A vowel alone
 - **WHEN** the reader opens the card of « è » in « Roma è grande. » and of « E » in « E poi è partito. »
-- **THEN** the word buttons are labelled « è » and « E » and speak « è. » and « E. »
+- **THEN** the first card's form-seen button is labelled « è » and speaks « è. », and the second card's word button speaks « E. »
 
 #### Scenario: English, Spanish and French
 - **WHEN** the reader opens a card on an English, Spanish or French page, a split word's included

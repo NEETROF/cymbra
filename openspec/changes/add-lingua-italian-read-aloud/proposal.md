@@ -14,7 +14,7 @@ rendered with macOS `say`, the audio compared byte for byte), as French's change
   under suffixed names (`Eddy (Italian (Italy))` … `Shelley (Italian (Italy))`), already
   deprioritised, and the network voice `Google italiano`; Safari on macOS, iOS and the Simulator and
   Firefox on macOS list `Alice` alone; Chrome on Windows lists only `Google italiano`, not on the
-  device, so no Italian voice speaks there until the reader installs one; Firefox for Android writes
+  device, so no Italian voice speaks there until the reader installs one or allows the online voices; Firefox for Android writes
   `ita-ITA-default` and `ita-ITA-f00`. No Swiss Italian voice is captured anywhere. So the automatic
   choice is already a voice of Italy wherever one exists; the region table is what is missing:
 - **Firefox for Android's Italian region is unread.** The three-letter table knows the language
