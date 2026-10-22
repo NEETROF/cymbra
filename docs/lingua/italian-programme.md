@@ -181,7 +181,7 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 1 | 9 | `add-lingua-italian-forms-tables` (I11): the English Wiktionary's Italian section, MarkIT's parts of speech, Morph-it! verified | 8.5–14 | 43 | Proposal merged ([#978](https://github.com/NEETROF/cymbra/pull/978)) |
 | 1 | 10 | `read-lingua-italian-unmarked-spellings`: E', perche', piu', citta', and the dictionary's own accent-less spellings | 2–4 | 43d, 43e | Proposal merged ([#981](https://github.com/NEETROF/cymbra/pull/981)) |
 | 1 | 11 | `keep-lingua-italian-acronyms-and-names`: acronyms in capitals stay acronyms; names leave the words to learn (the rows' gloss and `lexical.tsv` land with change 16) | 1.5–3 | 43c, 24c | Proposal merged ([#979](https://github.com/NEETROF/cymbra/pull/979)) |
-| 1 | 12 | `add-lingua-italian-expression-keys`: expressions keyed as Italian is read; the expression written as the page | 2–4 | 44, 44c–44e || Proposed ([#982](https://github.com/NEETROF/cymbra/pull/982)) |
+| 1 | 12 | `add-lingua-italian-expression-keys`: expressions keyed as Italian is read; the expression written as the page | 2–4 | 44, 44c–44e | Proposed ([#982](https://github.com/NEETROF/cymbra/pull/982)) |
 | 1 | 13 | `add-lingua-italian-grammar-tables`: UD tags (passato remoto `Tense=Past`, imperfetto `Tense=Imp`, checked against it_isdt already) | 3–5 | 45 | |
 | 1 | 14 | `add-lingua-italian-levels` (I8): the estimated ladder | 1.5–3 | 46 | |
 | 1 | 15 | `add-lingua-italian-read-aloud`: it-IT and it-CH voices | 1–2 | 47 | |
