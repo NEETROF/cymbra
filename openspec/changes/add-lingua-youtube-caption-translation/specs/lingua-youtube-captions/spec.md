@@ -42,6 +42,10 @@ translation SHALL NOT be shown; an engine SHALL translate the line on screen.
 - **WHEN** a reader whose native language is Spanish, with no engine, shows the translation line on a video with English captions
 - **THEN** the line shows YouTube's automatic translation into Spanish, labelled as YouTube's automatic translation in the reader's interface language
 
+#### Scenario: No engine, for an Italian-speaking reader
+- **WHEN** a reader whose native language is Italian, with no engine, shows the translation line on a video with English captions
+- **THEN** the line shows YouTube's automatic translation into Italian, labelled as YouTube's automatic translation in the reader's interface language, or says there is no translation for these captions when YouTube offers none
+
 #### Scenario: An engine ready
 - **WHEN** a reader whose engine is ready for English shows the translation line and plays the video
 - **THEN** each line shows the engine's translation of its sentence as the line appears, and no request goes to YouTube for a translation

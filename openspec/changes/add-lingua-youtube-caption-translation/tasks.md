@@ -12,13 +12,13 @@ show YouTube's translation still answers in at least one browser.
 
 ## 2. Copy, disclosure and review (~0.5 d)
 
-- [ ] 2.1 Copy in French, English and Spanish (`src/i18n/`): the control, the preference, « Traduction automatique YouTube », « Pas de traduction pour ces sous-titres »
-- [ ] 2.2 Lingua annex of the privacy policy in French, English and Spanish (`apps/site/src/pages/confidentialite.md`, `en/privacy.md`, `es/privacidad.md`): without a translation engine, the translation shown under the captions is YouTube's, fetched from YouTube only when the reader shows it
+- [ ] 2.1 Copy in French, English and Spanish, and in Italian once change 33's `src/i18n/it/` exists, read by change 33's Italian reviewer agent (`src/i18n/`): the control, the preference, « Traduction automatique YouTube », « Pas de traduction pour ces sous-titres »
+- [ ] 2.2 Lingua annex of the privacy policy in French, English and Spanish (`apps/site/src/pages/confidentialite.md`, `en/privacy.md`, `es/privacidad.md`), and in Italian on change 41's `/it/privacy/` page where it exists: without a translation engine, the translation shown under the captions is YouTube's, fetched from YouTube only when the reader shows it
 - [ ] 2.3 `apps/lingua-extension/REVIEWERS.md`: the `tlang` replay — same request, same video, one extra parameter, only while the line is shown with no engine
 
 ## 3. Manual pass (owner, ~0.5 d)
 
-- [ ] 3.1 In Chrome, Firefox and Safari on macOS: line hidden by default and the choice remembered; no engine → YouTube's translation, labelled, and in Spanish for a Spanish-native reader; engine ready → each line translated as it appears, and a card opened mid-video answers without delay; model downloading → YouTube's until ready; degraded mode → no YouTube translation. Record whether three sentences ahead is enough (design open question 2)
+- [ ] 3.1 In Chrome, Firefox and Safari on macOS: line hidden by default and the choice remembered; no engine → YouTube's translation, labelled, in Spanish for a Spanish-native reader, and in Italian for an Italian-native one once en-it ships; engine ready → each line translated as it appears, and a card opened mid-video answers without delay; model downloading → YouTube's until ready; degraded mode → no YouTube translation. Record whether three sentences ahead is enough (design open question 2)
 
 ## 4. Gates
 

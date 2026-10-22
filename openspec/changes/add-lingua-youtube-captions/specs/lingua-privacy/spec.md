@@ -14,5 +14,5 @@ captions of the video being watched from YouTube, and nothing of the reader's is
 - **THEN** every one goes to YouTube for that video, differs from the player's own request only in track and format, and carries no page text, Lingua data or Cymbra identifier
 
 #### Scenario: Reading the policy
-- **WHEN** a reader opens the Lingua annex of the privacy policy, in French, English or Spanish
+- **WHEN** a reader opens the Lingua annex of the privacy policy, in French, English, Spanish or Italian
 - **THEN** it says the extension reads the list of a video's caption languages in the page and sends nothing, fetches the video's captions from YouTube once the caption mode is started, and sends nothing of the reader's with them

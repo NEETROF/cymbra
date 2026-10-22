@@ -48,9 +48,10 @@ captions as Lingua text — can ship without waiting for the sentence translatio
   of this first version), Android, Shorts, live streams, embedded players, transcribing audio,
   other video sites, and captions in a language other than English: Spanish is left out by the
   Spanish programme's decision D7 (`docs/lingua/spanish-programme.md`), French by the language
-  matrix programme (`docs/lingua/language-matrix-programme.md`). The mode reads English captions
-  for a reader who studies English, whatever their native language (French or Spanish); an English
-  speaker, who does not study English, is not offered it.
+  matrix programme (`docs/lingua/language-matrix-programme.md`), Italian by the Italian programme
+  (`docs/lingua/italian-programme.md`). The mode reads English captions for a reader who studies
+  English, whatever their native language (French, Spanish or Italian); a reader who does not study
+  English is not offered it.
 
 ## Capabilities
 
@@ -83,14 +84,14 @@ captured from a caption keeps exactly what a card captured on a page keeps.
 **Products.** Cymbra Lingua only: the extension's three variants (Chromium, Firefox, Safari via
 the Apple host app). No backend change, no new RPC, no `.proto` change. Music, Live, the back
 office are untouched; the site's privacy page gains one sentence in the Lingua annex, in French,
-English and Spanish.
+English and Spanish, and in Italian on change 41's page where it exists.
 
 **Code.** `apps/lingua-extension`: a YouTube module beside `src/reading/` (track, sentences, timing,
 exposure — pure and host-testable), a small script in the page's own world injected by the
 background (`scripting.executeScript`, `world: "MAIN"`), the caption line and its card placement
 inside the player, a `"video"` surface in the popup (`src/popup/render.ts`), the video share of the
-daily statistics (`src/state/dailystats.ts`), new copy in French, English and Spanish
-(`src/i18n/`), a new build entry (`build.mjs`, `tool/check_variants.mjs`).
+daily statistics (`src/state/dailystats.ts`), new copy in French, English and Spanish, and in Italian
+once change 33's `src/i18n/it/` exists (`src/i18n/`), a new build entry (`build.mjs`, `tool/check_variants.mjs`).
 
 **Ordering.** Archives **after** `add-lingua-translation-delivery` (D10): this change's block of
 **No network requests** is written on top of that change's text. The open proposal

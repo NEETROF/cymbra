@@ -230,7 +230,7 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 4 | 53 | `measure-lingua-es-it-translation-marks`: the 100 Spanish selections already committed, through es-en then en-it, two agent judges as changes 38 and 49, no trial before the criteria; modifies the requirement as change 49 leaves it, and archives after it; the gloss columns stay empty if changes 51 and 52 are not committed, change 52 then rerunning the experiment | 1–2 | 26 | Proposal merged ([#1030](https://github.com/NEETROF/cymbra/pull/1030)) |
 | 4 | 54 | `enable-lingua-spanish-for-italian-speakers` (es-it), with its listings; rewrites `_locales/it`'s description and the activation page's Italian copy to name Spanish | 3–6 | 52, 53 | |
 | 5 Wording | 55 | `refine-lingua-italian-wording`: the corrections dogfood brings, in every language | 1.5–3 | 54 | |
-| 5 | 56 | `amend-lingua-youtube-captions-italian` | 0.5–1 | 57 | |
+| 5 | 56 | `amend-lingua-youtube-captions-italian`: an in-place amendment of the two open YouTube changes (`add-lingua-youtube-captions`, `add-lingua-youtube-caption-translation`), as the matrix's #904 and the Spanish programme's #674 did — Italian captions kept out (Scope), the mode offered to an Italian speaker who studies English, YouTube's translation into Italian, Italian copy and privacy annex where they exist | 0.5–1 | 57 | Proposed ([#1031](https://github.com/NEETROF/cymbra/pull/1031)) |
 
 **Size.** 57 changes, 143.75–258 ideal days: stage 0 7.75–12.75, stage 1 50.5–89, stage 2 26.5–48,
 stage 3 35–62, stage 4 22–42.25, stage 5 2–4. Stage 0 and 1 together — the split, then Italian
