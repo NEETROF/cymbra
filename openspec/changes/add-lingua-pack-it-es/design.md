@@ -141,6 +141,11 @@ against « Zona »). The order the research measured; task 0.1 re-measures it on
     `è` « Es », `li` « Los », …);
   - *the Italian word given as Spanish* — refused unless `ITALIAN_ALIKE`, a reviewed list, names it a
     Spanish word too (`credo`, `friulano`; the DLE the reference), as fr-es's `SPANISH_ALIKE`;
+  - *the Italian Wiktionary's notes* — reading its Spanish section backwards, the senses that are
+    its notes to its readers, « vedi italiano » and « definizione mancante; se vuoi, aggiungila tu »
+    (36 and 3 that pass the reading's two-word filter), are dropped, so that no note becomes an Italian
+    key; it-es imports no Italian edition module (`add-lingua-italian-edition-rules`), whose later
+    edits would re-pin it;
   - *split words* — the reader of the words without a space that Italian's pre-pass splits, for D6: a
     copy of it-en's D4.5 reader, which lives in `reduce_italian_en.py`, so that neither pair's digest
     follows the other's.
