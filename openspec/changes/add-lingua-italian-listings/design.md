@@ -143,10 +143,10 @@ One sentence each, nothing offered to their own readers: the Chrome text in Engl
 also teaches English, Spanish and Italian to French speakers, in French. »; in Spanish, « … enseña
 inglés, español e italiano a los francohablantes, en francés … »; the App Store's en-US/en-GB
 description « … who learn English, Spanish and Italian. » and es-ES/es-MX « … que aprenden inglés,
-español e italiano; … ». The texts kept for a release without fr-es are not edited. The
+español e italiano; … ». The
 files' notes that say what French speakers study (the listing languages, the claims table's « who
 learns what », the graphics' French set, the permissions' introduction, the App Store's locales)
-follow, and the texts kept for a release without fr-es are labelled as history.
+follow. The texts kept for a release without fr-es are not edited, only labelled as history.
 
 **The claims table** (the extension file's « what each claim rests on ») gains rows for the French
 texts' Italian claims: the card's « passé simple » and « nom féminin » for Italian (change 18's
