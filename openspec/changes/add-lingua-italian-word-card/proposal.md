@@ -58,8 +58,7 @@ D6), whatever the studied language.
     indicativo », « pretérito perfecto simple de indicativo », « futuro simple de indicativo »,
     « condicional simple », « presente de subjuntivo », « pretérito imperfecto de subjuntivo »,
     « imperativo », « gerundio », « participio presente », « participio pasado ».
-  Tenses come in the grammars' order — indicative, conditional, subjunctive, imperative — locked by
-  the snapshot.
+  Tenses come in the order indicative (present, imperfect, past historic, future), conditional, subjunctive (present, imperfect), imperative, the English Wiktionary's table order, locked by the snapshot.
 - **The indicative and the subjunctive said once (M21, for Italian)** (D3): `CARD_NAMES.it` merges
   the moods as French's does, where their persons are the same — « 1re personne du pluriel du présent
   de l’indicatif ou du subjonctif et 1re personne du pluriel de l’impératif de parlare » —; `parli`'s
@@ -89,8 +88,9 @@ None.
   grammar* and *The Italian card is pinned on the real packs*.
 - `lingua-decks-review`: ADDED — *Review finds an Italian expression card named without a space*.
   For an Italian card whose lemma holds no space, it takes the place of the sentence of change 12's
-  *Review finds an Italian expression card by its name* that looks every other card up as before; this change archives after 51, after the card wording change, and after the
-  Italian changes 6, 12, 13 and 16 whose pieces, keys, readings and golden it reads.
+  *Review finds an Italian expression card by its name* that looks every other card up as before; this change archives after 51, after the card wording change and
+  `refine-lingua-card-invariable-plurals`, and after the Italian changes 5, 6, 12, 13 and 16 whose
+  baseline, pieces, keys, readings and golden it reads.
 
 ## Impact
 

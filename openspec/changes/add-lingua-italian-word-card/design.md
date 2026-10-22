@@ -9,8 +9,8 @@ See proposal.md — Why. Where things stand:
   participles' names, and the order a card names tenses in (`tenseOrder`); the language-neutral
   description (`src/reading/grammar-description.ts`: `finiteKey`, `formKind`, the M21 merge of change
   51's D3) turns a form's readings into keyed parts. `StudiedLanguageCode = "en" | "es" | "fr"`
-  (`src/i18n/index.ts`). The French renderer's `fr` row exists for the override M2 reserves; no card
-  has been named in French for a studied language yet.
+  (`src/i18n/index.ts`). The French renderer has named en-fr's and es-fr's cards from the start; its `fr` row exists
+  for the override M2 reserves, so no studied language whose moods merge has been shown in French yet.
 - Change 51: French's rows, the `Ind|Sub` merge, the present participle, a language-neutral
   `selectWithinWord`, review's French no-space branch (`pack_gloss`, `crates/lingua-wasm/src/lib.rs`).
 - Change 13: Italian's readings — `Tense=Past` (passato remoto), `Tense=Imp` (imperfetto),
@@ -20,8 +20,9 @@ See proposal.md — Why. Where things stand:
   lemma with a space. Change 16: the Italian baseline on the committed tables.
 - **How it was measured**: change 13's prototype readings (`gram3.py`, scratch, the section's
   tables with the stress marks dropped), counting pairs that read `Mood=Ind` and `Mood=Sub` of one
-  `Tense`, `Person`, `Number` — 10,580 (1pl present), 8,449 (2sg present), 1,550 (2pl present), and
-  a few hundred table artefacts (a defective verb's `-` cells, given no form) —, and the gerund pairs
+  `Tense`, `Person`, `Number` — 10,580 (1pl present), 8,449 (2sg present), 1,550 (2pl present),
+  counting a defective verb's `-` cells, which give no form; without them, as D3 and the proposal
+  count, 10,526, 8,392 and 1,497 (1,455 of them `-iare` verbs) —, and the gerund pairs
   (13,093). The English Wiktionary's own Italian form-of glosses name the tenses "present indicative",
   "imperfect indicative", "past historic", "future", "conditional", "present subjunctive", "imperfect
   subjunctive", "imperative", "gerund", "present participle", "past participle" (counted over its
@@ -47,14 +48,14 @@ See proposal.md — Why. Where things stand:
 ### D1 — Italian is a studied language the renderers name; the extension's type waits for change 20
 
 `StudiedLanguageCode` gains `it`, so every `Record<StudiedLanguageCode, …>` table must hold an
-Italian row — the type checker lists them: each renderer's `TENSES` and `GERUNDS` (D2, D4), Spanish's
-`PARTICIPLES` (D4), and `CARD_NAMES` in `src/reading/grammar-description.ts`, which says what the card
+Italian row — the type checker lists them: each renderer's `TENSES` (D2), Spanish's `PARTICIPLES` (D4), and
+`CARD_NAMES` in `src/reading/grammar-description.ts`, which says what the card
 names per studied language: `CARD_NAMES.it = { infinitive: true, presentParticiple: true, gerund:
 true, moods: true }` — the infinitive named as for Spanish and French (`pentire`, *pentirsi*'s
 infinitive under change 9's reflexive rule), the present participle as for French, the gerund as for
 Spanish, the moods merged as for French (D3, an owner's question). The extension's `StudiedLanguage`
 (what a page is read as, what Réglages offers) stays until change 20, as change 51 left French's to
-change 52.
+change 52. `GERUNDS`, a partial table the checker does not hold, gains its Italian row too (D4).
 
 ### D2 — Italian's tenses, and their order
 
@@ -126,7 +127,9 @@ every other card up as before.
 `parlò`, `parlerò`, `parlerei`, `parlassi`, `parlando`, `parlate` (a past participle with no entry of
 its own), a present participle the committed tables file under its verb, `case`, `città`, `rosse`,
 `grandi` —, a probe kept only where the committed tables file it under its verb (`parlata` and
-`parlante` have entries of their own, noun and adjective, and read as those), and lemmas with two
+`parlante` have entries of their own, noun and adjective, and read as those; where the committed
+tables file no present participle under its verb, the present participle shows only as an « peut
+aussi être » line naming the verb), and lemmas with two
 sense runs or more, chosen from the committed tables; the golden is
 re-blessed once, the pull request listing the probes added. `test/word-card-it-fr.spec.ts` renders
 every grammar and phrase probe of `it-fr.golden` with the French renderer into
@@ -175,5 +178,5 @@ Rollback is a revert with the snapshot's and the golden's.
 
 3.5–5 ideal days, against the programme's 3.5–6: the type, `CARD_NAMES.it`, `PARTICIPLES.it` and
 the three renderers' Italian rows 1–1.25; the harness and the workflow line 0.25; the merge and the participles checked on Italian 0.5; review's branch and its test 0.5;
-the probes, the golden and the snapshot 0.75–1.25; the six packs rendered before and after 0.5–1;
+the probes, the golden and the snapshot 0.5–1; the six packs rendered before and after 0.5–0.75;
 spec and programme 0.25.
