@@ -19,24 +19,27 @@ to an owner who does not read the language.
 
 ## What Changes
 
-- **An Italian glossary** (design D1): `docs/lingua/italian-glossary.md`, the product's Italian terms,
-  each beside its French source term and the surfaces that use it. Examples: « Ripasso », « Impostazioni »,
-  « riquadro laterale », « percentuale reale », « QCER », « Traduzione estesa ». The agent builds it from
-  the surfaces as they stand, choosing one term per concept.
-- **One pass over every Italian surface** (D2), by change 33's reviewer agent, against the French source,
-  the glossary and I6:
-  - « tu », QCER, Treccani's tense names, Italian numbers;
-  - address free of gender;
-  - typography and elisions;
-  - each store's and platform's length limits.
-
-  Its findings are applied in this change's pull request, or answered with a source. The report is
-  committed as `docs/lingua/italian-wording-review.md`.
-- **A check that keeps the vocabulary one** (D3): a test reads the glossary's concepts and fails when an
-  Italian message, whose French counterpart uses a glossary term, does not use the Italian term. It covers
-  the extension's catalogue, `_locales/it` and the Safari app's `copy.js`, with a reviewed list of
-  exceptions.
-- **When** (D4): after change 46, before change 45's release.
+- **An Italian glossary** (design D1): about thirty product terms, each with its French forms, accepted
+  Italian forms and rejected variants. Its data lives in the extension's package
+  (`test/italian-glossary.json`) so its checks always run, and `docs/lingua/italian-glossary.md` presents
+  it. Its precedence: change 39's pinned words, then Music's `app_it.arb` for Cymbra-wide terms, then the
+  interface.
+- **One pass over every Italian surface** (D2), about 11,900 words, by change 33's reviewer agent:
+  - the interface, the card, `_locales/it`, the Safari app, the site, change 45's captions and captures,
+    and the listings;
+  - translations read against their French, and texts written per audience against change 46's D1 and
+    claims table;
+  - checked against I6, gender-free address, typography, the field caps and the glossary;
+  - findings applied in this pull request or answered with a source, a meaning finding going to the
+    owner;
+  - the report committed.
+- **A test that keeps the vocabulary one** (D3), defined exactly: the catalogue's text surfaces (through
+  the parity test's `texts()`), `_locales/it` and `copy.js` against their French by key; whole-word
+  matching by letters; rejected variants; stale exceptions failing.
+- **When** (D4):
+  - merged after change 45's pull request, before the build the owner dogfoods and photographs, and
+    before change 45's release;
+  - a corrected captured string re-runs the Italian capture.
 
 ## Capabilities
 
@@ -46,18 +49,21 @@ None.
 
 ### Modified Capabilities
 
-- `lingua-interface-language`: ADDED *The Italian wording is one vocabulary, reviewed across its surfaces*.
+- `lingua-interface-language`: ADDED *The Italian wording is one vocabulary across its surfaces*.
 
 ## Impact
 
 - **Products.** Cymbra Lingua's Italian text:
-  - new: `docs/lingua/italian-glossary.md`, `docs/lingua/italian-wording-review.md`,
-    `apps/lingua-extension/test/italian-glossary.spec.ts`;
+  - new: `apps/lingua-extension/test/italian-glossary.{json,spec.ts}`, `test/support/` (`texts()`),
+    `docs/lingua/italian-glossary.md`, `docs/lingua/italian-wording-review.md`;
   - changed: wherever the pass corrects a string, in `apps/lingua-extension/src/i18n/it/`,
     `_locales/it`, `apps/lingua-apple` (`copy.js`, `SignInCopy`), `apps/site` (the `/it/` pages, the
-    islands' Italian, `lingua-text.ts`) and the listing files.
-- **The owner**: not asked to review Italian (I2). He reads the report's summary and decides any finding
-  that changes meaning rather than wording.
-- **Order**: after changes 33, 34, 39, 40, 41 and 46 are implemented, and change 45's captions written;
-  before change 45's release.
-- **Effort, against 2–4 ideal days**: 2–3.5 (design, *Effort*).
+    islands' Italian, `lingua-text.ts`, the layouts), the listing files, and the captures if a captured
+    string changes.
+
+  Cymbra ID and Music are untouched.
+- **The owner**: not asked to review Italian (I2). He reads the report's summary, decides any finding
+  that changes meaning rather than wording, and deploys the site's corrections.
+- **Order**: after change 45's pull request is merged (changes 33, 34, 39, 40, 41 and 46 with it),
+  before the build the owner dogfoods and before change 45's release.
+- **Effort, against 2–4 ideal days**: 2.5–3.75 (design, *Effort*).
