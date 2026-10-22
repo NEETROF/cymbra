@@ -197,8 +197,8 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 2 Italian studied: it-en, it-es | 22 | `add-lingua-pack-it-en`: the English Wiktionary's Italian section | 3–5 | 48 | Proposal merged ([#995](https://github.com/NEETROF/cymbra/pull/995)) |
 | 2 | 23 | `refine-lingua-it-en-glosses` | 2–3.5 | 48b | |
 | 2 | 24 | `measure-lingua-it-en-translation-marks` | 1–2 | 26 | Proposal merged ([#996](https://github.com/NEETROF/cymbra/pull/996)) |
-| 2 | 25 | `enable-lingua-italian-for-english-speakers` (it-en) | 4–7.5 | 34 | Proposed ([#999](https://github.com/NEETROF/cymbra/pull/999)) |
-| 2 | 26 | `add-lingua-italian-english-listings` | 1.5–3 | 36 | |
+| 2 | 25 | `enable-lingua-italian-for-english-speakers` (it-en) | 4–7.5 | 34 | Proposal merged ([#999](https://github.com/NEETROF/cymbra/pull/999)) |
+| 2 | 26 | `add-lingua-italian-english-listings` | 1.5–3 | 36 | Proposed ([#1000](https://github.com/NEETROF/cymbra/pull/1000)) |
 | 2 | 27 | `add-lingua-pack-it-es` (I4): the floor fixed first; the Spanish Wiktionary's Italian section and the Italian Wiktionary's Spanish translations | 3–5 | 49 | |
 | 2 | 28 | `refine-lingua-it-es-glosses` | 2–3.5 | 49b | |
 | 2 | 29 | `measure-lingua-it-es-translation-marks` | 1–2 | 26 | |
