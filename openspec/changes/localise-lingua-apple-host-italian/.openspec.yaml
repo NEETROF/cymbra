@@ -1,0 +1,7 @@
+schema: spec-driven
+created: 2026-10-22
+archiveAfter:
+  - add-lingua-apple
+  - localise-lingua-apple-host
+  - add-lingua-italian-native-language
+  - add-lingua-italian-interface
