@@ -19,7 +19,7 @@ description of Italian on the site (D8) — and change 19's figures are known (D
 ## 3. Translation, online translation and the memory sentence (apps/lingua-extension, backend/lingua)
 
 - [ ] 3.1 The comments that say « until change 20 » in `src/translate/markup.ts` and the routes' tests; it-fr's routes held inert by change 2's tests now read for the list; `translate-relay.spec.ts`: it-fr marked if change 19 listed it (D5).
-- [ ] 3.2 `backend/lingua/src/online_translation_core.rs`: `LANGUAGES` gains `it`, `language_name` names it Italian; a test: `check` accepts it-fr and fr-it, and the prompt names Italian; `cargo test -p cymbra-lingua` (D5).
+- [ ] 3.2 `backend/lingua/src/online_translation_core.rs`: `LANGUAGES` gains `it`, `language_name` names it Italian, and `backend/lingua/proto/online_translation.proto`'s comment on the languages names `it` (a comment, which `buf breaking` passes); a test: `check` accepts it-fr and fr-it, and fr-it's prompt names Italian; `cargo test -p cymbra-lingua` (D5).
 - [ ] 3.3 Tests (D6): `model-controller.spec.ts` and `translation-setting.spec.ts` — a French-native reader of Italian alone: en-fr and it-en summed from the catalogue, « environ 340 Mo »; of English, Spanish and Italian: en-fr, es-en and it-en summed, « environ 340 Mo »; every earlier row as before.
 
 ## 4. The description, the activation page and the documents

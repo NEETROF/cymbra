@@ -108,7 +108,8 @@ does not move.
     refreshed from the built pages (`test/fixtures/lingua/`, `test/astro/lingua-page.spec.ts`'s row
     count); no page or text changes.
   - `backend/lingua` — `src/online_translation_core.rs`: `LANGUAGES` gains `it`, `language_name`
-    names it Italian, with a test; deployed before the extension's release.
+    names it Italian, with a test; the proto's comment on the languages; deployed before the
+    extension's release.
   - `apps/lingua-apple` — `Shared (App)/Resources/copy.js` (`fr` `lede`, `step3`) and
     `Base.lproj/Main.html` (its two French nodes).
 
