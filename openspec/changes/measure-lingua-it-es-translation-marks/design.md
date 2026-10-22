@@ -78,14 +78,15 @@ change 38's cheaper checks:
    - `results-en-es.jsonl`'s Spanish for the English PUD sentence, a reference on idiom only.
 
    A verdict departing from both it-fr's and it-en's gives its reason.
-3. **Doubtful lines named**, and the test holding the tier with them counted wrong, as change 50's does.
-4. **The owner** reads the wrong, doubtful and departing lines and may re-judge any (task 4.1). His
+3. **Doubtful lines named**, and, if it-es is listed, the test holding the tier with those still committed
+   `correct` counted wrong, as change 50's does.
+4. **The owner** reads the wrong, doubtful and departing lines and may re-judge any (task 4.1). Their
    reading does not gate: the tier rule decides.
 
 **What the chain adds:**
 - marks lost in the pivot (withheld at about it-en's plus five);
 - a first-leg error carried through (es-fr k 79);
-- an error added or repaired by the second leg (fr-es k 30, k 15);
+- an error added by the second leg (fr-es k 30), or repaired by the fragment's reconciliation (fr-es k 15);
 - a word left in English or Italian.
 
 The requirement judges a mark against the rendering in the pair's native language. So a mark on a word
@@ -134,7 +135,9 @@ in Spanish*:
 - its tier against whether it is listed;
 - its ids equal to it-en's and it-fr's;
 - no trapped line or unreconciled fragment, or those that occur named;
-- the doubtful lines named, and, if it-es is listed, the tier held with them counted wrong;
+- the doubtful lines named, and, if it-es is listed, the tier held with the doubtful lines committed
+  `correct` counted wrong (a line committed `wrong` with a doubtful reason, as change 38's disagreements
+  are, is not subtracted twice);
 - the gloss column filled when the table holds glosses.
 
 Every other pair's results and judgments stay byte for byte.
