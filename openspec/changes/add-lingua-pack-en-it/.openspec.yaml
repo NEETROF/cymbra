@@ -1,0 +1,12 @@
+schema: spec-driven
+created: 2026-10-22
+archiveAfter:
+  - add-lingua-italian-edition-rules
+  - add-lingua-pack-en-es
+  - refine-lingua-en-es-glosses
+  - split-lingua-pack-format
+  - ship-lingua-pack-bases-once
+  - add-lingua-pack-it-fr
+  - add-lingua-pack-it-en
+  - add-lingua-italian-native-language
+  - add-lingua-italian-card-wording
