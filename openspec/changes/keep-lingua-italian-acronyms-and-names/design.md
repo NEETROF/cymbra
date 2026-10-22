@@ -29,8 +29,8 @@ See proposal.md — Why. What constrains the shape:
   and elisions whatever their case, each piece taking the written word's capital on its own first
   letter; change 7's cascade runs after it; change 8's guard and change 10's apostrophe rule leave
   the lookup alone. Italian is at `1.2.0` after change 10.
-- Measured on the English Wiktionary's Italian section (`kaikki-Italian.jsonl`, 770,859,636 B, the
-  file change 9 reduces): 211 headwords written wholly in capitals; 42 whose lowercase is a word or
+- Measured on the English Wiktionary's Italian section (kaikki.org's extract, 770,859,636 B, the same
+  623,702 entries as the `kaikki-Italian.jsonl` change 9 reduces, derived at 656,480,462 B): 211 headwords written wholly in capitals; 42 whose lowercase is a word or
   a form of the section; those whose lowercase is *another* word's form — the case a row repairs,
   43c's test's criterion —: `NATO` (*nascere*, *natare*), `USA` (*usare*, *uso*), `TARI` (*tarare*),
   `AGI` (*agio*), `FAI` (*fare*), `LUCE` (*lucere*), `EI` (*elli*), `FANS` (*fan*), `TUT` (*tutto*),

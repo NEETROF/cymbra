@@ -13,8 +13,8 @@ archived); a Romance pack fills them with no change to the container, the core o
 as Spanish's did (`add-lingua-spanish-grammar-tables`, archived) and French's does (matrix change
 45, `add-lingua-french-grammar-tables`). This change is French's for Italian.
 
-Measured on the Italian section (`kaikki-Italian.jsonl`, 770,859,636 B, the extract change 9
-reduces), with the stress marks dropped as change 9's amendment reads table forms:
+Measured on the Italian section (kaikki.org's extract, 770,859,636 B, the same 623,702 entries as
+the `kaikki-Italian.jsonl` change 9 reduces, which `pack_sources.derive` writes at 656,480,462 B), with the stress marks dropped as change 9's amendment reads table forms:
 - **13,382 verbs carry a conjugation table** (twenty tagged rows or more) — 441,628 form–lemma
   pairs over every cell, in 49 tags: 378,193 pairs with one reading, 40,673 with two, 14,257 with
   three, 8,385 with four (`parli`: present indicative second person singular and present
