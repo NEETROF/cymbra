@@ -203,7 +203,8 @@ yet: its strings are type stubs, which change 45 rewrites against its captures. 
 en-it, brings `src/assets/lingua/it/*` and the Italian demo video in the same pull request, captured
 from the real extension in Italian. To make trap 1 fail loudly, this change has `lingua-media.ts` check
 that a built Lingua page's demo video exists, and `media-budget.spec.ts` derive its Lingua pages from the
-build instead of naming three. Change 42 adds Italian's pairs and coverage to the Lingua pages.
+build instead of naming three. The Lingua pages take Italian's pairs and coverage from the data; change 45,
+into which change 42 is folded, lists en-it and carries the Lingua pages' Italian tests.
 
 ### D7 — The media budget at 50 MB
 
