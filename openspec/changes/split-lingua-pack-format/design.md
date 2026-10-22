@@ -58,7 +58,7 @@ See proposal.md — Why. What constrains the shape:
 
 ## Decisions
 
-### D1 — Two parts, one envelope, a `part` field; every whole-pack reader refuses a part
+### D1 — Two parts, one envelope, a `part` field; the core's whole-pack readers refuse a part
 
 A base and a layer are containers of today's envelope, told apart by a `part` field in their
 metadata (`"base"` or `"layer"`); a whole pack's metadata has none. Two metadata shapes:
@@ -70,6 +70,11 @@ requires, so without the probe it would fail on a missing field — and refuses 
 all go through it: the agent plugin, which keeps what `pair_in` accepts and loads it later, keeps
 skipping a part as it skips any file it cannot read, and never files a layer as a pair's pack. The
 part-aware readers are new names (`BaseMeta::read`, `LayerMeta::read`), for change 4's loaders.
+Each part also lacks a field `PackMeta` requires — a base `native`, `pack_version` and `licences`, a
+layer `analyzer_version` — so a reader released before the parts refuses one too, as malformed
+metadata rather than by name; the tests hold that gap. `tool/packs.mjs`, which reads the metadata
+outside the core, refuses a part the same way, through the fields it lacks, until change 4 teaches
+it the parts.
 
 *Alternatives.* A new format version (2) for the parts: nothing in the envelope changes, and a
 version bump would make every reader of the envelope — `tool/packs.mjs` reads the metadata at
@@ -86,6 +91,12 @@ pool without its last block. Layer: `gloss.zst`, then the optional `senses.zst`,
 tags only the pair's senses carry, outside the base's pool, sorted, one per line, as the whole
 pack's pool ends; absent when there are none, as for en-fr, es-fr and es-en), `expr`, `expr.zst`,
 `expr.names.zst`, `expr.others`, and `notice`.
+
+Each part lays its sections out in the whole pack's order, which the builder's one layout table
+fixes (D8): the base's is the list above, the layer's opens on its expression sections and puts
+`senses.tags` where the pool ends. Assembly refuses, by name, a section on the wrong side (a base's
+`senses.tags`, a layer's `tags`) and a section carried twice; a section this core does not know
+passes, as it does in a whole pack.
 
 The layer's `notice` and `licences` are the pair's full stack, exactly the whole pack's: the
 reducer writes one NOTICE per pair and the Attributions page shows it whole, so splitting it into
@@ -129,9 +140,9 @@ the builder made of them, so a builder change would leave a stale layer assembli
 Today's `tag_pool` and its order stay: the pinned pool, the readings' tags outside it, the tags
 only the pair's senses carry. `build_split` computes the same pool, writes its first two blocks as
 the base's `tags` and its last block as the layer's `senses.tags`, and stores the sense ids of
-`senses.zst` as indices of the whole pool, as today. So the base depends on the studied tables
-alone — the same base whichever pair of the language built it — and the assembled pool is the
-whole pack's, byte for byte. No pinned pool changes, no pin moves, no requirement on a pool moves.
+`senses.zst` as indices of the whole pool, as today. So the base's pool depends on the studied
+tables alone — the same base whichever pair of the language built it, once D6's refusals hold the
+rest of the base to them — and the assembled pool is the whole pack's, byte for byte. No pinned pool changes, no pin moves, no requirement on a pool moves.
 
 The split needs a pinned pool: without one the pool is a single sorted union of the readings' and
 senses' tags, interleaved, which no two blocks reproduce and which `senses.zst`'s ids index as a
@@ -149,7 +160,18 @@ senses carry would have to be pinned out of order, en-fr's and en-es's pins and 
 move, and `pin.json`'s record of the studied tables with them. Refusing a sense tag outside the
 pin: fr-en and fr-es carry seventeen. Neither buys anything the split needs.
 
-### D6 — One base per studied language, checked over the committed tables
+### D6 — One base per studied language, by construction and over the committed tables
+
+Two things of a pair's could still reach its base: a glossed lemma that is neither the lemma of a
+form nor a ranked lemma, which the builder adds to the lexicon so its gloss has an id; and dictionary
+words that are exactly the pair's glossed lemmas, for which the builder writes no lexical table, the
+reader then taking the layer's glosses for them. `build_split` refuses both, naming the lemma or
+`lexical.tsv` (`BuildError::BaseFollowsPair`), so a base it writes depends on the studied tables
+alone by construction. No committed pair is refused: each writes its lexical table, which already
+refuses a glossed lemma outside the studied tables. The English fixtures gloss three lemmas their
+forms do not hold (`leaf`, `can`, `put`); change 4, which pins the fixtures, gives each its own form
+row, which moves no byte of their whole packs. What a pair's manifest still gives its base —
+`analyzer_version`, `levels_estimated` — the checks below hold.
 
 `committed_tables.rs` builds every committed pair whole and split, and asserts: the assembled parts
 equal the whole pack section by name and metadata for metadata; the bases of one studied language
@@ -171,14 +193,18 @@ parts before change 4 ships them.
 
 `build_split(inputs) -> (base, layer)` shares `build_pack`'s intermediate blobs — the FST, the
 ranks, the grammar blobs, the gloss and expression sections — and writes two containers instead of
-one; `build_pack` stays and is what `build.sh`, the pins and the agent keep using. The budget is
+one; `build_pack` stays and is what `build.sh`, the pins and the agent keep using.
+`build_whole_and_split(inputs)` writes the whole pack and both parts from one pass over one built
+state, and one layout table decides every container: each section in the whole pack's order, a whole
+pack writing every row but `senses.tags`, a part the rows `section::part_of` gives it (D2). The budget is
 checked per part, with a remedy the part carries: a layer names its expression table when it has
 one (longest entries, then rarest), else its glossed lemmas; a base names the readings of its
 rarest dictionary forms. A base without readings is under the budget by construction at today's
 lemma counts (the largest, Spanish's, is 1.6 MB with its readings); should it ever exceed it, the
 build fails naming no remedy, its forms and frequencies being what every analysis depends on. Nothing is written when either part is over. `lingua-pack-build --split
-<studied-dir> <pair-dir> <base.lingua> <layer.lingua>` exposes it — a testdata folder holds both
-sides and is passed twice; `build.sh` learns it in change 4.
+<studied-dir> <pair-dir> <base.lingua> <layer.lingua>` exposes it, staging both files and moving
+them into place once both are written; every testdata fixture, one folder holding both sides, is
+refused until change 4 gives it a pin; `build.sh` learns it in change 4.
 
 ## Risks / Trade-offs
 

@@ -139,14 +139,19 @@ workflow builds. The agent plugin keeps loading whole packs, built as today.
 
 Each `testdata/<pair>/` gains `tags.tsv`. en-fr, en-es, es-fr and es-en carry grammar: their pin
 is the sorted union of their readings' and senses' tags, the pool their whole pack carries today,
-so those four whole packs keep their bytes and `build_split` accepts the inputs. fr-en and fr-es
+so those four whole packs keep their bytes. The English fixtures also gloss three lemmas their forms
+do not hold (`leaf`, `can`, `put`), which change 3's `build_split` refuses as a base that would
+depend on its pair: each gains the form row `<lemma><TAB><lemma>` in its `forms.tsv`, which moves
+no byte of its whole pack (measured on change 3's implementation). `build_split` then accepts the
+four inputs. fr-en and fr-es
 carry no grammar and no senses: their pin is one canonical tag, `NOUN`, which no fixture reading
 or sense uses; their whole packs gain a `tags` section of that line once change 3's implementation
 makes `build_pack` follow the base's gate (a base holds its pool whenever its language has a pin;
-today the builder writes no grammar section when readings and senses are both empty), which no
-test pins today — `pipeline_testdata.rs` pins
-the English and Spanish fixtures' bytes alone, and gains the two French rows with their new sizes
-and digests. No fixture carries an empty pin, so change 3's reading of an empty file is never
+today the builder writes no grammar section when readings and senses are both empty). Change 3's
+`pipeline_testdata.rs` (`the_fixtures_build_whole_as_recorded_and_split_by_their_pin`) pins the six
+fixtures' whole bytes, the French ones at their pinless digests, and checks each split by its data:
+refused naming `tags.tsv` while a fixture has no pin, assembled into its whole pack once it has one.
+This change edits the two French rows to their new sizes and digests, and nothing else in it. No fixture carries an empty pin, so change 3's reading of an empty file is never
 exercised. `yarn gen:pack` (the test packages) then builds parts as `gen:pack:real` does.
 
 *Alternative.* Grammar tables for the French fixtures: the French baseline moved to the committed

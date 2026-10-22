@@ -828,10 +828,15 @@ another native language stores them byte for byte as its reference does.
 `--studied <studied-dir> <pair-dir> <out>` — which is what `build.sh`, every `pin.json`, the
 extension and the agent plugin use. From the same pass over the same tables it also writes the pack
 as **two parts** (split-lingua-pack-format): `lingua-pack-build --split <studied-dir> <pair-dir>
-<base.lingua> <layer.lingua>`, a `testdata/` folder being passed twice. Both parts are built before
-either is written, so a part that fails leaves no file. The parts are containers of the same
+<base.lingua> <layer.lingua>` (`lingua_pack::build_split`; `build_whole_and_split` writes the whole
+pack and both parts from one pass). Every `testdata/` fixture is refused until
+`ship-lingua-pack-bases-once` gives it a pin (below). Both parts are built before either is written,
+so a part that fails leaves no file, and both are staged and moved into place together, so a write
+that fails never leaves a new base beside an old layer. The parts are containers of the same
 envelope, told apart by a `part` field in their metadata; a whole pack's metadata has none, and
-keeps its bytes.
+keeps its bytes. One layout table decides every container: each section in the whole pack's order,
+a whole pack writing every row but `senses.tags`, a part only its own rows, so a layer opens on its
+expression sections.
 
 | Part | Sections | Metadata |
 |---|---|---|
@@ -845,9 +850,13 @@ out; the sense ids `senses.zst` stores are those of that pool, as in the whole p
 section then has the whole pack's bytes, and the metadata is the whole pack's: the layer's pair,
 `pack_version` and licences, the base's `analyzer_version` and `levels_estimated`. The container
 bytes differ only by the order of the sections, which no reader keeps. Assembly refuses, by name, a
-part given for the other, a layer of another studied language and a layer built against another
-`base_version`, then what loading a whole pack refuses; every reader of a whole pack — the loader,
-`studied_in`, `pair_in`, so the agent plugin too — refuses a part, naming it and the part it needs.
+part given for the other, a layer of another studied language, a layer built against another
+`base_version` and a section on the wrong side or carried twice, then what loading a whole pack
+refuses; a section the core does not know passes, as in a whole pack. The core's readers of a whole
+pack — the loader, `studied_in`, `pair_in`, the wasm engine's `new` and `addPack` — refuse a part,
+naming it and the part it needs, and the agent plugin skips it as any unreadable file. A part's
+metadata also lacks a field a whole pack's requires, so a reader released before the parts refuses
+it as malformed; `tool/packs.mjs` does the same until change 4 teaches it the parts.
 
 **`base_version`** is the sha256, in lowercase hex, of the base container's bytes from its section
 count to its end: no metadata, so any reader holding the file recomputes it
@@ -855,7 +864,11 @@ count to its end: no metadata, so any reader holding the file recomputes it
 layer's, both from one run over one pair's inputs; assembly compares the two strings.
 
 **One base per studied language.** The base depends on the studied tables alone, so every pair of a
-language builds the same one: `tests/committed_tables.rs` builds each committed pair whole and split,
+language builds the same one. The split holds it by construction: it refuses, naming the lemma or
+`lexical.tsv`, a pair whose glosses hold a lemma that is neither the lemma of a form nor a ranked
+lemma (the builder would add it to the base's lexicon), and one whose dictionary words are exactly
+the lemmas it glosses (the base would carry no lexical table and take the layer's glosses for them).
+No committed pair is refused. `tests/committed_tables.rs` builds each committed pair whole and split,
 holds the assembled parts to the whole pack section by section and metadata for metadata, and the
 bases of one language byte for byte to their reference's (`en-fr` = `en-es`, `es-fr` = `es-en`,
 `fr-en` = `fr-es`; `lingua_pack::tables::check_one_base`). A pair whose manifest disagrees with its
@@ -865,7 +878,8 @@ the field.
 **A split needs the pinned pool.** Without `tags.tsv` the pool is one sorted union of the readings'
 and the senses' tags, which no base and layer reproduce: the split is refused, naming `tags.tsv`.
 Every committed language pins its pool; the `testdata/` fixtures do not, and keep building whole packs
-byte for byte (`ship-lingua-pack-bases-once` gives them a pin). A language that pins its pool writes
+byte for byte (`ship-lingua-pack-bases-once` gives them a pin, and the English fixtures a form row
+for each lemma they gloss and their forms do not hold — `leaf`, `can`, `put` —, which moves no byte). A language that pins its pool writes
 it, readings or not, whole or split.
 
 **The 5 MiB budget applies to each part** as to a whole pack, each with a remedy it carries: a layer
