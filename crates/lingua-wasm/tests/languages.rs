@@ -22,6 +22,8 @@
 
 #![cfg(not(target_arch = "wasm32"))]
 
+mod support;
+
 use std::path::PathBuf;
 
 use lingua_core::analysis::language::StudiedLanguage;
@@ -250,6 +252,46 @@ fn spec_scenario_every_french_pack_says_its_levels_are_estimated() {
         assert_eq!(row["typicalFrom"], "en", "{}", level.label());
         assert_eq!(row["total"], size, "{}", level.label());
     }
+}
+
+/// split-lingua-pack-format D7: an engine started on en-fr's base and layer, es-fr's added as its
+/// base and layer (`addParts`), holds the pair set the whole packs give, and analyses, glosses and
+/// grammars Spanish as the whole-pack engine does.
+#[test]
+fn spec_scenario_an_engine_takes_the_parts() {
+    let (en_fr, es_fr) = (
+        support::committed::split("en-fr"),
+        support::committed::split("es-fr"),
+    );
+    let mut parts = LinguaEngine::assemble(&en_fr.base, &en_fr.layer).unwrap();
+    assert_eq!(parts.add_parts(&es_fr.base, &es_fr.layer).unwrap(), "es");
+    let mut whole = LinguaEngine::new(&committed_pack("en-fr")).unwrap();
+    assert_eq!(whole.add_pack(&committed_pack("es-fr")).unwrap(), "es");
+    assert_eq!(parts.languages(), r#"["en","es"]"#);
+    assert_eq!(parts.languages(), whole.languages());
+    assert_eq!(parts.native_language(), whole.native_language());
+    let page = || vec![SPANISH.to_owned()];
+    assert_eq!(
+        parts.analyse(page(), es()).unwrap(),
+        whole.analyse(page(), es()).unwrap()
+    );
+    assert_eq!(
+        parts.phrase_gloss("tú has trabajado", es()).unwrap(),
+        whole.phrase_gloss("tú has trabajado", es()).unwrap()
+    );
+    for lemma in ["equipo", "haber", "casa"] {
+        assert_eq!(
+            parts.gloss(lemma, es()).unwrap(),
+            whole.gloss(lemma, es()).unwrap(),
+            "{lemma}"
+        );
+    }
+    assert_eq!(
+        parts.word_grammar("has", "haber", es()).unwrap(),
+        whole.word_grammar("has", "haber", es()).unwrap()
+    );
+    assert_eq!(parts.notice(es()).unwrap(), whole.notice(es()).unwrap());
+    assert_eq!(parts.licences(es()).unwrap(), whole.licences(es()).unwrap());
 }
 
 /// Every engine today: built on en-fr, Spanish added, French for the engine and the reader

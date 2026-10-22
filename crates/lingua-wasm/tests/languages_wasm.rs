@@ -20,6 +20,8 @@
 #![cfg(target_arch = "wasm32")]
 
 use lingua_core::analysis::language::StudiedLanguage;
+use lingua_core::packs::meta::{BaseMeta, LayerMeta, Part};
+use lingua_core::packs::{read_container, write_container};
 use lingua_wasm::{LinguaEngine, reprofile_backup, review_outlook};
 use wasm_bindgen::{JsError, JsValue};
 use wasm_bindgen_test::wasm_bindgen_test;
@@ -257,4 +259,86 @@ fn spec_scenario_french_pieces_keep_the_host_s_spans_on_wasm() {
         french_spans::surfaces_and_spans(&page),
         french_spans::expected()
     );
+}
+
+/// The fixture pack as a base and a layer (split-lingua-pack-format D2), split by section name:
+/// the base named `base_version`, the layer built against `against`. Its pool, pinless, stays
+/// whole in the base.
+fn parts(base_version: &str, against: &str) -> (Vec<u8>, Vec<u8>) {
+    const BASE: [&str; 7] = [
+        "forms",
+        "lemmas",
+        "freq",
+        "levels",
+        "lexical",
+        "tags",
+        "paradigms.zst",
+    ];
+    let (_, sections) = read_container(PACK).unwrap();
+    let side = |base: bool| -> Vec<(&str, &[u8])> {
+        sections
+            .iter()
+            .filter(|s| BASE.contains(&s.name.as_str()) == base)
+            .map(|s| (s.name.as_str(), s.data.as_slice()))
+            .collect()
+    };
+    let base = BaseMeta {
+        part: Part::Base,
+        studied: "en".into(),
+        analyzer_version: StudiedLanguage::English.analyzer_version().into(),
+        base_version: base_version.into(),
+        levels_estimated: false,
+    };
+    let layer = LayerMeta {
+        part: Part::Layer,
+        studied: "en".into(),
+        native: "fr".into(),
+        pack_version: "0.0.2-testdata".into(),
+        base_version: against.into(),
+        licences: vec![],
+    };
+    (
+        write_container(&serde_json::to_vec(&base).unwrap(), &side(true)),
+        write_container(&serde_json::to_vec(&layer).unwrap(), &side(false)),
+    )
+}
+
+#[wasm_bindgen_test]
+fn spec_scenario_an_assembly_error_reaches_javascript_by_name() {
+    // split-lingua-pack-format D7: the parts assemble into an engine, and what refuses them
+    // reaches JavaScript as the core names it.
+    let (base, layer) = parts("b", "b");
+    let engine = LinguaEngine::assemble(&base, &layer).unwrap();
+    assert_eq!(engine.languages(), r#"["en"]"#);
+    let Err(swapped) = LinguaEngine::assemble(&layer, &base) else {
+        panic!("a layer was taken for a base");
+    };
+    let said = message(swapped);
+    assert!(
+        said.contains("expected a pack's base, found a layer"),
+        "{said}"
+    );
+    let (base, layer) = parts("b", "another");
+    let Err(mismatched) = LinguaEngine::assemble(&base, &layer) else {
+        panic!("a layer built against another base assembled");
+    };
+    let said = message(mismatched);
+    assert!(
+        said.contains("another") && said.contains("refusing to assemble"),
+        "{said}"
+    );
+    // A part given where a whole pack is expected names the part it needs.
+    let Err(refused) = LinguaEngine::new(&base) else {
+        panic!("a base was loaded as a whole pack");
+    };
+    let said = message(refused);
+    assert!(
+        said.contains("not a whole pack") && said.contains("its layer"),
+        "{said}"
+    );
+    // `addParts` refuses as `addPack` does: a second English pack, the packs held unchanged.
+    let mut engine = LinguaEngine::new(PACK).unwrap();
+    let (base, layer) = parts("b", "b");
+    assert!(engine.add_parts(&base, &layer).is_err());
+    assert_eq!(engine.languages(), r#"["en"]"#);
 }

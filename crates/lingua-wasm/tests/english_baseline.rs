@@ -66,6 +66,22 @@ fn english_output_has_not_moved() {
     );
 }
 
+/// S0 through the parts (split-lingua-pack-format D7): the engine started on en-fr's base and
+/// layer, built from the committed tables and assembled by `assemble`, answers every probe as the
+/// whole pack does — the same golden, never re-blessed for it — before change 4 ships the parts.
+#[test]
+fn english_output_has_not_moved_through_the_parts() {
+    let expected = ENGLISH.committed_golden();
+    let actual = ENGLISH.render_parts(None);
+    assert!(
+        actual == expected,
+        "English output moved when the en-fr pack is assembled from its base and its layer.\n\
+         First difference — {}\n\
+         The assembled pack must be the whole pack: fix the split, never the golden.",
+        first_difference(&expected, &actual)
+    );
+}
+
 #[test]
 fn the_corpus_reads_as_expected() {
     ENGLISH.check_corpus();

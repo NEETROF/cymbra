@@ -287,6 +287,34 @@ pub fn review_outlook(backup: &str, now: f64, day_start: f64) -> Result<String, 
     outlook(backup, now as i64, day_start as i64).map_err(|e| JsError::new(&e))
 }
 
+/// The paths a pack takes into an engine once it is loaded, whole or assembled from its parts.
+impl LinguaEngine {
+    /// An engine holding `pack`: its language the default, its native language the engine's,
+    /// and the reader's profile starting there.
+    fn holding(pack: Pack) -> LinguaEngine {
+        let default = pack.studied();
+        let packs = PackSet::new(pack);
+        LinguaEngine {
+            state: fresh_state(&packs),
+            packs,
+            session: None,
+            level_vocabularies: std::iter::once((default, std::cell::OnceCell::new())).collect(),
+        }
+    }
+
+    /// Adds `pack` to the packs held, returning its language's tag; refused, the packs held
+    /// unchanged, when it is glossed in another native language or its language is held.
+    fn hold(&mut self, pack: Pack) -> Result<String, JsError> {
+        let language = self
+            .packs
+            .add(pack)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+        self.level_vocabularies
+            .insert(language, std::cell::OnceCell::new());
+        Ok(language.tag().to_owned())
+    }
+}
+
 #[wasm_bindgen]
 impl LinguaEngine {
     /// Loads the engine from pack bytes (the embedded `pack.lingua`); that pack's
@@ -296,14 +324,17 @@ impl LinguaEngine {
     #[wasm_bindgen(constructor)]
     pub fn new(pack_bytes: &[u8]) -> Result<LinguaEngine, JsError> {
         let pack = Pack::load(pack_bytes).map_err(|e| JsError::new(&e.to_string()))?;
-        let default = pack.studied();
-        let packs = PackSet::new(pack);
-        Ok(LinguaEngine {
-            state: fresh_state(&packs),
-            packs,
-            session: None,
-            level_vocabularies: std::iter::once((default, std::cell::OnceCell::new())).collect(),
-        })
+        Ok(LinguaEngine::holding(pack))
+    }
+
+    /// Loads the engine from a pack's base and layer (split-lingua-pack-format D7), which it
+    /// assembles into the pack their whole container holds, then starts as `new` does on it.
+    /// Errors as `new` does, and when the parts do not assemble — a layer of another studied
+    /// language, or built against another base, or a part given for the other —, with the
+    /// error naming why.
+    pub fn assemble(base: &[u8], layer: &[u8]) -> Result<LinguaEngine, JsError> {
+        let pack = Pack::assemble(base, layer).map_err(|e| JsError::new(&e.to_string()))?;
+        Ok(LinguaEngine::holding(pack))
     }
 
     /// Loads another studied language's pack, returning its ISO 639-1 tag. Errors if
@@ -313,13 +344,17 @@ impl LinguaEngine {
     #[wasm_bindgen(js_name = addPack)]
     pub fn add_pack(&mut self, pack_bytes: &[u8]) -> Result<String, JsError> {
         let pack = Pack::load(pack_bytes).map_err(|e| JsError::new(&e.to_string()))?;
-        let language = self
-            .packs
-            .add(pack)
-            .map_err(|e| JsError::new(&e.to_string()))?;
-        self.level_vocabularies
-            .insert(language, std::cell::OnceCell::new());
-        Ok(language.tag().to_owned())
+        self.hold(pack)
+    }
+
+    /// Loads another studied language's pack from its base and layer
+    /// (split-lingua-pack-format D7), assembled as `assemble` assembles them, then added as
+    /// `addPack` adds a pack, returning its ISO 639-1 tag. Errors as both do; the packs held
+    /// stay as they were.
+    #[wasm_bindgen(js_name = addParts)]
+    pub fn add_parts(&mut self, base: &[u8], layer: &[u8]) -> Result<String, JsError> {
+        let pack = Pack::assemble(base, layer).map_err(|e| JsError::new(&e.to_string()))?;
+        self.hold(pack)
     }
 
     /// The languages the engine holds a pack for, as a JSON array of ISO 639-1 tags,
@@ -1537,6 +1572,24 @@ mod tests {
         let pack = Pack::load(&committed::en_fr_holding_four_poster_bed()).expect("it loads");
         assert_eq!(pack.expression("four-poster bed"), Some("Lit à baldaquin"));
         pack
+    }
+
+    /// split-lingua-pack-format D7: an engine started on en-fr's base and layer holds what the
+    /// whole pack gives — its pair, its NOTICE, its levels —, and es-fr's parts are added as its
+    /// pack would be.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn an_engine_takes_a_pack_s_base_and_layer() {
+        let (en_fr, es_fr) = (committed::split("en-fr"), committed::split("es-fr"));
+        let mut engine = LinguaEngine::assemble(&en_fr.base, &en_fr.layer).unwrap();
+        assert_eq!(engine.languages(), r#"["en"]"#);
+        assert_eq!(engine.native_language(), "fr");
+        let whole = committed_pack("en-fr");
+        assert_eq!(engine.notice(None).unwrap(), whole.notice());
+        assert!(engine.has_levels(None).unwrap());
+        assert_eq!(engine.add_parts(&es_fr.base, &es_fr.layer).unwrap(), "es");
+        assert_eq!(engine.languages(), r#"["en","es"]"#);
+        assert!(engine.levels_estimated(Some("es".to_owned())).unwrap());
     }
 
     fn card(lemma: &str, gloss: Option<&str>, gloss_language: &str) -> Card {
