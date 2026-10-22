@@ -1,0 +1,13 @@
+schema: spec-driven
+created: 2026-10-23
+archiveAfter:
+  - add-lingua-it-es-pivot-sources
+  - add-lingua-pack-it-fr
+  - add-lingua-pack-it-en
+  - add-lingua-pack-fr-es
+  - refine-lingua-fr-es-glosses
+  - enable-lingua-french
+  - add-lingua-italian-forms-tables
+  - keep-lingua-italian-acronyms-and-names
+  - add-lingua-italian-expression-keys
+  - add-lingua-italian-baseline
