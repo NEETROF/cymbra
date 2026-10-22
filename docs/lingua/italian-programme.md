@@ -182,12 +182,12 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 1 | 10 | `read-lingua-italian-unmarked-spellings`: E', perche', piu', citta', and the dictionary's own accent-less spellings | 2–4 | 43d, 43e | Proposal merged ([#981](https://github.com/NEETROF/cymbra/pull/981)) |
 | 1 | 11 | `keep-lingua-italian-acronyms-and-names`: acronyms in capitals stay acronyms; names leave the words to learn (the rows' gloss and `lexical.tsv` land with change 16) | 1.5–3 | 43c, 24c | Proposal merged ([#979](https://github.com/NEETROF/cymbra/pull/979)) |
 | 1 | 12 | `add-lingua-italian-expression-keys`: expressions keyed as Italian is read; the expression written as the page | 2–4 | 44, 44c–44e | Proposal merged ([#982](https://github.com/NEETROF/cymbra/pull/982)) |
-| 1 | 13 | `add-lingua-italian-grammar-tables`: UD tags (passato remoto `Tense=Past`, imperfetto `Tense=Imp`, checked against it_isdt already) | 3–5 | 45 | Proposed ([#984](https://github.com/NEETROF/cymbra/pull/984)) |
+| 1 | 13 | `add-lingua-italian-grammar-tables`: UD tags (passato remoto `Tense=Past`, imperfetto `Tense=Imp`, checked against it_isdt already) | 3–5 | 45 | Proposal merged ([#984](https://github.com/NEETROF/cymbra/pull/984)) |
 | 1 | 14 | `add-lingua-italian-levels` (I8): the estimated ladder | 1.5–3 | 46 | Proposal merged ([#985](https://github.com/NEETROF/cymbra/pull/985)) |
 | 1 | 15 | `add-lingua-italian-read-aloud`: it-IT and it-CH voices | 1–2 | 47 | Proposal merged ([#986](https://github.com/NEETROF/cymbra/pull/986)) |
 | 1 | 16 | `add-lingua-pack-it-fr`: the French Wiktionary's Italian section; coverage committed; the dictionary words, which narrow change 14's levels | 3–5 | 48 | |
 | 1 | 17 | `refine-lingua-it-fr-glosses`: change 16's *Known data defects* | 2–3.5 | 48b | |
-| 1 | 18 | `add-lingua-italian-word-card`: readings and tense names of an Italian word, in French, English and Spanish | 3.5–6 | 51 | |
+| 1 | 18 | `add-lingua-italian-word-card`: readings and tense names of an Italian word, in French, English and Spanish | 3.5–6 | 51 | Proposed ([#988](https://github.com/NEETROF/cymbra/pull/988)) |
 | 1 | 19 | `measure-lingua-it-fr-translation-marks` | 1–2 | 26, 50 | |
 | 1 | 20 | `enable-lingua-italian` (it-fr): packs.json, the five targets, the owner's go-ahead | 4–7.5 | 52 | |
 | 1 | 21 | `add-lingua-italian-listings`: the French listings and the site's French Lingua pages name Italian | 1.5–3 | 53 | |

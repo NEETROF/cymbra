@@ -1,0 +1,11 @@
+schema: spec-driven
+created: 2026-10-22
+archiveAfter:
+  - generalise-lingua-card-wording
+  - add-lingua-french-word-card
+  - add-lingua-italian-tokenisation
+  - add-lingua-italian-expression-keys
+  - add-lingua-italian-grammar-tables
+  - add-lingua-pack-it-fr
+  - refine-lingua-card-invariable-plurals
+  - add-lingua-italian-baseline
