@@ -241,7 +241,7 @@ Counted at the 5,000 / 10,000 / 20,000:
 | Defect | Count | Examples | Note |
 |---|---|---|---|
 | Names on common words | 12 / 24 / 26 person-name notes | `summer` « estate; nome proprio di persona inglese femminile » | en-es's refinement rule, transposed, changes 10 / 20 / 22 rows and loses none |
-| US state codes on two-letter tokens | 14 / 20 / 20 | `de` « Sigla postale per il Delaware », `co`, `al`, `mo` « sigla per lo Stato del Missouri » | Canadian codes (`bc`, `nb`) too |
+| US state codes on two-letter tokens | 15 / 21 / 21 | `de` « Sigla postale per il Delaware », `co`, `al`, `mo` « sigla per lo Stato del Missouri » | Canadian codes (`bc`, `nb`) too |
 | Function words described, not glossed | 19 / 24 / 25 rows every sense of which describes | `my` « forma possessiva di I… », `an`, `would` | |
 | A label before a colon | 59 / 84 / 114 | `he` « in funzione di soggetto: egli, lui, esso » | |
 | English text in a gloss | 4 / 8 / 15 | `media` | |
