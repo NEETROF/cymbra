@@ -6,7 +6,7 @@ Change 27a of the [Italian programme](../../../docs/lingua/italian-programme.md)
 studied by Spanish speakers — measured 57.8 / 46.8 / 35.0 % of the 5,000 / 10,000 / 20,000 commonest
 Italian lemmas glossed with its three planned sources, about 25 points under fr-es, the thinnest pair
 shipped. The owner had new sources researched; none written directly for the pair reaches fr-es's floor,
-and on 2026-10-23 (I4, I11, #1004) the owner chose the full pivot: an Italian and a Spanish word listed
+and on 2026-10-22 (I4, I11, #1004) the owner chose the full pivot: an Italian and a Spanish word listed
 under the same sense of another Wiktionary's translation table, or the same entry when the table
 names none, every pair kept, with Wikidata Lexemes and
 the Italian Wiktionary's Spanish section — 84.8 / 76.3 / 65.8 together. This change brings those sources

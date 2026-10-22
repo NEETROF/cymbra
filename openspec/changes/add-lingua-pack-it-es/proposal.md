@@ -6,7 +6,7 @@ Change 27 of the [Italian programme](../../../docs/lingua/italian-programme.md),
 studying Italian. Its planned sources — the Spanish Wiktionary's Italian section, the Italian Wiktionary's
 Spanish translations, the Spanish Wiktionary's tables read backwards — gloss only 57.8 / 46.8 / 35.0 % of
 the 5,000 / 10,000 / 20,000 commonest Italian lemmas, 25 / 24 / 22 points under fr-es. The owner had new
-sources researched and chose, on 2026-10-23 (I4, I11, #1004), the full pivot: after every direct source,
+sources researched and chose, on 2026-10-22 (I4, I11, #1004), the full pivot: after every direct source,
 Wikidata Lexemes, the Italian Wiktionary's Spanish section, and seven other Wiktionaries' translation
 tables pairing an Italian and a Spanish word under one sense — 84.7 / 76.1 / 65.5 together, as designed. Change 27a
 derives and pins those files; this change reads them into it-es's glosses.

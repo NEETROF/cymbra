@@ -3,7 +3,7 @@
 ## Context
 
 Change 33 of the [Italian programme](../../../docs/lingua/italian-programme.md), stage 3: the extension's
-interface in Italian, written before it is shown. I6 (settled 2026-10-23): « tu », never « Lei »;
+interface in Italian, written before it is shown. I6 (settled 2026-10-22): « tu », never « Lei »;
 « QCER »; Treccani's names for tenses and moods; Italian numbers (20.000; 96%). I2: a dedicated agent
 reviews the Italian wording, the drafts landing in the pull request. Change 32 made Italian a native
 language with the interface type kept to French, English and Spanish (`InterfaceLanguage =

@@ -5,7 +5,7 @@
 Change 33 of the [Italian programme](../../../docs/lingua/italian-programme.md), stage 3: Italian
 speakers. The extension's interface is one typed catalogue per language — 24 modules each, French the
 source, English and Spanish typed after it (the matrix's changes 13–17). Italian speakers need a fourth
-set, written in I6's Italian (settled 2026-10-23: « tu », « QCER », Treccani's tense names, Italian
+set, written in I6's Italian (settled 2026-10-22: « tu », « QCER », Treccani's tense names, Italian
 numbers), and reviewed by the dedicated Italian agent (I2). Measured on a simulated set: 3,631 French
 words in 803 strings to translate across 23 text modules; Intl writes Italian numbers, dates and plurals
 as I6 wants, but `formatPercent` would write « 110 % » for Italian today, unseen by the compiler; the one

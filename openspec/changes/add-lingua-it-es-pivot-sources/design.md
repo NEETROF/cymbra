@@ -7,7 +7,7 @@ Change 27a of the [Italian programme](../../../docs/lingua/italian-programme.md)
 the Italian Wiktionary's Spanish translations, then the Spanish Wiktionary's tables read backwards —
 measured 57.8 / 46.8 / 35.0 % of the 5,000 / 10,000 / 20,000 commonest Italian lemmas, about 25 points
 under fr-es's committed 83.2 / 70.9 / 57.1. The owner had new sources researched and settled I4 on
-2026-10-23 (#1004): it-es also reads the Italian Wiktionary's Spanish section read backwards, Wikidata
+2026-10-22 (#1004): it-es also reads the Italian Wiktionary's Spanish section read backwards, Wikidata
 Lexemes, and seven other Wiktionaries' translation tables read as a pivot, every pair kept — an
 exception to M5 that I11 records for this pair. Apertium's GPL dictionary is not used.
 
@@ -39,7 +39,7 @@ every one of them to an edition's catalogue.
 
 ## Measured
 
-The owner's research (2026-10-23, read-only scratch, the repository's own `derive` and change 16's study
+The owner's research (2026-10-22, read-only scratch, the repository's own `derive` and change 16's study
 ranking), each source after the three planned ones; re-checked by the review from the research's
 outputs:
 
