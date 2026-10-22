@@ -25,71 +25,118 @@ and 54. Change 32 lets the extension's native type hold `it`; change 33 writes `
 
 **Non-Goals:**
 - The Italian store listings (change 46, I9); the Apple host's own text (change 40).
-- Rewriting `_locales/fr`, `en` or `es` (changes 20, 25 and 30 name Italian in them).
+- Rewriting `_locales/fr`, `en` or `es`: changes 20 and 25 name Italian in them, and change 30 if it
+  lists it-es.
 
 ## Decisions
 
 ### D1 — Four messages, drafted in Italian, in the interface's words
 
 `_locales/it/messages.json` holds the four keys of the other folders, each with an English `description`
-for translators, as theirs. The text addresses the reader as « tu » (I6); commands are worded in the
-imperative, as Italian interfaces word them, with the nouns the Italian interface gives the same
-commands in Réglages' shortcut lines (`src/i18n/it/settings.ts`, change 33) — the browser's page and
-Réglages name one command alike, as French and Spanish do. Drafts (M9's rule for drafts, I2's reviewer):
+for translators, as theirs. The text addresses the reader as « tu » (I6). Commands are worded in the
+imperative, as the browsers' own Italian pages word theirs: Chrome's generic extension command is
+« Attiva l'estensione » where its French and Spanish are « Activer l'extension » and « Activar la
+extensión » (`IDS_EXTENSION_COMMANDS_GENERIC_ACTIVATE`), and Firefox's Italian shortcuts page has
+« Attiva/disattiva barra laterale » (`aboutAddons.ftl`). So the French and Spanish infinitives and the
+Italian imperative each follow their browser; nobody should align one with the others.
+
+Each command's description contains the words the Italian Réglages gives that command
+(`src/i18n/it/settings.ts`'s `shortcutCapture`, `shortcutDrawer` and `shortcutSidePanel`, change 33), so
+that the browser's page and Réglages name one command alike. That is a test (D3), and it already holds
+for French, English and Spanish. It also means Réglages' Italian lines are imperative
+(« cattura la selezione »), which change 33's implementation follows.
+
+Drafts, under M9's rule for drafts and reviewed under I2:
 
 | Key | Draft | Characters |
 |---|---|---|
-| `extensionDescription` | « Leggi l'inglese sul web: parole sconosciute evidenziate, percentuale onesta. Offline e privato. » | 95 |
-| `commandCaptureSelection` | « Cattura la selezione (parola o espressione) con la sua frase » | 60 |
+| `extensionDescription` | « Leggi il web in inglese: parole sconosciute evidenziate, percentuale reale. Offline e senza tracciamento. » | 105 |
+| `commandCaptureSelection` | « Cattura la selezione (parola o espressione) insieme alla frase » | 62 |
 | `commandToggleDrawer` | « Apri o chiudi il pannello di ripasso nella pagina » | 49 |
-| `commandSidePanel` | « Apri il pannello laterale di ripasso » | 36 |
+| `commandSidePanel` | « Apri il riquadro laterale di ripasso » | 36 |
 
-The description names English alone: en-it is the only pair glossed in Italian that change 45 ships,
-and the check refuses a summary naming a language no shipped pair studies. Changes 50 and 54 rewrite it;
-the shape that names all three fits — « Il web in inglese, francese o spagnolo: parole sconosciute
-evidenziate, percentuale onesta. Offline e privato. », 110 characters, the shape change 20 recommends
-for French. Italian typography as change 33 writes it: no space before « : », the apostrophe as the
-interface writes it. The brand stays « Cymbra Lingua »; nothing else of the manifest is localised.
+- **« percentuale reale »**, not « onesta »: with a quantity, *onesto* reads "fair, reasonable"
+  (*prezzo onesto*), not "truthful".
+- **« senza tracciamento »**, not « privato », which reads "not public" in Italian (Music's `app_it.arb`:
+  « Profilo pubblico o privato ») and would agree with no noun.
+- **« riquadro laterale »**: Chrome's Italian word for its side panel (26 strings against 2 with
+  « pannello laterale »). The side panel is Chromium's alone.
+
+The description names English alone, since en-it is the only pair glossed in Italian that change 45
+ships. A later change listing fr-it (change 50) or es-it (change 54, if es-it ships under I4's floor)
+rewrites it, as `summaryProblems` requires. The shape naming three languages is tight:
+« Il web in inglese, francese o spagnolo: parole sconosciute evidenziate, percentuale reale. » leaves
+22 characters for the tail. « Senza tracciamento. » fits (110); « Offline e senza tracciamento. » does
+not (120). That change chooses the tail with the reviewer agent.
+
+Typography: no space before « : », and the apostrophe U+0027, as `_locales/fr` writes it. The brand
+stays « Cymbra Lingua », and nothing else of the manifest is localised. The translators' notes name the
+pairs they follow (en-it; fr-it and es-it to come), not programme change numbers, since
+`messages.json` ships inside the package.
 
 ### D2 — The check learns Italian's words
 
 `LANGUAGE_NAMES.it` holds Italian's names for the four studied languages exactly as
-`src/i18n/it/languages.ts` names them (expected « Inglese », « Francese », « Spagnolo », « Italiano »,
-capitalised as the other rows); `check-version.spec.ts`'s `catalogue()` gains `it`, so the row and the
-catalogue stay equal. `namedLanguages` already matches a name whole and case-free, so « l'inglese »
-names English. No other line of `check_version.mjs` changes.
+`src/i18n/it/languages.ts` names them: expected « Inglese », « Francese », « Spagnolo », « Italiano »,
+capitalised like the other rows. Change 20's `catalogue()` already gains `it` (Italian's name in each
+native's words). This change adds a fourth expected row, `it: catalogue(itLanguages)`, importing
+`../src/i18n/it/languages`, so that the row and the catalogue stay equal. The comment at
+`check_version.mjs`'s `LANGUAGE_NAMES`, which names `src/i18n/{fr,en,es}`, gains `it`.
+`namedLanguages` already matches a name whole and case-free, so « l'inglese » names English. No other
+line of `check_version.mjs` changes.
 
 ### D3 — No build change; tests prove the path
 
-`tool/manifests.mjs` and `tool/packs.mjs` are not edited. `test/manifests.spec.ts` gains, for each
-target, a pair list holding en-it beside today's: the package carries `_locales/it` with the other
-shipped natives' folders, `default_locale` stays `en`, and every `__MSG_` reference resolves in
-`_locales/it`; with today's list, no package carries it. `test/check-version.spec.ts` gains: with en-it
-listed, the committed Italian description passes `summaryProblems`; one naming « francese » fails,
-naming the Italian description and French. `check_variants`' rule that a localised manifest's folders
-are exactly the shipped natives already covers the packages.
+`tool/manifests.mjs` and `tool/packs.mjs` are not edited. The tests are:
+- **`test/manifests.spec.ts`**:
+  - for each target, en-it listed beside today's pairs: the package carries `_locales/it` with the other
+    shipped natives' folders, `default_locale` stays `en`, and every `__MSG_` reference resolves in
+    `_locales/it`;
+  - with today's list, no package carries it;
+  - the test at its top that expects the committed folders to be exactly `["en", "es", "fr"]` becomes
+    `["en", "es", "fr", "it"]`, its title with it.
+- **`test/check-version.spec.ts`**:
+  - its expected committed set (`["en", "es", "fr"]`) gains `it`;
+  - with en-it listed, the committed Italian description passes `summaryProblems`;
+  - one naming « francese » fails, naming the Italian description and « Francese »;
+  - the Italian line of the test that reads each description's languages names « inglese », not
+    « italiano ».
+- **Settings and shortcuts alike**: for each of fr, en, es and it, each Réglages shortcut line's text
+  after the keys is contained, case-insensitively, in the matching `_locales/<language>` command's
+  message.
+
+`check_variants`' rule that a localised manifest's folders are exactly the shipped natives already
+covers the packages.
+
+No en-it pack exists before change 36, so no package can be loaded in an Italian browser here. The
+precedent's manual check (chrome://extensions/shortcuts and about:addons in the browser's language,
+no `__MSG_` text) is done for Italian in change 45's dogfood, and its task names it.
 
 ### D4 — Reviewed by the Italian reviewer agent
 
 The four messages are reviewed in the implementation pull request by the agent change 33 defines
-(`.claude/agents/lingua-italian-reviewer.md`), its findings applied or answered there (I2); the owner is
-not asked to review Italian. Change 44 rereads them with the rest of the Italian wording.
+(`.claude/agents/lingua-italian-reviewer.md`), its findings applied or answered there (I2). The owner is
+not asked to review Italian. Change 44 rereads them with the rest of the Italian wording; its row names
+`_locales/it`.
 
 ### D5 — Nothing ships before change 45
 
 While `packs.json` lists no pair glossed in Italian, `shippedNatives` holds no `it`, nothing copies
-`_locales/it`, and every package is byte for byte what it was. Apple validates a localised archive's
-shape, which `_locales/{fr,en,es}` already passed (`localise-lingua-manifest`'s Impact: a folder of the
-same shape needs no second validation). Once change 45's package is submitted, the Chrome Web Store and
-addons.mozilla.org show its Italian summary to Italian browsers; it is submitted with change 46's
-Italian listings, the owner deciding (I12).
+`_locales/it`, and every package is byte for byte what it was. Apple has accepted packages carrying
+`_locales`: lingua-apple 1.6.0 shipped `_locales/{fr,en,es}` (#790), and 1.7.0 and 1.8.1 were accepted
+with them. An `it` folder has the same shape.
+
+Once change 45's package is submitted, the Chrome Web Store takes a summary per `_locales` folder.
+What addons.mozilla.org does with it is recorded by change 46's dashboard procedure, as it was for
+`es` (`apps/lingua-extension/STORE-LISTING.md`). That package is submitted with change 46's Italian
+listings, the owner deciding (I12).
 
 ## Risks / Trade-offs
 
 - **Italian written without a native reader** → the reviewer agent (I2), change 44's pass, and change 55
-  for dogfood corrections; the four strings are 240 characters in all.
-- **The interface's words change after this lands** → the drafts are held to Réglages' nouns at
-  implementation; a later change to either carries both, as French's two homes are held equal.
+  for dogfood corrections; the four strings are 252 characters in all.
+- **The interface's words change after this lands** → the containment test (D3) fails until both
+  move, as French's two homes are held equal.
 - **A summary that outgrows a pair** → `summaryProblems` fails changes 50 and 54 until they rewrite it.
 
 ## Migration Plan

@@ -17,15 +17,17 @@ commits both ahead, inert until then.
 - **`_locales/it/messages.json`** in `apps/lingua-extension` (design D1): the description and the
   three commands' descriptions in Italian, addressing the reader as « tu » (I6), in the words the
   Italian interface gives the same commands (change 33). The description names English, the language
-  en-it studies, and only it: « Leggi l'inglese sul web: parole sconosciute evidenziate, percentuale
-  onesta. Offline e privato. » (95 characters of the 112 Apple accepts). The brand stays « Cymbra
-  Lingua ».
+  en-it studies, and only it: « Leggi il web in inglese: parole sconosciute evidenziate, percentuale
+  reale. Offline e senza tracciamento. » (105 characters of the 112 Apple accepts). Commands are in the
+  imperative, as the browsers' own Italian pages word theirs, and each contains the words Réglages
+  gives the same command. The brand stays « Cymbra Lingua ».
 - **The version check learns Italian's words** (D2): `LANGUAGE_NAMES.it` in `tool/check_version.mjs`,
   as the interface's Italian catalogue names the four languages, held equal to it by
   `test/check-version.spec.ts`.
-- **Tests, no build change** (D3): `tool/manifests.mjs` already serves any native; a unit test builds
+- **Tests, no build change** (D3): `tool/manifests.mjs` already serves any native. A unit test builds
   each target's manifest with en-it listed and asserts `_locales/it` carried, English still the
-  default, and every reference resolving.
+  default, and every reference resolving. The two tests that pin the committed folders to fr, en and es
+  gain `it`. A new test holds each command's description to Réglages' words in every language.
 - **Reviewed by the Italian reviewer agent** (D4, I2), not by the owner; change 44 rereads it.
 - **No package moves** (D5): while no pair glossed in Italian is listed, nothing carries `_locales/it`.
 
