@@ -51,4 +51,4 @@ A pair SHALL have its selection marked only once its marks, measured on the comm
 
 #### Scenario: Italian added to the corpus
 - **WHEN** Italian's selections are added to the corpus
-- **THEN** each is taken from the sentence its step's English, Spanish and French selections were taken from, and every English, Spanish and French selection, and every committed result of the six other pairs, stays as it was
+- **THEN** each is taken from the sentence its step's English, Spanish and French selections were taken from, and every English, Spanish and French selection, and every committed result of the six measured pairs, stays as it was
