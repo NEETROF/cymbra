@@ -57,4 +57,4 @@ A pair SHALL have its selection marked only once its marks, measured on the comm
 
 #### Scenario: An English selection, judged in Italian
 - **WHEN** en-it's marks are measured on the English selections through the en-it model and judged against the Italian rendering
-- **THEN** en-it is marked only if its own figures reach the first tier, the lines its two judges disagree on counted wrong
+- **THEN** en-it is marked only if its own figures reach the first tier

@@ -22,12 +22,12 @@ measured. The precedents for English selections are:
   en-it model, run twice to check the results are identical. `results-en-it.jsonl` is committed. No
   corpus work is needed.
 - **Judged in Italian by two agent judges** (D3):
-  - no one on the team reads Italian (I2), so the implementing agent and change 33's Italian reviewer
-    agent judge, the second blind to the first;
+  - no one on the team reads Italian (I13), so the implementing agent and change 33's Italian reviewer
+    agent judge (I2), the second blind to the first;
   - the written Italian criteria and examples are committed before the run;
   - each line is checked against UD Italian-PUD's human Italian and the en-fr and en-es verdicts on the
     same step;
-  - disagreements are recorded as doubtful, and the tier must hold with them counted wrong;
+  - a disagreement is committed as wrong with its reason, so the committed figures are the strict ones;
   - `judged-en-it.tsv` is committed.
 - **The list** (D4):
   - on the first tier, `MARKED_PAIRS` gains en-it, inert until change 45 lists the pair;
@@ -53,7 +53,8 @@ None.
 ## Impact
 
 - **Products.** Lingua only, all in `apps/lingua-extension`:
-  - `tool/marks/{stop-words.mjs, stop-words.d.mts, results-en-it.jsonl, judged-en-it.tsv, README.md}`;
+  - `tool/marks/{stop-words.mjs, stop-words.d.mts, measure_marks.mjs, results-en-it.jsonl,
+    judged-en-it.tsv, README.md}`;
   - `src/translate/markup.ts` (the comment, and `MARKED_PAIRS` if on the tier);
   - `TRANSLATION.md`;
   - `test/translate-marks.spec.ts`, `test/translate-measure.spec.ts` (Italian's function words), and

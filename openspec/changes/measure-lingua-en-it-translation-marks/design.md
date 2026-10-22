@@ -11,11 +11,11 @@ Read on main at `c4f4a8bd4`, where nothing Italian is implemented yet.
 
   | Pair | Change | Model's soak | Judge | Figures | Withheld |
   |---|---|---|---|---|---|
-  | en-fr | the Spanish programme's change 27 | none (shipped since the engine) | one judge, French | 96 of 97 correct, 3 % withheld | k 32, 63, 86 |
+  | en-fr | the Spanish programme's change 27 | soaked isolated beside en-es, no trap | one judge, French | 96 of 97 correct, 3 % withheld | k 32, 63, 86 |
   | en-es | matrix change 26 | en-es 2.1 soaked, isolated and in one instance, 0 traps | one judge, Spanish | 96 of 96 correct, 4 % withheld | k 63, 78, 86, 93 |
 
   en-fr's one wrong mark is k 57, « qui » for « constituent ». en-es's doubtful lines, counted correct,
-  are k 18, 70 and 77. Every judgment on record is « one judge », in practice an agent; the owner may
+  are k 18, 70 and 77, named by matrix change 26. Every judgment on record is « one judge », in practice an agent; the owner may
   re-judge any line in the pull request (`tool/marks/README.md`).
 - **The criteria** (`tool/marks/README.md`):
   - correct: the marks cover the rendering of the selected word, possibly with its article,
@@ -24,12 +24,11 @@ Read on main at `c4f4a8bd4`, where nothing Italian is implemented yet.
   - withheld: no mark, a sentence that traps twice included;
   - the tier: `firstTier` in `tool/marks/tier.mjs`.
 
-  Change 50 added two habits: a second run checked byte for byte, and the doubtful lines named, the
-  test holding the tier with them counted wrong.
+  Change 50 added two habits: a second run checked byte for byte, and a test holding the tier with the
+  doubtful lines counted wrong.
 - **en-it's model**: `en-it/base-memory/2.1` (change 2), one model on a direct route, about 36.5 MB
   decompressed. Its vocabulary is shared with it-en 2.0. Change 2 soaks it over the English corpus,
-  isolated. The 2.1 family is where en-es trapped, and the harness counts a sentence that traps twice
-  as withheld.
+  isolated; the harness counts a sentence that traps twice as withheld.
 - **The harness refuses Italian today**: `measure_marks.mjs` calls `stopWords(native)` unconditionally,
   and `stop-words.mjs` holds French, English and Spanish, throwing for any other language.
 
@@ -54,8 +53,11 @@ Read on main at `c4f4a8bd4`, where nothing Italian is implemented yet.
 « all », « dall », « nell », « sull », « quest », « quell ».
 
 `test/translate-measure.spec.ts`'s table check gains `it`, reading `tables/it-*/senses.tsv` and
-`tables/it/forms.tsv`, where those pieces are written with their apostrophe (`dell'`). Its lookup tries
-the word, then the word with an apostrophe, so that no piece reads as « unknown ». The set touches the
+`tables/it/forms.tsv`. There `dell'`, `quest'` and `quell'` are forms written with their apostrophe,
+so the lookup tries the word, then the word with an apostrophe. `all'`, `dall'`, `nell'` and `sull'` are
+neither forms nor ranks (change 9's D4: Italian's pre-pass splits them), so the lookup maps « all »,
+« dall », « nell » and « sull » to the prepositions change 6's table splits them into (`a`, `da`, `in`,
+`su`). No piece then reads as « unknown », and the test's bound of one unknown word stands. The set touches the
 experiment only: words under three letters are filtered, and the tier reads the engine's column alone.
 
 ### D2 — en-it measured
@@ -69,7 +71,8 @@ every digest. `measure_marks.mjs --pair en-it --models <dir>` then runs the 100 
 The ids match `results-en-fr.jsonl`'s and `results-en-es.jsonl`'s. Change 2's isolated soak is a
 prerequisite, and a one-instance soak is recorded beside it for parity with en-es, fr-en, fr-es and
 it-en (about 5 seconds). The gloss experiment's columns read `tables/en-it/gloss.tsv` with
-`tables/en/forms.tsv` (change 36) when committed, and stay empty otherwise. Italian inflection fits the
+`tables/en/forms.tsv` (change 36) when committed, and stay empty otherwise. Judge A alone judges them, since the tier reads the
+engine's column. Italian inflection fits the
 experiment's stem rule (« pubblicate » / « pubblicare »).
 
 ### D3 — Judged in Italian, by two agent judges
@@ -85,31 +88,41 @@ Nobody on the team reads Italian (I2). So two agent judges judge, and the judgme
    - Judge B is change 33's Italian reviewer agent, working blind: it gets the results and the criteria,
      not A's verdicts.
 
-   A line they disagree on is committed as doubtful (`doubtful: A …/B …`). The README reports how many
-   lines they agreed on.
-4. **The tier must hold with the doubtful lines counted wrong**, as change 50's test holds it.
+   Judge B runs in a checkout at the results' commit, before A's `judged-en-it.tsv` exists, briefed in
+   task 3.2; the agent's file is not extended. B's full verdicts are pasted in the pull request's
+   description for audit.
+
+   A line they disagree on is committed with `engine` = `wrong` and the reason `doubtful: A …/B …`, so
+   the committed figures are the strict ones and change 19's structural test, which lists a pair exactly
+   when its committed judgment reaches the tier, holds as it is. The README reports how many lines they
+   agreed on.
+4. **The tier must hold with every other doubtful line counted wrong too**: the lines both judges call
+   correct but loose (a loose rendering, D3's last row) are committed `correct` with a doubtful reason,
+   and the test holds the tier with them subtracted, as change 50's does.
 5. **Every judgment committed.** The owner, who reads French and Spanish, can audit most lines against
    the en-fr and en-es anchors.
 
-The Italian examples, PUD's human Italian quoted, anchored on en-fr's and en-es's verdicts:
+The Italian examples, anchored on en-fr's and en-es's verdicts. Where marked (PUD), the Italian is UD
+Italian-PUD's human translation; the others are renderings the engine is likely to write:
 
 | Case | Examples (step: correct; wrong) | Anchors |
 |---|---|---|
-| Compound past and passive: the auxiliary may be marked with the participle, never alone | 17 « ha suggerito », 25 « Ha detto », 30 « è morto » / « morì », 37 « ho visto », 65 « ha incontrato », 69 « ha pubblicato », 81 « ha accusato »; passives 13 « sono state pubblicate », 33 « è accreditato » / « Gli viene riconosciuto », 61 « è considerato »; wrong: « ha », « è », « sono state » or « viene » alone | en-fr 17 « a suggéré », 30 « est mort », 65 « a rencontré » with the auxiliary; en-fr 13 « diffusées », en-es 13 « publicaron » without |
-| A dropped subject, a clitic | 9 « Vorrebbe » or « (Gli) piacerebbe »; wrong: « Gli » alone, an added « Egli » or « Lui » alone; 97 « si sono incontrati » with or without « si », never « si » alone | en-fr « aimerait », en-es « gustaría »; es-en k 25 « he » judged wrong |
+| A past, compound or simple; a passive: the auxiliary may be marked with the participle, never alone | PUD's one-word passato remoto: 37 « vidi », 65 « conobbe », 69 « rilasciò », 81 « accusò »; PUD's compound pasts: 17 « ha commentato », 25 « Ha detto »; the engine may write « ha visto », « ha incontrato »: the participle, with or without its auxiliary; passives 13 « sono state pubblicate », 33 « Gli viene riconosciuto », 61 « si considera » (PUD); wrong: « ha », « è », « sono state », « viene » or « si » alone | en-fr 17 « a suggéré », 30 « est mort », 65 « a rencontré » with the auxiliary; en-fr 13 « diffusées », en-es 13 « publicaron » without |
+| A dropped subject, a clitic | 9 « Vorrebbe » or « (Gli) piacerebbe »; wrong: « Gli » alone, an added « Egli » or « Lui » alone; 97 « si incontrano » (PUD) with or without « si », never « si » alone | en-fr « aimerait », en-es « gustaría »; es-en k 25 « he » judged wrong |
 | A phrasal verb or compound rendered by one Italian word | 57 « costituiscono » or « comprendono », wrong « che » alone; 77 « brancola » or « procede a tentoni », a loose rendering doubtful; 78 « sveglia »; 54 « Capodanno » (« Nuovo » if « Anno Nuovo », never « Anno » alone); 3 « sudcoreana » or « (della) Corea », never « Sud » alone; 94 « avamposti »; 75 « in grado », « riusciti » or « potuto », never « furono » alone | en-fr's one wrong mark, k 57 « qui »; en-es « conforman »; en-fr 78 « réveil » |
-| An article or articulated preposition, carried but never alone | 6 « della storia » (wrong « della » alone), 66 « all'Università », 0 « della transizione », 12 « di emoglobina », 26 « di risarcimento », 23 « dei mercati », 10 « I medici », 52 « in battaglia », 59 « L'Esercito », 5 « quest'area », 62 « dell'origine » | en-fr « de l'histoire », « l'Université », « d'hémoglobine »; en-es « de compensación », « los médicos » |
-| A noun modifier, an -ing form | 22 « delle armi », « armi » or « del tiro », wrong « lobby », « dei cacciatori » doubtful; 83 « di successo », « tormentone » or « hit », wrong « canzone »; 1 « (di) insegnare » or « insegnando », wrong « Invece di » alone | en-fr « de tir », en-es « de tiro »; en-fr « d'enseigner », en-es « enseñar » |
-| A possessive | 24 « fermata » or « La mia fermata », wrong « La mia » alone, a mark over « prossima » doubtful; 58 « (i suoi) nemici », wrong « suoi » alone; 91 « ultimi », wrong « (dei) suoi » alone | fr-en k 92; fr-en k 15 « their » |
+| An article or articulated preposition, carried but never alone | 6 « della storia » (wrong « della » alone), 66 « all'Università », 0 « della transizione », 12 « di emoglobina », 26 « di risarcimento », 23 « erano mercati » (PUD: « mercati » with or without « erano »), 10 « I medici », 52 « in battaglia », 59 « L'Esercito », 5 « quest'area », 62 « sull'origine » (PUD) | en-fr « de l'histoire », « l'Université », « d'hémoglobine »; en-es « de compensación », « los médicos » |
+| A noun modifier, an -ing form | 22 « delle armi », « armi », « del tiro » or PUD's « dei cacciatori » (a British "shooting lobby" is the field-sports lobby), wrong « lobby » alone; 83 « di successo », « tormentone » or « hit », wrong « canzone »; 1 « (di) insegnare » or « insegnando », wrong « Invece di » alone | en-fr « de tir », en-es « de tiro »; en-fr « d'enseigner », en-es « enseñar » |
+| A possessive | 24 « fermata » or « La mia fermata », wrong « La mia » alone, a mark also spanning « prossima » doubtful; 58 « (i suoi) nemici », wrong « suoi » alone; 91 « ultimi », wrong « (dei) suoi » alone | fr-en k 92; fr-en k 15 « their » |
 | Gender and number never decide a verdict | 93 « capitanata », 71 « stereotipata », 39, 15, 47, 67, 91, and 96 even rendered singular | en-fr « commandé », « stéréotypée »; en-es « estereotipada » |
-| Expressions and loanwords | 79 « (il) momento » or « ora », wrong « Per » alone; 99 « D'altra », « altra » or « Dall'altro », wrong « parte »; 32 « punto », « epicentro » or « Ground », wrong « zero »; 27 « Premium » and 82 count as renderings; 86 « l'unico » and 63 « ufficiale » correct, though both precedents withheld these steps, so a mark there is a new verdict with its reason | en-fr « D'autre »; en-fr's and en-es's k 32, 63, 86 withheld |
-| Loose renderings | 18, 70, 77: correct, but doubtful | en-es's doubtful lines |
+| Expressions and loanwords | 79 « (il) momento » or « ora », wrong « Per » alone; 99 « D'altra », « altra » or « Dall'altro », wrong « parte »; 32 « punto », « epicentro » or « Ground », wrong « zero »; 27 « Premium », and an expression rendering 82's « on its way out », count; 86 « l'unico » and 63 « ufficiale » correct, though both precedents withheld these steps, so a mark there is a new verdict with its reason | en-fr « D'autre »; en-fr's k 32, 63, 86 and en-es's k 63, 86 withheld; en-es's k 32 « la zona » correct |
+| Loose renderings | 18, 70, 77: correct, and doubtful only if the Italian is loose | en-es's doubtful lines; en-fr judged the same steps plainly correct (« bord », « que traceur », « tâtonne ») |
 
 ### D4 — The list
 
-- **On the first tier**, with the doubtful lines counted wrong: `MARKED_PAIRS` gains `en-it`, inert
-  until change 45 lists the pair. The exact lists of `test/translate-marks.spec.ts` and
-  `test/translate-relay.spec.ts` follow, with a relay case on fr-en's model.
+- **On the first tier**, the committed figures being the strict ones (D3): `MARKED_PAIRS` gains
+  `en-it`, inert until change 45 lists the pair. The exact lists of `test/translate-marks.spec.ts` and
+  `test/translate-relay.spec.ts` follow, with a relay case modelled on fr-en's. This is the tier rule's,
+  not the owner's: change 45 only lists the pair.
 - **Short of it but at least 75 % correct with at most 30 % withheld**: not listed, so translated
   without a mark. Change 19's structural test reads the list as the judged pairs on the tier, so it
   holds.
@@ -124,7 +137,8 @@ Whichever the outcome, `test/translate-marks.spec.ts` gains *An English selectio
 - its tier against whether it is listed;
 - its ids against en-fr's results;
 - its native language Italian;
-- the doubtful lines, and the tier with them counted wrong.
+- the doubtful lines: the disagreements committed `wrong`, and the tier holding with the loose lines
+  committed `correct` subtracted.
 
 Every other pair's results and judgments stay byte for byte, checked by a diff that leaves en-it's
 files out and prints nothing.
