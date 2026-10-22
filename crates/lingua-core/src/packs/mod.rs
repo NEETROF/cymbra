@@ -29,6 +29,13 @@
 //! `ruzstd`, so the reader stays WASM-clean. The offline *builder* lives in
 //! the native `lingua-pack` crate; [`format::write_container`] is the shared
 //! low-level writer both it and the tests use.
+//!
+//! A pack is also built as two containers of the same envelope
+//! (split-lingua-pack-format): a *base*, its studied language's sections, and a
+//! *layer*, its pair's, each naming its part in its metadata ([`meta::Part`]).
+//! [`Pack::assemble`] makes of the two the pack their whole container holds, every
+//! named section with the same bytes; every reader of a whole pack refuses a part
+//! by name.
 
 pub mod format;
 pub mod grammar;
@@ -37,6 +44,6 @@ pub mod pack;
 pub mod set;
 
 pub use format::{FormatError, Section, read_container, write_container};
-pub use meta::PackMeta;
+pub use meta::{BaseMeta, LayerMeta, PackMeta, Part};
 pub use pack::{Pack, PackError};
 pub use set::{PackSet, PackSetError};
