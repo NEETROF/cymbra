@@ -2,44 +2,44 @@
 
 ## ADDED Requirements
 
-### Requirement: Catalan, Galician, Latin and the regional languages of Italy are not read as Italian
-The core SHALL refuse as Italian a block the detector reads as Italian whose function words of Catalan, Galician, Latin and the regional languages of Italy the guard knows — Sicilian, Neapolitan, Venetian, Sardinian, Friulian and Corsican, each kept by measurement —, counted together, outnumber its Italian ones, a neighbour's function word counting only where it is written in lowercase, a Neapolitan elided article counting with its apostrophe. A refused block SHALL be excluded from an Italian analysis and SHALL NOT vote for Italian when a document's language is chosen. A tie, or a block with no such function word, SHALL stay Italian. The guard SHALL run for Italian alone, so that English's, Spanish's and French's detection and analyser versions do not move. Italian's analyser version SHALL be bumped with the guard.
+### Requirement: Catalan, Galician and Italy's regional languages are not read as Italian
+The core SHALL refuse as Italian a block the detector reads as Italian whose function words of the neighbour languages the guard knows — Catalan, Galician and the regional languages of Italy and Corsica, named in the design and each kept by measurement —, counted together, outnumber its Italian ones, a neighbour's function word counting only where it is written in lowercase, a word opened by an apostrophe counting with it. A refused block SHALL be excluded from an Italian analysis and SHALL give Italian no vote in a document's language; a block with as many Italian markers as neighbour ones, or with none, SHALL stay Italian. No marker SHALL be a word Italian writes in any register or region. The rule SHALL bump Italian's analyser version and no other, and no part of it SHALL run on text read as English, Spanish or French, whose output SHALL NOT move.
 
-#### Scenario: A Catalan paragraph
-- **WHEN** "Les tradicions de la ciutat són molt antigues i el carrer principal és ple de gent." is offered as Italian
+#### Scenario: A Catalan sentence
+- **WHEN** « El far s'alçava a la vora del penya-segat, i ningú no recordava qui l'havia construït. », which the detector reads as Italian, is offered as Italian
 - **THEN** it is not Italian, and an Italian analysis excludes it
 
-#### Scenario: A Galician paragraph
-- **WHEN** "Os veciños da vila non están de acordo coas novas normas, xa que non hai tempo." is offered as Italian
+#### Scenario: A Galician sentence
+- **WHEN** « Non hai unha solución sinxela, pero o concello xa traballa nela. », read as Italian by the detector, is offered as Italian
 - **THEN** it is not Italian
 
-#### Scenario: A Latin paragraph
-- **WHEN** "Gallia est omnis divisa in partes tres, quarum unam incolunt Belgae." is offered as Italian
+#### Scenario: A Venetian sentence
+- **WHEN** « Ghe xe tanta zente in piassa e tuti i parla. », read as Italian by the detector, is offered as Italian
 - **THEN** it is not Italian
 
-#### Scenario: A Sicilian paragraph
-- **WHEN** "Lu patri nun vulìa ca li figghi jissiru a la scola ogni jornu." is offered as Italian
+#### Scenario: A Sicilian sentence
+- **WHEN** « Lu patruni dici ca nun ci su' sordi, ma iddu campa bonu. », read as Italian by the detector, is offered as Italian
 - **THEN** it is not Italian
 
-#### Scenario: A Neapolitan paragraph
-- **WHEN** "'O sole mio sta 'nfronte a te, e nun ce sta niente 'e cchiù bello." is offered as Italian
-- **THEN** it is not Italian, its elided articles counting with their apostrophe
+#### Scenario: A Neapolitan sentence
+- **WHEN** « Tengo 'na casa piccerella vicino 'o mare, e 'a sera guardo 'e stelle. », read as Italian by the detector, is offered as Italian
+- **THEN** it is not Italian, its elided articles `'na`, `'o`, `'a` and `'e` counting with their apostrophe
 
-#### Scenario: A Venetian paragraph
-- **WHEN** "El canal xe pieno de barche e la zente ghe va par vardar." is offered as Italian
-- **THEN** it is not Italian
+#### Scenario: A Sardinian, a Corsican and a Friulian sentence
+- **WHEN** « Sa domo est manna e sos pitzinnos giogant in sa pratza. », « A casa mea hè vicinu à a chjesa, è u paese hè chjucu. » and « Cheste e je la cjase dai miei nonos, e jo o soi nassût culì. », each read as Italian by the detector, are offered as Italian
+- **THEN** none is Italian
 
 #### Scenario: Italian naming Catalan, Sicilian and Latin places and works is kept
-- **WHEN** "Abbiamo visitato Sant Joan de les Abadesses, poi Lo Capo di Siracusa, e letto il De bello Gallico." is offered as Italian
-- **THEN** it is Italian
+- **WHEN** « Abbiamo visitato il Castell dels Tres Dragons a Barcellona, poi il Lu Capu a Siracusa, e letto il De bello Gallico. » is offered as Italian
+- **THEN** it is Italian: its one neighbour marker, `dels` inside a name, is outnumbered by its Italian ones
 
 #### Scenario: Regional Italian is kept
-- **WHEN** "Ma va', non ci credo mica che sei andato giù in piazza con quel caldo." and "Dai, vieni su che ti faccio vedere una cosa." are offered as Italian
-- **THEN** both are Italian
+- **WHEN** « Ma va', non ci credo mica che sei andato giù in piazza con quel caldo. » and « Dai, vieni su che ti faccio vedere una cosa. » are offered as Italian
+- **THEN** both are Italian: `su`, `ci`, `ma` and `va'` are markers of neither table
 
 #### Scenario: A capital makes a name
-- **WHEN** a block read as Italian writes a neighbour's function word with a capital, as « El Niño » or « Los Angeles » do
-- **THEN** that word does not count against Italian
+- **WHEN** « Durante il viaggio abbiamo letto che El Niño e Os Lusíadas sono nomi, non parole. » is offered as Italian
+- **THEN** it is Italian: `El` and `Os`, written with a capital, do not count against it
 
 #### Scenario: A Catalan page for a reader of French and Italian
 - **WHEN** a page whose blocks are Catalan and Galician, read as Italian by the detector, is offered with French and Italian as candidates
@@ -50,9 +50,38 @@ The core SHALL refuse as Italian a block the detector reads as Italian whose fun
 - **THEN** every probe is byte for byte the output recorded before, without re-blessing, and English's, Spanish's and French's analyser versions are unchanged
 
 #### Scenario: The leak the guard leaves
-- **WHEN** a short neighbour line with no function word of either kind, such as "Bona nit." or "Arrivederci Roma.", is offered as Italian
+- **WHEN** « Bedda matri, chi caluri oggi! », a Sicilian line of more than twelve bytes read as Italian by the detector that holds no marker of either table, is offered as Italian
 - **THEN** the guard does not refuse it, as this requirement states
 
-#### Scenario: What the Italian baseline shows
-- **WHEN** the Italian baseline analyses its `misto` page after this change
-- **THEN** its Catalan, Galician and Latin blocks are excluded, its Italian blocks counted, and the analysis reports a version above the one change 7 gave
+#### Scenario: A pack built before is refused
+- **WHEN** an Italian pack built for the analyser version before this rule is loaded
+- **THEN** it is refused as built for another analyser generation, and a French, Spanish or English pack loads as before
+
+## MODIFIED Requirements
+
+### Requirement: An Italian invariance baseline runs beside the English, Spanish and French ones
+The core's tests SHALL hold an Italian invariance baseline: the engine's output over a fixed thirteen-page raw-text Italian corpus — pages authored around one phenomenon each (news, fiction, homographs, elisions, the articulated prepositions in both readings, enclitic pronouns, names and titles, informal Italian with the apostrophe for an accent, a recipe, technical prose with one block in NFD, a mixed page with English, Spanish, French, Catalan, Galician and Latin blocks, verb forms) and two public-domain excerpts, set in real Italian punctuation — through the same probes the other baselines use, over a fixture pack studying Italian glossed in French until the Italian tables are committed, with the engine started on the real en-fr pack. The baseline SHALL run wherever the others run; a change that moves its golden SHALL re-bless it and say why, and a change of an Italian rule SHALL bump Italian's analyser version.
+
+#### Scenario: The corpus
+- **WHEN** the baseline reads its corpus
+- **THEN** it holds the thirteen pages in order, each with at least one block, the reader's pages are among them, and the technical page's NFD block is still decomposed
+
+#### Scenario: Nothing of Italian changed
+- **WHEN** the baseline runs on a pull request that changes no Italian rule, no fixture table and no beside pack
+- **THEN** every probe is byte for byte the golden
+
+#### Scenario: What the baseline shows today
+- **WHEN** the baseline analyses its `elisioni`, `preposizioni`, `clitici`, `tecnico` and `misto` pages
+- **THEN** « l'uomo » is `lo` and `uomo`, « del » is whole, « al » is `a` and `il`, « po' » is `poco`, « dirmelo » resolves to `dire`, the NFD block's words resolve to the pack's, `non` and `di` are function words, the Catalan and Galician blocks are excluded as not Italian, and the analysis reports Italian's own version
+
+#### Scenario: An Italian rule lands
+- **WHEN** a later change gives Italian a tokenisation, lemmatisation or detection rule
+- **THEN** the golden moves, and that pull request re-blesses it, bumps Italian's analyser version and says what moved
+
+#### Scenario: The committed tables replace the fixture
+- **WHEN** the Italian tables and the it-fr pair's tables are committed
+- **THEN** the baseline's pack is built from them, and the golden is re-blessed once, in that pull request
+
+#### Scenario: The reader's backup
+- **WHEN** the baseline backs up its reader, whose statuses, exposures and cards are Italian
+- **THEN** the backup has schema version 4
