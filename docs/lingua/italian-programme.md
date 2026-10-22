@@ -212,13 +212,13 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 3 | 36 | `add-lingua-pack-en-it` (I11) | 3.5–6 | 22 | |
 | 3 | 37 | `refine-lingua-en-it-glosses` | 2–4 | 24b | |
 | 3 | 38 | `measure-lingua-en-it-translation-marks` | 1–2 | 26 | |
-| 3 | 39 | `localise-lingua-manifest-italian`: `_locales/it` | 0.5–1 | 27 | |
+| 3 | 39 | `localise-lingua-manifest-italian`: `_locales/it` | 0.5–1 | 27 | Proposed ([#1009](https://github.com/NEETROF/cymbra/pull/1009)) |
 | 3 | 40 | `localise-lingua-apple-host-italian`: `copy.js`, `SignInCopy`, `app_localizations.sh` | 1.5–3 | 28 | |
 | 3 | 41 | `add-site-italian-locale`: `/it/` home, Music, Lingua, privacy, terms, support, account deletion, 404, and Lingua's Italian leaving page, pinned before the extension build that compiles it into `LEAVING_PAGES.it` (change 45) ships; the islands | 5–9 | 29, 29b | |
 | 3 | 42 | `extend-site-lingua-matrix-pages-italian`: Italian's pairs and coverage on the Lingua pages; `hreflang` | 1–2 | 30 | |
 | 3 | 43 | `localise-cymbra-id-email-legal-links-italian` (I10): Italian e-mails link `/it/` pages; the privacy annex in Italian | 1–2 | 31, 32 | |
-| 3 | 44 | `review-lingua-italian-wording` (I2): the dedicated agent's pass over interface, card, listings and site | 2–4 | 33 | |
-| 3 | 45 | `enable-lingua-italian-speakers` (en-it): the Italian interface shown, en-it ships; the extension's privacy, leaving and deletion links moved to the `/it/` pages (after 41) | 4–7.5 | 35 | |
+| 3 | 44 | `review-lingua-italian-wording` (I2): the dedicated agent's pass over interface, card, manifest (`_locales/it`), listings and site | 2–4 | 33 | |
+| 3 | 45 | `enable-lingua-italian-speakers` (en-it): the Italian interface shown, en-it ships; the extension's privacy, leaving and deletion links moved to the `/it/` pages (after 41); its dogfood checks the shortcuts page and about:addons in Italian (change 39's D3) | 4–7.5 | 35 | |
 | 3 | 46 | `add-lingua-italian-audience-listings` (I9): Chrome Web Store, AMO, App Store it-IT | 2–5.5 | 37 | |
 | 4 Italian speakers: fr-it, es-it | 47 | `add-lingua-pack-fr-it` | 3.5–6 | 22, 49 | |
 | 4 | 48 | `refine-lingua-fr-it-glosses` | 2–4 | 49b | |
