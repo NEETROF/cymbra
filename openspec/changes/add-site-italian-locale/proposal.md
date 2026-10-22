@@ -81,5 +81,6 @@ None.
   - Apple's Services ID gains `https://cymbra.app/elimina-account` as a Return URL, as Spanish's did.
 - **Prerequisites**: change 33 implemented (the Lingua labels the pages quote, the reviewer agent);
   changes 21 and 26 (the site's Italian names and `STUDIED.it`).
-- **Order**: before changes 42, 43 and 45. Change 45 lists en-it together with `/it/lingua/`'s media.
+- **Order**: before changes 43 and 45 (change 42 is folded into 45). Change 45 lists en-it together with
+  `/it/lingua/`'s media.
 - **Effort, against 5–9 ideal days**: 6–10 (design, *Effort*).
