@@ -212,7 +212,7 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 3 | 35 | `add-lingua-italian-edition-rules`: the Italian Wiktionary's rules in the gloss reducer | 2–3 | 6 | Proposal merged ([#1011](https://github.com/NEETROF/cymbra/pull/1011)) |
 | 3 | 36 | `add-lingua-pack-en-it` (I11): the Italian Wiktionary's English section, then both Wiktionaries' tables; the floor fixed first | 3.5–6 | 22 | Proposal merged ([#1016](https://github.com/NEETROF/cymbra/pull/1016)) |
 | 3 | 37 | `refine-lingua-en-it-glosses` | 2–4 | 24b | |
-| 3 | 38 | `measure-lingua-en-it-translation-marks` | 1–2 | 26 | |
+| 3 | 38 | `measure-lingua-en-it-translation-marks`: the English selections through en-it, judged in Italian by two agent judges (I2) | 1–2 | 26 | Proposed ([#1020](https://github.com/NEETROF/cymbra/pull/1020)) |
 | 3 | 39 | `localise-lingua-manifest-italian`: `_locales/it` | 0.5–1 | 27 | Proposal merged ([#1009](https://github.com/NEETROF/cymbra/pull/1009)) |
 | 3 | 40 | `localise-lingua-apple-host-italian`: `copy.js`, `SignInCopy`, `app_localizations.sh` | 1.5–3 | 28 | Proposal merged ([#1013](https://github.com/NEETROF/cymbra/pull/1013)) |
 | 3 | 41 | `add-site-italian-locale`: `/it/` home, Music, Lingua's Italian text, privacy, terms, support, account deletion, 404, and Lingua's Italian leaving page, pinned before the extension build that compiles it into `LEAVING_PAGES.it` (change 45) ships; the islands | 6–10 | 29, 29b | Proposal merged ([#1014](https://github.com/NEETROF/cymbra/pull/1014)) |
