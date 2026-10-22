@@ -18,8 +18,8 @@ change 16's reducer would offer — `reduce_common.reduce_expressions`'s filters
 pattern —, read by a copy of change 6's pre-pass: **8,852** candidates with a space, and **77** words
 without one that the pre-pass splits into two tokens or more (`d'accordo`, `all'improvviso`,
 `senz'altro`, `dov'è`, `un'altra`), expressions by change 44's rule. Of the 8,852:
-- **553 hold an articulated preposition the pre-pass splits** (`al dente`, `alla romana`, `sui
-  generis`, `col legno`, `penne all'arrabbiata`), read as `a` + `il` …, which a page reads the same
+- **553 hold an articulated preposition the pre-pass splits** (`al dente`, `alla romana`, `allo
+  spiedo`, `col legno`, `penne all'arrabbiata`), read as `a` + `il` …, which a page reads the same
   way: they meet already, but the key writes `a il dente`, and the article is a lemma — `alla` and
   `al` would share a key where M8 files `la` under `il`;
 - **449 hold the `di` family**, whole lemmas (`amico del cuore`, `livello del mare`): they meet;
@@ -61,8 +61,9 @@ contare`-like lemma chains as the expression's dictionary form, which the reader
   (44c); two pieces the headword writes as one articulated preposition meet only a written one, and
   two it writes apart only words apart, the run's edges the page's (44d); the headword is read by
   Italian's pre-pass from its name, which the pack carries wherever it differs from the key. A
-  truncation (`po'`) reads as an elided piece by its span, so « un po' » meets `un po'` and « un
-  poco » does not — measured, the dictionary writing both.
+  truncation (`po'`) reads as an elided piece by its span, and a last piece written in full meets an
+  elision but never a truncation, so « un po' » is `un po'` and « un poco » is `un poco`, each named
+  as written — measured, the dictionary writing both.
 - **The overlap rule reads Italian too** (D7): change 44f's rule — an expression built on a verb
   gives its last word to a longer one — runs for Italian as for Spanish once change 13's grammar
   says what a verb is, its guard on « que » reading « che ».
@@ -93,10 +94,12 @@ None.
 
 For Italian, the ADDED requirements take the place of the key and match rules of
 `add-lingua-expression-table`'s *Multi-word expression table* and *Expression lookup in a phrase
-gloss*, and of the sentences of changes 44, 44b, 44c, 44d, 44e, 44f and 51's requirements that keep
+gloss*, and of the sentences of changes 44, 44b, 44c, 44d, 44e, 44g, 44f and 51's requirements that keep
 every other language as it was; those changes are open, so each requirement here says so rather
 than MODIFY them (44b's precedent), and they are in `archiveAfter` with the Italian changes 5, 6
-and 7. Change 16, once proposed, joins it: the reducer's expressions are its.
+and 7. Of those sentences only the base table's rules and 44f's « in French, Spanish or English »
+bind Italian today — the others name English, Spanish or French —, so the displacement is stated
+for the archive's reading, not because a rule moves. Change 16, once proposed, joins it: the reducer's expressions are its.
 
 ## Impact
 
@@ -106,12 +109,12 @@ nothing new is offered to them.
 - `crates/lingua-core/src/engine.rs` — *new*: `ITALIAN_KEY_WRITTEN`, `ITALIAN_EXPRESSION_WINDOW`,
   Italian's arms of `expression_piece` and `expression_window`, `whole_words` for Italian, the `di`
   retry in `expression_for_run`, `meets_as_written` reading an Italian name through Italian's
-  pre-pass (the contraction test per language), `written_as_the_page` for Italian, 44f's language
-  list; *consumed*: `headword_reading`, Italian's pre-pass and cascade, `Pack::expression_name`,
+  pre-pass (the contraction test per language), the `as_written()` gate of `ExpressionScan::run`
+  for Italian, 44f's G2 guard widened with `whole_words()` and its word by language; *consumed*: `headword_reading`, Italian's pre-pass and cascade, `Pack::expression_name`,
   `expression_headwords`, `is_elided`, `shared_spans`.
 - `crates/lingua-pack/src/lib.rs` — the names and `expr.others` sections written for an Italian pack,
   French's order among headwords for Italian; English, Spanish and French byte for byte.
-- `crates/lingua-wasm/src/lib.rs` — `readable_gloss`'s Italian arm; `tests/{italian_baseline.rs,
+- `crates/lingua-wasm/src/lib.rs` — `pack_gloss`'s Italian arm; `tests/{italian_baseline.rs,
   support/italian.rs}` and `baseline/it-fr.golden`, re-blessed once.
 - `scripts/lingua-data/testdata/it-fr/` — expressions, forms, `pack_version`.
 - `apps/lingua-extension` — *consumed*, unchanged: the card shows the key the phrase gloss hands it.

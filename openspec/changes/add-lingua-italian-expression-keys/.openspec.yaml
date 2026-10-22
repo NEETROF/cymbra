@@ -7,6 +7,7 @@ archiveAfter:
   - match-lingua-french-elided-pieces
   - match-lingua-french-contracted-pieces
   - pick-lingua-expression-written-as-the-page
+  - pick-lingua-spanish-expression-written-as-the-page
   - add-lingua-french-word-card
   - choose-lingua-overlapping-expressions
   - add-lingua-italian-baseline

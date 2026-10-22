@@ -55,7 +55,7 @@ preposition in full); the possessives `mio`, `mia`, `miei`, `mie`, `tuo`, `tua`,
 `suo`, `sua`, `suoi`, `sue`, `nostro`, `nostra`, `nostri`, `nostre`, `vostro`, `vostra`, `vostri`,
 `vostre`, `loro`; the demonstratives `questo`, `questa`, `questi`, `queste`, `quello`, `quella`,
 `quelli`, `quelle`, `quel`, `quei`, `quegli` (the pre-pass writes `questo`, `quello` for `quest'`,
-`quell'`). French's and Spanish's D2, transposed: the list holds what M8 may file under another
+`quell'`); `codesto` and its forms, archaic and Tuscan, none among the 19 measured, are left out. French's and Spanish's D2, transposed: the list holds what M8 may file under another
 word and the forms that are their own lemma. Measured on the candidates: 744 headwords hold an
 article, 17 a possessive, 19 a demonstrative; with every token lemmatised, `alla romana` and a
 headword `al romano` would share a key wherever the tables file `la` under `il`, and `a la`
@@ -96,9 +96,10 @@ Two rules, one from each sibling:
   `di` (`a causa di`, `per mezzo di`, `al posto di`, `da parte di`) never meet « a causa del
   ritardo » or « al posto dell'altro » — `dell'` is read `dello`, one piece. In an Italian run no key
   matches whose last piece is `del`, `dello`, `della`, `dei`, `degli` or `delle`, that piece is read
-  once more as `di`; the match covers it; the token keeps its lemma. The known misreading is an
-  expression ending on `di` before a partitive (« ho bisogno del pane » is right; « parlo di »
-  before « del vino »…), measured on the corpus at implementation and named in the pull request.
+  once more as `di`; the match covers it; the token keeps its lemma. The known misreading is a
+  run whose last `del` belongs to the next phrase, not to an expression ending on `di`: « la prima
+  del film », where `prima del` matches no key and the retry answers `prima di` (*before*) with
+  `prima` the noun; measured on the corpus at implementation and named in the pull request.
 
 ### D6 — Italian pieces meet the page as the headword writes them
 
@@ -107,9 +108,11 @@ Italian's pre-pass (`headword_reading`, the function the key was made with, so t
 one for one) when the name holds an apostrophe or a word of the split families — the contraction
 test becomes per language, `holds_contraction(name, studied)`, French's « au »/« aux », Italian's
 `al`, `allo`, `alla`, `ai`, `agli`, `alle`, `dal`…, `nel`…, `sul`…, `col`, `coi`, `all'`, `dall'`,
-`nell'`, `sull'` —; each piece's elision from its span (`is_elided`, which change 6 widened to
+`nell'`, `sull'`, which the apostrophe test sends through the reading anyway —; each piece's elision from its span (`is_elided`, which change 6 widened to
 Italian's apostrophes), its contractions from the reading's `shared_spans`. The rules are 44c's and
-44d's: an elided piece meets only an elided token and a piece in full only a token in full, the last
+44d's — `ExpressionScan::run`'s two French gates, which choose the as-written arm over Spanish's
+clitic-weighed arm and gate `meets_as_written`, become an `as_written()` predicate true for French
+and Italian —: an elided piece meets only an elided token and a piece in full only a token in full, the last
 piece in full meeting either (Italian elides before a vowel, by the next word, as French does); two
 pieces written as one articulated preposition meet only a written one, two written apart only words
 apart; the run's edges are the page's (its first token on the article of « al », its last on the
@@ -117,26 +120,34 @@ apart; the run's edges are the page's (its first token on the article of « al �
 553 an articulated preposition, all named (a piece written elided or contracted always differs
 from its key).
 
-**A truncation reads as an elided piece.** `po'`, `mo'`, `fa'`, `va'`, `da'`, `sta'`, `di'`, `be'`
-keep the apostrophe inside their span (change 6's D5), so `is_elided` says yes for them, on the
-page and in a name: « un po' » meets `un po'` and « un poco » does not, « un poco » meeting `un
-poco` where the dictionary writes it (both are candidates). The cost is a headword written with
-the truncation met only when the page writes it so, as an elided piece is — 4 of the candidates
-hold one — and the gain is that « un po' » never answers `un poco`'s entry when the two differ.
+**A truncation reads as an elided piece, and is not the next word's doing.** `po'`, `mo'`, `fa'`,
+`va'`, `da'`, `sta'`, `di'`, `be'` keep the apostrophe inside their span (change 6's D5), so
+`is_elided` says yes for them, on the page and in a name; and a token, as a headword's piece, is
+elided when its source span ends on an apostrophe — an elided form of the pre-pass, `dell'` read as
+`dello`, both halves of `all'`, `dall'`, `nell'`, `sull'`, a truncation. One rule more than 44c's:
+the last piece written in full meets an elided token only where that token is an elision, not a
+truncation (told apart by change 6's truncation list on the token's span) — Italian elides a word
+by the word that follows, but truncates it on its own. Without it, with both `un po'` and `un poco`
+in the pack (both key `un poco`, `un poco` winning it as written as the key), « un po' » would be
+met by `un poco` too — its last piece `poco` in full meeting either — and the choice among headwords,
+which compares the tokens' text (`poco` for « po' »), would tie and name `un poco`. With it: « un
+po' » meets `un po'` alone and « un poco » meets `un poco` alone, each named as written; a pack
+holding `un po'` alone meets « un po' » and not « un poco ». 4 of the candidates hold a truncation.
 
 ### D7 — The overlap rule reads Italian
 
 44f's rule runs « in French, Spanish or English » on `built_on_verb` (the pack's grammar reads a
 token as a verb) and `is_preposition`; Italian gains its closed classes with change 7 and its
-grammar with change 13. The rule's language list gains Italian: G2's guard — a preposition the
-selection's next token « que » follows — reads « che » for Italian; G1 (a French headword's
-hyphens) stays French's; G3 is language-neutral. Before change 13 no Italian token is read as a verb,
+grammar with change 13. The rule runs for every language already; its G2 guard — a preposition the selection's next token
+« que » follows — is gated on `whole_words()`, which D5 widens to Italian, and its word becomes
+« que » or « che » by the language; G1 (a French headword's hyphens) stays French's; G3 is
+language-neutral. Before change 13 no Italian token is read as a verb,
 so the rule never fires on an Italian run; after it, the rule decides as for Spanish. Measured at
 change 13 on the corpus, as 44f measured the three languages.
 
 ### D8 — Review finds an Italian expression card by its name
 
-`readable_gloss`'s Italian arm: a card whose lemma holds a space is read at its lemma, then at the
+`pack_gloss`'s Italian arm (the per-language match `readable_gloss` delegates to): a card whose lemma holds a space is read at its lemma, then at the
 key the lemma reads as (`reading_expression_key` for Italian), and under its own headword where
 several reach the key (44's D3, 44b's D7, 44e's D4). No baseline holds such a card, so no golden
 moves for it; a test in `lingua-wasm` holds it.
@@ -144,12 +155,12 @@ moves for it; a test in `lingua-wasm` holds it.
 ### D9 — What moves, what does not, and the version
 
 - **The fixture** (`scripts/lingua-data/testdata/it-fr/`): `mwe.tsv` gains `al dente`, `alla
-  romana`, `fare l'amore`, `a causa di`, `un po'`, `d'accordo`, `quel che sia` and `quello che
-  sia`; `forms.tsv` the words they need; `manifest.json`'s `pack_version` moves (new rows).
+  romana`, `fare l'amore`, `a causa di`, `un po'`, `un poco`, `d'accordo`, `anch'io`, `valere la pena` and `vale la pena`
+  (both keyed `valere la pena`); `forms.tsv` the words they need; `manifest.json`'s `pack_version` moves (new rows).
 - **The golden** (`it-fr.golden`): its `pack` line; the phrase probes that hold an expression —
   « C'è un po' di pane » (`un po'` named), « all'alba » if the fixture keys it — and the probes
-  added: « cotto al dente », « vicino al mare », « a causa del ritardo », « fare lo stesso »,
-  « quello che sia », « d'accordo »; every `analyse`, `gloss` and `word-grammar` probe byte for
+  added: « cotto al dente », « vicino al mare », « a causa del ritardo », « anch'io » and « anche io »,
+  « un poco di pane », « vale la pena », « d'accordo »; every `analyse`, `gloss` and `word-grammar` probe byte for
   byte. The pull request lists what moved, as 44's did; *An Italian invariance baseline runs beside
   the English, Spanish and French ones* names the reasons a golden moves and this change's is 44's
   (a rule of the builder and the phrase gloss, probes added): the pull request says so.
@@ -159,8 +170,9 @@ moves for it; a test in `lingua-wasm` holds it.
   rows; a committed it-fr pack does not exist yet.
 - **English, Spanish and French do not move**: the Italian arms run for Italian alone; the six
   committed packs build to their pins and the six baselines pass without re-blessing (task 5.1);
-  French's and Spanish's unit tests on `expression_piece` and the names (`an_english_or_spanish_
-  pack_carries_no_names`-like) are rewritten to say English alone carries none.
+  the doc comments that say « French and Spanish » (`whole_words`, `match_expressions`) and « English
+  and Spanish tokens are never elided » (`is_elided`) are rewritten; the builder's
+  `an_english_pack_carries_no_names` holds as it is.
 
 ### D10 — What later changes take from here
 

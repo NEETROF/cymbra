@@ -18,15 +18,15 @@ A pack studying Italian SHALL key each expression by what the core's Italian ana
 - **THEN** it is keyed `amico del cuore`, which is its own headword, so no name is carried
 
 #### Scenario: A word the pre-pass splits
-- **WHEN** an Italian pack is built with the headwords `d'accordo` and `perché`
+- **WHEN** an Italian pack is built with the headwords `d'accordo` and `perché` and a lexicon listing `di`, `accordo` and `perché`
 - **THEN** `d'accordo` is an expression keyed `di accordo`, and `perché`, one token, is not
 
 #### Scenario: Seven tokens
-- **WHEN** an Italian pack is built with the expressions `al fin fine` (four tokens) and a proverb of nine tokens
+- **WHEN** an Italian pack is built with the expressions `alla fin fine` (four tokens) and a proverb of nine tokens
 - **THEN** the first is keyed and the proverb left out
 
 #### Scenario: Two headwords on one key
-- **WHEN** an Italian pack is built with `quel che sia` and `quello che sia` reaching one key
+- **WHEN** an Italian pack is built with `valere la pena` and `vale la pena`, which both read as `valere la pena`
 - **THEN** the headword written as the key keeps it, the other is kept as an expression of its own in the section listing it, and both are named
 
 #### Scenario: Nothing else moves
