@@ -11,7 +11,7 @@
 
 - [ ] 2.1 `Shared (App)/Resources/copy.js`: the `it` table of 15 keys, naming English, no longer than the Spanish page; the header naming each native's pairs (D3).
 - [ ] 2.2 `tool/app_localizations.sh`: Italian in the warning and order lists and the comment naming fr, en, es; `tool/test_app_localizations.sh`: en-it → `["fr","en","es","it"]`, region `en`, no warning (D4).
-- [ ] 2.3 `apps/lingua-extension/test/apple-activation-page.spec.ts` (D5): `LANGUAGES` with `it`; the no-French-copy check, the fill loop and a « tu » check for Italian; the naming checks against `pairsOf("it", ["en-it"])`; the second-language step-3 check only for natives with two listed pairs or more, a one-pair native held to its language's level and no Settings tab. `test/native-signin.spec.ts`: the teller sends no `it` while `INTERFACE_LANGUAGES` lacks it.
+- [ ] 2.3 `apps/lingua-extension/test/apple-activation-page.spec.ts` (D5): `LANGUAGES` with `it`; the no-French-copy check, the fill loop and a « tu » check for Italian; the naming checks against the shipped pairs plus en-it; the second-language step-3 check only for natives with two listed pairs or more, a one-pair native held to its language's level and no Settings tab. `test/native-signin.spec.ts`: the teller sends no `it` while `INTERFACE_LANGUAGES` lacks it.
 - [ ] 2.4 `README.md`: `lang=fr|en|es|it` and the languages the app holds.
 
 ## 3. Review, release, gates

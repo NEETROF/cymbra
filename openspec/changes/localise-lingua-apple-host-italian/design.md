@@ -111,8 +111,9 @@ en-it among the packs gives `["fr","en","es","it"]`, region `en`, and no warning
   - the "no copy of the French" check and the fill loop cover Italian;
   - a « tu » check like Spanish's, refusing « aprite », « attivate », « scegliete », « Apra », « Attivi »,
     « Scelga »;
-  - the naming checks run against an explicit pair list (`pairsOf("it", ["en-it"])`), so Italian's page is
-    pinned at this change's merge;
+  - the naming checks run against the shipped pairs plus en-it
+    (`pairsOf("it", [...new Set([...SHIPPED_PAIRS, "en-it"])])`), so Italian's page is pinned at this
+    change's merge and the test still fails changes 50 and 54 until they rewrite it;
   - the check that step 3 says where a second language is ticked (`drawer.settings`,
     `settings.tabLanguage`) applies only to natives with two listed pairs or more. A native with one
     pair is held to naming that language's level and no Settings tab, as the one-language pages of the
@@ -137,7 +138,7 @@ not asked; change 44 rereads them. Its points:
 ### D7 — Released before change 45
 
 Change 32's D4 requires a host-app release carrying change 32 to be live before change 45. This
-change's release (a `feat(lingua-apple)` commit bumps the host app under release-please) is that
+change's release (its implementation commit, which touches `apps/lingua-apple`, bumps the host app) is that
 release at the latest, and carries this change's tables with it. It declares `[fr, en, es]`, as the
 build's natives check guarantees, so nothing visible changes and Apple validates the same shape it
 accepts today. The release is the owner's (I12).
