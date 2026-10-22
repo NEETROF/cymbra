@@ -17,9 +17,13 @@ import { ACCESS_KEY, REFRESH_KEY } from "@/state/session.ts";
 // `SignInOidc`, the refresh token in the Keychain through the bridge, the access token in memory, the
 // extension's session never involved. The bridge and the clients are test doubles.
 
+/** An hour from the file's start: one `exp` for every token, so two tokens for the same `sub` are equal
+ * even when a second ticks between the sign-in and the assertion. */
+const EXP = Math.floor(Date.now() / 1000) + 3600;
+
 /** A JWT-shaped token whose `exp` is an hour away, so the Session keeps it. */
 function token(sub: string): string {
-  const payload = btoa(JSON.stringify({ sub, exp: Math.floor(Date.now() / 1000) + 3600 }));
+  const payload = btoa(JSON.stringify({ sub, exp: EXP }));
   return `h.${payload}.s`;
 }
 
