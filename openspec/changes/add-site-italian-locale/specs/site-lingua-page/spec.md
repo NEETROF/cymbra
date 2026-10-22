@@ -6,7 +6,7 @@ The site SHALL publish a Lingua leaving page in French (`/lingua/au-revoir/`), E
 - Choosing an answer SHALL send that one answer, with the browser family and version read from the page's parameters (`unknown` when absent or malformed), to the backend's leaving-reason route, and SHALL then thank the reader whatever the outcome, offering the support page and the community link.
 - Without JavaScript, the answers SHALL still work: they SHALL be a plain HTML form that posts the tapped answer (browser family and version then `unknown`) to the same route, which sends the reader back to the page's thanks.
 - The page SHALL send at most one answer per visit.
-- The four paths SHALL be pinned routes, since shipped extensions open them.
+- The four paths SHALL be pinned routes, since shipped extensions open them or are about to.
 - The island SHALL call the route only through a composable behind the site's client seam, with an `Async<T>` state.
 
 #### Scenario: Opening the page
@@ -34,7 +34,7 @@ The site SHALL publish a Lingua leaving page in French (`/lingua/au-revoir/`), E
 - **THEN** it fails
 
 ### Requirement: The Lingua page's media stay within a weight budget
-The site's build checks SHALL fail when a served image variant of the Lingua page exceeds 250 KB, when the hero's largest variant exceeds 200 KB, when a share image exceeds 300 KB, when a video poster exceeds 150 KB, when a demo video exceeds 4 MB, or when the site's images, posters and videos together exceed 40 MB, naming the file and its size. They SHALL also fail when any built file reaches 25 MiB or the build holds 20,000 files or more, the limits of the site's host.
+The site's build checks SHALL fail when a served image variant of the Lingua page exceeds 250 KB, when the hero's largest variant exceeds 200 KB, when a share image exceeds 300 KB, when a video poster exceeds 150 KB, when a demo video exceeds 4 MB, or when the site's images, posters and videos together exceed 50 MB, naming the file and its size. They SHALL also fail when any built file reaches 25 MiB or the build holds 20,000 files or more, the limits of the site's host.
 
 #### Scenario: A video re-encoded too heavy
 - **WHEN** a regenerated demo video weighs 5 MB

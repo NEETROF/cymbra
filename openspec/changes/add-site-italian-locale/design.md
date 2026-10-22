@@ -31,7 +31,7 @@ check:routes` (61 post-build tests) pass.
 | Leaving | 102 | 103 | 91 |
 
 The islands' dictionary (`src/lib/i18n.ts`) holds 107 keys, 590 French words. Italian is about 6,800
-French source words to translate, of which about 4,560 are legal.
+French source words to translate, of which about 4,560 are the legal pages and the support page.
 
 **What adding `it` to `LANGS` forces** (a `vue-tsc` prototype gave 28 errors):
 - the islands' dictionary and date locale;
@@ -54,8 +54,10 @@ In `.astro` files: `Base.astro`'s navigation and footer tables, labels and brand
 
 **Three traps:**
 1. **`/it/lingua/` builds itself.** With `it` in `LANGS`, `linguaLocalePaths()` builds `/it/lingua/` as
-   soon as a pair glossed in Italian enters `lingua-coverage.json` (change 45), and `lingua-media.ts`
-   then fails the build without `src/assets/lingua/it/*` and the Italian demo video.
+   soon as a pair glossed in Italian enters `lingua-coverage.json` (change 45). `lingua-media.ts` then
+   fails the build without `src/assets/lingua/it/*`, but not without the demo video, which is only a
+   path; and `media-budget.spec.ts` names the three Lingua pages it checks, so `/it/lingua/` without its
+   video would pass every check (D6 closes this).
 2. **No Italian Music video.** The Music page needs `apps/music/store/video/it/{showcase.mp4,
    poster.jpg}`, which does not exist.
 3. **The media budget.** The site's media weigh 30,782,670 B against the 30 MB that
@@ -112,10 +114,14 @@ The reviewer agent (D9) may change a slug before the pull request pins it, never
 ### D2 — The legal pages: courtesy translations, the French prevails (I13)
 
 The privacy policy, the terms and the deletion page are translated from the French as they stand, in
-« tu » as the rest of the Italian site. Each of the three opens with « Traduzione di cortesia: fa fede la
-versione francese », linking its French page, as I13 settles.
+« tu » as the rest of the Italian site. Each of the three carries, directly under its title,
+« Traduzione di cortesia: fa fede la versione francese », linking its French page, as I13 settles. The
+support page, which holds no terms, carries none.
 
-- **Faithful to the French.** Nothing is added or left out. The French names only the CNIL for
+- **Faithful to the French.** Nothing is added or left out but that notice, and each page carries its
+  French page's date of last update and its sections. The site check compares the two (the French,
+  English and Spanish legal pages already share their `updated` date and their sections), so a French
+  edit not mirrored in Italian fails the build. The French names only the CNIL for
   complaints, so the Italian does too: no Garante, as the Spanish names no AEPD. A difference from the
   French would bind the publisher, and I13's notice protects little against a consumer.
 - **The Lingua labels** the pages quote (Réglages paths, « Account → … ») are change 33's Italian
@@ -131,14 +137,26 @@ That departs from the file's rule that a route joins when a shipped client point
 did for `/es/eliminar-cuenta/`. The reason: once deployed, they are about to be compiled into clients,
 and `check:routes` must refuse a build that drops them from then on. The leaving page is the strict
 case: the browser opens its address after the extension is gone, so an installed build's address must
-resolve forever. The pins' comments name their consumers.
+resolve forever. `pinned-routes.ts`'s header, which says that adding a page does not pin it, gains the
+exception: a path is pinned ahead of a client about to compile it, as `/es/eliminar-cuenta/`, the
+leaving pages and these four were. The support page is not pinned: no client links it.
+
+Each pin names its consumers, as the Spanish ones do:
+
+| Path | `pinnedBy` | Source |
+|---|---|---|
+| `/it/termini/` | Cymbra ID e-mail footer, it (change 43) | `backend/platform/src/email_template/mod.rs` |
+| `/it/privacy/` | Cymbra ID e-mail footer, it (change 43); Lingua — privacy link, Italian interface (change 45) | `backend/platform/src/email_template/mod.rs`; `apps/lingua-extension/src/translate/online.ts` (`PRIVACY_POLICY_URLS`) |
+| `/it/elimina-account/` | Lingua — account deletion, Italian interface (change 45) | `apps/lingua-extension/src/account/locale.ts` (`deleteAccountUrl`) |
+| `/it/lingua/arrivederci/` | Lingua — leaving page, Italian interface (change 45) | `apps/lingua-extension/src/usage/counts.ts` (`LEAVING_PAGES`) |
 
 ### D4 — The home page and Cymbra Music's page
 
 `/it/` and `/it/music/` are translations of the French pages, with Music's terms from its Italian app
 (`app_it.arb`): « Accedi », « Abbonamento », « Cascata », « Spartito », « Corsi », « Libreria »,
-« Informativa sulla privacy ». The Italian app's own inconsistencies, such as « Modalità Attesa » and
-« Modalità attesa », are put to the reviewer agent. 29b's answers carry over:
+« Informativa sulla privacy ». The inconsistencies are put to the reviewer agent: the store copy's
+« Modalità Attesa » (`store/copy/it.md`) against the app's « Modalità attesa », which also leaves « Wait
+Mode » in English in two strings. 29b's answers carry over:
 - the « beta » badge is kept;
 - the Music page's closing paragraph is dropped, as in Spanish;
 - the Music app's own word names playback.
@@ -152,11 +170,13 @@ beside Spanish's.
 **The Music media.**
 - The Italian gallery is copied from Music's store captures (`store/ios/…/it`), as the other languages'
   are.
-- The Italian video is recorded by the existing harness (`melos run showcase-video -- it`, macOS), then
-  `sync:music-media` and `gen:music-share` for Italian alone, so the other languages' share images do
-  not move.
-- The video's commit is a `chore(music)`, separate from the site's, so that release-please, which
-  attributes a release by path, does not bump Music for it.
+- The Italian video is recorded by the existing harness (`melos run showcase-video -- it`, macOS).
+  `sync:music-media` and `gen:music-share` loop over every language today; they gain a language
+  argument, so that Italian's files are made without the others moving.
+- **The video lands in a pull request of its own**, a `chore(music)` merged first. The repository
+  squash-merges and release-please attributes the squashed commit by path, so a site pull request
+  carrying `apps/music/store/video/` would release Music, as #938 did (Music 1.37.0). That pull request
+  passes the site's checks alone, since `music-media.spec` ignores a language not in `LANGS`.
 
 ### D5 — The islands
 
@@ -165,35 +185,49 @@ beside Spanish's.
   errors are shown on Italian pages.
 - Dates are `it-IT`.
 - `packages/web-auth`'s Apple locale is `it_IT`.
-- `appleReturnUrl` strips `/it`, and the owner registers `https://cymbra.app/elimina-account` on Apple's
-  Services ID.
+- `appleReturnUrl` strips `/it`; `.env.example`'s list of Apple Return URLs gains `/elimina-account`, and
+  the owner registers `https://cymbra.app/elimina-account` on Apple's Services ID.
 - The deletion island's confirmation word is the reviewer's to fix (« ELIMINA »).
 
 ### D6 — The Lingua page's Italian text, without its media
 
 `LINGUA_TEXT.it` (56–61 strings), `GRAMMAR.it` (articles, « dall'inglese / dallo spagnolo / dal
 francese », 20.000, 96%, and « 5000 » under five digits as change 33 writes it), `MUSIC_HREF.it` and
-`speakers.it` are written here, because the types require them once `LANGS` holds `it`.
+`speakers.it` are written here: the types require the first three once `LANGS` holds `it`, and
+`speakers` is an untyped table that costs nothing to fill early. `LINGUA_TEXT.it.showcase` describes the
+page's captures (the hero, the second studied language, the statistics), which do not exist for Italian
+yet: its strings are type stubs, which change 45 rewrites against its captures. The capture tests
+(`lingua-text.spec.ts`, held to `plan.mjs`'s readers) stay at fr, en and es until then.
 
 `/it/lingua/` itself is not built until a pair glossed in Italian ships (trap 1). Change 45, which lists
 en-it, brings `src/assets/lingua/it/*` and the Italian demo video in the same pull request, captured
-from the real extension in Italian. Change 42 adds Italian's pairs and coverage to the Lingua pages.
+from the real extension in Italian. To make trap 1 fail loudly, this change has `lingua-media.ts` check
+that a built Lingua page's demo video exists, and `media-budget.spec.ts` derive its Lingua pages from the
+build instead of naming three. Change 42 adds Italian's pairs and coverage to the Lingua pages.
 
-### D7 — The media budget at 40 MB
+### D7 — The media budget at 50 MB
 
 *The Lingua page's media stay within a weight budget* (held by `add-site-lingua-showcase`) is MODIFIED:
-the site's images, posters and videos together within 40 MB instead of 30. This is the owner's answer
-of 2026-10-22. A visitor loads only their own language's media, so the total weighs on the
-deployment, not on a page. The per-file budgets (250 KB per image variant, 4 MB per video) and the
-host's limits are unchanged. The Italian Music media (about 6.9 MB) and change 45's Lingua media fit,
-with room for one more language.
+the site's images, posters and videos together within 50 MB instead of 30. This is the owner's answer
+of 2026-10-22, first 40 MB, then 50 MB once the margin was measured. A visitor loads only their own
+page's media, one size of each image, so the total weighs on the deployment, not on a page.
+
+Measured on the built site, a language's Music media weigh about 7.23 MB and its Lingua set about
+3.01 MB. The total is 30.78 MB today, about 38.0 MB with the Italian Music media, and about 41.0 MB with
+change 45's Lingua media. The check reads its MB as MiB (40 MB is 41,943,040 B), so 40 would have left
+about 0.9 MB: a re-recorded video within its own 4 MB budget could have broken the build. 50 leaves about
+11 MB. The per-file budgets (250 KB per image variant, 4 MB per video) and the host's limits are
+unchanged, and the site's README, which says 30 MB, follows.
 
 ### D8 — The backend's leaving thanks
 
 `thanks_path("it")` returns `/it/lingua/arrivederci/#grazie`, with its test. It ships in the backend
 before the site that links it is deployed, and both before change 45's release (I12), as
-`add-lingua-usage-counts` ordered server, site, then extension. Its commit is the backend's own, so
-release-please attributes it to the backend alone.
+`add-lingua-usage-counts` ordered server, site, then extension. The squashed commit of this change's
+pull request releases the backend, which is what the deploy needs (it builds a `backend-v*` image): the
+owner merges the backend's release pull request, then deploys. The module's doc comment, which lists
+`#merci`, `#thanks` and `#gracias`, gains `#grazie`, and the no-site fallback « Merci. Thank you.
+Gracias. » gains « Grazie. ».
 
 ### D9 — Reviewed by the Italian reviewer agent (I2, I13)
 
@@ -226,9 +260,10 @@ interface's labels. Both are reported to the owner as defects of their own.
 - **A legal translation that says more than the French** → D2's faithful translation, I13's notice, the
   reviewer agent; the owner chose no lawyer.
 - **The Italian Lingua page built without its media** → trap 1, closed by change 45 bringing both in one
-  pull request; `lingua-media.ts` fails the build otherwise, so it cannot ship broken.
+  pull request; with D6's checks, a missing image or video fails the build.
 - **Four languages to keep in step on every legal edit** → the existing practice, one pull request per
-  edit in every language; the byte-for-byte check catches a page left behind only in its own language.
+  edit in every language; the site check holds each Italian legal page to its French page's date of
+  last update and sections, so a page left behind fails the build.
 - **A slug regretted after pinning** → slugs are reviewed before the pin (D1, D9).
 
 ## Migration Plan
@@ -244,7 +279,7 @@ routes stay.
 | Part | Ideal days |
 |---|---|
 | The locale's plumbing | 0.75–1.25 |
-| The legal pages (≈ 4,560 words) | 1.5–2.5 |
+| The legal pages and the support page (≈ 4,560 words) | 1.5–2.5 |
 | The islands, the leaving page, the backend's thanks, the pins | 0.75–1.25 |
 | The home and Music pages, the Italian video and share image | 1–1.5 |
 | The Lingua page's text and the home card | 0.75–1.25 |

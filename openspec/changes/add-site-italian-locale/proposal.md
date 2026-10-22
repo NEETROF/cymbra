@@ -35,8 +35,9 @@ pinned, before the first build that names it.
   and English, as for Spanish.
 - **The Lingua page's Italian text** (D6), without its screenshots: `/it/lingua/` is built only once a
   pair glossed in Italian ships, and change 45 brings its media then.
-- **The media budget raised to 40 MB** (D7, the owner's answer of 2026-10-22): the Italian Music media
-  would not fit in 30 MB, and a visitor loads only their own language's media.
+- **The media budget raised to 50 MB** (D7, the owner's answer of 2026-10-22): the Italian Music media
+  would not fit in 30 MB, 40 would leave under 1 MB once change 45's Lingua media land, and a visitor loads
+  only their own page's media.
 - **The backend's leaving thanks** (D8): `thanks_path("it")` sends an Italian answer back to the Italian
   page.
 - **Reviewed by the Italian reviewer agent** (D9, I2, I13), not by the owner.
@@ -59,7 +60,9 @@ None.
     `/it/`.
 - `site-lingua-page`: MODIFIED *The Lingua leaving page asks one question with fixed answers* (held by
   `add-lingua-usage-counts`), with its Italian path; MODIFIED *The Lingua page's media stay within a
-  weight budget* (held by `add-site-lingua-showcase`), at 40 MB.
+  weight budget* (held by `add-site-lingua-showcase`), at 50 MB.
+- `site-locales` also: MODIFIED *The home page and Cymbra Music's page exist in Spanish* (held by
+  `extend-site-spanish-locale`), whose scenario lists `/music/`'s translations, now with `/it/music/`.
 - `site-music-page`: MODIFIED *The Music page shows real screenshots in its language* (held by
   `add-site-music-showcase`), Italian among its languages.
 
