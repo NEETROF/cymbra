@@ -49,7 +49,7 @@ yarn install --immutable
 yarn gen:wasm     # compiles crates/lingua-wasm → src/wasm/pkg
 yarn gen:proto    # generates the gRPC-web client stubs from the .proto files
 pip install wordfreq
-yarn gen:pack:real  # builds assets/packs/<pair>.lingua for each pair packs.json lists — see the next section
+yarn gen:pack:real  # builds assets/packs/<pair>.lingua and assets/bases/<studied>.lingua — see the next section
 tool/build_engine.sh  # builds engine/ from mozilla/translations — Linux only, see below
 LINGUA_GRPC_WEB_URL=https://api.cymbra.app yarn build:firefox
 ```
@@ -60,18 +60,25 @@ same add-on with its sign-in buttons hidden.
 
 ## The language packs
 
-`assets/packs/<pair>.lingua` — one language pack per pair `packs.json` lists, `<studied>-<native>`:
-`en-fr` (English glossed in French), `es-fr` (Spanish in French), `es-en` (Spanish in English),
-`en-es` (English in Spanish), `fr-en` (French in English) and `fr-es` (French in Spanish), each 1.7
-to 3.0 MB of frequency and translation data. They are
-**generated, not authored**: the built files are not in the archive, but everything they are built
-from is. `yarn gen:pack:real` runs `scripts/lingua-data/build.sh <pair> assets/packs/<pair>.lingua`
-for each, which builds it from the reduced tables in `scripts/lingua-data/tables/<pair>/` (the
-glosses, in the native language) and `scripts/lingua-data/tables/<studied>/` (the studied language's
-forms, frequencies, levels, readings, pinned tag pool and dictionary words, kept once for every pack
-studying it) — **offline, with no download and no Python** — and checks the result against the
-sha256 recorded in `tables/<pair>/pin.json` (also printed at the end of this README): the build
-fails unless it produces the very bytes the package carries.
+One language pack per pair `packs.json` lists, `<studied>-<native>`: `en-fr` (English glossed in
+French), `es-fr` (Spanish in French), `es-en` (Spanish in English), `en-es` (English in Spanish),
+`fr-en` (French in English) and `fr-es` (French in Spanish). Each ships as **two parts**, which the
+add-on assembles when it loads them: the pair's **layer**, `assets/packs/<pair>.lingua` (its
+translations, senses, expressions and NOTICE, 0.5 to 1.6 MB), and its studied language's **base**,
+`assets/bases/<studied>.lingua` (forms, frequencies, levels and readings, 0.9 to 1.6 MB) — one base
+for every pair of that language, so the package carries **six layers and three bases**, nine files.
+They are **generated, not authored**: the built files are not in the archive, but everything they
+are built from is. `yarn gen:pack:real` runs `scripts/lingua-data/build.sh --parts <pair>
+assets/bases/<studied>.lingua assets/packs/<pair>.lingua` for each pair, which builds both from the
+reduced tables in `scripts/lingua-data/tables/<pair>/` (the glosses, in the native language) and
+`scripts/lingua-data/tables/<studied>/` (the studied language's forms, frequencies, levels, readings,
+pinned tag pool and dictionary words, kept once for every pack studying it) — **offline, with no
+download and no Python** — and checks each against the sha256 recorded in `tables/<pair>/pin.json`
+(`layer` and `base`; also printed at the end of this README against each file's path): the build
+fails unless it produces the very bytes the package carries. A language's second pair builds its base
+again, and the build stops if one byte differs. To compare, run `shasum -a 256
+assets/packs/*.lingua assets/bases/*.lingua` after the build: the nine sha256 are the ones listed
+at the end of this README, and the files of `dist-firefox/assets/` are the same nine.
 
 Those tables were reduced from public corpora by one script per pair and the rule modules it
 imports, all in this archive: `scripts/lingua-data/reduce_common.py`, the rules every pair shares,
@@ -95,7 +102,7 @@ names the scripts it was reduced with and each raw source at a fixed commit or s
 sha256, so the tables can be reduced again from the same bytes (`build.sh --reduce`); the reviewer
 does not need to.
 
-`yarn gen:pack` builds a small test pack instead, which is enough to load the add-on and
+`yarn gen:pack` builds a small test pack's parts instead, which are enough to load the add-on and
 exercise it.
 
 ## The translation engine
