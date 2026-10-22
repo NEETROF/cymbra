@@ -1,0 +1,9 @@
+schema: spec-driven
+created: 2026-10-22
+archiveAfter:
+  - add-lingua-italian-listings
+  - add-lingua-french-listings
+  - add-lingua-pack-it-en
+  - measure-lingua-it-en-translation-marks
+  - add-lingua-italian-word-card
+  - enable-lingua-italian-for-english-speakers

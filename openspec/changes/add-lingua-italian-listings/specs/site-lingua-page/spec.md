@@ -33,7 +33,7 @@ While every shipped pair is glossed in one language, the Lingua page's coverage 
 - **THEN** the table has one column per pair, as before
 
 #### Scenario: Six pairs on a phone
-- **WHEN** the six pairs ship and the English page is shown 375 pixels wide
+- **WHEN** the six pairs ship, and no other pair, and the English page is shown 375 pixels wide
 - **THEN** the table has six rows, Spanish → English and French → English first, and the page does not scroll sideways
 
 #### Scenario: Seven pairs on a phone
