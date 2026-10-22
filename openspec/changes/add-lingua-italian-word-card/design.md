@@ -78,8 +78,8 @@ gerundio « gérondif »). English: the English Wiktionary's Italian wording, th
 from, with "past historic (passato remoto)" as M10 settled "past historic (passé simple)" — the
 English term alone reads as a French notion to many readers. Spanish: the RAE's, as for French
 studied. The order is the English Wiktionary's Italian table's — indicative (present, imperfect, past,
-future), conditional, subjunctive (present, imperfect), imperative —, every Romance card's (Treccani
-puts the congiuntivo before the condizionale, which the card does not follow); `Ind|Sub/Imp` is not listed — Italian's imperfect
+future), conditional, subjunctive (present, imperfect), imperative —, every Romance card's, and
+Treccani's « Modi del verbo » (indicativo, condizionale, congiuntivo, imperativo); `Ind|Sub/Imp` is not listed — Italian's imperfect
 subjunctive (`parlassi`) never spells the imperfect indicative (`parlavo`).
 
 ### D3 — The indicative and the subjunctive said once (M21, read for Italian)
