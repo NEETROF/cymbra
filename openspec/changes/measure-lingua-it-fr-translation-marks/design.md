@@ -16,8 +16,8 @@ See proposal.md — Why. Where things stand:
   read from the route's last model; `tier.mjs` the first tier (90 % correct, at most 25 % withheld).
   `src/translate/markup.ts`'s `MARKED_PAIRS` lists en-fr, es-fr, es-en, en-es, fr-en, fr-es.
 - `test/translate-marks.spec.ts` holds the corpus (its languages, each step's, the letters-only
-  rule), each listed pair's results and judgments, and the list as exactly the judged pairs on the
-  tier; `test/translate-relay.spec.ts` asserts the list too.
+  rule), each listed pair's results and judgments, and the set of judged pairs as equal to the list,
+  each judged pair listed exactly when on the tier; `test/translate-relay.spec.ts` asserts the list too.
 - Change 2 pins it-en 2.0 and en-it 2.1, routes it-fr through it-en then en-fr, soaks en-it on three
   routes and hands the it-en soak to this change (its D4); `measure_marks.mjs` and `soak_engine.mjs`
   refuse a pair the catalogue does not route.
@@ -43,8 +43,8 @@ See proposal.md — Why. Where things stand:
 
 `PUD.it` pins `UD_Italian-PUD` at `71d932aa096368331ba2fd9bc906ec8dd853da8e` (`master`'s head on
 2026-10-22; `dev` is ahead), `it_pud-ud-test.conllu`, sha256
-`ad5d302bdfd05194155d9ad43dc54c3cb915076d66b3eb6ef33eca9a11f1372a`. Change 9's `measure/it-ud.sh`,
-implemented later, may take this pin; if its pin differs, the corpus keeps its own — moving it would
+`ad5d302bdfd05194155d9ad43dc54c3cb915076d66b3eb6ef33eca9a11f1372a`. Change 9's `measure/it-ud.sh` and
+this change, whichever lands first, may share the pin; if change 9's differs, the corpus keeps its own — moving it would
 move selections the requirement holds — and `tool/marks/README.md` names both. `LANGUAGES` gains
 `it`, after `fr`, so each step's Italian selection is written after its French one. A step takes a
 sentence only where every language has a word: measured, Italian has one on every step, so no step
@@ -69,12 +69,16 @@ each asked as the extension asks them, a trap answered as change 26 answers it; 
 committed. One judge marks each shown mark correct or not against the French rendering of the
 selected Italian word, by change 26's written criteria, with Italian examples taken from the corpus
 added to them before the run:
-- **a subject the route adds**: Italian drops its subject and its passato remoto is one word, so
-  English adds a pronoun and French a compound past — step 37's « A Pyongyang vidi alcune persone »
-  (also 65 « conobbe », 69 « rilasciò », 81 « accusò »): a mark on « ai vu » or « vu » is correct, on
-  « J' » or « ai » alone it is not;
-- **a word after a fused preposition**: step 6's « Nel corso della storia » (also 22, 82, 91): the
-  mark renders `corso`, never the article the preposition carried;
+- **a one-word past rendered as a compound one**: Italian's passato remoto is one word, French's
+  rendering through English often a passé composé — steps 37 « vidi », 65 « conobbe », 69
+  « rilasciò », 81 « accusò »: for step 65, a mark on « a connu » or « connu » is correct, on « a »
+  alone it is not;
+- **a subject the route adds**: Italian drops its subject, English and French write one — step 37's
+  « A Pyongyang vidi alcune persone » alone: a mark on « ai vu » or « vu » is correct, on « j' » alone
+  it is not;
+- **a word after a fused preposition**: step 6's « Nel corso della storia » (also 22, 82, 91): a mark
+  on « cours » or « Au cours » is correct, on « Au » alone it is not; an expression's rendering
+  (« Tout au long de ») counts;
 - **a word after an elided piece**: step 86's « l'unico nel Governo », the only one of its kind (French
   had 8): the mark renders `unico` (« le seul »), never the article alone;
 - **gender or number English lost**: a French rendering whose gender or number the route lost still
@@ -117,7 +121,7 @@ lists of that test and of `test/translate-relay.spec.ts` gain it-fr.
 - [One judge] → change 26's written criteria, Italian examples fixed before the run; every judgment
   committed and re-checkable.
 - [The rule never selects a word inside a multiword token] → it-fr's figures say nothing of a
-  selection on an enclitic verb (`considerandolo`, `andarsene`, `vederlo`: 61 in UD Italian-PUD) or an
+  selection on an enclitic verb (`considerandolo`, `andarsene`, `vederlo`: 69 in UD Italian-PUD, 64 forms) or an
   articulated preposition, as Spanish's say nothing of `hacerlo`; the dogfood of change 20 reads them.
 - [PUD's commit differs from change 9's pin] → the corpus keeps its own (D1); the committed
   selections are held by a test.

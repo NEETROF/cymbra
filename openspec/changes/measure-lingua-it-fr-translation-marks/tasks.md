@@ -19,7 +19,7 @@ Implemented once change 2 is: it-en in the catalogue, it-fr routed, and the mode
 
 ## 4. The documents
 
-- [ ] 4.1 `tool/marks/README.md`, `pud.mjs`'s and `select_corpus.mjs`'s header comments and closing count, `measure_marks.mjs`'s and `soak_engine.mjs`'s usage, the comment above `MARKED_PAIRS`, `TRANSLATION.md` (D5); `git grep -n "English, Spanish and French\|three treebanks\|row 19" apps/lingua-extension` reads true of this change.
+- [ ] 4.1 `tool/marks/README.md`, `pud.mjs`'s and `select_corpus.mjs`'s header comments and closing count, `measure_marks.mjs`'s and `soak_engine.mjs`'s usage, the comment above `MARKED_PAIRS`, `TRANSLATION.md` (D5); `git grep -n "English, Spanish and French\|three treebanks\|row 19's\|300 selections\|step's three\|fr-en or fr-es\|and fr-es through English" apps/lingua-extension` returns no line.
 
 ## 5. Gates
 
