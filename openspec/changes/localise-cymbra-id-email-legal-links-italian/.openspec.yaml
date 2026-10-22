@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-10-22
+archiveAfter:
+  - localise-cymbra-id-email-legal-links
+  - add-site-italian-locale
