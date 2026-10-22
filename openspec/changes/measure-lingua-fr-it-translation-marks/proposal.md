@@ -21,11 +21,11 @@ pivot loses marks, and can carry or add errors, as es-fr's (89 of 90, 10 % withh
   French-PUD, matrix change 50), through fr-en then en-it, run twice to check the results are identical.
   `results-fr-it.jsonl` is committed. Italian's function words come with change 38.
 - **Judged in Italian by two agent judges**, as change 38 judges en-it (D3):
-  - the Italian criteria are committed before the run;
-  - each line is checked against fr-en's and fr-es's committed verdicts on the same selection, and
-    against UD Italian-PUD's human Italian;
-  - Judge B, change 33's Italian reviewer agent, works blind; a line the judges disagree on is committed
-    wrong;
+  - the Italian criteria hold case classes anchored on fr-en's and fr-es's committed verdicts and UD
+    Italian-PUD's human Italian, and no verdict on a string a trial produced;
+  - Judge B, change 33's Italian reviewer agent, works blind, without this change's directory, the
+    trial or Judge A's verdicts, briefed with the PUD Italian; a line the judges disagree on is
+    committed wrong;
   - doubtful lines are named, and the tier must hold with them counted wrong.
 - **The list** (D4):
   - on the first tier, `MARKED_PAIRS` gains fr-it, inert until change 50 lists the pair;
@@ -35,8 +35,10 @@ pivot loses marks, and can carry or add errors, as es-fr's (89 of 90, 10 % withh
 - **Nothing a reader sees moves** before change 50.
 
 A trial outside the repository, on the same 100 selections, found 0 traps, 7 withheld and 90 of 93 marks
-correct by one agent's reading (85 of 93 with the doubtful lines counted wrong): on the tier either way.
-It is indicative only; the committed run decides (*Context*).
+correct by one agent's reading, 85 of 93 with that agent's doubtful lines counted wrong. The tier needs
+84 of 93, so the strict margin is one line. The harness is deterministic: the committed run will
+reproduce the trial's output, so the criteria, drafted after the trial, keep only case classes, and the
+safeguard is Judge B's independence (*Context*, D3).
 
 ## Capabilities
 
@@ -64,4 +66,4 @@ None.
   agent). Changes 47 and 48 only fill the gloss columns: if their tables are not committed, the columns
   stay empty.
 - **Order**: before change 50. Archived after changes 29, 38, 24, 19 and 2.
-- **Effort, against 1–2 ideal days**: 1.15–1.75 (design, *Effort*).
+- **Effort, against 1–2 ideal days**: 1.1–1.65 (design, *Effort*).

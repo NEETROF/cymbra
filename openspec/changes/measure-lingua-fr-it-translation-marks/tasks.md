@@ -13,8 +13,8 @@ Implemented once changes 2, 19 and 38 are on `main` (proposal, Impact).
 
 ## 3. The judgment
 
-- [ ] 3.1 [agent] Judge A: every line against fr-en's and fr-es's verdicts on the same selection and UD Italian-PUD's human Italian, a reason where both precedents differ; leaked words and marks on punctuation judged wrong (D3).
-- [ ] 3.2 [agent] Judge B, change 33's Italian reviewer agent briefed here, in a checkout at the results' commit, blind to A. Its verdicts are pasted in the pull request's description; the disagreements are committed `wrong` with `doubtful: A …/B …`; the doubtful lines are committed `wrong` where they decide the tier (D4); `judged-fr-it.tsv` is committed; the agreement count goes in the README.
+- [ ] 3.1 [agent] Judge A: every line against fr-en's and fr-es's verdicts on the same selection and UD Italian-PUD's human Italian, a reason where the verdict departs from both precedents; leaked words and marks on punctuation alone judged wrong (D3). Judge A fetches the 100 PUD Italian sentences for Judge B's brief, never committing them.
+- [ ] 3.2 [agent] Judge B, change 33's Italian reviewer agent briefed here, in a checkout at the results' commit with this change's directory removed, given the results, the criteria and the PUD Italian, never A's verdicts, the pull request's description or the trial. Its verdicts are pasted in the pull request's description; the disagreements are committed `wrong` with `doubtful: A …/B …`; the doubtful lines are committed `wrong` where they decide the tier (D4); `judged-fr-it.tsv` is committed; the agreement count goes in the README.
 
 ## 4. The list, tests and documents
 
