@@ -129,15 +129,17 @@ network's weights, which are data: each model's three files, listed in `model-ma
 the sha256 of their contents, checked before anything uses them (`src/translate/host/model-download.ts`).
 Nothing in a model is executed; it is read by the engine as a parameter file.
 
-`model-manifest.json` lists four models, Mozilla's `base-memory` models, under the Mozilla Public
-License 2.0 and redistributed unmodified:
+`model-manifest.json` lists six models, Mozilla's `base-memory` models, under the Mozilla Public
+License 2.0 and redistributed unmodified — the models the add-on may download:
 
-| Model                   | Translates | Routes it serves                                           |
-| ----------------------- | ---------- | ---------------------------------------------------------- |
-| `en-fr/base-memory/2.0` | `en→fr`    | `en-fr`; and `es-fr`, second                               |
-| `es-en/base-memory/2.0` | `es→en`    | `es-fr`, first (Spanish goes through English); and `es-en` |
-| `en-es/base-memory/2.1` | `en→es`    | `en-es`; and `fr-es`, second                               |
-| `fr-en/base-memory/2.0` | `fr→en`    | `fr-en`; and `fr-es`, first (French goes through English)  |
+| Model                   | Translates | Routes it serves                                                       |
+| ----------------------- | ---------- | ---------------------------------------------------------------------- |
+| `en-fr/base-memory/2.0` | `en→fr`    | `en-fr`; and `es-fr` and `it-fr`, second                               |
+| `es-en/base-memory/2.0` | `es→en`    | `es-fr`, first (Spanish goes through English); `es-en`; `es-it`, first |
+| `en-es/base-memory/2.1` | `en→es`    | `en-es`; and `fr-es` and `it-es`, second                               |
+| `fr-en/base-memory/2.0` | `fr→en`    | `fr-en`; and `fr-es` and `fr-it`, first (French goes through English)  |
+| `it-en/base-memory/2.0` | `it→en`    | `it-en`; and `it-fr` and `it-es`, first (Italian goes through English) |
+| `en-it/base-memory/2.1` | `en→it`    | `en-it`; and `fr-it` and `es-it`, second                               |
 
 Their files come from Mozilla's translation model registry (`sourceBase` in `model-manifest.json`),
 not from `mozilla/firefox-translations-models`: each file lists its path there and the sha256 of
@@ -150,7 +152,9 @@ reader downloads two models at most — a French-speaking reader the models of `
 and `fr-en` (`es-en/base-memory/2.0` and `fr-en/base-memory/2.0`), a Spanish-speaking reader those
 of `en-es` and `fr-es` (`en-es/base-memory/2.1` and `fr-en/base-memory/2.0`, French going through
 English); a French-speaking reader downloads nothing of `fr-en`, since no pair of this package
-teaches them French.
+teaches them French. The Italian models and routes are listed ahead of any Italian pair: no pair of
+this package studies Italian or is glossed in it, so no reader downloads `it-en/base-memory/2.0` or
+`en-it/base-memory/2.1`, and nothing is kept or loaded for their routes.
 
 ## Where the add-on reaches the network
 

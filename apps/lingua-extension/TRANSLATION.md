@@ -7,10 +7,10 @@ sentence too. It is off until the reader ticks it in Réglages, per device, neve
 
 What ships, and what does not:
 
-|                                                                               | Where it comes from                                                    | In the package?                                         |
-| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------- |
-| The engine — `bergamot-translator.js` + `.wasm`                               | built from `mozilla/translations` at the commit `engine-pin.json` pins | **yes**, every variant: Chromium, Firefox and Safari    |
-| The models — `base-memory` `en→fr` 2.0, `es→en` 2.0, `en→es` 2.1, `fr→en` 2.0 | Mozilla's registry, re-served by Cymbra (`model-manifest.json`)        | **never**: downloaded once the reader ticks the setting |
+|                                                                                                         | Where it comes from                                                    | In the package?                                         |
+| ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------- |
+| The engine — `bergamot-translator.js` + `.wasm`                                                         | built from `mozilla/translations` at the commit `engine-pin.json` pins | **yes**, every variant: Chromium, Firefox and Safari    |
+| The models — `base-memory` `en→fr` 2.0, `es→en` 2.0, `en→es` 2.1, `fr→en` 2.0, `it→en` 2.0, `en→it` 2.1 | Mozilla's registry, re-served by Cymbra (`model-manifest.json`)        | **never**: downloaded once the reader ticks the setting |
 
 The stores count WebAssembly loaded from anywhere but the package as remote code, which a Manifest
 V3 extension may not run; the model is data, which they allow. So the engine is packaged and only
@@ -57,6 +57,12 @@ taken again.
 | `en-es` | `en-es/base-memory/2.1`                                                 | yes, since change 35 (Spanish speakers) |
 | `fr-en` | `fr-en/base-memory/2.0`                                                 | yes, since change 52 (French studied)   |
 | `fr-es` | `fr-en/base-memory/2.0`, then `en-es/base-memory/2.1` — through English | yes, since change 52 (French studied)   |
+| `it-en` | `it-en/base-memory/2.0`                                                 | not yet: the Italian programme's row 25 |
+| `en-it` | `en-it/base-memory/2.1`                                                 | not yet: the Italian programme's row 45 |
+| `it-fr` | `it-en/base-memory/2.0`, then `en-fr/base-memory/2.0` — through English | not yet: the Italian programme's row 20 |
+| `it-es` | `it-en/base-memory/2.0`, then `en-es/base-memory/2.1` — through English | not yet: the Italian programme's row 30 |
+| `fr-it` | `fr-en/base-memory/2.0`, then `en-it/base-memory/2.1` — through English | not yet: the Italian programme's row 50 |
+| `es-it` | `es-en/base-memory/2.0`, then `en-it/base-memory/2.1` — through English | not yet: the Italian programme's row 54 |
 
 English and Spanish are translated into each other directly, one model each
 (`add-lingua-translation-matrix-models`). Mozilla publishes no fr↔es model. en-es is pinned at
@@ -78,14 +84,44 @@ en-es's files, 51,608,069 bytes. Since change 52 lists fr-en and fr-es in `packs
 English-speaking reader of French needs fr-en's route and a Spanish-speaking one fr-es's; a
 French-speaking reader, whom no pair teaches French, needs neither and fetches nothing of fr-en.
 
-With the six routes, every native language's pairs need two models together — the engine's bound
-(see [What the engine holds](#what-the-engine-holds)):
+Italian is translated to and from English directly, and to and from French and Spanish through
+English (`add-lingua-italian-translation-models`, the [Italian programme](../../docs/lingua/italian-programme.md)'s
+change 2). Mozilla publishes it-en and en-it, and no model between Italian and French or Spanish.
+it-en is pinned at 2.0 and en-it at 2.1, the registry's one entry each (`base-memory`, `Release`,
+runs `retrain_hr_d1nPDwVeSD6t-HdtWA4xNg` and `retrain_hr_fix_names_GPSr_u8PSmC9fOx1ZDCHoA`) and the
+newest versions Firefox's Remote Settings publish (it→en 1.0 and 2.0; en→it 1.0, 2.0 and 2.1):
+it-en is 26,242,301 bytes to download and 37,088,127 on the device, en-it 26,509,835 and
+36,507,703. The six files were downloaded from the registry on 2026-10-22; the decompressed sha256
+of each is the one Remote Settings publish for it→en 2.0 and en→it 2.1, and each model's the
+registry's `uncompressedHash`. it-fr downloads it-en's and en-fr's files (51,994,773 bytes), it-es
+it-en's and en-es's (51,615,655), fr-it fr-en's and en-it's (52,744,550), es-it es-en's and
+en-it's (52,750,887) — two models each, as es-fr and fr-es. No pair of `packs.json` studies Italian
+or is glossed in it, so no reader's pairs need these six routes: nothing is downloaded, kept or
+loaded for them until the Italian programme ships a pair — it-fr in the programme's row 20
+(`enable-lingua-italian`), it-en in row 25, it-es in row 30, en-it in row 45, fr-it in row 50 and
+es-it in row 54. The model host must serve both models before any package or App Store build whose
+catalogue names them is released: the owner dispatches `lingua-model-deploy` right after the merge,
+and until then the release gates refuse (`add-lingua-italian-translation-models` D6).
+
+With the matrix's six routes, every native language's shipped pairs need two models — the engine's
+bound (see [What the engine holds](#what-the-engine-holds)):
 
 | Native  | Pairs        | Models       | Download               |
 | ------- | ------------ | ------------ | ---------------------- |
 | French  | en-fr, es-fr | en-fr, es-en | 51,993,524 B (52,0 Mo) |
 | English | es-en, fr-en | es-en, fr-en | 52,475,767 B (52.5 MB) |
 | Spanish | en-es, fr-es | en-es, fr-en | 51,608,069 B (51,6 MB) |
+
+With Italian's six routes, the pairs glossed in each native language need three models — still
+loaded two at a time, a route's (`add-lingua-italian-translation-models` D2). None of Italian's
+pairs ships yet, so no reader holds a third model today:
+
+| Native  | Pairs               | Models              | Download               |
+| ------- | ------------------- | ------------------- | ---------------------- |
+| French  | en-fr, es-fr, it-fr | en-fr, es-en, it-en | 78,235,825 B (78,2 Mo) |
+| English | es-en, fr-en, it-en | es-en, fr-en, it-en | 78,718,068 B (78.7 MB) |
+| Spanish | en-es, fr-es, it-es | en-es, fr-en, it-en | 77,850,370 B (77,9 MB) |
+| Italian | en-it, fr-it, es-it | en-it, fr-en, es-en | 78,985,602 B (79,0 MB) |
 
 **A file two models share.** en-es 2.1's vocabulary decompresses to the same bytes as es-en 2.0's
 (`5ae254fa…58ad`; Mozilla serves two different gzip files). The device stores a file under the
@@ -96,7 +132,12 @@ the reader's pairs need, so it may count that file's 409,312 bytes although it i
 fr-en 2.0's vocabulary is en-fr 2.0's the same way (`783abf3a…002a`, from two gzip files): no
 native language's pairs hold both, so it matters only when a French-native reader of English becomes
 an English- or Spanish-native reader of French — the vocabulary is kept, fr-en's download fetches
-25,825,009 bytes, and the setting states 26,234,715.
+25,825,009 bytes, and the setting states 26,234,715. it-en 2.0's and en-it 2.1's vocabularies are one
+file the same way (`3ef0211d…2bc5`, 812,724 bytes, from two gzip files of 407,598 bytes; Remote
+Settings publish one hash for both): no native language's pairs hold both either, so it matters only
+when an English-native reader of Italian becomes an Italian-native reader of English, or the other
+way round — the vocabulary is kept, the second model's download fetches 407,598 bytes fewer than the
+setting states (26,102,237 of en-it's 26,509,835; 25,834,703 of it-en's 26,242,301).
 
 A page asks in the document's language and never names a pair: the background forms the pair from
 that language and the reader's native language, read from their stored profile, gates on it — the
@@ -106,6 +147,8 @@ reached only once a pack glossed in that native language ships, since a reader i
 of their native language alone: change 25 lists es-en's and en-es's routes, and changes 34 and 35
 ship their pairs. Marks are measured per pair (`MARKED_PAIRS`, `tool/marks/README.md`), each on
 its own route and judged in its native language — es-fr's measurement says nothing of es-en's.
+No Italian pair is measured yet (`MARKED_PAIRS` keeps its six): the Italian programme's rows 19,
+24, 29, 38, 49 and 53 measure each through its route before it ships.
 en-fr, es-fr, es-en, en-es, fr-en and fr-es are measured and listed; es-en and en-es were listed
 ahead of their readers, inert until changes 34 and 35 shipped them, and fr-en and fr-es until
 change 52 shipped them.
@@ -219,8 +262,8 @@ load and every failed one: a route dropped with a deleted model takes its other 
 
 A deletion does not lower what the worker holds in the operating system's eyes — a wasm instance's
 linear memory never shrinks — the bound caps growth, with the freed blocks reused by the next model
-built. The catalogue lists four models, but every native language's pairs need two together (the
-table above), so a reader who keeps their native language never makes a third: a Spanish-native
+built. The catalogue lists six models, but every native language's shipped pairs need two at most
+(the first table above), so a reader who keeps their native language never makes a third today: a Spanish-native
 reader of English and French holds en-es and fr-en, en-es serving both routes; an English-native
 reader of Spanish and French, es-en and fr-en. The deletion runs only when the native language
 changes while the worker lives — French to Spanish deletes en-fr and es-en for fr-es's two models;
@@ -229,7 +272,14 @@ after every load (`test/model-residency.spec.ts`, through the committed routes).
 ships en-es it can run in production: a French-native reader who holds en-fr and es-en and chooses
 Spanish needs en-es, a third, and the least recently used of the two is deleted; since change 52
 the same holds of French's routes — an English-native reader of Spanish and French who chooses
-Spanish keeps fr-en, which fr-es goes through, and es-en is deleted for en-es. A translation goes to the engine at once over a route the worker holds; over
+Spanish keeps fr-en, which fr-es goes through, and es-en is deleted for en-es. Once Italian's pairs
+ship, each native language's routes need three models (the second table above), loaded two at a
+time, and a reader who keeps their native language makes the worker delete one only when a third
+pair's route needs the room (`add-lingua-italian-translation-models` D2): a French-native reader of
+English, Spanish and Italian keeps en-fr, which their three routes go through, es-en and it-en taking
+turns beside it; a Spanish-native reader keeps en-es the same way, fr-en and it-en taking turns; an
+Italian-native reader keeps en-it, fr-en and es-en taking turns; an English-native reader holds two
+of es-en, fr-en and it-en. A translation goes to the engine at once over a route the worker holds; over
 one it deleted since the channel loaded it, the worker answers `reload`, and the channel loads the
 route again — under the start bound — and asks once more.
 
@@ -240,8 +290,13 @@ through a pair's route over the committed corpus of its studied language, in Nod
 inputs that trapped by their corpus id, the count translated, the time per sentence and the
 process's memory high-water mark; without `--isolate` the run stops at the first trap, since the
 instance is poisoned from then on. It is how a model is tried before it ships — en-es before
-change 35, now that change 25 pins its route, and fr-en and fr-es before change 52, now that change
-50 routes them — and it never runs in CI: the programme's M25 recommends a manual tool. The memory
+change 35, now that change 25 pins its route, fr-en and fr-es before change 52, now that change
+50 routes them, and the en-it model through en-it, fr-it and es-it before any Italian speaker is
+offered it, now that the Italian programme's change 2 pins it (`add-lingua-italian-translation-models`
+D4) — and it never runs in CI: the programme's M25 recommends a manual tool. The it-en soak is
+row 19's (the Italian programme's `measure-lingua-it-fr-translation-marks`), as is the Italian
+corpus: `tool/marks/corpus.json` holds no Italian selection until then, and the tool reports no
+selection for it-en, it-fr and it-es (below). The memory
 figure is Node's RSS, not the worker's (the ≈ 322 MiB of es-fr above was measured in the browser),
 and the soak says nothing of the two-model bound: a run loads one route and deletes nothing. `tool/marks/README.md` says how.
 
@@ -283,7 +338,7 @@ selection would be listed by its id, lists none.
 
 `node --experimental-strip-types tool/soak_engine.mjs --pair fr-en --models <dir>` and
 `--pair fr-es`, each with `--isolate` and in one instance, over the 100 French selections of
-`tool/marks/corpus.json`, with the four models assembled locally from Mozilla's registry by
+`tool/marks/corpus.json`, with en-fr, es-en, en-es and fr-en assembled locally from Mozilla's registry by
 `tool/assemble_model_site.mjs` (every file kept, every digest held) (`add-lingua-french-translation`
 D5). The same engine (`a6310e24…`, `.wasm` `7ef4b3fd…3122`) and machine as en-es's soak above.
 
@@ -309,6 +364,53 @@ still costs the reader one respawn.
 The marks measurement of change 50 (`tool/measure_marks.mjs --pair fr-en` and `--pair fr-es`, the
 same day, machine, engine and models) asked every French selection twice through one engine per
 run: no request trapped on either pair, and `tool/marks/README.md` lists no trapped selection.
+
+#### en-it, fr-it and es-it, soaked before they ship (2026-10-22)
+
+`node --experimental-strip-types tool/soak_engine.mjs --pair en-it --models <dir> --isolate`, then
+`--pair fr-it` and `--pair es-it`, each also in one instance, over the 100 English, French and
+Spanish selections of `tool/marks/corpus.json` — each route's studied language's — with the six
+models assembled locally from Mozilla's registry by `tool/assemble_model_site.mjs` (all eighteen
+files kept, every pin held) (`add-lingua-italian-translation-models` D4). The en-it model is the new
+one on every route: en-it alone, then second after fr-en and after es-en. The same engine
+(`a6310e24…`, `.wasm` `7ef4b3fd…3122`) and machine as the soaks above (MacBook Pro `Mac14,6`, Apple
+M2 Max, 12 cores, 64 GB; macOS 26.5.2; Node 22.22.2).
+
+|                        | en-it `--isolate`           | fr-it `--isolate`           | es-it `--isolate`           |
+| ---------------------- | --------------------------- | --------------------------- | --------------------------- |
+| Corpus                 | 100 English selections      | 100 French selections       | 100 Spanish selections      |
+| Models                 | `en-it/base-memory/2.1`     | fr-en 2.0, then en-it 2.1   | es-en 2.0, then en-it 2.1   |
+| Selections translated  | **100 / 100**               | **100 / 100**               | **100 / 100**               |
+| Trapped, timed out     | **0, 0**                    | **0, 0**                    | **0, 0**                    |
+| Time per sentence      | 143 / 153 / 373 ms          | 218 / 224 / 303 ms          | 222 / 224 / 301 ms          |
+| Memory high-water mark | 396.1 MiB (highest child's) | 568.2 MiB (highest child's) | 566.4 MiB (highest child's) |
+| Whole run              | 46 s                        | 68 s                        | 69 s                        |
+
+|                        | en-it, one instance        | fr-it, one instance        | es-it, one instance        |
+| ---------------------- | -------------------------- | -------------------------- | -------------------------- |
+| Selections translated  | **100 / 100**              | **100 / 100**              | **100 / 100**              |
+| Trapped, timed out     | **0, 0**                   | **0, 0**                   | **0, 0**                   |
+| Time per sentence      | 32 / 36 / 166 ms           | 66 / 74 / 328 ms           | 65 / 72 / 279 ms           |
+| Memory high-water mark | 413.7 MiB (this process's) | 578.5 MiB (this process's) | 576.9 MiB (this process's) |
+| Whole run              | 4.2 s                      | 8.5 s                      | 8.4 s                      |
+
+Times are median / mean / max; maxRSS is Node's, not the worker's. Beside them, in the same session
+and in one instance: en-es 33 / 36 / 168 ms and 412.8 MiB, fr-es 68 / 75 / 289 ms and 555.5 MiB —
+in this tool en-it costs what en-es costs, and fr-it and es-it what fr-es costs (and es-fr, above). The
+machine's one-minute load average stayed between 2.8 and 4.8 during the runs. No selection of the
+committed English, French or Spanish corpus trapped en-it 2.1, fr-it or es-it in Node (V8) with this
+engine build, isolated or in one instance; the browsers' workers were not run. The rows that ship
+these pairs (45, 50 and 54) read these figures; they decide nothing here, and a trap on another
+input still costs the reader one respawn.
+
+The it-en model is not soaked here: the it-en soak and the Italian corpus are row 19's
+(`measure-lingua-it-fr-translation-marks`, the Italian programme's), which selects Italian's from
+UD Italian-PUD by the rule every language shares and soaks it-en over them before it-fr ships
+(row 20, `enable-lingua-italian`). `tool/marks/corpus.json` holds no Italian selection until then,
+and the soak tool reports no selection for it-en, it-fr and it-es — « 0 selections run, 0 translated, 0 trapped, 0 timed out » and « tool/marks/corpus.json
+holds no it selection: nothing was soaked », exit status 0 — rather than refusing; without
+`--isolate` it still builds the route first, so the run of 2026-10-22 loaded it-en 2.0 in this
+engine build (228.3 MiB, Node's) and translated nothing. No Italian pair ships before row 19's soak.
 
 ## What never happens
 
