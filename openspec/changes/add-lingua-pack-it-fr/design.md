@@ -101,8 +101,9 @@ with the exact-spelling test: 34 senses with a capitalised target (`del` « Du. 
 `ad` « À, dans sa forme euphonique », `c’è` « Il y a », `coloro` « Celles et ceux », `accusatore`,
 `motociclista`) — 43 without the text test, which keeps « Pluriel de storia » (target « Pluriel »)
 a link — and, among 51 senses with a lowercase target whose text the pattern does not read as an
-inflection, those of a headword with no other glossed sense (`degli`, `delle`), counted at
-implementation. Without that condition « Article contracté souvent traduit par … » would join
+inflection, those of a headword with no other glossed sense once D5 has cleared names and acronyms (`degli`,
+`delle`, and `li` « Accusatif masculin de loro : les », whose province `LI` would otherwise count),
+counted at implementation. Without that condition « Article contracté souvent traduit par … » would join
 `pelle` (skin), `collo` (neck) and `colle` (hill), and `dello` a near-duplicate of its own gloss.
 The lemmas of change 9's tables gain a gloss (`del`, `degli`, `delle`, `coloro`, `accusatore`); `c’è`
 glosses the expression change 12 keys `ci essere`; `al`, no word of the tables, glosses nothing.
