@@ -3,7 +3,7 @@
 ## 0. Before the dispatch
 
 - [ ] 0.1 [owner] The measurement re-run on the committed Spanish ranks with D2–D4's sources and rules and the real `reduce_edition_it.py` (D6). `FLOORS["es-it"]` is fixed at those figures less two points (about 83.7 / 73.6 / 61.9), the owner settling it before the first committed measurement. The figures are written into the requirement *es-it is committed beside Spanish's studied tables…*, and a test holds `FLOORS` to them.
-- [ ] 0.2 [owner] The reviewed function-word list (D4): the commonest Spanish function words and their Italian, read by the owner or change 33's Italian reviewer agent, committed beside the reducer.
+- [ ] 0.2 [owner] The reviewed function-word list (D4), `scripts/lingua-data/es_it_function_words.tsv`, a rule file of es-it's reducer: each entry a Spanish lemma, Italian words one of es-it's sources pairs with it, and that source; proposed by the implementing agent or change 33's Italian reviewer agent, approved entry by entry by the owner.
 
 ## 1. The sources
 
@@ -17,7 +17,7 @@
   - reduces the expressions;
   - writes `tables/es-it/{gloss.tsv, senses.tsv, mwe.tsv, NOTICE, manifest.json}`, the source of every row kept for the README;
   - its rule digest is `reduce-es-it.py`, `reduce_common.py`, `reduce_edition_it.py`.
-- [ ] 2.2 `test_reduce_es_it.py`: each source's place in the order; a pivot ordered by support; a name kept off; a letter, and `o` kept; `para` from the reviewed list; a heraldic translation left out; a cognate keeping its definition (`alcaloide`); a pivot gloss for `comprador`; the expressions' keys.
+- [ ] 2.2 `test_reduce_es_it.py`: each source's place in the order; a pivot ordered by support; a name kept off; a letter, `o` kept and `y` « e, ed »; Wikidata's letters left out; the reviewed list read first (`durante`) and failing on an entry no source supports; a heraldic translation left out (`curva`); no key from a pointer wording; a cognate keeping its definition (`alcaloide`); a pivot gloss for `comprador`; the expressions' keys, with the count of pointer wordings left out.
 - [ ] 2.3 `test_reduce_editions.py`: the Italian edition's digest test names en-it, fr-it and es-it, and no other committed pair. The Python tests pass.
 
 ## 3. The pipeline and the tables

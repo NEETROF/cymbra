@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Spanish is glossed in Italian from the Italian Wiktionary's Spanish section, the two Wiktionaries' tables, Wikidata and a pivot
-es-it's glosses, sense runs and expressions SHALL be reduced by a reducer of its own, reading Spanish's studied tables as committed and writing none of it, with the Italian edition's rules and without the Spanish edition's, from these sources in this order: the Italian Wiktionary's Spanish section's definitions; the Spanish Wiktionary's Italian translations; the Italian Wiktionary's Spanish translations read backwards; Wikidata's lexeme translation links, then its lexemes of one item; the Spanish Wiktionary's Italian section read backwards; then the pivot of seven Wiktionaries' translation tables — at most three words per part of speech from each table-shaped source, a pivot's Italian words ordered by the number of tables and editions giving them, then by frequency, then alphabetically. The pivot SHALL read a table's group named by a sense or a sense number, or the whole entry of a one-sense entry, never a « to sort » table; SHALL leave out entries tagged name, abbreviation, symbol, character, letter, affix or punctuation, one-letter headwords, capitalised headwords but German nouns, capitalised Spanish or Italian words but acronyms of at most six letters, and Italian words holding a letter Italian does not write (ñ, á, í, ú, ü, ¿, ¡), « ° » or more than sixty characters; and SHALL supply no expression. Wikidata's lexemes of category letter, abbreviation or affix SHALL gloss nothing, and a one-letter Spanish lemma SHALL take nothing from Wikidata or the pivot. es-it SHALL read the commonest function words from a reviewed list. For every table-shaped source, es-it SHALL take no letter but a one-letter conjunction or preposition whose translation is the same letter (`o` « o »), no Italian word listed under two parts of speech of one Italian entry — listed once, under the first of them Spanish's readings name, or else the first listed —, no translation the Italian Wiktionary tags heraldic, and every word in the Italian edition's typography. A definition SHALL NOT give way to a table because it repeats the Spanish headword: Spanish and Italian share the word. es-it's expressions SHALL be the section's glossed headwords with a space, then those the two Wiktionaries' tables gloss, each keyed at build as *A Spanish pack keys its expressions as Spanish is read* requires. Every gloss SHALL be Italian written by a person.
+es-it's glosses, sense runs and expressions SHALL be reduced by a reducer of its own, reading Spanish's studied tables as committed and writing none of it, with the Italian edition's rules and without the Spanish edition's, from these sources in this order: the Italian Wiktionary's Spanish section's definitions; the Spanish Wiktionary's Italian translations; the Italian Wiktionary's Spanish translations read backwards; Wikidata's lexeme translation links, then its lexemes of one item; the Spanish Wiktionary's Italian section read backwards; then the pivot of seven Wiktionaries' translation tables — at most three words per part of speech from each table-shaped source, a pivot's Italian words ordered by the number of tables and editions giving them, then by frequency, then alphabetically. The pivot SHALL read a table's group named by a sense or a sense number, or the whole entry of a one-sense entry, never a « to sort » table; SHALL leave out entries tagged name, abbreviation, symbol, character, letter, affix or punctuation, one-letter headwords, capitalised headwords but German nouns, capitalised Spanish or Italian words but acronyms of at most six letters, and Italian words holding a letter Italian does not write (ñ, á, í, ú, ü, ¿, ¡), « ° » or more than sixty characters; and SHALL supply no expression. Wikidata's lexemes of category letter, abbreviation or affix SHALL gloss nothing, and a one-letter Spanish lemma SHALL take nothing from Wikidata or the pivot but through the reviewed list. es-it SHALL read the commonest function words from a reviewed list first: each entry SHALL name a Spanish lemma and Italian words that one of es-it's sources pairs with it, written by a person — the section, either table, Wikidata, the Spanish Wiktionary's Italian section read backwards or the pivot —, with that source; the list SHALL only choose and order them, and SHALL compose none. In both tables a letter's entry, a one-letter word's noun entry and an entry whose every translation is its own letter SHALL gloss nothing, and, read backwards, no one-letter Spanish word SHALL be glossed; but a one-letter conjunction or preposition whose translation is the same letter (`o` « o ») SHALL be kept. For every table-shaped source, es-it SHALL take no Italian word listed under two parts of speech of one Italian entry — listed once, under the first of them Spanish's readings name, or else the first listed —, no translation under a sense the Italian Wiktionary marks heraldic (« araldica »), and every word in the Italian edition's typography. It SHALL take no Spanish key from the pointer wordings of the Spanish Wiktionary's Italian section read backwards (« Forma del plural de », « Variante de », « Grafía alternativa de »). A definition SHALL NOT give way to a table because it repeats the Spanish headword: Spanish and Italian share the word. es-it's expressions SHALL be the section's glossed headwords with a space, then those the two Wiktionaries' tables gloss, each keyed at build as *A Spanish pack keys its expressions as Spanish is read* requires. Every gloss SHALL be written by a person.
 
 #### Scenario: A direct source first
 - **WHEN** the Italian Wiktionary's Spanish section defines `casa` and the pivot also gives it Italian words
@@ -18,16 +18,32 @@ es-it's glosses, sense runs and expressions SHALL be reduced by a reducer of its
 - **THEN** it glosses nothing
 
 #### Scenario: A letter, and a one-letter word
-- **WHEN** Wikidata or the pivot pairs the Spanish `a` with « ampere », and the Spanish Wiktionary's table translates the conjunction `o` « o »
+- **WHEN** the reviewed list names neither `a` nor `o`, Wikidata or the pivot pairs the Spanish `a` with « ampere », and the Spanish Wiktionary's table translates the conjunction `o` « o »
 - **THEN** `a` takes nothing from Wikidata or the pivot, and `o` is glossed « o »
 
-#### Scenario: A function word from the reviewed list
-- **WHEN** no source glosses `para` as the preposition it is at the top of Spanish's ranks
-- **THEN** its gloss is the reviewed list's « per »
+#### Scenario: A one-letter word kept by the direct table
+- **WHEN** the Spanish Wiktionary's table translates the conjunction `y` « e, ed »
+- **THEN** `y` is glossed « e, ed », its translation being no letter of its own
+
+#### Scenario: Wikidata's letters left out
+- **WHEN** a Wikidata lexeme of category letter pairs a Spanish and an Italian word
+- **THEN** it glosses nothing
+
+#### Scenario: The reviewed list first
+- **WHEN** the reviewed list gives `durante` « durante », a word the Spanish Wiktionary's table pairs with it, and the pivot gives it « autunno »
+- **THEN** `durante` is glossed « durante » first, and « autunno » never stands before it
+
+#### Scenario: The reviewed list composes nothing
+- **WHEN** a reviewed entry names an Italian word that none of es-it's sources pairs with its Spanish lemma
+- **THEN** es-it's tests fail, naming the entry
 
 #### Scenario: A heraldic translation left out
-- **WHEN** the Italian Wiktionary's `posto`, under a sense tagged heraldic, lists Spanish `en`
-- **THEN** `en` is not glossed « posto »
+- **WHEN** the Italian Wiktionary's `piegato`, under a sense marked « araldica », lists Spanish `curva`, and the reviewed list does not name `curva`
+- **THEN** `curva` is not glossed « piegato »
+
+#### Scenario: A pointer wording is no key
+- **WHEN** the Spanish Wiktionary's Italian section defines an Italian form « Forma del plural de libro »
+- **THEN** es-it takes no Spanish key « forma del plural de » from it
 
 #### Scenario: A cognate defines its word
 - **WHEN** the section defines `alcaloide` « alcaloide » and the Spanish Wiktionary's table lists « alcaloidi »
@@ -98,7 +114,7 @@ en-it's glosses SHALL be reduced from the Italian Wiktionary's English section w
 - **THEN** every other pair's tables, pins, packs and goldens are unchanged, but for the line of fr-it's golden naming the en-it pack beside it
 
 ### Requirement: A gloss is in the reader's language, written by a person
-A pack's glosses SHALL be written by a person in the pack's native language: never in the studied language, never in a third language, never machine-translated, and never pivoted through a third language but as it-es's and es-it's exception below. A word a person wrote into a Wiktionary translation table SHALL qualify when the table pairs the studied and the native language directly: the native words a studied entry lists, or the native entry whose table lists the studied word. For it-es and es-it alone (the Italian programme's I11), an Italian and a Spanish word a person wrote into senses of the same Wikidata item SHALL qualify after the pair's native Wiktionary's section on its studied language and both Wiktionaries' Italian–Spanish translation tables, and an Italian and a Spanish word a person wrote under the same sense of another Wiktionary's translation table — or the same entry of one sense when the table names none — after every other source; such a gloss SHALL be marked by its source wherever the pack's glosses are shown by source.
+A pack's glosses SHALL be written by a person in the pack's native language: never in the studied language, never in a third language, never machine-translated, and never pivoted through a third language but as it-es's and es-it's exception below. A word a person wrote into a Wiktionary translation table SHALL qualify when the table pairs the studied and the native language directly: the native words a studied entry lists, or the native entry whose table lists the studied word. For it-es and es-it alone (the Italian programme's I11), an Italian and a Spanish word a person wrote into senses of the same Wikidata item, or linked by a lexeme translation link, SHALL qualify after the pair's native Wiktionary's section on its studied language and both Wiktionaries' Italian–Spanish translation tables, and an Italian and a Spanish word a person wrote under the same sense of another Wiktionary's translation table — or the same entry of one sense when the table names none — after every other source; such a gloss SHALL be marked by its source wherever the pack's glosses are shown by source.
 
 #### Scenario: An English gloss is not a French one
 - **WHEN** neither the French Wiktionary nor a French–Spanish translation table glosses a Spanish lemma that the English Wiktionary's Spanish section glosses in English

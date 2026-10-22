@@ -33,12 +33,15 @@ commonest function words.
   letters, affixes and capitalised words out; Italian words holding a Spanish letter or over sixty
   characters out; no expression from the pivot.
 - **es-it's own rules** (D4):
-  - a reviewed list of the commonest function words (`a` « a », `para` « per »);
+  - a reviewed list of the commonest function words, read first, which only chooses among the Italian
+    words es-it's sources pair with each word and composes none (M5): `a` « a », `ni` « né »,
+    `durante` « durante » rather than the pivot's « autunno »;
   - letters out, but a one-letter conjunction or preposition whose translation is the same letter (`o`
     « o »);
   - Wikidata's letters, abbreviations and affixes out, and nothing from Wikidata or the pivot for a
     one-letter lemma;
-  - translations the Italian Wiktionary tags heraldic out (`en` « posto »);
+  - translations under a sense the Italian Wiktionary marks heraldic out (`en` « posto »);
+  - no Spanish key from the Spanish Wiktionary's pointer wordings read backwards;
   - an Italian word listed once per row read backwards;
   - the Italian typography.
   - fr-es's « the studied word is no definition » is **not** copied: Spanish and Italian share the word
@@ -72,7 +75,8 @@ None.
   - MODIFIED *English is glossed in Italian…* (held by `add-lingua-pack-fr-it`): read by en-it, fr-it
     and es-it;
   - MODIFIED *A gloss is in the reader's language, written by a person* (held by
-    `add-lingua-pack-it-es`): the pivot exception for it-es and es-it, with *A pivot for es-it*;
+    `add-lingua-pack-it-es`): the pivot exception for it-es and es-it, Wikidata's translation links
+    named, with *A pivot for es-it*;
   - MODIFIED *it-es's further sources are derived and pinned like every source* (held by
     `add-lingua-it-es-pivot-sources`): pinned by it-es's and es-it's pins.
 
@@ -93,8 +97,9 @@ None.
     request.
 
   No extension code, site, app or backend change.
-- **The owner**: the floor (task 0.1), the reviewed function-word list, the sources release, the dispatch,
-  and the reduction's pull request.
+- **The owner**: the floor (task 0.1), the reviewed function-word list, each entry with its source (task
+  0.2, `scripts/lingua-data/es_it_function_words.tsv`, a rule file of es-it's reducer), the sources
+  release, the dispatch, and the reduction's pull request.
 - **Prerequisites**, implemented first:
   - changes 3 and 4 (base and layer);
   - change 16 (`EDITIONS["it"]`) and change 27a (the pivot and lexeme files);
@@ -102,5 +107,4 @@ None.
   - changes 32, 34 and 35;
   - change 36, then change 47 (the holder of the Italian edition's requirement).
 - **Order**: before changes 52, 53 and 54.
-- **Effort, against the row's 4.75–8 ideal days** (raised from 3.5–6 for the pivot): 4.75–8 (design,
-  *Effort*).
+- **Effort, against the row's 3.5–6 ideal days, raised to 4.75–8.75 for the pivot** (design, *Effort*).

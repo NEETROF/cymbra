@@ -22,7 +22,7 @@
   2026-10-21, so the research used change 27a's file (50,180 rows).
 - **The method**: change 47's prototype of change 35's rules, every rule on; Spanish's committed ranks
   (`tables/es/`, 60,000 lemmas) read as `reduce-es-en.py`'s `read_studied` reads them; the table readers
-  copied from es-fr and fr-es. It reproduces change 35's es-it figures exactly. Task 0.1 re-measures on
+  copied from es-fr and fr-es. Without the letters rule it reproduces change 35's es-it figures exactly. Task 0.1 re-measures on
   the real `reduce_edition_it.py`.
 - **Loose** coverage is any gloss; **strict** leaves out a lemma glossed only through a pointer.
 
@@ -94,9 +94,12 @@
 `reduce-es-it.py` reads `tables/es/` as committed (es-en's `read_studied`) and writes `tables/es-it/{gloss.tsv,
 senses.tsv, mwe.tsv, NOTICE, manifest.json}`. Its rule digest is its own file, `reduce_common.py` and
 `reduce_edition_it.py`. It does not import `reduce_edition_es.py`, even to read the Spanish Wiktionary's
-Italian section backwards: it takes that section's notes out itself, as change 27 does for the Italian
-section, so that change 27's « the Spanish edition's rules … read by en-es, fr-es and it-es » holds. Its
-pin records the studied tables it read.
+Italian section backwards, so that change 27's « the Spanish edition's rules … read by en-es, fr-es and
+it-es » holds. Read backwards, that section gives Italian headwords as glosses of the Spanish words its
+definitions name; es-it takes no Spanish key from its pointer wordings (« Forma del plural de »,
+« Variante de », « Grafía alternativa de »), most of which the two-word filter already cuts, as change 27
+takes no Italian key from the Italian section's notes; the count is measured at task 2.1. Its pin
+records the studied tables it read.
 
 ### D2 — The sources, in it-es's order mirrored
 
@@ -121,18 +124,22 @@ sort » table. Left out: entries tagged name, abbreviation, symbol, character, l
 punctuation; one-letter headwords; capitalised headwords but German nouns; capitalised Spanish or Italian
 words but acronyms of at most six letters; Italian words holding a letter Italian does not write (ñ, á,
 í, ú, ü, ¿, ¡), « ° » or more than sixty characters — the mirror of it-es's grave accent. The pivot
-supplies no expression. Measured: 13,062 whole-entry groups on entries of several senses, 105 « to sort »
-tables and 5,280 capitalised entries left out; 201 Italian words with a Spanish letter or « ° » and 174
-over sixty characters.
+supplies no expression. Measured at the research's filter stage, after the groups are read: 13,062
+whole-entry groups on entries of several senses, 105 « to sort » tables and 5,280 capitalised entries
+left out; 201 Italian words with a Spanish letter or « ° » and 174 over sixty characters (the raw files
+give 14,044 / 200 / 124 / 57).
+
+The prototype applied Wikidata, the backwards section and the pivot up to rank 20,000; the reducer applies
+them to all 60,000 lemmas, and task 0.1 measures the layer's size and the pivot's share there.
 
 ### D4 — es-it's own rules
 
 | Rule | Why | Effect |
 |---|---|---|
-| A reviewed list of the commonest function words, read first for them (change 27's D4 shape; the owner, 2026-10-22) | no source glosses `a`, `para`, `bien`, `ni` well; Wikidata and the pivot give `a` « ampere », `durante` « autunno » | `a` « a », `para` « per »; the list is the owner's to read (task 0.2) |
-| Letters out, but a one-letter conjunction or preposition whose translation is the same letter | the copied letters rule drops `o` « o », a real loss; Italian writes the same `o`, `e`, `a` | `o` kept |
+| A reviewed list of the commonest function words, read first (the owner, 2026-10-22) | the sources gloss `a`, `ni` (« né; ni, nu »), `durante` (« …; autunno »), `sólo` and `le` badly or not at all; `para` « per » and `bien` « bene » are already glossed by the backwards section | each entry names a Spanish lemma, Italian words one of es-it's sources pairs with it, and that source: the list only chooses and orders them, and composes none (M5); a test fails on an entry no source supports; the owner approves each entry and its source (task 0.2) |
+| Letters out as en-it reads them — a letter's entry, a one-letter word's noun entry, an entry whose every translation is its own letter, and, read backwards, every one-letter Spanish word —, but a one-letter conjunction or preposition whose translation is the same letter | the copied rule drops `o` « o », a real loss; it keeps `y` « e, ed, et » and `u` « oppure » from the direct table | `o` kept |
 | Nothing from Wikidata or the pivot for a one-letter lemma; Wikidata's lexemes of category letter, abbreviation or affix out | `s` « secondo », `k` « potassio, kelvin », `d` « non disponibile » | 85.7 / 75.6 / 63.9 |
-| Translations the Italian Wiktionary tags heraldic out of the inverted table | `en` (rank 4) « posto » | 6 / 17 / 32 rows |
+| Translations under a sense the Italian Wiktionary marks « araldica » out of the inverted table (389 translations; « termine araldico », 446 more, is not matched) | `en` (rank 4) « posto », `curva` « piegato » | 6 / 17 / 32 rows; D5's counts measured with the rule on |
 | An Italian word listed once per row, read backwards | as fr-es, en-it, fr-it | |
 | The Italian edition's typography for every table word | as en-it, fr-it | |
 | **Not** fr-es's « the studied word is no definition » | Spanish and Italian share the word: it moves 10 rows, 7 worse (`alcaloide` → « alcaloidi », `consonante` → « consonànte ») | definitions kept |
@@ -165,7 +172,8 @@ fr-es's shape, the native edition first:
 "kaikki-es-Italiano.jsonl"), …}` with the seven pivot editions and Wikidata. No `PINNED` entry. Its
 sources releases are `lingua-pack-sources-es-it-…`. Registering moves no committed pin.
 
-Each es-it update fetches about 5.4 GB of dumps, as it-es does (the English dump alone is 3.08 GB);
+Each es-it update fetches about 5.5 GB of dumps, as it-es does (changes 27 and 27a recorded about 5.3; the
+English dump is now 3.08 GB);
 `keep=…` reuses the last release's files on a routine update. The release assets are about 5 MB at zstd
 19.
 
@@ -191,7 +199,7 @@ Each es-it update fetches about 5.4 GB of dumps, as it-es does (the English dump
   on the pivot's at implementation.
 - **The card snapshot** change 34 hands over: `test/word-card-es-it.spec.ts` and
   `test/baseline/word-card-es-it.txt`, Spanish forms named in Italian (« passato remoto », « congiuntivo
-  futuro », « condizionale presente », « gerundio »), re-blessed with the golden.
+  futuro (futuro de subjuntivo) », « condizionale presente », « gerundio »), re-blessed with the golden.
 
 ### D9 — Coverage, provenance and credits
 
@@ -211,7 +219,8 @@ Copied whole from their holders, as they then stand:
   es-it; *A rule of the Italian edition* moves three digests. Change 37 (`refine-lingua-en-it-glosses`) and
   this change: whichever is implemented second re-copies the other's block.
 - **Change 27's *A gloss is in the reader's language, written by a person***: the pivot exception holds
-  for it-es and es-it, after each pair's direct sources; *A pivot for it-es* reads « no pack but it-es and
+  for it-es and es-it, after each pair's direct sources, and names Wikidata's lexeme translation links
+  beside its same-item senses (change 27a's « linked to the same item or by a translation link »); *A pivot for it-es* reads « no pack but it-es and
   es-it glosses through that table »; *A pivot for es-it* is added (`comprador` « acquirente », from the
   English Wiktionary's `buyer`).
 - **Change 27a's *it-es's further sources are derived and pinned like every source***: the pivot and lexeme
@@ -231,7 +240,7 @@ form-of requirement as change 47 leaves it (D4).
 | Card headings | | `ser` and `estar` headed as nouns, the section's noun entry first; `tierra` as a proper noun |
 | Capital openings | 113 / 149 / 196 rows | |
 | Words described, not glossed | 15 | `dos` « il numero naturale due, 2 » |
-| English text in a gloss | | `solo` « sole only, unique, single; … », `freno` |
+| English text in a gloss | | `solo` (rank 51) « sole only, unique, single; lonely, lonesome; alone, by oneself », `freno` « brake, of a vehicle etc »: against M5's « never in a third language » until change 52 takes it out, as en-it's English text is until change 37; the ADDED requirement therefore claims « written by a person », not « Italian » |
 | Name notes on common words | | `domingo` « domenica; nome proprio di persona maschile… » |
 | Expressions from the pivot | 31,163 multi-word keys, not measured | es-it keys 1,175 against es-fr's 15,133 |
 | kaikki's empty senses | 101 headwords | reported upstream; the tables gloss most of them |
@@ -257,7 +266,7 @@ not listed. Rollback is a revert.
 
 ## Effort
 
-4.75–8 ideal days, against the row's 4.75–8 (raised from 3.5–6 with the pivot):
+4.75–8.75 ideal days, against the row's 3.5–6, raised to 4.75–8.75 with the pivot:
 
 | Part | Ideal days |
 |---|---|
@@ -275,6 +284,7 @@ not listed. Rollback is a revert.
 
 For the owner:
 1. **The floor** (task 0.1): the re-measured figures less two points, about 83.7 / 73.6 / 61.9.
-2. **The reviewed function-word list** (task 0.2): the words and their Italian, read before the dispatch.
+2. **The reviewed function-word list** (task 0.2): the words, their Italian and each one's source, approved
+   by the owner before the dispatch; change 33's Italian reviewer agent may propose, never decide.
 3. **The golden**: es-it alone, as es-en's (recommended), so that en-it's *Nothing else moves* keeps its
    one exception.
