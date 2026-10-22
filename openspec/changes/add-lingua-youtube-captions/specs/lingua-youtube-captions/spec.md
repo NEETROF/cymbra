@@ -6,12 +6,13 @@ Whether a video has an English caption track SHALL be known when its watch page 
 list of tracks the page already holds (see **Only the list of tracks is read before the mode
 starts**), so that the offer — a control near the player (French interface: « Sous-titres
 Lingua ») and a line in the popup — appears only on a video where the mode works.
-English means a written or an automatic English track. Spanish and French captions are out of
-this change's scope (the Spanish programme's decision D7, `docs/lingua/spanish-programme.md`,
-carried by the language matrix programme, `docs/lingua/language-matrix-programme.md`): a reader
-who studies Spanish or French as well as English is offered the mode on English captions only,
-and a reader who does not study English (an English speaker reading Spanish or French) is not
-offered it, whatever their native language.
+English means a written or an automatic English track. Spanish, French and Italian captions are
+out of this change's scope (the Spanish programme's decision D7, `docs/lingua/spanish-programme.md`,
+carried by the language matrix programme, `docs/lingua/language-matrix-programme.md`, and by the
+Italian programme, `docs/lingua/italian-programme.md`): a reader who studies Spanish, French or
+Italian as well as English is offered the mode on English captions only, and a reader who does not
+study English — an English speaker reading Spanish, French or Italian, or a French, Spanish or Italian
+speaker reading only languages other than English — is not offered it, whatever their native language.
 Shorts, live streams and premieres in progress, players embedded in other sites, YouTube's mobile
 site, and Safari on iPhone and iPad SHALL NOT be offered it. Where the mode is not offered, the
 player SHALL be left untouched, and the popup SHALL say why when the page is a watch page
@@ -35,12 +36,20 @@ for the previous video and decide the offer afresh for the next, with nothing ca
 - **WHEN** a reader who studies English and French opens a video whose only captions are French
 - **THEN** the caption mode is not offered on it, and the popup says it reads English captions only
 
+#### Scenario: An Italian video for a reader of Italian
+- **WHEN** a reader who studies English and Italian opens a video whose only captions are Italian
+- **THEN** the caption mode is not offered on it, and the popup says it reads English captions only
+
 #### Scenario: A Spanish-speaking reader of English
 - **WHEN** a reader whose native language is Spanish and who studies English opens a video with an English caption track
 - **THEN** the caption mode is offered, as it is to a French-speaking reader of English
 
+#### Scenario: An Italian-speaking reader of English
+- **WHEN** a reader whose native language is Italian and who studies English opens a video with an English caption track
+- **THEN** the caption mode is offered, as it is to a French-speaking reader of English, its control and popup lines in the Italian interface
+
 #### Scenario: An English-speaking reader
-- **WHEN** a reader whose native language is English, who studies Spanish or French and not English, opens a video with an English caption track
+- **WHEN** a reader whose native language is English, who studies Spanish, French or Italian and not English, opens a video with an English caption track
 - **THEN** the caption mode is not offered, and the popup says it reads English captions for a reader who studies English
 
 #### Scenario: A live stream
@@ -71,6 +80,10 @@ caption request SHALL be made or replayed, before the mode starts.
 
 #### Scenario: A reader who does not study English
 - **WHEN** a reader who studies Spanish only opens a watch page
+- **THEN** no script of the caption mode is placed in the page, and the page is read as any page is
+
+#### Scenario: A reader of Italian alone
+- **WHEN** a reader whose native language is French and who studies Italian only opens a watch page
 - **THEN** no script of the caption mode is placed in the page, and the page is read as any page is
 
 ### Requirement: The caption mode never takes over the player unasked

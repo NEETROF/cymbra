@@ -51,8 +51,9 @@ for; the engine is the better answer whenever it is there.
 ### D2 — YouTube's translation: the replayed request with `tlang`, once, when first shown
 
 With no engine, the first time the line is shown on a video the mode replays the caption request it
-already rebuilt (A's task 2.3) with `tlang=<gloss language>` (`fr` or `es`, the reader's native
-language), only when the track list says YouTube translates that track. The answer is parsed by A's
+already rebuilt (A's task 2.3) with `tlang=<gloss language>` (`fr`, `es` or `it`, the reader's native
+language; `tlang=es` and `tlang=it` are unverified, the spike and P2 trying `fr` only, and a refusal
+shows « Pas de traduction pour ces sous-titres »), only when the track list says YouTube translates that track. The answer is parsed by A's
 json3 parser and shown **per cue**, since its sentences are redistributed across cues; it is never
 cut into words, never used to mark one, and never reaches a card. It adds no third party — YouTube
 already serves the video — and it sends no reader text, so it respects "a reader who chose nothing:
@@ -86,9 +87,10 @@ like « Démarrer automatiquement sur YouTube ». It is not synchronised.
 
 ### D5 — The label follows the interface, the translation follows the glosses
 
-YouTube's translation goes into the language of the reader's glosses (French or Spanish), and its
-label — « Traduction automatique YouTube » in French — follows the interface language, in French,
-English and Spanish. Nothing is built for the language matrix beyond that.
+YouTube's translation goes into the language of the reader's glosses (French, Spanish or Italian),
+and its label — « Traduction automatique YouTube » in French — follows the interface language, in
+French, English, Spanish and Italian. Nothing is built for the language matrix or the Italian
+programme beyond that.
 
 ### D6 — Sequencing
 

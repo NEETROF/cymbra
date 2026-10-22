@@ -46,7 +46,8 @@ _None._ The translation line belongs to `lingua-youtube-captions`, which
 
 **Products.** Cymbra Lingua's extension only (Chromium, Firefox, Safari on macOS — the caption
 mode's variants). No backend change, no RPC, no `.proto` change. The site's privacy page gains one
-sentence in the Lingua annex, in French, English and Spanish.
+sentence in the Lingua annex, in French, English and Spanish, and in Italian on change 41's page where
+it exists.
 
 **Consumed, not redeclared.** The caption mode, its track replay, its parser and its sentences
 (`add-lingua-youtube-captions`); the engine seam `createTranslatorPort` and **A translation blocks
@@ -55,7 +56,7 @@ translations.
 
 **Code.** `apps/lingua-extension`: the translation line beside the caption line (`src/youtube/`),
 its pacing of the engine, the `tlang` replay, one per-device preference in Réglages, new copy in
-French, English and Spanish (`src/i18n/`).
+French, English and Spanish, and in Italian once change 33's `src/i18n/it/` exists (`src/i18n/`).
 
 **Ordering.** Archives **after** `add-lingua-youtube-captions` and
 `add-lingua-translation-delivery` (`archiveAfter`): its blocks of **No network requests** and of
