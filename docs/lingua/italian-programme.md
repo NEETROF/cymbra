@@ -131,7 +131,7 @@ is measured by each pair's change, as before.
 |---|---|---|---|
 | it-fr | French Wiktionary, Italian section | 1,310,041 senses | the richest section any pair has read (en-fr reads 225,028 and covers 95.1 / 90.1 / 78.9) |
 | it-en | English Wiktionary, Italian section | 719,680 senses, 589,335 distinct forms | larger than its French section (459,894), which gave fr-en 93.9 / 87.1 / 76.4 |
-| it-es | Spanish Wiktionary, Italian section, then the Italian Wiktionary's Spanish translations | 7,810 senses (+ 8,665) | thin: below fr-es's 83.4 / 70.8 / 56.5 is likely; a floor before measuring (I4) |
+| it-es | Spanish Wiktionary, Italian section, then the Italian Wiktionary's Spanish translations, then the Spanish Wiktionary's tables read backwards | 7,810 senses (+ 13,018 translations of 7,029 Italian words; + 13,837 of 10,244) | measured on 2026-10-23 for change 27, all three sources, on change 16's study ranking: 57.8 / 46.8 / 35.0, about 25 points under fr-es's committed 83.2 / 70.9 / 57.1 — whether it ships is I4's question. The « + 8,665 » first written here was the Italian Wiktionary's Spanish section, es-it's source |
 | en-it | Italian Wiktionary, English section, then the English Wiktionary's Italian translation tables | 41,749 senses | as en-es was (35,167 in the Spanish Wiktionary; 93.4 / 85.2 / 71.9 with the tables) |
 | fr-it | Italian Wiktionary, French section, then the French Wiktionary's Italian translations | 35,027 senses | as fr-es was (11,143; 83.4 / 70.8 / 56.5), or better |
 | es-it | Italian Wiktionary, Spanish section, then the Spanish Wiktionary's Italian translations | 8,665 senses | thin on both sides; a floor before measuring (I4) |
