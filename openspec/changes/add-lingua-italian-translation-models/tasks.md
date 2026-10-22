@@ -15,7 +15,7 @@
 
 - [x] 3.1 `TRANSLATION.md` (the six models, the twelve routes, the shared vocabularies; its « four models … two together » notes become six and three, D2), `tool/marks/README.md`'s *Soaking a route* bound paragraph (likewise), `REVIEWERS.md` (« lists four models » becomes six, the models the add-on may download), `tool/soak_engine.mjs`'s usage (the twelve routes); verify each names it-en 2.0 and en-it 2.1 and none still says four models or two together.
 - [x] 3.2 In `apps/lingua-extension`: `yarn lint`, `yarn format:check`, `yarn typecheck`, `yarn test`, `yarn build`, `yarn check:variants` pass.
-- [ ] 3.3 `openspec validate add-lingua-italian-translation-models --strict` passes and `python3 scripts/openspec_archive_order.py add-lingua-italian-translation-models` names only `add-lingua-translation-matrix-models` and `add-lingua-french-translation` (exit 10 while they are open, 0 once archived); `docs/lingua/italian-programme.md` row 2's Status column names this change's pull request; verify the table's column count is unchanged.
+- [x] 3.3 `openspec validate add-lingua-italian-translation-models --strict` passes and `python3 scripts/openspec_archive_order.py add-lingua-italian-translation-models` names only `add-lingua-translation-matrix-models` and `add-lingua-french-translation` (exit 10 while they are open, 0 once archived); `docs/lingua/italian-programme.md` row 2's Status column names this change's pull request; verify the table's column count is unchanged.
 
 ## 4. Owner
 
