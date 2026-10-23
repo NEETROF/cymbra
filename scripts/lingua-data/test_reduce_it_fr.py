@@ -213,6 +213,39 @@ ENTRIES = [
     compound("fallo"),
     entry("fallo", senses=[{"glosses": ["foul"], "tags": ["masculine"]}]),
     compound("farlo"),
+    # D5 — the owner's overrides: the auxiliary participle, read by the counts as the noun.
+    entry("essere", pos="verb", forms=[*TABLE_HEAD, ("è", PRESENT_3S), ("stàto", PARTICIPLE)]),
+    entry("stato", forms=[("stati", ["plural"])], senses=[{"glosses": ["state"], "tags": ["masculine"]}]),
+    form_of("stato", "essere", tags=("form-of", "participle", "past")),
+    # D5 — a name beside a common reading of its own: D5's, the counts deciding.
+    entry("ti", pos="pron"),
+    entry("Ti", pos="name", senses=[{"glosses": ["a surname"]}]),
+    entry("tu", pos="pron", forms=[("ti", ["accusative"])]),
+    entry("Firmato", pos="name", senses=[{"glosses": ["a male given name"]}]),
+    entry("firmare", pos="verb", forms=[*TABLE_HEAD, ("firmàto", PARTICIPLE), ("fìrmi", ["indicative", "present", "second-person", "singular"])]),
+    # A name's rows are no forms of a word.
+    entry("Nepal", pos="name", forms=[("nepalese", ["demonym"]), ("nepàli", ["plural"])], senses=[{"glosses": ["Nepal"]}]),
+    # D6 — the apocopes written without an apostrophe, by the reviewed table.
+    entry("bel", pos="adj", senses=[{"glosses": ["preconsonantal masculine singular form of bello"]}]),
+    entry("san", senses=[{"glosses": ["san (Greek letter)"]}]),
+    alt_of("san", "santo saint", pos="noun", tags=("abbreviation", "alt-of", "apocopic")),
+    entry("santo", pos="adj"),
+    # D3 — a finite form ending as an infinitive carrying clitics does is no such infinitive.
+    entry("imporre", pos="verb", forms=[*TABLE_HEAD]),
+    entry("importare", pos="verb", forms=[*TABLE_HEAD]),
+    form_of("importi", "importare", tags=("form-of", "indicative", "present", "second-person", "singular")),
+    # D4 — a form carrying clitics its own entry links, and a compound kaikki does not tag.
+    entry("recarsi", pos="verb", forms=[*TABLE_HEAD, ("mi rèco", PRESENT_1S)], senses=[{"glosses": ["reflexive of recare"], "tags": ["form-of", "reflexive"], "form_of": [{"word": "recare"}]}]),
+    entry("recare", pos="verb", forms=[*TABLE_HEAD]),
+    form_of("recatevi", "recarsi", tags=("form-of", "imperative", "plural", "second-person")),
+    form_of("pentirmi", "pentirsi", tags=("first-person", "form-of", "infinitive", "singular")),
+    entry("stammi", pos="verb", senses=[{"glosses": ["combined form of sta' (second person singular imperative of stare) and mi"]}]),
+    # D4 — a compound whose other entry is a surname's: no rank, and a form through its participle.
+    compound("donati"),
+    form_of("donati", "donato", tags=("form-of", "masculine", "participle", "plural")),
+    entry("Donati", pos="name", senses=[{"glosses": ["a surname"]}]),
+    entry("donare", pos="verb", forms=[*TABLE_HEAD, ("donàto", PARTICIPLE)]),
+    entry("donato", pos="verb", forms=[("donati", ["masculine", "plural"])], senses=[{"tags": ["form-of", "participle", "past"], "form_of": [{"word": "donare"}]}]),
     # D6 — hyphenated words, ranked by MarkIT's evidence.
     entry("pellerossa", senses=[{"glosses": ["redskin"]}]),
     entry("anglo-americano", pos="adj"),
@@ -227,6 +260,8 @@ TOP = [
     "vita", "vite", "bianca", "bianco", "roma", "bambini", "bambino", "credere", "farlo", "lavarsi",
     "lavare", "casa", "vero", "veramente", "casetta", "poco", "uno", "dirmelo", "fallo", "mare",
     "bello", "pentirsi", "andare", "potere", "do", "andarsene", "pellerossa", "dello", "buono",
+    "essere", "stato", "ti", "tu", "firmare", "firmato", "bel", "san", "santo", "cent", "importare", "importi",
+    "recare", "stammi", "donati", "donare", "nepalese", "nepal", "pentirmi", "recatevi",
 ]
 # Zipf frequencies: the list's order, and the forms wordfreq attests.
 FREQUENCY = {word: 7.0 - i * 0.05 for i, word in enumerate(TOP)}
@@ -243,7 +278,8 @@ FREQUENCY.update(
             "creduta", "creduto", "creduti", "credo", "dato", "diedi", "darà", "dà", "dai", "do", "darebbe", "ho",
             "lavo", "lava", "pento", "pente", "pentire", "pentendo", "pentite", "vado", "vai", "va", "può",
             "case", "casette", "vera", "veri", "verissimo", "mari", "belli", "porto", "porte", "leggi", "viti", "bianchi",
-            "i", "gli", "le", "li", "questa", "buona", "vite", "dirmi",
+            "i", "gli", "le", "li", "questa", "buona", "vite", "dirmi", "stati", "firmi", "nepali",
+            "pento", "reco", "recatevi", "pentirmi",
         )
     }
 )
@@ -258,7 +294,19 @@ def top_n(n):
 
 
 # MarkIT's counts, doubled: `porta` read as portare, `vite` as vita, `lo` as the pronoun.
-COUNTS = collections.Counter({("porta", "portare"): 3, ("porta", "porta"): 1, ("vite", "vita"): 2, ("lo", "lo"): 5, ("lo", "il"): 2, ("anglo-americano", "anglo-americano"): 1})
+COUNTS = collections.Counter(
+    {
+        ("porta", "portare"): 3,
+        ("porta", "porta"): 1,
+        ("vite", "vita"): 2,
+        ("lo", "lo"): 5,
+        ("lo", "il"): 2,
+        ("anglo-americano", "anglo-americano"): 1,
+        ("stato", "stato"): 29,
+        ("stato", "essere"): 9,
+        ("ti", "ti"): 15,
+    }
+)
 
 
 def section(entries=ENTRIES):
@@ -276,6 +324,7 @@ def reduce(max_lemmas=200, entries=ENTRIES, counts=COUNTS):
     lexicon = section(entries)
     red.name_or_word(lexicon.candidates, lexicon.poses, frequency)
     red.own_words(lexicon)
+    red.read_apocopes(lexicon)
     forms, ranks, step = red.reduce_forms(lexicon, counts, treebank.markit_zipf(counts), frequency, top_n, max_lemmas)
     red.seed_pieces(forms)
     return lexicon, forms, ranks, step
@@ -525,8 +574,13 @@ class OneLemma(unittest.TestCase):
         self.assertEqual(red.decided_by("x", {"a", "b"}, COUNTS, lemmas, frequency), "alphabetical order")
         self.assertEqual(red.decided_by("x", {"a", "b"}, COUNTS, lemmas, frequency, {"x": ("b", "why")}), "override")
 
-    def test_the_override_list_is_empty_and_decides_first(self):
-        self.assertEqual(red.OVERRIDES, {})
+    def test_the_owner_s_overrides_decide_first(self):
+        # stato and stati read as essere (the owner, 2026-10-23), bianca as bianco; each row says why.
+        self.assertEqual({form: lemma for form, (lemma, _) in red.OVERRIDES.items()}, {"stato": "essere", "stati": "essere", "bianca": "bianco"})
+        self.assertTrue(all(len(reason) > 40 for _, reason in red.OVERRIDES.values()))
+        self.assertEqual(self.forms["stato"], "essere")
+        self.assertEqual(self.forms["stati"], "essere")
+        self.assertNotIn("stato", self.ranks, "the noun leaves the pack: the row's cost")
         self.assertEqual(red.choose_lemma("porta", {"porta", "portare"}, COUNTS, {"porta"}, frequency, {"porta": ("porta", "why")}), "porta")
 
     def test_spec_scenario_a_name_and_a_word(self):
@@ -539,15 +593,61 @@ class OneLemma(unittest.TestCase):
         self.assertEqual(self.forms["bambini"], "bambino")
         self.assertNotIn("bambini", self.ranks)
 
-    def test_the_names_rule_s_branches(self):
-        poses = {"bianca": {"noun", "name"}, "bianco": {"adj"}, "bambini": {"name"}, "bambino": {"noun"}, "roma": {"name", "noun"}, "maria": {"name"}, "mario": {"name"}}
+    def test_the_names_rule_reads_a_name_alone_and_nothing_else(self):
+        # A form whose own entries are names alone reads as the other word; one with a common reading
+        # of its own beside a name is D5's, whatever wordfreq says; a name no word reads stays, and a
+        # name another name reads is no word's.
+        poses = {"bianca": {"noun", "name"}, "bianco": {"adj"}, "bambini": {"name"}, "bambino": {"noun"}, "roma": {"name"}, "maria": {"name"}, "mario": {"name"}}
         candidates = {"bianca": {"bianca", "bianco"}, "bambini": {"bambini", "bambino"}, "roma": {"roma"}, "maria": {"maria", "mario"}}
-        moved = red.name_or_word(candidates, poses, frequency)
-        self.assertEqual(candidates, {"bianca": {"bianco"}, "bambini": {"bambino"}, "roma": {"roma"}, "maria": {"maria", "mario"}})
-        self.assertEqual(moved, {"names read as another word": 1, "kept the commoner reading, another word's": 1})
-        candidates = {"bianca": {"bianca", "bianco"}}
-        red.name_or_word(candidates, poses, lambda w: {"bianca": 6.0}.get(w, 1.0))
-        self.assertEqual(candidates, {"bianca": {"bianca"}})
+        moved = red.name_or_word(candidates, poses, lambda w: 9.0)
+        self.assertEqual(candidates, {"bianca": {"bianca", "bianco"}, "bambini": {"bambino"}, "roma": {"roma"}, "maria": {"maria", "mario"}})
+        self.assertEqual(moved, {"names read as another word": 1})
+        # On the section: `ti`, a surname beside the pronoun, is the pronoun by MarkIT's counts;
+        # `firmato`, a given name alone, the participle of firmare.
+        self.assertEqual(self.forms["ti"], "ti")
+        self.assertEqual(self.forms["firmato"], "firmare")
+        self.assertNotIn("firmato", self.ranks)
+
+    def test_spec_scenario_an_apocope(self):
+        # `bel`'s entry is a meaning and `san`'s own entry the Greek letter: the reviewed table reads
+        # each as its word alone, and neither is a lemma; `un` and `buon` as before.
+        self.assertEqual(self.forms["bel"], "bello")
+        self.assertEqual(self.forms["san"], "santo")
+        for form in ("bel", "san", "un", "buon"):
+            self.assertNotIn(form, self.ranks, form)
+            self.assertNotIn(form, self.lexicon.lemmas, form)
+        self.assertEqual(self.forms["un"], "uno")
+        for form, (lemma, reason) in red.APOCOPES.items():
+            self.assertTrue(red.is_form(form) and red.is_form(lemma) and reason, form)
+        self.assertNotIn("bei", red.APOCOPES, "bello's plural before a consonant, no apocope")
+        # `cent`, the euro cent, is a word; `cent'` a piece.
+        self.assertNotIn("cent", red.WORDFREQ_STEMS)
+        self.assertIn("cent", self.ranks)
+
+    def test_a_finite_form_is_no_infinitive_carrying_clitics(self):
+        # `importi` ends as `impor` + `ti` would, and imporre is a verb: its entry is a finite form's.
+        self.assertIsNone(self.lexicon.survey.clitic_infinitive("importi"))
+        self.assertEqual(self.forms["importi"], "importare")
+        self.assertEqual(self.lexicon.survey.clitic_infinitive("recarsi"), ("si", "recare"))
+
+    def test_a_form_carrying_clitics_its_own_entry_links_is_no_form(self):
+        for form in ("recatevi", "pentirmi", "stammi"):
+            self.assertNotIn(form, self.forms, form)
+            self.assertNotIn(form, self.ranks, form)
+            self.assertIn(form, self.lexicon.unranked, form)
+        self.assertGreaterEqual(self.lexicon.stats["forms carrying clitics their own entry links"], 2)
+        self.assertEqual(self.forms["reco"], "recare")
+        self.assertEqual(self.forms["pento"], "pentirsi")
+
+    def test_a_compound_beside_a_surname_is_no_rank(self):
+        self.assertNotIn("donati", self.ranks)
+        self.assertEqual(self.forms["donati"], "donare")
+        self.assertNotIn("donati", self.lexicon.survey.standing)
+
+    def test_a_name_s_rows_are_no_forms(self):
+        # Nepal's demonym and its plural are no forms of the name: `nepalese` is wordfreq's word.
+        self.assertNotIn("nepali", self.forms)
+        self.assertEqual(self.forms["nepalese"], "nepalese")
 
     def test_m8_s_cost(self):
         cost = red.m8_cost(self.forms, self.ranks, self.lexicon, top_n, tops=(25, 50))

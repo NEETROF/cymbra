@@ -57,13 +57,15 @@ articulated prepositions are neither forms nor ranks, `dai` excepted — a form 
 the truncation `da'`'s word. No plain word beginning with an elided piece is a form (the pre-pass
 splits it), nor any verb form carrying clitics (`dirmelo`, `vattene`: the enclitic rule reads them).
 
-One lemma per form (D5, M8): a form that is a name and another word's keeps the commoner reading
-(`bianca` → *bianco*; `roma` stays the city); then the override list (`OVERRIDES`, empty), MarkIT's
-counts, the form's own entry, the lemma's wordfreq frequency, alphabetical order. The ranks (D6) are
-wordfreq `it`'s order over its words that are not only inflected forms, dense, the 60,000 first kept,
-a word whose own form reads as another giving its rank to the next; wordfreq's stems of the elided
-pieces and truncations and its tokens beginning with a piece are no words (`un` and the apocopes
-written without an apostrophe are), a hyphenated word is ranked on MarkIT's evidence, and no verb form
+One lemma per form (D5, M8): a form whose own lemma entries are names alone reads as the other word
+(`bambini`, a surname, → *bambino*; `roma`, which no other word reads, stays the city); then the
+override list (`OVERRIDES`: the owner's `stato` and `stati` → *essere*, and `bianca` → *bianco*),
+MarkIT's counts, the form's own entry, the lemma's wordfreq frequency, alphabetical order. The ranks
+(D6) are wordfreq `it`'s order over its words that are not only inflected forms, dense, the 60,000
+first kept, a word whose own form reads as another giving its rank to the next; wordfreq's stems of
+the elided pieces and truncations and its tokens beginning with a piece are no words (`cent` is, and
+the apocopes written without an apostrophe are forms of their words by a reviewed table, `APOCOPES`:
+`bel` → *bello*, `san` → *santo*), a hyphenated word is ranked on MarkIT's evidence, and no verb form
 carrying clitics is ranked.
 """
 
@@ -242,17 +244,36 @@ TRUNCATIONS = {
 DI_FAMILY = ("del", "dello", "della", "dei", "degli", "delle")
 # Every piece the pre-pass reads before an apostrophe, with it.
 PIECES = frozenset(ELISIONS) | frozenset(ELIDED_PREPOSITIONS) | frozenset(TRUNCATIONS)
-# The pieces that are also apocopes written without an apostrophe (`un uomo`, `buon giorno`,
-# `nessun dubbio`): words, ranked or read as forms of *uno*, *buono*, … by the dictionary's links (D6).
-APOCOPES = frozenset({"un", "buon", "nessun", "alcun", "ciascun", "qualcun"})
+# The apocopes written without an apostrophe (D6), a reviewed table: form → (lemma, reason). Each is
+# a form of its word alone, whatever the section's entries make of it — `bel`'s entry is a meaning
+# (« preconsonantal masculine singular form of bello »), so it would be a lemma of its own, and
+# `san`'s own entry is the Greek letter, which the own-entry rule (D5) would keep. Read as French's
+# `UNMARKED_SPELLINGS` are: the row's lemma is the form's one candidate, and the form is no lemma.
+# Checked and left out: `bei`, bello's plural before a consonant, no apocope, which the dictionary
+# already reads as *bello*. Editing this table changes the rules' sha256, as for any rule.
+APOCOPES = {
+    "alcun": ("alcuno", "alcuno before a noun (« alcun dubbio »); also the elided piece alcun'"),
+    "bel": ("bello", "bello before a consonant (« un bel giorno »); its entry is a meaning, no link"),
+    "buon": ("buono", "buono before a noun (« buon giorno »); also the elided piece buon'"),
+    "ciascun": ("ciascuno", "ciascuno before a noun; also the elided piece ciascun'"),
+    "gran": ("grande", "grande before a consonant (« un gran numero »)"),
+    "nessun": ("nessuno", "nessuno before a noun (« nessun dubbio »); also the elided piece nessun'"),
+    "qual": ("quale", "quale before a vowel or a consonant (« qual è »)"),
+    "qualcun": ("qualcuno", "qualcuno before altro (« qualcun altro »); also the elided piece qualcun'"),
+    "quel": ("quello", "quello before a consonant (« quel giorno »)"),
+    "san": ("santo", "santo before a consonant (« San Marco »); its own entry, the Greek letter, would win"),
+    "tal": ("tale", "tale before a noun (« tal modo »)"),
+    "un": ("uno", "the article before a vowel or a consonant (« un uomo »); also the elided piece un'"),
+}
 # wordfreq's tokeniser splits a short piece off before a vowel (`l'uomo` → `l` + `uomo`) and strips a
 # token's edge apostrophes (`po'` → `po`): its list counts a piece's stem at the piece's frequency.
 # The stems are no words (D6) — every piece's, the elided prepositions' too, but the apocopes'
-# (`APOCOPES`) — and nor are the truncations' stems that are no word of their own (`po`, `mo`, `be`;
-# `da`, `di`, `fa`, `va` and `sta` are words).
+# (`APOCOPES`) and `cent`, the euro cent, a word of its own — and nor are the truncations' stems that
+# are no word of their own (`po`, `mo`, `be`; `da`, `di`, `fa`, `va` and `sta` are words).
+STEM_WORDS = frozenset(APOCOPES) | {"cent"}
 WORDFREQ_STEMS = frozenset(
     {piece[:-1] for piece in ELISIONS} | {piece[:-1] for piece in ELIDED_PREPOSITIONS} | {"po", "mo", "be"}
-) - APOCOPES
+) - STEM_WORDS
 # A plain word beginning with a piece (`c'è`, `l'ho`, `dov'è`, `dell'acqua`): the pre-pass splits it
 # there — a hyphenated run too (`l'anglo-americano`) —, so the whole string is never looked up.
 _ELIDED_START = re.compile(
@@ -267,6 +288,8 @@ REFLEXIVE_PRONOUNS = frozenset({"mi", "ti", "si", "ci", "vi"})
 _CLITIC_INFINITIVE = re.compile(r"r((?:glie|me|te|se|ce|ve)(?:lo|la|li|le|ne)|mi|ti|si|ci|vi|lo|la|li|le|gli|ne)$")
 # A single clitic at the end of a reflexive verb's form (`pentèndosi`, `pentìtevi`).
 _REFLEXIVE_TAIL = re.compile(r"(mi|ti|si|ci|vi)$")
+# Any clitic, single or combined, ending a verb form (`pentirmi`, `andarmene`, `dirglielo`).
+_CLITIC_TAIL = re.compile(r"(?:(?:glie|me|te|se|ce|ve)(?:lo|la|li|le|ne)|mi|ti|si|ci|vi|lo|la|li|le|gli|ne)$")
 # The stress marks the section's tables write (D3), each with its bare vowel; a loan's marks (ü, ê,
 # ç, ñ) are spelling, never stress, and stay.
 _STRESS = {"à": "a", "è": "e", "é": "e", "ì": "i", "í": "i", "ò": "o", "ó": "o", "ù": "u", "ú": "u"}
@@ -276,10 +299,30 @@ _FOLLOW_STEPS = 3
 # cut's frequency, and for the inflected forms it skips.
 _WORDFREQ_DEPTH = 6
 
-# Homographs a person decided (D5), checked before any count: form → (lemma, reason). Empty: no
-# homograph has a row, as in Spanish's and French's; M8's cost is listed in tables/it-fr/README.md.
+# Homographs a person decided (D5), checked before any count: form → (lemma, reason). The reason is
+# part of the rule: a row without one is not a decision. A row costs the other lemma its place in the
+# pack — a lemma's own form always reads as itself —; M8's cost is listed in tables/it-fr/README.md.
 # Editing this table changes the rules' sha256, so the tables must be reduced again, as for any rule.
-OVERRIDES = {}
+OVERRIDES = {
+    "stato": (
+        "essere",
+        "the past participle of essere (and stare), Italian's commonest auxiliary participle (« è stato »); "
+        "MarkIT's counts (29 nouns, 9 essere, 7 stare) and the own entry read it as the noun, which was 39 of "
+        "UD Italian-PUD's 40 missed auxiliaries; the owner's decision of 2026-10-23, « lo Stato » reading as "
+        "essere its accepted cost",
+    ),
+    "stati": (
+        "essere",
+        "the plural of stato, the past participle of essere and stare (« sono stati »); the owner's decision "
+        "of 2026-10-23, with stato's",
+    ),
+    "bianca": (
+        "bianco",
+        "the feminine of bianco (« la casa bianca »); the section's noun entry (the cue ball) and MarkIT's one "
+        "count, a proper noun's, would read it as the noun, and the names rule leaves a form with a common "
+        "reading of its own to D5",
+    ),
+}
 
 # The rules that decide a form's one lemma (D5), as the reduction reports them.
 DECIDED_BY = ("override", "MarkIT's counts", "its own entry", "frequency", "alphabetical order")
@@ -349,8 +392,13 @@ def _is_form_of(sense):
 
 
 def _is_compound(sense):
-    """A clitic compound's sense (« compound of the infinitive dire with me and lo »)."""
-    return "compound-of" in (sense.get("tags") or ())
+    """A clitic compound's sense (« compound of the infinitive dire with me and lo »), the tag kaikki
+    gives it or the gloss of the two it does not tag (`stammi`, `statemi`: « combined form of sta' …
+    and mi »)."""
+    if "compound-of" in (sense.get("tags") or ()):
+        return True
+    gloss = ((sense.get("glosses") or [""])[0] or "").lower()
+    return gloss.startswith("combined form of")
 
 
 class Survey:
@@ -361,7 +409,11 @@ class Survey:
       tables' stress marks (D3);
     - `compounds`: the words an entry gives as a clitic compound (`dirmelo`, `vattene`, `fatti`);
     - `standing`: the words with an entry holding a meaning of another part of speech than a verb,
-      an adverb or an interjection (`fallo`, the foul), which stands beside a compound's.
+      an adverb, an interjection or a name (`fallo`, the foul), which stands beside a compound's — a
+      name does not (`Donati`, beside the compound `donati`);
+    - `clitic_lemmas`: the words with a verb entry holding a meaning, or a sense tagged reflexive or
+      pronominal (`farsi`, « reflexive of fare »): the only words that can be an infinitive carrying
+      clitics.
     """
 
     def __init__(self):
@@ -369,6 +421,7 @@ class Survey:
         self.form_links = collections.defaultdict(set)
         self.compounds = set()
         self.standing = set()
+        self.clitic_lemmas = set()
 
     def read(self, entry):
         word = nfc_lower(entry.get("word"))
@@ -379,24 +432,26 @@ class Survey:
             self.compounds.add(word)
         elif meaning and pos == "verb":
             self.verbs.add(word)
-        elif meaning and pos not in _CLITIC_POS:
+        elif meaning and pos not in _CLITIC_POS and pos != "name":
             self.standing.add(word)
+        if pos == "verb" and not any(_is_compound(s) for s in senses):
+            if meaning or any(set(s.get("tags") or ()) & {"reflexive", "pronominal"} for s in senses):
+                self.clitic_lemmas.add(word)
         for sense in senses:
             if not _is_compound(sense):
                 self.form_links[word].update(nfc_lower(t) for t in _form_targets(sense))
 
     def clitic_infinitive(self, word):
-        """`(clitic, plain verb or None)` when `word` is an infinitive carrying clitics — a verb of the
-        section (a meaning of its own: `pentirsi`, `andarsene`) or one whose plain verb the section has
-        (`lavarsi` → `lavare`, `porsi` → `porre`) —, else None: `persi`, `corsi` and `morsi`, forms
-        of verbs ending as a reflexive does, are none."""
+        """`(clitic, plain verb or None)` when `word` is an infinitive carrying clitics — a verb entry
+        of the section holding a meaning or tagged reflexive or pronominal (`pentirsi`, `andarsene`,
+        `lavarsi`), the plain verb being the one the section has (`lavarsi` → `lavare`, `porsi` →
+        `porre`) —, else None: a finite form ending as one does (`persi`, `corsi`, `importi`, `firmi`,
+        `torci`, `supporti`) is none."""
         m = _CLITIC_INFINITIVE.search(word)
-        if not m:
+        if not m or word not in self.clitic_lemmas:
             return None
         stem = word[: m.start(1)]
         plain = next((v for v in (stem + "e", stem + "re") if v in self.verbs), None)
-        if plain is None and word not in self.verbs:
-            return None
         return m.group(1), plain
 
     def plain_of(self, word):
@@ -475,13 +530,35 @@ class Lexicon:
             self.lemmas.add(word)
             self.link(word, word, pos)
             self.poses[word].add(pos)
-        for form in self._rows(entry, word, (word,)):
-            self.link(form, word, pos)
+        # A name's rows are no forms of a word (D3): its demonyms, its other spellings.
+        if pos != "name":
+            for form in self._rows(entry, word, (word,)):
+                self.link(form, word, pos)
         for sense in senses:
             for target in _form_targets(sense):
-                target = self.survey.plain_of(nfc_lower(target))
+                target = nfc_lower(target)
+                if self._carries_clitics(word, target, sense):
+                    # No form and no rank, as a compound's (D4), but where a meaning stands beside.
+                    self.stats["forms carrying clitics their own entry links"] += 1
+                    if word not in self.survey.standing:
+                        self.unranked.add(word)
+                    continue
+                target = self.survey.plain_of(target)
                 if is_form(target) and target not in PIECES:
                     self.link(word, target, pos)
+
+    def _carries_clitics(self, word, target, sense):
+        """Whether a form-of sense names a verb form carrying clitics (D4): its target an infinitive
+        carrying them (`pentirsi`, `recarsi`, `andarsene`), the sense one of the four moods a clitic is
+        joined to — an infinitive, a gerund, an imperative, a participle —, the form ending in a clitic
+        (`pentirmi`, `avvalendomi`, `recatevi`, `rechiamoci`, `andarmene`). The cascade's enclitic rule
+        reads it; a bare form (`ostinato`, the participle of *ostinarsi*) is no such form, and the bare
+        forms of the verb's rows come in through them (`_read_clitic_verb`)."""
+        if self.survey.clitic_infinitive(target) is None:
+            return False
+        if not set(sense.get("tags") or ()) & {"infinitive", "gerund", "imperative", "participle"}:
+            return False
+        return bool(_CLITIC_TAIL.search(word))
 
     def _read_clitic_verb(self, entry, word, clitic, plain):
         """An infinitive carrying clitics (D3, D4). A reflexive (`si`) is filed under its plain verb
@@ -592,33 +669,31 @@ def read_kaikki(path, survey=None):
 
 
 def name_or_word(candidates, poses, frequency):
-    """The candidates of a form that is a proper name and another word's (D5). A form whose own lemma
-    entries are names alone (`bambini`, a surname; `firmato`, a given name; `argentina`) reads as the
-    other word: wordfreq counts the string, which is that word's inflection too, and cannot rate the
-    name apart, and a page writes a name with its capital, which the analysis sets aside as a name
-    (add-lingua-italian-analysis D4). A form with a common reading of its own beside the name keeps the
-    commoner reading by wordfreq, the form's against the other words' lemmas: `bianca` (4.78) and
-    `chiara` (4.74) read as *bianco* (4.99) and *chiaro* (5.09), the cue ball and the egg white
-    leaving with the names. `roma`, a name and a rice — one lemma string, no other word — stays the
-    city. The other words are those that are no name alone. Answers how many forms each branch moved."""
+    """The candidates of a form whose own lemma entries are names alone and which is another word's
+    too (D5), as French's and Spanish's `names` are read: it reads as the other word, the name left
+    out (`bambini`, a surname, → *bambino*; `firmato`, a given name, → *firmare*). wordfreq counts the
+    string, which is that word's inflection too, and cannot rate the name apart; and a page writes a
+    name with its capital, which the analysis sets aside as a name (add-lingua-italian-analysis D4).
+    Every other form is D5's — one with a common reading of its own beside a name (`sole`, `santo`,
+    `ti`) included —, and a name no other word reads stays (`roma`). The other words are those that are
+    no name alone. Answers how many forms it moved. `frequency` is unused, kept for the call's shape."""
     moved = collections.Counter()
     for form, opts in candidates.items():
-        if "name" not in poses.get(form, ()) or form not in opts:
+        if poses.get(form) != {"name"} or form not in opts:
             continue
-        words = {w for w in opts - {form} if poses.get(w) != {"name"}}
-        if not words:
-            continue
-        if poses[form] == {"name"}:
+        if any(poses.get(w) != {"name"} for w in opts - {form}):
             opts.discard(form)
             moved["names read as another word"] += 1
-        elif frequency(form) > max(frequency(w) for w in words):
-            if opts != {form}:
-                opts.intersection_update({form})
-                moved["kept the commoner reading, its own"] += 1
-        else:
-            opts.intersection_update(words)
-            moved["kept the commoner reading, another word's"] += 1
     return moved
+
+
+def read_apocopes(lexicon):
+    """Each apocope of the reviewed table a form of its word alone (D6), whatever the section's entries
+    make of it (`bel` → *bello*, `san` → *santo*): the word its one candidate, the form no lemma."""
+    for form, (lemma, _) in APOCOPES.items():
+        lexicon.candidates[form] = {lemma}
+        lexicon.links.pop(form, None)
+        lexicon.lemmas.discard(form)
 
 
 def own_words(lexicon):
@@ -909,26 +984,30 @@ def analyser_version(path=_ANALYSIS_RS):
 
 def notice(morph_it=True):
     """it-fr's attribution stack (D9): the section, wordfreq, MarkIT — and Morph-it!, under its
-    CC BY-SA 2.0 option, while it is pinned. UD Italian-PUD is measured against, never shipped."""
+    CC BY-SA 2.0 option, while it is pinned —, each with its licence's address. UD Italian-PUD is
+    measured against, never shipped."""
     text = """Cymbra Lingua data pack — IT->FR attributions.
 
-kaikki.org extract of the English Wiktionary (enwiktionary), Italian section: CC BY-SA 4.0 + GFDL —
-the forms and their lemmas.
+kaikki.org extract of the English Wiktionary (enwiktionary), Italian section: CC BY-SA 4.0
+(https://creativecommons.org/licenses/by-sa/4.0/) + GFDL (https://www.gnu.org/licenses/fdl-1.3.html)
+— the forms and their lemmas.
 
 wordfreq (Italian frequency list), by Robyn Speer (https://github.com/rspeer/wordfreq): data under
-CC BY-SA 4.0 — the commonest lemmas and which forms are attested.
+CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/) — the commonest lemmas and which forms
+are attested.
 
 UD Italian-MarkIT, the Universal Dependencies Italian-MarkIT treebank by Teresa Paccosi, Alessio
 Palmero Aprosio and Sara Tonelli (https://github.com/UniversalDependencies/UD_Italian-MarkIT):
-CC BY 4.0 — how often a form stands for each of its lemmas, to choose one, and how often a
-hyphenated word occurs, to rank it; its training and development sections alone.
+CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) — how often a form stands for each of its
+lemmas, to choose one, and how often a hyphenated word occurs, to rank it; its training and
+development sections alone.
 """
     if morph_it:
         text += """
 Morph-it!, a free morphological lexicon for the Italian language, by Marco Baroni and Eros Zanchetta
-(https://docs.sslmit.unibo.it/doku.php?id=resources:morph-it), version 0.4.8: CC BY-SA 2.0 (one
-of its two licences, the other being the LGPL) — the forms it lists that the Wiktionary names
-nowhere, under the lemmas the tables rank.
+(https://docs.sslmit.unibo.it/doku.php?id=resources:morph-it), version 0.4.8: CC BY-SA 2.0
+(https://creativecommons.org/licenses/by-sa/2.0/), one of its two licences, the other being the
+LGPL — the forms it lists that the Wiktionary names nowhere, under the lemmas the tables rank.
 """
     return text
 
@@ -967,6 +1046,7 @@ def reduce(work, max_lemmas, pack_version, frequency, top_n, morph_it=MORPH_IT, 
     counts = treebank.markit_counts([os.path.join(work, name) for name in MARKIT])
     named = name_or_word(lexicon.candidates, lexicon.poses, frequency)
     own_words(lexicon)
+    read_apocopes(lexicon)
     forms, ranks, step = reduce_forms(lexicon, counts, treebank.markit_zipf(counts), frequency, top_n, max_lemmas)
     decided = decisions(forms, lexicon, step, counts, frequency)
     added = {}
