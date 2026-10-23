@@ -15,7 +15,11 @@
 # the reduction reads MarkIT's training and development sections, so a held-out section of the same
 # treebank is the weaker test, and its lemmas are automatic with corrections. Both are fetched at a
 # pinned commit and checked by sha256; neither is committed (PUD is CC BY-SA 3.0, MarkIT CC BY 4.0),
-# and the reduction never reads them. The exit status is PUD's.
+# and the reduction never reads them. The exit status is PUD's. After the gates, Italian's readings
+# (add-lingua-italian-grammar-tables D9, `it_readings.py`): on both treebanks, per part of speech,
+# the share of the words that carry a reading and of those the treebank agrees with — reported,
+# never deciding the exit status. They are read from the committed tables, or from the studied folder
+# LINGUA_IT_TABLES names (tables reduced locally, beside the pack LINGUA_IT_PACK names).
 #
 # Italian's tables are committed by add-lingua-italian-forms-tables (change 9), its first update of
 # it-fr writing them: until then there is no it-fr pack to build, and the script says so.
@@ -24,6 +28,7 @@
 #
 #   scripts/lingua-data/measure/it-ud.sh
 #   LINGUA_IT_PACK=/path/to/it-fr.lingua scripts/lingua-data/measure/it-ud.sh
+#   LINGUA_IT_PACK=/path/to/it-fr.lingua LINGUA_IT_TABLES=/path/to/tables/it scripts/lingua-data/measure/it-ud.sh
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -81,4 +86,6 @@ echo "UD Italian-PUD at $PUD_COMMIT (gated):"
 measure "$pud" || status=$?
 echo "MarkIT's test section at $MARKIT_COMMIT (reported, not gated):"
 measure "$markit" || echo "  (reported only: MarkIT's test section decides nothing)"
+"${LINGUA_PYTHON:-python3}" "$here/it_readings.py" --tables "${LINGUA_IT_TABLES:-$here/../tables/it}" "$pud" "$markit" ||
+  echo "  (reported only: the readings' figures decide nothing)"
 exit "$status"
