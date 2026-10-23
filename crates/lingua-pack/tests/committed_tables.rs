@@ -2861,8 +2861,29 @@ fn spec_scenario_every_word_italian_s_pre_pass_writes_is_a_form() {
         }
     }
     // No verb form carrying clitics: the enclitic rule reads them.
-    for word in ["dirmelo", "vattene", "eccolo", "lavarsi", "andarsene"] {
+    for word in [
+        "dirmelo",
+        "vattene",
+        "eccolo",
+        "lavarsi",
+        "andarsene",
+        "pentirmi",
+    ] {
         assert!(!forms.contains_key(word), "{word} is a form");
+    }
+    // The apocopes written without an apostrophe read as their words (D6's reviewed table), and the
+    // owner's overrides stand (D5: `stato` and `stati` → essere, 2026-10-23).
+    for (form, lemma) in [
+        ("un", "uno"),
+        ("buon", "buono"),
+        ("bel", "bello"),
+        ("san", "santo"),
+        ("stato", "essere"),
+        ("stati", "essere"),
+        ("bianca", "bianco"),
+    ] {
+        assert_eq!(forms.get(form).map(String::as_str), Some(lemma), "{form}");
+        assert!(!ranks.contains_key(form), "{form} is ranked");
     }
 }
 
