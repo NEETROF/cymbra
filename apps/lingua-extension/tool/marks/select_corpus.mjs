@@ -1,11 +1,12 @@
 // The corpus of the marks measurement (release-lingua-spanish-translation D1): every tenth PUD
-// sentence, the same in English, Spanish and French, one word each — NOUN, VERB, NOUN, ADJ in turn,
-// the first such word that is not the sentence's first, is letters only (three or more) and is not
-// inside a multiword token; otherwise the first NOUN, VERB or ADJ that is; otherwise the next
+// sentence, the same in English, Spanish, French and Italian, one word each — NOUN, VERB, NOUN, ADJ
+// in turn, the first such word that is not the sentence's first, is letters only (three or more) and
+// is not inside a multiword token; otherwise the first NOUN, VERB or ADJ that is; otherwise the next
 // sentence, for every language. One rule over every studied language at once
 // (add-lingua-french-translation D4): a sentence is taken only where each language has a word, so
 // each step's selections read the same text — and French, added, moved no English or Spanish
-// selection. Writes tool/marks/corpus.json.
+// selection, nor Italian, added after it (measure-lingua-it-fr-translation-marks D1), any English,
+// Spanish or French one. Writes tool/marks/corpus.json.
 //
 // Usage: node tool/marks/select_corpus.mjs
 
@@ -20,7 +21,7 @@ const ITEMS = 100;
 const STEP = 10;
 const CYCLE = ["NOUN", "VERB", "NOUN", "ADJ"];
 /** The studied languages, in the order their items are written: English drives the sentence order. */
-const LANGUAGES = ["en", "es", "fr"];
+const LANGUAGES = ["en", "es", "fr", "it"];
 const FALLBACK = ["NOUN", "VERB", "ADJ"];
 
 const eligible = (word, upos) =>
@@ -73,7 +74,9 @@ async function main() {
   };
   writeFileSync(OUT, JSON.stringify(corpus, null, 2) + "\n");
   const count = (language) => items.filter((item) => item.lang === language).length;
-  console.log(`${OUT}: ${count("en")} English, ${count("es")} Spanish and ${count("fr")} French selections`);
+  console.log(
+    `${OUT}: ${count("en")} English, ${count("es")} Spanish, ${count("fr")} French and ${count("it")} Italian selections`,
+  );
 }
 
 main().catch((e) => {

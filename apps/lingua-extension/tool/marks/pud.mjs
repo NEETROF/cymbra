@@ -1,7 +1,7 @@
-// Parallel Universal Dependencies (PUD), English, Spanish and French, as the marks measurement reads
-// it (release-lingua-spanish-translation D1, add-lingua-french-translation D4): fetched at pinned
-// commits, checked by sha256, kept in scripts/lingua-data/work/marks/ (git-ignored) and never
-// committed — CC BY-SA, as es-pud.sh keeps it.
+// Parallel Universal Dependencies (PUD), English, Spanish, French and Italian, as the marks
+// measurement reads it (release-lingua-spanish-translation D1, add-lingua-french-translation D4,
+// measure-lingua-it-fr-translation-marks D1): fetched at pinned commits, checked by sha256, kept in
+// scripts/lingua-data/work/marks/ (git-ignored) and never committed — CC BY-SA, as es-pud.sh keeps it.
 
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -12,8 +12,11 @@ const here = dirname(fileURLToPath(import.meta.url));
 export const WORK = join(here, "../../../../scripts/lingua-data/work/marks");
 
 /**
- * The three treebanks, pinned. Spanish is the file es-pud.sh pins; French is the one
+ * The four treebanks, pinned. Spanish is the file es-pud.sh pins; French is the one
  * add-lingua-french-forms-tables pins (its D9 hands the pin over), the same commit and bytes.
+ * Italian is `master`'s head on 2026-10-22 (measure-lingua-it-fr-translation-marks D1), the corpus's
+ * own pin: were the Italian forms tables' measurement (it-ud.sh) to pin another commit, this one
+ * stays, since moving it would move the selections the corpus holds.
  */
 export const PUD = {
   en: {
@@ -33,6 +36,12 @@ export const PUD = {
     commit: "db260db10fe728853c549760801229ef4e7b16e1",
     file: "fr_pud-ud-test.conllu",
     sha256: "4dfed37b83d76e77fd2e9963d0be00d723e9a010e7e2a746f8b7640c48063c10",
+  },
+  it: {
+    repo: "UD_Italian-PUD",
+    commit: "71d932aa096368331ba2fd9bc906ec8dd853da8e",
+    file: "it_pud-ud-test.conllu",
+    sha256: "ad5d302bdfd05194155d9ad43dc54c3cb915076d66b3eb6ef33eca9a11f1372a",
   },
 };
 
