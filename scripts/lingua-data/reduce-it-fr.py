@@ -27,9 +27,11 @@ Inputs, in `--work`:
 - wordfreq `it` (the installed, pinned package): the 60,000 commonest lemmas and which forms are
   attested at all (D6).
 
-Outputs, in `--work`: Italian's `forms.tsv` and `freq.tsv`, its dictionary words `lexical.tsv` (the
-acronym rows alone until change 16's glosses write the rest), it-fr's `gloss.tsv` (empty until change
-16), `NOTICE` and `manifest.json`.
+Outputs, in `--work`: Italian's `forms.tsv` and `freq.tsv`, its readings `grammar.tsv`
+(add-lingua-italian-grammar-tables, the section's `Italian's word grammar`), its dictionary words
+`lexical.tsv` (the acronym rows alone until change 16's glosses write the rest), it-fr's `gloss.tsv`
+(empty until change 16), `NOTICE` and `manifest.json`. Italian's pinned tag pool, `tables/it/tags.tsv`,
+is a person's: no reduction writes it.
 
 Italian's acronyms (keep-lingua-italian-acronyms-and-names D2, D6): Italian's analysis reads a word
 standing alone in capitals as written, and the reviewed table `ACRONYMS` of
@@ -90,6 +92,7 @@ the section names a row (`Lexicon.web_boundary`) or a row's word is no ranked le
 
 import argparse
 import collections
+import itertools
 import json
 import os
 import re
@@ -491,6 +494,23 @@ def bare(word):
     return word[:end] + _STRESS[word[end]] + word[end + 1 :]
 
 
+def written_form(text, owners, form_links):
+    """A row as Italian writes it (D3): its stress marks dropped but the last letter's
+    (`without_stress`), and that one too when the entry carrying the cell's form-of link to one of
+    `owners` (the lemma it is filed under, and the verb whose table it is) is the bare spelling —
+    `hà` → `ha`, `dò` → `do` —, not when the marked spelling's own entry carries it (`dà`).
+    `form_links` is `Survey.form_links`."""
+    form = without_stress(text)
+    plain = bare(form)
+    if plain is None:
+        return form
+    if any(o in form_links.get(form, ()) for o in owners):
+        return form
+    if any(o in form_links.get(plain, ()) for o in owners):
+        return plain
+    return form
+
+
 # A sense naming its entry a derived word of another (« diminutive of casa », « augmentative of
 # zampa »): a meaning of its own, no form link — the word the row of D3 leaves out, read from its own
 # entry (`casetta`, `minestrone`).
@@ -865,20 +885,11 @@ class Lexicon:
             self.stats["forms of a dictionary spelling another word claims"] += 1
 
     def _written(self, text, owners):
-        """A row as Italian writes it (D3): its stress marks dropped but the last letter's
-        (`without_stress`), and that one too when the entry carrying the cell's form-of link to one of
-        `owners` (the lemma it is filed under, and the verb whose table it is) is the bare spelling —
-        `hà` → `ha`, `dò` → `do` —, not when the marked spelling's own entry carries it (`dà`)."""
-        form = without_stress(text)
-        plain = bare(form)
-        if plain is None:
-            return form
-        links = self.survey.form_links
-        if any(o in links.get(form, ()) for o in owners):
-            return form
-        if any(o in links.get(plain, ()) for o in owners):
+        """A row as Italian writes it (D3, `written_form`), counted when its last letter's mark is
+        read bare."""
+        form = written_form(text, owners, self.survey.form_links)
+        if form != without_stress(text):
             self.stats["final marks read bare"] += 1
-            return plain
         return form
 
     def _rows(self, entry, word, owners):
@@ -900,13 +911,17 @@ class Lexicon:
             yield form
 
 
-def read_kaikki(path, survey=None, spellings=None):
+def read_kaikki(path, survey=None, spellings=None, readings=None):
     """The Italian section, read entry by entry into a `Lexicon`, after its first pass (`Survey`), the
-    dictionary's spellings `spellings` names read as their word (`dictionary_spellings`)."""
+    dictionary's spellings `spellings` names read as their word (`dictionary_spellings`) — and, given
+    `readings` (`Readings`), each entry's grammar in the same pass (`read_readings`,
+    add-lingua-italian-grammar-tables D1)."""
     survey = survey or survey_kaikki(path)
     lexicon = Lexicon(survey, spellings)
     for entry in _entries(path):
         lexicon.read(entry)
+        if readings is not None:
+            read_readings(entry, readings, survey, spellings)
     lexicon.drop_clitic_rows()
     lexicon.drop_spelling_rows()
     return lexicon
@@ -1331,6 +1346,650 @@ def unwritten_words(forms):
     return [word for word in prepass_words() if word not in forms]
 
 
+# — Italian's word grammar (add-lingua-italian-grammar-tables, the Italian programme's change 13) —
+#
+# Every form kaikki lists carries its grammar as tags (`parlavo`: first-person, imperfect,
+# indicative, singular). They become Universal Dependencies tags, the vocabulary the pack's grammar
+# sections read (add-lingua-word-grammar D1): `VERB|Mood=Ind|Number=Sing|Person=1|Tense=Imp|VerbForm=Fin`.
+# The rules read the same entries as the forms, in the same pass (`read_kaikki`), each table form
+# written as the forms read it (`written_form`), and the forms and ranks once chosen (design D1, D2):
+# they choose neither. French's rules (reduce-fr-en.py, add-lingua-french-grammar-tables), for Italian.
+
+# kaikki's parts of speech whose forms carry readings, as UPOS: an article is a determiner, as UD
+# writes it (D4); every verb is `VERB`, `AUX` being a role in a sentence a card cannot see (D3).
+_UPOS = {"verb": "VERB", "noun": "NOUN", "adj": "ADJ", "det": "DET", "article": "DET", "pron": "PRON", "num": "NUM"}
+# kaikki's moods and tenses, in the order they are read; the passato remoto is `historic` (D3).
+_MOODS = (("conditional", "Cnd"), ("imperative", "Imp"), ("subjunctive", "Sub"))
+_TENSES = (("historic", "Past"), ("imperfect", "Imp"), ("future", "Fut"), ("present", "Pres"))
+_PERSON = {"first-person": "1", "second-person": "2", "third-person": "3"}
+_GENDER = {"masculine": "Masc", "feminine": "Fem"}
+# The imperative's cells (D3): the second person singular, the first and second plural — the third
+# persons are the formal imperative's, the present subjunctive's.
+_IMPERATIVE_CELLS = frozenset({("2", "Sing"), ("1", "Plur"), ("2", "Plur")})
+# `it-noun`'s gender argument, each piece of it (`m`, `f,m`, `m-p`): the genders a noun takes.
+_NOUN_GENDER = {"m": ("Masc",), "f": ("Fem",), "mf": ("Masc", "Fem"), "mfbysense": ("Masc", "Fem"), "mfequiv": ("Masc", "Fem")}
+# A determiner's, pronoun's or numeral's row reads only when it says nothing but gender, number and
+# degree: a personal pronoun's head lists its other persons and cases (`io`: possessive `mio`),
+# which are other words, not inflections (D4).
+_NOMINAL_ONLY = frozenset(
+    {"masculine", "feminine", "singular", "plural", "superlative", "comparative", "form-of", "invariable"}
+)
+# A row or sense that gives no reading (D5): the tables' bookkeeping, the tags change 9 leaves out of
+# the forms (a form a source marks doubtful is no inflection, so no reading either), and what kaikki
+# could not parse (`essere`'s `són`, `siàm`).
+_NOT_A_READING = _BOOKKEEPING | _DOUBTFUL | {"error-unrecognized-form"}
+# The rows that repeat another cell (D3): the negative imperative (its second person singular is the
+# infinitive, « non parlare », its plurals the affirmative's) and the formal imperative (`Lei`,
+# `Loro`: the present subjunctive's third persons).
+_REPEATED_CELLS = frozenset({"negative", "formal", "second-person-semantically"})
+# The regions a sense or a row may be marked with: a word whose every sense is one region's is named
+# on no standard card (D6).
+_REGIONS = frozenset(
+    {
+        "regional", "dialectal", "Tuscany", "Italy", "Northern", "Southern", "Central", "Eastern", "South",
+        "Switzerland", "Roman", "Rome", "Naples", "Lombardy", "Milan", "Bologna", "Genoa", "Sicily", "Venice",
+        "Sardinia", "Australia", "US", "UK", "New-Zealand",
+    }
+)
+# A form's own sense, or a table's row, marked as a region's or a register's reads nothing (D3, D5):
+# the dialectal and hypercorrect rows (`fò`, `peròro`), a regional sense.
+_REGISTERS = _REGIONS | {"slang", "colloquial", "informal", "Internet", "vulgar", "hypercorrect"}
+# A determiner's or pronoun's head naming a plural headword (`gli`, `le`), whose table lists the
+# singular (D4).
+_PLURAL_HEADS = frozenset({"p", "m-p", "f-p", "mf-p", "mfbysense-p"})
+# The rows of an entry's table: what follows its first bookkeeping row; the rows before it are the
+# head's (its principal parts, or the forms an article's head names).
+_TABLE_START = frozenset({"table-tags", "inflection-template"})
+# A present indicative's first person plural, the cell that tells a dialect's table from Italian's
+# (`_dialect_rows`).
+_FIRST_PLURAL_PRESENT = frozenset({"first-person", "indicative", "plural", "present"})
+
+
+def ud_tag(upos, features):
+    """A Universal Dependencies tag: the part of speech, then the features sorted by name."""
+    return "|".join([upos, *(f"{name}={value}" for name, value in sorted(features.items()))])
+
+
+def parse_tag(tag):
+    """`ud_tag`'s inverse: the part of speech and the features."""
+    upos, *features = tag.split("|")
+    return upos, dict(feature.split("=", 1) for feature in features)
+
+
+def _agreement(tags):
+    """Gender and number, as a participle's or an adjective's tags state them."""
+    out = {}
+    genders = [_GENDER[tag] for tag in tags if tag in _GENDER]
+    if len(genders) == 1:
+        out["Gender"] = genders[0]
+    if "plural" in tags:
+        out["Number"] = "Plur"
+    elif "singular" in tags:
+        out["Number"] = "Sing"
+    return out
+
+
+def _past_participle(tags):
+    """A past participle's features: the table's bare row is the masculine singular (D3)."""
+    agreement = _agreement(tags)
+    return {
+        "VerbForm": "Part",
+        "Tense": "Past",
+        "Gender": agreement.get("Gender", "Masc"),
+        "Number": agreement.get("Number", "Sing"),
+    }
+
+
+def _present_participle(tags):
+    """A present participle's features (D3): its number, the table's row the singular (`parlante`),
+    its own entry's plural row the plural (`parlanti`), as UD Italian writes it; no gender, one form
+    serving both."""
+    return {"VerbForm": "Part", "Tense": "Pres", "Number": "Plur" if "plural" in tags else "Sing"}
+
+
+def verb_features(tags):
+    """Every reading a verb's row or sense names (D3), as feature sets, none when it names none.
+
+    - The passato remoto (`historic past`) is the indicative past, the imperfetto the imperfect; the
+      conditional and the imperative take no tense, as Spanish's and French's tables write them (D7).
+    - The gerund is `VerbForm=Ger`; a present participle `VerbForm=Part|Tense=Pres` with its number; a
+      past participle reads with its agreement, the bare row and a sense that names an agreement
+      without `past` (`creduta`: « feminine singular of creduto ») as the past one.
+    - A sense merging persons, numbers or moods (`parli`: « first/second/third-person singular present
+      subjunctive ») reads as each of them; a table's row names one; a row with a tense and no mood
+      (the head's `èro`) is the indicative.
+    - The imperative has its second person singular and its first and second plural alone (the third
+      persons are the formal imperative's); the subjunctive no future or passato remoto.
+    """
+    if "participle" in tags:
+        return [_present_participle(tags) if "present" in tags else _past_participle(tags)]
+    if "gerund" in tags:
+        return [{"VerbForm": "Ger"}]
+    if "infinitive" in tags:
+        return [{"VerbForm": "Inf"}]
+    moods = [mood for kaikki, mood in _MOODS if kaikki in tags]
+    tense = next((ud for kaikki, ud in _TENSES if kaikki in tags), None)
+    if "indicative" in tags or (not moods and tense):
+        moods.append("Ind")
+    persons = [_PERSON[tag] for tag in tags if tag in _PERSON]
+    numbers = [number for kaikki, number in (("singular", "Sing"), ("plural", "Plur")) if kaikki in tags]
+    out = []
+    for mood, person, number in itertools.product(moods, persons, numbers):
+        features = {"VerbForm": "Fin", "Mood": mood, "Person": person, "Number": number}
+        if mood in ("Ind", "Sub"):
+            if tense is None or (mood == "Sub" and tense not in ("Pres", "Imp")):
+                continue
+            features["Tense"] = tense
+        elif mood == "Imp" and (person, number) not in _IMPERATIVE_CELLS:
+            continue
+        out.append(features)
+    return out
+
+
+def nominal_features(tags, genders=()):
+    """The features of a noun's, adjective's, determiner's, pronoun's or numeral's form, one set per
+    gender: its number (singular unless kaikki says plural), its degree, and its gender — the form's
+    own, none when it names both, or each of the lemma's for a form kaikki gives none (a noun's
+    plural)."""
+    base = {"Number": "Plur" if "plural" in tags else "Sing"}
+    if "superlative" in tags:
+        base["Degree"] = "Sup"
+    elif "comparative" in tags:
+        base["Degree"] = "Cmp"
+    own = [_GENDER[tag] for tag in tags if tag in _GENDER]
+    if len(own) == 1:
+        return [{**base, "Gender": own[0]}]
+    if own or not genders:
+        return [base]
+    return [{**base, "Gender": gender} for gender in genders]
+
+
+def reading_tags(upos, tags, genders=(), participle=None):
+    """The UD tags kaikki's tags name for a form of `upos`; none when they name no reading.
+
+    A participle's own entry (`participle`: `"past"` or `"present"`) lists its agreed forms
+    (`creduta`: feminine; `parlanti`: plural), which read as that participle with that agreement. A
+    determiner's, pronoun's or numeral's row reads only when it names agreement alone, and a
+    pronoun's only with a gender (D4)."""
+    if upos == "VERB":
+        if participle and not ({"participle", "infinitive", "gerund"} & tags) and not (set(_PERSON) & tags):
+            return [ud_tag(upos, features) for features in verb_features(tags | {"participle", participle})]
+        return [ud_tag(upos, features) for features in verb_features(tags)]
+    if upos in ("PRON", "DET", "NUM") and not tags <= _NOMINAL_ONLY:
+        return []
+    if upos == "PRON" and not tags & set(_GENDER):
+        return []
+    return [ud_tag(upos, f) for f in nominal_features(tags, genders) if "Degree" not in f or upos == "ADJ"]
+
+
+def _without_qualifiers(arg):
+    """A head template's argument without its inline qualifiers (`f,m<l:colloquial>` → `f,m`),
+    nested ones included."""
+    text = str(arg or "")
+    while True:
+        stripped = re.sub(r"<[^<>]*>", "", text)
+        if stripped == text:
+            return text
+        text = stripped
+
+
+def _noun_head(entry):
+    """`it-noun`'s arguments, or an empty dict."""
+    for head in entry.get("head_templates") or ():
+        if head.get("name") == "it-noun":
+            return head.get("args") or {}
+    return {}
+
+
+def noun_genders(entry):
+    """A noun's genders, and whether its headword is a plural: `it-noun`'s first argument — `m`, `f`,
+    `mfbysense`, `mf`, `m,f`, `f,m` and the qualified ones (`eco`: `f,m<l:colloquial>`), `m-p` and
+    `f-p` plural only —, else the genders its senses are tagged with (D4)."""
+    pieces = [p.strip() for p in _without_qualifiers(_noun_head(entry).get("1")).split(",") if p.strip()]
+    genders, plural = [], []
+    for piece in pieces:
+        known = _NOUN_GENDER.get(piece.removesuffix("-p"))
+        if known is None:
+            genders = []
+            break
+        genders += [g for g in known if g not in genders]
+        plural.append(piece.endswith("-p"))
+    if genders:
+        return tuple(genders), all(plural)
+    tags = set()
+    for sense in entry.get("senses") or ():
+        tags.update(sense.get("tags") or ())
+    return tuple(_GENDER[tag] for tag in ("masculine", "feminine") if tag in tags), False
+
+
+def invariable_noun(entry):
+    """A noun the dictionary gives one form for (D4): `it-noun`'s plural `#`, alone or among several
+    (`città`, `re`, `crisi`), or a sense tagged `invariable` and no plural listed."""
+    plurals = [p.strip() for p in _without_qualifiers(_noun_head(entry).get("2")).split(",")]
+    if "#" in plurals:
+        return True
+    senses = entry.get("senses") or []
+    return any("invariable" in (sense.get("tags") or ()) for sense in senses) and not any(
+        "plural" in (row.get("tags") or ()) for row in entry.get("forms") or ()
+    )
+
+
+def adjective_agrees(entry):
+    """Whether an adjective has a feminine of its own (`rosso`: `rossa`), unlike `grande`."""
+    for row in entry.get("forms") or ():
+        tags = set(row.get("tags") or ())
+        if "feminine" in tags and "masculine" not in tags and not tags & (_NOT_A_READING | _DERIVED):
+            return True
+    return False
+
+
+def _alternative(sense):
+    """A sense that is only an alternative form of another word (D5): an archaic spelling with a table
+    of its own, an apocope (`bel`, `buon`, `quel`)."""
+    return "alt-of" in (sense.get("tags") or ()) or bool(sense.get("alt_of"))
+
+
+def _participle_sense(tags, target):
+    """A participle sense's tags, `present` added when it names neither tense and its target is a
+    present participle — Italian's end in `-nte` (`dormienti`: « plural of dormiente ») —, so that a
+    present participle's plural is not read as a past one (D3)."""
+    if "participle" in tags and not tags & {"past", "present"} and target.endswith("nte"):
+        return tags | {"present"}
+    return tags
+
+
+def _participle_entry(senses):
+    """`"present"` or `"past"` when an entry is a participle's own — every sense a form of a verb,
+    one a participle (`parlante`, `creduto`) — whose rows are its agreed forms (D3); else None."""
+    marked = [set(sense.get("tags") or ()) for sense in senses]
+    if not marked or not all(_is_form_of(sense) for sense in senses):
+        return None
+    participles = [tags for tags in marked if "participle" in tags]
+    if not participles:
+        return None
+    return "present" if any("present" in tags for tags in participles) else "past"
+
+
+class Readings:
+    """The readings kaikki states, by (form, lemma), and what the rules need of its entries.
+
+    - `table`: a lemma's table — its own form, its inflections —, and a participle's own entry's
+      agreed forms; `senses`: a form's own entry's senses, for what no table lists (D5);
+    - `spelt`: the table of a spelling the dictionary gives only as one word's (change 10's D2:
+      `perchè` → *perché*), read as that word's and kept only where the forms table files the form
+      under it (D5);
+    - `shared`: the rows of the article table kaikki writes under each of *il*, *lo*, *la*, *gli*,
+      *le* that an article's own head does not name, kept only under the article the forms table
+      files the form under (D4);
+    - `poses`: lemma → the parts of speech of its lemma entries, among those read;
+    - `standard`: the words with a lemma entry that is not only regional (D6).
+    """
+
+    def __init__(self):
+        self.table = collections.defaultdict(set)
+        self.senses = collections.defaultdict(set)
+        self.spelt = collections.defaultdict(set)
+        self.shared = collections.defaultdict(set)
+        self.poses = collections.defaultdict(set)
+        self.standard = set()
+
+    def pairs(self, forms):
+        """`(form, lemma) → tags`: a table's reading of a pair wins over a form entry's senses of the
+        same part of speech — `grandi`, which *grande*'s noun table lists, keeps its adjective entry's
+        reading (D5); a spelling's table and the shared article table only where `forms` files the
+        form under that lemma."""
+        tables = collections.defaultdict(set)
+        for pair, tags in self.table.items():
+            tables[pair] |= tags
+        for source in (self.spelt, self.shared):
+            for pair, tags in source.items():
+                if forms.get(pair[0]) == pair[1]:
+                    tables[pair] |= tags
+        out = {pair: set(tags) for pair, tags in self.senses.items()}
+        for pair, tags in tables.items():
+            given = {parse_tag(tag)[0] for tag in tags}
+            out[pair] = {tag for tag in out.get(pair, ()) if parse_tag(tag)[0] not in given} | tags
+        return out
+
+
+def _dialect_rows(rows):
+    """The rows of a verb's tables that are a dialect's, not Italian's (D3, as implemented): kaikki
+    merges into an entry every conjugation table of its page, the Classical Roman Dialect's among
+    them, with no tag to say so (*avere*'s third table: `àmo`, `émo`, `ébbe` a first person, `avéssi`
+    a passato remoto). When an entry has several tables, one listing a present indicative's first
+    person plural none of which ends in Italian's `-iamo` (`avémo`, `dàmo`, `credémo`), while another
+    table of the entry lists one that does (`abbiàmo`), is the dialect's, and its rows give no reading;
+    a table listing none (*essere*'s usage notes, untagged) goes with it. Answers the rows' indices."""
+    starts = [i for i, row in enumerate(rows) if "table-tags" in (row.get("tags") or ())]
+    if len(starts) < 2:
+        return set()
+    tables = [range(start, end) for start, end in zip(starts, [*starts[1:], len(rows)])]
+
+    def italian(table):
+        for i in table:
+            tags = set(rows[i].get("tags") or ())
+            words = nfc_lower(rows[i].get("form")).split()
+            if _FIRST_PLURAL_PRESENT <= tags and not tags & _REPEATED_CELLS and words:
+                if without_stress(words[-1]).endswith("iamo"):
+                    return True
+        return False
+
+    kept = [italian(table) for table in tables]
+    if not any(kept):
+        return set()
+    return {i for table, ok in zip(tables, kept) if not ok for i in table}
+
+
+def _row_skipped(tags):
+    """A row that gives no reading of its own (D3–D5): bookkeeping, doubtful, a repeated cell, a
+    region's or a register's, a derived word's."""
+    return bool(tags & (_NOT_A_READING | _REPEATED_CELLS | _REGISTERS | _DERIVED))
+
+
+def read_readings(entry, readings, survey, spellings=None):
+    """One entry's readings into `readings`, word and form lowercased and in NFC (D3–D5).
+
+    Never from a capitalised headword (`NATO`, `Roma`), a clitic compound's entry, nor from an entry
+    whose every sense is an alternative form of another word (an archaic spelling with a table of its
+    own, an apocope: `bel`). A spelling `spellings` names (change 10's D2: `perchè`) reads as the word
+    it spells. A form's own entry gives each sense toward its target — the plain verb where change 9
+    files a reflexive's forms —, but a doubtful, regional or register-marked one; a participle's own
+    entry gives its agreed forms too. A lemma's entry gives a noun's or an adjective's own form, and its
+    table's rows, each written as change 9 writes it (`written_form`): never a row that repeats a cell
+    (the negative and formal imperatives, a head row its table lists), a doubtful, dialectal or
+    hypercorrect row, a defective verb's `-`, a clitic cluster, a derived word's row, a feminine noun's
+    masculine (`attrice`: `attore`), nor a plural-headed determiner's or pronoun's table (`gli`, `le`).
+    A reflexive verb's rows read as change 9 reads them (`_read_reflexive`)."""
+    upos = _UPOS.get(entry.get("pos"))
+    word = nfc_lower(entry.get("word"))
+    if upos is None or not _TOKEN.fullmatch(word):
+        return
+    raw = unicodedata.normalize("NFC", (entry.get("word") or "").strip())
+    if raw != raw.lower():
+        return
+    senses = entry.get("senses") or []
+    if any(_is_compound(sense) for sense in senses):
+        return
+    spelt = (spellings or {}).get(word)
+    if spelt is None and senses and all(_alternative(sense) for sense in senses):
+        return
+    if upos == "VERB":
+        clitic = survey.clitic_infinitive(word)
+        if clitic is not None:
+            _read_reflexive(entry, word, *clitic, readings, survey)
+            return
+    home = spelt or word
+    table = readings.spelt if spelt else readings.table
+    meaning = not senses or not all(_is_form_of(sense) for sense in senses)
+    participle = _participle_entry(senses) if upos == "VERB" else None
+    for sense in senses:
+        tags = set(sense.get("tags") or ())
+        if not _is_form_of(sense) or tags & _NOT_A_READING or tags & _REGISTERS:
+            continue
+        for target in _form_targets(sense):
+            target = survey.plain_of(nfc_lower(target))
+            if _TOKEN.fullmatch(target):
+                readings.senses[(word, target)].update(reading_tags(upos, _participle_sense(tags, target)))
+    if meaning and spelt is None:
+        readings.poses[word].add(upos)
+        if not all(set(sense.get("tags") or ()) & _REGIONS for sense in senses):
+            readings.standard.add(word)
+    if not meaning and participle is None and spelt is None:
+        return
+    heads = entry.get("head_templates") or ()
+    genders, plural = noun_genders(entry) if upos == "NOUN" else ((), False)
+    if upos == "NOUN" and meaning and not spelt:
+        own = {"Number": "Plur" if plural else "Sing"}
+        for features in [{**own, "Gender": gender} for gender in genders] or [own]:
+            table[(word, home)].add(ud_tag(upos, features))
+        if not plural and invariable_noun(entry):
+            for features in [{"Number": "Plur", "Gender": gender} for gender in genders] or [{"Number": "Plur"}]:
+                table[(word, home)].add(ud_tag(upos, features))
+    elif upos == "ADJ" and meaning and not spelt:
+        plural_only = all({"plural", "plural-only"} & set(sense.get("tags") or ()) for sense in senses)
+        own = {"Number": "Plur" if plural_only else "Sing", **({"Gender": "Masc"} if adjective_agrees(entry) else {})}
+        table[(word, home)].add(ud_tag(upos, own))
+    if upos in ("DET", "PRON") and any((head.get("args") or {}).get("g") in _PLURAL_HEADS for head in heads):
+        return
+    rows = entry.get("forms") or ()
+    start = next((i for i, row in enumerate(rows) if set(row.get("tags") or ()) & _TABLE_START), len(rows))
+    dialect = _dialect_rows(rows) if upos == "VERB" else set()
+
+    def written(row):
+        text = nfc_lower(row.get("form"))
+        return written_form(text, (word,), survey.form_links) if text and " " not in text else None
+
+    cells = {
+        written(row)
+        for i, row in enumerate(rows[start:], start)
+        if i not in dialect and not set(row.get("tags") or ()) & _BOOKKEEPING
+    }
+    named = {written(row) for row in rows[:start]}
+    article = entry.get("pos") == "article" and start < len(rows)
+    for i, row in enumerate(rows):
+        tags = set(row.get("tags") or ())
+        form = written(row)
+        if i in dialect or _row_skipped(tags) or form is None or not _TOKEN.fullmatch(form):
+            continue
+        if i < start and form in cells:
+            continue
+        if upos == "NOUN" and "masculine" in tags and "plural" not in tags:
+            continue
+        into = readings.shared if article and i >= start and form not in named else table
+        into[(form, home)].update(reading_tags(upos, tags, genders, participle))
+
+
+def _read_reflexive(entry, word, clitic, plain, readings, survey):
+    """A verb whose infinitive carries a clitic (D3), its rows read as change 9 reads its forms
+    (`Lexicon._read_clitic_verb`): a reflexive (`si`) is filed under its plain verb where the section
+    has one (`lavarsi` → *lavare*) and is its own lemma otherwise (`pentirsi`); a row written with its
+    pronoun reads without it (`mi làvo` → `lavo`); a row carrying the pronoun reads as its bare base
+    under a reflexive-only lemma (`pentìrsi` → `pentire`, `pèntiti` → `penti`) and gives nothing under
+    a plain verb, never as its clitic-bearing string (`làvati`, which would read as *lavare*'s
+    participle `lavati`). Any other clitic (`andarsene`, `farcela`) gives no reading: a page writes
+    the cluster's words apart."""
+    if clitic != "si":
+        return
+    lemma = plain or word
+    if plain is None:
+        readings.poses[word].add("VERB")
+        senses = entry.get("senses") or []
+        if not all(set(sense.get("tags") or ()) & _REGIONS for sense in senses):
+            readings.standard.add(word)
+    rows = entry.get("forms") or ()
+    dialect = _dialect_rows(rows)
+    for i, row in enumerate(rows):
+        tags = set(row.get("tags") or ())
+        text = nfc_lower(row.get("form"))
+        if i in dialect or _row_skipped(tags) or not text:
+            continue
+        words = text.split()
+        if len(words) == 2 and words[0] in REFLEXIVE_PRONOUNS:
+            form = written_form(words[1], (lemma, word), survey.form_links)
+            if _TOKEN.fullmatch(form):
+                readings.table[(form, lemma)].update(reading_tags("VERB", tags))
+            continue
+        if len(words) != 1 or plain is not None:
+            continue
+        form = written_form(text, (lemma, word), survey.form_links)
+        tail = _REFLEXIVE_TAIL.search(form)
+        if not tail:
+            continue
+        base = form[: tail.start()]
+        if base.endswith("r"):
+            base += "e"
+        if len(base) > 2 and _TOKEN.fullmatch(base):
+            readings.table[(base, word)].update(reading_tags("VERB", tags))
+
+
+def _kind(tag):
+    """A reading's part of speech and verb form: what a form of a form is not added over (D5)."""
+    upos, features = parse_tag(tag)
+    return upos, features.get("VerbForm")
+
+
+def compose(outer, inner):
+    """A form of a form (D5): the outer reading — of the word the form is a form of — with the inner
+    one's agreement, along one part of speech, a verb's only through a participle; None otherwise. A
+    present participle takes the inner number alone (`parlanti` → `parlante` → *parlare*): it has no
+    gender, whatever the participle sense of its plural's own entry names (« plural of dormiente »,
+    tagged as a participle with neither `present` nor `past`)."""
+    upos, features = parse_tag(outer)
+    inner_upos, inner_features = parse_tag(inner)
+    if upos != inner_upos:
+        return None
+    if upos == "VERB" and (features.get("VerbForm") != "Part" or inner_features.get("VerbForm") not in (None, "Part")):
+        return None
+    agreement = ("Number",) if upos == "VERB" and features.get("Tense") == "Pres" else ("Gender", "Number")
+    for name in agreement:
+        if name in inner_features:
+            features[name] = inner_features[name]
+    return ud_tag(upos, features)
+
+
+def set_aside(readings, overrides=OVERRIDES):
+    """The links a reviewed override row of change 9 sets aside (D5): an overridden form's own entry
+    linking it to another word than the row's, which no lemma's table lists."""
+    return {
+        (form, target)
+        for (form, target) in readings.senses
+        if form in overrides and target != overrides[form][0] and (form, target) not in readings.table
+    }
+
+
+def grammar_rows(readings, forms, ranks, overrides=OVERRIDES):
+    """`grammar.tsv`'s rows, sorted: the readings of the forms `forms` holds, under the lemmas
+    `ranks` keeps (D2), a form's of its own lemma marked `-`, another's `other` (D6).
+
+    - A form of a form along one part of speech reads as the word it is a form of reads, with its
+      own agreement (`creduta` → `creduto` → *credere*), through the form's own lemma too — unless
+      the form already reads as that word in that part of speech and verb form (D5).
+    - A reading's part of speech is one the dictionary holds its lemma as, when it holds the lemma
+      as one of those read: a participle filed under a noun's spelling names its verb instead
+      (`parlata`, the noun, names *parlare*) (D5).
+    - `other` only toward an entry of the dictionary that is not only regional (D6).
+    - Never through a link an override row sets aside (`set_aside`)."""
+    excluded = set_aside(readings, overrides)
+    by_form = collections.defaultdict(dict)
+    for (form, lemma), tags in readings.pairs(forms).items():
+        if tags and (form, lemma) not in excluded:
+            by_form[form][lemma] = tags
+    rows = set()
+    for form, own in forms.items():
+        direct = by_form.get(form, {})
+        options = {lemma: set(tags) for lemma, tags in direct.items()}
+        for inner_word, inner_tags in direct.items():
+            if inner_word == form:
+                continue
+            for lemma, outer_tags in by_form.get(inner_word, {}).items():
+                if lemma in (inner_word, form):
+                    continue
+                kinds = {_kind(tag) for tag in direct.get(lemma, ())}
+                made = {compose(outer, inner) for outer in outer_tags for inner in inner_tags} - {None}
+                made = {tag for tag in made if _kind(tag) not in kinds}
+                if made:
+                    options.setdefault(lemma, set()).update(made)
+        for lemma, tags in options.items():
+            if lemma not in ranks:
+                continue
+            held = readings.poses.get(lemma)
+            if held:
+                tags = {tag for tag in tags if parse_tag(tag)[0] in held}
+            mark = "-" if lemma == own else "other"
+            if mark == "other" and (lemma not in readings.poses or lemma not in readings.standard):
+                continue
+            rows.update((form, lemma, tag, mark) for tag in tags)
+    return sorted(f"{form}\t{lemma}\t{tag}\t{mark}\n" for form, lemma, tag, mark in rows)
+
+
+def _carried(rows, sources):
+    """`rows` with each spelling of `sources` (spelling → the forms whose readings it carries) carrying
+    those forms' rows, re-keyed, and none of its own."""
+    by_form = collections.defaultdict(list)
+    for row in rows:
+        by_form[row.split("\t", 1)[0]].append(row)
+    out = {row for row in rows if row.split("\t", 1)[0] not in sources}
+    for spelling, carried in sources.items():
+        for form in carried:
+            out.update(spelling + row[len(form) :] for row in by_form.get(form, ()))
+    return out
+
+
+def spelling_rows(rows, forms, spellings=None):
+    """`grammar.tsv`'s rows with each spelling change 10 reads as its word carrying that word's
+    readings, as a form of it, and none of its own (read-lingua-italian-unmarked-spellings D4; D5):
+
+    - a dictionary spelling `spellings` names (`dictionary_spellings`, its D2) those of the form it
+      spells, where the forms table files both under one lemma and nothing gives the spelling a
+      reading of its own: `perchè` *perché*'s, `caffé` *caffè*'s, `fà` those of `fa` (*fare*'s) —
+      its own entry's head, a misspelling's, names no gender —, while `dà`, which the section also
+      gives as « alternative form of dare », keeps its own, the present of *dare*; its inflections are
+      read under the word from its own table (`read_readings`);
+    - each row of the web's list and each owner's exception those of every form of its word it writes
+      with the same letters, marks dropped (`_unmarked`): `puo` `può`'s, `citta` `città`'s, `perche`,
+      whose own entry is *perca*'s plural, `perché`'s (the exceptions' own entries leave the tables).
+
+    Sorted, each row once."""
+    read = {row.split("\t", 1)[0] for row in rows if row.endswith("\t-\n")}
+    sources = {
+        spelling: [word]
+        for spelling, word in (spellings or {}).items()
+        if spelling in forms and forms.get(word) == forms[spelling] and spelling not in read
+    }
+    rows = _carried(rows, sources)
+    of_letters = collections.defaultdict(list)
+    for form, lemma in forms.items():
+        of_letters[(_unmarked(form), lemma)].append(form)
+    web = {}
+    for spelling in (*WEB_SPELLINGS, *OWNER_EXCEPTIONS):
+        lemma = forms.get(spelling)
+        if lemma is not None:
+            web[spelling] = [form for form in of_letters[(_unmarked(spelling), lemma)] if form != spelling]
+    return sorted(_carried(rows, web))
+
+
+def readings_figures(rows, forms):
+    """What the readings hold, for the report and the pull request (D2, D6, D7): the readings, the
+    forms carrying one of their own, the `other` marks and the forms carrying one, the tags, the
+    readings by part of speech, the forms by how many readings of their own they carry, and the forms
+    reading the present indicative and the present subjunctive of one person and number."""
+    own = collections.defaultdict(set)
+    others = set()
+    tags = set()
+    by_pos = collections.Counter()
+    other_marks = 0
+    for row in rows:
+        form, _, tag, mark = row.rstrip("\n").split("\t")
+        tags.add(tag)
+        by_pos[tag.split("|", 1)[0]] += 1
+        if mark == "-":
+            own[form].add(tag)
+        else:
+            other_marks += 1
+            others.add(form)
+    both = 0
+    for form, held in own.items():
+        presents = {
+            (f.get("Person"), f.get("Number"), f.get("Mood"))
+            for f in (parse_tag(tag)[1] for tag in held)
+            if f.get("Tense") == "Pres" and f.get("VerbForm") == "Fin"
+        }
+        if any((p, n, "Ind") in presents and (p, n, "Sub") in presents for p, n, _ in presents):
+            both += 1
+    return {
+        "readings": len(rows),
+        "forms with a reading of their own": len(own),
+        "forms without": len(forms) - len(own),
+        "other marks": other_marks,
+        "forms with an other mark": len(others),
+        "tags": len(tags),
+        "by part of speech": dict(sorted(by_pos.items())),
+        "own readings per form": dict(sorted(collections.Counter(len(held) for held in own.values()).items())),
+        "forms reading the present indicative and subjunctive alike": both,
+    }
+
+
+
 # — Morph-it! (D3) —
 
 # Morph-it!'s verbal categories (a lexical verb, the auxiliaries, the modals, the causative and the
@@ -1499,7 +2158,8 @@ def reduce(work, max_lemmas, pack_version, frequency, top_n, morph_it=MORPH_IT, 
     survey = survey_kaikki(kaikki)
     kept = {}
     spellings = dictionary_spellings(kaikki, frequency, kept)
-    lexicon = read_kaikki(kaikki, survey, spellings)
+    readings = Readings()
+    lexicon = read_kaikki(kaikki, survey, spellings, readings)
     # Italian's acronym rows, each backed by the section's own entry (keep-lingua-italian-acronyms-and-names D2).
     acronyms.check_rows(lexicon.acronyms)
     paradigm = lexicon.spelling_paradigms()
@@ -1556,6 +2216,10 @@ def reduce(work, max_lemmas, pack_version, frequency, top_n, morph_it=MORPH_IT, 
     acronyms.check_lowercase(forms)
     written = {**forms, **acronyms.acronym_forms()}
     common.write(work, "forms.tsv", "".join(f"{f}\t{l}\n" for f, l in sorted(written.items())))
+    # The readings of the forms and ranks just chosen (add-lingua-italian-grammar-tables D1): the
+    # acronym rows, capitalised headwords, carry none (D5).
+    grammar = spelling_rows(grammar_rows(readings, forms, ranks), forms, spellings)
+    common.write(work, "grammar.tsv", "".join(grammar))
     common.write(work, "freq.tsv", "".join(f"{l}\t{r}\n" for l, r in sorted(ranks.items(), key=lambda kv: (kv[1], kv[0]))))
     # Italian's dictionary words (lexical.tsv): the acronym rows alone, glossed or not, until change 16's
     # glosses write the rest — its dictionary words less its names, plus the rows (D5, D6). it-fr's
@@ -1587,6 +2251,7 @@ def reduce(work, max_lemmas, pack_version, frequency, top_n, morph_it=MORPH_IT, 
         "foreign readings": alien,
         "web spellings": len(WEB_SPELLINGS),
         "owner's exceptions": len(OWNER_EXCEPTIONS),
+        "grammar": readings_figures(grammar, forms),
     }
     report(f"reduced it-fr: forms={summary['forms']} lemmas={summary['lemmas']} (the last, {last}, at Zipf {summary['last zipf']})")
     report(
@@ -1615,6 +2280,20 @@ def reduce(work, max_lemmas, pack_version, frequency, top_n, morph_it=MORPH_IT, 
     report(
         f"reduced it-fr: the web's spellings without their accent, {len(WEB_SPELLINGS)} row(s) of the reviewed "
         f"list and {len(OWNER_EXCEPTIONS)} owner's exception(s), each read as its word"
+    )
+    figures = summary["grammar"]
+    report(
+        f"reduced it-fr: readings={figures['readings']} in {figures['tags']} tags; {figures['forms with a reading of their own']} "
+        f"forms read as their own lemma, {figures['forms without']} not; {figures['other marks']} other marks on "
+        f"{figures['forms with an other mark']} forms"
+    )
+    report(
+        "reduced it-fr: readings by part of speech "
+        + ", ".join(f"{pos} {n}" for pos, n in figures["by part of speech"].items())
+        + "; forms by their own readings "
+        + ", ".join(f"{k}: {n}" for k, n in figures["own readings per form"].items())
+        + f"; {figures['forms reading the present indicative and subjunctive alike']} forms read the present "
+        "indicative and subjunctive of one person and number"
     )
     return summary
 
