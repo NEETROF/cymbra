@@ -143,7 +143,7 @@ fn the_italian_fixture_studies_italian_at_its_analyser_version() {
     // pinned to one tag (`NOUN`, ship-lingua-pack-bases-once's convention for a fixture without
     // grammar). An Italian rule that bumps the version bumps the committed manifest with it
     // (add-lingua-italian-tokenisation: `0.2.0`; add-lingua-italian-analysis: `1.0.0`;
-    // add-lingua-italian-detection-guard: `1.1.0`).
+    // add-lingua-italian-detection-guard: `1.1.0`; read-lingua-italian-unmarked-spellings: `1.2.0`).
     let dir = testdata_dir().parent().unwrap().join("it-fr");
     let inputs = inputs_from_dir(&dir).expect("read the it-fr fixture");
     assert!(inputs.readings.is_empty() && inputs.senses.is_empty());
@@ -433,7 +433,9 @@ fn the_fixtures_build_whole_as_recorded_and_split_by_their_pin() {
     // words Italian's pre-pass writes and its manifest `0.2.0`; add-lingua-italian-analysis D7
     // moves it again, the fixture gaining the verbs, gerunds and imperatives the enclitic rule
     // reads, `ecco`, two glosses and its manifest `1.0.0`; add-lingua-italian-detection-guard
-    // moves it once more, its manifest `1.1.0`.
+    // moves it once more, its manifest `1.1.0`; read-lingua-italian-unmarked-spellings D5 moves it,
+    // the fixture gaining the spelling rows `perche` → `perché` and `cosi` → `così` and its manifest
+    // `1.2.0`.
     let root = testdata_dir().parent().unwrap().to_path_buf();
     for (pair, size, sha256) in [
         (
@@ -468,8 +470,8 @@ fn the_fixtures_build_whole_as_recorded_and_split_by_their_pin() {
         ),
         (
             "it-fr",
-            5956,
-            "687b794912e97f3777190053e20f626cc4ad785e8a08e6f42648c7dac325d78e",
+            5963,
+            "b74765d8426ddcbe795e69eb4f712996efa1dd945cc95f7aee2c18d1a437ad78",
         ),
     ] {
         let inputs = inputs_from_dir(&root.join(pair)).unwrap_or_else(|e| panic!("{pair}: {e}"));

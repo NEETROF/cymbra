@@ -16,12 +16,16 @@
 //! add-lingua-italian-baseline).
 //!
 //! Italian is a studied language served by its own analysis (analyser `1.0.0`,
-//! add-lingua-italian-analysis; `1.1.0` with its detection guard): its tokenisation pre-pass
+//! add-lingua-italian-analysis; `1.1.0` with its detection guard; `1.2.0` reading the apostrophe
+//! that stands for an accent): its tokenisation pre-pass
 //! (add-lingua-italian-tokenisation) — `l'uomo` is `lo` + `uomo`, `dell'acqua` `dello` + `acqua`, `c'è` `ci` + `è`, `nel` `in` + `il`
 //! sharing its span, `del` whole, `po'` `poco` — reading every word in NFC; its cascade, the
 //! pack's forms then the enclitic rule (`dirmelo` is `dire`, `vattene` `andare`, `eccolo`
 //! `ecco`); its closed classes (`non`, `di`, `il`, `che` are function words); and its names rule.
-//! `perche'` is still `perche` by the edge trim every language has. Its detection guard
+//! Its pre-pass reads the apostrophe that stands for an accent as the accented word the pack lists
+//! (read-lingua-italian-unmarked-spellings D1): the `informale` page's `E'`, `perche'`, `citta'`,
+//! `e'`, `piu'` are `È`, `perché`, `città`, `è`, `più`, and its `perche` and `cosi` read as
+//! `perché` and `così` through the fixture's two spelling rows (D5). Its detection guard
 //! (add-lingua-italian-detection-guard) keeps the `misto` page's Catalan and Galician blocks,
 //! which whichlang reads as Italian, out of the analysis. This freezes
 //! what the engine makes of raw Italian text today, over a thirteen-page corpus
@@ -312,6 +316,32 @@ fn what_the_baseline_shows_today() {
     // A word the fixture lists is never split.
     for listed in ["cinema", "sistema", "tema", "vela"] {
         assert!(has(&clitici, listed, listed), "{listed}: {clitici:?}");
+    }
+
+    // The informale page's apostrophe for an accent reads as the accented word, one token spanning
+    // the apostrophe (read-lingua-italian-unmarked-spellings D1); its `perche` and `cosi` through
+    // the fixture's spelling rows, standing in for the tables' (D2, D3).
+    let informale_json = analysed(&engine, "informale");
+    let informale = tokens(&informale_json);
+    for (surface, lemma) in [
+        ("È", "essere"),
+        ("perché", "perché"),
+        ("città", "città"),
+        ("è", "essere"),
+        ("più", "più"),
+        ("perche", "perché"),
+        ("cosi", "così"),
+    ] {
+        assert!(has(&informale, surface, lemma), "{surface}: {informale:?}");
+    }
+    assert_eq!(written(&informale_json, "informale", "È"), ["E'"]);
+    assert_eq!(written(&informale_json, "informale", "perché"), ["perche'"]);
+    assert_eq!(written(&informale_json, "informale", "è"), ["e'", "e'"]);
+    for unread in ["E", "e", "perche'", "piu", "citta"] {
+        assert!(
+            informale.iter().all(|(surface, _, _)| surface != unread),
+            "{unread}: {informale:?}"
+        );
     }
 
     // The tecnico page's NFD block is read composed: its words are the pack's, `città` glossed.

@@ -2379,7 +2379,7 @@ mod tests {
         let page = analyse_page(&blocks, IT, &pack, &KnowledgeState::new());
         assert!(page.analysable);
         assert_eq!(page.analyzer_version, ITALIAN_ANALYZER_VERSION);
-        assert_eq!(page.analyzer_version, "1.1.0");
+        assert_eq!(page.analyzer_version, "1.2.0");
         let class_of = |surface: &str| {
             page.tokens
                 .iter()

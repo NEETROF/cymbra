@@ -33,7 +33,9 @@
 //! articulated prepositions of `di` whole (`del`, `della`; `dell'` read as
 //! `dello`) and splits the others into the preposition and the article
 //! (`nel` → `in` + `il`, sharing the span), and reads a truncation as its word
-//! (`po'` → `poco`), its apostrophe kept in its span; like French's, it reads every
+//! (`po'` → `poco`), its apostrophe kept in its span, and an apostrophe that stands for
+//! an accent as the accented word the pack lists (`perche'` → `perché`, `E'` → `È`,
+//! read-lingua-italian-unmarked-spellings D1); like French's, it reads every
 //! word in NFC before comparing it with anything and writes every token's text
 //! composed, each span still the source's (add-lingua-italian-analysis D1). Adding a
 //! studied language means adding a pre-pass, not touching the tokeniser.
@@ -66,7 +68,9 @@ use super::lexicon::Lexicon;
 /// (add-lingua-french-tokenisation D6), and so do an Italian elision's (`L'uomo` →
 /// `Lo` [0, 2) + `uomo` [2, 6)); an Italian articulated preposition's two tokens
 /// share theirs (`nel`), and a truncation is one token whose span holds its
-/// apostrophe (`po'` → `poco` [0, 3), add-lingua-italian-tokenisation D6). The text is the word without its soft
+/// apostrophe (`po'` → `poco` [0, 3), add-lingua-italian-tokenisation D6), as is a
+/// word whose apostrophe stands for its accent (`perche'` → `perché` [0, 7),
+/// read-lingua-italian-unmarked-spellings D1). The text is the word without its soft
 /// hyphens, the span the source's with them: « vi‧da » is `vida` [0, 6)
 /// (ignore-lingua-soft-hyphens D2).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -148,7 +152,8 @@ const IRREGULAR_CONTRACTIONS: &[(&str, &str)] = &[
 /// inversions. Italian takes an arm of its own (add-lingua-italian-tokenisation):
 /// its words keep a listed trailing apostrophe (`italian_words`), then
 /// `push_italian_word` and `push_italian_run` read its elisions, its articulated
-/// prepositions and its truncations, each word read in NFC (add-lingua-italian-analysis
+/// prepositions, its truncations and an apostrophe that stands for an accent
+/// (read-lingua-italian-unmarked-spellings D1), each word read in NFC (add-lingua-italian-analysis
 /// D1); it has no U+202F rule (D2), and `dirmelo` stays whole — the enclitic rule is
 /// its cascade's. All share the rules that belong to no language:
 /// segmentation, the hyphen run, the compound rule, the digit drop, the
@@ -193,7 +198,7 @@ pub fn tokenize(
             StudiedLanguage::Italian if run => {
                 push_italian_run(&mut tokens, text, &words[i..j], lexicon);
             }
-            StudiedLanguage::Italian => push_italian_word(&mut tokens, first, start, lexicon),
+            StudiedLanguage::Italian => push_italian_word(&mut tokens, text, first, start, lexicon),
             StudiedLanguage::English | StudiedLanguage::Spanish if run => push_compound(
                 &mut tokens,
                 &text[start..end],
@@ -568,20 +573,26 @@ fn apostrophe_ending_a_word(text: &str, end: usize) -> Option<usize> {
     }
 }
 
-/// Whether `token`, read from `text`, is an elided piece or a truncation — `l’` of
-/// « l’homme », `qu'` of « qu'il », `l’` written alone, Italian's `l'` of « l'uomo »,
-/// both tokens of its « all'alba »'s `all'`, its `po'`: its source span ends on a
-/// straight or typographic apostrophe (match-lingua-french-elided-pieces D2,
-/// add-lingua-italian-tokenisation D6). French's pre-pass gives an elided piece, and
-/// it alone, a span holding its apostrophe ([`push_french_elisions`], and an elided
-/// word written on its own); Italian's gives one to an elided piece and to a
-/// truncation ([`push_italian_word`]). No other token's span can end on one: every
+/// Whether `token`, read from `text`, is an elided piece, a truncation or an Italian
+/// word written with an apostrophe for its accent — `l’` of « l’homme », `qu'` of
+/// « qu'il », `l’` written alone, Italian's `l'` of « l'uomo », both tokens of its
+/// « all'alba »'s `all'`, its `po'`, its `perche'` read as `perché`: its source span ends
+/// on a straight or typographic apostrophe (match-lingua-french-elided-pieces D2,
+/// add-lingua-italian-tokenisation D6, read-lingua-italian-unmarked-spellings D1).
+/// French's pre-pass gives an elided piece, and it alone, a span holding its apostrophe
+/// ([`push_french_elisions`], and an elided word written on its own); Italian's gives
+/// one to an elided piece, to a truncation and to a word whose apostrophe stands for
+/// its accent ([`push_italian_word`]). No other token's span can end on one: every
 /// other span is a UAX #29 word's, or a hyphenated run's ending on one, and UAX #29
 /// never ends a word on an apostrophe — it joins one only between two letters
 /// (`aujourd'hui`, `don't`), and an edge apostrophe (`vélib'`, `sailors'`, Italian's
-/// `perche'`) is outside the word's span. The token's text cannot say it: an elided
-/// piece reads as the word it stands for (`le`), a truncation as its word (`poco`).
-/// English and Spanish tokens are never elided.
+/// `ciao'`, or a `perche'` the pack lists no `perché` for) is outside the word's span.
+/// The token's text cannot say it: an elided piece reads as the word it stands for
+/// (`le`), a truncation as its word (`poco`), an accent spelling as its accented word
+/// (`perché`). So the flag says yes for an accent spelling too, which is no elided
+/// piece: an expression written with `perché` is not met where the page writes
+/// `perche'` — named for Italian's phrase gloss (change 12), which may read the flag
+/// by the token's text. English and Spanish tokens are never elided.
 ///
 /// The phrase gloss reads it on a selection's tokens and on an expression's headword
 /// (`engine::match_expressions`), so the two say it the same way.
@@ -919,6 +930,67 @@ fn italian_truncation(lower: &str) -> Option<&'static str> {
     Some(ITALIAN_TRUNCATIONS[index].1)
 }
 
+/// The literary apocopes and truncations the apostrophe for an accent is never read on
+/// (read-lingua-italian-unmarked-spellings D1), written lowercase without their apostrophe,
+/// sorted byte-wise for the search. The design's six — `ne'` (*nei*), `de'` (*dei*), `co'`
+/// (*coi*), `pe'` (*pei*), `a'` (*ai*), `su'` (*sui*): `ne'` would read `né` and `su'` `sù`,
+/// wrong every time in a book —, and the ten the measurement of its task 2.2 found read as no
+/// word of theirs in the public-domain books and the Wikipedia sample, each a word the tables
+/// list with the accent and Italian does not write so: `que'` (*quei*, 267 times in *I promessi
+/// sposi*, read `qué`), `ca'` (*casa*, « Ca' Foscari », read `cà`), `ve'` (*vedi*, `vè`), `mi'`
+/// (*mio*, `mì`), `fra'` (*frate*, `frà`), `to'` (*togli*, `tò`), `i'` (*io*, `ì`), `me'`
+/// (*meglio*, `mè`), `vo'` (*voglio*, `vò`) and `fe'` (*fece*, `fè`). Each stays as an unlisted
+/// trailing apostrophe is read, its apostrophe outside the word. Public for the checks that hold
+/// the tables to the pre-pass.
+pub const ITALIAN_APOCOPES: &[&str] = &[
+    "a", "ca", "co", "de", "fe", "fra", "i", "me", "mi", "ne", "pe", "que", "su", "to", "ve", "vo",
+];
+
+/// The accented form an Italian word reads as when its apostrophe stands for its accent
+/// (read-lingua-italian-unmarked-spellings D1), or `None`: `lower` — the word, or what remains
+/// of it after its elided pieces, lowercase, in NFC and without the apostrophe — ending in a
+/// vowel, that vowel accented (`a` → `à`, `e` → `è` or `é`, `i` → `ì`, `o` → `ò`, `u` → `ù`),
+/// as the pack lists it (`perche` → `perché`, `e` → `è`, `citta` → `città`). Where the pack
+/// lists both of `e`'s, a form it files under the other is the other's spelling, and the other
+/// wins (`perché`, beside `perchè` a form of it; `caffè`, beside `caffé`); where neither is filed
+/// under the other, `è` comes before `é` (`è`, a form of *essere*, beside the misspelling `é` the
+/// tables rank as a word of its own): the tables decide, never a frequency. Change 6's
+/// truncations are never tried — `po'` is `poco`, `da'` `dai`, never `pò`, `dà` — nor the
+/// apocopes ([`ITALIAN_APOCOPES`]).
+fn italian_accented(lower: &str, lexicon: &(impl Lexicon + ?Sized)) -> Option<String> {
+    if italian_truncation(lower).is_some() || ITALIAN_APOCOPES.binary_search(&lower).is_ok() {
+        return None;
+    }
+    let vowel = lower.chars().next_back()?;
+    let accents: &[char] = match vowel {
+        'a' => &['à'],
+        'e' => &['è', 'é'],
+        'i' => &['ì'],
+        'o' => &['ò'],
+        'u' => &['ù'],
+        _ => return None,
+    };
+    let stem = &lower[..lower.len() - vowel.len_utf8()];
+    let listed: Vec<(String, &str)> = accents
+        .iter()
+        .map(|accent| format!("{stem}{accent}"))
+        .filter_map(|form| {
+            let lemma = lexicon.lemma_of(&form)?;
+            Some((form, lemma))
+        })
+        .collect();
+    let spells_another = |(form, lemma): &(String, &str)| {
+        listed
+            .iter()
+            .any(|(other, _)| other != form && other.as_str() == *lemma)
+    };
+    let chosen = listed
+        .iter()
+        .find(|candidate| !spells_another(candidate))
+        .or_else(|| listed.first())?;
+    Some(chosen.0.clone())
+}
+
 /// Whether an Italian word is an elided form (D3's, or D4's `dell'`, `all'`,
 /// `dall'`, `nell'`, `sull'`) or a truncation, read lowercase, in NFC and without
 /// its soft hyphens: `(elided, truncation)`.
@@ -975,8 +1047,11 @@ fn inside_a_quote(text: &str, start: usize) -> bool {
 /// word card is handed it) or before a number (`l'11`, `nell'800`, whose digits
 /// the digit rule then drops), a truncation (`po'`) before neither a letter nor a
 /// digit —, and, unless a digit follows, no quote opened before it is left open
-/// ([`inside_a_quote`]). Any other trailing apostrophe stays outside the word, as
-/// the rule of no language leaves it: `perche'` is `perche`, `‘ciao’` is `ciao`.
+/// ([`inside_a_quote`]). Any other trailing apostrophe stays outside the word here,
+/// as the rule of no language leaves it — `‘ciao’` is `ciao` —; [`push_italian_word`]
+/// then reads one that stands for an accent, taking it into the token's span
+/// (`perche'` is `perche` here and `perché` there, read-lingua-italian-unmarked-spellings
+/// D1).
 fn italian_words(text: &str) -> Vec<(usize, &str)> {
     text.unicode_word_indices()
         .map(|(start, word)| {
@@ -1066,16 +1141,22 @@ fn push_italian_elisions<'a>(
     (at, rest)
 }
 
-/// One Italian word written at `start` — outside a hyphenated run, or a piece of
-/// a run holding a digit: its elisions (D3); then a word the seam kept its
+/// One Italian word written at `start` of `text` — outside a hyphenated run, or a
+/// piece of a run holding a digit: its elisions (D3); then a word the seam kept its
 /// apostrophe for, a truncation read as its word or an elided form written alone
-/// read as the word it stands for, one token spanning the apostrophe (D5); then
-/// an articulated preposition split into the preposition and the article sharing
-/// the span, the `di` family whole (D4); or the rules every language shares
-/// ([`push_word`]). Each check reads the word composed and each token's text is
-/// composed (add-lingua-italian-analysis D1); the spans are the source's.
+/// read as the word it stands for, one token spanning the apostrophe (D5); then a
+/// word, or the rest of one after its elisions, whose apostrophe — neither a letter
+/// nor a digit after it, no quote open before the written word ([`inside_a_quote`])
+/// — stands for the accent of a form the pack lists, read as that form, its written
+/// capital kept, one token spanning the apostrophe ([`italian_accented`],
+/// read-lingua-italian-unmarked-spellings D1: `perche'` → `perché`, `E'` → `È`, `c'e'`
+/// → `ci` + `è`); then an articulated preposition split into the preposition and the
+/// article sharing the span, the `di` family whole (D4); or the rules every language
+/// shares ([`push_word`]). Each check reads the word composed and each token's text
+/// is composed (add-lingua-italian-analysis D1); the spans are the source's.
 fn push_italian_word(
     tokens: &mut Vec<Token>,
+    text: &str,
     word: &str,
     start: usize,
     lexicon: &(impl Lexicon + ?Sized),
@@ -1084,13 +1165,27 @@ fn push_italian_word(
     let end = at + rest.len();
     let lower = french_lowercase(rest);
     // The seam kept the apostrophe of a listed word only: a truncation, or an elided form alone.
-    let reading = match lower.strip_suffix(is_apostrophe) {
-        Some(bare) => italian_truncation(bare)
+    if let Some(bare) = lower.strip_suffix(is_apostrophe) {
+        let reading = italian_truncation(bare)
             .map(ItalianReading::Word)
-            .or_else(|| italian_elided(bare, "")),
-        None => italian_contraction(&lower),
-    };
-    match reading {
+            .or_else(|| italian_elided(bare, ""));
+        if let Some(reading) = reading {
+            push_italian_reading(tokens, reading, rest, at, end);
+            return;
+        }
+    } else if let Some(apostrophe) = apostrophe_ending_a_word(text, end)
+        && !inside_a_quote(text, start)
+        && let Some(accented) = italian_accented(&lower, lexicon)
+    {
+        tokens.push(Token {
+            text: french_cased(&accented, rest),
+            start: at,
+            end: end + apostrophe,
+            parts: Vec::new(),
+        });
+        return;
+    }
+    match italian_contraction(&lower) {
         Some(reading) => push_italian_reading(tokens, reading, rest, at, end),
         None => push_word(tokens, rest, at, end, ITALIAN, lexicon),
     }
@@ -1111,7 +1206,7 @@ fn push_italian_run(
     let end = pieces[pieces.len() - 1].0 + pieces[pieces.len() - 1].1.len();
     if text[start..end].chars().any(|c| c.is_ascii_digit()) {
         for &(at, piece) in pieces {
-            push_italian_word(tokens, piece, at, lexicon);
+            push_italian_word(tokens, text, piece, at, lexicon);
         }
         return;
     }
@@ -1706,12 +1801,12 @@ mod tests {
     #[test]
     fn spec_scenario_an_apostrophe_for_an_accent_and_a_closing_quote() {
         // D5: any other trailing apostrophe stays outside the word, as the rule of no language
-        // leaves it, until change 10 reads the first two; a quoted truncation's base is read as
-        // written (the opening-quote scan, recorded in the design's implementation notes).
+        // leaves it; a quoted truncation's base is read as written (the opening-quote scan,
+        // recorded in the design's implementation notes). Change 10 reads an apostrophe for an
+        // accent where the pack lists the accented word (`e'` → `è` below; its own tests,
+        // `spec_scenario_an_apostrophe_for_an_accent`): this stand-in lists no `perché`.
         for (text, expected) in [
             ("perche'", vec!["perche"]),
-            ("e'", vec!["e"]),
-            ("E' tardi", vec!["E", "tardi"]),
             ("‘ciao’", vec!["ciao"]),
             ("‘due anni fa’", vec!["due", "anni", "fa"]),
             ("'due anni fa'", vec!["due", "anni", "fa"]),
@@ -1758,6 +1853,277 @@ mod tests {
         // the elided `‘` of « anni ‘80 », nor a mistyped « l‘uomo ».
         assert_eq!(texts(&italian("anni ‘80, un po'")), ["anni", "un", "poco"]);
         assert_eq!(texts(&italian("l‘uomo, un po'")), ["l‘uomo", "un", "poco"]);
+    }
+
+    /// A stand-in Italian pack for the apostrophe that stands for an accent
+    /// (read-lingua-italian-unmarked-spellings D1): the accented words the spec's scenarios
+    /// list, each filed under itself or its verb, the truncations' accented look-alikes (`pò`,
+    /// `dà`) and the apocopes' (`né`, `sù`), and `forms` beside them.
+    fn accent_lexicon(forms: &[(&str, &str)]) -> FstLexicon<Vec<u8>> {
+        let mut pairs = vec![
+            ("è", "essere"),
+            ("più", "più"),
+            ("città", "città"),
+            ("può", "potere"),
+            ("così", "così"),
+            ("perché", "perché"),
+            ("caffè", "caffè"),
+            ("pò", "pò"),
+            ("dà", "dare"),
+            ("né", "né"),
+            ("sù", "su"),
+            ("problema", "problema"),
+            // The accented look-alikes of the other apocopes the tables list (task 2.2).
+            ("qué", "qué"),
+            ("cà", "cà"),
+            ("vè", "vè"),
+            ("mì", "mì"),
+            ("frà", "fra"),
+            ("tò", "tò"),
+            ("ì", "ì"),
+            ("mè", "mè"),
+            ("vò", "vò"),
+            ("fè", "fè"),
+            ("à", "à"),
+            ("cò", "cò"),
+            ("dè", "dè"),
+            ("pè", "pè"),
+        ];
+        pairs.extend_from_slice(forms);
+        let (bytes, pool) =
+            build_lexicon_blobs(&pairs, &["a", "e", "o", "essere", "su", "dare", "potere"])
+                .expect("build");
+        FstLexicon::from_slices(bytes, &pool).expect("load")
+    }
+
+    fn accented(text: &str, forms: &[(&str, &str)]) -> Vec<Token> {
+        tokenize(text, IT, &accent_lexicon(forms))
+    }
+
+    #[test]
+    fn spec_scenario_an_apostrophe_for_an_accent() {
+        // D1: one token spanning the word and its apostrophe, its text the accented form the pack
+        // lists, straight or typographic.
+        for (text, read_as) in [
+            ("perche'", "perché"),
+            ("piu'", "più"),
+            ("citta'", "città"),
+            ("e'", "è"),
+            ("puo'", "può"),
+            ("cosi'", "così"),
+            ("caffe'", "caffè"),
+            ("perche’", "perché"),
+        ] {
+            let tokens = accented(text, &[]);
+            assert_eq!(read(text, &tokens), [(read_as, text)], "{text}");
+            assert!(is_elided(text, &tokens[0]), "{text}");
+        }
+        // In running text, before punctuation, a space or the end.
+        let text = "E' troppo tardi perche' la citta' e' piu' lontana, cosi'.";
+        assert_eq!(
+            read(text, &accented(text, &[])),
+            [
+                ("È", "E'"),
+                ("troppo", "troppo"),
+                ("tardi", "tardi"),
+                ("perché", "perche'"),
+                ("la", "la"),
+                ("città", "citta'"),
+                ("è", "e'"),
+                ("più", "piu'"),
+                ("lontana", "lontana"),
+                ("così", "cosi'"),
+            ]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_an_accent_after_an_elided_piece() {
+        // D1: the rule reads what remains after change 6's elided pieces are split off.
+        for (text, expected) in [
+            (
+                "non c'e' problema",
+                vec![
+                    ("non", "non"),
+                    ("ci", "c'"),
+                    ("è", "e'"),
+                    ("problema", "problema"),
+                ],
+            ),
+            ("dov'e'", vec![("dove", "dov'"), ("è", "e'")]),
+            ("com'e'", vec![("come", "com'"), ("è", "e'")]),
+            ("l'e'", vec![("lo", "l'"), ("è", "e'")]),
+            ("C’e’", vec![("Ci", "C’"), ("è", "e’")]),
+        ] {
+            assert_eq!(read(text, &accented(text, &[])), expected, "{text}");
+        }
+    }
+
+    #[test]
+    fn spec_scenario_an_accent_on_a_capital() {
+        // D1: the written capital is kept on the accented letter, as `french_cased` puts it.
+        for (text, expected) in [
+            ("E' vero", vec![("È", "E'"), ("vero", "vero")]),
+            ("PERCHE'", vec![("Perché", "PERCHE'")]),
+            ("Citta'", vec![("Città", "Citta'")]),
+        ] {
+            assert_eq!(read(text, &accented(text, &[])), expected, "{text}");
+        }
+    }
+
+    #[test]
+    fn spec_scenario_two_accents_listed() {
+        // D1: a form the pack files under the other is the other's spelling, and the other wins.
+        let tables = [("perchè", "perché"), ("caffé", "caffè")];
+        assert_eq!(
+            texts(&accented("perche' caffe'", &tables)),
+            ["perché", "caffè"]
+        );
+        // Neither filed under the other: `è` before `é`.
+        let neither = [("benché", "sebbene"), ("benchè", "sebbene")];
+        assert_eq!(texts(&accented("benche'", &neither)), ["benchè"]);
+        let both = [("tè", "tè"), ("té", "té")];
+        assert_eq!(texts(&accented("te'", &both)), ["tè"]);
+        // `è` filed under `é`: `é`.
+        let own = [("benchè", "benché"), ("benché", "benché")];
+        assert_eq!(texts(&accented("benche'", &own)), ["benché"]);
+        // The other's spelling loses whichever accent it carries.
+        assert_eq!(
+            texts(&accented(
+                "ventitre'",
+                &[("ventitré", "ventitré"), ("ventitrè", "ventitré")]
+            )),
+            ["ventitré"]
+        );
+        // Only `é` listed: `é`.
+        assert_eq!(
+            texts(&accented("poiche'", &[("poiché", "poiché")])),
+            ["poiché"]
+        );
+        // The tables' own case: `è` a form of *essere*, the misspelling `é` ranked as a word of its
+        // own. Neither is filed under the other: `è` before `é`, « E' » is `È`.
+        let misspelt = [("é", "é")];
+        assert_eq!(
+            texts(&accented("E' vero, e'", &misspelt)),
+            ["È", "vero", "è"]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_listed_word_with_its_apostrophe() {
+        // D1: change 6's truncations keep their reading, though the pack lists `pò` and `dà`.
+        let text = "un po' e da' qua";
+        assert_eq!(
+            read(text, &accented(text, &[])),
+            [
+                ("un", "un"),
+                ("poco", "po'"),
+                ("e", "e"),
+                ("dai", "da'"),
+                ("qua", "qua")
+            ]
+        );
+        for &(written, read_as) in ITALIAN_TRUNCATIONS {
+            let text = format!("{written}'");
+            assert_eq!(texts(&accented(&text, &[])), [read_as], "{text}");
+        }
+        // Quoted, a truncation is read as written, never for an accent.
+        assert_eq!(
+            texts(&accented("'un po' e basta'", &[])),
+            ["un", "po", "e", "basta"]
+        );
+        // An elided form written alone keeps its reading.
+        assert_eq!(read("l' ", &accented("l' ", &[])), [("lo", "l'")]);
+    }
+
+    #[test]
+    fn spec_scenario_an_apocope() {
+        // D1: never read for an accent, though the pack lists `né` and `sù`: the apostrophe stays
+        // outside the word.
+        for apocope in ITALIAN_APOCOPES {
+            let text = format!("{apocope}' ");
+            let tokens = accented(&text, &[]);
+            assert!(
+                tokens.iter().all(|t| t.end <= apocope.len()),
+                "{text}: {tokens:?}"
+            );
+        }
+        assert_eq!(
+            texts(&accented("ne' campi, su' monti", &[])),
+            ["ne", "campi", "su", "monti"]
+        );
+        assert_eq!(texts(&accented("Ne'", &[])), ["Ne"]);
+        // The measured ones (task 2.2): Manzoni's « que' due », « Ca' Foscari », « ve' ».
+        assert_eq!(
+            texts(&accented("que' due, Ca' Foscari, ve' ve'", &[])),
+            ["que", "due", "Ca", "Foscari", "ve", "ve"]
+        );
+        assert_eq!(
+            ITALIAN_APOCOPES.windows(2).find(|pair| pair[0] >= pair[1]),
+            None,
+            "sorted for the search"
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_word_the_tables_do_not_accent() {
+        // D1: no `ciaò` listed — the apostrophe outside the word, as before.
+        for (text, expected) in [
+            ("ciao'", vec![("ciao", "ciao")]),
+            ("Ciao' ", vec![("Ciao", "Ciao")]),
+            // A consonant before the apostrophe is no vowel to accent.
+            ("sailors'", vec![("sailors", "sailors")]),
+            // Neither a letter nor a digit may follow the apostrophe.
+            ("perche'2", vec![("perche", "perche")]),
+            // A word already accented keeps its accent and drops the apostrophe.
+            ("perché'", vec![("perché", "perché")]),
+        ] {
+            assert_eq!(read(text, &accented(text, &[])), expected, "{text}");
+        }
+        // A word the tokeniser joins at an inner apostrophe is read as before.
+        assert_eq!(texts(&accented("perche'x", &[])), ["perche'x"]);
+    }
+
+    #[test]
+    fn spec_scenario_an_accent_and_a_closing_quote() {
+        // D1: an apostrophe after a vowel is read for an accent only when no quote is open before
+        // the written word (change 6's scan, `inside_a_quote`).
+        for (text, expected) in [
+            ("‘perche’", vec!["perche"]),
+            ("'perche'", vec!["perche"]),
+            ("‘e’", vec!["e"]),
+            ("‘Ma e' vero’", vec!["Ma", "e", "vero"]),
+        ] {
+            let tokens = accented(text, &[]);
+            assert_eq!(texts(&tokens), expected, "{text}");
+            assert!(
+                tokens
+                    .iter()
+                    .all(|t| !text[t.start..t.end].ends_with(is_apostrophe)),
+                "{text}"
+            );
+        }
+        // A quote closed before the word leaves it outside any.
+        assert_eq!(
+            texts(&accented("‘ciao’ perche' no", &[])),
+            ["ciao", "perché", "no"]
+        );
+        // The spec's scenario: « perche' », « c'e' », « ‘ciao’ » and « ‘due anni fa’ ».
+        assert_eq!(
+            texts(&accented("perche' c'e' ‘ciao’ ‘due anni fa’", &[])),
+            ["perché", "ci", "è", "ciao", "due", "anni", "fa"]
+        );
+    }
+
+    #[test]
+    fn the_accent_reads_a_word_without_its_soft_hyphens() {
+        // ignore-lingua-soft-hyphens D2: « per‧che' » is `perché`, its span the source's.
+        let text = "per\u{AD}che'";
+        let tokens = accented(text, &[]);
+        assert_eq!(texts(&tokens), ["perché"]);
+        assert_eq!((tokens[0].start, tokens[0].end), (0, text.len()));
+        // A decomposed vowel before the apostrophe is no plain vowel: `perché'` composed.
+        assert_eq!(texts(&accented("perche\u{301}'", &[])), ["perché"]);
     }
 
     #[test]
@@ -1953,6 +2319,12 @@ mod tests {
             ])
         );
         assert_eq!(flags("perche' "), pieces(&[("perche", false)]));
+        // read-lingua-italian-unmarked-spellings D1 widens it to a word whose apostrophe stands for
+        // its accent: the stand-in lists `è`, not `perché`.
+        assert_eq!(
+            flags("c'e' perche' "),
+            pieces(&[("ci", true), ("è", true), ("perche", false)])
+        );
     }
 
     #[test]

@@ -107,7 +107,10 @@ pub const FRENCH_ANALYZER_VERSION: &str = "1.3.0";
 /// reads as Italian is not Italian when the function words of its neighbours — Catalan, Galician,
 /// Venetian, Sicilian, Neapolitan, Sardinian, Corsican, Friulian, Latin, Occitan, Romanian —
 /// outnumber its Italian ones (`language::italic_neighbour`), and such a block is no longer counted.
+/// `1.2.0` since read-lingua-italian-unmarked-spellings reads an apostrophe that stands for an
+/// accent as the accented word the pack lists, one token spanning the apostrophe (`perche'` →
+/// `perché`, `E'` → `È`, `c'e'` → `ci` + `è`), change 6's truncations first (`da'` → `dai`) and
+/// never on the apocopes `ne'`, `de'`, `co'`, `pe'`, `a'`, `su'` (`tokenize::italian_accented`).
 /// What it still lacks, each a rule of Italian's own that bumps this version when it lands: no
-/// apostrophe read as an accent (`perche'` is `perche` by the edge trim), no acronym kept in
-/// capitals and no expression keys of its own.
-pub const ITALIAN_ANALYZER_VERSION: &str = "1.1.0";
+/// acronym kept in capitals and no expression keys of its own.
+pub const ITALIAN_ANALYZER_VERSION: &str = "1.2.0";
