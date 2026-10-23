@@ -650,9 +650,10 @@ def words(list_path, data, repo):
     # Rule 3(b): the words a refused Italian block, read by hand as genuine Italian, drops.
     drops = candidates.get("misfire_drops", {})
     review = candidates.get("review_drops", {})
-    table = neighbour_table - set(uncaught) - set(drops) - set(review)
+    owner = candidates.get("owner_drops", {})
+    table = neighbour_table - set(uncaught) - set(drops) - set(review) - set(owner)
     print(f"Rule 3(b), dropped after reading the refused blocks: {sorted(drops)}")
-    print(f"Left out after the review: {sorted(review)}")
+    print(f"Left out after the review: {sorted(review)}; by the owner's decision: {sorted(owner)}")
 
     def refusals(nt, it):
         return [(s, b, found(t, nt, it)) for s, b, t in read if s["kind"] == "italian"

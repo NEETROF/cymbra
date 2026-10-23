@@ -18,7 +18,7 @@ The core SHALL refuse as Italian a block the detector reads as Italian whose fun
 - **THEN** it is not Italian
 
 #### Scenario: A Sicilian sentence
-- **WHEN** « Lu patruni dici ca nun ci su' sordi, ma iddu campa bonu. », read as Italian by the detector, is offered as Italian
+- **WHEN** « Iu sugnu cuntentu pirchì chiddu ca dicisti è veru. », read as Italian by the detector, is offered as Italian
 - **THEN** it is not Italian
 
 #### Scenario: A Neapolitan sentence
@@ -44,6 +44,10 @@ The core SHALL refuse as Italian a block the detector reads as Italian whose fun
 #### Scenario: Regional Italian is kept
 - **WHEN** « Ma va', non ci credo mica che sei andato giù in piazza con quel caldo. » and « Dai, vieni su che ti faccio vedere una cosa. » are offered as Italian
 - **THEN** both are Italian: `su`, `ci`, `ma` and `va'` are markers of neither table
+
+#### Scenario: Romanesco and informal Italian are kept
+- **WHEN** « Nun ce la faccio più, sò stanco morto. » and « Non sò che dire. » are offered as Italian
+- **THEN** both are Italian: `nun` and `sò`, Italian in an informal register, are markers of neither table
 
 #### Scenario: A capital makes a name
 - **WHEN** « Durante il viaggio abbiamo letto che El Niño e Os Lusíadas sono nomi, non parole. » is offered as Italian

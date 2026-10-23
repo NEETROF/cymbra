@@ -74,7 +74,7 @@ The matrix programme's architecture holds. What Italian adds or stresses:
   over eleven neighbours: Venetian, Sicilian, Neapolitan, Sardinian, Corsican and Friulian kept by
   measurement, Latin, Occitan and Romanian brought in by the same measurement (D2's rule moved them
   from their default), Catalan and Galician kept because the spec names them though they fall below
-  its tenth; a recall gate on Italian corpora (38 of 39,934 Italian blocks refused, all quotations
+  its tenth; a recall gate on Italian corpora (37 of 39,934 Italian blocks refused, all quotations
   or names).
 - **Tokenisation.** Italian stacks what French and Spanish had apart: elision pieces (as French),
   articulated prepositions (I7, where Spanish has al and del only), truncation, the web's apostrophe

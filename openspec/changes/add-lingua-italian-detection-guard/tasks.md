@@ -17,7 +17,7 @@
 
 ## 4. Owner
 
-- [ ] 4.1 [manual] The owner reads the measurement's figures — each neighbour's share read as Italian, the words kept and left out, the Italian blocks refused with their reasons — and confirms or moves D2's defaults (Latin, Occitan and Romanian out) before the implementation merges.
+- [x] 4.1 [manual] The owner reads the measurement's figures — each neighbour's share read as Italian, the words kept and left out, the Italian blocks refused with their reasons — and confirms or moves D2's defaults (Latin, Occitan and Romanian out) before the implementation merges. Decided 2026-10-23: rule 5 and the strict gate stay; Latin, Occitan, Romanian in; Catalan, Galician in; romanesco `sò`, `nun`, `je` out.
 
 ## 5. Gates
 

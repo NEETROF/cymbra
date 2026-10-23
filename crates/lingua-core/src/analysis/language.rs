@@ -670,7 +670,7 @@ fn guard_words(text: &str, mut f: impl FnMut(&str)) {
 
 /// Function words Catalan, Galician, the regional languages of Italy and Corsica, Latin, Occitan
 /// and Romanian write and Italian does not, sorted by bytes for binary search
-/// (add-lingua-italian-detection-guard D3): 161 in one pooled table, since the guard asks « Italian
+/// (add-lingua-italian-detection-guard D3): 158 in one pooled table, since the guard asks « Italian
 /// or not », not which neighbour (D1). Counted only where written in lowercase (`El Niño` and `Lu
 /// Capu` are names); Neapolitan's elided articles `'a`, `'e`, `'nu` and `'o` only in a word an
 /// apostrophe opens and no quote closes (D4, [`guard_words_opened`]).
@@ -700,6 +700,9 @@ fn guard_words(text: &str, mut f: impl FnMut(&str)) {
 ///   `care` (« care amiche »), `dar` (« dar retta »), `fi` (the letter) and `din` (« din don »);
 /// - `as`, Galician's article, the English word Italian prose quotes (« as of 2018 »), for seven
 ///   neighbour blocks caught;
+/// - romanesco and informal Italian, by the owner's decision of 2026-10-23: Corsican's `sò`
+///   (« sò stanco morto », « Non sò che dire »), Sicilian's and Neapolitan's `nun` (« Nun ce la
+///   faccio più ») and Friulian's `je` (« je volevamo », *gli*);
 /// - `u`, Corsican's article and the letter's Italian name: it refused thirteen Italian blocks
 ///   about spelling (« La u è pronunciata come in italiano. »);
 /// - `iddu`, `lu`, `chì` and `el`, which refuse only quotations and names (Corsican conjugations,
@@ -790,7 +793,6 @@ const ITALIC_NEIGHBOUR_MARKERS: &[&str] = &[
     "ibi",      // Latin
     "idda",     // Sicilian
     "igitur",   // Latin
-    "je",       // Friulian
     "jo",       // Friulian
     "jos",      // Occitan
     "jè",       // Friulian
@@ -806,7 +808,6 @@ const ITALIC_NEIGHBOUR_MARKERS: &[&str] = &[
     "nec",      // Latin
     "nela",     // Galician
     "ningú",    // Catalan
-    "nun",      // Sicilian
     "os",       // Galician
     "pels",     // Catalan
     "pentru",   // Romanian
@@ -833,7 +834,6 @@ const ITALIC_NEIGHBOUR_MARKERS: &[&str] = &[
     "sovent",   // Occitan
     "sugnu",    // Sicilian
     "sunt",     // Latin, Romanian
-    "sò",       // Corsican
     "són",      // Catalan
     "să",       // Romanian
     "també",    // Catalan
@@ -2015,7 +2015,7 @@ mod tests {
     const CATALAN_AS_ITALIAN: &str =
         "El far s'alçava a la vora del penya-segat, i ningú no recordava qui l'havia construït.";
     const VENETIAN: &str = "Ghe xe tanta zente in piassa e tuti i parla.";
-    const SICILIAN: &str = "Lu patruni dici ca nun ci su' sordi, ma iddu campa bonu.";
+    const SICILIAN: &str = "Iu sugnu cuntentu pirchì chiddu ca dicisti è veru.";
     const NEAPOLITAN: &str =
         "Tengo 'na casa piccerella vicino 'o mare, e 'a sera guardo 'e stelle.";
     const SARDINIAN: &str = "Sa domo est manna e sos pitzinnos giogant in sa pratza.";
@@ -2086,9 +2086,10 @@ mod tests {
 
     #[test]
     fn spec_scenario_a_venetian_and_a_sicilian_sentence_are_not_italian() {
-        // Venetian's `xe`, `zente` and `tuti` (`Ghe` is a capital); Sicilian's `nun`.
+        // Venetian's `xe`, `zente` and `tuti` (`Ghe` is a capital); Sicilian's `sugnu`, `pirchì`
+        // and `chiddu`.
         assert_eq!(italic_markers(VENETIAN), (3, 0));
-        assert_eq!(italic_markers(SICILIAN), (1, 0));
+        assert_eq!(italic_markers(SICILIAN), (3, 0));
         for block in [VENETIAN, SICILIAN] {
             assert!(!block_is_studied(read_as_italian(block), IT), "{block}");
         }
@@ -2114,11 +2115,11 @@ mod tests {
     #[test]
     fn spec_scenario_a_sardinian_a_corsican_and_a_friulian_sentence() {
         // Sardinian's `sos` (`Sa` is a capital, `est` and `sa` Italian words); Corsican's `hè`
-        // twice (`u` is Italian's letter); Friulian's `je`, `jo` and `soi`, against no Italian
-        // marker: `miei` is Friulian's too.
+        // twice (`u` is Italian's letter); Friulian's `jo` and `soi` (`je` is romanesco's too),
+        // against no Italian marker: `miei` is Friulian's too.
         assert_eq!(italic_markers(SARDINIAN), (1, 0));
         assert_eq!(italic_markers(CORSICAN), (2, 0));
-        assert_eq!(italic_markers(FRIULIAN), (3, 0));
+        assert_eq!(italic_markers(FRIULIAN), (2, 0));
         for block in [SARDINIAN, CORSICAN, FRIULIAN] {
             assert!(!block_is_studied(read_as_italian(block), IT), "{block}");
         }
@@ -2238,7 +2239,7 @@ mod tests {
 
     #[test]
     fn the_italian_tables_are_sorted_disjoint_and_short() {
-        assert_eq!(ITALIC_NEIGHBOUR_MARKERS.len(), 161);
+        assert_eq!(ITALIC_NEIGHBOUR_MARKERS.len(), 158);
         assert_eq!(ITALIAN_MARKERS.len(), 23);
         for table in [ITALIC_NEIGHBOUR_MARKERS, ITALIAN_MARKERS] {
             for pair in table.windows(2) {
@@ -2259,17 +2260,18 @@ mod tests {
         for word in ITALIC_NEIGHBOUR_MARKERS {
             assert!(ITALIAN_MARKERS.binary_search(word).is_err(), "{word}");
         }
-        // Left out as Italian words, in any register or region (D3, and the review: `on`, `cum`,
-        // `pas`, `comme`, `'na`, `sas`), as an English word Italian quotes (`as`), as the
+        // Left out as Italian words, in any register or region (D3, the review: `on`, `cum`,
+        // `pas`, `comme`, `'na`, `sas`, and the owner, 2026-10-23: romanesco and informal `sò`,
+        // `nun`, `je`), as an English word Italian quotes (`as`), as the
         // measurement's own reading of the corpora (`u`), or for the recall gate (`iddu`, `lu`,
         // `chì`, `el`).
         for word in [
             "per", "però", "sempre", "molt", "tot", "hai", "polo", "pero", "o", "pola", "li",
             "avi", "unni", "pe", "sto", "anca", "par", "so", "sa", "pro", "est", "qui", "ad",
             "esse", "cos", "pi", "ma", "sul", "qual", "sia", "lor", "quand", "entrò", "ambe",
-            "care", "dar", "fi", "din", "on", "cum", "pas", "comme", "'na", "sas", "as", "u",
-            "iddu", "lu", "chì", "el", "e", "a", "in", "non", "no", "del", "al", "su", "la", "di",
-            "che", "da", "si",
+            "care", "dar", "fi", "din", "on", "cum", "pas", "comme", "'na", "sas", "sò", "nun",
+            "je", "as", "u", "iddu", "lu", "chì", "el", "e", "a", "in", "non", "no", "del", "al",
+            "su", "la", "di", "che", "da", "si",
         ] {
             assert!(
                 ITALIC_NEIGHBOUR_MARKERS.binary_search(&word).is_err(),
@@ -2331,6 +2333,19 @@ mod tests {
             words("'a' \u{2019}e\u{2019} 'o\u{2019} 'nu"),
             read(&[("a", false), ("e", false), ("o", false), ("nu", true)])
         );
+    }
+
+    #[test]
+    fn spec_scenario_romanesco_and_informal_italian_are_kept() {
+        // The owner's decision of 2026-10-23: `sò`, `nun` and `je` are Italian in a register.
+        for block in ["Nun ce la faccio più, sò stanco morto.", "Non sò che dire."] {
+            assert_eq!(italic_markers(block), (0, 0), "{block}");
+            assert!(block_is_studied(read_as_italian(block), IT), "{block}");
+        }
+        // Its cost: a Sicilian line whose only markers were `nun` and `iddu` is read as Italian.
+        let leak = "Lu patruni dici ca nun ci su' sordi, ma iddu campa bonu.";
+        assert_eq!(italic_markers(leak), (0, 0));
+        assert!(block_is_studied(read_as_italian(leak), IT));
     }
 
     #[test]
