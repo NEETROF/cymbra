@@ -27,6 +27,9 @@ import urllib.parse
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+# Italian's reference pair, once the owner's first update of it-fr commits its tables
+# (add-lingua-italian-forms-tables D9): until then tables/it/ holds the inputs committed by hand alone.
+ITALIAN_LANDED = ["it-fr"] if (HERE / "tables" / "it-fr" / "pin.json").is_file() else []
 sys.path.insert(0, str(HERE))
 
 import pack_sources as ps  # noqa: E402
@@ -544,7 +547,7 @@ class Editions(unittest.TestCase):
         self.assertEqual(dumped["url"], "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz")
         self.assertEqual((dumped["fetched"], dumped["last_modified"]), ("2026-10-08", "Sat, 03 Oct 2026 08:24:38 GMT"))
         self.assertIn(f"note: kaikki-en: {len(self.served[ps.EDITIONS['en']['url']]):,} B as served, fetched in ", self.notes)
-        self.assertIn(f"{len(raw):,} B decompressed, its catalogue (3 files) derived in ", self.notes)
+        self.assertIn(f"{len(raw):,} B decompressed, its catalogue (4 files) derived in ", self.notes)
         self.assertEqual(ps.load(self.tables / "es-en" / "pin.json"), record)
 
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
@@ -992,10 +995,18 @@ class OwnFetch(unittest.TestCase):
         )
         self.assertEqual(script.count("--editions"), 1, "an update alone reads a dump; a re-reduction never does")
         self.assertIn('LINGUA_STUDIED="$studied"', script, "a reader pair reads this run's studied folder")
-        # Every pair studying Spanish or French keeps 60,000 lemmas (add-lingua-french-forms-tables D10),
-        # English 40,000: build.sh's own `max_lemmas`, run.
+        # Every pair studying Spanish, French or Italian keeps 60,000 lemmas (add-lingua-french-forms-tables
+        # D10, add-lingua-italian-forms-tables D6), English 40,000: build.sh's own `max_lemmas`, run.
         body = re.search(r"\nmax_lemmas\(\) \{\n.*?\n\}\n", script, re.S).group(0)
-        for pair, want in (("es-fr", "60000"), ("es-en", "60000"), ("fr-en", "60000"), ("fr-es", "60000"), ("en-fr", "40000")):
+        for pair, want in (
+            ("es-fr", "60000"),
+            ("es-en", "60000"),
+            ("fr-en", "60000"),
+            ("fr-es", "60000"),
+            ("it-fr", "60000"),
+            ("it-en", "60000"),
+            ("en-fr", "40000"),
+        ):
             done = subprocess.run(["bash", "-c", f"{body}max_lemmas {pair}"], capture_output=True, text=True, check=True)
             self.assertEqual(done.stdout.strip(), want, pair)
         # The version, in both modes, from `pack_sources.py version` (add-lingua-pack-es-en D3).
@@ -1168,7 +1179,8 @@ class Legacy(unittest.TestCase):
             return f"sha256:{digest}\n".encode()
 
         committed = sorted(p.parent.name for p in (HERE / "tables").glob("*/pin.json"))
-        self.assertEqual(committed, ["en-es", "en-fr", "es-en", "es-fr", "fr-en", "fr-es"])
+        # it-fr's tables land with the owner's first update (add-lingua-italian-forms-tables D9).
+        self.assertEqual(committed, sorted(["en-es", "en-fr", "es-en", "es-fr", "fr-en", "fr-es", *ITALIAN_LANDED]))
         for pair in committed:
             pin = self.tables / pair / "pin.json"
             pin.parent.mkdir(parents=True)
@@ -1207,11 +1219,14 @@ class Legacy(unittest.TestCase):
             self.assertEqual(err.getvalue(), "", f"{pair}: nothing pruned, nothing recorded")
             for raw in raws:
                 self.assertTrue((self.work / pair / raw).is_file(), f"{pair}: {raw}")
+            # A source pinned at a release of its own (it-fr's Morph-it!) is a pinned source, not a record's asset.
             self.assertEqual(
-                sum("releases/download" in url for url in fetched), len(raws), f"{pair}: every asset of its records"
+                sum("releases/download" in url and url not in served for url in fetched),
+                len(raws),
+                f"{pair}: every asset of its records",
             )
-            # en-es, fr-en and fr-es were born on the dumps: no extract of their own.
-            self.assertEqual("kaikki" in sources, pair not in ("en-es", "fr-en", "fr-es"), f"{pair}: its legacy extract record")
+            # en-es, fr-en, fr-es and it-fr were born on the dumps: no extract of their own.
+            self.assertEqual("kaikki" in sources, pair not in ("en-es", "fr-en", "fr-es", "it-fr"), f"{pair}: its legacy extract record")
         self.assertEqual(
             sorted(p.name for p in (self.work / "es-en").iterdir() if p.suffix == ".jsonl"),
             ["kaikki-Spanish.jsonl", "kaikki-es-traductions-en.jsonl"],
@@ -1359,6 +1374,41 @@ class DumpsOnly(unittest.TestCase):
         self.assertEqual(catalogue("es-fr", "en"), {"kaikki-Spanish.jsonl": ("entries", "es")})
         self.assertEqual(ps.EDITIONS["en"]["files"]["kaikki-French.jsonl"], ("entries", "fr"))
         self.assertEqual(ps.EDITIONS["es"]["files"]["kaikki-es-Frances.jsonl"], ("entries", "fr"))
+
+    def test_spec_scenario_italian_s_reference_registers_what_it_reads(self):
+        # it-fr (add-lingua-italian-forms-tables D2): the English Wiktionary's Italian section, a file
+        # of the English edition's catalogue; MarkIT's training and development sections at a commit
+        # and Morph-it! at the owner's one-off release, pinned; never UD Italian-PUD nor MarkIT's test
+        # section, which the measurement holds out.
+        self.assertEqual(ps.DUMPS["it-fr"], {"en": ("kaikki-Italian.jsonl",)})
+        ps.check_registered("it-fr")
+        self.assertEqual(ps.EDITIONS["en"]["files"]["kaikki-Italian.jsonl"], ("entries", "it"))
+        pinned = ps.PINNED["it-fr"]
+        self.assertEqual(list(pinned), ["markit-train", "markit-dev", "morph-it"])
+        commit = "e210079df0aea331ec1dcaa90648d815ce94c3ce"
+        for name, section in (("markit-train", "train"), ("markit-dev", "dev")):
+            self.assertEqual(pinned[name]["file"], f"it_markit-ud-{section}.conllu")
+            self.assertEqual(
+                pinned[name]["url"],
+                f"https://raw.githubusercontent.com/UniversalDependencies/UD_Italian-MarkIT/{commit}/it_markit-ud-{section}.conllu",
+            )
+        self.assertEqual(pinned["morph-it"]["file"], "morph-it-0.4.8.tgz")
+        self.assertEqual(
+            pinned["morph-it"]["url"], ps.release_url("lingua-pack-sources-morph-it-0.4.8", "morph-it-0.4.8.tgz")
+        )
+        for spec in pinned.values():
+            self.assertEqual(ps.plain_name(spec["file"], "test"), spec["file"])
+            self.assertNotIn("test", spec["file"])
+            self.assertNotIn("pud", spec["url"].lower())
+        # The file the reducer reads is the one the pin fetches.
+        reducer = (HERE / "reduce-it-fr.py").read_text(encoding="utf-8")
+        self.assertIn('MORPH_IT = "morph-it-0.4.8.tgz"', reducer)
+        self.assertIn('MARKIT = ("it_markit-ud-train.conllu", "it_markit-ud-dev.conllu")', reducer)
+        self.assertEqual(
+            [p.name for p in ps.rule_files(HERE / "reduce-it-fr.py")],
+            ["reduce-it-fr.py", "reduce_common.py", "reduce_italian_treebank.py"],
+            "it-fr loads the shared rules and MarkIT's, no edition's: its glosses are change 16's",
+        )
 
     def test_every_catalogue_name_is_ascii_and_in_one_edition_alone(self):
         # GitHub renames a release asset whose name holds a character outside these on upload: an
@@ -1620,10 +1670,11 @@ class FrenchReference(unittest.TestCase):
         self.assertEqual(catalogue("fr-en", "fr"), {"kaikki-fr-traductions-en.jsonl": ("translations", "fr", "en")})
         ps.check_registered("fr-en")
         # The English edition's catalogue: fr-en derives nothing new, and its French translations,
-        # which no pair reads, are no longer derived (add-lingua-pack-fr-en D3).
+        # which no pair reads, are no longer derived (add-lingua-pack-fr-en D3). Its Italian section
+        # is it-fr's (add-lingua-italian-forms-tables D2).
         self.assertEqual(
             sorted(ps.EDITIONS["en"]["files"]),
-            ["kaikki-French.jsonl", "kaikki-Spanish.jsonl", "kaikki-en-traductions-es.jsonl"],
+            ["kaikki-French.jsonl", "kaikki-Italian.jsonl", "kaikki-Spanish.jsonl", "kaikki-en-traductions-es.jsonl"],
         )
         # GSD's training and development sections at a commit — never its test section, which the
         # measurement holds out (D9).
@@ -2525,8 +2576,13 @@ class Record(unittest.TestCase):
         # which reads tables/es, after es-fr, which writes it (add-lingua-pack-es-en, *The reduce job*);
         # en-es, which reads tables/en, after en-fr (add-lingua-pack-en-es); fr-en, French's reference,
         # among the references (add-lingua-french-forms-tables); fr-es, which reads tables/fr, after
-        # it (add-lingua-pack-fr-es): fr-en's update brings it along.
-        self.assertEqual(ps.pairs(HERE / "tables"), ["en-fr", "es-fr", "fr-en", "en-es", "es-en", "fr-es"])
+        # it (add-lingua-pack-fr-es): fr-en's update brings it along. it-fr, Italian's reference, among
+        # the references once its first update lands (add-lingua-italian-forms-tables D9); named
+        # before, it is that update's pair.
+        self.assertEqual(
+            ps.pairs(HERE / "tables"), ["en-fr", "es-fr", "fr-en", *ITALIAN_LANDED, "en-es", "es-en", "fr-es"]
+        )
+        self.assertEqual(ps.pairs(HERE / "tables", after="it-fr"), ["it-fr"])
         self.assertEqual(ps.pairs(HERE / "tables", after="fr-en"), ["fr-en", "fr-es"])
         self.assertEqual(ps.pairs(HERE / "tables", after="fr-es"), ["fr-es"])
         self.assertEqual(ps.pairs(HERE / "tables", after="es-fr"), ["es-fr", "es-en"])
@@ -2764,6 +2820,26 @@ class Split(unittest.TestCase):
         ps.split(self.work, self.tables, "es-fr")
         self.assertFalse((self.tables / "es-fr" / "senses.tsv").exists())
         self.assertFalse((self.tables / "es" / "grammar.tsv").exists())
+
+    def test_a_reference_s_first_update_needs_no_folder_of_its_own(self):
+        # tables/it/ committed by hand — its record naming it-fr and its pinned pool —, before it-fr's
+        # first update writes tables/it-fr/ (add-lingua-italian-forms-tables D9): named, it-fr is the
+        # update's pair; in the list of every pair it is none, having no tables to reduce again.
+        ps.split(self.work, self.tables, "es-fr")
+        (self.tables / "it").mkdir()
+        (self.tables / "it" / "studied.json").write_text('{"reference": "it-fr"}\n')
+        (self.tables / "it" / "tags.tsv").write_text("NOUN\n")
+        self.assertEqual(ps.pairs(self.tables), ["es-fr"])
+        self.assertEqual(ps.pairs(self.tables, after="it-fr"), ["it-fr"])
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(ps.main(["pairs", "--tables", str(self.tables), "--after", "it-fr"]), 0)
+        self.assertEqual(out.getvalue(), "it-fr\n")
+        # Another pair of the language, not named as its reference, is no pair before its folder is.
+        with self.assertRaisesRegex(ps.PinError, "it-en is no pair of"):
+            ps.pairs(self.tables, after="it-en")
+        # A reader pair already there comes along.
+        (self.tables / "it-en").mkdir()
+        self.assertEqual(ps.pairs(self.tables, after="it-fr"), ["it-fr", "it-en"])
 
     def test_pairs_come_references_first_and_a_reference_brings_its_readers(self):
         for pair in ("en-fr", "es-en", "es-fr", "en-es"):
