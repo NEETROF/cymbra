@@ -70,8 +70,11 @@ The matrix programme's architecture holds. What Italian adds or stresses:
   sentences as Italian, and Latin ones seldom (`crates/lingua-core/src/analysis/language.rs`, the
   Galician probe; `crates/lingua-wasm/tests/french_baseline.rs`, the Catalan one). Change 8 adds
   French's guard shape for Italian — function words pooled and compared, measured word by word —
-  with those eight neighbours kept by measurement and Latin, Occitan and Romanian measured, out
-  by default; a recall gate on Italian corpora.
+  over eleven neighbours: Venetian, Sicilian, Neapolitan, Sardinian, Corsican and Friulian kept by
+  measurement, Latin, Occitan and Romanian brought in by the same measurement (D2's rule moved them
+  from their default), Catalan and Galician kept because the spec names them though they fall under
+  the rule; a recall gate on Italian corpora (37 of 39,934 Italian blocks refused, all quotations
+  or names).
 - **Tokenisation.** Italian stacks what French and Spanish had apart: elision pieces (as French),
   articulated prepositions (I7, where Spanish has al and del only), truncation, the web's apostrophe
   for an accent (E', perche', piu', citta'; the precedent is French's unmarked spellings) and
@@ -181,7 +184,7 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 1 Italian studied: it-fr | 5 | `add-lingua-italian-baseline`: the variant, backup v4, the Italian corpus and golden beside the six | 3–5 | 39 | Proposal merged ([#975](https://github.com/NEETROF/cymbra/pull/975)); implemented ([#1038](https://github.com/NEETROF/cymbra/pull/1038)) |
 | 1 | 6 | `add-lingua-italian-tokenisation` (I7): elision pieces, articulated prepositions, truncation (the apostrophe for an accent is change 10's) | 5–8 | 40 | Proposal merged ([#976](https://github.com/NEETROF/cymbra/pull/976)); implemented ([#1040](https://github.com/NEETROF/cymbra/pull/1040)), analyser 0.2.0 |
 | 1 | 7 | `add-lingua-italian-analysis`: NFC, cascade, closed classes, names rule, enclitic pronouns; analyser 1.0.0 | 5–8 | 41 | Proposal merged ([#977](https://github.com/NEETROF/cymbra/pull/977)); implemented ([#1041](https://github.com/NEETROF/cymbra/pull/1041)), analyser 1.0.0 |
-| 1 | 8 | `add-lingua-italian-detection-guard`: Catalan, Galician, Venetian, Sicilian, Neapolitan, Sardinian, Corsican, Friulian pooled and measured; Latin, Occitan, Romanian measured, out by default | 3–6 | 42, 42b | Proposal merged ([#980](https://github.com/NEETROF/cymbra/pull/980)) |
+| 1 | 8 | `add-lingua-italian-detection-guard`: eleven neighbours pooled and measured — Latin, Occitan and Romanian in by measurement, Catalan and Galician as the spec names them | 3–6 | 42, 42b | Proposal merged ([#980](https://github.com/NEETROF/cymbra/pull/980)); implemented ([#1042](https://github.com/NEETROF/cymbra/pull/1042)), analyser 1.1.0 |
 | 1 | 9 | `add-lingua-italian-forms-tables` (I11): the English Wiktionary's Italian section, MarkIT's parts of speech, Morph-it! verified | 8.5–14 | 43 | Proposal merged ([#978](https://github.com/NEETROF/cymbra/pull/978)) |
 | 1 | 10 | `read-lingua-italian-unmarked-spellings`: E', perche', piu', citta', and the dictionary's own accent-less spellings | 2–4 | 43d, 43e | Proposal merged ([#981](https://github.com/NEETROF/cymbra/pull/981)) |
 | 1 | 11 | `keep-lingua-italian-acronyms-and-names`: acronyms in capitals stay acronyms; names leave the words to learn (the rows' gloss and `lexical.tsv` land with change 16) | 1.5–3 | 43c, 24c | Proposal merged ([#979](https://github.com/NEETROF/cymbra/pull/979)) |
