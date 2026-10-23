@@ -1,0 +1,84 @@
+=== notizie
+Il governo ha presentato ieri un nuovo piano per ridurre i consumi energetici degli edifici pubblici entro il 2030.
+Secondo l'ISTAT, il PIL è cresciuto dello 0,3 % nel terzo trimestre, mentre la disoccupazione è scesa al 3,5 % nel Nord.
+Oltre 20.000 persone hanno manifestato sabato 14 marzo davanti alla sede della RAI, nel centro di Roma.
+L'ONU e l'UE hanno chiesto un cessate il fuoco immediato; il vertice si terrà a Bruxelles il 3 aprile.
+La sindaca ha spiegato che i lavori del porto saranno terminati prima dell'inizio dell'estate.
+=== narrativa
+La tempesta arrivò al calar della notte. Il vecchio marinaio chiuse le finestre del faro e accese la lampada.
+Nessuno in paese ricordava un inverno così lungo né un mare così scuro.
+— Verrai domani? — chiese lei senza staccare gli occhi dalle onde.
+Lui non rispose; rimase a guardare l’orizzonte finché la luce non si spense.
+«È finita!» gridò il guardiano. «Tornate a casa, tutti quanti!»
+«C’è qualcuno là fuori?» domandò il ragazzo, ma l’uomo sulla porta non gli rispose.
+=== manzoni
+Quel ramo del lago di Como, che volge a mezzogiorno, tra due catene non interrotte di monti, tutto a seni e a golfi, a seconda dello sporgere e del rientrare di quelli, vien, quasi a un tratto, a ristringersi, e a prender corso e figura di fiume, tra un promontorio a destra, e un’ampia costiera dall’altra parte; e il ponte, che ivi congiunge le due rive, par che renda ancor più sensibile all’occhio questa trasformazione, e segni il punto in cui il lago cessa, e l’Adda rincomincia, per ripigliar poi nome di lago dove le rive, allontanandosi di nuovo, lascian l’acqua distendersi e rallentarsi in nuovi golfi e in nuovi seni.
+La costiera, formata dal deposito di tre grossi torrenti, scende appoggiata a due monti contigui, l’uno detto di san Martino, l’altro, con voce lombarda, il Resegone, dai molti suoi cocuzzoli in fila, che in vero lo fanno somigliare a una sega: talchè non è chi, al primo vederlo, purchè sia di fronte, come per esempio di su le mura di Milano che guardano a settentrione, non lo discerna tosto, a un tal contrassegno, in quella lunga e vasta giogaia, dagli altri monti di nome più oscuro e di forma più comune.
+=== omografi
+La nave getta l'ancora nel porto, ma il capitano non è ancora sceso a terra.
+Dopo la pesca in barca, mangiamo una pesca matura all'ombra del pergolato.
+Il giudice legge la legge ad alta voce davanti a tutta l'aula.
+Il ragazzo porta la valigia fino alla porta della stazione.
+Il cuoco sale le scale con un sacco di sale sulle spalle.
+Le vite dei contadini dipendevano dalla vite e dal raccolto dell'uva.
+Io canto ogni sera in giardino, e il canto degli uccelli mi risponde.
+Quella era un'epoca felice: era davvero un'altra era.
+=== elisioni
+L'uomo che aspettavo non è mai arrivato, e un'amica mi ha detto che c'è stato un errore.
+Dov'è la chiave dell'auto? Com'è possibile che sia sparita nell'armadio?
+All'alba siamo partiti dall'albergo, abbiamo camminato sull'argine e misurato la temperatura dell'acqua.
+Quest'anno anch'io andrò al mare con quell'amico di cui ti ho parlato.
+Verrai alla festa? Senz'altro! E la serata è stata tutt'altro che noiosa.
+Aspetta un po', fa' presto e va' a prendere il pane, poi di' alla nonna che arriviamo.
+=== preposizioni
+Ho comprato del pane, dello zucchero, della farina, dei biscotti, degli spinaci e delle uova.
+Il prezzo del pane è aumentato a causa dello sciopero dei camionisti e degli autisti delle consegne.
+Ho parlato al professore, allo zio, alla vicina, ai ragazzi, agli studenti e alle insegnanti.
+Torno dal medico, dallo psicologo, dalla nonna, dai cugini, dagli amici e dalle zie.
+Nel cassetto, nello zaino, nella borsa, nei libri, negli armadi e nelle scatole non c'era niente.
+Sul tavolo, sullo scaffale, sulla sedia, sui letti, sugli scalini e sulle finestre c'era polvere.
+È uscito col cane e coi bambini subito dopo pranzo.
+=== clitici
+Devi dirmelo subito: dammelo e vattene, prima che sia troppo tardi.
+Aveva deciso di andarsene, ma eccolo di nuovo davanti alla porta.
+Non so se riuscirò a farcela da solo; prova a parlargli tu, e poi scrivimi.
+Al cinema davano un documentario sul sistema solare, e il tema della serata era la vela.
+=== nomi
+— C’era una volta.... — Un re! — diranno subito i miei piccoli lettori. — No, ragazzi, avete sbagliato. C’era una volta un pezzo di legno.
+Il Sig. Rossi e la Sig.ra Bianchi hanno incontrato il Dott. Esposito e il Prof. Ferrari a Milano.
+L'Ing. Gian Luca Moretti e Maria Grazia Conti sono partiti da Napoli per Torino con Pier Paolo.
+Il Po attraversa la pianura padana, e l'Arno bagna Firenze prima di raggiungere Pisa.
+Da Venezia a Bari, l'Italia è il paese dell'Europa che Anna ama di più.
+=== informale
+xké nn mi hai risposto?? cmq ci vediamo domani ke dici
+E' troppo tardi perche' la citta' e' piu' lontana di quanto pensassi
+boh nn lo so, perche ti interessa cosi tanto??
+grazie mille x ieri sera, e' stato bellissimo!!
+=== ricetta
+Sbucciate le patate e tagliatele a rondelle sottili.
+Fate soffriggere una cipolla in due cucchiai d'olio in una padella larga.
+Aggiungete 200 g di farina, 1 l di latte e sale q.b., poi mescolate per 10 minuti a fuoco basso.
+Lasciate riposare la frittata cinque minuti prima di servirla con un'insalata verde.
+=== tecnico
+Il server restituisce un errore 404 quando l'API non trova la risorsa richiesta.
+Bisogna aggiornare il file config.yaml prima di rilanciare la build sulla CI.
+Lo sviluppatore ha fatto un commit, poi ha fatto il push del branch per la code review.
+La velocità della rete è aumentata in ogni città, e l'attività del servizio è più stabile di prima.
+=== misto
+La riunione è cominciata alle nove ed è finita molto tardi in serata.
+The lighthouse stood at the edge of the cliff, and nobody remembered who had built it.
+El faro se alzaba al borde del acantilado, y nadie recordaba quién lo había construido.
+Le phare se dressait au bord de la falaise, et personne ne se souvenait de qui l'avait construit.
+El far s'alçava a la vora del penya-segat, i ningú no recordava qui l'havia construït.
+Non era unha noite tranquila, pero o vello faro seguía aceso na costa.
+Pharus in margine rupis stabat, nec quisquam meminerat quis eam aedificavisset.
+Dopo la riunione, tutti sono tornati a casa sotto la pioggia.
+=== grammatica
+Fu allora che ebbe paura: disse addio a tutti e andò via senza voltarsi.
+Quando ero bambino, andavo ogni estate dai nonni e giocavo nei campi fino a sera.
+Benché sia stanca, vuole che tu abbia tutto pronto per domani mattina.
+Se fosse qui, sarebbe contento di vederci tutti insieme.
+Camminando lungo il fiume, abbiamo incontrato le ragazze arrivate ieri da Bologna.
+Le lettere che ho scritto sono arrivate ieri; le ho lette subito.
+Non sono mai stato a Venezia, non fumo più e non ho ancora deciso dove andare.
+Quando arrivammo, il treno era già partito e i nostri amici erano tornati a casa.

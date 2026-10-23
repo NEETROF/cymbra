@@ -28,8 +28,9 @@ use std::path::PathBuf;
 
 use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::knowledge::level::CefrLevel;
+use lingua_core::knowledge::profile::NativeLanguage;
 use lingua_core::knowledge::vocabulary::{ENGLISH_TYPICAL_VOCABULARY, level_vocabulary};
-use lingua_core::packs::{Pack, PackMeta, read_container, write_container};
+use lingua_core::packs::{Pack, PackMeta, PackSet, PackSetError, read_container, write_container};
 use lingua_wasm::LinguaEngine;
 
 /// 2026-09-21T13:46:40Z: deck bindings take epoch seconds, status and level bindings
@@ -779,5 +780,183 @@ fn spec_scenario_french_pieces_keep_their_spans_on_the_host() {
             !source.contains('\u{202F}') && !source.contains('-'),
             "{surface}: {source:?}"
         );
+    }
+}
+
+/// The it-fr fixture's pack, the Italian baseline's: hand-written Italian tables glossed in French,
+/// at Italian's analyser version (add-lingua-italian-baseline D5).
+fn italian_pack() -> Vec<u8> {
+    lingua_pack::build_pack(&testdata_of("it-fr"))
+        .unwrap_or_else(|e| panic!("build the it-fr pack: {e}"))
+}
+
+/// A French-native reader's engine: the real en-fr pack, the it-fr fixture added.
+fn italian_reader_engine() -> LinguaEngine {
+    let mut engine = LinguaEngine::new(&committed_pack("en-fr")).unwrap();
+    assert_eq!(engine.add_pack(&italian_pack()).unwrap(), "it");
+    engine
+}
+
+fn it() -> Option<String> {
+    Some("it".to_owned())
+}
+
+/// An engine started on the real en-fr pack, the Italian pack glossed in French added, analyses an
+/// Italian page by the baseline; a reader of Italian has a backup of schema version 4, which
+/// restores whole; a reader of English on the same engine keeps version 1
+/// (add-lingua-italian-baseline D7).
+#[test]
+fn spec_scenario_an_italian_reader_s_backup_is_version_4() {
+    let mut engine = italian_reader_engine();
+    assert_eq!(engine.languages(), r#"["en","it"]"#);
+    assert_eq!(engine.native_language(), "fr");
+    assert_eq!(engine.studied_languages(), r#"["en"]"#);
+    assert!(engine.backup().starts_with("{\n  \"schema_version\": 1,"));
+
+    let page = engine
+        .analyse(
+            vec![
+                "L'uomo è nella casa del faro, e le finestre dormono ancora questa mattina."
+                    .to_owned(),
+            ],
+            it(),
+        )
+        .unwrap();
+    assert!(page.contains(r#""analyzer_version":"0.1.0""#), "{page}");
+    // The baseline: the elided word and the articulated preposition are one token each.
+    assert!(
+        page.contains(r#""start":0,"end":6,"surface":"L'uomo","lemma":"l'uomo""#),
+        "{page}"
+    );
+    assert!(page.contains(r#""surface":"del","lemma":"del""#), "{page}");
+    assert!(
+        page.contains(r#""surface":"casa","lemma":"casa","class":"Unknown","gloss":"maison""#),
+        "{page}"
+    );
+
+    engine.set_profile("fr", vec!["it".to_owned()]).unwrap();
+    assert_eq!(engine.studied_languages(), r#"["it"]"#);
+    engine
+        .set_status_at("casa", "learning", T_MS, it())
+        .unwrap();
+    engine
+        .add_card(
+            "finestra",
+            "finestre",
+            "Le finestre dormono ancora.",
+            "",
+            None,
+            T_SECS,
+            it(),
+        )
+        .unwrap();
+    let backup = engine.backup();
+    assert!(
+        backup.starts_with("{\n  \"schema_version\": 4,"),
+        "{backup}"
+    );
+
+    let mut restored = italian_reader_engine();
+    restored.restore(&backup).unwrap();
+    assert_eq!(restored.backup(), backup, "a version 4 restore is lossless");
+    assert_eq!(restored.studied_languages(), r#"["it"]"#);
+    assert!(
+        restored
+            .export_status_ops()
+            .contains(r#""language":"it","lemma":"casa""#)
+    );
+
+    // A reader studying English alone on the same engine stays at version 1.
+    let mut english = italian_reader_engine();
+    english
+        .set_status_at("lighthouse", "known", T_MS, None)
+        .unwrap();
+    assert!(english.backup().starts_with("{\n  \"schema_version\": 1,"));
+}
+
+/// An `it` pack glossed in English is another native language's: an engine glossed in French
+/// refuses it, and keeps the one glossed in French (add-lingua-italian-baseline D3). The engine's
+/// refusal throws, which only a wasm target shows (`languages_wasm.rs`); here, the core's pack set
+/// the engine holds.
+#[test]
+fn an_italian_pack_glossed_in_english_is_another_native_s() {
+    let mut set = PackSet::new(Pack::load(&committed_pack("en-fr")).unwrap());
+    let it_en = Pack::load(&glossed_in(&italian_pack(), "en")).expect("an it-en pack loads");
+    assert_eq!(it_en.pair().key(), "it-en");
+    assert!(matches!(
+        set.add(it_en),
+        Err(PackSetError::OtherNative {
+            held: NativeLanguage::French,
+            pack: NativeLanguage::English
+        })
+    ));
+    assert_eq!(set.languages(), [StudiedLanguage::English]);
+    assert_eq!(
+        set.add(Pack::load(&italian_pack()).unwrap()),
+        Ok(StudiedLanguage::Italian)
+    );
+    // Glossed in Italian, it is refused before it reaches a set: Italian is no native language.
+    assert!(Pack::load(&glossed_in(&italian_pack(), "it")).is_err());
+}
+
+/// pack_gloss's Italian arm (add-lingua-italian-baseline D2): a phrase of the it-fr fixture's
+/// expressions is matched by its lemmas, and a card under an expression's key shows the pack's
+/// gloss in review, read at its lemma as an English card is.
+#[test]
+fn spec_scenario_an_italian_expression_is_glossed_through_the_engine() {
+    let mut engine = italian_reader_engine();
+    let phrase: serde_json::Value = serde_json::from_str(
+        &engine
+            .phrase_gloss("Parla ad alta voce, per favore.", it())
+            .unwrap(),
+    )
+    .unwrap();
+    let found: Vec<(&str, &str)> = phrase["expressions"]
+        .as_array()
+        .expect("expressions")
+        .iter()
+        .map(|e| (e["key"].as_str().unwrap(), e["gloss"].as_str().unwrap()))
+        .collect();
+    assert_eq!(
+        found,
+        [
+            ("ad alto voce", "à voix haute"),
+            ("per favore", "s'il vous plaît")
+        ]
+    );
+    for (key, gloss) in [
+        ("ad alto voce", "à voix haute"),
+        ("per favore", "s'il vous plaît"),
+        ("a poco a poco", "peu à peu"),
+    ] {
+        engine
+            .add_card(
+                key,
+                key,
+                "Parla ad alta voce, per favore.",
+                "",
+                None,
+                T_SECS,
+                it(),
+            )
+            .unwrap();
+        assert_eq!(
+            engine.start_review(
+                T_SECS + 86_400.0,
+                Some(vec!["it".to_owned()]),
+                None,
+                None,
+                None,
+                None
+            ),
+            1
+        );
+        let current: serde_json::Value =
+            serde_json::from_str(&engine.review_current().expect("a card")).unwrap();
+        assert_eq!(
+            (current["headword"].as_str(), current["gloss"].as_str()),
+            (Some(key), Some(gloss))
+        );
+        engine.review_mark_known(T_SECS + 86_400.0);
     }
 }
