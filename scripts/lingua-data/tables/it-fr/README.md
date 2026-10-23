@@ -8,12 +8,14 @@ extension package carries the pack yet: `packs.json` does not list it-fr.
 They are in two folders (split-lingua-pack-tables-by-language). it-fr is Italian's reference pair
 (`../it/studied.json`, the programme's I5): its reduction writes Italian's own tables in `../it/`,
 which every pair studying Italian reads as committed (it-en, it-es), and this folder's `pin.json`
-records the sources of both. This change writes Italian's forms and ranks; its glosses, readings,
-levels and dictionary words are later changes' (16, 13, 14, 11), so `gloss.tsv` and
-`../it/lexical.tsv` are empty and `../it/tags.tsv` holds `NOUN` alone. The Italian baseline
-(`crates/lingua-wasm/tests/italian_baseline.rs`) keeps its hand-written fixture
+records the sources of both. Change 9 writes Italian's forms and ranks, change 13 its readings
+(`../it/grammar.tsv`, add-lingua-italian-grammar-tables, *The readings* below) and their pinned tag
+pool (`../it/tags.tsv`); its glosses, levels and dictionary words are later changes' (16, 14, 11), so
+`gloss.tsv` is empty and `../it/lexical.tsv` holds change 11's acronym rows alone. The Italian
+baseline (`crates/lingua-wasm/tests/italian_baseline.rs`) keeps its hand-written fixture
 (`scripts/lingua-data/testdata/it-fr/`) until change 16: a pack of forms and ranks alone would blind
-its gloss, expression and level probes.
+its gloss, expression and level probes; the readings are pinned by
+`crates/lingua-pack/tests/it_fr_grammar.rs` over the committed tables instead.
 
 In this folder:
 
@@ -30,8 +32,9 @@ In `../it/`, Italian's tables, written by it-fr's reduction:
 |---|---|---|
 | `forms.tsv` | form → lemma | kaikki.org, the English Wiktionary's Italian section (CC BY-SA 4.0 + GFDL), with UD Italian-MarkIT's counts to choose between lemmas (CC BY 4.0) and Morph-it!'s forms the Wiktionary names nowhere (CC BY-SA 2.0) |
 | `freq.tsv` | lemma → frequency rank, the 60,000 commonest | wordfreq 3.1.1 (CC BY-SA 4.0); a hyphenated word by MarkIT's own frequency too |
+| `grammar.tsv` | form → its readings, as Universal Dependencies tags (`form<TAB>lemma<TAB>tag<TAB>other\|-`) | kaikki.org, the same section (add-lingua-italian-grammar-tables, change 13) |
 | `lexical.tsv` | Italian's dictionary words: the acronym rows alone, `NATO` and `USA`, until change 16 writes the rest | `reduce_italian_acronyms.ACRONYMS` (keep-lingua-italian-acronyms-and-names D6); change 16's glosses |
-| `tags.tsv` | the pinned tag pool: `NOUN`, the one tag change 4 pins for a language with no readings | committed by hand; change 13 writes Italian's pool |
+| `tags.tsv` | Italian's pinned tag pool: the 83 tags its readings carry, in byte order; written by no reducer | committed by hand, once, from the first reduction's readings (change 13), replacing change 9's placeholder `NOUN` |
 | `studied.json` | the pair whose reduction writes `../it/`: it-fr | committed by hand |
 
 ## The sources
@@ -190,6 +193,203 @@ noun; the owner may name rows, each with its reason, at any reduction. Two of th
 names rule's narrowing (the review of 2026-10-23) and are left for change 17's refinements: `dato`
 reads as *dare* (MarkIT's counts, 9 *dare* against 3 *dato*) and `dati` with it (« i dati »), and
 `lega` as *legare* (one count), whose `leghe` is then no form.
+
+## The readings (`../it/grammar.tsv`)
+
+Italian's word grammar (add-lingua-italian-grammar-tables, change 13): each form's readings, in the
+vocabulary the word card reads (add-lingua-word-grammar), written by the same pass over the Italian
+section as the forms, once they are chosen — the readings choose no form and no rank. Only the forms
+`forms.tsv` holds carry readings, and only under the lemmas `freq.tsv` ranks. French's rules
+(`../fr-en/README.md`, *The readings*), for Italian.
+
+**The rules** (`reduce-it-fr.py`, after the forms):
+- **Verbs.** kaikki's tags as UD's: the indicative's present, imperfect and future; the passato
+  remoto (`historic past`) as `Tense=Past`; the present and imperfect subjunctive; the conditional and
+  the imperative with **no tense** (UD Italian writes `Tense=Pres`), the imperative in its second
+  person singular and first and second plural; the infinitive; the gerund (`VerbForm=Ger`); the
+  present participle as `VerbForm=Part|Tense=Pres` with its number, no gender (`parlante`, and
+  `parlanti` through the participle's own entry); the past participle with its gender and number, the
+  table's bare row the masculine singular, the agreed forms through the participle's own entry
+  (`creduta` → `creduto` → *credere*). Every verb is `VERB`. A table form reads as the forms read it:
+  its stress marks dropped but the last letter's (`dièdi` → `diedi`). A sense merging persons or moods
+  reads as each. **No reading** from the negative imperative (its second person singular is the
+  infinitive, « non parlare », its plurals the affirmative's) nor the formal one (`Lei`, `Loro`: the
+  present subjunctive's third persons, whose reading carries the form), a defective verb's `-`, a
+  clitic cluster (`me ne vàdo`, `la hò`), a dialectal, hypercorrect, regional or register-marked row
+  (`fò`, `peròro`), nor from **the Classical Roman Dialect's conjugation table**, which kaikki merges
+  into an entry beside the Italian ones with no tag to say so (*avere*'s third table: `àmo`, `émo`,
+  `ébbe` a first person, `avéssi` a passato remoto): when an entry has several tables, one whose
+  present indicative's first person plural ends nowhere in Italian's `-iamo` while another's does is
+  set aside — 26 tables of 25 verbs: the dialect's (the Classical Roman Dialect's, as *avere*'s page
+  heads it) of *avere*, *essere*, *fare*, *dare*, *potere*,
+  *volere*, *dovere*, *credere* and 16 others, *essere*'s untagged usage notes, and *ire*'s first table,
+  an alternative form's, which reads nothing anyway. The rows tagged `Traditional`, poetic, literary or
+  Latinate read as their cell.
+- **Reflexive verbs.** A row written with its pronoun reads without it, under the lemma the forms
+  file it under (`mi làvo` → `lavo`, *lavare*'s; `mi pènto` → `pento`, *pentirsi*'s); a row carrying
+  the pronoun reads as its bare base under a reflexive-only lemma (`pentìrsi` → `pentire`, `pèntiti`
+  → `penti`) and gives nothing under a plain verb — never as its clitic-bearing string (`làvati` is no
+  `lavati`, *lavare*'s participle). A verb whose infinitive carries another clitic (`andarsene`) reads
+  nothing.
+- **Nouns, adjectives, determiners (articles among them), pronouns, numerals.** A noun's gender from
+  `it-noun`'s first argument (a reading per gender for `mfbysense`, `mf`, `m,f` and the qualified ones,
+  `m-p` and `f-p` plural only), else its senses, on its own form and its plural; both numbers on a noun
+  the dictionary gives one form for (`#`: `città`, `re`, `crisi`), the singular alone on an uncountable
+  one (`-`: `gas`); a plural of another gender reads its own (`uova`, feminine plural of *uovo*); no
+  reading from a feminine noun's masculine row (`attrice` → `attore`) nor from a derived word's row
+  (`casétta`, `veramente`). An adjective's own form is masculine singular when it has a feminine of
+  its own (`rosso`), singular when one form serves both (`grande`), its comparative `Degree=Cmp`
+  (`minore` names *piccolo*), its superlative `Degree=Sup`. A determiner, pronoun or numeral reads its
+  gender and number from its rows, a pronoun's row only with a gender, a plural-headed determiner's or
+  pronoun's table none (`gli`, `le`); its own dictionary form names nothing on its own card. **The
+  article table** kaikki writes identically under *il*, *lo*, *la*, *gli* and *le* reads in full under
+  *il*, the lemma the forms file the articles under, and under any other article only for the forms
+  its own head names: `i`, `la`, `gli`, `le` are *il*'s, `gli` names *lo* too (its plural), `il` names
+  no *lo*.
+- **Where a reading comes from.** A lemma's table first, a form's own entry for what no table lists —
+  of the same part of speech: `grandi`, which *grande*'s noun table lists, keeps its adjective entry's
+  `ADJ|Number=Plur`. A form of a form along one part of speech reads as the word the form is a form of,
+  with its own agreement. A reading's part of speech is one its lemma's entries hold: a participle
+  filed under a noun's spelling reads no verb form of it and names its verb (`parlata`, the noun,
+  names *parlare*). **Change 10's spellings** read as their word: a dictionary spelling carries its
+  word's own readings where nothing gives it its own (`perchè`, `caffé`, `fà`) and keeps them otherwise
+  (`dà`, the section's « alternative form of dare », stays *dare*'s present); a row of the web's list
+  or an owner's exception carries those of its word's forms written with its letters, and none of its
+  own (`puo` `può`'s, `perche` `perché`'s, never *perca*'s plural). **Never** from a row or sense change 9
+  leaves out of the forms (doubtful), a form's own sense marked regional or of a register, a
+  capitalised headword (`NATO`, `Roma`), an entry whose every sense is an alternative form of another
+  word (an archaic spelling with a table of its own; the apocopes `bel`, `buon`, `gran`, `quel`), or a
+  link an override row of change 9 sets aside.
+- **`other` marks (M8).** A form's readings of its own lemma are its own; a reading of another ranked
+  lemma is marked `other`, and the card names that word without counting it (`porti` names *porto*,
+  `legge` *leggere*, `minore` *piccolo*), only toward an entry of the dictionary that is not only
+  regional.
+
+**What they hold**, reduced locally from the pinned sources as the update does (`build.sh --reduce
+it-fr`, Python 3.12 and `requirements-reduce.txt`, the release's asset; main's reduction reproduced
+first, every committed byte): **133,066 readings in 83 tags**; 94,789 of the 129,599 forms carry a
+reading of their own lemma, 34,810 none (adverbs, prepositions, conjunctions, interjections, names, a
+determiner's or pronoun's dictionary form, the apocopes and truncated infinitives); **13,564 `other`
+marks on 8,684 forms**. By part of speech: 66,264 verb readings, 40,811 noun, 25,808 adjective, 94
+determiner, 81 pronoun, 8 numeral. Own readings per form:
+
+| Readings | 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|---|
+| Forms | 77,415 | 11,537 | 4,374 | 1,424 | 39 |
+
+The five-reading forms are invariable nouns of both genders that are adjectives too (`leader`,
+`madrelingua`, `maori`) and `mi` (the note and the Greek letter). 2,883 ranked lemmas have a verb
+reading on their forms; 19,110 of the 19,138 ranked lemmas whose own form reads as a noun carry a
+gender. 9,571 readings come through a form of a form alone, 1,373 from change 10's spellings. The
+pack these tables build is 1,493,854 B (28.5 % of the 5 MiB budget), its base 1,492,426 B, its layer
+1,653 B.
+
+**The moods on one form (M21, D7).** The readings are stored unmerged: `parli` carries four —
+the present indicative's second person singular and the present subjunctive's first, second and third
+—, `parla` two (the present indicative's third person singular, the imperative's second singular),
+`parliamo` three. **2,582 forms read the present indicative and the present subjunctive of one person
+and number**; 1,047 forms of 1,043 verbs carry exactly `parli`'s four (20 of the 1,000 commonest
+lemmas, 141 of the 5,000), 1,659 `parla`'s two (30, 180), 1,326 `parliamo`'s three (62, 403). The two
+presents carry `Tense=Pres` and the imperative none: whether the card merges them is change 18's call.
+
+**The tag pool** (`../it/tags.tsv`): the 83 tags the readings carry, in byte order, written once by a
+person from this reduction's readings (`cut -f3 grammar.tsv | LC_ALL=C sort -u`) and kept by every
+reduction; a tag a later reduction adds is appended after them, and the checks name it until it is
+(`crates/lingua-pack/tests/committed_tables.rs`). It replaces change 9's placeholder `NOUN`, whose index
+no shipped pack held. it-fr's base lays its pool out as the pin and nothing else: no reading carries a
+tag outside it, and no sense of a pair enters a base.
+
+**Measured** (`measure/it-ud.sh`, after its gates, `measure/it_readings.py`; reported, never gating):
+over the words whose form the tables map to the treebank's lemma, the share carrying a reading of
+their own and the share of those whose part of speech and features are among them, the conditional's
+and the imperative's tense left aside. UD Italian-PUD writes its verbs without `VerbForm` (the form by
+`XPOS`), the imperfetto `Aspect=Imp|Tense=Past` and the imperfect subjunctive `Tense=Past`; the
+script reads them as MarkIT writes them. The forms' gates do not move (PUD 99.26 / 91.31 / 99.90,
+MarkIT test 99.43 / 94.65 / 98.87, as on main).
+
+| | Words | Read | Agree |
+|---|---|---|---|
+| PUD, finite verbs | 1,701 | 100 % | 98.47 % |
+| PUD, participles | 510 | 100 % | 97.65 % |
+| PUD, infinitives | 414 | 88.41 % | 100 % |
+| PUD, gerunds | 91 | 100 % | 100 % |
+| PUD, nouns | 4,159 | 98.51 % | 98.66 % |
+| PUD, adjectives | 1,418 | 94.92 % | 94.43 % |
+| PUD, determiners | 3,257 | 88.33 % | 97.98 % |
+| PUD, pronouns | 827 | 47.52 % | 36.64 % |
+| MarkIT test, finite verbs | 940 | 99.79 % | 99.36 % |
+| MarkIT test, participles | 136 | 99.26 % | 99.26 % |
+| MarkIT test, infinitives | 299 | 84.62 % | 99.60 % |
+| MarkIT test, gerunds | 53 | 100 % | 100 % |
+| MarkIT test, nouns | 1,792 | 98.88 % | 97.91 % |
+| MarkIT test, adjectives | 611 | 95.09 % | 94.49 % |
+| MarkIT test, determiners | 1,391 | 80.01 % | 94.25 % |
+| MarkIT test, pronouns | 726 | 34.30 % | 12.45 % |
+
+The infinitives read nothing when truncated (`aver` ×13, `far` ×9, `esser` ×5 among PUD's 48): the
+section gives them as apocopes, alternative forms, which read nothing. What PUD's finite verbs
+disagree with is mostly its own annotation (`cadde`, `accettarono` written `Tense=Pres`, `vidi` a
+third person, `devi` an imperative). A pronoun's dictionary form names nothing, as French's.
+
+**Each rule switched off alone** (on a prototype of the two reading functions, whose base run gives
+this `grammar.tsv` byte for byte):
+
+| Rule switched off | Readings | Forms with one | `other` | Four-reading forms | What it moves |
+|---|---|---|---|---|---|
+| — (this reduction) | 133,066 | 94,789 | 13,564 | 1,424 | — |
+| a reading's part of speech its lemma's (D5) | 137,623 | 94,798 | 15,017 | 1,453 | PUD participles agree 97.65 → 98.63 %, adjectives 94.43 → 94.95 % |
+| a form of a form (D5) | 123,495 | 90,133 | 11,096 | 1,220 | PUD participles read 100 → 67.65 %; MarkIT's 99.26 → 60.29 % |
+| both numbers on an invariable noun (D4) | 130,574 | 94,789 | 13,564 | 1,262 | PUD nouns agree 98.66 → 96.88 % |
+| change 10's spellings (D5) | 131,693 | 93,802 | 13,501 | 1,405 | — |
+| merged senses read as each (D3) | 133,041 | 94,785 | 13,564 | 1,420 | — |
+| a reflexive's rows as change 9 reads them (D3) | 133,002 | 94,767 | 13,525 | 1,424 | — |
+| a participle sense without `past` the past one (D3) | 133,025 | 94,777 | 13,547 | 1,424 | PUD participles read 100 → 99.41 % |
+| articles as determiners (D4) | 133,058 | 94,784 | 13,562 | 1,424 | PUD determiners read 88.33 → 9.82 %, agree 97.98 → 33.75 % |
+| a table first per part of speech, not per pair (D5) | 132,967 | 94,779 | 13,541 | 1,424 | PUD determiners agree 97.98 → 92.46 %, adjectives 94.43 → 93.83 % |
+
+| Exclusion switched off | Readings | Forms with one | `other` | What it moves |
+|---|---|---|---|---|
+| the Roman dialect's tables read (D3) | 133,345 | 94,876 | 13,606 | — (`amo` would name *avere*, `ebbe` read a first person) |
+| the negative and formal imperatives read (D3) | 135,967 | 94,790 | 13,564 | four-reading forms 1,424 → 1,438 |
+| a regional or register row or sense read (D3, D5) | 133,087 | 94,805 | 13,569 | — |
+| a derived word's row read (D4) | 133,544 | 94,789 | 14,042 | — |
+| a feminine noun's masculine row read (D4) | 133,216 | 94,793 | 13,710 | — |
+| capitalised headwords read (D5) | 133,216 | 94,873 | 13,567 | PUD nouns read 98.51 → 98.63 % |
+| alternative-only entries read (D5) | 133,708 | 95,145 | 13,656 | PUD adjectives agree 94.43 → 94.08 % |
+| `other` toward a link-only or regional word (D6) | 133,165 | 94,789 | 13,663 | — |
+| a composed reading over a direct one (D5) | 133,073 | 94,789 | 13,568 | — |
+| a pronoun's row without a gender read (D4) | 133,075 | 94,790 | 13,571 | PUD pronouns agree 36.64 → 39.19 % |
+| a plural-headed table read (D4) | 133,068 | 94,789 | 13,566 | — |
+| the article table in full under every article (D4) | 133,070 | 94,789 | 13,568 | — (`il` would name *lo*) |
+| a head row repeating a table cell read (D4) | 133,070 | 94,789 | 13,565 | — (`i` would read a genderless plural) |
+| a link an override row sets aside (D5) | 133,066 | 94,789 | 13,564 | — |
+
+No rule was changed on these treebanks' figures: the rules were written, and the departures from the
+design decided (`openspec/changes/add-lingua-italian-grammar-tables/design.md`, *As implemented*), on
+the dictionary's own entries before they were measured.
+
+**M8's cost** is change 9's, unmoved: 32 / 47 / 69 dictionary nouns read as a verb among wordfreq's
+1,000 / 2,000 / 5,000, none of whose readings is kept — « la porta » opens *portare*'s card, which
+names *porgere* (`porta`, the feminine of its participle `porto`) and no noun.
+
+**Known data defects** (for change 17, `refine-lingua-it-fr-glosses`, and the section's editors):
+- `braccio`'s plurals unexpanded (24 heads with a qualified plural argument): `braccia` reads from its
+  own entry; `lenzuola`, `fondamenta`, `grida` likewise; `mura` reads as a lemma of its own;
+- `bello`'s rows tagged `error-unrecognized-form`, and the shortened adjectives (`bel`, `buon`, `gran`,
+  `san`, `quel`) and truncated infinitives (`aver`, `far`, `esser`) with no reading;
+- `uova` → « uovo m » in its own entry's head; `gli` → « the article i »; `adulare`'s formal
+  imperative `adùla`; `ottimo`'s canonical row and `migliore`'s « of buono » row;
+- the Roman dialect's tables, set aside here, still give change 9 its `avi`, `ava` and `ate` →
+  *avere* (and `ate`'s own entry names *avere*);
+- untagged old or disused cells: `ànno` (*avere*'s disused h-less spelling, whose qualifier kaikki
+  drops) makes `anno` name *avere*, `béi` makes `bei` name *bere*; `sono` names *suonare* (a poetic
+  Latinism's own sense);
+- the section's copy errors: `scalpitanti` « plural of diffondente » (read under *diffondere*, as
+  change 9 files it); `imperative`, a cell of *essere*'s usage notes, filed under *essere*;
+- the function words whose own lemma the dictionary also holds as a noun read the noun: `e`, `a`, `o`
+  (the letters), `mi`, `ti`, `si`, `ci` (notes and letters), as Spanish's `a`, `de`, `mi` and French's
+  `si`; `lui` and `lei`, `egli` and `ella` name each other.
+The `-` cells are the source's notation for a missing cell, not a defect.
 
 ## Licences
 
