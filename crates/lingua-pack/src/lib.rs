@@ -996,9 +996,10 @@ fn build_sections(inputs: &PackInputs) -> Result<Built, BuildError> {
     // entries the lexicon cannot reach — stays byte-for-byte what it was.
     // French and Spanish are keyed through their reading and named by their
     // headwords (add-lingua-french-expression-keys, add-lingua-spanish-expression-keys);
-    // English at its spaces, with no names; Italian, while the baseline serves it,
-    // through the baseline's reading, its lemmas, with no names
-    // (add-lingua-italian-baseline D2).
+    // English at its spaces, with no names; Italian through its reading — its pre-pass
+    // (add-lingua-italian-tokenisation) and the baseline's lemmas (add-lingua-italian-baseline
+    // D2) —, with no names until add-lingua-italian-expression-keys writes them (its D1): the
+    // keys that read Italian's pieces are that change's (add-lingua-italian-tokenisation D1).
     let read = match studied {
         StudiedLanguage::French | StudiedLanguage::Spanish => true,
         StudiedLanguage::English | StudiedLanguage::Italian => false,
@@ -1039,8 +1040,9 @@ fn build_sections(inputs: &PackInputs) -> Result<Built, BuildError> {
     // does not read `expr.others` answers every key as before. `ça va` and `ça ira` both read
     // `ça aller`, `hacer tiempo` and `hace tiempo` both `hacer tiempo`: the key answers its
     // winner, and the other is kept beside it. English keeps the first alone, byte for byte.
-    // Italian keeps the first alone, as English does, while the baseline serves it
-    // (add-lingua-italian-baseline D2).
+    // Italian keeps the first alone, as English does (add-lingua-italian-baseline D2), until
+    // add-lingua-italian-expression-keys keeps every headword (its D4); its pre-pass does not
+    // change it (add-lingua-italian-tokenisation D1).
     let keeps_every_headword = match studied {
         StudiedLanguage::French | StudiedLanguage::Spanish => true,
         StudiedLanguage::English | StudiedLanguage::Italian => false,
@@ -1359,9 +1361,10 @@ fn grammar_sections(
 /// `tener en cuenta` → `tener en contar`, add-lingua-spanish-expression-keys D1,
 /// D2, D4) —, the function review finds such an expression card's gloss through.
 /// English keeps the split at spaces. An Italian headword is keyed through the
-/// same reading, which the baseline gives it (add-lingua-italian-baseline D2): its
-/// words as the tokeniser reads them, each piece its dictionary form, as an English
-/// key's are, and no name.
+/// same reading (add-lingua-italian-baseline D2): its words as Italian's pre-pass
+/// reads them (add-lingua-italian-tokenisation: `all'alba` → `a` + `lo` + `alba`),
+/// each piece its dictionary form by the baseline, as an English key's are, and no
+/// name.
 fn expression_key(headword: &str, studied: StudiedLanguage, lex: &impl Lexicon) -> Option<String> {
     if studied != StudiedLanguage::English {
         return reading_expression_key(headword, studied, lex);

@@ -240,3 +240,59 @@ are not touched.
 
 Nothing deploys and nothing is released; no listed pair studies Italian. Rollback is a revert
 with the golden's.
+
+## Implementation notes
+
+Recorded while implementing; each is a small mechanical consequence, or a deviation approved
+before it was written.
+
+- **D5's opening-quote check (deviation, approved).** As worded — « the character before the word
+  is an opening quote » — the check could not give D5's own example: in « ‘due anni fa’ » the
+  character before `fa` is a space, so `fa’` would read `fai`. The seam instead scans back from
+  the word to the nearest single quote that is not between two letters (`inside_a_quote` in
+  `tokenize.rs`): a `‘`, or an apostrophe with no letter or digit before it and a letter after it,
+  opens a quote, and the apostrophe after the word is its closing one, not re-attached; an
+  apostrophe after a letter or a digit (a closing quote, another truncation) ends the scan, and so
+  does the start of the text, and the apostrophe is re-attached. So « ‘due anni fa’ » reads `fa`,
+  « ‘ciao’ » `ciao`, « un po' di pane, va' via » `poco` and `vai`, and « ‘ciao’ un po' » `poco`.
+  Known cost: a truncation inside a phrase quoted with straight apostrophes reads as at `0.1.0`
+  (« 'un po' e basta' » gives `po`). The spec's requirement says « a quote opened before the word
+  and still open there » accordingly.
+- **The re-attach list holds D4's elided forms too.** The spec's « an elided form of this
+  requirement written alone » names `dell'`, `all'`, `dall'`, `nell'` and `sull'` beside D3's 38
+  forms, and the extension hands a word card the span the reader clicked: on « all’alba » that is
+  « all’ », which now answers the pieces `a` and `lo`, and « dell’ » the one token `dello`.
+- **`del` is not in D7's fixture list.** D7 lists `dello`, `della`, `dei`, `degli` and `delle`,
+  not `del`; the fixture follows D7 literally, so `del` shows as the baseline reads it (its own
+  lemma, no gloss) and the fixture check (`the_fixture_lists_every_word_the_pre_pass_writes`)
+  leaves it out. A later change can add it if the omission was an oversight.
+- **The fixture's lemmas and glosses.** The read words are filed as a dictionary would file
+  them: `buona`, `nessuna`, `qualcuna`, `ciascuna`, `alcuna` under their masculine; `fai`, `vai`,
+  `dai`, `stai`, `dissi` under `fare`, `andare`, `dare`, `stare`, `dire`; `dello`, `della`,
+  `dei`, `degli`, `delle` each its own lemma, as the French fixture files `du` and `des`. Every
+  lemma a D7 word resolves to is ranked and glossed where it was not, so the golden also shows a
+  gloss on words that already resolved (`che`, `in`, `con`, `un`, `quello`…) and on `Nessuno` and
+  `qualcuno` (`narrativa`), whose lemmas the read words bring; the lemmas now ranked and glossed
+  enter the vocabulary estimate's universe of ranked dictionary words (63 → 109), moving the level
+  ladder's typical vocabulary and the reader's presumed known words with it. The tecnico page's `CI` is read as the clitic `ci`, now glossed: the
+  acronyms are change 11's.
+- **The `word-grammar l’ lo` probe** answers no gloss: the fixture files `lo` under `il`, as change
+  5's did, so the dictionary form `lo` is not a lemma. What the probe pins is the one token and no
+  pieces.
+- **The it-fr fixture's test pin moves.** `crates/lingua-pack/tests/pipeline_testdata.rs` records
+  the fixture's whole pack: 4,956 B → 5,819 B (sha256 `f3e8ac20…`). No `pin.json` and no committed
+  table moves.
+- **A digit in a hyphenated run** makes each piece an Italian word (its elisions and articulated
+  prepositions read), as French's run does: « l'anno-2020 » is `lo` + `anno`.
+- **The tables are public** (`ITALIAN_ELISIONS`, `ITALIAN_CONTRACTIONS`,
+  `ITALIAN_ELIDED_PREPOSITIONS`, `ITALIAN_TRUNCATIONS`), as French's are, for the baseline's
+  fixture check and change 9's check of the committed tables.
+- **The three exhaustive matches change 5 named** — the pack builder's `read` flag and its
+  keep-every-headword condition (`crates/lingua-pack/src/lib.rs`) and the phrase gloss's
+  `whole_words` (`engine.rs`) — keep Italian in English's arm: the keys and the matches that read
+  Italian's pieces are change 12's (D1, and its D4–D5). Their comments say so.
+- **Outside the Impact list:** `languages_wasm.rs` held no Italian version or piece to rewrite and
+  gains a test of Italian's spans on wasm, as French's change 40 added one; `sonar-project.properties`
+  excludes `italian_fixtures.rs` from copy-paste detection, as it does `french_fixtures.rs`.
+- **The programme's row 6** already says that the apostrophe for an accent is change 10's (the
+  correction the proposal announces was made when the proposal merged); its status is the owner's.

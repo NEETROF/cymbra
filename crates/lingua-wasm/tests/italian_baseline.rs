@@ -15,11 +15,13 @@
 //! Italian invariance baseline (`docs/lingua/italian-programme.md`, change 5,
 //! add-lingua-italian-baseline).
 //!
-//! Italian is a studied language served by the baseline analysis (analyser `0.1.0`): the rules
-//! that belong to no language and the pack's forms, nothing else — `l'uomo`, `dell'acqua`, `c'è`,
-//! `del`, `nel`, `col` and `dirmelo` stay whole, `po'` is `po` by the edge trim every language
-//! has, nothing is a function word, there is no names rule, no NFC and no detection guard, so the
-//! `misto` page's Catalan and Galician blocks are analysed as Italian. This freezes what the
+//! Italian is a studied language served by the baseline analysis, its tokenisation pre-pass
+//! excepted (analyser `0.2.0`, add-lingua-italian-tokenisation): the rules that belong to no
+//! language, Italian's pre-pass and the pack's forms, nothing else — `l'uomo` is `lo` + `uomo`,
+//! `dell'acqua` `dello` + `acqua`, `c'è` `ci` + `è`, `nel` `in` + `il` sharing its span, `del`
+//! whole, `po'` `poco`; `dirmelo` stays whole, `perche'` is `perche` by the edge trim every
+//! language has, nothing is a function word, there is no names rule, no NFC and no detection
+//! guard, so the `misto` page's Catalan and Galician blocks are analysed as Italian. This freezes what the
 //! engine makes of raw Italian text today, over a thirteen-page corpus (`baseline/pages-it.txt`,
 //! its sources in `support/italian.rs`), so that each later change of the Italian stage shows its
 //! effect as the diff of a re-bless. It is not Italian support: no listed pair studies Italian.
@@ -42,6 +44,11 @@ mod support;
 
 use std::sync::OnceLock;
 
+use lingua_core::analysis::language::StudiedLanguage;
+use lingua_core::analysis::tokenize::{
+    ITALIAN_CONTRACTIONS, ITALIAN_ELIDED_PREPOSITIONS, ITALIAN_ELISIONS, ITALIAN_TRUNCATIONS,
+    tokenize,
+};
 use support::italian::ITALIAN;
 use support::{PackSource, first_difference, testdata_pack};
 use unicode_normalization::UnicodeNormalization;
@@ -190,45 +197,92 @@ fn what_the_baseline_shows_today() {
     assert_eq!(engine.languages(), r#"["en","it"]"#, "en-fr beside it-fr");
     assert_eq!(engine.native_language(), "fr");
 
-    // Every page reports Italian's own version, the baseline's.
+    // Every page reports Italian's own version, its pre-pass's.
     for name in ITALIAN.page_names {
         assert_eq!(
             analysed(&engine, name)["analyzer_version"],
-            "0.1.0",
+            "0.2.0",
             "{name}"
         );
     }
 
-    // An elided word is one token, its lemma itself, lowercased; so is `c'è`.
-    let elisioni = tokens(&analysed(&engine, "elisioni"));
-    assert!(has(&elisioni, "L'uomo", "l'uomo"), "{elisioni:?}");
-    assert!(has(&elisioni, "un'amica", "un'amica"), "{elisioni:?}");
-    assert!(has(&elisioni, "dell'acqua", "dell'acqua"), "{elisioni:?}");
-    assert!(has(&elisioni, "c'è", "c'è"), "{elisioni:?}");
-    // A truncation loses its trailing apostrophe, as any word's edge apostrophe does.
-    assert!(has(&elisioni, "po", "po"), "{elisioni:?}");
-    assert!(has(&elisioni, "fa", "fare"), "{elisioni:?}");
+    // An elided word is its pieces, each its own span and lemmatised by the baseline: `Lo` is the
+    // fixture's article `il`, `c'è` hides `essere` no longer (D3).
+    let elisioni_json = analysed(&engine, "elisioni");
+    let elisioni = tokens(&elisioni_json);
+    assert!(has(&elisioni, "Lo", "il"), "{elisioni:?}");
+    assert!(has(&elisioni, "uomo", "uomo"), "{elisioni:?}");
+    assert!(has(&elisioni, "una", "uno"), "{elisioni:?}");
+    assert!(has(&elisioni, "amica", "amica"), "{elisioni:?}");
+    assert!(has(&elisioni, "dello", "dello"), "{elisioni:?}");
+    assert!(has(&elisioni, "ci", "ci"), "{elisioni:?}");
+    assert!(has(&elisioni, "è", "essere"), "{elisioni:?}");
+    assert_eq!(written(&elisioni_json, "elisioni", "Lo"), ["L'"]);
+    assert_eq!(written(&elisioni_json, "elisioni", "uomo"), ["uomo"]);
+    // No elided word is left whole: no surface holds an apostrophe.
+    assert!(
+        elisioni
+            .iter()
+            .all(|(surface, _, _)| !surface.contains('\'')),
+        "{elisioni:?}"
+    );
+    // A truncation is read as its word, its apostrophe in its span (D5).
+    assert!(has(&elisioni, "poco", "poco"), "{elisioni:?}");
+    assert!(has(&elisioni, "fai", "fare"), "{elisioni:?}");
+    assert!(has(&elisioni, "vai", "andare"), "{elisioni:?}");
+    assert!(has(&elisioni, "dici", "dire"), "{elisioni:?}");
+    assert_eq!(written(&elisioni_json, "elisioni", "poco"), ["po'"]);
+    assert_eq!(written(&elisioni_json, "elisioni", "fai"), ["fa'"]);
 
-    // Articulated prepositions are whole, in both readings: no written word gives two tokens.
+    // The `di` family is whole; every other articulated preposition is the preposition and the
+    // article, sharing the written word's span (D4).
     let page_json = analysed(&engine, "preposizioni");
-    let spans: Vec<_> = page_json["tokens"]
-        .as_array()
-        .expect("tokens")
-        .iter()
-        .map(|t| (t["block"].clone(), t["start"].clone(), t["end"].clone()))
-        .collect();
-    for (i, span) in spans.iter().enumerate() {
-        assert!(!spans[..i].contains(span), "a split word at {span:?}");
-    }
     let preposizioni = tokens(&page_json);
-    for written in [
-        "del", "dello", "della", "nel", "al", "dal", "sul", "col", "coi",
-    ] {
+    for written in ["del", "dello", "della", "dei", "degli", "delle"] {
         assert!(
             preposizioni
                 .iter()
-                .any(|(s, l, _)| s.to_lowercase() == written && l == written),
+                .any(|(s, _, _)| s.to_lowercase() == written),
             "{written}: {preposizioni:?}"
+        );
+    }
+    for &(written, _, _) in ITALIAN_CONTRACTIONS {
+        assert!(
+            preposizioni
+                .iter()
+                .all(|(s, _, _)| s.to_lowercase() != written),
+            "{written} whole: {preposizioni:?}"
+        );
+    }
+    let split = shared(&page_json, "preposizioni");
+    for (preposition, article, written) in [
+        ("a", "il", "al"),
+        ("a", "lo", "allo"),
+        ("da", "i", "dai"),
+        ("In", "il", "Nel"),
+        ("Su", "il", "Sul"),
+        ("con", "il", "col"),
+        ("con", "i", "coi"),
+    ] {
+        assert!(
+            split.contains(&(
+                preposition.to_owned(),
+                article.to_owned(),
+                written.to_owned()
+            )),
+            "{written}: {split:?}"
+        );
+    }
+    let elided = shared(&elisioni_json, "elisioni");
+    for (preposition, written) in [
+        ("A", "All'"),
+        ("da", "dall'"),
+        ("su", "sull'"),
+        ("in", "nell'"),
+    ] {
+        assert!(
+            elided.contains(&(preposition.to_owned(), "lo".to_owned(), written.to_owned())),
+            "{written}: {elided:?}"
         );
     }
 
@@ -266,8 +320,108 @@ fn what_the_baseline_shows_today() {
     {
         assert_eq!(analysed_blocks(block), 0, "block {block}: {misto:?}");
     }
-    assert!(has(&misto, "s'alçava", "s'alçava"), "{misto:?}");
+    // Italian's elisions run on the Catalan block too: `s'alçava` is `si` + `alçava`.
+    assert!(has(&misto, "si", "si"), "{misto:?}");
+    assert!(has(&misto, "alçava", "alçava"), "{misto:?}");
     assert!(has(&misto, "unha", "unha"), "{misto:?}");
+}
+
+/// The source text each token written `surface` covers, in document order.
+fn written(page_json: &serde_json::Value, name: &str, surface: &str) -> Vec<String> {
+    let blocks = page(name);
+    page_json["tokens"]
+        .as_array()
+        .expect("tokens")
+        .iter()
+        .filter(|t| t["surface"] == surface)
+        .map(|t| {
+            let block = &blocks[t["block"].as_u64().expect("a block") as usize];
+            let (start, end) = (
+                t["start"].as_u64().expect("a start") as usize,
+                t["end"].as_u64().expect("an end") as usize,
+            );
+            block[start..end].to_owned()
+        })
+        .collect()
+}
+
+/// Each pair of consecutive tokens sharing a source span: (first surface, second surface, the
+/// source text they share).
+fn shared(page_json: &serde_json::Value, name: &str) -> Vec<(String, String, String)> {
+    let blocks = page(name);
+    let tokens = page_json["tokens"].as_array().expect("tokens");
+    tokens
+        .windows(2)
+        .filter(|pair| {
+            ["block", "start", "end"]
+                .iter()
+                .all(|key| pair[0][*key] == pair[1][*key])
+        })
+        .map(|pair| {
+            let block = &blocks[pair[0]["block"].as_u64().expect("a block") as usize];
+            let (start, end) = (
+                pair[0]["start"].as_u64().expect("a start") as usize,
+                pair[0]["end"].as_u64().expect("an end") as usize,
+            );
+            (
+                pair[0]["surface"].as_str().expect("a surface").to_owned(),
+                pair[1]["surface"].as_str().expect("a surface").to_owned(),
+                block[start..end].to_owned(),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn the_fixture_lists_every_word_the_pre_pass_writes() {
+    // Each elided form of the pre-pass before a word of the fixture — `diss'` before `io` too —,
+    // each elided articulated preposition, each one split, the `di` family's forms the fixture
+    // lists and each truncation, tokenised as Italian, give only forms of the fixture: no word the
+    // pre-pass writes shows unresolved for want of a form (change 9 checks the real tables). `del`
+    // is not tested: D7 leaves it out of the fixture, where it shows as the baseline reads it.
+    let dir = PackSource::Testdata.manifest_dir("it-fr");
+    let forms: std::collections::BTreeSet<String> = std::fs::read_to_string(dir.join("forms.tsv"))
+        .expect("forms.tsv")
+        .lines()
+        .filter_map(|line| line.split('\t').next())
+        .filter(|form| !form.is_empty())
+        .map(str::to_owned)
+        .collect();
+    let pack = lingua_core::packs::Pack::load(&testdata_pack(&dir, "it-fr")).expect("the fixture");
+    let mut line = String::from("diss'io ");
+    let elided = ITALIAN_ELISIONS.iter().map(|&(written, _)| written);
+    for written in elided.chain(
+        ITALIAN_ELIDED_PREPOSITIONS
+            .iter()
+            .map(|&(written, _, _)| written),
+    ) {
+        line.push_str(&format!("{written}'uomo "));
+    }
+    for (written, _, _) in ITALIAN_CONTRACTIONS {
+        line.push_str(&format!("{written} "));
+    }
+    line.push_str("dello della dei degli delle ");
+    for (written, _) in ITALIAN_TRUNCATIONS {
+        line.push_str(&format!("{written}' "));
+    }
+    let tokens = tokenize(&line, StudiedLanguage::Italian, pack.lexicon());
+    let read: Vec<String> = tokens.iter().map(|t| t.text.to_lowercase()).collect();
+    let written = ITALIAN_ELISIONS
+        .iter()
+        .map(|&(_, read)| read)
+        .chain(["dissi"])
+        .chain(
+            ITALIAN_ELIDED_PREPOSITIONS
+                .iter()
+                .flat_map(|&(_, read, article)| std::iter::once(read).chain(article)),
+        )
+        .chain(ITALIAN_CONTRACTIONS.iter().flat_map(|&(_, p, a)| [p, a]))
+        .chain(ITALIAN_TRUNCATIONS.iter().map(|&(_, read)| read));
+    for word in written {
+        assert!(read.iter().any(|r| r == word), "{word:?} in {read:?}");
+    }
+    let missing: Vec<&String> = read.iter().filter(|r| !forms.contains(*r)).collect();
+    assert!(missing.is_empty(), "not forms of the fixture: {missing:?}");
 }
 
 #[test]
@@ -349,7 +503,7 @@ fn a_fixture_left_behind_its_analyser_names_its_manifest() {
     };
     let message = refused.downcast_ref::<String>().expect("a formatted panic");
     assert!(
-        message.contains("pack built for analyzer 0.0.9 but this core is 0.1.0"),
+        message.contains("pack built for analyzer 0.0.9 but this core is 0.2.0"),
         "{message}"
     );
     assert!(

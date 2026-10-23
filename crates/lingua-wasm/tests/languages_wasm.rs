@@ -14,7 +14,8 @@
 
 //! The calls the engine refuses (`generalise-lingua-wasm-engine`). They throw, which
 //! only a wasm target can show: creating a `JsError` off wasm panics. And French's pieces
-//! read with the host's spans (add-lingua-french-tokenisation D6).
+//! read with the host's spans (add-lingua-french-tokenisation D6), as Italian's do
+//! (add-lingua-italian-tokenisation D6).
 //! `wasm-pack test --node crates/lingua-wasm`.
 
 #![cfg(target_arch = "wasm32")]
@@ -362,4 +363,32 @@ fn spec_scenario_an_italian_pack_of_another_native_language_is_refused() {
     );
     // Glossed in Italian, which the core does not know as a native language, it never loads.
     assert!(LinguaEngine::new(&rewritten(StudiedLanguage::Italian, "it")).is_err());
+}
+
+#[wasm_bindgen_test]
+fn spec_scenario_italian_pieces_keep_their_spans_on_wasm() {
+    // add-lingua-italian-tokenisation D6: the pre-pass is pure Rust over the text, so the wasm
+    // target reads Italian's pieces with the host's byte spans — an elided piece with its
+    // three-byte apostrophe, `nel` and `all’` shared by the preposition and the article, a
+    // truncation spanning its apostrophe — at Italian's `0.2.0`.
+    let engine = LinguaEngine::new(&rewritten(StudiedLanguage::Italian, "fr")).unwrap();
+    let page = engine
+        .analyse(
+            vec!["L’uomo nel mare, un po' di pane all’alba.".to_owned()],
+            Some("it".to_owned()),
+        )
+        .unwrap();
+    assert!(page.contains(r#""analyzer_version":"0.2.0""#), "{page}");
+    for token in [
+        r#""start":0,"end":4,"surface":"Lo""#,
+        r#""start":4,"end":8,"surface":"uomo""#,
+        r#""start":9,"end":12,"surface":"in""#,
+        r#""start":9,"end":12,"surface":"il""#,
+        r#""start":22,"end":25,"surface":"poco""#,
+        r#""start":34,"end":40,"surface":"a""#,
+        r#""start":34,"end":40,"surface":"lo""#,
+        r#""start":40,"end":44,"surface":"alba""#,
+    ] {
+        assert!(page.contains(token), "{token}: {page}");
+    }
 }

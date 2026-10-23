@@ -84,15 +84,19 @@ pub const SPANISH_ANALYZER_VERSION: &str = "1.5.0";
 /// in capitals as the acronym its pack lists.
 pub const FRENCH_ANALYZER_VERSION: &str = "1.3.0";
 
-/// Italian's analyser version: `0.1.0` while Italian is served by the baseline analysis alone
+/// Italian's analyser version: `0.1.0` while Italian was served by the baseline analysis alone
 /// (add-lingua-italian-baseline), a `0.x` version as the spec requires of a language whose rules
 /// are not written. The baseline is the rules that belong to no language — segmentation, the
 /// hyphen run, the compound rule, the digit drop, the edge-apostrophe trim, the single-letter
-/// rule — and the pack's form→lemma lookup, else the lowercased form. What it lacks, each a rule
-/// of Italian's own that bumps this version when it lands: no elision pieces (`l'uomo`,
-/// `dell'acqua` stay whole), no articulated preposition split (`del`, `nel`, `col` stay whole),
-/// no truncation read as its word (`po'` is `po` by the edge trim), no apostrophe read as an
-/// accent (`perche'`), no enclitic split (`dirmelo` stays whole), no Unicode (NFC)
-/// normalisation, no exception table or cascade, no function-word table, no names rule and no
-/// detection guard (whichlang reads Catalan and Galician as Italian).
-pub const ITALIAN_ANALYZER_VERSION: &str = "0.1.0";
+/// rule — and the pack's form→lemma lookup, else the lowercased form. `0.2.0` since
+/// add-lingua-italian-tokenisation gives it its own tokenisation pre-pass (I7): an elided word
+/// split from the word it is joined to and read as the word it stands for, each piece with its
+/// own span (`l'uomo` → `lo` + `uomo`, `c'è` → `ci` + `è`); the articulated prepositions of
+/// `di` whole (`del`, `della`; `dell'` read as `dello`), the others split into the preposition
+/// and the article sharing the span (`nel` → `in` + `il`, `all'` → `a` + `lo`); a truncation
+/// read as its word, its apostrophe in its span (`po'` → `poco`). What it still lacks, each a
+/// rule of Italian's own that bumps this version when it lands: no apostrophe read as an accent
+/// (`perche'` is `perche` by the edge trim), no enclitic split (`dirmelo` stays whole), no
+/// Unicode (NFC) normalisation, no exception table or cascade, no function-word table, no names
+/// rule and no detection guard (whichlang reads Catalan and Galician as Italian).
+pub const ITALIAN_ANALYZER_VERSION: &str = "0.2.0";
