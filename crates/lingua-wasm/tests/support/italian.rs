@@ -159,7 +159,8 @@ const PHRASES: &[&str] = &[
 
 /// (word as written, dictionary form) pairs a word card asks the grammar of. The fixture has no
 /// grammar tables: each answers its gloss alone, and a written word Italian's pre-pass splits
-/// answers its pieces — `al`, `l'uomo` —, an elided piece handed alone none (`l’`).
+/// answers its pieces — `al`, `l'uomo` —, an elided piece handed alone none (`l’`), asked by its
+/// written reading (`lo`) or by its lemma (`il`).
 const GRAMMAR: &[(&str, &str)] = &[
     ("è", "essere"),
     ("sono", "essere"),
@@ -186,6 +187,8 @@ const GRAMMAR: &[(&str, &str)] = &[
     ("al", "a"),
     ("l'uomo", "uomo"),
     ("l’", "lo"),
+    // The fixture files `lo` under `il`: asked by its lemma, the elided article shows its gloss.
+    ("l’", "il"),
     ("dirmelo", "dire"),
 ];
 

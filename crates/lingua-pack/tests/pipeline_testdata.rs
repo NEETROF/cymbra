@@ -167,14 +167,16 @@ fn the_italian_fixture_studies_italian_at_its_analyser_version() {
     // Its expressions are keyed by their words' lemmas, as Italian is read today.
     assert_eq!(pack.expression("ad alto voce"), Some("à voix haute"));
     assert_eq!(pack.expression("a causa di"), Some("à cause de"));
-    // No word the baseline kept whole is listed: it shows as Italian reads it.
-    for whole in ["l'uomo", "dell'acqua", "del", "nel", "dirmelo"] {
+    // No word the baseline kept whole and Italian's pre-pass splits is listed: it shows as Italian
+    // reads it.
+    for whole in ["l'uomo", "dell'acqua", "nel", "dirmelo"] {
         assert!(!pack.lexicon().contains(whole), "{whole:?}");
     }
     // The words the pre-pass writes are, each glossed (add-lingua-italian-tokenisation D7): an
-    // elided piece's (`lo`), the `di` family's `dello`, a truncation's (`poco`, `fai`).
+    // elided piece's (`lo`), the `di` family's (`del`, `dello`), a truncation's (`poco`, `fai`).
     for (form, lemma) in [
         ("lo", "il"),
+        ("del", "del"),
         ("dello", "dello"),
         ("poco", "poco"),
         ("fai", "fare"),
@@ -462,8 +464,8 @@ fn the_fixtures_build_whole_as_recorded_and_split_by_their_pin() {
         ),
         (
             "it-fr",
-            5819,
-            "f3e8ac209cd2b32a7c822b34f2e588d25f51bf4dc81cf0bb786c8299a3dbf799",
+            5841,
+            "beacf33cf67c60f7083bb30abd12449860cd05628bcaa76c31bd39145516ad74",
         ),
     ] {
         let inputs = inputs_from_dir(&root.join(pair)).unwrap_or_else(|e| panic!("{pair}: {e}"));

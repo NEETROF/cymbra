@@ -375,10 +375,9 @@ fn shared(page_json: &serde_json::Value, name: &str) -> Vec<(String, String, Str
 #[test]
 fn the_fixture_lists_every_word_the_pre_pass_writes() {
     // Each elided form of the pre-pass before a word of the fixture — `diss'` before `io` too —,
-    // each elided articulated preposition, each one split, the `di` family's forms the fixture
-    // lists and each truncation, tokenised as Italian, give only forms of the fixture: no word the
-    // pre-pass writes shows unresolved for want of a form (change 9 checks the real tables). `del`
-    // is not tested: D7 leaves it out of the fixture, where it shows as the baseline reads it.
+    // each elided articulated preposition, each one split, the `di` family's six forms and each
+    // truncation, tokenised as Italian, give only forms of the fixture: no word the pre-pass
+    // writes shows unresolved for want of a form (change 9 checks the real tables).
     let dir = PackSource::Testdata.manifest_dir("it-fr");
     let forms: std::collections::BTreeSet<String> = std::fs::read_to_string(dir.join("forms.tsv"))
         .expect("forms.tsv")
@@ -400,7 +399,7 @@ fn the_fixture_lists_every_word_the_pre_pass_writes() {
     for (written, _, _) in ITALIAN_CONTRACTIONS {
         line.push_str(&format!("{written} "));
     }
-    line.push_str("dello della dei degli delle ");
+    line.push_str("del dello della dei degli delle ");
     for (written, _) in ITALIAN_TRUNCATIONS {
         line.push_str(&format!("{written}' "));
     }

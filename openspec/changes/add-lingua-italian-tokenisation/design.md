@@ -105,6 +105,10 @@ including the apostrophe is a token of its own, and the rule runs again on what 
 | `ciascun'` | `ciascuna` |
 | `alcun'` | `alcuna` |
 
+Before a number (« l'11 settembre », « nell'800 », « dell'85 »), UAX #29 ends the word at the
+apostrophe: D5's seam then reads the elided form as written alone, its span holding the apostrophe,
+and the digits are dropped as any are — never a bare `l`, `nell` or `dell`.
+
 Matching is on the lowercased part; the read word takes the written first letter's capital on its
 own first letter (`L'` → `Lo`, `Quest’` → `Questo`), by French's casing (the read word's own first
 letter, never a byte slice of the written one). After the last elision, what remains goes on
@@ -154,8 +158,9 @@ partitive read as a definite article; I7 settled it as M21 did for `du`/`des`.
 ### D5 — Truncation: a closed list of words ending in an apostrophe
 
 Italian's words seam (D2's counterpart of `french_words`) re-attaches a trailing apostrophe —
-straight or typographic — to the word before it only when the lowercased word, apostrophe
-included, is on a list: D3's elided forms written alone (a word card hands the engine « l’ »: read
+straight or typographic, with no letter after it; for a truncation, no digit either, while an
+elided form keeps it before a number (D3) — to the word before it only when the lowercased word,
+apostrophe included, is on a list: D3's elided forms written alone (a word card hands the engine « l’ »: read
 as `lo`, one token spanning the apostrophe, as French reads « l’ » alone through
 `apostrophe_ending_a_word`) or the truncations below. Any other trailing apostrophe — the closing
 quote of « ‘ciao’ », the apostrophe that stands for an accent in « perche' » — stays outside the
@@ -182,8 +187,9 @@ truncation's read word is final: `da'` → `dai` is not re-read by D4, while a w
 Any other word ending in an apostrophe (`perche'`, `e'`, `piu'`, `citta'`) loses it, as today:
 the apostrophe that stands for an accent is change 10's, where a reviewed list maps each to its
 accented word — change 5's design placed it here; the programme's row 6 is corrected in this
-change. The imperatives are read as their full second-person forms (`fai`, `vai`), which
-the forms table files under the verb.
+change. The truncated imperatives are read as their verb's present second person (`fai`, `vai`,
+`dai`, `stai`, and `dici` of `dire`, whose imperative is `di'` itself), a form the page could have
+written, which the forms table files under the verb.
 
 *Alternative.* Reading the imperatives as their dictionary form (`fare`): the tokeniser reads
 written words, not lemmas; `fai` is what the page could have written.
@@ -207,16 +213,19 @@ the pre-pass writes where it lacks them (change 5's holds the plain articles, pr
 `a`, `da`, `in`, `su`, `con`; the clitics `ci`, `vi`, `mi`, `ti`, `si`, `ne`; `che`, `dove`,
 `come`, `questo`, `quello`, `anche`, `senza`, `tutto`, `bello`, `grande`, `santo`, `mezzo`,
 `niente`, `quanto`, `cosa`, `quando`, `deve`, `disse`, `dissi`, `buona`, `povero`, `cento`,
-`venti`, `sotto`, `nessuna`, `qualcosa`, `qualcuna`, `ciascuna`, `alcuna`; `dello`, `della`,
-`dei`, `degli`, `delle`; `poco`, `modo`, `fai`, `vai`, `dai`, `stai`, `dici`, `bene` — so the golden shows them resolved, not unglossed. The support
+`venti`, `sotto`, `nessuna`, `qualcosa`, `qualcuna`, `ciascuna`, `alcuna`; `del`, `dello`,
+`della`, `dei`, `degli`, `delle`; `poco`, `modo`, `fai`, `vai`, `dai`, `stai`, `dici`, `bene` — so the golden shows them resolved, not unglossed. The support
 module's phrase and grammar probes gain « C'è un po' di pane », « all'alba » and « Nel mezzo del
 cammin » (Dante, a line in the public domain), and (`l’`, `lo`), (`al`, `a`).
 
 ### D8 — What the golden shows, and what does not move
 
 The re-bless of `it-fr.golden` is the diff of this change: every elision of the `elisioni`,
-`manzoni`, `nomi`, `narrativa`, `tecnico` (`l'API`) and `notizie` pages becomes pieces, every
-`al`/`nel`/`sul`/`dal`/`col` of the `preposizioni` and `notizie` pages two tokens, the `di` family
+`manzoni`, `nomi`, `narrativa`, `omografi`, `ricetta`, `misto` (its Catalan block), `tecnico`
+(`l'API`) and `notizie` pages becomes pieces, every `al`/`nel`/`sul`/`dal`/`col` form two
+tokens on every page that writes one — `preposizioni`, `notizie`, `narrativa`, `manzoni`,
+`omografi`, `elisioni`, `clitici`, `tecnico`, `misto` and `grammatica`, all but `nomi`,
+`informale` and `ricetta` —, the `di` family
 unchanged, `po'` read as `poco`. The `informale` page's `perche'`, `piu'`, `citta'`, `e'` and `E'`
 do not move: their trailing apostrophe stays outside the word, as at `0.1.0`, until change 10. The six goldens, S0 and every pin are byte for byte; the English, Spanish and French arms
 are not touched.
@@ -246,41 +255,54 @@ with the golden's.
 Recorded while implementing; each is a small mechanical consequence, or a deviation approved
 before it was written.
 
-- **D5's opening-quote check (deviation, approved).** As worded — « the character before the word
-  is an opening quote » — the check could not give D5's own example: in « ‘due anni fa’ » the
-  character before `fa` is a space, so `fa’` would read `fai`. The seam instead scans back from
-  the word to the nearest single quote that is not between two letters (`inside_a_quote` in
-  `tokenize.rs`): a `‘`, or an apostrophe with no letter or digit before it and a letter after it,
-  opens a quote, and the apostrophe after the word is its closing one, not re-attached; an
-  apostrophe after a letter or a digit (a closing quote, another truncation) ends the scan, and so
-  does the start of the text, and the apostrophe is re-attached. So « ‘due anni fa’ » reads `fa`,
-  « ‘ciao’ » `ciao`, « un po' di pane, va' via » `poco` and `vai`, and « ‘ciao’ un po' » `poco`.
-  Known cost: a truncation inside a phrase quoted with straight apostrophes reads as at `0.1.0`
-  (« 'un po' e basta' » gives `po`). The spec's requirement says « a quote opened before the word
-  and still open there » accordingly.
+- **D5's opening-quote check (deviation, approved; tightened at review).** As worded — « the
+  character before the word is an opening quote » — the check could not give D5's own example: in
+  « ‘due anni fa’ » the character before `fa` is a space, so `fa’` would read `fai`. The seam
+  instead scans back from the word to the nearest quote mark — `'`, `’` or `‘` — that opens or
+  closes a quote (`inside_a_quote` in `tokenize.rs`): a mark with a letter after it and no letter
+  or digit before it opens one, and the apostrophe after the word is its closing one, not
+  re-attached; a mark with no letter after it and something other than a space before it closes
+  one (`fa’`, `qui!’`, `Sì.'`, another truncation's `po'`), and the apostrophe is re-attached, as
+  it is at the start of the text. A mark between two letters is inside a word (`c'è`, a mistyped
+  `l‘uomo`), and one after a space with no letter after it opens nothing (« anni ‘80 »): the scan
+  goes on past both. So « ‘due anni fa’ » reads `fa`, « ‘ciao’ » `ciao`, « un po' di pane, va'
+  via » `poco` and `vai`, « ‘Vieni!’ disse, un po' » and « anni ‘80, un po' » `poco`. Known cost:
+  a truncation inside a phrase quoted with straight apostrophes reads as at `0.1.0` (« 'un po' e
+  basta' » gives `po`), and so does one after an aphaeresis (`'sto`, `'na`), whose apostrophe
+  reads as an opening quote (« 'na cosa, un po' » gives `po`). The spec's requirement says « a
+  single quote opened before the word and still open there » accordingly. Review fixed the first
+  version, which read any `‘` as opening and a quote closed after punctuation as still open.
+- **An elided form before a number (review).** The seam keeps an elided form's apostrophe before a
+  digit as well as before no letter — « l'11 settembre » is `lo` + `settembre`, « nell'800 » `in`
+  + `lo`, « dell'85 » `dello`, « all'80% » `a` + `lo` — where the first version, requiring neither
+  a letter nor a digit, read them `l` (dropped), `nell`, `dell`, `all`. A truncation still needs
+  neither (« po'2 » is `po`), and no quote check runs before a digit. The spec's clause, D3 and D5
+  say so.
 - **The re-attach list holds D4's elided forms too.** The spec's « an elided form of this
   requirement written alone » names `dell'`, `all'`, `dall'`, `nell'` and `sull'` beside D3's 38
   forms, and the extension hands a word card the span the reader clicked: on « all’alba » that is
   « all’ », which now answers the pieces `a` and `lo`, and « dell’ » the one token `dello`.
-- **`del` is not in D7's fixture list.** D7 lists `dello`, `della`, `dei`, `degli` and `delle`,
-  not `del`; the fixture follows D7 literally, so `del` shows as the baseline reads it (its own
-  lemma, no gloss) and the fixture check (`the_fixture_lists_every_word_the_pre_pass_writes`)
-  leaves it out. A later change can add it if the omission was an oversight.
+- **`del` joins the fixture (review).** D7 first listed `dello`, `della`, `dei`, `degli` and
+  `delle`, not `del`; review added it as the other five are (its own lemma, ranked, glossed `du`),
+  and D7 now lists it.
 - **The fixture's lemmas and glosses.** The read words are filed as a dictionary would file
   them: `buona`, `nessuna`, `qualcuna`, `ciascuna`, `alcuna` under their masculine; `fai`, `vai`,
-  `dai`, `stai`, `dissi` under `fare`, `andare`, `dare`, `stare`, `dire`; `dello`, `della`,
-  `dei`, `degli`, `delle` each its own lemma, as the French fixture files `du` and `des`. Every
+  `dai`, `stai`, `dissi` under `fare`, `andare`, `dare`, `stare`, `dire`; `del`, `dello`,
+  `della`, `dei`, `degli`, `delle` each its own lemma, as the French fixture files `du` and `des`. Every
   lemma a D7 word resolves to is ranked and glossed where it was not, so the golden also shows a
   gloss on words that already resolved (`che`, `in`, `con`, `un`, `quello`…) and on `Nessuno` and
   `qualcuno` (`narrativa`), whose lemmas the read words bring; the lemmas now ranked and glossed
-  enter the vocabulary estimate's universe of ranked dictionary words (63 → 109), moving the level
+  enter the vocabulary estimate's universe of ranked dictionary words (63 → 110), moving the level
   ladder's typical vocabulary and the reader's presumed known words with it. The tecnico page's `CI` is read as the clitic `ci`, now glossed: the
   acronyms are change 11's.
 - **The `word-grammar l’ lo` probe** answers no gloss: the fixture files `lo` under `il`, as change
   5's did, so the dictionary form `lo` is not a lemma. What the probe pins is the one token and no
-  pieces.
+  pieces; a (`l’`, `il`) probe beside it pins the gloss.
+- **An acronym the contraction table reads.** `AI` written in capitals splits into `A` + `i`, as
+  `ai` does, the same class as the tecnico page's `CI` read as the clitic `ci`: acronyms in
+  capitals are change 11's.
 - **The it-fr fixture's test pin moves.** `crates/lingua-pack/tests/pipeline_testdata.rs` records
-  the fixture's whole pack: 4,956 B → 5,819 B (sha256 `f3e8ac20…`). No `pin.json` and no committed
+  the fixture's whole pack: 4,956 B → 5,841 B (sha256 `beacf33c…`). No `pin.json` and no committed
   table moves.
 - **A digit in a hyphenated run** makes each piece an Italian word (its elisions and articulated
   prepositions read), as French's run does: « l'anno-2020 » is `lo` + `anno`.
@@ -295,4 +317,5 @@ before it was written.
   gains a test of Italian's spans on wasm, as French's change 40 added one; `sonar-project.properties`
   excludes `italian_fixtures.rs` from copy-paste detection, as it does `french_fixtures.rs`.
 - **The programme's row 6** already says that the apostrophe for an accent is change 10's (the
-  correction the proposal announces was made when the proposal merged); its status is the owner's.
+  correction the proposal announces was made when the proposal merged); the owner named this
+  change's pull request in its status (task 5.3).

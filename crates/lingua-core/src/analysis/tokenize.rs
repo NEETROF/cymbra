@@ -551,8 +551,7 @@ fn push_french_elisions<'a>(
 
 /// The byte length of the apostrophe at `end` of `text` when it ends an elided
 /// word written on its own — neither a letter nor a digit after it (D3): `l’`
-/// alone, as a word card is handed it, or `l’ homme`. Italian's words seam reads
-/// a truncation's apostrophe with it too (`po'`, add-lingua-italian-tokenisation D5).
+/// alone, as a word card is handed it, or `l’ homme`.
 fn apostrophe_ending_a_word(text: &str, end: usize) -> Option<usize> {
     let mut after = text[end..].chars();
     let apostrophe = after.next().filter(|&c| is_apostrophe(c))?;
@@ -851,8 +850,9 @@ pub const ITALIAN_ELIDED_PREPOSITIONS: &[(&str, &str, Option<&str>)] = &[
 ];
 
 /// Italian's truncations — the word written before its trailing apostrophe,
-/// lowercase — and the word each stands for (D5), sorted byte-wise. The
-/// imperatives are read as their full second-person forms, which the forms
+/// lowercase — and the word each stands for (D5), sorted byte-wise. The truncated
+/// imperatives are read as their verb's present second person (`fa'` → `fai`,
+/// `di'` → `dici`, of `dire`), a form the page could have written, which the forms
 /// table files under the verb; none of the eight is a word with its apostrophe.
 /// A truncation's read word is final: `da'` is `dai`, never `da` + `i`. Public for
 /// the same checks as [`ITALIAN_ELISIONS`].
@@ -911,12 +911,15 @@ fn italian_truncation(lower: &str) -> Option<&'static str> {
     Some(ITALIAN_TRUNCATIONS[index].1)
 }
 
-/// Whether an Italian word followed by an apostrophe and no letter keeps it (D5):
-/// the word, lowercase and without its soft hyphens, is an elided form written
-/// alone — D3's, or D4's `dell'`, `all'`, `dall'`, `nell'`, `sull'` — or a truncation.
-fn italian_keeps_its_apostrophe(word: &str) -> bool {
+/// Whether an Italian word is an elided form (D3's, or D4's `dell'`, `all'`,
+/// `dall'`, `nell'`, `sull'`) or a truncation, read lowercase and without its soft
+/// hyphens: `(elided, truncation)`.
+fn italian_listed_before_apostrophe(word: &str) -> (bool, bool) {
     let lower = without_soft_hyphens(word).to_lowercase();
-    italian_truncation(&lower).is_some() || italian_elided(&lower, "").is_some()
+    (
+        italian_elided(&lower, "").is_some(),
+        italian_truncation(&lower).is_some(),
+    )
 }
 
 /// The character before byte `at` of `text`, a soft hyphen read as nowhere.
@@ -926,52 +929,64 @@ fn italian_char_before(text: &str, at: usize) -> Option<char> {
 
 /// Whether a single quote opened before byte `start` of `text` is still open there,
 /// so that an apostrophe after the word starting at `start` closes it (D5, as
-/// implemented): the nearest single quote before the word that is not between two
-/// letters decides — `‘`, or an apostrophe with no letter or digit before it and a
-/// letter after it, opens one; an apostrophe after a letter or a digit (a closing
-/// quote, another truncation) closes it; the start of the text is outside any. So
-/// « ‘due anni fa’ » reads `fa`, and « un po' di pane, va' via » `poco` and `vai`.
+/// implemented). The nearest quote mark before the word — `'`, `’` or `‘` — that
+/// opens or closes one decides: a mark with a letter after it and no letter or digit
+/// before it opens one (`‘due`, `'Sì`); a mark with no letter after it and something
+/// other than a space before it closes one (`fa’`, `qui!’`, `Sì.'`, another
+/// truncation's `po'`). A mark between two letters is inside a word (`c'è`, a
+/// mistyped `l‘uomo`), and one between a space and no letter opens nothing (`‘80`):
+/// the scan goes on past both, and the start of the text is outside any quote. So
+/// « ‘due anni fa’ » reads `fa`, and « ‘Vieni!’ disse, un po' » and « un po' di pane,
+/// va' via » `poco`.
 fn inside_a_quote(text: &str, start: usize) -> bool {
     for (at, c) in text[..start].char_indices().rev() {
-        if c == '\u{2018}' {
-            return true;
-        }
-        if !is_apostrophe(c) {
+        if !is_apostrophe(c) && c != '\u{2018}' {
             continue;
         }
-        let after_a_letter = italian_char_before(text, at).is_some_and(char::is_alphanumeric);
-        let before_a_letter = text[at + c.len_utf8()..]
+        let before = italian_char_before(text, at);
+        let letter_after = text[at + c.len_utf8()..]
             .chars()
             .find(|&c| c != SOFT_HYPHEN)
             .is_some_and(char::is_alphabetic);
-        match (after_a_letter, before_a_letter) {
-            (false, true) => return true,
-            (true, false) => return false,
-            // Inside a word (`c'è`), or standing alone.
-            _ => {}
+        let letter_before = before.is_some_and(char::is_alphanumeric);
+        let space_before = before.is_none_or(char::is_whitespace);
+        if letter_after && !letter_before {
+            return true;
+        }
+        if !letter_after && !space_before {
+            return false;
         }
     }
     false
 }
 
 /// The words of Italian text with their byte offsets (D5, D2's counterpart of
-/// [`french_words`]): UAX #29's, a word followed by an apostrophe and neither a
-/// letter nor a digit taking that apostrophe into its own when it is listed
-/// ([`italian_keeps_its_apostrophe`]: `l’` alone, as a word card is handed it,
-/// `po'`) and no quote opened before it is left open ([`inside_a_quote`]). Any
-/// other trailing apostrophe stays outside the word, as the rule of no language
-/// leaves it: `perche'` is `perche`, `‘ciao’` is `ciao`.
+/// [`french_words`]): UAX #29's, a word followed by an apostrophe and no letter
+/// taking that apostrophe into its own when it is listed
+/// ([`italian_listed_before_apostrophe`]) — an elided form written alone (`l’`, as a
+/// word card is handed it) or before a number (`l'11`, `nell'800`, whose digits
+/// the digit rule then drops), a truncation (`po'`) before neither a letter nor a
+/// digit —, and, unless a digit follows, no quote opened before it is left open
+/// ([`inside_a_quote`]). Any other trailing apostrophe stays outside the word, as
+/// the rule of no language leaves it: `perche'` is `perche`, `‘ciao’` is `ciao`.
 fn italian_words(text: &str) -> Vec<(usize, &str)> {
     text.unicode_word_indices()
         .map(|(start, word)| {
             let end = start + word.len();
-            match apostrophe_ending_a_word(text, end) {
-                Some(apostrophe)
-                    if italian_keeps_its_apostrophe(word) && !inside_a_quote(text, start) =>
-                {
-                    (start, &text[start..end + apostrophe])
-                }
-                _ => (start, word),
+            let mut after = text[end..].chars();
+            let Some(apostrophe) = after.next().filter(|&c| is_apostrophe(c)) else {
+                return (start, word);
+            };
+            let (elided, truncation) = italian_listed_before_apostrophe(word);
+            let keeps = match after.next() {
+                Some(c) if c.is_alphabetic() => false,
+                Some(c) if c.is_alphanumeric() => elided,
+                _ => (elided || truncation) && !inside_a_quote(text, start),
+            };
+            if keeps {
+                (start, &text[start..end + apostrophe.len_utf8()])
+            } else {
+                (start, word)
             }
         })
         .collect()
@@ -1711,11 +1726,29 @@ mod tests {
         );
         // An elision before the word is inside a word, not a quote.
         assert_eq!(texts(&italian("c'è un po'")), ["ci", "è", "un", "poco"]);
-        // The cost: a truncation inside a straight-quoted phrase reads as at 0.1.0.
+        // The cost: a truncation inside a straight-quoted phrase reads as at 0.1.0, and so does
+        // one after an aphaeresis (`'na`), read as an opening quote.
         assert_eq!(
             texts(&italian("'un po' e basta'")),
             ["un", "po", "e", "basta"]
         );
+        assert_eq!(
+            texts(&italian("'na cosa, un po'")),
+            ["na", "cosa", "un", "po"]
+        );
+        // A quote closed after punctuation is closed: what follows reads its truncations.
+        for text in [
+            "‘Vieni qui!’ disse. Un po' di pane",
+            "'Vieni qui!' disse. Un po' di pane",
+            "'Dov'è?' chiese, un po' stanco",
+            "'Sì.' Un po'",
+        ] {
+            assert!(texts(&italian(text)).contains(&"poco"), "{text}");
+        }
+        // `‘` opens a quote only as `'` does, before a letter and after no letter or digit: not
+        // the elided `‘` of « anni ‘80 », nor a mistyped « l‘uomo ».
+        assert_eq!(texts(&italian("anni ‘80, un po'")), ["anni", "un", "poco"]);
+        assert_eq!(texts(&italian("l‘uomo, un po'")), ["l‘uomo", "un", "poco"]);
     }
 
     #[test]
@@ -1760,8 +1793,23 @@ mod tests {
         ] {
             assert_eq!(read(text, &italian(text)), expected, "{text}");
         }
-        // A digit is no letter after an elision, and `l` alone falls to the single-letter rule.
-        assert!(italian("l'1").is_empty());
+        // Before a number, an elided form is read as written alone, the digits dropped as any
+        // are: never a bare `l`, `nell` or `dell`.
+        for (text, expected) in [
+            ("l'1", vec![("lo", "l'")]),
+            (
+                "l'11 settembre",
+                vec![("lo", "l'"), ("settembre", "settembre")],
+            ),
+            ("nell'800", vec![("in", "nell'"), ("lo", "nell'")]),
+            ("dell'85", vec![("dello", "dell'")]),
+            ("all'80%", vec![("a", "all'"), ("lo", "all'")]),
+            ("dall’8", vec![("da", "dall’"), ("lo", "dall’")]),
+        ] {
+            assert_eq!(read(text, &italian(text)), expected, "{text}");
+        }
+        // A truncation before a digit is no truncation: its apostrophe stays outside it.
+        assert_eq!(read("po'2", &italian("po'2")), [("po", "po")]);
         // A word that is on no list keeps the shared rules: its apostrophe is trimmed.
         assert_eq!(texts(&italian("uomo’ ")), ["uomo"]);
     }

@@ -119,7 +119,16 @@ const CASES: &[Case] = &[
     ("l’ uomo", &[("lo", "l’"), ("uomo", "uomo")]),
     ("Quest' ", &[("Questo", "Quest'")]),
     ("d' ", &[("di", "d'")]),
-    ("l'1", &[]),
+    // Before a number, as written alone, the digits dropped: never a bare `l`, `nell`, `dell`.
+    ("l'1", &[("lo", "l'")]),
+    (
+        "l'11 settembre",
+        &[("lo", "l'"), ("settembre", "settembre")],
+    ),
+    ("nell'800", &[("in", "nell'"), ("lo", "nell'")]),
+    ("dell'85", &[("dello", "dell'")]),
+    ("all'80%", &[("a", "all'"), ("lo", "all'")]),
+    ("dall’8", &[("da", "dall’"), ("lo", "dall’")]),
     // --- the words that stay whole ---
     ("altr'ora", &[("altr'ora", "altr'ora")]),
     ("tal'altro", &[("tal'altro", "tal'altro")]),
@@ -247,6 +256,24 @@ const CASES: &[Case] = &[
     (
         "'un po' e basta'",
         &[("un", "un"), ("po", "po"), ("e", "e"), ("basta", "basta")],
+    ),
+    // A quote closed after punctuation is closed; `‘` before a digit opens none.
+    (
+        "‘Vieni!’ disse, un po'",
+        &[
+            ("Vieni", "Vieni"),
+            ("disse", "disse"),
+            ("un", "un"),
+            ("poco", "po'"),
+        ],
+    ),
+    (
+        "'Sì.' Un po'",
+        &[("Sì", "Sì"), ("Un", "Un"), ("poco", "po'")],
+    ),
+    (
+        "anni ‘80, un po'",
+        &[("anni", "anni"), ("un", "un"), ("poco", "po'")],
     ),
     // --- hyphenated runs: the compound rule, an elision on the first piece split off ---
     (
