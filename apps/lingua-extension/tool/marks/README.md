@@ -125,10 +125,13 @@ worker delete a model only when a third pair's route needs the room
 
 The criteria were written before the run (release-lingua-spanish-translation D3, then
 measure-lingua-translation-matrix-marks D4 for any native language; add-lingua-french-translation D6
-added the French examples, before fr-en and fr-es were run, and moved no verdict), and a pair is
-judged in its **native language** — French for en-fr and es-fr, English for es-en and fr-en, Spanish
-for en-es and fr-es. Through English, fr-es's mark crosses two alignments, as es-fr's does: it is
-judged against the Spanish rendering the reader sees, whatever the English one in between.
+added the French examples, before fr-en and fr-es were run, and moved no verdict;
+measure-lingua-it-fr-translation-marks D3 added the Italian examples below, taken from the corpus,
+before it-fr was run, and moved no verdict), and a pair is judged in its **native language** — French
+for en-fr, es-fr and it-fr, English for es-en and fr-en, Spanish for en-es and fr-es. Through English,
+fr-es's mark crosses two alignments, as es-fr's does, and so does it-fr's, it-en then en-fr: it is
+judged against the rendering the reader sees, in the pair's native language, whatever the English one
+in between.
 
 - **Correct:**
   - the marks cover the rendering, in the pair's native language, of the selected word in that
@@ -141,6 +144,24 @@ judged against the Spanish rendering the reader sees, whatever the English one i
   word the translation omitted, so that the marks cover something else.
 - **Withheld:** no mark — a sentence the engine trapped on twice included (`withheld`,
   `trapped twice`).
+
+**Italian selections, judged in French** (measure-lingua-it-fr-translation-marks D3): the rules above,
+with these examples from the corpus's Italian steps, written before it-fr was run.
+
+- **A one-word past rendered as a compound one:** Italian's passato remoto is one word, French's
+  rendering through English often a passé composé — steps 37 « vidi », 65 « conobbe », 69
+  « rilasciò », 81 « accusò ». For step 65, a mark on « a connu » or « connu » is correct, on « a »
+  alone it is not.
+- **A subject the route adds:** Italian drops its subject, English and French write one — step 37's
+  « A Pyongyang vidi alcune persone » alone: a mark on « ai vu » or « vu » is correct, on « j' » alone
+  it is not.
+- **A word after a fused preposition:** step 6's « Nel corso della storia » (also 22, 82, 91): a mark
+  on « cours » or « Au cours » is correct, on « Au » alone it is not; an expression's rendering
+  (« Tout au long de ») counts.
+- **A word after an elided piece:** step 86's « l'unico nel Governo », the only Italian selection of
+  its kind (French had 8): the mark renders `unico` (« le seul »), never the article alone.
+- **Gender or number English lost:** a French rendering whose gender or number the route lost still
+  counts as the word's rendering — step 79 « nemiche », step 71 « stereotipata ».
 
 One judge reads a pair, as the shipped pairs were judged; a doubtful line says so in
 `engine_reason`, and the owner may re-judge any line in the pull request — the figures are
