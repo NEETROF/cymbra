@@ -1359,18 +1359,26 @@ pub(crate) mod tests {
             assert_eq!(pack.pair().key(), format!("it-{native}"));
         }
         // Compared with Italian's own version, never another language's: an Italian pack at
-        // French's, English's or Spanish's is refused as built for another analyser generation,
-        // and so is one built at `1.0.0`, before Italian's detection guard
+        // another language's version is refused as built for another analyser generation —
+        // Spanish's; French's and English's are Italian's own string since
+        // keep-lingua-italian-acronyms-and-names, `1.3.0` —, and so is one built at `1.2.0`, before
+        // Italian's acronym rule, at `1.1.0`, before its accent apostrophe
+        // (read-lingua-italian-unmarked-spellings), at `1.0.0`, before Italian's detection guard
         // (add-lingua-italian-detection-guard), at `0.2.0`, the version Italian had before its own
         // analysis, or by the baseline's tokeniser, at `0.1.0`, which keeps `l'uomo` whole.
         for other in [
             FRENCH_ANALYZER_VERSION,
             ANALYZER_VERSION,
             SPANISH_ANALYZER_VERSION,
+            "1.2.0",
+            "1.1.0",
             "1.0.0",
             "0.2.0",
             "0.1.0",
-        ] {
+        ]
+        .into_iter()
+        .filter(|other| *other != ITALIAN_ANALYZER_VERSION)
+        {
             let refused = Pack::load(&sample_pack_bytes_with("it", "fr", other)).err();
             assert!(
                 matches!(
@@ -1381,9 +1389,10 @@ pub(crate) mod tests {
                 "{other}"
             );
         }
-        // And a French pack at Italian's version is refused against French's.
+        // And a French pack is compared with French's version, not Italian's: at Italian's version
+        // before this rule it is refused naming French's.
         assert!(matches!(
-            Pack::load(&sample_pack_bytes_with("fr", "en", ITALIAN_ANALYZER_VERSION)),
+            Pack::load(&sample_pack_bytes_with("fr", "en", "1.2.0")),
             Err(PackError::IncompatibleAnalyzer { core, .. }) if core == FRENCH_ANALYZER_VERSION
         ));
     }

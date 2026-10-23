@@ -27,9 +27,17 @@ Inputs, in `--work`:
 - wordfreq `it` (the installed, pinned package): the 60,000 commonest lemmas and which forms are
   attested at all (D6).
 
-Outputs, in `--work`: Italian's `forms.tsv` and `freq.tsv`, its dictionary words `lexical.tsv` (none
-yet: change 11's acronym rows and change 16's glosses write them), it-fr's `gloss.tsv` (empty until
-change 16), `NOTICE` and `manifest.json`.
+Outputs, in `--work`: Italian's `forms.tsv` and `freq.tsv`, its dictionary words `lexical.tsv` (the
+acronym rows alone until change 16's glosses write the rest), it-fr's `gloss.tsv` (empty until change
+16), `NOTICE` and `manifest.json`.
+
+Italian's acronyms (keep-lingua-italian-acronyms-and-names D2, D6): Italian's analysis reads a word
+standing alone in capitals as written, and the reviewed table `ACRONYMS` of
+`reduce_italian_acronyms.py`, a rule module every pair glossing Italian imports, is what it finds —
+`NATO` and `USA`. The section's entries headed exactly as a row are read for the table (`check_rows`),
+each row's lower case must be a form of the tables read as another word (`check_lowercase`), and each
+row is written into `forms.tsv` as its own lemma, capitals kept, and into `lexical.tsv`, with no rank;
+`nato` and `usa` keep their readings. The rows' gloss is change 16's (`acronym_gloss`).
 
 What a form is (D3). An Italian word, lowercased and in NFC, the typographic apostrophe read as `'`,
 in the letters of the section's Italian entries (`_TOKEN`). A form's candidate lemmas come from the
@@ -91,6 +99,7 @@ import unicodedata
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import reduce_common as common  # noqa: E402 — the rules every pair shares
+import reduce_italian_acronyms as acronyms  # noqa: E402 — Italian's acronym table (keep-lingua-italian-acronyms-and-names)
 import reduce_italian_treebank as treebank  # noqa: E402 — UD Italian-MarkIT's counts (D2, D5, D6)
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -615,6 +624,10 @@ class Lexicon:
       infinitives carrying them (`lavarsi`, `andarsene`), whatever wordfreq says of them;
     - `stats`: what the reading counted, for the reduction's report.
 
+    - `acronyms`: what the entries headed exactly as a row of Italian's acronym table give
+      (keep-lingua-italian-acronyms-and-names D2), read for the table alone; each such entry is
+      lowercased and read as any other.
+
     `spellings` is `dictionary_spellings`' table: a spelling it names is a form of its word, its
     inflections forms of it, nothing of its own (read-lingua-italian-unmarked-spellings D2). For the
     boundary of `WEB_SPELLINGS` (D3) it records, for every headword it reads, whether the section gives
@@ -631,6 +644,7 @@ class Lexicon:
         self.poses = collections.defaultdict(set)
         self.unranked = set()
         self.stats = collections.Counter()
+        self.acronyms = acronyms.Pointers()
         # (form, word): a clitic-bearing row of a reflexive or pronominal verb, whose link to the verb
         # is dropped once the section is read (`drop_clitic_rows`).
         self._clitic_rows = set()
@@ -646,6 +660,7 @@ class Lexicon:
         """One kaikki entry (D3, D4; read-lingua-italian-unmarked-spellings D2, D3)."""
         word = nfc_lower(entry.get("word"))
         pos = entry.get("pos")
+        self.acronyms.read(entry)
         self._record_boundary(entry, word)
         if word in PIECES or (word in CONTRACTIONS and word != DAI) or not is_form(word):
             # A piece is read by its table alone (`seed_pieces`); a split contraction is no form.
@@ -1485,6 +1500,8 @@ def reduce(work, max_lemmas, pack_version, frequency, top_n, morph_it=MORPH_IT, 
     kept = {}
     spellings = dictionary_spellings(kaikki, frequency, kept)
     lexicon = read_kaikki(kaikki, survey, spellings)
+    # Italian's acronym rows, each backed by the section's own entry (keep-lingua-italian-acronyms-and-names D2).
+    acronyms.check_rows(lexicon.acronyms)
     paradigm = lexicon.spelling_paradigms()
     # The web's list stops for a person when the section names a row (read-lingua-italian-unmarked-
     # spellings D3), as on a word the pre-pass writes and no form.
@@ -1533,11 +1550,17 @@ def reduce(work, max_lemmas, pack_version, frequency, top_n, morph_it=MORPH_IT, 
             + ", ".join(missing + unwritten)
         )
 
-    common.write(work, "forms.tsv", "".join(f"{f}\t{l}\n" for f, l in sorted(forms.items())))
+    # Each acronym row's lower case is another word's form in the tables, the case a row repairs; the
+    # rows then join the forms, each its own lemma, capitals kept, read by no other rule
+    # (keep-lingua-italian-acronyms-and-names D2).
+    acronyms.check_lowercase(forms)
+    written = {**forms, **acronyms.acronym_forms()}
+    common.write(work, "forms.tsv", "".join(f"{f}\t{l}\n" for f, l in sorted(written.items())))
     common.write(work, "freq.tsv", "".join(f"{l}\t{r}\n" for l, r in sorted(ranks.items(), key=lambda kv: (kv[1], kv[0]))))
-    # Italian's dictionary words (lexical.tsv) and it-fr's glosses: none yet — change 11's acronym
-    # rows and change 16's glosses write them (D9).
-    common.write(work, "lexical.tsv", "")
+    # Italian's dictionary words (lexical.tsv): the acronym rows alone, glossed or not, until change 16's
+    # glosses write the rest — its dictionary words less its names, plus the rows (D5, D6). it-fr's
+    # glosses: none yet, change 16's (D9).
+    common.write(work, "lexical.tsv", "".join(f"{word}\n" for word in sorted(acronyms.ACRONYMS)))
     common.write(work, "gloss.tsv", "")
     common.write(work, "NOTICE", notice(morph_it is not None))
     common.write(
@@ -1548,6 +1571,7 @@ def reduce(work, max_lemmas, pack_version, frequency, top_n, morph_it=MORPH_IT, 
     by_lemma = collections.Counter(added.values())
     summary = {
         "forms": len(forms),
+        "acronyms": sorted(acronyms.ACRONYMS),
         "lemmas": len(ranks),
         "last lemma": last,
         "last zipf": round(frequency(last), 2),
@@ -1565,6 +1589,10 @@ def reduce(work, max_lemmas, pack_version, frequency, top_n, morph_it=MORPH_IT, 
         "owner's exceptions": len(OWNER_EXCEPTIONS),
     }
     report(f"reduced it-fr: forms={summary['forms']} lemmas={summary['lemmas']} (the last, {last}, at Zipf {summary['last zipf']})")
+    report(
+        f"reduced it-fr: acronyms={len(acronyms.ACRONYMS)} ({', '.join(summary['acronyms'])}), each a form in capitals "
+        "that is its own lemma and a dictionary word, with no rank"
+    )
     report(
         "reduced it-fr: one lemma per form, the forms reaching several: "
         + ", ".join(f"{decided.get(rule, 0)} by {rule}" for rule in DECIDED_BY)

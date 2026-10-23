@@ -17,7 +17,8 @@
 //!
 //! Italian is a studied language served by its own analysis (analyser `1.0.0`,
 //! add-lingua-italian-analysis; `1.1.0` with its detection guard; `1.2.0` reading the apostrophe
-//! that stands for an accent): its tokenisation pre-pass
+//! that stands for an accent; `1.3.0` reading a word standing alone in capitals as the acronym its
+//! pack lists, keep-lingua-italian-acronyms-and-names): its tokenisation pre-pass
 //! (add-lingua-italian-tokenisation) — `l'uomo` is `lo` + `uomo`, `dell'acqua` `dello` + `acqua`, `c'è` `ci` + `è`, `nel` `in` + `il`
 //! sharing its span, `del` whole, `po'` `poco` — reading every word in NFC; its cascade, the
 //! pack's forms then the enclitic rule (`dirmelo` is `dire`, `vattene` `andare`, `eccolo`

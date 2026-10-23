@@ -36,6 +36,12 @@
 //! piece, on a capital, with two accents listed, beside change 6's truncations, the apocopes the
 //! rule never reads, a word the pack does not accent and the quotes.
 //!
+//! A word standing alone in capitals (keep-lingua-italian-acronyms-and-names, task 1.2,
+//! `ACRONYM_CASES` through the phrase gloss over a stand-in listing `NATO` and `USA` as their own
+//! lemmas): in a line of lowercase words, in a headline, beside an articulated preposition or an
+//! elided piece in either case, a contraction in capitals, an acronym the pack lists no row for,
+//! and the participle in lowercase.
+//!
 //! Any change to a fixture's expectation is a behavioural change of the Italian
 //! analyser and demands an `ITALIAN_ANALYZER_VERSION` bump; English's, Spanish's
 //! and French's fixtures and baselines do not move.
@@ -48,7 +54,7 @@
 use lingua_core::analysis::ITALIAN_ANALYZER_VERSION;
 use lingua_core::analysis::function_words::is_function_word;
 use lingua_core::analysis::language::StudiedLanguage;
-use lingua_core::analysis::lexicon::{FstLexicon, build_lexicon_blobs};
+use lingua_core::analysis::lexicon::{FstLexicon, Lexicon, build_lexicon_blobs};
 use lingua_core::analysis::percent::TokenClass;
 use lingua_core::analysis::tokenize::{Token, tokenize};
 use lingua_core::engine::{analyse_page, gloss_phrase, word_grammar};
@@ -1130,6 +1136,158 @@ fn a_name_ending_like_a_clitic_stays_a_name() {
             "{surface}"
         );
     }
+}
+
+// --- keep-lingua-italian-acronyms-and-names (task 1.2) ---
+
+/// The acronym rule's stand-in pack: `NATO` and `USA` its own lemmas, as `tables/it/forms.tsv`
+/// writes the reviewed table's rows, beside `nato` read as *nascere* and `usa` as *usare*.
+const ACRONYM_FORMS: &[(&str, &str)] = &[
+    ("NATO", "NATO"),
+    ("USA", "USA"),
+    ("nato", "nascere"),
+    ("usa", "usare"),
+    ("paesi", "paese"),
+    ("hanno", "avere"),
+    ("ha", "avere"),
+    ("votato", "votare"),
+    ("sono", "essere"),
+    ("è", "essere"),
+    ("miei", "mio"),
+    ("amici", "amico"),
+    ("torna", "tornare"),
+    ("lo", "il"),
+    ("la", "il"),
+    ("gli", "il"),
+    ("i", "il"),
+];
+
+const ACRONYM_LEMMAS: &[&str] = &[
+    "il", "di", "della", "degli", "dello", "in", "a", "e", "da", "paese", "avere", "votare",
+    "nascere", "usare", "essere", "mio", "amico", "roma", "onu", "rai", "tornare",
+];
+
+/// (text glossed as Italian, each token as (surface, dictionary form)).
+type AcronymCase = (&'static str, &'static [(&'static str, &'static str)]);
+
+const ACRONYM_CASES: &[AcronymCase] = &[
+    // --- in a line of lowercase words: the acronym, as written ---
+    (
+        "I paesi della NATO hanno votato",
+        &[
+            ("I", "il"),
+            ("paesi", "paese"),
+            ("della", "della"),
+            ("NATO", "NATO"),
+            ("hanno", "avere"),
+            ("votato", "votare"),
+        ],
+    ),
+    ("la NATO", &[("la", "il"), ("NATO", "NATO")]),
+    ("NATO", &[("NATO", "NATO")]),
+    ("« NATO », dico", &[("NATO", "NATO"), ("dico", "dico")]),
+    // --- a headline in capitals: the words around it are in capitals, the cascade reads it ---
+    (
+        "LA NATO HA VOTATO",
+        &[
+            ("LA", "il"),
+            ("NATO", "nascere"),
+            ("HA", "avere"),
+            ("VOTATO", "votare"),
+        ],
+    ),
+    (
+        "NATO E USA",
+        &[("NATO", "nascere"), ("E", "e"), ("USA", "usare")],
+    ),
+    // --- the participle in lowercase, or with a capital initial ---
+    (
+        "sono nato a Roma",
+        &[
+            ("sono", "essere"),
+            ("nato", "nascere"),
+            ("a", "a"),
+            ("Roma", "roma"),
+        ],
+    ),
+    (
+        "Nato a Roma",
+        &[("Nato", "nascere"), ("a", "a"), ("Roma", "roma")],
+    ),
+    ("NaTO", &[("NaTO", "nascere")]),
+    // --- an articulated preposition beside the acronym, judged by its written word ---
+    ("negli USA", &[("in", "in"), ("gli", "il"), ("USA", "USA")]),
+    (
+        "NEGLI USA",
+        &[("In", "in"), ("gli", "il"), ("USA", "usare")],
+    ),
+    ("Negli USA", &[("In", "in"), ("gli", "il"), ("USA", "USA")]),
+    ("degli USA", &[("degli", "degli"), ("USA", "USA")]),
+    ("DEGLI USA", &[("DEGLI", "degli"), ("USA", "usare")]),
+    ("dagli USA", &[("da", "da"), ("gli", "il"), ("USA", "USA")]),
+    (
+        "DAGLI USA",
+        &[("Da", "da"), ("gli", "il"), ("USA", "usare")],
+    ),
+    // --- an elided piece: `l'` a single letter passed over, `dell'` a word ---
+    ("l'USA", &[("lo", "il"), ("USA", "USA")]),
+    ("dell'USA", &[("dello", "dello"), ("USA", "USA")]),
+    ("DELL'USA", &[("Dello", "dello"), ("USA", "usare")]),
+    // --- a contraction in capitals: single letters sharing one span, never a row ---
+    (
+        "AI MIEI AMICI",
+        &[("A", "a"), ("i", "il"), ("MIEI", "mio"), ("AMICI", "amico")],
+    ),
+    (
+        "Ai miei amici",
+        &[("A", "a"), ("i", "il"), ("miei", "mio"), ("amici", "amico")],
+    ),
+    ("torna AI", &[("torna", "tornare"), ("A", "a"), ("i", "il")]),
+    // --- an acronym the pack lists no row for: the cascade, as before ---
+    (
+        "l'ONU e la RAI",
+        &[
+            ("lo", "il"),
+            ("ONU", "onu"),
+            ("e", "e"),
+            ("la", "il"),
+            ("RAI", "rai"),
+        ],
+    ),
+];
+
+#[test]
+fn italian_acronym_fixtures() {
+    let pack = italian_pack(ACRONYM_FORMS, ACRONYM_LEMMAS, &[]);
+    let knowledge = KnowledgeState::new();
+    let wrong: Vec<String> = ACRONYM_CASES
+        .iter()
+        .filter_map(|(text, expected)| {
+            let glossed = gloss_phrase(text, IT, &pack, &knowledge);
+            let got: Vec<(&str, &str)> = glossed
+                .tokens
+                .iter()
+                .map(|t| (t.surface.as_str(), t.lemma.as_str()))
+                .collect();
+            (got != *expected).then(|| format!("{text:?}: expected {expected:?}, got {got:?}"))
+        })
+        .collect();
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+}
+
+#[test]
+fn a_word_card_keeps_the_italian_acronym_as_asked() {
+    // The card's dictionary form is kept as asked when the pack holds it as a lemma (`NATO`), and
+    // lowercased otherwise, as before.
+    let pack = italian_pack(ACRONYM_FORMS, ACRONYM_LEMMAS, &[]);
+    assert!(pack.lexicon().contains_lemma("NATO"));
+    assert_eq!(pack.lexicon().lemma_of("NATO"), Some("NATO"));
+    assert_eq!(pack.lexicon().lemma_of("nato"), Some("nascere"));
+    assert!(word_grammar("NATO", "NATO", IT, &pack).pieces.is_empty());
+    assert_eq!(
+        word_grammar("NEGLI USA", "usare", IT, &pack).pieces,
+        ["In", "gli", "USA"]
+    );
 }
 
 #[test]

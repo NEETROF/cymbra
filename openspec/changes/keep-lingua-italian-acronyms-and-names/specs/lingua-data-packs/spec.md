@@ -7,7 +7,7 @@ Italian's reference reduction (it-fr's) and every pair glossing Italian SHALL re
 
 #### Scenario: The rows
 - **WHEN** it-fr is reduced with the reviewed table holding `NATO` and `USA`
-- **THEN** `tables/it/forms.tsv` maps `NATO` to `NATO` and `USA` to `USA`, the forms holding a capital, `freq.tsv` and `level.tsv` hold neither, and `nato` and `usa` still map to *nascere* and *usare*
+- **THEN** `tables/it/forms.tsv` maps `NATO` to `NATO` and `USA` to `USA`, the forms holding a capital, `freq.tsv` and `level.tsv` hold neither, and `nato` and `usa` keep the readings the tables gave them, *nascere* and *uso*
 
 #### Scenario: A pair glosses the synonyms
 - **WHEN** it-fr glosses `USA`, whose entry points at the English name and names the synonyms `America` and `Stati Uniti`
@@ -22,7 +22,7 @@ Italian's reference reduction (it-fr's) and every pair glossing Italian SHALL re
 - **THEN** every row is written wholly in capitals, carries its reason, is headed by an entry of the section, and names only expansions and synonyms that entry gives; a row with no entry (`ANSA`) fails the reduction naming it
 
 ### Requirement: Italian's dictionary words leave its names out
-Italian's dictionary words SHALL be its reference pair's glossed lemmas less those the reference's edition — the French Wiktionary's Italian section — files as a proper noun in every sense run, by the rule the three other studied languages follow, plus the acronym rows of *Italian's acronyms are a reviewed table, glossed through their entry's expansions or synonyms*, whatever their sense runs and whether glossed. The checks over the committed tables and the builder's check of a studied language's dictionary words SHALL hold `tables/it/lexical.tsv` to that set — the rows alone while the reference glosses nothing —, the rows exempted from the rule that a dictionary word is a ranked, glossed lemma that is no name.
+Italian's dictionary words SHALL be its reference pair's glossed lemmas less those the reference's edition — the French Wiktionary's Italian section — files as a proper noun in every sense run, by the rule the three other studied languages follow, plus the acronym rows of *Italian's acronyms are a reviewed table, glossed through their entry's expansions or synonyms*, whatever their sense runs and whether glossed. The checks over the committed tables and the builder's check of a studied language's dictionary words SHALL accept as `tables/it/lexical.tsv` either of the two sets they accept for every studied language — every lemma the reference glosses, or every one but those it glosses by a proper noun's senses alone, never names left out by halves —, the acronym rows in both — the rows alone while the reference glosses nothing —, and SHALL refuse any other, naming the reference and the lemma; the rows are exempted from the rule that a dictionary word is a ranked, glossed lemma that is no name.
 
 #### Scenario: A name
 - **WHEN** it-fr glosses `roma` by a proper noun's senses alone
@@ -36,8 +36,12 @@ Italian's dictionary words SHALL be its reference pair's glossed lemmas less tho
 - **WHEN** `tables/it/lexical.tsv` lists `NATO`, glossed by no sense run, and `USA`, glossed by a proper noun's run
 - **THEN** the checks accept both as dictionary words
 
-#### Scenario: The checks
-- **WHEN** `tables/it/lexical.tsv` lists a lemma it-fr glosses by proper-noun senses alone that is no row, or leaves out one it glosses otherwise
+#### Scenario: Every glossed lemma, or every one but the names
+- **WHEN** `tables/it/lexical.tsv` lists, beside `NATO` and `USA`, every lemma it-fr glosses, `roma` and `firenze` among them, or every one but `roma` and `firenze`, which it glosses by proper-noun senses alone
+- **THEN** the checks accept either
+
+#### Scenario: The checks hold Italian's words
+- **WHEN** `tables/it/lexical.tsv` lists `roma` but leaves out `firenze`, both glossed by it-fr with proper-noun senses alone (names left out by halves), leaves out `marco`, glossed beside its name's run by a noun's, or leaves out an acronym row
 - **THEN** the checks fail, naming it-fr and the lemma
 
 ## MODIFIED Requirements

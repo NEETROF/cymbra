@@ -30,7 +30,7 @@ In `../it/`, Italian's tables, written by it-fr's reduction:
 |---|---|---|
 | `forms.tsv` | form → lemma | kaikki.org, the English Wiktionary's Italian section (CC BY-SA 4.0 + GFDL), with UD Italian-MarkIT's counts to choose between lemmas (CC BY 4.0) and Morph-it!'s forms the Wiktionary names nowhere (CC BY-SA 2.0) |
 | `freq.tsv` | lemma → frequency rank, the 60,000 commonest | wordfreq 3.1.1 (CC BY-SA 4.0); a hyphenated word by MarkIT's own frequency too |
-| `lexical.tsv` | Italian's dictionary words: none yet | change 11's acronym rows and change 16's glosses |
+| `lexical.tsv` | Italian's dictionary words: the acronym rows alone, `NATO` and `USA`, until change 16 writes the rest | `reduce_italian_acronyms.ACRONYMS` (keep-lingua-italian-acronyms-and-names D6); change 16's glosses |
 | `tags.tsv` | the pinned tag pool: `NOUN`, the one tag change 4 pins for a language with no readings | committed by hand; change 13 writes Italian's pool |
 | `studied.json` | the pair whose reduction writes `../it/`: it-fr | committed by hand |
 
@@ -98,6 +98,18 @@ In `../it/`, Italian's tables, written by it-fr's reduction:
 - **The apocopes** written without an apostrophe read as their word alone by a reviewed table
   (`APOCOPES`): `un` → *uno*, `buon` → *buono*, `nessun`, `alcun`, `ciascun`, `qualcun`, `bel` →
   *bello*, `san` → *santo*, `gran` → *grande*, `quel` → *quello*, `tal` → *tale*, `qual` → *quale*.
+- **Acronyms in capitals (keep-lingua-italian-acronyms-and-names).** A reviewed table,
+  `reduce_italian_acronyms.ACRONYMS`, the owner's decision row by row (2026-10-23: `NATO` and `USA`
+  only; `FAI` and `AGI` too rare in the corpora, `TARI` already read as the tax): each written
+  into `forms.tsv` as a form in capitals that is its own lemma — the only forms holding a capital —
+  and into `lexical.tsv`, with no rank and no level; `nato` stays *nascere*'s and `usa` *uso*'s.
+  Italian's analysis reads a word standing alone in capitals as written, so « della NATO » is the
+  alliance and « LA NATO HA VOTATO » the participle. The reduction fails on a row the section's own
+  entry does not back, or whose lower case the tables read as no other word (`check_lowercase`): `ONU`
+  reads as its own entry; `RAI` passes the measurement's rule (11 written alone in capitals, every
+  one the broadcaster) but is held back by that check, `rai` being a lemma of its own spelling (rank
+  1,214), and the owner kept `NATO` and `USA` alone. The rows' gloss is change 16's (`acronym_gloss`:
+  the expansions, else the synonyms — `USA` through `America` and `Stati Uniti` —, else none: `NATO`).
 - **Morph-it! (D3).** A form it lists under a ranked lemma, which the Wiktionary names nowhere,
   joins the table — never one carrying clitics, never moving a reading or a rank.
 - **The ranks (D6).** wordfreq's order, dense, the 60,000 first, over its words that are not only

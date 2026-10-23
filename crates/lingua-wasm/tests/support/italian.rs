@@ -23,7 +23,11 @@
 //! phrases with a clitic and a grammar pair (D7). Italian's detection guard, at `1.1.0`
 //! (add-lingua-italian-detection-guard), takes the `misto` page's Catalan and Galician blocks out
 //! of its analysis. At `1.2.0` (read-lingua-italian-unmarked-spellings) the apostrophe that stands
-//! for an accent reads as the accented word: the `informale` page moves, and nothing else.
+//! for an accent reads as the accented word: the `informale` page moves, and nothing else. At
+//! `1.3.0` (keep-lingua-italian-acronyms-and-names) a word standing alone in capitals reads as the
+//! acronym the pack lists: the fixture lists `NATO` beside `nato` (*nascere*), a phrase probe and a
+//! grammar probe show it, and no page moves — the `notizie` page writes `ONU`, `RAI`, `PIL`, `UE`
+//! and `ISTAT`, none a row.
 //!
 //! The corpus, `baseline/pages-it.txt`, is authored for these tests, page by page, around what a
 //! later change of the Italian stage must show, with two exceptions, quoted from texts in the
@@ -133,8 +137,9 @@ const LEMMAS: &[&str] = &[
 ];
 
 /// Selections a reader glosses: the fixture's expressions, the Manzoni sentence, elided,
-/// articulated and enclitic selections, the web's apostrophe for an accent, and the blocks that
-/// are not Italian (English, Spanish, French, Catalan, Galician, Latin).
+/// articulated and enclitic selections, the web's apostrophe for an accent, an acronym standing
+/// alone in capitals (keep-lingua-italian-acronyms-and-names D7), and the blocks that are not
+/// Italian (English, Spanish, French, Catalan, Galician, Latin).
 const PHRASES: &[&str] = &[
     "a poco a poco",
     "ad alta voce",
@@ -159,6 +164,7 @@ const PHRASES: &[&str] = &[
     "Non lo so, dimmelo tu",
     "Eccolo, è arrivato dall'Italia",
     "E' troppo tardi perche' la citta' e' piu' lontana",
+    "I paesi della NATO",
     "non di il che",
     "The lighthouse stood",
     "El faro se alzaba",
@@ -203,6 +209,9 @@ const GRAMMAR: &[(&str, &str)] = &[
     ("l’", "il"),
     ("dirmelo", "dire"),
     ("vattene", "andare"),
+    // The acronym the fixture lists as written, apart from `nato` (keep-lingua-italian-acronyms-and-
+    // names D7).
+    ("NATO", "NATO"),
 ];
 
 /// The pages analysed again for the reader with a history.

@@ -2658,6 +2658,21 @@ fn spec_scenario_a_layer_and_its_base() {
 // Italian's studied side (add-lingua-italian-forms-tables, the Italian programme's change 9): it-fr,
 // Italian's reference pair (I5), writes tables/it/. `studied.json` and the pinned pool `tags.tsv` were
 // committed by hand first (D9); the update of 2026.10.23 wrote the rest, tables/it-fr/ included.
+// Italian's acronym rows (keep-lingua-italian-acronyms-and-names, change 11) are forms in capitals
+// that are their own lemmas, and its dictionary words until change 16 glosses it-fr.
+
+/// Italian's acronym rows as `tables/it/forms.tsv` holds them (keep-lingua-italian-acronyms-and-names
+/// D2): the forms holding a capital, each its own lemma.
+fn italian_acronyms() -> BTreeSet<String> {
+    tsv(&tables().join("it/forms.tsv"))
+        .into_iter()
+        .filter(|(form, _)| form.chars().any(char::is_uppercase))
+        .map(|(form, lemma)| {
+            assert_eq!(form, lemma, "an Italian form in capitals is its own lemma");
+            form
+        })
+        .collect()
+}
 
 /// it-fr's pack, whole and as its base and layer, built once per test binary.
 fn it_fr() -> &'static (Vec<u8>, SplitPack) {
@@ -2672,8 +2687,9 @@ fn it_fr() -> &'static (Vec<u8>, SplitPack) {
 #[test]
 fn spec_scenario_the_reference_and_the_pipeline() {
     // tables/it/studied.json names it-fr; tags.tsv holds the one canonical tag until change 13's
-    // pool; lexical.tsv holds nothing until change 11's acronym rows and change 16's dictionary
-    // words; the pack builds whole and in parts to its pin; no package lists it-fr.
+    // pool; lexical.tsv holds change 11's acronym rows alone until change 16's dictionary words
+    // (keep-lingua-italian-acronyms-and-names D6); the pack builds whole and in parts to its pin; no
+    // package lists it-fr.
     let it = tables().join("it");
     assert_eq!(json(&it.join(STUDIED_RECORD))["reference"], "it-fr");
     assert_eq!(
@@ -2701,7 +2717,10 @@ fn spec_scenario_the_reference_and_the_pipeline() {
             "tags.tsv"
         ]
     );
-    assert_eq!(std::fs::read_to_string(it.join("lexical.tsv")).unwrap(), "");
+    assert_eq!(
+        std::fs::read_to_string(it.join("lexical.tsv")).unwrap(),
+        "NATO\nUSA\n"
+    );
     let dir = tables().join("it-fr");
     let held = files(&dir);
     for file in ["NOTICE", "gloss.tsv", "manifest.json", "pin.json"] {
@@ -2739,6 +2758,7 @@ fn spec_scenario_the_reference_and_the_pipeline() {
         serde_json::json!([
             "reduce-it-fr.py",
             "reduce_common.py",
+            "reduce_italian_acronyms.py",
             "reduce_italian_treebank.py"
         ])
     );
@@ -2784,7 +2804,50 @@ fn spec_scenario_the_reference_and_the_pipeline() {
     assert!(whole.len() < MAX_PACK_BYTES);
     let pack = Pack::load(whole).unwrap();
     assert_eq!(pack.pair().key(), "it-fr");
+    // The vocabulary estimate counts the ranked dictionary words: the rows have no rank.
     assert!(pack.dictionary_words().is_empty());
+}
+
+#[test]
+fn spec_scenario_italian_s_acronym_rows() {
+    // keep-lingua-italian-acronyms-and-names D2, D4, D6: `tables/it/forms.tsv` maps `NATO` to `NATO`
+    // and `USA` to `USA`, the forms holding a capital; `freq.tsv` holds neither, and there is no
+    // level; `nato` and `usa` keep their readings; the rows are Italian's dictionary words.
+    assert_eq!(
+        italian_acronyms(),
+        BTreeSet::from(["NATO".to_owned(), "USA".to_owned()])
+    );
+    let forms = tsv(&tables().join("it/forms.tsv"));
+    assert_eq!(forms["nato"], "nascere");
+    assert_eq!(forms["usa"], "uso");
+    let ranks = tsv(&tables().join("it/freq.tsv"));
+    let lexical: BTreeSet<String> = std::fs::read_to_string(tables().join("it/lexical.tsv"))
+        .unwrap()
+        .lines()
+        .map(str::to_owned)
+        .collect();
+    // Every dictionary word is ranked but the acronym rows, the one exception (D5), as French's `CA`.
+    let unranked: BTreeSet<String> = lexical
+        .iter()
+        .filter(|word| !ranks.contains_key(*word))
+        .cloned()
+        .collect();
+    assert_eq!(unranked, italian_acronyms());
+    assert!(!tables().join("it/level.tsv").exists());
+    let pack = Pack::load(&it_fr().0).unwrap();
+    let lexicon = pack.lexicon();
+    for row in ["NATO", "USA"] {
+        assert_eq!(lexicon.lemma_of(row), Some(row), "{row}");
+        assert!(lexicon.contains_lemma(row), "{row}");
+        assert_eq!(pack.rank(row), None, "{row}");
+        assert_eq!(pack.level(row), None, "{row}");
+        assert!(pack.is_dictionary_word(row), "{row}");
+        // Unglossed until change 16 (D3, D6): the card shows the acronym alone.
+        assert_eq!(pack.gloss(row), None, "{row}");
+    }
+    assert_eq!(lexicon.lemma_of("nato"), Some("nascere"));
+    assert_eq!(lexicon.lemma_of("usa"), Some("uso"));
+    assert!(pack.rank("nascere").is_some());
 }
 
 #[test]

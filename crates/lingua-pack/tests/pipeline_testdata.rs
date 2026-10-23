@@ -143,7 +143,8 @@ fn the_italian_fixture_studies_italian_at_its_analyser_version() {
     // pinned to one tag (`NOUN`, ship-lingua-pack-bases-once's convention for a fixture without
     // grammar). An Italian rule that bumps the version bumps the committed manifest with it
     // (add-lingua-italian-tokenisation: `0.2.0`; add-lingua-italian-analysis: `1.0.0`;
-    // add-lingua-italian-detection-guard: `1.1.0`; read-lingua-italian-unmarked-spellings: `1.2.0`).
+    // add-lingua-italian-detection-guard: `1.1.0`; read-lingua-italian-unmarked-spellings: `1.2.0`;
+    // keep-lingua-italian-acronyms-and-names: `1.3.0`).
     let dir = testdata_dir().parent().unwrap().join("it-fr");
     let inputs = inputs_from_dir(&dir).expect("read the it-fr fixture");
     assert!(inputs.readings.is_empty() && inputs.senses.is_empty());
@@ -165,6 +166,10 @@ fn the_italian_fixture_studies_italian_at_its_analyser_version() {
     }
     assert_eq!(pack.lexicon().lemma_of("è"), Some("essere"));
     assert_eq!(pack.gloss("città"), Some("ville"));
+    // The acronym row, a form in capitals that is its own lemma, beside `nato` read as *nascere*
+    // (keep-lingua-italian-acronyms-and-names D7).
+    assert_eq!(pack.lexicon().lemma_of("NATO"), Some("NATO"));
+    assert_eq!(pack.lexicon().lemma_of("nato"), Some("nascere"));
     // Its expressions are keyed by their words' lemmas, as Italian is read today.
     assert_eq!(pack.expression("ad alto voce"), Some("à voix haute"));
     assert_eq!(pack.expression("a causa di"), Some("à cause de"));
@@ -435,7 +440,8 @@ fn the_fixtures_build_whole_as_recorded_and_split_by_their_pin() {
     // reads, `ecco`, two glosses and its manifest `1.0.0`; add-lingua-italian-detection-guard
     // moves it once more, its manifest `1.1.0`; read-lingua-italian-unmarked-spellings D5 moves it,
     // the fixture gaining the spelling rows `perche` → `perché` and `cosi` → `così` and its manifest
-    // `1.2.0`.
+    // `1.2.0`; keep-lingua-italian-acronyms-and-names D7 moves it, the fixture gaining the acronym
+    // row `NATO` → `NATO` and `nato` → `nascere` and its manifest `1.3.0`.
     let root = testdata_dir().parent().unwrap().to_path_buf();
     for (pair, size, sha256) in [
         (
@@ -470,8 +476,8 @@ fn the_fixtures_build_whole_as_recorded_and_split_by_their_pin() {
         ),
         (
             "it-fr",
-            5963,
-            "b74765d8426ddcbe795e69eb4f712996efa1dd945cc95f7aee2c18d1a437ad78",
+            6010,
+            "58ad47dbf6a813a67cb0985ead4c88cd7b822643e8242a70fbf74678361f8cdd",
         ),
     ] {
         let inputs = inputs_from_dir(&root.join(pair)).unwrap_or_else(|e| panic!("{pair}: {e}"));
