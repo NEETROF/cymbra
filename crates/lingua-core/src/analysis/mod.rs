@@ -114,6 +114,8 @@ pub const FRENCH_ANALYZER_VERSION: &str = "1.3.0";
 /// word the pack ranks beyond 23,000 (`vita'` stays `vita`, not the rare `vità`), the commoner of
 /// two accents the pack ranks (`se'` → `sé`), and no closing quote read in a truncation's or an
 /// accent spelling's apostrophe (`tokenize::italian_accented`, `tokenize::inside_a_quote`).
-/// What it still lacks, each a rule of Italian's own that bumps this version when it lands: no
-/// acronym kept in capitals and no expression keys of its own.
-pub const ITALIAN_ANALYZER_VERSION: &str = "1.2.0";
+/// `1.3.0` since keep-lingua-italian-acronyms-and-names reads a word standing alone in capitals
+/// as the acronym its pack lists, French's rule opened to Italian (`NATO` in « della NATO », not
+/// *nascere*; `pipeline::alone_in_capitals`). What it still lacks, a rule of Italian's own that
+/// bumps this version when it lands: no expression keys of its own.
+pub const ITALIAN_ANALYZER_VERSION: &str = "1.3.0";

@@ -103,11 +103,11 @@ pub fn analyse_document(
 /// single-word suffix cascade has no business stemming it — and carries its
 /// parts so the classifier can judge it by its weakest one.
 ///
-/// A French word standing alone in capitals (`alone`, [`alone_in_capitals`]'s answer
-/// for the token) is first looked up as written, and read as the acronym the pack
-/// lists, its capitals kept, the cascade not run (`french::acronym`,
-/// keep-lingua-french-acronyms-in-capitals D1, step 3); anything else goes to the
-/// cascade as before.
+/// A French or Italian word standing alone in capitals (`alone`, [`alone_in_capitals`]'s
+/// answer for the token) is first looked up as written, and read as the acronym the pack
+/// lists, its capitals kept, the cascade not run (`french::acronym`, language-neutral:
+/// keep-lingua-french-acronyms-in-capitals D1, step 3; keep-lingua-italian-acronyms-and-names
+/// D1); anything else goes to the cascade as before.
 ///
 /// Crate-visible so the phrase gloss (`engine::gloss_phrase`) resolves a
 /// selection's tokens exactly as a page's, without the gates above.
@@ -118,7 +118,7 @@ pub(crate) fn resolve_lemmas(
     lexicon: &(impl Lexicon + ?Sized),
 ) -> (String, Vec<String>) {
     if alone
-        && studied == StudiedLanguage::French
+        && reads_acronyms(studied)
         && token.parts.is_empty()
         && let Some(acronym) = french::acronym(&token.text, lexicon)
     {
@@ -213,7 +213,7 @@ fn written(text: &str, token: &Token) -> Written {
     }
 }
 
-/// For each of `tokens`, read from `text`, whether it is a French word standing
+/// For each of `tokens`, read from `text`, whether it is a French or Italian word standing
 /// alone in capitals (keep-lingua-french-acronyms-in-capitals D1, steps 1 and 2),
 /// which [`resolve_lemmas`] then looks up as written, as an acronym of the pack:
 ///
@@ -236,15 +236,19 @@ fn written(text: &str, token: &Token) -> Written {
 /// [`headword_reading`], `engine::gloss_phrase` and `engine::word_grammar` — read
 /// their own text through it, so the four read a word alike.
 ///
-/// Every answer is no for a text read as English, Spanish or Italian, without reading
-/// it: their analyses do not move, and Italian keeps no acronym in capitals until
-/// keep-lingua-italian-acronyms-and-names writes its rule.
+/// Italian reads its words alike (keep-lingua-italian-acronyms-and-names D1), after its
+/// pre-pass: an articulated preposition or an elided piece is judged by the word it was
+/// written in, so « NEGLI USA » is a neighbour in capitals and « negli USA » is not, and
+/// the two pieces of « AI » share one span, as « AU »'s do.
+///
+/// Every answer is no for a text read as English or Spanish, without reading it: their
+/// analyses do not move.
 pub(crate) fn alone_in_capitals(
     text: &str,
     tokens: &[Token],
     studied: StudiedLanguage,
 ) -> Vec<bool> {
-    if studied != StudiedLanguage::French {
+    if !reads_acronyms(studied) {
         return vec![false; tokens.len()];
     }
     let shapes: Vec<Written> = tokens.iter().map(|token| written(text, token)).collect();
@@ -256,6 +260,13 @@ pub(crate) fn alone_in_capitals(
                 && !neighbour_in_capitals(i, i + 1..tokens.len(), tokens, &shapes)
         })
         .collect()
+}
+
+/// Whether a studied language reads a word standing alone in capitals as the acronym its
+/// pack lists: French (keep-lingua-french-acronyms-in-capitals) and Italian
+/// (keep-lingua-italian-acronyms-and-names D1). English and Spanish lowercase every word.
+fn reads_acronyms(studied: StudiedLanguage) -> bool {
+    matches!(studied, StudiedLanguage::French | StudiedLanguage::Italian)
 }
 
 /// Whether token `i`'s nearest neighbour among `others` (indexes, nearest first) is
@@ -686,6 +697,214 @@ mod tests {
         assert_eq!(
             reading("ça suffit", fr, &lexicon),
             pairs(&[("ça", "ça"), ("suffit", "suffire")])
+        );
+    }
+
+    // — an Italian word standing alone in capitals (keep-lingua-italian-acronyms-and-names D1) —
+
+    /// An Italian lexicon holding the acronyms `NATO` and `USA` as their own lemmas, `nato` as
+    /// *nascere*'s participle and `usa` as *usare*'s third person, `onu` and `rai` as their own
+    /// lemmas with no row, and the words of the texts below.
+    fn italian_acronym_lexicon() -> FstLexicon<Vec<u8>> {
+        let (bytes, pool) = build_lexicon_blobs(
+            &[
+                ("NATO", "NATO"),
+                ("USA", "USA"),
+                ("nato", "nascere"),
+                ("usa", "usare"),
+                ("paesi", "paese"),
+                ("hanno", "avere"),
+                ("ha", "avere"),
+                ("votato", "votare"),
+                ("sono", "essere"),
+                ("miei", "mio"),
+                ("amici", "amico"),
+                ("lo", "il"),
+                ("la", "il"),
+                ("gli", "il"),
+                ("i", "il"),
+            ],
+            &[
+                "il", "di", "della", "degli", "in", "a", "e", "paese", "avere", "votare",
+                "nascere", "usare", "essere", "mio", "amico", "roma", "onu", "rai", "andare",
+            ],
+        )
+        .expect("build");
+        FstLexicon::from_slices(bytes, &pool).expect("load")
+    }
+
+    /// Each token of a one-block Italian page `text` with its dictionary form.
+    fn italian_page(text: &str) -> Vec<(String, String)> {
+        let lexicon = italian_acronym_lexicon();
+        let tokens = tokenize(text, StudiedLanguage::Italian, &lexicon);
+        tokens
+            .iter()
+            .zip(alone_in_capitals(text, &tokens, StudiedLanguage::Italian))
+            .map(|(token, alone)| {
+                let (lemma, _) = resolve_lemmas(token, alone, StudiedLanguage::Italian, &lexicon);
+                (token.text.clone(), lemma)
+            })
+            .collect()
+    }
+
+    fn italian_pairs(expected: &[(&str, &str)]) -> Vec<(String, String)> {
+        expected
+            .iter()
+            .map(|(surface, lemma)| ((*surface).to_owned(), (*lemma).to_owned()))
+            .collect()
+    }
+
+    #[test]
+    fn spec_scenario_nato_in_a_sentence() {
+        assert_eq!(
+            italian_page("I paesi della NATO hanno votato."),
+            italian_pairs(&[
+                ("I", "il"),
+                ("paesi", "paese"),
+                ("della", "della"),
+                ("NATO", "NATO"),
+                ("hanno", "avere"),
+                ("votato", "votare")
+            ])
+        );
+    }
+
+    #[test]
+    fn spec_scenario_an_italian_headline_in_capitals() {
+        // `LA` and `HA` beside it are in capitals: the cascade reads `NATO` as `nato`.
+        assert_eq!(
+            italian_page("LA NATO HA VOTATO"),
+            italian_pairs(&[
+                ("LA", "il"),
+                ("NATO", "nascere"),
+                ("HA", "avere"),
+                ("VOTATO", "votare")
+            ])
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_participle_in_lowercase() {
+        assert_eq!(
+            italian_page("sono nato a Roma"),
+            italian_pairs(&[
+                ("sono", "essere"),
+                ("nato", "nascere"),
+                ("a", "a"),
+                ("Roma", "roma")
+            ])
+        );
+        assert_eq!(
+            italian_page("Nato a Roma"),
+            italian_pairs(&[("Nato", "nascere"), ("a", "a"), ("Roma", "roma")])
+        );
+    }
+
+    #[test]
+    fn spec_scenario_an_articulated_preposition_beside_the_acronym() {
+        // Split by the pre-pass, `negli` is `in` + `gli` sharing its span, judged by its written
+        // word: in lowercase it leaves `USA` alone, in capitals it is a neighbour in capitals.
+        assert_eq!(
+            italian_page("negli USA"),
+            italian_pairs(&[("in", "in"), ("gli", "il"), ("USA", "USA")])
+        );
+        assert_eq!(
+            italian_page("NEGLI USA"),
+            italian_pairs(&[("In", "in"), ("gli", "il"), ("USA", "usare")])
+        );
+        // The `di` family stays whole, and reads alike.
+        assert_eq!(
+            italian_page("degli USA"),
+            italian_pairs(&[("degli", "degli"), ("USA", "USA")])
+        );
+        assert_eq!(
+            italian_page("DEGLI USA"),
+            italian_pairs(&[("DEGLI", "degli"), ("USA", "usare")])
+        );
+        // An elided piece too: `dell'` is two letters or more, `l'` a single letter passed over.
+        assert_eq!(
+            italian_page("l'USA"),
+            italian_pairs(&[("lo", "il"), ("USA", "USA")])
+        );
+        assert_eq!(
+            italian_page("dell'USA vince"),
+            italian_pairs(&[("dello", "dello"), ("USA", "USA"), ("vince", "vince")])
+        );
+        assert_eq!(
+            italian_page("DELL'USA VINCE"),
+            italian_pairs(&[("Dello", "dello"), ("USA", "usare"), ("VINCE", "vince")])
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_contraction_in_capitals() {
+        // « AI » is `a` + `i`, single letters sharing one span: never a row, read by the cascade.
+        assert_eq!(
+            italian_page("AI MIEI AMICI"),
+            italian_pairs(&[("A", "a"), ("i", "il"), ("MIEI", "mio"), ("AMICI", "amico")])
+        );
+        assert_eq!(
+            italian_page("Ai miei amici"),
+            italian_pairs(&[("A", "a"), ("i", "il"), ("miei", "mio"), ("amici", "amico")])
+        );
+        // Standing alone, its pieces stand alone, and still read as the words: no form `A` or
+        // `I` in capitals is ever a row.
+        let lexicon = italian_acronym_lexicon();
+        let text = "va AI miei";
+        let tokens = tokenize(text, StudiedLanguage::Italian, &lexicon);
+        assert_eq!(
+            alone_in_capitals(text, &tokens, StudiedLanguage::Italian),
+            [false, true, true, false]
+        );
+        assert_eq!(
+            italian_page(text),
+            italian_pairs(&[("va", "va"), ("A", "a"), ("i", "il"), ("miei", "mio")])
+        );
+    }
+
+    #[test]
+    fn spec_scenario_an_acronym_whose_lowercase_is_no_other_word_s_form() {
+        // `ONU` and `RAI` stand alone in capitals, but the pack lists no form `ONU` or `RAI`: the
+        // cascade reads them as their own lemmas, as before.
+        assert_eq!(
+            italian_page("l'ONU e la RAI"),
+            italian_pairs(&[
+                ("lo", "il"),
+                ("ONU", "onu"),
+                ("e", "e"),
+                ("la", "il"),
+                ("RAI", "rai")
+            ])
+        );
+    }
+
+    #[test]
+    fn an_italian_word_with_no_neighbour_stands_alone() {
+        // A one-word block, a selection of the word alone, a card's written word.
+        assert_eq!(italian_page("NATO"), italian_pairs(&[("NATO", "NATO")]));
+        assert_eq!(italian_page("NATO !"), italian_pairs(&[("NATO", "NATO")]));
+        // A hyphenated run is read by its parts, as French's.
+        let lexicon = italian_acronym_lexicon();
+        let text = "accordo USA-NATO firmato";
+        let tokens = tokenize(text, StudiedLanguage::Italian, &lexicon);
+        assert!(
+            alone_in_capitals(text, &tokens, StudiedLanguage::Italian)
+                .iter()
+                .all(|alone| !alone)
+        );
+    }
+
+    #[test]
+    fn an_italian_headword_reads_capitals_as_a_page_does() {
+        let lexicon = italian_acronym_lexicon();
+        let it = StudiedLanguage::Italian;
+        assert_eq!(
+            reading("la NATO", it, &lexicon),
+            pairs(&[("la", "il"), ("NATO", "NATO")])
+        );
+        assert_eq!(
+            reading("LA NATO", it, &lexicon),
+            pairs(&[("LA", "il"), ("NATO", "nascere")])
         );
     }
 

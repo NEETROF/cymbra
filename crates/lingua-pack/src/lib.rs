@@ -159,11 +159,12 @@ pub enum BuildError {
         reads_as: String,
         more: usize,
     },
-    /// A form or a lemma holding a capital that is no acronym of French's table
-    /// (keep-lingua-french-acronyms-in-capitals D2): only a pack studying French holds
-    /// one, written wholly in capitals, two letters or more, and its own lemma (`CA` →
-    /// `CA`). Every other lookup of the core lowercases first, so any other capital
-    /// would be a form no reader reaches — a stray capital is an error.
+    /// A form or a lemma holding a capital that is no acronym of French's or Italian's
+    /// table (keep-lingua-french-acronyms-in-capitals D2, keep-lingua-italian-acronyms-and-names
+    /// D2): only a pack studying French or Italian holds one, written wholly in capitals,
+    /// two letters or more, and its own lemma (`CA` → `CA`, `NATO` → `NATO`). Every other
+    /// lookup of the core lowercases first, so any other capital would be a form no reader
+    /// reaches — a stray capital is an error.
     StrayCapital(String),
     /// The pack studies a language the core has no analyser for: no core
     /// could load it (`Pack::load` refuses it too).
@@ -242,8 +243,9 @@ impl std::fmt::Display for BuildError {
             ),
             BuildError::StrayCapital(form) => write!(
                 f,
-                "the form {form:?} holds a capital: only a pack studying French holds one, an \
-                 acronym written wholly in capitals, two letters or more, that is its own lemma"
+                "the form {form:?} holds a capital: only a pack studying French or Italian holds \
+                 one, an acronym written wholly in capitals, two letters or more, that is its own \
+                 lemma"
             ),
             BuildError::UnknownLanguage(tag) => write!(
                 f,
@@ -299,24 +301,28 @@ impl std::fmt::Display for BuildError {
 
 impl std::error::Error for BuildError {}
 
-/// Whether `word` is written as an acronym row of French's table is: two letters or
-/// more, none of them lowercase (keep-lingua-french-acronyms-in-capitals D2).
+/// Whether `word` is written as an acronym row of French's or Italian's table is: two
+/// letters or more, none of them lowercase (keep-lingua-french-acronyms-in-capitals D2).
 fn is_acronym(word: &str) -> bool {
     let mut letters = word.chars().filter(|c| c.is_alphabetic());
     letters.clone().count() >= 2 && !letters.any(char::is_lowercase)
 }
 
 /// Refuses a capital outside an acronym row (keep-lingua-french-acronyms-in-capitals D2):
-/// a form or a lemma holding one is accepted only in a pack studying French, written as an
-/// acronym is, and its own lemma — a pair's form and lemma the same string, a ranked or
-/// glossed lemma being its own form. The first string holding a stray capital is named.
+/// a form or a lemma holding one is accepted only in a pack studying French or Italian
+/// (keep-lingua-italian-acronyms-and-names D2), the two languages whose analysis reads a
+/// word standing alone in capitals as written, written as an acronym is, and its own lemma
+/// — a pair's form and lemma the same string, a ranked or glossed lemma being its own form.
+/// The first string holding a stray capital is named.
 fn check_capitals<'a>(
     studied: StudiedLanguage,
     pairs: &[(&'a str, &'a str)],
     lemmas: impl IntoIterator<Item = &'a str>,
 ) -> Result<(), BuildError> {
     let capital = |word: &str| word.chars().any(char::is_uppercase);
-    let acronym = |word: &str| studied == StudiedLanguage::French && is_acronym(word);
+    let acronym = |word: &str| {
+        matches!(studied, StudiedLanguage::French | StudiedLanguage::Italian) && is_acronym(word)
+    };
     for (form, lemma) in pairs {
         if (capital(form) || capital(lemma)) && !(form == lemma && acronym(form)) {
             let named = if capital(form) { form } else { lemma };
@@ -924,8 +930,8 @@ fn build_sections(inputs: &PackInputs) -> Result<Built, BuildError> {
         .collect();
     extra.sort_unstable();
     extra.dedup();
-    // A capital only in an acronym row of a pack studying French, its own lemma
-    // (keep-lingua-french-acronyms-in-capitals D2).
+    // A capital only in an acronym row of a pack studying French or Italian, its own lemma
+    // (keep-lingua-french-acronyms-in-capitals D2, keep-lingua-italian-acronyms-and-names D2).
     check_capitals(studied, &pairs, extra.iter().copied())?;
     let (forms, pool) =
         build_lexicon_blobs(&pairs, &extra).map_err(|e| BuildError::Fst(e.to_string()))?;
@@ -2490,6 +2496,58 @@ mod tests {
         refused(&inp, "CA");
         // The guard runs before the forms are read: the pack studying French builds without them.
         assert!(build_pack(&french_inputs()).is_ok());
+    }
+
+    /// An it-fr pack's inputs: `nato` read as *nascere*, `usa` as *usare*, a few ranked lemmas.
+    fn italian_inputs() -> PackInputs {
+        let mut inp = inputs();
+        inp.meta.studied = "it".into();
+        inp.meta.native = "fr".into();
+        inp.meta.analyzer_version = StudiedLanguage::Italian.analyzer_version().into();
+        inp.form_lemma = pairs(&[("nato", "nascere"), ("usa", "usare"), ("paesi", "paese")]);
+        inp.ranks = ["il", "di", "paese", "nascere", "usare"]
+            .iter()
+            .zip(1..)
+            .map(|(lemma, rank)| ((*lemma).into(), rank))
+            .collect();
+        inp.glosses = vec![("nascere".into(), "naître".into())];
+        inp
+    }
+
+    #[test]
+    fn spec_scenario_an_italian_acronym_is_a_form_in_capitals_its_own_lemma() {
+        // keep-lingua-italian-acronyms-and-names D2: `NATO` → `NATO` and `USA` → `USA`, dictionary
+        // words, unranked, `NATO` unglossed and `USA` glossed, beside `nato` → *nascere*; read back as
+        // written, `nato` as before.
+        let mut inp = italian_inputs();
+        inp.form_lemma
+            .extend(pairs(&[("NATO", "NATO"), ("USA", "USA")]));
+        inp.glosses
+            .push(("USA".into(), "Amérique; États-Unis".into()));
+        inp.lexical = Some(vec!["NATO".into(), "USA".into()]);
+        let bytes = build_pack(&inp).expect("Italian acronym rows build");
+        let pack = Pack::load(&bytes).expect("load");
+        assert_eq!(pack.lexicon().lemma_of("NATO"), Some("NATO"));
+        assert_eq!(pack.lexicon().lemma_of("nato"), Some("nascere"));
+        assert_eq!(pack.lexicon().lemma_of("USA"), Some("USA"));
+        assert_eq!(pack.gloss("NATO"), None);
+        assert_eq!(pack.gloss("USA"), Some("Amérique; États-Unis"));
+        assert_eq!(pack.rank("NATO"), None);
+        assert!(pack.is_dictionary_word("NATO") && pack.is_dictionary_word("USA"));
+        // Any other capital fails an Italian build, as a French one, and names the form.
+        for (form, lemma, named) in [
+            ("Nato", "nascere", "Nato"),
+            ("NATO", "nascere", "NATO"),
+            ("usati", "USA", "USA"),
+            ("Roma", "Roma", "Roma"),
+            ("I", "I", "I"),
+        ] {
+            let mut inp = italian_inputs();
+            inp.form_lemma.push((form.into(), lemma.into()));
+            let err = build_pack(&inp).expect_err("a stray capital");
+            assert_eq!(err, BuildError::StrayCapital(named.into()), "{form}");
+            assert!(err.to_string().contains("French or Italian"), "{err}");
+        }
     }
 
     #[test]

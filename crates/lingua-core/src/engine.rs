@@ -2381,7 +2381,7 @@ mod tests {
         let page = analyse_page(&blocks, IT, &pack, &KnowledgeState::new());
         assert!(page.analysable);
         assert_eq!(page.analyzer_version, ITALIAN_ANALYZER_VERSION);
-        assert_eq!(page.analyzer_version, "1.2.0");
+        assert_eq!(page.analyzer_version, "1.3.0");
         let class_of = |surface: &str| {
             page.tokens
                 .iter()
@@ -6625,5 +6625,189 @@ mod tests {
         let spanish = build_pack_for(ES, &[("CA", "CA")], &["el", "ca", "votar"], &[], &[], &[]);
         let phrase = gloss_phrase("el CA votó", ES, &spanish, &KnowledgeState::new());
         assert_eq!(phrase.tokens[1].lemma, "ca");
+    }
+
+    // — an Italian word standing alone in capitals (keep-lingua-italian-acronyms-and-names) —
+
+    const ITALIAN_ACRONYM_FORMS: &[(&str, &str)] = &[
+        ("NATO", "NATO"),
+        ("USA", "USA"),
+        ("nato", "nascere"),
+        ("usa", "usare"),
+        ("paesi", "paese"),
+        ("hanno", "avere"),
+        ("ha", "avere"),
+        ("votato", "votare"),
+        ("riunirà", "riunire"),
+        ("membri", "membro"),
+        ("sono", "essere"),
+    ];
+
+    const ITALIAN_ACRONYM_LEMMAS: &[&str] = &[
+        "il", "lo", "la", "i", "di", "della", "degli", "in", "a", "e", "con", "domani", "paese",
+        "avere", "votare", "nascere", "usare", "riunire", "membro", "essere", "roma", "bilancio",
+    ];
+
+    const NASCERE_GLOSS: &str = "naître";
+    const USA_GLOSS: &str = "Amérique; États-Unis";
+
+    /// An it-fr pack holding `NATO` and `USA` as their own lemmas — dictionary words,
+    /// unranked, `NATO` with no gloss and `USA` glossed through its synonyms (D3) — beside `nato`
+    /// read as *nascere* and `usa` as *usare*; its dictionary words `lexical`.
+    fn italian_acronym_pack(lexical: &[&str]) -> Pack {
+        build_pack_with_lexical(
+            IT,
+            ITALIAN_ACRONYM_FORMS,
+            ITALIAN_ACRONYM_LEMMAS,
+            &[("il", 1), ("nascere", 900), ("usare", 300)],
+            &[
+                ("USA", USA_GLOSS),
+                ("nascere", NASCERE_GLOSS),
+                ("usare", "utiliser"),
+                ("bilancio", "budget"),
+            ],
+            &[],
+            Some(lexical),
+        )
+    }
+
+    /// The pack's dictionary words: every lemma, `NATO` and `USA` among them (D5, D6).
+    fn italian_acronym_words() -> Vec<&'static str> {
+        let mut words: Vec<&str> = ITALIAN_ACRONYM_LEMMAS.to_vec();
+        words.extend(["NATO", "USA"]);
+        words
+    }
+
+    #[test]
+    fn spec_scenario_nato_in_an_italian_sentence() {
+        let pack = italian_acronym_pack(&italian_acronym_words());
+        let phrase = gloss_phrase(
+            "I paesi della NATO hanno votato.",
+            IT,
+            &pack,
+            &KnowledgeState::new(),
+        );
+        let nato = phrase
+            .tokens
+            .iter()
+            .find(|t| t.surface == "NATO")
+            .expect("NATO");
+        // The acronym, with no gloss in it-fr (D3: its entry names no expansion and no synonym).
+        assert_eq!((nato.lemma.as_str(), nato.gloss.as_deref()), ("NATO", None));
+        let headline = gloss_phrase("LA NATO HA VOTATO", IT, &pack, &KnowledgeState::new());
+        let nato = headline
+            .tokens
+            .iter()
+            .find(|t| t.surface == "NATO")
+            .expect("NATO");
+        assert_eq!(
+            (nato.lemma.as_str(), nato.gloss.as_deref()),
+            ("nascere", Some(NASCERE_GLOSS))
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_italian_acronym_on_a_page() {
+        let blocks = [
+            "I paesi della NATO si riuniranno domani con i membri del consiglio a Roma.",
+            "Domani i membri del consiglio della NATO voteranno il bilancio degli USA.",
+        ];
+        let pack = italian_acronym_pack(&italian_acronym_words());
+        let page = analyse_page(&blocks, IT, &pack, &KnowledgeState::new());
+        assert!(page.analysable);
+        for (surface, gloss) in [("NATO", None), ("USA", Some(USA_GLOSS))] {
+            let read: Vec<_> = page
+                .tokens
+                .iter()
+                .filter(|t| t.surface == surface)
+                .collect();
+            assert!(!read.is_empty(), "{surface}");
+            for token in read {
+                // Read as written, counted as a word to learn — never set aside as a name.
+                assert_eq!(token.lemma, surface);
+                assert_eq!(token.class, TokenClass::Unknown, "{surface}");
+                assert_eq!(token.gloss.as_deref(), gloss, "{surface}");
+            }
+            assert_eq!(
+                crate::knowledge::state::FrequencyRanks::rank(&pack, surface),
+                None
+            );
+            assert!(pack.is_dictionary_word(surface), "{surface}");
+        }
+        // Without the rows among the dictionary words, Italian's names rule would set them aside
+        // as names — a capital in mid-sentence, never in lowercase, no dictionary word —, which is
+        // why change 11 writes them into `lexical.tsv` before change 16 (D6).
+        let without = italian_acronym_pack(ITALIAN_ACRONYM_LEMMAS);
+        let page = analyse_page(&blocks, IT, &without, &KnowledgeState::new());
+        assert!(
+            page.tokens
+                .iter()
+                .filter(|t| t.surface == "NATO")
+                .all(|t| t.class == TokenClass::ProperNounOutOfLexicon)
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_word_card_asks_about_the_italian_acronym() {
+        let pack = italian_acronym_pack(&italian_acronym_words());
+        // The acronym's card, apart from `nato`'s: no gloss for `NATO` in it-fr.
+        let card = word_grammar("NATO", "NATO", IT, &pack);
+        assert_eq!(card.gloss, None);
+        assert!(card.readings.is_empty() && card.others.is_empty() && card.pieces.is_empty());
+        assert_eq!(
+            word_grammar("nato", "nascere", IT, &pack).gloss.as_deref(),
+            Some(NASCERE_GLOSS)
+        );
+        assert_eq!(
+            word_grammar("USA", "USA", IT, &pack).gloss.as_deref(),
+            Some(USA_GLOSS)
+        );
+        // A dictionary form the pack holds in no capitals is lowercased, as before.
+        assert_eq!(
+            word_grammar("Nato", "Nascere", IT, &pack).gloss.as_deref(),
+            Some(NASCERE_GLOSS)
+        );
+    }
+
+    #[test]
+    fn the_four_readers_read_nato_alike() {
+        // A page's block, a selection, a card's written word and an expression's headword read
+        // « NATO » through one rule (keep-lingua-italian-acronyms-and-names D1).
+        let pack = italian_acronym_pack(&italian_acronym_words());
+        let lexicon = pack.lexicon();
+        for (text, expected) in [
+            (
+                "I paesi della NATO si riuniranno domani con i membri del consiglio.",
+                "NATO",
+            ),
+            (
+                "I PAESI DELLA NATO SI RIUNIRANNO DOMANI CON I MEMBRI DEL CONSIGLIO.",
+                "nascere",
+            ),
+            (
+                "Sono nato a Roma e domani i membri del consiglio votano.",
+                "nascere",
+            ),
+        ] {
+            let DocumentAnalysis::Analysed(page) = analyse_document(&[text], IT, lexicon) else {
+                panic!("{text} is analysable");
+            };
+            let at = |surface: &str| surface.eq_ignore_ascii_case("nato");
+            let on_page = &page.iter().find(|t| at(&t.surface)).expect("nato").lemma;
+            let phrase = gloss_phrase(text, IT, &pack, &KnowledgeState::new());
+            let selected = &phrase
+                .tokens
+                .iter()
+                .find(|t| at(&t.surface))
+                .expect("nato")
+                .lemma;
+            let reading = headword_reading(text, IT, lexicon).expect("a reading");
+            let in_headword = &reading.iter().find(|(t, _)| at(&t.text)).expect("nato").1;
+            assert_eq!(
+                [on_page.as_str(), selected.as_str(), in_headword.as_str()],
+                [expected; 3],
+                "{text}"
+            );
+        }
     }
 }

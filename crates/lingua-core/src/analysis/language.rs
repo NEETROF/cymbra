@@ -1200,12 +1200,15 @@ mod tests {
             .and_then(|major| major.parse().ok())
             .expect("a semantic version");
         assert!(major >= 1, "{}", IT.analyzer_version());
-        for language in [EN, ES, FR] {
-            assert_ne!(
-                language.analyzer_version(),
-                IT.analyzer_version(),
-                "{language:?}"
-            );
+        // Each language reads its own constant. Their strings may meet — English's `1.3.0` is
+        // French's own too, and Italian's since keep-lingua-italian-acronyms-and-names —, as a
+        // pack is compared with its studied language's version alone (`Pack::load`).
+        for (language, own) in [
+            (EN, crate::analysis::ANALYZER_VERSION),
+            (ES, crate::analysis::SPANISH_ANALYZER_VERSION),
+            (FR, crate::analysis::FRENCH_ANALYZER_VERSION),
+        ] {
+            assert_eq!(language.analyzer_version(), own, "{language:?}");
         }
     }
 
