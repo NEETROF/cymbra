@@ -28,4 +28,4 @@
 
 - [x] 5.1 English, Spanish and French do not move: `cargo test -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline --test fr_es_baseline --test cross_native` passes without re-blessing, and `git diff --stat` shows no golden but `it-fr.golden` and no `pin.json` touched.
 - [x] 5.2 `cargo fmt --all --check`; `cargo clippy --workspace --all-targets -- -D warnings`; `cargo test --workspace`; `cargo llvm-cov --workspace --fail-under-lines 80 --ignore-filename-regex "$(cat .github/coverage-ignore-regex.txt)"` passes.
-- [ ] 5.3 `openspec validate add-lingua-italian-tokenisation --strict` passes; `python3 scripts/openspec_archive_order.py add-lingua-italian-tokenisation` names `add-lingua-italian-baseline` alone; `docs/lingua/italian-programme.md` row 6's status names this change's pull requests.
+- [x] 5.3 `openspec validate add-lingua-italian-tokenisation --strict` passes; `python3 scripts/openspec_archive_order.py add-lingua-italian-tokenisation` names `add-lingua-italian-baseline` alone; `docs/lingua/italian-programme.md` row 6's status names this change's pull requests.
