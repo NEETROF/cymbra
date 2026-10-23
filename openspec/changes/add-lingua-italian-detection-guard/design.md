@@ -201,6 +201,136 @@ apostrophe-opened word, straight and typographic; an NFD block; the leak the gua
 French and Spanish guards' tests unchanged, French's gaining the opening-quote case. The
 baseline's `misto` assertion names the blocks kept.
 
+## Measurement
+
+Fetched on 2026-10-23 and pinned in `scripts/lingua-data/measure/it-guard-corpus.json`: each
+Wikipedia article by its revision (its wikitext's sha1 and sha256), every other file by URL and
+sha256, UD by commit. `it_guard.py` (run by `it-guard.sh`) fetches them, each source into a
+directory of its own, and then works offline; neither the samples nor the figures are committed.
+lingua-core's own gate reads every block (the `italian_guard_measure` example); a port of the
+guard's reading explains each refusal and agrees with the gate on all 50,219 blocks read as
+Italian. A block is a paragraph (Wikipedia wikitext rendered to text: templates, tables,
+references, files and categories out, the text of `lang` and quotation templates kept; Project
+Gutenberg paragraphs), a sentence (UD, Tatoeba) or a line (`pages-it.txt`), without soft hyphens,
+trimmed, of 12 bytes or more.
+
+| Source | What | Licence |
+|---|---|---|
+| Wikipedia, eleven neighbours | ca, gl, vec, scn, nap, sc, co, fur, la, oc, ro: the articles 75 English seed titles link to (56–75 per wiki, 753 in all) | CC BY-SA 4.0 |
+| UD Italian-PUD | test, `71d932aa` | CC BY-SA 3.0 |
+| UD Italian-MarkIT | train, dev and test, `e210079d` | CC BY 4.0 |
+| Tatoeba | the Italian export of 2026-10-17, 20,000 sentences (seed 42, French's choice) | CC BY 2.0 FR |
+| Italian Wikipedia | 64 articles: the regional languages and their places, songs and authors that quote them (*'O sole mio*, Eduardo, Camilleri…), Spanish and Catalan names, everyday subjects | CC BY-SA 4.0 |
+| Project Gutenberg | Manzoni, *I promessi sposi* (#45334); Collodi, *Pinocchio* (#52484) | public domain |
+| `pages-it.txt` | its 65 Italian blocks (the `misto` page's six foreign ones aside) | — |
+
+**What "better" means, written before any figure.** Rule 1 (D2): a neighbour is kept when whichlang
+reads a tenth of its Wikipedia blocks as Italian or more. Rule 2 (D3): no candidate that is a
+current Italian word or written form, in any register or region, elided and truncated pieces
+included. Rule 3 (D3, D6): a neighbour word is kept when it counts in a kept neighbour's block read
+as Italian, and every Italian block it helps refuse is, read by hand, a quotation or a name — a
+misfire drops every neighbour word counting in it. Rule 4 (D3): an Italian word is kept when every
+kept neighbour writes it at most a tenth as often, per thousand words, as the Italian corpora do.
+Rule 5 (D6): the recall gate, at most one refused block in a thousand of the Italian corpora's
+blocks read as Italian and none of `pages-it.txt`'s; while it fails, the neighbour word counting in
+the most refused blocks goes (tie: the one catching fewer neighbour blocks). The script implements
+each rule (`it_guard.py words`).
+
+**Amended before any table was settled, each recorded with its reason:**
+- *Catalan and Galician are kept against rule 1* (9.7 % and 3.2 % of their blocks read as Italian):
+  the requirement is named for them, two scenarios refuse their sentences, and the baseline's
+  scenario excludes the `misto` page's blocks. Rule 3's first half does not apply to their words —
+  their Wikipedia samples are seldom read as Italian, so "catching the sample" cannot test words
+  kept for the sentences the spec refuses; rule 3's second half and the gate still do.
+- *Rule 2 applied systematically*: every candidate checked against an Italian forms list (change
+  9's prototype tables) and `tokenize.rs`'s elided forms and truncations, after the first list of
+  refusals showed `quand` (« quand'è ») and `entrò` missed by hand.
+- *Rule 4 on the neighbours' own sentences*: as first written, it counted Italian quoted in the
+  neighbours' articles (bibliographies, an Italian law's title in a Catalan article) as their
+  writing, and took 19 of 28 words out. Measured on the blocks that hold one of the neighbour's own
+  words, then each flag read: `dal` (Venetian, Friulian, Occitan), `essere` and `hanno`
+  (Neapolitan), `quella` and `questi` (Corsican) are their own words; every other flag was an
+  Italian name, title or quotation (« Università degli studi di Udine », « Tu scendi dalle
+  stelle », « Gallicano nel Lazio »).
+
+**Rule 1, and the neighbours with the guard** (share of blocks read as Italian; of the text in
+brackets):
+
+| Neighbour | Blocks | Without | With | D2's default | Kept |
+|---|---:|---:|---:|---|---|
+| Catalan | 9,325 | 9.7 % (1.7) | 9.0 % (1.3) | kept | yes, by the spec |
+| Galician | 6,132 | 3.2 % (0.4) | 3.2 % (0.4) | kept | yes, by the spec |
+| Venetian | 1,595 | 58.9 % (77.1) | 28.9 % (14.1) | kept | yes |
+| Sicilian | 1,557 | 82.9 % (95.4) | 62.6 % (37.5) | kept | yes |
+| Neapolitan | 760 | 71.3 % (86.0) | 36.8 % (11.5) | kept | yes |
+| Sardinian | 1,437 | 37.6 % (33.5) | 26.1 % (6.1) | kept | yes |
+| Corsican | 1,514 | 83.2 % (96.9) | 53.3 % (29.9) | kept | yes |
+| Friulian | 1,582 | 37.3 % (31.5) | 31.0 % (16.5) | kept | yes |
+| Latin | 5,233 | 23.1 % (13.9) | 20.3 % (6.8) | out | yes, by rule 1 |
+| Occitan | 4,723 | 14.6 % (3.2) | 12.6 % (1.6) | out | yes, by rule 1 |
+| Romanian | 6,655 | 31.9 % (30.5) | 9.3 % (1.0) | out | yes, by rule 1 |
+| Pooled | 40,513 | 25.4 % (18.8) | 16.5 % (4.2) | | |
+
+Catalan's and Galician's blocks read as Italian are mostly short — headings, names, Italian
+titles in their bibliographies (22 % of Catalan's blocks under 40 bytes, 1.5 % from 100); long
+Catalan and Galician prose is read as Spanish, French or Portuguese. What leaks elsewhere is short
+lines without a marker of either table, sentence-initial capitals (« Lu patruni… »), and
+Italian quoted in the neighbours' own articles.
+
+**The words.** Of 258 candidates (D3's, and the Occitan and Romanian tables of Spanish's and
+French's guards once rule 1 kept them), rule 2 takes 19 out, rule 3 66 that no neighbour block
+read as Italian holds (Occitan's mostly; Catalan's and Galician's stay, 14 of them), and one
+misfire: `u`, Corsican's article, is the letter's Italian name in 13 refused blocks about spelling
+(« Maschile singolare finito in consonante o in u: »). The gate then failed — 73 blocks of
+39,934, every one a quotation or a name — and rule 5 took `iddu` (17 refused blocks; 13
+neighbour blocks caught), `lu` (9; 368), `chì` (7; 288), `el` (6; 495) and `'e` (5; 307),
+leaving 167 neighbour words and 23 Italian ones.
+
+**Italian refused.** 37 of 39,934 blocks read as Italian (0.093 %), all in Italian Wikipedia's
+articles on the neighbour languages; none in UD (992 and 1,289 read as Italian), Tatoeba (19,699),
+the two books (3,044 and 1,851) or `pages-it.txt` (65). Thirty are quotations — Sardinian,
+Corsican, Venetian, Sicilian and Catalan paradigms and phrasebook lines, Neapolitan lyrics, the
+Sicilian School's « Per la vertute de la calamita », a romanesco « je volevamo solà er
+portafoglio », a Romanian line, French « pas dosé » —, seven are names and titles (Eduardo's « È
+arrivato 'o trentuno », « Expositio seu comentum super Comedia », « Grafia dell'Escòla dau Pò »).
+No misfire is left. The pull request lists all 37.
+
+**Cost** (D5), on the 39,934 Italian blocks read as Italian (6.3 MB; Apple M2 Max, release build;
+WebAssembly under Node 22), best of seven: the guard is the difference between the gate for
+Italian and the gate for English, which reads the block the same way and has no guard.
+
+| µs per KB | whichlang | Italian's guard | French's, for scale (change 42) |
+|---|---|---|---|
+| native | 17.0–17.2 | 16.0–16.5 (94–97 %) | 16.5–21.1 (100–123 %) |
+| WebAssembly | 14.7–15.0 | 18.7–23.7 (126–158 %) | 19.4–23.8 (138–159 %) |
+
+A 20 KB Italian article costs about 0.4 ms more in WebAssembly; a reader of English, Spanish or
+French pays nothing.
+
+**For the owner (task 4.1)** — the same samples, other choices:
+
+| Variant | Neighbour words | Pooled neighbours read as Italian with the guard | Italian refused |
+|---|---:|---|---:|
+| Implemented: rule 1 with Catalan and Galician, rule 5 applied | 167 | 16.5 % (4.2) | 37 (0.093 %) |
+| Without rule 5's five words (`iddu`, `lu`, `chì`, `el`, `'e`) | 172 | Sicilian 54.3, Neapolitan 27.6, Corsican 47.2, Venetian 23.4 % | 73 (0.183 %) — fails the gate |
+| D2's defaults (no Latin, Occitan or Romanian word) | 86 | Romanian 24.7 % (16.0), Latin 22.8 %, Occitan 14.1 % | 32 (0.080 %) |
+
+### Deviations from the decisions above
+
+- **D2**: Latin, Occitan and Romanian are kept, by D2's own rule; Catalan and Galician are kept
+  against it, because the spec names them. The owner confirms or moves both (task 4.1).
+- **D3, neighbour markers**: `u` (Corsican) is left out as the letter's Italian name, and
+  `iddu`, `lu`, `chì`, `el` and `'e` for the recall gate. Rule 2 leaves out, beyond D3's list,
+  `molt`, `tot`, `avi`, `pe`, `pola`, `unni`, and Occitan's and Romanian's Italian words (`ma`,
+  `sul`, `qual`, `sia`, `lor`, `quand`, `entrò`, `ambe`, `care`, `dar`, `fi`, `din`). D3's `co`
+  is in no neighbour's list and « co' » (*coi*) is an Italian truncation: not added.
+- **D3, Italian markers**: `dal`, `essere`, `hanno`, `quella` and `questi` are left out as
+  measured (`dal` against Venetian, as D3 anticipated, and Friulian).
+- **D5**: the guard's cost is the gate's difference, Italian against English: `italic_neighbour`
+  is private, and the example uses the crate's public gate.
+- **The spec**: the Neapolitan scenario counts `'na`, `'o` and `'a` (`'e` is left out), and the
+  requirement names Latin, Occitan and Romanian among the neighbours, with a scenario for them.
+
 ## Risks / Trade-offs
 
 - [Italian recall] → D6's gate; every Italian block refused is named in the pull request.

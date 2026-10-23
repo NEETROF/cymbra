@@ -129,18 +129,18 @@ pub fn block_is_studied(text: &str, studied: StudiedLanguage) -> bool {
 
 /// The language among `languages` whichlang finds in a trimmed block, unless that language's
 /// guard refuses the block as a neighbour's (add-lingua-french-detection-guard D5). whichlang has
-/// no class for Catalan, Galician, Occitan or Romanian and reads many of their blocks as Spanish
-/// or French: Spanish's guard refuses Catalan and Galician (add-lingua-spanish-detection-guard)
-/// and Occitan (add-lingua-spanish-occitan-guard), French's Catalan, Occitan and Romanian;
-/// English has none, and neither has Italian until add-lingua-italian-detection-guard writes it
-/// (add-lingua-italian-baseline D2): whichlang reads Catalan and Galician blocks as Italian, and a
-/// learner of Italian counts them until then. A guard runs only for the
+/// no class for Catalan, Galician, Occitan, Romanian, Latin or the regional languages of Italy,
+/// and reads many of their blocks as Spanish, French or Italian: Spanish's guard refuses Catalan
+/// and Galician (add-lingua-spanish-detection-guard) and Occitan (add-lingua-spanish-occitan-guard),
+/// French's Catalan, Occitan and Romanian, Italian's Catalan, Galician, Venetian, Sicilian,
+/// Neapolitan, Sardinian, Corsican, Friulian, Latin, Occitan and Romanian
+/// (add-lingua-italian-detection-guard); English has none. A guard runs only for the
 /// language it protects, and only when that language is asked about: a reader of English pays
-/// for neither, a reader of Spanish for Spanish's alone. `None` when whichlang finds none of
+/// for none, a reader of Spanish for Spanish's alone. `None` when whichlang finds none of
 /// `languages`, or the guard refuses the block, which is then excluded as any other language's
 /// is. The gate and the vote both ask here, so they never disagree. Both hand it the block
 /// without its soft hyphens (ignore-lingua-soft-hyphens D3): the guards' own word readings
-/// ([`iberian_neighbour`], [`guard_words`]) never see one.
+/// ([`iberian_neighbour`], [`guard_words`], [`guard_words_opened`]) never see one.
 fn detect(trimmed: &str, languages: &[StudiedLanguage]) -> Option<StudiedLanguage> {
     let detected = whichlang::detect_language(trimmed);
     let language = languages
@@ -148,9 +148,10 @@ fn detect(trimmed: &str, languages: &[StudiedLanguage]) -> Option<StudiedLanguag
         .copied()
         .find(|language| language.whichlang_target() == detected)?;
     let neighbour = match language {
-        StudiedLanguage::English | StudiedLanguage::Italian => false,
+        StudiedLanguage::English => false,
         StudiedLanguage::Spanish => iberian_neighbour(trimmed),
         StudiedLanguage::French => romance_neighbour(trimmed),
+        StudiedLanguage::Italian => italic_neighbour(trimmed),
     };
     (!neighbour).then_some(language)
 }
@@ -593,7 +594,8 @@ const FRENCH_MARKERS: &[&str] = &[
     "toute", "toutes", "trop", "très", "une", "vous", "à", "ça", "était", "été", "être",
 ];
 
-/// The longest marker of either table, in bytes: a longer word is not looked up.
+/// The longest marker of French's two tables, in bytes: a longer word is not looked up. Italian's
+/// tables keep within it (add-lingua-italian-detection-guard D3).
 const LONGEST_MARKER_BYTES: usize = 9;
 
 /// Whether a block whichlang reads as French is more likely Catalan, Occitan or Romanian: their
@@ -663,6 +665,284 @@ fn guard_words(text: &str, mut f: impl FnMut(&str)) {
     {
         f(&text[s..]);
     }
+}
+
+/// Function words Catalan, Galician, the regional languages of Italy and Corsica, Latin, Occitan
+/// and Romanian write and Italian does not, sorted by bytes for binary search
+/// (add-lingua-italian-detection-guard D3): 167 in one pooled table, since the guard asks « Italian
+/// or not », not which neighbour (D1). Counted only where written in lowercase (`El Niño` and `Lu
+/// Capu` are names); Neapolitan's elided articles `'a`, `'na`, `'nu` and `'o` only in a word an
+/// apostrophe opens (D4, [`guard_words_opened`]).
+///
+/// Each word is kept as measured, one by one, on the samples `scripts/lingua-data/measure/
+/// it-guard-corpus.json` pins, fetched on 2026-10-23 (none is in the repository; `it_guard.py`
+/// measures them): it counts in a neighbour's Wikipedia block that whichlang reads as Italian,
+/// and refuses no block of the Italian corpora but a quotation or a name. The neighbours are those
+/// whichlang reads as Italian on a tenth of their Wikipedia blocks or more (D2: Venetian 58.9 %,
+/// Sicilian 82.9 %, Neapolitan 71.3 %, Sardinian 37.6 %, Corsican 83.2 %, Friulian 37.3 %, Latin
+/// 23.1 %, Occitan 14.6 %, Romanian 31.9 %), and Catalan (9.7 %) and Galician (3.2 %), which the
+/// requirement names: their words that catch no Wikipedia block are kept for the sentences it
+/// refuses. Left out:
+/// - Italian words, in any register or region, with the reading that writes them: Catalan's
+///   `per`, `però`, `sempre`, `molt` (« molt'altro ») and `tot` (« un tot »); Galician's `hai`
+///   (*you have*), `polo` (« polo nord »), `pero` (the pear tree), `o` (*or*) and `pola`
+///   (regional, the jackdaw); Sicilian's `li` (the clitic), `avi` (« i nostri avi ») and `unni`
+///   (« gli unni »); Neapolitan's `pe` (« pe' »); Venetian's `sto` (« sto bene »), `anca`
+///   (*hip*), `par` (« par condicio ») and `so` (*I know*); Sardinian's `sa` (*he knows*), `pro`
+///   (« pro e contro ») and `est` (*east*); Latin's `qui` (*here*), `ad` (« ad esempio ») and
+///   `esse` (*they*); `cos` (« cos'è ») and `pi` (the letter); Occitan's `ma`, `sul`, `qual`
+///   (« qual è »), `sia`, `lor` (« lor signori »), `quand` (« quand'è »), `entrò` and `ambe`
+///   (« ambe le mani »); Romanian's `care` (« care amiche »), `dar` (« dar retta »), `fi` (the
+///   letter) and `din` (« din don »);
+/// - `u`, Corsican's article and the letter's Italian name: it refused thirteen Italian blocks
+///   about spelling (« La u è pronunciata come in italiano. »);
+/// - `iddu`, `lu`, `chì`, `el` and `'e`, which refuse only quotations and names (Corsican
+///   conjugations, Sicilian sentences glossed, Neapolitan song titles), but too many of them for
+///   the recall gate — at most one block of the Italian corpora in a thousand (D6);
+/// - the candidates no neighbour block read as Italian holds (66, Occitan's mostly).
+const ITALIC_NEIGHBOUR_MARKERS: &[&str] = &[
+    "'a",       // Neapolitan, an elided article, counted with its apostrophe
+    "'na",      // Neapolitan, an elided article, counted with its apostrophe
+    "'nu",      // Neapolitan, an elided article, counted with its apostrophe
+    "'o",       // Neapolitan, an elided article, counted with its apostrophe
+    "această",  // Romanian
+    "acest",    // Romanian
+    "addó",     // Neapolitan
+    "aici",     // Romanian
+    "aicí",     // Occitan
+    "això",     // Catalan
+    "als",      // Occitan
+    "amb",      // Catalan
+    "ancje",    // Friulian
+    "aquest",   // Catalan
+    "aquesta",  // Catalan
+    "aqueste",  // Occitan
+    "aquestes", // Catalan, Occitan
+    "aquests",  // Catalan
+    "as",       // Galician
+    "at",       // Sardinian
+    "atque",    // Latin
+    "atât",     // Romanian
+    "autem",    // Latin
+    "avà",      // Corsican
+    "cel",      // Romanian
+    "ceva",     // Romanian
+    "chello",   // Neapolitan
+    "chest",    // Friulian
+    "cheste",   // Friulian
+    "chesto",   // Neapolitan
+    "chiddu",   // Sicilian
+    "chistu",   // Sicilian
+    "coas",     // Galician
+    "comme",    // Neapolitan
+    "comu",     // Sicilian
+    "cu",       // Sicilian, Romanian
+    "cum",      // Latin
+    "cun",      // Sardinian, Friulian
+    "cussu",    // Sardinian
+    "cussì",    // Venetian
+    "custu",    // Sardinian
+    "când",     // Romanian
+    "cât",      // Romanian
+    "că",       // Romanian
+    "dacă",     // Romanian
+    "dae",      // Sardinian
+    "damb",     // Occitan
+    "dau",      // Occitan
+    "davant",   // Occitan
+    "decât",    // Romanian
+    "dels",     // Catalan
+    "dempuèi",  // Occitan
+    "dens",     // Occitan
+    "dera",     // Occitan
+    "despre",   // Romanian
+    "després",  // Catalan
+    "deth",     // Occitan
+    "deu",      // Occitan
+    "dinc",     // Occitan
+    "dins",     // Occitan
+    "dintre",   // Romanian
+    "doncas",   // Occitan
+    "după",     // Romanian
+    "dut",      // Friulian
+    "els",      // Catalan
+    "ena",      // Occitan
+    "encara",   // Catalan
+    "enim",     // Latin
+    "eren",     // Catalan
+    "este",     // Romanian
+    "fins",     // Catalan
+    "foarte",   // Romanian
+    "foguèron", // Occitan
+    "foguèt",   // Occitan
+    "fost",     // Romanian
+    "fou",      // Catalan
+    "fòrça",    // Occitan
+    "ga",       // Venetian
+    "ghe",      // Venetian
+    "gà",       // Venetian
+    "havia",    // Catalan
+    "hè",       // Corsican
+    "ibi",      // Latin
+    "idda",     // Sicilian
+    "igitur",   // Latin
+    "je",       // Friulian
+    "jo",       // Friulian
+    "jos",      // Occitan
+    "jè",       // Friulian
+    "lis",      // Friulian
+    "llavors",  // Catalan
+    "lors",     // Occitan
+    "mateix",   // Catalan
+    "meu",      // Occitan
+    "moi",      // Galician
+    "mon",      // Occitan
+    "més",      // Catalan
+    "mă",       // Romanian
+    "nec",      // Latin
+    "nela",     // Galician
+    "ningú",    // Catalan
+    "nun",      // Sicilian
+    "on",       // Catalan
+    "os",       // Galician
+    "pas",      // Occitan
+    "pels",     // Catalan
+    "pentru",   // Romanian
+    "pirchì",   // Sicilian
+    "puèi",     // Occitan
+    "pòt",      // Occitan
+    "quae",     // Latin
+    "quan",     // Occitan
+    "quessu",   // Corsican
+    "quod",     // Latin
+    "sas",      // Sardinian, Occitan
+    "sau",      // Romanian
+    "sed",      // Latin
+    "segons",   // Catalan
+    "sens",     // Occitan
+    "seu",      // Catalan
+    "seus",     // Catalan
+    "seva",     // Catalan
+    "seves",    // Catalan
+    "siá",      // Occitan
+    "soi",      // Friulian
+    "songo",    // Neapolitan
+    "sonque",   // Occitan
+    "sos",      // Sardinian
+    "sovent",   // Occitan
+    "sugnu",    // Sicilian
+    "sunt",     // Latin, Romanian
+    "sò",       // Corsican
+    "són",      // Catalan
+    "să",       // Romanian
+    "també",    // Catalan
+    "tamén",    // Galician
+    "tanben",   // Occitan
+    "tandu",    // Corsican
+    "tas",      // Occitan
+    "tene",     // Neapolitan
+    "tenet",    // Sardinian
+    "tota",     // Occitan
+    "totas",    // Occitan
+    "totes",    // Occitan
+    "totu",     // Sardinian
+    "tròp",     // Occitan
+    "tuti",     // Venetian
+    "ua",       // Occitan
+    "ubi",      // Latin
+    "unde",     // Romanian
+    "unha",     // Galician
+    "ut",       // Latin
+    "uèi",      // Occitan
+    "vèrs",     // Occitan
+    "vòl",      // Occitan
+    "xa",       // Galician
+    "xe",       // Venetian
+    "ze",       // Venetian
+    "zente",    // Venetian
+    "çò",       // Occitan
+    "èra",      // Occitan
+    "èran",     // Occitan
+    "èsser",    // Occitan
+    "és",       // Catalan
+    "în",       // Romanian
+    "ùn",       // Corsican
+    "și",       // Romanian
+];
+
+/// Italian function words its neighbours rarely write, sorted for binary search
+/// (add-lingua-italian-detection-guard D3): 23, counted however they are written. Left out as the
+/// neighbours' words: `del` (Catalan, Occitan, Venetian), `il` and `la` (Friulian), `i`
+/// (Catalan's *and*), `sempre` (Sicilian), `ci` and `vi` (Sicilian, Corsican), `lo` (Occitan,
+/// western Catalan), `è` (Corsican's *and*), `sul` (Venetian), `una` (Sardinian), `miei`
+/// (Friulian), `che` (every neighbour's); and, as measured, `dal` (Venetian, Friulian, Occitan),
+/// `essere` and `hanno` (Neapolitan), `quella` and `questi` (Corsican), each of which that
+/// neighbour's own sentences write more than a tenth as often as Italian does.
+const ITALIAN_MARKERS: &[&str] = &[
+    "abbiamo", "anche", "avere", "dalla", "dalle", "degli", "della", "delle", "dello", "gli",
+    "loro", "molto", "negli", "nel", "nella", "nelle", "nello", "perché", "quello", "questa",
+    "questo", "siamo", "sono",
+];
+
+/// Whether a block whichlang reads as Italian is more likely one of its neighbours'
+/// (add-lingua-italian-detection-guard D1): [`ITALIC_NEIGHBOUR_MARKERS`], counted together,
+/// outnumber [`ITALIAN_MARKERS`]. A tie, or no marker at all, stays Italian — a short line cannot
+/// be judged, and Italian comes first. French's rule ([`romance_neighbour`]) on Italian's tables.
+fn italic_neighbour(text: &str) -> bool {
+    let (neighbour, italian) = italic_markers(text);
+    neighbour > italian
+}
+
+/// How many neighbour and Italian markers [`italic_neighbour`] counts in `text`. The block is read
+/// as [`guard_words_opened`] reads it (D4); a word holding a combining mark is composed (NFC)
+/// before it is looked up; a neighbour's word counts only where written in lowercase, an Italian
+/// one however it is written; a word an apostrophe opens is looked up with it (`'o`), then without.
+fn italic_markers(text: &str) -> (usize, usize) {
+    let (mut neighbour, mut italian) = (0usize, 0usize);
+    // The word, lowercase and composed, behind an apostrophe: `'o`, and `o` from its second byte.
+    let mut buf = String::new();
+    guard_words_opened(text, |word, opened| {
+        let decomposed = !word.is_ascii() && word.chars().any(is_combining_mark);
+        if word.len() > LONGEST_MARKER_BYTES && !decomposed {
+            return;
+        }
+        let lowercase = !word.chars().any(char::is_uppercase);
+        buf.clear();
+        buf.push('\'');
+        if lowercase && !decomposed {
+            buf.push_str(word);
+        } else {
+            buf.extend(word.nfc().flat_map(char::to_lowercase));
+        }
+        let elided = buf.as_str();
+        let lower = &elided[1..];
+        let neighbour_word = (opened && ITALIC_NEIGHBOUR_MARKERS.binary_search(&elided).is_ok())
+            || ITALIC_NEIGHBOUR_MARKERS.binary_search(&lower).is_ok();
+        if lowercase && neighbour_word {
+            neighbour += 1;
+        } else if ITALIAN_MARKERS.binary_search(&lower).is_ok() {
+            italian += 1;
+        }
+    });
+    (neighbour, italian)
+}
+
+/// Calls `f` with each word of `text` as [`guard_words`] reads it, and whether an apostrophe opens
+/// it: a straight one or U+2019, which typeset Neapolitan writes, just before the word and after
+/// no letter, mark or digit (« vicino 'o mare », « ’a sera »; never `uomo` in « l'uomo »). Italian's
+/// guard looks Neapolitan's elided articles up with their apostrophe, as Spanish's looks Occitan's
+/// `qu'` up (add-lingua-italian-detection-guard D4); French's and Spanish's readings are untouched.
+fn guard_words_opened(text: &str, mut f: impl FnMut(&str, bool)) {
+    guard_words(text, |word| {
+        // `guard_words` hands out slices of `text`: where this one starts.
+        let start = word.as_ptr().addr() - text.as_ptr().addr();
+        let mut before = text[..start].chars().rev();
+        let opened = before.next().is_some_and(|c| c == '\'' || c == '\u{2019}')
+            && !before
+                .next()
+                .is_some_and(|c| c.is_alphanumeric() || is_combining_mark(c));
+        f(word, opened);
+    });
 }
 
 /// The language of a document, chosen among `candidates` (add-lingua-language-routing D1).
@@ -950,25 +1230,6 @@ mod tests {
             detect_document_language(&[SPANISH], &[IT, ES], None),
             Some(ES)
         );
-    }
-
-    #[test]
-    fn italian_has_no_guard_while_the_baseline_serves_it() {
-        // add-lingua-italian-baseline D2: whichlang files Catalan and Galician under Italian, and
-        // no guard refuses them for a learner of Italian until change 8 writes Italian's; a
-        // learner of Spanish or French keeps their own guard.
-        let catalan = "El far s'alçava a la vora del penya-segat, i ningú no recordava qui l'havia construït.";
-        for block in [catalan, GALICIAN] {
-            assert_eq!(
-                whichlang::detect_language(block),
-                whichlang::Lang::Ita,
-                "{block}"
-            );
-            assert_eq!(detect(block, &[IT]), Some(IT), "{block}");
-            assert!(block_is_studied(block, IT), "{block}");
-            assert!(!block_is_studied(block, ES), "{block}");
-            assert!(!block_is_studied(block, FR), "{block}");
-        }
     }
 
     const FRENCH: &str =
@@ -1621,6 +1882,10 @@ mod tests {
         // Combining marks stay in the word they follow.
         assert_eq!(words("e\u{301}te\u{301}"), ["e\u{301}te\u{301}"]);
         assert!(words("").is_empty() && words(" — ").is_empty());
+        // An opening single quote ends nothing and opens nothing: « 'et' » reads `et`
+        // (add-lingua-italian-detection-guard D4 leaves French's reading as it was).
+        assert_eq!(words("'et'"), ["et"]);
+        assert_eq!(words("\u{2019}et\u{2019}"), ["et"]);
     }
 
     #[test]
@@ -1737,6 +2002,392 @@ mod tests {
         assert_eq!(detect(CATALAN, &[EN, ES, FR]), None);
         assert_eq!(detect(ENGLISH, &[FR, ES, EN]), Some(EN));
         assert_eq!(detect(FRENCH, &[EN, ES]), None);
+    }
+
+    // add-lingua-italian-detection-guard: Catalan, Galician, the regional languages of Italy and
+    // Corsica, Latin, Occitan and Romanian are not read as Italian.
+    const CATALAN_AS_ITALIAN: &str =
+        "El far s'alçava a la vora del penya-segat, i ningú no recordava qui l'havia construït.";
+    const VENETIAN: &str = "Ghe xe tanta zente in piassa e tuti i parla.";
+    const SICILIAN: &str = "Lu patruni dici ca nun ci su' sordi, ma iddu campa bonu.";
+    const NEAPOLITAN: &str =
+        "Tengo 'na casa piccerella vicino 'o mare, e 'a sera guardo 'e stelle.";
+    const SARDINIAN: &str = "Sa domo est manna e sos pitzinnos giogant in sa pratza.";
+    const CORSICAN: &str = "A casa mea hè vicinu à a chjesa, è u paese hè chjucu.";
+    const FRIULIAN: &str = "Cheste e je la cjase dai miei nonos, e jo o soi nassût culì.";
+    const LATIN_AS_ITALIAN: &str = "Ubi concordia, ibi victoria, sed discordia omnia perdit.";
+    const OCCITAN_AS_ITALIAN: &str = "La lenga occitana foguèt parlada dins tota la region.";
+    const ROMANIAN_AS_ITALIAN: &str =
+        "Copiii se jucau în curte toată ziua, dar mama îi chema acasă.";
+    /// The Italian corpus's Galician block (`pages-it.txt`, the `misto` page).
+    const CORPUS_GALICIAN: &str =
+        "Non era unha noite tranquila, pero o vello faro seguía aceso na costa.";
+    const ITALIAN_NAMING_PLACES: &str = "Abbiamo visitato il Castell dels Tres Dragons a Barcellona, poi il Lu Capu a Siracusa, e letto anche il De bello Gallico.";
+
+    /// Each sentence an Italian guard's test offers as Italian is one whichlang reads as Italian,
+    /// so that a whichlang update that stops reading it so fails here rather than letting the test
+    /// pass for the wrong reason.
+    fn read_as_italian(block: &str) -> &str {
+        assert_eq!(
+            whichlang::detect_language(block),
+            whichlang::Lang::Ita,
+            "{block}"
+        );
+        block
+    }
+
+    /// A small Italian lexicon: a few words of [`ITALIAN`].
+    fn italian_lexicon() -> crate::analysis::lexicon::FstLexicon<Vec<u8>> {
+        let (bytes, pool) = crate::analysis::lexicon::build_lexicon_blobs(
+            &[("squadre", "squadra"), ("consegnano", "consegnare")],
+            &[
+                "il", "non", "mai", "sera", "perché", "una", "regola", "molto",
+            ],
+        )
+        .expect("build");
+        crate::analysis::lexicon::FstLexicon::from_slices(bytes, &pool).expect("load")
+    }
+
+    #[test]
+    fn spec_scenario_a_catalan_sentence_is_not_italian() {
+        assert!(!block_is_studied(read_as_italian(CATALAN_AS_ITALIAN), IT));
+        // `ningú` and `havia` (after `l'`); `El` is a capital.
+        assert_eq!(italic_markers(CATALAN_AS_ITALIAN), (2, 0));
+        // An Italian analysis excludes it: only the Italian block's tokens are analysed, and
+        // without its Italian block the page has nothing to analyse.
+        use crate::analysis::pipeline::{DocumentAnalysis, analyse_document};
+        let analysed = |blocks: &[&str]| match analyse_document(blocks, IT, &italian_lexicon()) {
+            DocumentAnalysis::Analysed(tokens) => {
+                assert!(tokens.len() >= MIN_ANALYSABLE_TOKENS);
+                tokens.iter().map(|t| t.block).collect::<Vec<_>>()
+            }
+            DocumentAnalysis::NotAnalysable => Vec::new(),
+        };
+        let blocks = analysed(&[ITALIAN, CATALAN_AS_ITALIAN]);
+        assert!(!blocks.is_empty() && blocks.iter().all(|&b| b == 0));
+        assert!(analysed(&[CATALAN_AS_ITALIAN, CATALAN_AS_ITALIAN]).is_empty());
+    }
+
+    #[test]
+    fn spec_scenario_a_galician_sentence_is_not_italian() {
+        // The probe's `unha`, `xa` and `nela`; the corpus's `unha`, its only Galician marker.
+        assert_eq!(italic_markers(GALICIAN), (3, 0));
+        assert_eq!(italic_markers(CORPUS_GALICIAN), (1, 0));
+        for block in [GALICIAN, CORPUS_GALICIAN] {
+            assert!(!block_is_studied(read_as_italian(block), IT), "{block}");
+        }
+    }
+
+    #[test]
+    fn spec_scenario_a_venetian_and_a_sicilian_sentence_are_not_italian() {
+        // Venetian's `xe`, `zente` and `tuti` (`Ghe` is a capital); Sicilian's `nun`.
+        assert_eq!(italic_markers(VENETIAN), (3, 0));
+        assert_eq!(italic_markers(SICILIAN), (1, 0));
+        for block in [VENETIAN, SICILIAN] {
+            assert!(!block_is_studied(read_as_italian(block), IT), "{block}");
+        }
+    }
+
+    #[test]
+    fn spec_scenario_a_neapolitan_sentence_counts_its_elided_articles() {
+        assert!(!block_is_studied(read_as_italian(NEAPOLITAN), IT));
+        // `'na`, `'o` and `'a`, each with its apostrophe; `'e` is left out (D6, the gate).
+        assert_eq!(italic_markers(NEAPOLITAN), (3, 0));
+        // Typeset Neapolitan writes U+2019.
+        let typeset = NEAPOLITAN.replace('\'', "\u{2019}");
+        assert!(!block_is_studied(read_as_italian(&typeset), IT));
+        assert_eq!(italic_markers(&typeset), (3, 0));
+        // Without their apostrophe they are Italian's `o`, `a`, `e`; after a letter, an elision's.
+        assert_eq!(italic_markers("vicino o mare, e a sera la gente"), (0, 0));
+        assert_eq!(italic_markers("dell'o, l'a, quest'o"), (0, 0));
+        // A capital makes a name: « 'O sole mio ».
+        assert_eq!(italic_markers("'O sole mio"), (0, 0));
+    }
+
+    #[test]
+    fn spec_scenario_a_sardinian_a_corsican_and_a_friulian_sentence() {
+        // Sardinian's `sos` (`Sa` is a capital, `est` and `sa` Italian words); Corsican's `hè`
+        // twice (`u` is Italian's letter); Friulian's `je`, `jo` and `soi`, against no Italian
+        // marker: `miei` is Friulian's too.
+        assert_eq!(italic_markers(SARDINIAN), (1, 0));
+        assert_eq!(italic_markers(CORSICAN), (2, 0));
+        assert_eq!(italic_markers(FRIULIAN), (3, 0));
+        for block in [SARDINIAN, CORSICAN, FRIULIAN] {
+            assert!(!block_is_studied(read_as_italian(block), IT), "{block}");
+        }
+    }
+
+    #[test]
+    fn latin_occitan_and_romanian_read_as_italian_are_not_italian() {
+        // D2's measurement keeps them: a tenth of their Wikipedia blocks or more read as Italian.
+        // Latin's `ibi` and `sed` (`Ubi` is a capital), Occitan's `foguèt`, `dins` and `tota`,
+        // Romanian's `în` (`dar` is Italian's « dar retta »).
+        assert_eq!(italic_markers(LATIN_AS_ITALIAN), (2, 0));
+        assert_eq!(italic_markers(OCCITAN_AS_ITALIAN), (3, 0));
+        assert_eq!(italic_markers(ROMANIAN_AS_ITALIAN), (1, 0));
+        for block in [LATIN_AS_ITALIAN, OCCITAN_AS_ITALIAN, ROMANIAN_AS_ITALIAN] {
+            assert!(!block_is_studied(read_as_italian(block), IT), "{block}");
+        }
+    }
+
+    #[test]
+    fn spec_scenario_italian_naming_catalan_sicilian_and_latin_places_and_works_is_kept() {
+        assert!(block_is_studied(read_as_italian(ITALIAN_NAMING_PLACES), IT));
+        // `dels`, inside a name, against `abbiamo` and `anche`; `Lu` and `De` are capitals.
+        assert_eq!(italic_markers(ITALIAN_NAMING_PLACES), (1, 2));
+    }
+
+    #[test]
+    fn spec_scenario_regional_italian_is_kept() {
+        for block in [
+            "Ma va', non ci credo mica che sei andato giù in piazza con quel caldo.",
+            "Dai, vieni su che ti faccio vedere una cosa.",
+        ] {
+            assert!(block_is_studied(read_as_italian(block), IT), "{block}");
+            // `su`, `ci`, `ma` and `va'` are markers of neither table.
+            assert_eq!(italic_markers(block), (0, 0), "{block}");
+        }
+    }
+
+    #[test]
+    fn spec_scenario_a_capital_makes_a_name_in_italian() {
+        let block =
+            "Durante il viaggio abbiamo letto che El Niño e Os Lusíadas sono nomi, non parole.";
+        assert!(block_is_studied(read_as_italian(block), IT));
+        // `El` and `Os` do not count; `abbiamo` and `sono` do, however written.
+        assert_eq!(italic_markers(block), (0, 2));
+        assert_eq!(italic_markers("Os Lusíadas"), (0, 0));
+        assert_eq!(italic_markers("os lusíadas"), (1, 0));
+        assert_eq!(italic_markers("SONO ABBIAMO Anche"), (0, 3));
+    }
+
+    #[test]
+    fn spec_scenario_a_catalan_page_gives_italian_no_vote() {
+        // Nothing votes, so the reader's first candidate wins: never Italian by Catalan's weight.
+        let page = [CATALAN_AS_ITALIAN, GALICIAN];
+        assert_eq!(detect_document_language(&page, &[FR, IT], None), Some(FR));
+        // A shorter French line than the two outweighs them, whatever the reader's order.
+        assert!(FRENCH.len() < CATALAN_AS_ITALIAN.len() + GALICIAN.len());
+        let page = [CATALAN_AS_ITALIAN, GALICIAN, FRENCH];
+        assert_eq!(detect_document_language(&page, &[IT, FR], None), Some(FR));
+        // An Italian page still votes Italian.
+        assert_eq!(
+            detect_document_language(&[ITALIAN, FRENCH], &[FR, IT], None),
+            Some(IT)
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_leak_the_italian_guard_leaves() {
+        // Sicilian read as Italian, without a function word of either table: the guard cannot judge
+        // it, and does not refuse it.
+        let block = "Bedda matri, chi caluri oggi!";
+        assert!(block.len() > MIN_BLOCK_BYTES);
+        assert_eq!(italic_markers(block), (0, 0));
+        assert!(block_is_studied(read_as_italian(block), IT));
+    }
+
+    #[test]
+    fn a_tie_or_no_marker_stays_italian() {
+        assert!(!italic_neighbour("xe anche"));
+        assert!(!italic_neighbour("la casa"));
+        assert!(!italic_neighbour(""));
+        assert!(italic_neighbour("xe ghe anche"));
+        // « 'o » quoted in Italian is one word in a block Italian's markers carry (Risks).
+        let quoted = "Il dittongo 'o' è più chiuso nella pronuncia della gente del posto.";
+        assert_eq!(italic_markers(quoted), (1, 2));
+        assert!(block_is_studied(read_as_italian(quoted), IT));
+    }
+
+    #[test]
+    fn a_decomposed_italian_block_is_read_as_composed() {
+        let catalan: String = CATALAN_AS_ITALIAN.nfd().collect();
+        assert_ne!(catalan, CATALAN_AS_ITALIAN);
+        assert_eq!(italic_markers(&catalan), (2, 0));
+        let romanian: String = ROMANIAN_AS_ITALIAN.nfd().collect();
+        assert_eq!(italic_markers(&romanian), (1, 0));
+        // Italian's own decomposed `perché` still counts for Italian.
+        let italian: String = ITALIAN.nfd().collect();
+        assert_ne!(italian, ITALIAN);
+        assert_eq!(italic_markers(&italian), (0, 2));
+        assert!(!italic_neighbour(&italian));
+        // A decomposed word longer than any marker is composed before its length is judged.
+        let long: String = "Più città, più università, più velocità.".nfd().collect();
+        assert_eq!(italic_markers(&long), (0, 0));
+    }
+
+    #[test]
+    fn every_italian_guard_marker_counts_once() {
+        for word in ITALIC_NEIGHBOUR_MARKERS {
+            // An elided article is a word an apostrophe opens, after a space.
+            assert_eq!(italic_markers(&format!("e {word} e")), (1, 0), "{word}");
+        }
+        for word in ITALIAN_MARKERS {
+            assert_eq!(italic_markers(&format!("e {word} e")), (0, 1), "{word}");
+            let capital: String = word.to_uppercase();
+            assert_eq!(italic_markers(&capital), (0, 1), "{word}");
+        }
+    }
+
+    #[test]
+    fn the_italian_tables_are_sorted_disjoint_and_short() {
+        assert_eq!(ITALIC_NEIGHBOUR_MARKERS.len(), 167);
+        assert_eq!(ITALIAN_MARKERS.len(), 23);
+        for table in [ITALIC_NEIGHBOUR_MARKERS, ITALIAN_MARKERS] {
+            for pair in table.windows(2) {
+                assert!(pair[0] < pair[1], "{pair:?} must sort");
+            }
+            for word in table {
+                // Looked up as the guard writes them: composed, in lowercase, never longer than
+                // the longest marker, an apostrophe only to open an elided article.
+                assert_eq!(word.nfc().collect::<String>(), *word);
+                assert_eq!(word.to_lowercase(), *word);
+                assert!(
+                    word.trim_start_matches('\'').len() <= LONGEST_MARKER_BYTES,
+                    "{word}"
+                );
+                assert!(!word.trim_start_matches('\'').contains('\''), "{word}");
+            }
+        }
+        for word in ITALIC_NEIGHBOUR_MARKERS {
+            assert!(ITALIAN_MARKERS.binary_search(word).is_err(), "{word}");
+        }
+        // Left out as Italian words, in any register or region (D3), as the measurement's own
+        // reading of the corpora (`u`), or for the recall gate (`iddu`, `lu`, `chì`, `el`, `'e`).
+        for word in [
+            "per", "però", "sempre", "molt", "tot", "hai", "polo", "pero", "o", "pola", "li",
+            "avi", "unni", "pe", "sto", "anca", "par", "so", "sa", "pro", "est", "qui", "ad",
+            "esse", "cos", "pi", "ma", "sul", "qual", "sia", "lor", "quand", "entrò", "ambe",
+            "care", "dar", "fi", "din", "u", "iddu", "lu", "chì", "el", "'e", "e", "a", "in",
+            "non", "no", "del", "al", "su", "la", "di", "che", "da", "si",
+        ] {
+            assert!(
+                ITALIC_NEIGHBOUR_MARKERS.binary_search(&word).is_err(),
+                "{word}"
+            );
+        }
+        // Left out as the neighbours' words (D3), and as measured (`dal`, `essere`, `hanno`,
+        // `quella`, `questi`).
+        for word in [
+            "del", "il", "la", "i", "sempre", "ci", "vi", "lo", "è", "sul", "una", "miei", "che",
+            "dal", "essere", "hanno", "quella", "questi",
+        ] {
+            assert!(ITALIAN_MARKERS.binary_search(&word).is_err(), "{word}");
+        }
+    }
+
+    #[test]
+    fn the_italian_guard_reads_words_as_its_doc_says() {
+        let words = |text: &str| {
+            let mut words = Vec::new();
+            guard_words_opened(text, |w, opened| words.push((w.to_owned(), opened)));
+            words
+        };
+        let read = |pairs: &[(&str, bool)]| -> Vec<(String, bool)> {
+            pairs.iter().map(|&(w, o)| (w.to_owned(), o)).collect()
+        };
+        assert_eq!(
+            words("'o mare, l'uomo, \u{2019}a casa, dell''o, ('nu) 'O"),
+            read(&[
+                ("o", true),
+                ("mare", false),
+                ("l", false),
+                ("uomo", false),
+                ("a", true),
+                ("casa", false),
+                ("dell", false),
+                ("o", true),
+                ("nu", true),
+                ("O", true),
+            ])
+        );
+        // An apostrophe after a mark or a digit opens nothing (`1` is no word); U+2018 neither.
+        assert_eq!(
+            words("e\u{301}'a 1'a \u{2018}a"),
+            read(&[
+                ("e\u{301}", false),
+                ("a", false),
+                ("a", false),
+                ("a", false)
+            ])
+        );
+        // The words are guard_words's, joiners and digits included.
+        assert_eq!(
+            words("co-fondatore 2a 'na"),
+            read(&[("co-fondatore", false), ("na", true)])
+        );
+    }
+
+    /// Detection as it was before Italian's guard: [`detect`] with the Italian arm unguarded.
+    fn detect_before_italian(
+        trimmed: &str,
+        languages: &[StudiedLanguage],
+    ) -> Option<StudiedLanguage> {
+        let detected = whichlang::detect_language(trimmed);
+        let language = languages
+            .iter()
+            .copied()
+            .find(|language| language.whichlang_target() == detected)?;
+        let neighbour = match language {
+            StudiedLanguage::English | StudiedLanguage::Italian => false,
+            StudiedLanguage::Spanish => iberian_neighbour(trimmed),
+            StudiedLanguage::French => romance_neighbour(trimmed),
+        };
+        (!neighbour).then_some(language)
+    }
+
+    #[test]
+    fn spec_scenario_the_italian_guard_leaves_english_spanish_and_french_alone() {
+        // `detect` answers English, Spanish and French as before, for any candidates in any order;
+        // Italian differs only where its guard refuses the block.
+        let blocks = [
+            ENGLISH,
+            SPANISH,
+            SPANISH_PROSE,
+            CATALAN,
+            GALICIAN,
+            FRENCH,
+            CATALAN_AS_FRENCH,
+            OCCITAN_AS_FRENCH,
+            ROMANIAN_AS_FRENCH,
+            ITALIAN,
+            CATALAN_AS_ITALIAN,
+            VENETIAN,
+            SICILIAN,
+            NEAPOLITAN,
+            CORSICAN,
+            LATIN_AS_ITALIAN,
+            ROMANIAN_AS_ITALIAN,
+            ITALIAN_NAMING_PLACES,
+        ];
+        let orders: [&[StudiedLanguage]; 10] = [
+            &[EN],
+            &[ES],
+            &[FR],
+            &[IT],
+            &[EN, IT],
+            &[IT, ES],
+            &[FR, IT],
+            &[EN, ES, FR],
+            &[IT, FR, ES, EN],
+            &[EN, ES, FR, IT],
+        ];
+        for block in blocks {
+            for languages in orders {
+                let before = detect_before_italian(block, languages);
+                let now = detect(block, languages);
+                if before == Some(IT) && italic_neighbour(block) {
+                    assert_eq!(now, None, "{block} {languages:?}");
+                } else {
+                    assert_eq!(now, before, "{block} {languages:?}");
+                }
+            }
+        }
+        // English's, Spanish's and French's guards never see a block read as Italian.
+        assert_eq!(detect(CATALAN_AS_ITALIAN, &[EN, ES, FR]), None);
+        assert_eq!(detect(CATALAN_AS_ITALIAN, &[EN, ES, FR, IT]), None);
+        assert_eq!(detect(ITALIAN, &[EN, ES, FR, IT]), Some(IT));
+        assert_eq!(detect(FRENCH, &[IT, FR]), Some(FR));
     }
 
     #[test]
