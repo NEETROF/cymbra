@@ -236,7 +236,12 @@ fn a_backup_below_version_3_names_french_only_as_the_native_language() {
     // French entry would be written in a file that a build reading version 2 reads and cannot
     // parse.
     let mut renamed = 0;
-    for state in [english_state(), spanish_state(), english_native_state()] {
+    for state in [
+        english_state(),
+        with_a_removal(english_state()),
+        spanish_state(),
+        english_native_state(),
+    ] {
         let backup = state.to_backup();
         assert!(state.backup_version() < 3, "{backup}");
         assert_eq!(french_outside_the_native_language(&backup), 0, "{backup}");
@@ -309,6 +314,19 @@ fn an_italian_backup_is_written_as_version_4() {
     assert_eq!(restored, state);
 }
 
+/// `state` with an English card's removal recorded (add-lingua-card-edit D7): the deck's
+/// per-language map of removals, which the rename tests cover beside the others. Kept out of
+/// `english_state`, whose file `backup-v1-english.json` pins as builds wrote it before removals
+/// existed.
+fn with_a_removal(mut state: LinguaState) -> LinguaState {
+    assert!(
+        state
+            .deck
+            .apply_card_removal_lww(EN, "lighthouse", 1_700_000_007)
+    );
+    state
+}
+
 /// Every `"Italian"` of a backup.
 fn italian_names(backup: &str) -> usize {
     backup.matches("\"Italian\"").count()
@@ -326,6 +344,7 @@ fn a_backup_below_version_4_names_italian_nowhere() {
     let mut renamed = 0;
     for state in [
         english_state(),
+        with_a_removal(english_state()),
         spanish_state(),
         english_native_state(),
         french_state(),
@@ -354,7 +373,7 @@ fn a_backup_below_version_4_names_italian_nowhere() {
             }
         }
     }
-    // Statuses, their times, calibrations, declared levels and their times, exposure counters
-    // and cards, in four states, and the studied languages of their profiles.
-    assert!(renamed >= 25, "{renamed} names renamed");
+    // Statuses, their times, calibrations, declared levels and their times, exposure counters,
+    // cards and a card's removal, in five states, and the studied languages of their profiles.
+    assert!(renamed >= 30, "{renamed} names renamed");
 }

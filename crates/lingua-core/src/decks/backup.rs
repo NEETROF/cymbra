@@ -976,9 +976,13 @@ mod tests {
     #[test]
     fn spec_scenario_italian_in_the_records_only() {
         // Under the default profile, English studied with French native, any Italian record
-        // raises the backup to version 4: a card, a status, an exposure counter, a calibration.
+        // raises the backup to version 4: a card, a card's removal, a status, an exposure
+        // counter, a calibration.
         let mut deck = LinguaState::default();
         deck.deck.upsert(IT, uomo());
+        let mut removal = LinguaState::default();
+        assert!(removal.deck.apply_card_removal_lww(IT, "uomo", 1));
+        assert_eq!(removal.deck.len(), 0, "a removal alone, no card");
         let mut statuses = LinguaState::default();
         statuses.knowledge.set_status(IT, "uomo", Status::Learning);
         let mut exposure = LinguaState::default();
@@ -990,7 +994,7 @@ mod tests {
         french.knowledge.set_status(FR, "homme", Status::Learning);
         assert_eq!(french.backup_version(), 3);
         french.deck.upsert(IT, uomo());
-        for state in [deck, statuses, exposure, calibration, french] {
+        for state in [deck, removal, statuses, exposure, calibration, french] {
             assert_eq!(state.backup_version(), 4);
             let backup = state.to_backup();
             assert!(backup.starts_with("{\n  \"schema_version\": 4,"));

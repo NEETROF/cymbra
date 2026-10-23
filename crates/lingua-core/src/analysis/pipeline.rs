@@ -236,8 +236,9 @@ fn written(text: &str, token: &Token) -> Written {
 /// [`headword_reading`], `engine::gloss_phrase` and `engine::word_grammar` — read
 /// their own text through it, so the four read a word alike.
 ///
-/// Every answer is no for a text read as English or Spanish, without reading it:
-/// their analyses do not move.
+/// Every answer is no for a text read as English, Spanish or Italian, without reading
+/// it: their analyses do not move, and Italian's is the baseline
+/// (add-lingua-italian-baseline D2).
 pub(crate) fn alone_in_capitals(
     text: &str,
     tokens: &[Token],

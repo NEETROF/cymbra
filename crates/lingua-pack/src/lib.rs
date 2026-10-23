@@ -996,8 +996,13 @@ fn build_sections(inputs: &PackInputs) -> Result<Built, BuildError> {
     // entries the lexicon cannot reach — stays byte-for-byte what it was.
     // French and Spanish are keyed through their reading and named by their
     // headwords (add-lingua-french-expression-keys, add-lingua-spanish-expression-keys);
-    // English at its spaces, with no names.
-    let read = matches!(studied, StudiedLanguage::French | StudiedLanguage::Spanish);
+    // English at its spaces, with no names; Italian, while the baseline serves it,
+    // through the baseline's reading, its lemmas, with no names
+    // (add-lingua-italian-baseline D2).
+    let read = match studied {
+        StudiedLanguage::French | StudiedLanguage::Spanish => true,
+        StudiedLanguage::English | StudiedLanguage::Italian => false,
+    };
     let mut keyed: Vec<(String, &str, &str, usize)> = inputs
         .expressions
         .iter()
@@ -1034,11 +1039,17 @@ fn build_sections(inputs: &PackInputs) -> Result<Built, BuildError> {
     // does not read `expr.others` answers every key as before. `ça va` and `ça ira` both read
     // `ça aller`, `hacer tiempo` and `hace tiempo` both `hacer tiempo`: the key answers its
     // winner, and the other is kept beside it. English keeps the first alone, byte for byte.
+    // Italian keeps the first alone, as English does, while the baseline serves it
+    // (add-lingua-italian-baseline D2).
+    let keeps_every_headword = match studied {
+        StudiedLanguage::French | StudiedLanguage::Spanish => true,
+        StudiedLanguage::English | StudiedLanguage::Italian => false,
+    };
     let mut others: Vec<(u32, &str, &str)> = Vec::new();
     let mut firsts: Vec<(String, &str, &str, usize)> = Vec::with_capacity(keyed.len());
     for entry in keyed {
         if firsts.last().is_some_and(|first| first.0 == entry.0) {
-            if matches!(studied, StudiedLanguage::French | StudiedLanguage::Spanish) {
+            if keeps_every_headword {
                 others.push(((firsts.len() - 1) as u32, entry.1, entry.2));
             }
         } else {

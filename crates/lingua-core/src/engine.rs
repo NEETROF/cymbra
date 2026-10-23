@@ -494,7 +494,7 @@ pub fn expression_piece(surface: &str, lemma: &str, studied: StudiedLanguage) ->
 /// ([`FRENCH_EXPRESSION_WINDOW`], [`SPANISH_EXPRESSION_WINDOW`]), every word of it
 /// giving one, and every token's dictionary form is a lemma of the lexicon: a key
 /// no reading of a page can produce would sit in the pack unreachable. The one
-/// implementation the pack builder keys a French or Spanish pack with and review
+/// implementation the pack builder keys a French, Spanish or Italian pack with and review
 /// finds such an expression card's gloss through, so the two cannot drift; it
 /// asks the lexicon whether a dictionary form is a lemma, never which lemma a form
 /// files under.
@@ -754,12 +754,14 @@ impl<'a> ExpressionScan<'a> {
         self.studied == StudiedLanguage::French
     }
 
-    /// French and Spanish, whose matches never end inside a written word.
+    /// French and Spanish, whose matches never end inside a written word. English's split
+    /// words stay as they were, and Italian splits none while the baseline serves it
+    /// (add-lingua-italian-baseline D2).
     fn whole_words(&self) -> bool {
-        matches!(
-            self.studied,
-            StudiedLanguage::Spanish | StudiedLanguage::French
-        )
+        match self.studied {
+            StudiedLanguage::Spanish | StudiedLanguage::French => true,
+            StudiedLanguage::English | StudiedLanguage::Italian => false,
+        }
     }
 
     /// The run of `len` tokens from `start` as an expression — its name (the pack's,

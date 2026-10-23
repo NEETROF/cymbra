@@ -27,13 +27,15 @@
 //!   Italy since 1944 (the 70-year term), and was published before 1929, so it is in the public
 //!   domain in the United States;
 //! - the first block of the `nomi` page: the first lines of Carlo Collodi, *Le avventure di
-//!   Pinocchio* (Felice Paggi, Florence, 1883), « — C’era una volta.... — Un re! — diranno subito
-//!   i miei piccoli lettori. — No, ragazzi, avete sbagliato. C’era una volta un pezzo di legno. »,
-//!   its three lines of dialogue joined in one block, its four dots as printed. Collodi died in
-//!   1890, so the work has been in the public domain in Italy since 1961, and was published before
-//!   1929, so it is in the public domain in the United States.
+//!   Pinocchio* (first published by Felice Paggi, Florence, 1883), « — C’era una volta.... — Un
+//!   re! — diranno subito i miei piccoli lettori. — No, ragazzi, avete sbagliato. C’era una volta
+//!   un pezzo di legno. », its three lines of dialogue joined in one block, its four dots as the
+//!   transcription prints them. Collodi died in 1890, so the work has been in the public domain in
+//!   Italy since 1961, and was published before 1929, so it is in the public domain in the United
+//!   States.
 //!
-//! Both were checked against the proofread transcriptions of it.wikisource.org on 2026-10-23.
+//! Checked on 2026-10-23: the Manzoni against it.wikisource's proofread transcription of the 1840
+//! edition, the Collodi against its transcription of the Bemporad edition.
 //!
 //! The `narrativa` and `manzoni` pages are set as Italian is printed: the typographic apostrophe
 //! `’`, « » without spaces, the dialogue dash, `È` with its accent. The other pages are typed as

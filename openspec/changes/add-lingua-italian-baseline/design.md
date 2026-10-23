@@ -222,8 +222,10 @@ new one.
   each — « Quel ramo … in nuovi seni. » and « La costiera … di forma più comune. » —, in the edition's
   spellings (`talchè`, `purchè`) and with its typographic apostrophe, checked against it.wikisource.org's
   proofread transcription. Task 5.1 leaves the owner the choice of a longer excerpt.
-- **The Collodi block (D5).** Its three lines of dialogue are one block, the four dots of the 1883
-  edition kept as printed (« — C’era una volta.... »), where the table above writes an ellipsis.
+- **The Collodi block (D5).** Its three lines of dialogue are one block, the four dots kept as
+  printed (« — C’era una volta.... »), where the table above writes an ellipsis. The work was first
+  published by Paggi in 1883; the text was checked against it.wikisource's transcription of the
+  Bemporad edition.
 - **The fixture's function words (D5).** As the French fixture files `la` and `les` under `le`, the
   it-fr fixture files the articles `lo`, `la`, `i`, `gli`, `le` under `il` and `un`, `una` under
   `uno`; so it lists the single letter `i` beside `a`, `e`, `è` and `o`. It lists no articulated

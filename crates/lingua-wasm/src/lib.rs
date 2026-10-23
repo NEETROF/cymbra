@@ -142,7 +142,7 @@ fn fresh_state(packs: &PackSet) -> LinguaState {
 ///
 /// An Italian expression card is read at its lemma, as an English one is, while the baseline
 /// serves Italian (add-lingua-italian-baseline D2): its key is its words' lemmas, and its pack
-/// names no expression.
+/// carries no expression names.
 fn readable_gloss(pack: Option<&Pack>, card: &Card) -> Option<String> {
     pack.and_then(|pack| pack_gloss(pack, &card.lemma))
         .or_else(|| card.gloss.clone())
