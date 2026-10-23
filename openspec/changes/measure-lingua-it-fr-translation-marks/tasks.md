@@ -11,7 +11,7 @@ Implemented once change 2 is: it-en in the catalogue, it-fr routed, and the mode
 
 - [x] 2.1 [manual] `tool/soak_engine.mjs --pair it-en` and `--pair it-fr` over the 100 Italian selections, each `--isolate` and in one instance (D2); recorded in `TRANSLATION.md`, replacing change 2's « the it-en soak is row 19's » there and in `tool/marks/README.md`.
 - [x] 2.2 The criteria gain the Italian examples of D3, committed before the run; `measure.mjs` over the Italian selections through it-fr's route; `results-it-fr.jsonl` committed.
-- [ ] 2.3 [manual] One judge judges every shown mark against the French rendering; `judged-it-fr.tsv` committed; the figures computed by `tier.mjs` and recorded in `tool/marks/README.md` and the programme's row 19.
+- [x] 2.3 [manual] One judge judges every shown mark against the French rendering; `judged-it-fr.tsv` committed; the figures computed by `tier.mjs` and recorded in `tool/marks/README.md` and the programme's row 19.
 
 ## 3. The list
 
@@ -24,4 +24,4 @@ Implemented once change 2 is: it-en in the catalogue, it-fr routed, and the mode
 ## 5. Gates
 
 - [x] 5.1 The six measured pairs' results and judgments are byte for byte; in `apps/lingua-extension`: `yarn lint`, `yarn format:check`, `yarn typecheck`, `yarn test`, `yarn build`, `yarn check:variants`.
-- [ ] 5.2 `openspec validate measure-lingua-it-fr-translation-marks --strict` passes; `python3 scripts/openspec_archive_order.py measure-lingua-it-fr-translation-marks` names its prerequisites; `docs/lingua/italian-programme.md` row 19's status names this change's pull requests.
+- [x] 5.2 `openspec validate measure-lingua-it-fr-translation-marks --strict` passes; `python3 scripts/openspec_archive_order.py measure-lingua-it-fr-translation-marks` names its prerequisites; `docs/lingua/italian-programme.md` row 19's status names this change's pull requests.
