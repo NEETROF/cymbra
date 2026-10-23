@@ -314,3 +314,34 @@ fn spec_scenario_a_dialect_s_table() {
         Card::reading(&["VERB|Mood=Ind|Number=Sing|Person=3|Tense=Past|VerbForm=Fin"])
     );
 }
+
+#[test]
+fn spec_scenario_a_link_the_dictionary_marks_names_no_other_word() {
+    // `sono` names no *suonare* (a poetic Latinism), `anno` no *avere* (« misspelling of hanno »),
+    // `dire` no *diro* (a literary adjective), and `colli` no *colla* through `colle`, a plural.
+    assert_eq!(
+        Card::of("sono", "essere"),
+        Card::reading(&[
+            "VERB|Mood=Ind|Number=Plur|Person=3|Tense=Pres|VerbForm=Fin",
+            "VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin"
+        ])
+    );
+    assert_eq!(
+        Card::of("anno", "anno"),
+        Card::reading(&["NOUN|Gender=Masc|Number=Sing"])
+    );
+    assert_eq!(
+        Card::of("dire", "dire"),
+        Card::reading(&["NOUN|Gender=Masc|Number=Sing", "VERB|VerbForm=Inf"])
+    );
+    assert_eq!(
+        Card::of("colli", "collo"),
+        Card::reading(&["NOUN|Gender=Masc|Number=Plur"])
+            .naming("colle", &["NOUN|Gender=Masc|Number=Plur"])
+    );
+    // A superlative the head names reads its masculine singular.
+    assert_eq!(
+        Card::of("bellissimo", "bello"),
+        Card::reading(&["ADJ|Degree=Sup|Gender=Masc|Number=Sing"])
+    );
+}

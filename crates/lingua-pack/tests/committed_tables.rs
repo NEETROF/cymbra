@@ -2936,15 +2936,23 @@ fn spec_scenario_every_word_italian_s_pre_pass_writes_is_a_form() {
 #[test]
 fn spec_scenario_italian_s_pin_is_the_readings_tags() {
     // add-lingua-italian-grammar-tables D8: every tag of tables/it/grammar.tsv is a line of
-    // tables/it/tags.tsv, every line a tag of the readings written in canonical form, each once, in
-    // byte order — the first reduction's, 83 tags (D2).
+    // tables/it/tags.tsv, every line a tag of the readings written in canonical form, each once: the
+    // first reduction's 83 tags in byte order, then any a later reduction adds, appended after them
+    // in the order they came — never sorted in, which would move a pinned tag's index.
+    const FIRST_REDUCTION: usize = 83;
     let it = tables().join("it");
     let pin = std::fs::read_to_string(it.join("tags.tsv")).unwrap();
     let grammar = std::fs::read_to_string(it.join("grammar.tsv")).unwrap();
     pin_against_readings(&pin, &grammar).unwrap_or_else(|e| panic!("it/{e}"));
     let lines: Vec<&str> = pin.lines().collect();
-    assert_eq!(lines.len(), 83);
-    assert!(lines.is_sorted(), "it/tags.tsv is not in byte order");
+    assert!(
+        lines.len() >= FIRST_REDUCTION,
+        "it/tags.tsv lost pinned tags"
+    );
+    assert!(
+        lines[..FIRST_REDUCTION].is_sorted(),
+        "it/tags.tsv's first reduction is not in byte order"
+    );
     // The change-9 placeholder is gone: no reading carries a bare `NOUN`.
     assert!(!lines.contains(&"NOUN"));
     // A pin that misses a reading's tag, or keeps one no reading carries, fails by name.
