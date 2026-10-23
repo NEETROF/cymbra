@@ -29,8 +29,9 @@ See proposal.md — Why. What constrains the shape:
   Italian-PUD (1,000 sentences, news and Wikipedia, CC BY-SA 3.0) and MarkIT (≈ 1,300 sentences,
   students' essays of marked constructions, CC BY 4.0, lemmas automatic with corrections) are the
   clean ones. French read GSD's 16,000 sentences for its counts.
-- Morph-it! 0.4.7 (dual CC BY-SA 2.0 / LGPL; 504,906 entries, 34,968 lemmas, with features), built
-  from the la Repubblica corpus: its authors note gaps in everyday vocabulary.
+- Morph-it! (dual CC BY-SA 2.0 / LGPL; 504,906 entries, 34,968 lemmas at 0.4.7, with features), built
+  from the la Repubblica corpus: its authors note gaps in everyday vocabulary. The archive its site
+  serves holds 0.4.8 (2009, 505,074 lines) — measured at implementation, below.
 - Change 6's pre-pass writes the elided pieces' words, keeps the `di` family whole, splits the other
   articulated prepositions, reads the truncations; change 7's enclitic rule reads a verb's
   clitics off an unlisted form and needs the verb's infinitive, gerund and imperatives listed;
@@ -73,8 +74,8 @@ development sections read for their counts and parts of speech (as French read G
 test section held out; UD Italian-PUD is no pinned source — every `PINNED` entry is fetched into
 the reduction's work folder and named by `pin.json`, which French's held-out test forbids for the
 gate —, so `measure/it-ud.sh` pins its commit and sha256, as `es-pud.sh` and `fr-ud.sh` do, and
-reads it alone (D8); wordfreq 3.1.1's `it`; Morph-it! 0.4.7 at its sha256, a `PINNED["it-fr"]` entry
-whose URL is a one-off release the owner uploads (`lingua-pack-sources-morph-it-0.4.7`), since its
+reads it alone (D8); wordfreq 3.1.1's `it`; Morph-it! 0.4.8 at its sha256, a `PINNED["it-fr"]` entry
+whose URL is a one-off release the owner uploads (`lingua-pack-sources-morph-it-0.4.8`), since its
 site offers no stable address and the snapshot release publishes the kaikki-derived files alone
 (`pack_sources.assets`); it is read under its CC BY-SA 2.0 option, which the 4.0 stack of
 `SOURCES.md` admits.
@@ -92,7 +93,8 @@ abbreviated, and a row naming a derived word — the `diminutive` (492), `augmen
 `pejorative` (140), `derogatory` (47) and `endearing` (12) rows of a noun (`casa` → `casétta`,
 `casàccia`), the same rows of an adjective (≈ 80) and an adjective's `adverb` row (67: `vero` →
 `veramente`), which name other words, read from their own entry where the section has one — 491 of the 1,006 rows
-have one, the other 515 (`abatone`, `camerona`) are simply no form), from the `form_of` targets of the form's own entry, never from a gender or number
+have one, the other 515 (`abatone`, `camerona`) are simply no form; *as implemented*, a noun's relational
+adjective and a name's demonym too, and the own entry's « diminutive of » sense a meaning, not a link), from the `form_of` targets of the form's own entry, never from a gender or number
 marker, and from a form of a form along one part of speech (`creduta` → `creduto` → *credere*; `parlata`,
 the participle and a noun, *parlance*, goes by D5, whose own-entry rule keeps the noun; `vite`,
 both the vine and *vita*'s plural, by the first choice of D5). Then **Morph-it!**, when the
@@ -173,7 +175,9 @@ about a thousand sentences, against GSD's 16,000): measured,
 how many forms the counts decide, the own entry, the frequency; the cost M8 accepts — a
 dictionary noun whose own form a verb takes (`porta`, `legge`, `sale`, `pesca`) — counted among
 wordfreq's 1,000, 2,000 and 5,000 commonest words and compared with Spanish's 30 / 48 / 95 and
-French's 30 / 55 / 135.
+French's 30 / 55 / 135. *As implemented* (*Measured at implementation*): a form whose own entries are
+names alone reads as the other word; the comparison above decides a form with a common reading of its
+own beside the name.
 
 ### D6 — Lemmas and ranks: 60,000 by wordfreq, elision stems out, compounds by evidence
 
@@ -188,7 +192,9 @@ apocopated forms written without an apostrophe (`buon`, `nessun`, `qualcun`, `ci
 `buon uomo`) are words, ranked or read as forms of *uno*, *buono*, … by the dictionary's links; a
 hyphenated word is ranked when MarkIT's training or development section attests it, at the lower
 of wordfreq's estimate and the treebank's frequency. `build.sh` keeps 60,000 lemmas for an
-Italian pair, as for Spanish and French.
+Italian pair, as for Spanish and French. *As implemented*: every piece's stem is no word, the longer
+pieces' too (`quest`, `com`), wordfreq counting them, but the apocopes written without an apostrophe;
+no verb form or infinitive carrying clitics is ranked.
 
 ### D7 — The cut, measured
 
@@ -223,12 +229,111 @@ it-fr in `pair` and an `it` group; the monthly check and the reduce job take it 
 its pin, as the six. The Italian baseline keeps its fixture and its golden: a pack of forms and
 ranks alone would blind its gloss, expression and level probes, as French's forms change kept its
 fixture (its D11); change 16 moves `PackSource` to `Tables` and re-blesses once, as change 5's D6
-says and change 48 did for French.
+says and change 48 did for French. *As implemented*: no folder of it-fr's is committed before its
+first update, which the pipeline reads from `tables/it/studied.json`, and the builder splits a pair
+glossing nothing with an empty `lexical.tsv` (*Measured at implementation*).
 
 ### D10 — What moves, and what cannot
 
 No golden moves: the Italian baseline keeps its fixture (D9); the six pairs' tables, pins and
 goldens do not move; no package carries it-fr.
+
+## Measured at implementation
+
+Criteria written before any figure was read on UD Italian-PUD or MarkIT's test section: the gate is
+PUD's three figures at 98.5 / 93.5 / 97; no rule is added, removed or tuned on a figure of either; a
+departure from this design is decided on the dictionary's own content and recorded here; Morph-it! is
+recommended to stay when it adds forms and none of PUD's figures falls with it.
+
+**Material.** kaikki.org's own extract of the Italian section (2026-10-21, 770,859,636 B, the 623,702
+entries the dump-derived file holds, laid out differently — the update reduces the derived file of
+its day), MarkIT's training and development sections at `e210079d`, Morph-it!'s archive as its site
+serves it, wordfreq 3.1.1; the pack built from the reduced tables with the builder `build.sh` runs
+(`lingua-pack-build --studied`, and `--split` for the parts), measured by `measure/it-ud.sh` with
+`LINGUA_IT_PACK`, Italian's analyser at `1.0.0` (change 7's cascade). Two runs of the reducer over the
+same inputs write the same bytes.
+
+**The gate (D8) — not met on the local reduction.**
+
+| | Words | Resolved (98.5) | Content (93.5) | AUX (97) |
+|---|---|---|---|---|
+| PUD, the Wiktionary alone | 19,155 | 99.22 % | 91.50 % of 8,909 | 95.94 % of 985 |
+| PUD, with Morph-it! | 19,155 | **99.25 %** | **91.58 %** | **95.94 %** |
+| MarkIT test, with Morph-it! (reported) | 8,985 | 99.43 % | 94.92 % of 4,113 | 97.36 % of 530 |
+
+Read from the lookup's own misses (the cascade's first step; it reproduces the binary's figures): 39
+of the 40 auxiliaries missed are `stato` and `stati`, which MarkIT's counts (29 nouns, 9 *essere*, 7
+*stare*) and the section's own entry read as the noun *stato* — M8's cost, on the commonest auxiliary
+participle; of the 750 content words missed, about 590 are one lemma per form and the treebank's
+conventions — a participle the treebank reads as its verb where the section's adjective or noun entry
+keeps it (`fatto`, `utilizzato`, `deciso`), `prima` as *primo*, a noun a verb's form takes
+(`successo`, `legge`) —, 77 adverbs in *-mente* the treebank lemmatises as their adjective
+(`completamente` → *completo*), which D3 keeps as words of their own, 31 feminine nouns it lemmatises
+as the masculine (`ragazza` → *ragazzo*), and 51 words the tables do not list, most of them the
+truncated infinitives UD splits off a verb and its clitics (`verificar`, `riunir`). The thin counts the
+risks name decide 1,192 forms; the own entry 5,593. The prototype change 7 measured on read 98.49 /
+90.56 / 93.81 on PUD.
+
+**D5.** Of the 14,969 forms of the tables that reach several lemmas, 1,192 are decided by MarkIT's
+counts, 5,593 by the form's own entry, 8,145 by the lemma's frequency, 39 alphabetically, none by an
+override. M8's cost, counted as French's README counts it — dictionary nouns whose own form reads as a
+verb and which are no ranked lemma —: **28 / 43 / 66** among wordfreq's 1,000 / 2,000 / 5,000
+commonest words (Spanish 30 / 48 / 95, French 30 / 55 / 135): `porta` → *portare*, `sono` → *essere*,
+`era`, `detto`, `visto`, `successo`, `scritto`, `letto`, `prova`, `nota` among them.
+
+**D7.** 60,000 lemmas, the last (`toefl`) at Zipf 2.07; 127,653 forms from the Wiktionary and 128,464
+with Morph-it! (French: 124,040), `forms.tsv` 2,392,676 B, `freq.tsv` 862,942 B; the pack 1,286,958 B
+(24.5 % of the budget), its base 1,285,775 B and its layer 1,408 B. 98.36 % of PUD's measured words
+have a ranked gold lemma (97.16 % of its content words), 97.99 % of MarkIT test's (98.30 %).
+
+**Morph-it!** (D3) adds 811 forms under 640 ranked lemmas — truncated infinitives (`aumentar`,
+`scavar`), truncated third persons plural (`danzan`, `dovevan`), past historic variants (`battè`),
+superlatives (`coraggiosissimo`), `trent'` —, moves no reading and no rank, and moves PUD by +0.03 /
++0.08 / 0 points (MarkIT test +0.08 / +0.17 / 0): it adds without moving a gate down, so it is
+recommended to stay; the owner settles (task 5.1).
+
+**Departures from the design, decided on the dictionary's content before PUD was read.**
+- *The names rule (D5).* Read literally — a form with a name's entry keeps itself when its wordfreq
+  frequency beats every other word's lemma, as French's and Spanish's rule —, it keeps 780 names
+  alone against a word, 371 of them among wordfreq's 60,000 commonest words: plural surnames and given
+  names spelled as participles (`bambini`, `cittadini`, `soldati`, `compagni`, `parenti`, `firmato`,
+  `annunciato`, `carabinieri`), since wordfreq counts the string, which is the word's inflection too.
+  Italian's rule: a form whose own entries are names alone reads as the other word (a page writes the
+  name with its capital, which change 7's names rule sets aside); a form with a common reading of its
+  own beside the name keeps the design's comparison (`bianca` → *bianco*, `chiara` → *chiaro*), and
+  `roma` stays the city. 1,704 names read as another word, 450 forms keep their own reading, 119 go to
+  the commoner word. Measured afterwards for the record, the literal rule reads PUD 99.25 / 91.21 /
+  95.94. The cost: a given name or a place spelled like a rare word's form reads as that word at a
+  sentence's start (`luca`, `argentina`, `toscana`).
+- *Derived words (D3).* A noun's relational adjective (`mare` → `marittimo`, 36 rows), a name's
+  demonym (`Bergamo` → `bergamasco`, 53) and a plural noun's `plural-of` row (4) name other words, as
+  the diminutive rows do: no forms. A sense naming its entry a derived word (« diminutive of casa »,
+  436 nouns; augmentative 116) is a meaning, not a form link: `casetta`, `minestrone` are lemmas of
+  their own, read from their own entry as D3 says.
+- *The stems (D6).* wordfreq counts the longer pieces' stems too (`quest` 4.05, `com` 4.37, `cos`
+  3.91, `quell` 3.66, `bell` 3.86, `grand` 4.06, `all`, `dell`): every piece's stem is no word, as the
+  spec's sentence and French's rule say, but the apocopes written without an apostrophe (`un`,
+  `buon`, `nessun`, `alcun`, `ciascun`, `qualcun`).
+- *The pieces (D4).* Each piece and truncation is a form of its word's lemma: `un'` → *uno* (`una` is
+  *uno*'s form), `va'` → *andare*, `da'` → *dare*.
+- *Clitics (D4).* A clitic compound's entries (« compound of the infinitive dire with me and lo », 33,342 entries) are no
+  entry of the tables, and a compound word's verb, adverb and interjection entries read the compound
+  (`vattene` « go away! »); a word spelled like one with a noun or adjective entry of its own stands
+  (`fallo`), and a compound that is another word's inflection stays its form (`fatti`, *fatto*'s
+  plural). A verb whose infinitive carries a clitic other than the reflexive one (`andarsene`,
+  `esserci`, `farcela`) is no lemma and its rows give no form. None of them is ranked. A verb's table
+  row naming its auxiliary (`avére`, `èssere`) is bookkeeping.
+- *Morph-it!'s version (D2).* The canonical archive holds 0.4.8, not 0.4.7: pinned as served
+  (sha256 `b137343d…`), read without extraction, its lexicon in Latin-1.
+- *An empty `lexical.tsv` (D9).* Change 3's split refused a studied language whose dictionary words
+  are the pair's glossed lemmas, so that the base never takes a layer's glosses for them; with no gloss
+  and no dictionary word, neither part names one, and the builder no longer refuses that case.
+- *The first update (D9).* No folder of it-fr's is committed before its update: `pack_sources.py
+  pairs --after it-fr` names it from `tables/it/studied.json`, the update's Reduce step reports it
+  against an empty folder, and the committed-tables check accepts a studied folder holding its record
+  and its pool alone while no folder of its reference exists.
+- `perche` reads as nothing (the plural of *perca*, which is not ranked) and `citta` (Tuscan, *citto*'s
+  feminine) is ranked as itself: change 10's exception rows read them as *perché* and *città*.
 
 ## Risks / Trade-offs
 

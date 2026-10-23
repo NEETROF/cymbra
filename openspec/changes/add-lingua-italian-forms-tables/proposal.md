@@ -69,7 +69,8 @@ without moving the gates.
   lingua-core), `pin.json` and `README.md`.
 - **Pinned sources.** `kaikki-Italian.jsonl`, derived from the English edition's dump and published
   under it-fr's release; MarkIT at a commit (`PINNED`), its training and development sections read
-  for their counts; Morph-it! 0.4.7 at its sha256, at a one-off release the owner uploads;
+  for their counts; Morph-it! 0.4.8 — the version the archive its site serves holds — at its sha256,
+  at a one-off release the owner uploads;
   wordfreq 3.1.1. UD Italian-PUD is no pinned source: the measurement script pins its commit and
   sha256, as French's does, so the pin never names it.
 - **A measurement** (`scripts/lingua-data/measure/it-ud.sh`): the real analyser over UD
