@@ -24,18 +24,25 @@
 //! written by the build before that change. A backup naming French is written as version 3,
 //! `fixtures/backup-v3-french.json`, which `decks/backup.rs` holds a build reading version 2 to
 //! refuse as unsupported.
+//!
+//! The four files are byte for byte what the build before schema version 4 wrote
+//! (add-lingua-italian-baseline D7). A backup naming Italian is written as version 4,
+//! `fixtures/backup-v4-italian.json`, which `decks/backup.rs` holds a build reading version 3 to
+//! refuse as unsupported.
 
 use lingua_core::analysis::language::StudiedLanguage;
-use lingua_core::decks::{Card, EncounterSource, LinguaState, Provenance};
+use lingua_core::decks::{Card, EncounterSource, LinguaState, Provenance, RestoreError};
 use lingua_core::knowledge::{CefrLevel, KnownSource, NativeLanguage, Status};
 
 const EN: StudiedLanguage = StudiedLanguage::English;
 const ES: StudiedLanguage = StudiedLanguage::Spanish;
 const FR: StudiedLanguage = StudiedLanguage::French;
+const IT: StudiedLanguage = StudiedLanguage::Italian;
 const FIXTURE: &str = "tests/fixtures/backup-v1-english.json";
 const SPANISH_FIXTURE: &str = "tests/fixtures/backup-v2-spanish.json";
 const ENGLISH_NATIVE_FIXTURE: &str = "tests/fixtures/backup-v2-english-native.json";
 const FRENCH_FIXTURE: &str = "tests/fixtures/backup-v3-french.json";
+const ITALIAN_FIXTURE: &str = "tests/fixtures/backup-v4-italian.json";
 
 /// An English reader with a record in every per-language map: statuses and their times, a
 /// calibration, a declared level and its time, an exposure counter and a card.
@@ -253,4 +260,101 @@ fn a_backup_below_version_3_names_french_only_as_the_native_language() {
     // Statuses, their times, calibrations, declared levels and their times, exposure counters
     // and cards, in three states, and the profiles.
     assert!(renamed >= 20, "{renamed} names renamed");
+}
+
+/// A French-native reader of Italian then English, as an engine started on en-fr with the Italian
+/// baseline's it-fr fixture added writes them (add-lingua-italian-baseline D7): the English
+/// records, and an Italian status, exposure counter and card glossed in French.
+fn italian_state() -> LinguaState {
+    let mut state = english_state();
+    state
+        .profile
+        .set_studied_languages(vec![IT, EN])
+        .expect("Italian then English for a French reader");
+    state
+        .knowledge
+        .set_status_at(IT, "faro", Status::Learning, 1_700_000_000_900);
+    state
+        .exposure
+        .record(IT, "marinaio", 2, "web:example.it", 1_700_000_003);
+    state.deck.upsert(
+        IT,
+        Card::new(
+            "uomo",
+            "l'uomo",
+            Provenance {
+                sentence: "L'uomo guardava il mare.".to_owned(),
+                source: EncounterSource::Web {
+                    url: "https://example.it/mare".to_owned(),
+                },
+                captured_at: 1_700_000_006,
+            },
+            Some("homme".to_owned()),
+            "fr",
+        ),
+    );
+    state
+}
+
+#[test]
+fn an_italian_backup_is_written_as_version_4() {
+    let state = italian_state();
+    assert_eq!(state.backup_version(), 4);
+    let (written, pinned) = pinned(&state, ITALIAN_FIXTURE);
+    assert_eq!(
+        written, pinned,
+        "an Italian backup changed: see {ITALIAN_FIXTURE}"
+    );
+    let restored = LinguaState::from_backup(&pinned).expect("this build reads version 4");
+    assert_eq!(restored, state);
+}
+
+/// Every `"Italian"` of a backup.
+fn italian_names(backup: &str) -> usize {
+    backup.matches("\"Italian\"").count()
+}
+
+#[test]
+fn a_backup_below_version_4_names_italian_nowhere() {
+    // add-lingua-italian-baseline D7, held by the files rather than by the list of maps
+    // `backup_version` reads: every language name of a backup holding a record in each
+    // per-language map, turned into Italian one at a time and restored, is written again in
+    // version 4 — but the native language's, which is refused, Italian being no native language
+    // (D3). A per-language map added to the state but not to the version trigger fails here as
+    // soon as `english_state` holds a record in it: its Italian entry would be written in a file
+    // that a build reading version 3 reads and cannot parse.
+    let mut renamed = 0;
+    for state in [
+        english_state(),
+        spanish_state(),
+        english_native_state(),
+        french_state(),
+    ] {
+        let backup = state.to_backup();
+        assert!(state.backup_version() < 4, "{backup}");
+        assert_eq!(italian_names(&backup), 0, "{backup}");
+        for name in ["\"English\"", "\"Spanish\"", "\"French\""] {
+            for (at, _) in backup.match_indices(name) {
+                let file = format!("{}\"Italian\"{}", &backup[..at], &backup[at + name.len()..]);
+                let native = backup[..at].ends_with("\"native_language\": ");
+                match LinguaState::from_backup(&file) {
+                    Err(RestoreError::Malformed(_)) if native => {}
+                    Ok(restored) if !native => {
+                        let written = restored.to_backup();
+                        assert_eq!(
+                            restored.backup_version(),
+                            4,
+                            "Italian written below version 4:\n{written}"
+                        );
+                        assert!(italian_names(&written) > 0, "{written}");
+                        renamed += 1;
+                    }
+                    other => panic!("{name} at {at}, native: {native}: {other:?}\n{file}"),
+                }
+            }
+        }
+    }
+    // Statuses, their times, calibrations, declared levels and their times, exposure counters
+    // and cards, in four states, and the studied languages of their profiles.
+    assert!(renamed >= 25, "{renamed} names renamed");
 }
