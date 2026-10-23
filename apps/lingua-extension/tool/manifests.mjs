@@ -10,8 +10,9 @@
 // glossed in it ships: an English description shown before an English-glossed pair ships would offer
 // a product that reader cannot use yet. While every shipped pair is French-native, the built
 // manifests are byte for byte what they were — literal French, no `_locales`, no `default_locale`.
-// Pure helpers only: shippedNatives is always given `pairs` here, so this step never reads packs.json.
-import { packFile, shippedNatives } from "./packs.mjs";
+// Pure helpers only: shippedNatives and shippedStudied are always given `pairs` here, so this step
+// never reads packs.json.
+import { baseFile, packFile, shippedNatives, shippedStudied } from "./packs.mjs";
 
 /** The message the description is read from once the manifest is localised (D1). */
 export const DESCRIPTION_MESSAGE = "extensionDescription";
@@ -194,9 +195,12 @@ export function buildManifest({
     throw new Error(`Unknown build target "${target}" — expected one of: ${Object.keys(manifestFor).join(", ")}.`);
   let manifest = build(base);
   manifest.version = version;
-  // Each listed pack is fetched by the engine from whatever context hosts it: expose them all.
+  // Each listed pair's pack is fetched by the engine from whatever context hosts it — its layer
+  // and its language's base (ship-lingua-pack-bases-once D4): expose them all, the bases after the
+  // layers.
+  const parts = [...pairs.map(packFile), ...shippedStudied(pairs).map(baseFile)];
   manifest.web_accessible_resources = manifest.web_accessible_resources.map((entry, i) =>
-    i === 0 ? { ...entry, resources: [...entry.resources, ...pairs.map(packFile)] } : entry,
+    i === 0 ? { ...entry, resources: [...entry.resources, ...parts] } : entry,
   );
   // Chromium's service worker cannot construct a Worker, so an offscreen document owns the
   // engine's — and that needs the permission. The variant that carries the engine asks for it.

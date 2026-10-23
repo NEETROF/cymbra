@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
-# Build the data pack of every pair the extension ships (packs.json, generalise-lingua-pack-build)
-# into <dir>/<pair>.lingua:
-#   yarn gen:pack       → assets/packs/  from the tiny committed testdata
-#                                          (scripts/lingua-data/testdata/<pair>; dogfooding, CI)
-#   yarn gen:pack:real  → assets/packs/  from the committed tables, offline — the pair's
-#                                          scripts/lingua-data/tables/<pair>/ and its studied
-#                                          language's tables/<studied>/ — each checked against its
-#                                          own tables/<pair>/pin.json
-# Both outputs are gitignored. `yarn gen:fixtures` writes the committed vitest fixture
-# (test/fixtures/en-fr.testdata.lingua) with build.sh directly.
+# Build the data packs of every pair the extension ships (packs.json, generalise-lingua-pack-build),
+# as the package carries them (ship-lingua-pack-bases-once D1, D4): each pair's layer into
+# <dir>/packs/<pair>.lingua, and each studied language's base, once, into <dir>/bases/<studied>.lingua:
+#   yarn gen:pack       → assets/  from the tiny committed testdata
+#                                    (scripts/lingua-data/testdata/<pair>; dogfooding, CI)
+#   yarn gen:pack:real  → assets/  from the committed tables, offline — the pair's
+#                                    scripts/lingua-data/tables/<pair>/ and its studied language's
+#                                    tables/<studied>/ — each part checked against its own
+#                                    tables/<pair>/pin.json
+# Every pair of a language builds the same base (split-lingua-pack-format): a language's second
+# pair builds it again, and a base that differs by one byte from the first pair's is refused,
+# naming both pairs, where the files are written. No whole pack is written: the agent plugin's are
+# built with scripts/lingua-data/build.sh <pair> <out>. Both outputs are gitignored.
+# `yarn gen:fixtures` writes the committed vitest fixtures (test/fixtures/) with build.sh directly.
 #
 # Usage: tool/gen_pack.sh [--real] <dir>
 set -euo pipefail
@@ -26,21 +30,52 @@ case "$OUT" in
   /*) OUT_ABS="$OUT" ;;
   *) OUT_ABS="$APP_DIR/$OUT" ;;
 esac
-mkdir -p "$OUT_ABS"
+mkdir -p "$OUT_ABS/packs" "$OUT_ABS/bases"
+# The first pair of each studied language this run built the base of, one file per language.
+SEEN="$(mktemp -d)"
+trap 'rm -rf "$SEEN"' EXIT
 
-for pair in $(node "$SCRIPT_DIR/packs.mjs" pairs); do
+# Listed by a plain assignment, which `set -e` stops on, and refused when empty: a failing or silent
+# `$(…)` in the `for` list would build nothing and leave the run green.
+PAIRS="$(node "$SCRIPT_DIR/packs.mjs" pairs)"
+if [[ -z "$PAIRS" ]]; then
+  echo "error: tool/packs.mjs listed no shipped pair (packs.json)." >&2
+  exit 2
+fi
+
+for pair in $PAIRS; do
+  studied="${pair%%-*}"
+  args=(--parts)
   if [[ "$MODE" == real ]]; then
     if [[ ! -f "$DATA/tables/$pair/pin.json" ]]; then
       echo "error: packs.json ships $pair, but scripts/lingua-data/tables/$pair/ holds no committed tables." >&2
       exit 2
     fi
-    bash "$DATA/build.sh" "$pair" "$OUT_ABS/$pair.lingua"
   else
     if [[ ! -d "$DATA/testdata/$pair" ]]; then
       echo "error: packs.json ships $pair, but scripts/lingua-data/testdata/$pair/ does not exist: add its test sources." >&2
       exit 2
     fi
-    bash "$DATA/build.sh" --testdata "$pair" "$OUT_ABS/$pair.lingua"
+    args=(--testdata --parts)
   fi
-  echo "Built $MODE pack $pair → $OUT/$pair.lingua"
+  layer="$OUT_ABS/packs/$pair.lingua"
+  base="$OUT_ABS/bases/$studied.lingua"
+  if [[ -f "$SEEN/$studied" ]]; then
+    first="$(cat "$SEEN/$studied")"
+    # Built aside, and the layer moved into place only once its base is the first pair's.
+    again="$SEEN/$pair.base.lingua"
+    staged="$SEEN/$pair.layer.lingua"
+    bash "$DATA/build.sh" "${args[@]}" "$pair" "$again" "$staged"
+    if ! cmp -s "$again" "$base"; then
+      echo "error: $pair's base differs from $first's ($OUT/bases/$studied.lingua): every pair of a language ships one base." >&2
+      echo "  $first and $pair build $studied from different studied tables; the package would carry layers of two bases." >&2
+      exit 1
+    fi
+    mv "$staged" "$layer"
+    echo "Built $MODE layer $pair → $OUT/packs/$pair.lingua (its base is $first's, byte for byte)"
+  else
+    bash "$DATA/build.sh" "${args[@]}" "$pair" "$base" "$layer"
+    echo "$pair" >"$SEEN/$studied"
+    echo "Built $MODE base $studied → $OUT/bases/$studied.lingua and layer $pair → $OUT/packs/$pair.lingua"
+  fi
 done

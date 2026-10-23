@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   acceptedLanguages,
+  basePath,
   DEFAULT_LANGUAGE,
   DEFAULT_NATIVE,
   defaultPair,
@@ -17,10 +18,12 @@ import {
 } from "@/analyzer/pairs.ts";
 import type { NativeLanguage, StudiedLanguage } from "@/analyzer/types.ts";
 import {
+  baseFile,
   nativeOf as packNativeOf,
   packFile,
   shippedNatives as packShippedNatives,
   shippedPairs,
+  shippedStudied,
   studiedOf as packStudiedOf,
 } from "../tool/packs.mjs";
 import { makeFakePort } from "./helpers.ts";
@@ -332,6 +335,15 @@ describe("the languages a device accepts from the sync", () => {
 describe("the bundle's packs", () => {
   it("lie where the build puts them", () => {
     for (const pair of FRENCH) expect(packPath(pair)).toBe(packFile(pair));
+  });
+
+  it("are each pair's layer at the pair's path and each studied language's base once (ship-lingua-pack-bases-once D1)", () => {
+    expect(packPath("es-en")).toBe("assets/packs/es-en.lingua");
+    expect(basePath("es")).toBe("assets/bases/es.lingua");
+    for (const studied of shippedStudied(SHIPPED_PAIRS)) expect(basePath(studied)).toBe(baseFile(studied));
+    // One base per studied language the list names, whatever native languages gloss it.
+    expect(shippedStudied(SHIPPED_PAIRS)).toEqual(["en", "es", "fr"]);
+    expect(new Set(SHIPPED_PAIRS.map(studiedOf))).toEqual(new Set(shippedStudied(SHIPPED_PAIRS)));
   });
 
   it("are the pairs packs.json lists", () => {

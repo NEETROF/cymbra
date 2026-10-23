@@ -69,9 +69,22 @@ export function defaultPair(native: string, pairs: readonly string[] = SHIPPED_P
 /** The default pair's studied language: what every reader starts in, before the engine says more. */
 export const DEFAULT_LANGUAGE = studiedOf(defaultPair(DEFAULT_NATIVE) ?? SHIPPED_PAIRS[0]) as StudiedLanguage;
 
-/** Where a pair's pack lives inside the package. */
+/**
+ * Where a pair's layer lives inside the package: the pair's path, where its whole pack lived before
+ * the package carried parts (ship-lingua-pack-bases-once D1). tool/packs.mjs's `packFile` is the
+ * build's reading of it; test/pairs.spec.ts holds the two equal.
+ */
 export function packPath(pair: string): string {
   return `assets/packs/${pair}.lingua`;
+}
+
+/**
+ * Where a studied language's base lives inside the package, once for every pair of that language
+ * (ship-lingua-pack-bases-once D1): `assets/bases/en.lingua`. tool/packs.mjs's `baseFile` is the
+ * build's reading of it.
+ */
+export function basePath(studied: string): string {
+  return `assets/bases/${studied}.lingua`;
 }
 
 /**

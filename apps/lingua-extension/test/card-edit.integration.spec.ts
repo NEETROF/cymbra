@@ -5,15 +5,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WasmAnalyzerPort, type WasmModule } from "@/analyzer/engine.ts";
 import type { CardOp } from "@/analyzer/port.ts";
 import { applyAppOps, appOpsSince } from "@/state/app-relay.ts";
+import { packagedPart } from "./real-wasm.ts";
 
 // A card edited in the Cymbra Lingua app reaches the extension (add-lingua-card-edit task 5.1), on
-// the real engine — the wasm-pack build `yarn gen:wasm` makes, over the committed test pack: the app's
-// session edits the card, `appOpsSince` hands the extension what changed (the renamed card, marked, the
-// old one removed, the statuses it moved), and `applyAppOps` applies it as a pull is applied.
+// the real engine — the wasm-pack build `yarn gen:wasm` makes, over the committed test pack's base
+// and layer (test/real-wasm.ts): the app's session edits the card, `appOpsSince` hands the extension
+// what changed (the renamed card, marked, the old one removed, the statuses it moved), and
+// `applyAppOps` applies it as a pull is applied.
 
 const here = dirname(fileURLToPath(import.meta.url));
 const WASM = readFileSync(join(here, "../src/wasm/pkg/lingua_wasm_bg.wasm"));
-const PACK = readFileSync(join(here, "fixtures/en-fr.testdata.lingua"));
 
 const load = async (): Promise<WasmModule> => {
   const glue = await import("../src/wasm/pkg/lingua_wasm.js");
@@ -32,7 +33,7 @@ beforeEach(() => {
   vi.stubGlobal("chrome", { runtime: { getURL: (path: string) => path } });
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => ({ arrayBuffer: async () => PACK.buffer.slice(PACK.byteOffset, PACK.byteOffset + PACK.length) })),
+    vi.fn(async (url: string) => ({ arrayBuffer: async () => packagedPart(url) })),
   );
 });
 

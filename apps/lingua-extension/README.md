@@ -19,8 +19,8 @@ corepack enable
 yarn install
 yarn gen:wasm     # build the wasm bindings from crates/lingua-wasm  → src/wasm/pkg/ (gitignored)
 yarn gen:proto    # build the gRPC-web/protobuf stubs (auth + sync)  → src/gen/ (gitignored)
-yarn gen:pack     # build the tiny test pack of every shipped pair (packs.json) → assets/packs/<pair>.lingua (gitignored)
-yarn gen:pack:real  # build the real packs from the committed tables, offline   → assets/packs/<pair>.lingua
+yarn gen:pack     # build the tiny test pack of every shipped pair (packs.json) → assets/packs/<pair>.lingua + assets/bases/<studied>.lingua (gitignored)
+yarn gen:pack:real  # build the real packs from the committed tables, offline   → assets/packs/<pair>.lingua + assets/bases/<studied>.lingua
 yarn build        # bundle every browser variant → dist-chromium/, dist-firefox/, dist-safari/, and the app's page → dist-app/
 ```
 
@@ -209,23 +209,33 @@ yarn lint && yarn format:check && yarn typecheck && yarn test
 Packs themselves are **never committed**; what they are built from is. The pairs a package
 ships are one list, `packs.json` (`["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"]`; the first
 pair glossed in a native language gives that native language's default studied language, so French,
-studied by English and Spanish speakers, comes last), and each pair's pack lives
-at `assets/packs/<pair>.lingua`. At run time an engine starts
-with the default pair's pack, and adds another listed pair's the first time its language is needed
-(`src/analyzer/pairs.ts`). `tool/check_variants.mjs` refuses a package whose packs differ from the
-list, and any list but en-fr, es-fr, es-en, en-es, fr-en then fr-es: shipping another pair, or
-dropping one, takes two edits in one pull request, one of them in that gate.
-`yarn gen:pack:real` builds each listed pair's pack from the reduced tables committed under
+studied by English and Spanish speakers, comes last). Each pair's pack ships as **two parts**
+(ship-lingua-pack-bases-once): the pair's **layer** — its glosses, senses, expressions and NOTICE —
+at the pair's path, `assets/packs/<pair>.lingua`, and its studied language's **base** — forms,
+lemmas, ranks, levels, readings and dictionary words — once for every pair of that language, at
+`assets/bases/<studied>.lingua`: six layers and three bases, 9.5 MB where six whole packs were
+13.5. At run time an engine starts with the default pair's base and layer, assembled
+(`LinguaEngine.assemble`), and adds another listed pair's the first time its language is needed
+(`addParts`; `src/analyzer/engine.ts`, `src/analyzer/pairs.ts`). `tool/check_variants.mjs` refuses a
+package whose files differ from the list's layers and their languages' bases, or that carries a
+whole pack, and any list but en-fr, es-fr, es-en, en-es, fr-en then fr-es: shipping another pair,
+or dropping one, takes two edits in one pull request, one of them in that gate.
+`yarn gen:pack:real` builds each listed pair's layer and its studied language's base
+(`scripts/lingua-data/build.sh --parts`) from the reduced tables committed under
 `scripts/lingua-data/tables/<pair>/` and its studied language's `scripts/lingua-data/tables/<studied>/`
-(kept once per studied language) — offline, in seconds — and checks it against the sha256 in that
-pair's `pin.json`, the record of which raw sources those tables came from (pin-lingua-pack-sources). Changing the dictionary is a pull request with new tables: see
-`scripts/lingua-data/tables/en-fr/README.md`.
+(kept once per studied language) — offline, in seconds — and checks each against the sha256 in that
+pair's `pin.json` (`layer`, `base`), the record of which raw sources those tables came from
+(pin-lingua-pack-sources); a language's second pair builds its base again, and a byte that differs
+stops the build. The whole pack is still built and recorded (`build.sh <pair> <out>`): the agent
+plugin and the dictionary update read it, never the package. Changing the dictionary is a pull
+request with new tables: see `scripts/lingua-data/tables/en-fr/README.md`.
 
-`yarn gen:pack` builds from the tiny committed **testdata** sources
+`yarn gen:pack` builds the same parts from the tiny committed **testdata** sources
 (`scripts/lingua-data/testdata/<pair>`, here `en-fr`): a four-word lexicon (`run`, `city`, `seldom`,
 `conundrum`), enough to exercise the pipeline, but a real article then shows almost
-everything as unknown. `test/fixtures/en-fr.testdata.lingua` is the committed fixture the
-tests load.
+everything as unknown. `test/fixtures/en-fr.testdata.lingua` is the committed whole fixture, and
+`test/fixtures/en.testdata.base.lingua` and `en-fr.testdata.layer.lingua` its parts, which the tests
+on the real engine load (`yarn gen:fixtures` writes all three).
 
 ## Manual verification (pending, task 1.4)
 
@@ -479,7 +489,7 @@ bundle folds away the other variants' branches:
   browser variant but the same Révision and Statistiques (`src/app/`) for the Apple app's web view,
   under `__APP__`: the engine in the page with its glue bundled, no browser-extension API (no
   `chrome.*` in the bundle — `check:variants`), no translation engine, no pack (the app serves the
-  Safari extension's). The deck comes from the extension on the same device: Safari's background
+  Safari extension's layers and bases, `AppPageResource.swift`). The deck comes from the extension on the same device: Safari's background
   hands its backup and the review's preferences to its native handler after each save
   (`state/review-relay.ts`), which keeps them in the App Group; the app's page reviews that state and
   writes the card and status ops of every answer back (`app/session.ts`); the background applies

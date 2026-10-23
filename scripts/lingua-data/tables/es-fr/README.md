@@ -237,6 +237,8 @@ request (`lingua-pack-update` reduces them along with es-fr, after it).
   `pair=all` and `expect=identical`, as for en-fr. The `reduce` job of `lingua-extension-check`
   reduces every pair again on each pull request that touches `scripts/lingua-data`.
 - **After a builder or dependency change** that changes the pack's bytes: update `pack.sha256` and
-  `pack.size` in `pin.json` in the same pull request.
+  `pack.size` in `pin.json` in the same pull request, and the parts the package carries
+  (`pack_sources.py record-parts --pin tables/es-fr/pin.json --base <base> --layer <layer>`, the two
+  files `build.sh --parts es-fr <base> <layer>` writes).
 
 The monthly dry run of the update checks this pair as it checks en-fr.

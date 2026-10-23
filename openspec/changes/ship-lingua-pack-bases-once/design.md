@@ -25,7 +25,11 @@ See proposal.md — Why. What constrains the shape:
   glue's four-space-indented method lines, so a static method is outside its sight.
 - The Safari host declares its app's localisations from the pair names under
   `dist-safari/assets/packs` (`tool/app_localizations.sh`, `lingua-apple-build.yml`), and copies the
-  built extension whole.
+  built extension whole. Its app's review page (`src/app/app.ts`, the extension's `app` build) runs
+  `WasmAnalyzerPort` and fetches the packs under its own scheme, which
+  `LinguaSignIn/AppPageResource.swift` serves from the embedded extension for `assets/packs/<file>`
+  alone; any other path is the page's own folder. (Found while implementing: the proposal had named
+  the localisation script and its workflow check as the host's only readers of `assets/packs`.)
 - The pins: `pin.json` records `pack {sha256, size}`; `build.sh` build mode refuses a pack that
   does not match; `pack_sources.py record-build --pin --pack --reducer` writes it in the reduce,
   update and dry modes, after `build_pack`, saving a fixed tuple of keys; `check-reducer` runs
@@ -69,6 +73,14 @@ app's languages from the natives it finds there, and its build workflow's check 
 the layer at the pair's path, both see the pair names they saw; a base file beside them, named
 without a dash, would have failed the script's « `<studied>-<native>` » rule. `__LINGUA_PACKS__`
 stays the list of pairs; `.gitignore` gains `assets/bases/`.
+
+A third reader fetches the packs by path: the Apple app's review page, whose engine is the
+extension's (`WasmAnalyzerPort`, D2) and whose files `AppPageResource.swift` serves — from the
+embedded extension for `assets/packs/<file>`, from the page's own folder for anything else. Left as
+it was, the page would ask for `assets/bases/<studied>.lingua` in a folder that does not hold it,
+and its Révision and Statistiques would not start. `AppPageResource` serves `assets/bases/<file>`
+from the extension too, one level deep as the layers, and its tests say so; the Xcode phase already
+copies the built extension whole, the bases with it.
 
 *Alternative.* One folder with `<pair>.layer.lingua` and `<studied>.base.lingua`: every reader of
 the folder would learn two shapes for nothing.
@@ -151,8 +163,15 @@ today the builder writes no grammar section when readings and senses are both em
 `pipeline_testdata.rs` (`the_fixtures_build_whole_as_recorded_and_split_by_their_pin`) pins the six
 fixtures' whole bytes, the French ones at their pinless digests, and checks each split by its data:
 refused naming `tags.tsv` while a fixture has no pin, assembled into its whole pack once it has one.
-This change edits the two French rows to their new sizes and digests, and nothing else in it. No fixture carries an empty pin, so change 3's reading of an empty file is never
-exercised. `yarn gen:pack` (the test packages) then builds parts as `gen:pack:real` does.
+This change edits the two French rows to their new sizes and digests (measured: fr-en 5,869 B,
+sha256 `ec50eb13…`; fr-es 5,744 B, sha256 `e3595d5c…`; the four others unchanged, and the bases of
+one language byte-identical: en 791 B, es 899 B, fr 4,080 B). It edits one more test of that file,
+found while implementing: `lingua_pack_build_names_the_lexicon_it_refuses` (fix-lingua-lemma-lookup
+D4) appends `leaf<TAB>leave` to a scratch copy of the en-fr fixture and expects « the lemma "leaf"
+reads as "leave" »; with the fixture's new `leaf<TAB>leaf` row the form `leaf` has two lemmas and
+the builder names that instead. That case's scratch copy drops the fixture's own `leaf<TAB>leaf` row
+before appending, so the test keeps its example and its message word for word. No fixture carries an
+empty pin, so change 3's reading of an empty file is never exercised. `yarn gen:pack` (the test packages) then builds parts as `gen:pack:real` does.
 
 *Alternative.* Grammar tables for the French fixtures: the French baseline moved to the committed
 tables, and a fixture that carries readings it never exercises would be bytes nobody reads.
@@ -162,7 +181,11 @@ tables, and a fixture that carries readings it never exercises would be bytes no
 The *Build* section of `SOURCES.md` that change 3 adds (what a package carries, `--parts`,
 `record-parts`, the pins' three records), `REVIEWERS.md` (the reviewer's rebuild yields bases and
 layers; what to compare), the archive's README (D5), the extension's `README.md` where it names the
-pack, and the programme's row 4.
+pack, and the programme's row 4. Found while implementing: `apps/lingua-agent/README.md` told a
+reader to take the plugin's packs from `yarn gen:pack:real`, which now writes parts the plugin skips;
+it builds the whole packs with `scripts/lingua-data/build.sh <pair> <out>` instead, as D5 says the
+plugin's packs are built. `docs/lingua/architecture.md` is not kept in step change by change and is
+left as it is.
 
 ### D8 — What a package weighs
 
@@ -181,6 +204,10 @@ each file under the variant check's 8 MB. The store listings say nothing of size
   tables; the comparison is byte for byte on nine files.
 - [`app_localizations.sh` meets `assets/bases`] → it reads `assets/packs` only; the workflow's
   check reads the same folder.
+- [The Apple app's review page cannot reach a base] → `AppPageResource` serves `assets/bases/<file>`
+  from the embedded extension beside `assets/packs/<file>` (D1), held by `AppPageResourceTests`;
+  the owner's dogfood opens the app's Révision and Statistiques on iPhone and Mac before the next
+  release.
 - [A stale `src/wasm/pkg` without `assemble`] → the build guard names it (D2).
 - [A whole pack dropped in `assets/packs` by habit] → the variant check refuses a packaged file
   that is not a listed layer or base, and `packMeta` names a whole pack by its absent `part`.

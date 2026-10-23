@@ -145,7 +145,9 @@ pair studying English, en-es today, whose packs are recorded again in the same p
   on each pull request that touches `scripts/lingua-data`, and fails when the result is not the
   committed tables.
 - **After a builder or dependency change** that changes the pack's bytes: update `pack.sha256` and
-  `pack.size` in `pin.json` in the same pull request.
+  `pack.size` in `pin.json` in the same pull request, and the parts the package carries
+  (`pack_sources.py record-parts --pin tables/en-fr/pin.json --base <base> --layer <layer>`, the two
+  files `build.sh --parts en-fr <base> <layer>` writes).
 
 A monthly dry run of the update reports how far upstream has drifted, and fails when a source moved
 or a table collapsed.

@@ -8,9 +8,9 @@
   "scripts": {
     "gen:wasm": "bash tool/gen_wasm.sh",
     "gen:proto": "bash tool/gen_proto.sh",
-    "gen:pack": "bash tool/gen_pack.sh assets/packs",
-    "gen:pack:real": "bash tool/gen_pack.sh --real assets/packs",
-    "gen:fixtures": "bash ../../scripts/lingua-data/build.sh --testdata en-fr test/fixtures/en-fr.testdata.lingua",
+    "gen:pack": "bash tool/gen_pack.sh assets",
+    "gen:pack:real": "bash tool/gen_pack.sh --real assets",
+    "gen:fixtures": "bash ../../scripts/lingua-data/build.sh --testdata en-fr test/fixtures/en-fr.testdata.lingua && bash ../../scripts/lingua-data/build.sh --testdata --parts en-fr test/fixtures/en.testdata.base.lingua test/fixtures/en-fr.testdata.layer.lingua",
     "fetch:engine": "bash tool/fetch_engine.sh",
     "build:engine": "bash tool/build_engine.sh",
     "typecheck": "tsc --noEmit",

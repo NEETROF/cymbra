@@ -32,9 +32,11 @@ With `--identical` (generalise-lingua-gloss-reducer D4), the new tables were red
 no change — the rules moved, not what they make — and it also exits 1, naming the pair and the
 file, when a table, a kept input (`tags.tsv`, `studied.json`), the dictionary words (`lexical.tsv`)
 or NOTICE differs by one byte, when `manifest.json` differs anywhere but `meta.pack_version`, or when
-`pin.json` differs anywhere but the record of the pack's sha256 and of the rules (`reducer`). The
-pair is the new tables' folder, or for a studied language's folder its reference pair, the file
-then named with its folder (`es-fr: es/level.tsv differs`).
+`pin.json` differs anywhere but the record of the pack's sha256, of its layer's and of the rules
+(`reducer`): the layer carries the pack's version, which names the rules, and the base does not, so
+a moved base fails, naming the pair (ship-lingua-pack-bases-once D5). The pair is the new tables'
+folder, or for a studied language's folder its reference pair, the file then named with its folder
+(`es-fr: es/level.tsv differs`).
 """
 
 from __future__ import annotations
@@ -82,11 +84,12 @@ RANK_TOLERANCE = 500
 
 # Reduced again expecting no change (--identical): the files that may not move by one byte, and
 # what may move in the two records — the pack's version, which names the rules' digest, and the
-# record of the pack those rules build and of the rules themselves.
+# record of the pack those rules build, of its layer, which carries that version, and of the rules
+# themselves. Never the base: it carries no version (ship-lingua-pack-bases-once D5).
 IDENTICAL = (*TABLES, *KEPT_INPUTS, "NOTICE")
 MAY_MOVE = {
     "manifest.json": {("meta", "pack_version")},
-    "pin.json": {("pack", "sha256"), ("reducer", "sha256"), ("reducer", "files")},
+    "pin.json": {("pack", "sha256"), ("layer", "sha256"), ("reducer", "sha256"), ("reducer", "files")},
 }
 
 
@@ -199,8 +202,9 @@ def is_studied(folder: Path) -> bool:
 
 def packs_moved(old: Path, new: Path) -> list[str]:
     """The pairs reading a studied language's folder whose pack moves: the pairs beside `new`
-    studying its language whose `pin.json` records another pack than the same pair's beside `old`.
-    A pair with no committed pin beside `old` was not part of the run, and is not named."""
+    studying its language whose `pin.json` records another pack, or another base, than the same
+    pair's beside `old` (ship-lingua-pack-bases-once D5). A pair with no committed pin beside `old`
+    was not part of the run, and is not named."""
     language = new.resolve().name
     out = []
     for folder in sorted(new.parent.iterdir()):
@@ -210,12 +214,18 @@ def packs_moved(old: Path, new: Path) -> list[str]:
         if not (before.is_file() and after.is_file()):
             continue
         try:
-            shas = [get(load(pin), "pack.sha256") for pin in (before, after)]
+            shas = [(get(record, "pack.sha256"), base_of(record)) for record in map(load, (before, after))]
         except PinError:
             continue
         if shas[0] != shas[1]:
             out.append(folder.name)
     return out
+
+
+def base_of(record: dict) -> str | None:
+    """The sha256 of the base a pin records, or None for a pin written before the parts."""
+    base = record.get("base")
+    return base.get("sha256") if isinstance(base, dict) else None
 
 
 def left_behind(new: Path) -> list[str]:
@@ -362,8 +372,8 @@ def main(argv: list[str] | None = None) -> int:
     if a.identical and not moved_files:
         sys.stdout.write(
             "\nReduced again expecting no change: every table, kept input and NOTICE is byte for byte as "
-            "committed; `manifest.json` moves only in `pack_version`, `pin.json` only in the pack's sha256 "
-            "and the rules' record.\n"
+            "committed; `manifest.json` moves only in `pack_version`, `pin.json` only in the pack's and the "
+            "layer's sha256 and the rules' record.\n"
         )
     return 1 if issues else 0
 

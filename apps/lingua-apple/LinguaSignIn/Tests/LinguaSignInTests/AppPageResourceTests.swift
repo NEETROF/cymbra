@@ -21,6 +21,16 @@ final class AppPageResourceTests: XCTestCase {
         XCTAssertEqual(file("lingua-app://app/assets/packs/x/y"), "/App.app/LinguaApp/assets/packs/x/y")
     }
 
+    /// ship-lingua-pack-bases-once D1: a pair's pack is its layer and its studied language's base, both
+    /// the extension's; the page's engine fetches the two.
+    func testTheBasesComeFromTheEmbeddedExtension() {
+        XCTAssertEqual(file("lingua-app://app/assets/bases/en.lingua"), "/App.app/PlugIns/Ext.appex/assets/bases/en.lingua")
+        XCTAssertNil(AppPageResource.file(for: URL(string: "lingua-app://app/assets/bases/en.lingua")!, pageRoot: page, extensionRoot: nil))
+        XCTAssertEqual(file("lingua-app://app/assets/bases/x/y"), "/App.app/LinguaApp/assets/bases/x/y")
+        // Another folder of `assets/` stays the page's.
+        XCTAssertEqual(file("lingua-app://app/assets/other/en.lingua"), "/App.app/LinguaApp/assets/other/en.lingua")
+    }
+
     /// add-lingua-review-translation-fallback D7: the engine's files are the extension's, served once.
     func testTheEngineFilesComeFromTheEmbeddedExtension() {
         for name in [

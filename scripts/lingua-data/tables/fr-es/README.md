@@ -592,6 +592,8 @@ Never by hand, and never under the floor.
   `scripts/lingua-data/build.sh --reduce fr-es <out>` (Python 3.12, `requirements-reduce.txt`), after
   fr-en's when both are due, or `lingua-pack-update` with `mode=reduce`.
 - **After a builder or dependency change** that changes the pack's bytes: update `pack.sha256` and
-  `pack.size` in `pin.json` in the same pull request.
+  `pack.size` in `pin.json` in the same pull request, and the parts the package carries
+  (`pack_sources.py record-parts --pin tables/fr-es/pin.json --base <base> --layer <layer>`, the two
+  files `build.sh --parts fr-es <base> <layer>` writes).
 
 The monthly dry run of the update checks this pair as it checks the others.

@@ -1,0 +1,14 @@
+ADP
+DET
+DET|Gender=Fem|Number=Sing
+NOUN|Gender=Fem
+NOUN|Gender=Fem|Number=Plur
+NOUN|Gender=Fem|Number=Sing
+NOUN|Gender=Masc
+NOUN|Gender=Masc|Number=Sing
+VERB
+VERB|Mood=Ind|Number=Sing|Person=1|Tense=Imp|VerbForm=Fin
+VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin
+VERB|Mood=Ind|Number=Sing|Person=3|Tense=Imp|VerbForm=Fin
+VERB|Mood=Ind|Number=Sing|Person=3|Tense=Past|VerbForm=Fin
+VERB|VerbForm=Inf

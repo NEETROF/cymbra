@@ -264,6 +264,34 @@ class Identical(unittest.TestCase):
         code, report = self.run_report()
         self.assertIn("- es-fr: pin.json differs at snapshot, sources.kaikki.sha256", report)
 
+    def test_the_layer_may_move_and_the_base_may_not(self):
+        # ship-lingua-pack-bases-once D5: a re-reduction under the same sources moves pack_version,
+        # which the whole pack and the layer carry and the base does not.
+        parts = {"base": {"sha256": "b45e0001", "size": 1575662}, "layer": {"sha256": "1a7e0001", "size": 666988}}
+        for root in (self.old, self.new):
+            record = {"snapshot": self.PIN["snapshot"], "pack": self.PIN["pack"], **parts}
+            record.update((k, v) for k, v in self.PIN.items() if k not in record)
+            (root / "pin.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+        self.edit("manifest.json", lambda m: m["meta"].update(pack_version="2026.10.03+0123abc"))
+        self.edit("pin.json", lambda r: (r["pack"].update(sha256="99999999"), r["layer"].update(sha256="1a7e0002")))
+        code, report = self.run_report()
+        self.assertEqual(code, 0, report)
+        self.assertIn("only in the pack's and the layer's sha256 and the rules' record", report)
+        # A base that moves fails, naming the pair; its size alone too.
+        self.edit("pin.json", lambda r: r["base"].update(sha256="b45e0002"))
+        code, report = self.run_report()
+        self.assertEqual(code, 1)
+        self.assertIn("- es-fr: pin.json differs at base.sha256", report)
+        self.edit("pin.json", lambda r: r["base"].update(sha256="b45e0001", size=1575663))
+        code, report = self.run_report()
+        self.assertEqual(code, 1)
+        self.assertIn("- es-fr: pin.json differs at base.size", report)
+        # So does a layer whose size moves, and a pin that loses a part.
+        self.edit("pin.json", lambda r: (r["base"].update(size=1575662), r["layer"].update(size=666989)))
+        self.assertIn("- es-fr: pin.json differs at layer.size", self.run_report()[1])
+        self.edit("pin.json", lambda r: (r["layer"].update(size=666988), r.pop("base")))
+        self.assertIn("- es-fr: pin.json differs at base", self.run_report()[1])
+
     def test_the_pair_is_named_on_demand(self):
         self.edit("gloss.tsv", lambda t: t + "perro\tChien\n")
         code, report = self.run_report("--pair", "en-fr")
@@ -330,6 +358,25 @@ class Studied(unittest.TestCase):
         for root in (self.committed, self.tables):
             (root / "es-xx" / "pin.json").write_text("{}", encoding="utf-8")
         self.assertIn("No pack of a pair reading these tables moves.", self.run_report()[1])
+
+    def test_a_pair_whose_base_or_whole_pack_moves_is_named(self):
+        # ship-lingua-pack-bases-once D5: the pairs whose pin records another whole pack, or another
+        # base, than committed; a pin written before the parts counts as recording none.
+        for root, base in ((self.committed, "b45e0001"), (self.tables, "b45e0002")):
+            for pair, sha in (("es-fr", "aaaa"), ("es-en", "bbbb")):
+                (root / pair / "pin.json").write_text(
+                    json.dumps({"pack": {"sha256": sha}, "base": {"sha256": base}}), encoding="utf-8"
+                )
+        self.assertEqual(pr.packs_moved(self.committed / "es", self.tables / "es"), ["es-en", "es-fr"])
+        # The base back, es-en's whole pack moved alone: es-en alone.
+        for pair, sha in (("es-fr", "aaaa"), ("es-en", "ffff")):
+            (self.tables / pair / "pin.json").write_text(
+                json.dumps({"pack": {"sha256": sha}, "base": {"sha256": "b45e0001"}}), encoding="utf-8"
+            )
+        code, report = self.run_report()
+        self.assertEqual(code, 0, report)
+        self.assertIn("Pairs reading these tables whose pack moves: `es-en`.", report)
+        self.assertEqual(pr.base_of({"pack": {"sha256": "aaaa"}}), None)
 
     def test_a_pair_left_behind_is_named_with_the_table(self):
         # add-lingua-pack-es-en D3: es-en's pin records what its build read of tables/es; es-fr's

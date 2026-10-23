@@ -2,6 +2,7 @@
 // browser needs, and each bundle kept only its own branches of the capability defines
 // (build.mjs `capabilities` + esbuild minifySyntax). A stray `__TARGET__ === "firefox"` left
 // where a capability belongs builds fine and type-checks — only the bundle shows it.
+import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,7 +10,7 @@ import { engineProblems } from "./engine_pin.mjs";
 import { LOCALES_DIR, readLocales } from "./locales.mjs";
 import { defaultLocale, localised } from "./manifests.mjs";
 import { modelsOf, readCatalogue, ROLES } from "./model-catalogue.mjs";
-import { packFile, shippedNatives, shippedPairs } from "./packs.mjs";
+import { baseFile, packFile, packMeta, shippedNatives, shippedPairs, shippedStudied } from "./packs.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const failures = [];
@@ -338,16 +339,48 @@ expect(
   JSON.stringify(pairs) === JSON.stringify(SHIPPED_PAIRS),
   `packs.json lists ${JSON.stringify(pairs)}; a package ships ${JSON.stringify(SHIPPED_PAIRS)}`,
 );
+// Each pack ships as two parts (ship-lingua-pack-bases-once D4): the listed pairs' layers at the
+// pairs' paths, and their studied languages' bases, once each — and nothing else of the kind: no
+// whole pack, at a listed path or any other, and each part under the 8 MB no packaged file reaches.
+const layers = pairs.map(packFile);
+const studiedBases = shippedStudied(pairs);
+const bases = studiedBases.map(baseFile);
+const listed = [...layers, ...bases].sort();
+/** Each listed part's sha256 in the first package that carries it: every package carries the same bytes. */
+const partSha256 = new Map();
 for (const target of ["chromium", "firefox", "safari"]) {
-  const packed = filesOf(target)
-    .filter((f) => f.startsWith(join("assets", "packs")))
-    .map((f) => f.split("\\").join("/"))
+  const posix = (f) => f.split("\\").join("/");
+  const packaged = filesOf(target)
+    .map(posix)
+    .filter((f) => f.startsWith("assets/packs/") || f.startsWith("assets/bases/") || f.endsWith(".lingua"))
     .sort();
-  const listed = pairs.map(packFile).sort();
   expect(
-    JSON.stringify(packed) === JSON.stringify(listed),
-    `${target}: packs ${JSON.stringify(packed)} differ from the list ${JSON.stringify(listed)}`,
+    JSON.stringify(packaged) === JSON.stringify(listed),
+    `${target}: packs ${JSON.stringify(packaged)} differ from the list's layers and bases ${JSON.stringify(listed)}`,
   );
+  for (const file of packaged) {
+    const path = join(root, `dist-${target}`, file);
+    const wanted = layers.includes(file) ? "layer" : bases.includes(file) ? "base" : null;
+    const bytes = readFileSync(path);
+    const { part, studied } = packMeta(bytes);
+    expect(
+      wanted === null || part === wanted,
+      `${target}: ${file} is ${part ? `a ${part}` : "a whole pack, or no pack"}, not a ${wanted}`,
+    );
+    // A base is its file name's language: assets/bases/es.lingua studies Spanish.
+    const named = studiedBases[bases.indexOf(file)];
+    expect(wanted !== "base" || studied === named, `${target}: ${file} studies "${studied}", not "${named}"`);
+    // One dictionary per release: the three packages carry the same bytes (lingua-data-packs).
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    if (wanted && !partSha256.has(file)) partSha256.set(file, { target, sha256 });
+    const first = partSha256.get(file);
+    expect(
+      !first || first.sha256 === sha256,
+      `${target}: ${file} has sha256 ${sha256}, but ${first?.target} carries ${first?.sha256}`,
+    );
+    const size = statSync(path).size;
+    expect(size < 8_000_000, `${target}: ${file} is ${size} bytes — no packaged part is that large`);
+  }
   expect(
     !existsSync(join(root, `dist-${target}`, "assets", "pack.lingua")),
     `${target}: packages the old assets/pack.lingua`,

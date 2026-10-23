@@ -20,7 +20,9 @@ for a new language, one base.
 - **The package layout** (design D1): a layer keeps the pair's path, `assets/packs/<pair>.lingua`;
   a base lives at `assets/bases/<studied>.lingua`. The Safari host's localisation script and its
   build workflow, which read the shipped natives from the pair names under `assets/packs`, see what
-  they saw.
+  they saw. The host app's review page, which runs the extension's engine and fetches the packs
+  through `AppPageResource`, is served `assets/bases/<file>` from the embedded extension beside
+  `assets/packs/<file>` (found while implementing: it served the packs' folder alone).
 - **The engine fetches the parts** (D2): the default pair's base and layer at start, another listed
   pair's base and layer the first time its language is needed, assembled through change 3's
   `assemble` and `addParts`; a load that fails is forgotten, as today. Each studied language's base
@@ -44,9 +46,10 @@ for a new language, one base.
   ones, which have no grammar and whose whole packs gain that section — so that a test package is
   built as parts too.
 - **The documents**: `SOURCES.md`, `REVIEWERS.md` (the reviewer's rebuild yields the parts), the
-  extension's `README` where it names the pack, and the programme's row 4.
-- Not in this change: the pack format (change 3); the agent plugin (M17, whole packs); any Italian
-  pack; the host app's embedding, which copies the built extension whole.
+  extension's `README` where it names the pack, the agent plugin's `README` (its whole packs built
+  with `build.sh`, since `gen:pack:real` writes parts), and the programme's row 4.
+- Not in this change: the pack format (change 3); the agent plugin's code (M17, whole packs); any
+  Italian pack; the host app's embedding, which copies the built extension whole.
 
 ## Capabilities
 
@@ -81,7 +84,12 @@ nothing new is offered to them.
   seam's types), `src/analyzer/pairs.ts` (`basePath`), `tool/packs.mjs`, `tool/manifests.mjs`,
   `tool/gen_pack.sh`, `tool/check_variants.mjs`, `tool/make_source_archive.sh`, `build.mjs` (the
   copy and the wasm guard), `.gitignore`; `test/engine.spec.ts`, `test/packs.spec.ts`,
-  `test/manifests.spec.ts`, `test/pairs.spec.ts`; `README.md`, `REVIEWERS.md`.
+  `test/manifests.spec.ts`, `test/pairs.spec.ts`; `README.md`, `REVIEWERS.md`. Found while
+  implementing: the tests on the real engine (`test/real-wasm.ts`, `test/card-edit.integration.spec.ts`)
+  load the en-fr fixture as the package carries it, from two committed fixtures `yarn gen:fixtures`
+  writes beside the whole one (`test/fixtures/en.testdata.base.lingua`,
+  `en-fr.testdata.layer.lingua`); `tool/packs.d.mts` declares the new helpers; `package.json`'s
+  `gen:pack` scripts write into `assets/`.
 - `scripts/lingua-data`: `build.sh` (`--parts`, the parts recorded in reduce, update and dry),
   `pack_sources.py` (`record-build --base --layer`, `record-parts`, the base held to its reference
   in `check-reducer`), `pack_report.py` (a layer may move under `--identical`, a base may not),
@@ -89,10 +97,15 @@ nothing new is offered to them.
   the *Build* section change 3 adds to `SOURCES.md`.
 - `crates/lingua-pack/tests/pipeline_testdata.rs`: two rows edited, the French fixtures' bytes once
   change 3's gate writes their pin; the English fixtures' `forms.tsv` gain a row per lemma they gloss
-  and their forms do not hold, which moves no byte.
+  and their forms do not hold, which moves no byte; and the `reads-as-another` case of
+  `lingua_pack_build_names_the_lexicon_it_refuses` drops the fixture's new `leaf<TAB>leaf` row from
+  its scratch copy before appending `leaf<TAB>leave`, so it keeps its message word for word (D6).
+- `apps/lingua-apple/LinguaSignIn`: `AppPageResource.swift` serves `assets/bases/<file>` from the
+  embedded extension, and `AppPageResourceTests.swift` says so (D1).
+- `apps/lingua-agent/README.md`: where the plugin's whole packs come from (D7).
 - `.github/workflows/lingua-extension-check.yml` (the comparisons), `lingua-pack-update.yml` (the
   records).
 - `docs/lingua/italian-programme.md`: row 4.
 - Untouched: `crates/*` but that test (change 3's engine and builder are used as they are), the
-  Safari host, the agent plugin, the six goldens, every committed pack's bytes and every pin's
-  `pack` record, the English and Spanish fixtures' bytes.
+  Safari host but `AppPageResource`, the agent plugin's code, the six goldens, every committed pack's
+  bytes and every pin's `pack` record, the English and Spanish fixtures' bytes.

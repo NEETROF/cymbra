@@ -95,6 +95,10 @@ jobs:
           mac_app="$RUNNER_TEMP/dd/Build/Products/Release/Cymbra Lingua.app"
           test -f "$ios_app/PlugIns/Cymbra Lingua Extension.appex/manifest.json"
           test -f "$mac_app/Contents/PlugIns/Cymbra Lingua Extension.appex/Contents/Resources/manifest.json"
+          # The packs ship as parts (ship-lingua-pack-bases-once D1): the bases beside the layers, which
+          # the app's review page reads from the extension (AppPageResource.swift).
+          test -f "$ios_app/PlugIns/Cymbra Lingua Extension.appex/assets/bases/en.lingua"
+          test -f "$mac_app/Contents/PlugIns/Cymbra Lingua Extension.appex/Contents/Resources/assets/bases/en.lingua"
           # The activation page's copy table (localise-lingua-apple-host, D2) ships in both apps.
           test -f "$ios_app/copy.js"
           test -f "$mac_app/Contents/Resources/copy.js"

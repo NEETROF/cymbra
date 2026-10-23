@@ -1,6 +1,8 @@
 /** Declared for the tests: `tool/` is plain ESM, outside the TypeScript project. */
 export declare function shippedPairs(appDir?: string): string[];
 export declare function packFile(pair: string): string;
+export declare function baseFile(studied: string): string;
+export declare function shippedStudied(pairs?: readonly string[]): string[];
 export declare function studiedOf(pair: string): string;
 export declare function nativeOf(pair: string): string;
 export declare const ANALYZER_CONSTANTS: Readonly<Record<string, string>>;
@@ -9,6 +11,8 @@ export declare function packMeta(bytes: Uint8Array): {
   studied: string | null;
   native: string | null;
   analyzerVersion: string | null;
+  part: string | null;
+  baseVersion: string | null;
 };
 export declare function assertPacksMatchEngine(options?: {
   appDir?: string;

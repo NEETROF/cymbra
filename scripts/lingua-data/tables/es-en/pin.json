@@ -4,6 +4,14 @@
     "sha256": "666248e2bd862f5b87adb23a81fcf72255f0d89b294c02bd54f482039deb9e3f",
     "size": 2626743
   },
+  "base": {
+    "sha256": "c35411dbceab2b01b7bfe831ff868c768d642680ddd2a3f32cd819df64458809",
+    "size": 1575662
+  },
+  "layer": {
+    "sha256": "7317e322bf015201de924d0ccbd7b7bc3f2437b16e5dca9e2d88cfdb21fbfd1a",
+    "size": 1051306
+  },
   "reducer": {
     "sha256": "685ebaae1597e8588d0e9db72fb7ce55e13fedd63140435e2d21aad0e4bd8c0b",
     "files": [

@@ -28,7 +28,8 @@ declare const __APP__: boolean;
 declare const __USAGE_COUNTS_DEFAULT__: "on" | "ask";
 
 // The language pairs the package ships (packs.json, generalise-lingua-pack-build), comma-separated,
-// the default studied language's first: each one's pack is at assets/packs/<pair>.lingua.
+// the default studied language's first: each one's layer is at assets/packs/<pair>.lingua, and its
+// studied language's base at assets/bases/<studied>.lingua (ship-lingua-pack-bases-once D1).
 declare const __LINGUA_PACKS__: string;
 
 // Whether the reader chooses their native language (add-lingua-native-language-choice D1): true once

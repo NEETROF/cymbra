@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { reprofileBackup, reviewOutlookJson, WasmAnalyzerPort, type WasmModule } from "@/analyzer/engine.ts";
 import { localDayStart } from "@/review/session.ts";
@@ -23,6 +25,10 @@ function fakeGlue(failures = 0) {
     live = id;
   });
   class LinguaEngine {
+    /** The engine the port starts, on a pack's base and layer (ship-lingua-pack-bases-once D2). */
+    static assemble(): LinguaEngine {
+      return new LinguaEngine();
+    }
     private readonly memory = live;
     calibration(): number {
       if (this.memory !== live) throw new Error("memory access out of bounds");
@@ -107,6 +113,9 @@ describe("WasmAnalyzerPort language views", () => {
   function recordingGlue() {
     const received: Array<[string, unknown[]]> = [];
     class LinguaEngine {
+      static assemble(): LinguaEngine {
+        return new LinguaEngine();
+      }
       analyse(...args: unknown[]): string {
         received.push(["analyse", args]);
         return '{"analyzer_version":"1.1.0","analysable":false,"tokens":[],"counted":0,"known":0,"percent":null}';
@@ -131,8 +140,8 @@ describe("WasmAnalyzerPort language views", () => {
         received.push(["languages", args]);
         return '["en","es"]';
       }
-      addPack(): string {
-        received.push(["addPack", []]);
+      addParts(): string {
+        received.push(["addParts", []]);
         return "es";
       }
       studiedLanguages(...args: unknown[]): string {
@@ -197,7 +206,7 @@ describe("WasmAnalyzerPort language views", () => {
     expect(await port.languages()).toEqual(["en", "es"]);
 
     expect(glue.received).toEqual([
-      ["addPack", []],
+      ["addParts", []],
       ["analyse", [["El faro"], "es"]],
       ["gloss", ["city", "en"]],
       ["exportStatusOps", []],
@@ -212,7 +221,7 @@ describe("WasmAnalyzerPort language views", () => {
     expect(await port.for("es").keepGloss("faro", "lumière", 1_770_000_000)).toBe(true);
 
     expect(glue.received).toEqual([
-      ["addPack", []],
+      ["addParts", []],
       ["keepGloss", ["faro", "lumière", "es", 1_770_000_000]],
     ]);
   });
@@ -319,6 +328,10 @@ describe("WasmAnalyzerPort language views", () => {
 });
 
 describe("WasmAnalyzerPort packs", () => {
+  // A pair's pack is its studied language's base and its own layer (ship-lingua-pack-bases-once D2).
+  const EN = "ext://assets/bases/en.lingua";
+  const ES = "ext://assets/bases/es.lingua";
+  const FR = "ext://assets/bases/fr.lingua";
   const EN_FR = "ext://assets/packs/en-fr.lingua";
   const ES_FR = "ext://assets/packs/es-fr.lingua";
   let fetched: string[];
@@ -328,7 +341,7 @@ describe("WasmAnalyzerPort packs", () => {
     fetched = [];
     failing = new Set();
     vi.stubGlobal("chrome", { runtime: { getURL: (path: string) => `ext://${path}` } });
-    // A pack's bytes are its URL, so the fake engine knows which language it was handed.
+    // A part's bytes are its URL, so the fake engine knows which language it was handed.
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string) => {
@@ -342,25 +355,38 @@ describe("WasmAnalyzerPort packs", () => {
     vi.unstubAllGlobals();
   });
 
-  /** The packs fetched so far, without the WASM module's own fetch. */
-  const packs = () => fetched.filter((url) => url.includes("/packs/"));
+  /** The parts fetched so far — bases and layers —, without the WASM module's own fetch. */
+  const packs = () => fetched.filter((url) => url.endsWith(".lingua"));
 
-  /** A glue whose engine holds the packs it is handed and records each call, with the languages it held. */
+  /**
+   * A glue whose engine holds the packs it is handed — a base and a layer each, which it refuses to
+   * assemble across two languages, as the engine does — and records each call, with the languages it
+   * held.
+   */
   function packGlue() {
     const calls: Array<[string, unknown[]]> = [];
     /** Each restore, with the native language of the engine it landed in. */
     const restores: Array<[string, string]> = [];
-    const studied = (bytes: Uint8Array) => /packs\/([a-z]{2})-/.exec(new TextDecoder().decode(bytes))?.[1] ?? "?";
-    const glossedIn = (bytes: Uint8Array) =>
-      /packs\/[a-z]{2}-([a-z]{2})/.exec(new TextDecoder().decode(bytes))?.[1] ?? "?";
+    const url = (bytes: Uint8Array) => new TextDecoder().decode(bytes);
+    /** A base's language, checked against its layer's. */
+    const studied = (base: Uint8Array, layer: Uint8Array) => {
+      const language = /bases\/([a-z]{2})\.lingua$/.exec(url(base))?.[1] ?? "?";
+      const layers = /packs\/([a-z]{2})-[a-z]{2}\.lingua$/.exec(url(layer))?.[1];
+      if (language !== layers) throw new Error(`the layer ${url(layer)} is not of the base ${url(base)}`);
+      return language;
+    };
+    const glossedIn = (layer: Uint8Array) => /packs\/[a-z]{2}-([a-z]{2})/.exec(url(layer))?.[1] ?? "?";
     class LinguaEngine {
+      static assemble(base: Uint8Array, layer: Uint8Array): LinguaEngine {
+        return new LinguaEngine(base, layer);
+      }
       private readonly held: string[];
       private readonly native: string;
       /** The native language the restored backup's profile names: `{"native": "en"}` in these specs. */
       private profileNative: string;
-      constructor(bytes: Uint8Array) {
-        this.held = [studied(bytes)];
-        this.native = glossedIn(bytes);
+      private constructor(base: Uint8Array, layer: Uint8Array) {
+        this.held = [studied(base, layer)];
+        this.native = glossedIn(layer);
         this.profileNative = this.native;
       }
       nativeLanguage(): string {
@@ -369,9 +395,9 @@ describe("WasmAnalyzerPort packs", () => {
       profileNativeLanguage(): string {
         return this.profileNative;
       }
-      addPack(bytes: Uint8Array): string {
-        const language = studied(bytes);
-        calls.push(["addPack", [language]]);
+      addParts(base: Uint8Array, layer: Uint8Array): string {
+        const language = studied(base, layer);
+        calls.push(["addParts", [language]]);
         this.held.push(language);
         return language;
       }
@@ -425,13 +451,13 @@ describe("WasmAnalyzerPort packs", () => {
     return { load: async () => mod, calls, restores };
   }
 
-  it("starts with the default pair's pack alone", async () => {
+  it("starts with the default pair's base and layer alone", async () => {
     const glue = packGlue();
     const port = new WasmAnalyzerPort(glue.load);
 
     await port.for("en").analyse(["The lighthouse"]);
 
-    expect(packs()).toEqual([EN_FR]);
+    expect(packs()).toEqual([EN, EN_FR]);
     expect(glue.calls).toEqual([["analyse", ["en"]]]);
   });
 
@@ -447,7 +473,7 @@ describe("WasmAnalyzerPort packs", () => {
     expect(packs()).toEqual([]);
   });
 
-  it("adds another listed pair's pack once, before its language's first call", async () => {
+  it("adds another listed pair's base and layer once, before its language's first call", async () => {
     const glue = packGlue();
     const port = new WasmAnalyzerPort(glue.load, ["en-fr", "es-fr"]);
 
@@ -455,9 +481,9 @@ describe("WasmAnalyzerPort packs", () => {
     await port.for("es").analyse(["La ciudad"]);
     await port.for("en").analyse(["The city"]);
 
-    expect(packs()).toEqual([EN_FR, ES_FR]);
+    expect(packs()).toEqual([EN, EN_FR, ES, ES_FR]);
     expect(glue.calls).toEqual([
-      ["addPack", ["es"]],
+      ["addParts", ["es"]],
       ["analyse", ["es"]],
       ["analyse", ["es"]],
       ["analyse", ["en"]],
@@ -471,23 +497,74 @@ describe("WasmAnalyzerPort packs", () => {
 
     await Promise.all([port.for("es").analyse(["El faro"]), port.for("es").analyse(["La ciudad"])]);
 
-    expect(packs()).toEqual([EN_FR, ES_FR]);
-    expect(glue.calls.filter(([name]) => name === "addPack")).toEqual([["addPack", ["es"]]]);
+    expect(packs()).toEqual([EN, EN_FR, ES, ES_FR]);
+    expect(glue.calls.filter(([name]) => name === "addParts")).toEqual([["addParts", ["es"]]]);
   });
 
-  it("fetches a pack again after its load failed", async () => {
+  it.each([
+    ["its layer", ES_FR],
+    ["its base", ES],
+  ])("fetches both parts again after %s failed to load", async (_part, failed) => {
     const glue = packGlue();
     const port = new WasmAnalyzerPort(glue.load, ["en-fr", "es-fr"]);
-    failing.add(ES_FR);
+    failing.add(failed);
 
     await expect(port.for("es").analyse(["El faro"])).rejects.toThrow("fetch failed");
     await port.for("es").analyse(["El faro"]);
 
-    expect(packs()).toEqual([EN_FR, ES_FR, ES_FR]);
+    // The language's load is forgotten whole, whichever part failed (ship-lingua-pack-bases-once D2).
+    expect(packs()).toEqual([EN, EN_FR, ES, ES_FR, ES, ES_FR]);
     expect(glue.calls).toEqual([
-      ["addPack", ["es"]],
+      ["addParts", ["es"]],
       ["analyse", ["es"]],
     ]);
+  });
+
+  it("names the part a failed response left out, and fetches both parts again on the next call", async () => {
+    // The Apple app's page answers a file it cannot find with a 404 and an empty body: the load fails
+    // naming the file and the status, never as a malformed container. An extension scheme's status 0
+    // is a response like any other.
+    const glue = packGlue();
+    const port = new WasmAnalyzerPort(glue.load, ["en-fr", "es-fr"]);
+    const served = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation(async (url) => {
+      const response = await served(url);
+      if (String(url) === ES)
+        return { ...response, status: 404, arrayBuffer: async () => new ArrayBuffer(0) } as Response;
+      return { ...response, status: 0 } as Response;
+    });
+
+    await port.for("en").analyse(["The lighthouse"]);
+    await expect(port.for("es").analyse(["El faro"])).rejects.toThrow(
+      "assets/bases/es.lingua could not be read (HTTP 404)",
+    );
+    expect(glue.calls.filter(([name]) => name === "addParts")).toEqual([]);
+
+    vi.mocked(fetch).mockImplementation(served);
+    await port.for("es").analyse(["El faro"]);
+    expect(packs()).toEqual([EN, EN_FR, ES, ES_FR, ES, ES_FR]);
+    expect(await port.languages()).toEqual(["en", "es"]);
+  });
+
+  it("fetches each language's base once per engine, beside one layer per language", async () => {
+    // The six pairs, read by an English speaker: Spanish through es-en, French through fr-en; the
+    // Spanish base is es-en's whatever es-fr's is, and no file is fetched twice.
+    const glue = packGlue();
+    const port = new WasmAnalyzerPort(
+      glue.load,
+      ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"],
+      async () => "en",
+    );
+
+    await port.for("es").analyse(["El faro"]);
+    await port.for("fr").analyse(["Le phare"]);
+    await port.for("es").analyse(["La ciudad"]);
+    await port.for("fr").analyse(["La ville"]);
+    await expect(port.for("en").analyse(["The city"])).rejects.toThrow('no shipped pack studies "en"');
+
+    expect(packs()).toEqual([ES, "ext://assets/packs/es-en.lingua", FR, "ext://assets/packs/fr-en.lingua"]);
+    expect(new Set(packs()).size).toBe(packs().length);
+    expect(await port.languages()).toEqual(["es", "fr"]);
   });
 
   const statusChange = (language: string) => ({
@@ -529,14 +606,14 @@ describe("WasmAnalyzerPort packs", () => {
 
     await apply(port, "en");
     await apply(port, "pt"); // no listed pair studies it: handed to the engine, which skips it
-    expect(packs()).toEqual([EN_FR]);
+    expect(packs()).toEqual([EN, EN_FR]);
     await apply(port, "es");
 
-    expect(packs()).toEqual([EN_FR, ES_FR]);
+    expect(packs()).toEqual([EN, EN_FR, ES, ES_FR]);
     expect(glue.calls).toEqual([
       [method, [["en"]]],
       [method, [["en"]]],
-      ["addPack", ["es"]],
+      ["addParts", ["es"]],
       [method, [["en", "es"]]],
     ]);
   });
@@ -554,7 +631,7 @@ describe("WasmAnalyzerPort packs", () => {
       await port.for("es").analyse(["El faro"]);
       await port.for("es").analyse(["La ciudad"]);
 
-      expect(packs()).toEqual([EN_FR, ES_FR]);
+      expect(packs()).toEqual([EN, EN_FR, ES, ES_FR]);
       expect(packs()).not.toContain(ES_EN);
       expect(await port.nativeLanguage()).toBe("fr");
       expect(resolve).toHaveBeenCalledOnce();
@@ -569,21 +646,22 @@ describe("WasmAnalyzerPort packs", () => {
         'no shipped pack studies "en" (shipped pairs: es-en)',
       );
 
-      expect(packs()).toEqual([ES_EN]);
+      expect(packs()).toEqual([ES, ES_EN]);
       expect(glue.calls).toEqual([["analyse", ["es"]]]);
     });
 
     it("reads French through the reader's pair: fr-en beside es-en, fr-es beside en-es, none for a French reader (enable-lingua-french D3)", async () => {
       const SIX = ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"];
       const pack = (pair: string) => `ext://assets/packs/${pair}.lingua`;
+      const base = (studied: string) => `ext://assets/bases/${studied}.lingua`;
 
       const english = packGlue();
       const en = new WasmAnalyzerPort(english.load, SIX, async () => "en");
       await en.for("fr").analyse(["Le phare"]);
       await en.for("es").analyse(["El faro"]);
-      expect(packs()).toEqual([pack("es-en"), pack("fr-en")]);
+      expect(packs()).toEqual([base("es"), pack("es-en"), base("fr"), pack("fr-en")]);
       expect(english.calls).toEqual([
-        ["addPack", ["fr"]],
+        ["addParts", ["fr"]],
         ["analyse", ["fr"]],
         ["analyse", ["es"]],
       ]);
@@ -592,7 +670,7 @@ describe("WasmAnalyzerPort packs", () => {
       const spanish = packGlue();
       const es = new WasmAnalyzerPort(spanish.load, SIX, async () => "es");
       await es.for("fr").analyse(["Le phare"]);
-      expect(packs()).toEqual([pack("en-es"), pack("fr-es")]);
+      expect(packs()).toEqual([base("en"), pack("en-es"), base("fr"), pack("fr-es")]);
 
       fetched.length = 0;
       const french = packGlue();
@@ -652,7 +730,7 @@ describe("WasmAnalyzerPort packs", () => {
       await port.for("en").analyse(["The lighthouse"]);
 
       expect(resolve).toHaveBeenCalledTimes(2);
-      expect(packs()).toEqual([EN_FR]);
+      expect(packs()).toEqual([EN, EN_FR]);
     });
 
     // The content script's probe and hydration reach the engine through a whole-reader call first:
@@ -677,7 +755,7 @@ describe("WasmAnalyzerPort packs", () => {
 
       expect(resolve).toHaveBeenCalledTimes(2);
       expect(load).toHaveBeenCalledOnce();
-      expect(packs()).toEqual([EN_FR, ES_FR]);
+      expect(packs()).toEqual([EN, EN_FR, ES, ES_FR]);
     });
 
     describe("a backup of another native language (add-lingua-native-language-choice D3)", () => {
@@ -687,12 +765,13 @@ describe("WasmAnalyzerPort packs", () => {
         const glue = packGlue();
         const port = new WasmAnalyzerPort(glue.load, MIXED, async () => "fr");
         await port.for("es").analyse(["El faro"]);
-        expect(packs()).toEqual([EN_FR, ES_FR]);
+        expect(packs()).toEqual([EN, EN_FR, ES, ES_FR]);
 
         await port.restore(ENGLISH_NATIVE);
 
         expect(await port.nativeLanguage()).toBe("en");
-        expect(packs()).toEqual([EN_FR, ES_FR, ES_EN]);
+        // The engine built for English fetches its own parts, the Spanish base among them.
+        expect(packs()).toEqual([EN, EN_FR, ES, ES_FR, ES, ES_EN]);
         // Restored first where it arrived, then in the engine built for its native language.
         expect(glue.restores).toEqual([
           ["fr", ENGLISH_NATIVE],
@@ -703,7 +782,7 @@ describe("WasmAnalyzerPort packs", () => {
         await expect(port.for("en").analyse(["The city"])).rejects.toThrow(
           'no shipped pack studies "en" (shipped pairs: es-en)',
         );
-        expect(packs()).toEqual([EN_FR, ES_FR, ES_EN]);
+        expect(packs()).toEqual([EN, EN_FR, ES, ES_FR, ES, ES_EN]);
         expect(await port.languages()).toEqual(["es"]);
       });
 
@@ -715,7 +794,7 @@ describe("WasmAnalyzerPort packs", () => {
         await port.restore(ENGLISH_NATIVE); // no listed pair is glossed in English: served in French (M22)
 
         expect(await port.nativeLanguage()).toBe("fr");
-        expect(packs()).toEqual([EN_FR]);
+        expect(packs()).toEqual([EN, EN_FR]);
         expect(glue.restores.map(([native]) => native)).toEqual(["fr", "fr"]);
       });
 
@@ -744,13 +823,13 @@ describe("WasmAnalyzerPort packs", () => {
         expect(await port.languages()).toEqual(["en", "es"]);
         await port.for("es").analyse(["El faro"]);
         await port.backup();
-        expect(packs()).toEqual([EN_FR, ES_FR, ES_EN]);
+        expect(packs()).toEqual([EN, EN_FR, ES, ES_FR, ES, ES_EN]);
         expect(glue.restores).toEqual([["fr", ENGLISH_NATIVE]]);
 
         await port.restore(ENGLISH_NATIVE);
 
         expect(await port.nativeLanguage()).toBe("en");
-        expect(packs()).toEqual([EN_FR, ES_FR, ES_EN, ES_EN]);
+        expect(packs()).toEqual([EN, EN_FR, ES, ES_FR, ES, ES_EN, ES, ES_EN]);
         expect(glue.restores).toEqual([
           ["fr", ENGLISH_NATIVE],
           ["fr", ENGLISH_NATIVE],
@@ -768,10 +847,10 @@ describe("WasmAnalyzerPort packs", () => {
         await port.for("es").analyse(["El faro"]);
 
         // The second French engine is handed es-fr again: what the first held is not its own.
-        expect(packs()).toEqual([EN_FR, ES_FR, ES_EN, EN_FR, ES_FR]);
+        expect(packs()).toEqual([EN, EN_FR, ES, ES_FR, ES, ES_EN, EN, EN_FR, ES, ES_FR]);
         expect(glue.calls.filter(([name]) => name !== "analyse")).toEqual([
-          ["addPack", ["es"]],
-          ["addPack", ["es"]],
+          ["addParts", ["es"]],
+          ["addParts", ["es"]],
         ]);
       });
 
@@ -783,9 +862,9 @@ describe("WasmAnalyzerPort packs", () => {
         await port.restore('{"native":"fr"}');
 
         expect(await port.nativeLanguage()).toBe("fr");
-        expect(packs()).toEqual([ES_EN, EN_FR]);
+        expect(packs()).toEqual([ES, ES_EN, EN, EN_FR]);
         await port.for("es").analyse(["El faro"]); // es-fr added again, for this engine
-        expect(packs()).toEqual([ES_EN, EN_FR, ES_FR]);
+        expect(packs()).toEqual([ES, ES_EN, EN, EN_FR, ES, ES_FR]);
       });
     });
 
@@ -795,7 +874,7 @@ describe("WasmAnalyzerPort packs", () => {
 
       await port.applyStatusChanges([statusChange("es")]);
 
-      expect(packs()).toEqual([EN_FR]);
+      expect(packs()).toEqual([EN, EN_FR]);
       expect(glue.calls).toEqual([["applyStatusChanges", [["en"]]]]);
     });
   });
@@ -814,8 +893,50 @@ describe("WasmAnalyzerPort packs", () => {
     await port.exportDeclaredLevels();
     await port.languages();
 
-    expect(packs()).toEqual([EN_FR]);
+    expect(packs()).toEqual([EN, EN_FR]);
     expect(glue.calls).toEqual([]);
+  });
+});
+
+describe("the committed fixture's parts (ship-lingua-pack-bases-once D6)", () => {
+  // test/fixtures/ holds the en-fr testdata pack whole and as its base and layer, all three written
+  // by `yarn gen:fixtures`: assembled, the parts answer as the whole pack does, so the tests on the
+  // real engine, which load the parts, read the pack the whole fixture is.
+  const fixture = (name: string) => new Uint8Array(readFileSync(join(__dirname, "fixtures", name)));
+
+  it("answers every analysis and gloss as the whole fixture does", () => {
+    const glue = realGlue();
+    const whole = new glue.LinguaEngine(fixture("en-fr.testdata.lingua"));
+    const parts = glue.LinguaEngine.assemble(
+      fixture("en.testdata.base.lingua"),
+      fixture("en-fr.testdata.layer.lingua"),
+    );
+    const blocks = [
+      ["The city runs; he ran and walked, seldom running."],
+      ["Leaves can put a conundrum: it went, it was gone, it does."],
+      ["Cities ran", "A conundrum seldom goes"],
+    ];
+    for (const block of blocks) expect(parts.analyse(block, "en")).toBe(whole.analyse(block, "en"));
+    for (const lemma of [
+      "run",
+      "city",
+      "seldom",
+      "conundrum",
+      "go",
+      "leave",
+      "leaf",
+      "can",
+      "put",
+      "walk",
+      "nothing",
+    ]) {
+      expect(parts.gloss(lemma, "en"), lemma).toBe(whole.gloss(lemma, "en"));
+    }
+    expect(parts.gloss("city", "en")).toBe("ville");
+    expect(parts.notice("en")).toBe(whole.notice("en"));
+    expect(parts.languages()).toBe(whole.languages());
+    whole.free();
+    parts.free();
   });
 });
 

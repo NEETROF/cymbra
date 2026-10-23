@@ -14,6 +14,11 @@
   language's reference names, in either mode, its snapshot, its rules and the studied tables it
   read (`2026.10.08+733f815.5e0c2a1`, `pack_version`): its version moves when they do.
 - `pack`: sha256 and size of the pack the tables build — every lane must obtain exactly that.
+- `base` and `layer` (ship-lingua-pack-bases-once D3): sha256 and size of the same pack built as
+  its studied language's base and its pair's layer (`lingua-pack-build --split`), which is what a
+  package carries. Every pair of a language records the same base: a reader pair's is its
+  reference's (`check_studied_tables`). The whole pack is still built and recorded: the agent
+  plugin, the measurement and the update report read it.
 - `reducer`: the files the tables were reduced by — the pair's `reduce-<pair>.py` and the shared
   `reduce_*.py` modules importing it loads (`rule_files`) — and one sha256 over all of them.
 - `sources`: each raw source, pinned — CEFR-J and Octanove at a commit of their own repository
@@ -36,7 +41,9 @@ Stdlib only: the build mode reads this record too, and needs no Python package.
     pack_sources.py fetch-pinned  --pin P --work W [--cache C]     # the recorded bytes, checked, into W
     pack_sources.py fetch-live    --pin P --work W [--snapshot D] [--cache C] [--editions E]  # today's, into P
                                   [--keep-edition E …]                 # … but these editions' recorded bytes
-    pack_sources.py record-build  --pin P --pack F --reducer R     # what the tables build
+    pack_sources.py record-build  --pin P --pack F --base B --layer L --reducer R
+                                                                   # what the tables build
+    pack_sources.py record-parts  --pin P --base B --layer L       # … as parts alone, `pack` untouched
     pack_sources.py check-pack    --pin P --pack F                 # a pack, against the record
     pack_sources.py check-reducer --pin P --reducer R              # the rules, against the record
     pack_sources.py get           --pin P KEY                      # e.g. snapshot, pack.sha256
@@ -1208,7 +1215,23 @@ def pack_version(pin: Path, reducer: Path, *, live: bool = False) -> str:
     return f"{snapshot}+{rules_sha256(reducer)[:7]}.{studied_digest(studied['tables'])[:7]}"
 
 
-def record_build(pin: Path, pack: Path, reducer: Path) -> None:
+# The records of a pin, in the order it is saved.
+RECORDS = ("snapshot", "pack", "base", "layer", "reducer", "studied", "sources")
+# The records of a pack's parts (ship-lingua-pack-bases-once D3).
+PARTS = ("base", "layer")
+
+
+def built(path: Path) -> dict:
+    """A built file's record: its sha256 and its size."""
+    return {"sha256": sha256(path), "size": path.stat().st_size}
+
+
+def record_build(
+    pin: Path, pack: Path, reducer: Path, *, base: Path | None = None, layer: Path | None = None
+) -> None:
+    """What the tables build: the whole pack, its parts (`base` and `layer`, from the same tables
+    by `lingua-pack-build --split`) and the rules that reduced them. Without the parts, a record of
+    parts the tables no longer build is dropped rather than kept beside the new pack."""
     pool = studied_dir(pin) / PINNED_POOL
     if not pool.is_file():
         raise PinError(
@@ -1216,7 +1239,12 @@ def record_build(pin: Path, pack: Path, reducer: Path) -> None:
             "reducer writes, which the tables must keep (scripts/lingua-data/SOURCES.md)"
         )
     record = load(pin)
-    record["pack"] = {"sha256": sha256(pack), "size": pack.stat().st_size}
+    record["pack"] = built(pack)
+    for key, part in zip(PARTS, (base, layer)):
+        if part is None:
+            record.pop(key, None)
+        else:
+            record[key] = built(part)
     files = rule_files(reducer)
     record["reducer"] = {"sha256": files_sha256(files), "files": [p.name for p in files]}
     studied = studied_record(pin)
@@ -1224,7 +1252,18 @@ def record_build(pin: Path, pack: Path, reducer: Path) -> None:
         record.pop("studied", None)
     else:
         record["studied"] = studied
-    save(pin, {k: record[k] for k in ("snapshot", "pack", "reducer", "studied", "sources") if k in record})
+    save(pin, {k: record[k] for k in RECORDS if k in record})
+
+
+def record_parts(pin: Path, base: Path, layer: Path) -> None:
+    """The records of a pack's base and layer alone, every other record of the pin as it was —
+    the whole pack's above all: how the parts of tables already reduced are recorded without
+    reducing them again (ship-lingua-pack-bases-once D3)."""
+    record = load(pin)
+    if "pack" not in record:
+        raise PinError(f"{pin} records no pack: the parts are recorded beside the whole pack their tables build")
+    record["base"], record["layer"] = built(base), built(layer)
+    save(pin, {k: record[k] for k in RECORDS if k in record})
 
 
 def released(record: dict, release: str | None = None) -> list[tuple[str, dict]]:
@@ -1290,7 +1329,8 @@ def check_pack(pin: Path, pack: Path) -> None:
     if got != want:
         raise PinError(
             f"{pack} has sha256 {got}, but the committed tables build {want} (pin.json). The builder or a "
-            "dependency changed the pack: if that is intended, update pack.sha256 in the same pull request."
+            "dependency changed the pack: if that is intended, update pack.sha256 and pack.size in the same pull "
+            "request, and the parts (pack_sources.py record-parts --pin … --base … --layer …)."
         )
 
 
@@ -1341,6 +1381,16 @@ def check_studied_tables(pin: Path) -> None:
                 f"{got or 'no file'}, pin.json records {want or 'no file'}): {moved}, and {pair} was left "
                 f"behind: {again}."
             )
+    # One base per studied language (ship-lingua-pack-bases-once D3): a reader pair records its
+    # reference's.
+    got = (load(pin).get("base") or {}).get("sha256")
+    want = (load(studied.parent / reference / "pin.json").get("base") or {}).get("sha256")
+    if got != want:
+        raise PinError(
+            f"{pair}: pin.json records the base {got or 'none'} for {studied.name}/, and {reference}'s "
+            f"pin.json records {want or 'none'}: every pair of a language ships its reference's base, and "
+            f"{pair} was left behind: {again}."
+        )
 
 
 def check_own_reducer(pin: Path, reducer: Path) -> None:
@@ -1371,7 +1421,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
     commands = ("fetch-pinned", "fetch-live", "record-build", "check-pack", "check-reducer", "rules", "get", "assets")
-    commands += ("dumps",)
+    commands += ("dumps", "record-parts")
     commands += ("release-tag", "version")
     for name in (*commands, "keep", "split", "pairs", "moved"):
         p = sub.add_parser(name)
@@ -1410,6 +1460,9 @@ def main(argv: list[str] | None = None) -> int:
             p.add_argument("--release", help="the records of this release alone (a pair's own)")
         if name in ("record-build", "check-pack"):
             p.add_argument("--pack", type=Path, required=True)
+        if name in ("record-build", "record-parts"):
+            p.add_argument("--base", type=Path, required=True, help="the base of the same tables (--split)")
+            p.add_argument("--layer", type=Path, required=True, help="the layer of the same tables (--split)")
         if name in ("record-build", "check-reducer", "rules", "version"):
             p.add_argument("--reducer", type=Path, required=True)
         if name == "version":
@@ -1425,7 +1478,9 @@ def main(argv: list[str] | None = None) -> int:
             check_python()
             fetch_live(a.pin, a.work, a.snapshot, cache=a.cache, editions=a.editions, keep=a.keep)
         elif a.cmd == "record-build":
-            record_build(a.pin, a.pack, a.reducer)
+            record_build(a.pin, a.pack, a.reducer, base=a.base, layer=a.layer)
+        elif a.cmd == "record-parts":
+            record_parts(a.pin, a.base, a.layer)
         elif a.cmd == "check-pack":
             check_pack(a.pin, a.pack)
         elif a.cmd == "check-reducer":

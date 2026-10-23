@@ -286,6 +286,12 @@ fn the_french_fixture_keys_its_expressions_as_french_is_read() {
 
 /// A scratch copy of the en-fr fixture whose `forms.tsv` gains `rows`.
 fn fixture_with_forms(name: &str, rows: &str) -> PathBuf {
+    fixture_with_forms_but(name, "", rows)
+}
+
+/// A scratch copy of the en-fr fixture whose `forms.tsv` loses the row `dropped` (none when
+/// empty), then gains `rows`.
+fn fixture_with_forms_but(name: &str, dropped: &str, rows: &str) -> PathBuf {
     let scratch = std::env::temp_dir().join(format!("lingua-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&scratch);
     std::fs::create_dir_all(&scratch).unwrap();
@@ -295,6 +301,10 @@ fn fixture_with_forms(name: &str, rows: &str) -> PathBuf {
     }
     let forms = scratch.join("forms.tsv");
     let mut text = std::fs::read_to_string(&forms).unwrap();
+    if !dropped.is_empty() {
+        let lines = text.lines().filter(|line| *line != dropped);
+        text = lines.map(|line| format!("{line}\n")).collect();
+    }
     text.push_str(rows);
     std::fs::write(&forms, text).unwrap();
     scratch
@@ -304,22 +314,25 @@ fn fixture_with_forms(name: &str, rows: &str) -> PathBuf {
 fn lingua_pack_build_names_the_lexicon_it_refuses() {
     // fix-lingua-lemma-lookup D4, as `build.sh` shows it: a form listed with two lemmas, and a
     // glossed lemma (`leaf`) the forms table reads as another, each refused by name, no pack
-    // written.
-    for (name, rows, message) in [
+    // written. The fixture lists `leaf` as its own form (ship-lingua-pack-bases-once D6), a row the
+    // second case drops so that the forms table reads `leaf` as `leave` alone.
+    for (name, dropped, rows, message) in [
         (
             "two-lemmas",
+            "",
             "leaves\tleaf\n",
             "lingua-pack-build: the forms table lists the form \"leaves\" with 2 lemmas: \
              \"leaf\", \"leave\"",
         ),
         (
             "reads-as-another",
+            "leaf\tleaf",
             "leaf\tleave\n",
             "lingua-pack-build: the lemma \"leaf\" reads as \"leave\": the forms table lists it \
              as a form of \"leave\"",
         ),
     ] {
-        let dir = fixture_with_forms(name, rows);
+        let dir = fixture_with_forms_but(name, dropped, rows);
         let out = dir.join("pack.lingua");
         let run = std::process::Command::new(env!("CARGO_BIN_EXE_lingua-pack-build"))
             .arg(&dir)
@@ -357,10 +370,11 @@ fn lingua_pack_build_names_the_lexicon_it_refuses() {
 #[test]
 fn the_fixtures_build_whole_as_recorded_and_split_by_their_pin() {
     // D5: each fixture builds its whole pack byte for byte — the sha256 it built to before the
-    // split (recorded on `main` at 2efe503f4), while it pins no pool — and splits by its data: a
+    // split (recorded on `main` at 2efe503f4), while it pinned no pool — and splits by its data: a
     // fixture without `tags.tsv` is refused, naming it; one with a pin splits into parts that
-    // assemble into its whole pack. Change 4 pins the fixtures, and edits the two French rows,
-    // whose pool its pin adds.
+    // assemble into its whole pack. ship-lingua-pack-bases-once D6 pins the six fixtures: the four
+    // English and Spanish ones keep their bytes, the two French ones gain the `tags` section of
+    // their one-tag pin (`NOUN`), 13 bytes each.
     let root = testdata_dir().parent().unwrap().to_path_buf();
     for (pair, size, sha256) in [
         (
@@ -385,13 +399,13 @@ fn the_fixtures_build_whole_as_recorded_and_split_by_their_pin() {
         ),
         (
             "fr-en",
-            5856,
-            "e8b9e8c9daa6f8287a217b6f25154c0dad1395543d63855f68b655b44e2074cc",
+            5869,
+            "ec50eb130e6182c49952ec9fd12446efd66edfa9dfcbf50c72a78f44bc04be12",
         ),
         (
             "fr-es",
-            5731,
-            "223be53de235e8169110d4e77c6d8a4d44021ae43ece86466a66d1ef4fd07ac7",
+            5744,
+            "e3595d5cc8329db208210446d57a6a49e750b778d2da7a8c75079ea20f8a53f4",
         ),
     ] {
         let inputs = inputs_from_dir(&root.join(pair)).unwrap_or_else(|e| panic!("{pair}: {e}"));

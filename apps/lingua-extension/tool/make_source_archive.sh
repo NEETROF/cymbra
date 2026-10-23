@@ -82,18 +82,50 @@ $(node -e "const p=require('$REPO_ROOT/apps/lingua-extension/engine-pin.json'); 
 \`\`\`
 EOF
 
-# One line per shipped pair (packs.json, generalise-lingua-pack-build): each pack is built from its
-# own tables and its studied language's (split-lingua-pack-tables-by-language), and checked against
-# its own pin. scripts/lingua-data comes whole, so both kinds of folder are in the archive.
+# The shipped pairs, listed by a plain assignment, which `set -e` stops on, and refused when empty:
+# an archive whose README names no part would send the reviewer nothing to compare.
+PAIRS="$(node "$REPO_ROOT/apps/lingua-extension/tool/packs.mjs" pairs)"
+STUDIED="$(node "$REPO_ROOT/apps/lingua-extension/tool/packs.mjs" studied)"
+if [[ -z "$PAIRS" || -z "$STUDIED" ]]; then
+  echo "error: tool/packs.mjs listed no shipped pair or no studied language (packs.json)." >&2
+  exit 2
+fi
+
+# One line per packaged part (ship-lingua-pack-bases-once D5): each shipped pair's layer (packs.json,
+# generalise-lingua-pack-build) and each of their studied languages' base, once, each built from its
+# pair's own tables and its studied language's (split-lingua-pack-tables-by-language) and checked
+# against its pair's pin — the files the package carries, which the reviewer compares.
+# scripts/lingua-data comes whole, so both kinds of folder are in the archive. Every pair of a
+# language records the same base (pack_sources.py check-reducer); two that do not stop the archive.
 {
-  echo "Its data packs are built from the tables in \`scripts/lingua-data/tables/<pair>/\` and their"
-  echo "studied language's \`scripts/lingua-data/tables/<studied>/\` by \`yarn gen:pack:real\`, offline,"
-  echo "and checked against:"
+  echo "Each data pack ships as two parts, assembled by the add-on when it loads them: the pair's layer"
+  echo "and its studied language's base, one base for every pair of that language. They are built from"
+  echo "the tables in \`scripts/lingua-data/tables/<pair>/\` and their studied language's"
+  echo "\`scripts/lingua-data/tables/<studied>/\` by \`yarn gen:pack:real\`, offline, and checked against:"
   echo '```'
-  for pair in $(node "$REPO_ROOT/apps/lingua-extension/tool/packs.mjs" pairs); do
-    pin="$REPO_ROOT/scripts/lingua-data/tables/$pair/pin.json"
-    echo "$(node -p "require('$pin').pack.sha256")  apps/lingua-extension/assets/packs/$pair.lingua  (snapshot $(node -p "require('$pin').snapshot"))"
-  done
+  node -e '
+    const [root, ...pairs] = process.argv.slice(1);
+    const pin = (pair) => require(`${root}/scripts/lingua-data/tables/${pair}/pin.json`);
+    const bases = new Map();
+    for (const pair of pairs) {
+      const { layer, base, snapshot } = pin(pair);
+      if (!layer?.sha256 || !base?.sha256) {
+        console.error(`error: tables/${pair}/pin.json records no layer or no base: record its parts (pack_sources.py record-parts).`);
+        process.exit(1);
+      }
+      console.log(`${layer.sha256}  apps/lingua-extension/assets/packs/${pair}.lingua  (snapshot ${snapshot})`);
+      const studied = pair.slice(0, pair.indexOf("-"));
+      const first = bases.get(studied);
+      if (first && first.sha256 !== base.sha256) {
+        console.error(`error: ${first.pair} and ${pair} record two bases of ${studied}: every pair of a language ships one base.`);
+        process.exit(1);
+      }
+      if (!first) bases.set(studied, { pair, sha256: base.sha256 });
+    }
+    for (const [studied, { sha256 }] of bases) {
+      console.log(`${sha256}  apps/lingua-extension/assets/bases/${studied}.lingua`);
+    }
+  ' "$REPO_ROOT" $PAIRS
   echo '```'
 } >>"$OUT/README.md"
 echo "Source archive assembled in $OUT"

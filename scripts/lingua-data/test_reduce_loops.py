@@ -113,6 +113,21 @@ if [ "$1" = --dry ]; then
 fi
 """
 
+# build.sh, doubled for the `check` job: a whole pack is logged; `--parts <pair> <base> <layer>` is
+# logged and writes the base as its language and the layer as its pair — the base as its pair when
+# that pair is ODD_BASE, one byte apart from its language's.
+PARTS_BUILD_SH = """#!/usr/bin/env bash
+if [ "$1" = --parts ]; then
+  echo "parts $2" >> "$BUILD_LOG"
+  base="${2%%-*}"
+  [ "${ODD_BASE:-}" = "$2" ] && base="$2"
+  printf '%s' "$base" > "$3"
+  printf '%s' "$2" > "$4"
+else
+  echo "build $1" >> "$BUILD_LOG"
+fi
+"""
+
 # pack_report.py, doubled: it names the folders it compares and the tables the new one holds.
 PACK_REPORT = """import sys
 from pathlib import Path
@@ -687,13 +702,41 @@ class Loops(unittest.TestCase):
             'if [ "$pair" = es-en ]; then echo "error: es-en: es/level.tsv is not what es-en\'s tables were built on" >&2; exit 1; fi\n'
         )
         (self.bin / "python3").chmod(0o755)
-        (self.data / "build.sh").write_text('#!/usr/bin/env bash\necho "build $1" >> "$BUILD_LOG"\n')
+        (self.data / "build.sh").write_text(PARTS_BUILD_SH)
         extension = self.repo / "apps" / "lingua-extension"
         extension.mkdir(parents=True)
         done = self.run_step("lingua-extension-check.yml", "Build the real pack from the committed tables", cwd=extension)
         self.assertNotEqual(done.returncode, 0)
         self.assertIn("es-en: es/level.tsv", done.stderr)
-        self.assertEqual(self.built(), ["check en-es", "build en-es", "check en-fr", "build en-fr", "check es-en"])
+        self.assertEqual(
+            self.built(),
+            ["check en-es", "build en-es", "parts en-es", "check en-fr", "build en-fr", "parts en-fr", "check es-en"],
+        )
+
+    def test_the_check_job_builds_each_language_s_base_once_and_compares_the_next(self):
+        # ship-lingua-pack-bases-once D5: beside each whole pack, the pair's layer and its language's
+        # base; a language's second pair builds the base again, and one byte apart fails the step,
+        # naming both pairs. The checks pass here; build.sh, doubled, writes each part as its pair.
+        (self.bin / "python3").write_text('#!/bin/sh\necho "check $(basename "$(dirname "$4")")" >> "$BUILD_LOG"\n')
+        (self.bin / "python3").chmod(0o755)
+        (self.data / "build.sh").write_text(PARTS_BUILD_SH)
+        extension = self.repo / "apps" / "lingua-extension"
+        extension.mkdir(parents=True)
+        done = self.run_step("lingua-extension-check.yml", "Build the real pack from the committed tables", cwd=extension)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        for name, text in (("base-en", "en"), ("base-es", "es"), ("layer-en-fr", "en-fr"), ("layer-es-en", "es-en")):
+            self.assertEqual((self.temp / f"{name}.lingua").read_text(), text, name)
+        self.assertEqual((self.temp / "base-en.lingua.pair").read_text().strip(), "en-es", "the first English pair")
+        # en-fr builds another English base: the step fails, naming it and the first pair.
+        (self.log).unlink()
+        for part in self.temp.glob("*.lingua*"):
+            part.unlink()
+        done = self.run_step(
+            "lingua-extension-check.yml", "Build the real pack from the committed tables", cwd=extension, ODD_BASE="en-fr"
+        )
+        self.assertNotEqual(done.returncode, 0)
+        self.assertIn("::error::en-fr builds another en base than en-es", done.stdout)
+        self.assertEqual(self.built()[-1], "parts en-fr")
 
     def test_the_step_scripts_are_read_whole(self):
         script = step_script(WORKFLOWS / "lingua-pack-update.yml", "Reduce")

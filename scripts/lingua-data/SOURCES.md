@@ -825,12 +825,13 @@ another native language stores them byte for byte as its reference does.
 ## Build: a whole pack, or a base and a layer
 
 `lingua-pack-build` writes a pair's pack **whole** — `lingua-pack-build <input-dir> <out>`, or
-`--studied <studied-dir> <pair-dir> <out>` — which is what `build.sh`, every `pin.json`, the
-extension and the agent plugin use. From the same pass over the same tables it also writes the pack
-as **two parts** (split-lingua-pack-format): `lingua-pack-build --split <studied-dir> <pair-dir>
-<base.lingua> <layer.lingua>` (`lingua_pack::build_split`; `build_whole_and_split` writes the whole
-pack and both parts from one pass). Every `testdata/` fixture is refused until
-`ship-lingua-pack-bases-once` gives it a pin (below). Both parts are built before either is written,
+`--studied <studied-dir> <pair-dir> <out>` — which is what `build.sh <pair> <out>` builds, every
+`pin.json` records as `pack`, and the agent plugin, the measurement (`lingua-pack-measure`) and the
+update report (`pack_report.py --pack`) read. From the same pass over the same tables it also writes
+the pack as **two parts** (split-lingua-pack-format): `lingua-pack-build --split <studied-dir>
+<pair-dir> <base.lingua> <layer.lingua>` (`lingua_pack::build_split`; `build_whole_and_split` writes
+the whole pack and both parts from one pass) — what the extension's packages carry
+(ship-lingua-pack-bases-once, below). Both parts are built before either is written,
 so a part that fails leaves no file, and both are staged and moved into place together, so a write
 that fails never leaves a new base beside an old layer. The parts are containers of the same
 envelope, told apart by a `part` field in their metadata; a whole pack's metadata has none, and
@@ -856,7 +857,8 @@ refuses; a section the core does not know passes, as in a whole pack. The core's
 pack — the loader, `studied_in`, `pair_in`, the wasm engine's `new` and `addPack` — refuse a part,
 naming it and the part it needs, and the agent plugin skips it as any unreadable file. A part's
 metadata also lacks a field a whole pack's requires, so a reader released before the parts refuses
-it as malformed; `tool/packs.mjs` does the same until change 4 teaches it the parts.
+it as malformed; `tool/packs.mjs` reads a part's kind and `base_version` (ship-lingua-pack-bases-once D4), and
+refuses a whole pack where a part belongs.
 
 **`base_version`** is the sha256, in lowercase hex, of the base container's bytes from its section
 count to its end: no metadata, so any reader holding the file recomputes it
@@ -877,10 +879,12 @@ the field.
 
 **A split needs the pinned pool.** Without `tags.tsv` the pool is one sorted union of the readings'
 and the senses' tags, which no base and layer reproduce: the split is refused, naming `tags.tsv`.
-Every committed language pins its pool; the `testdata/` fixtures do not, and keep building whole packs
-byte for byte (`ship-lingua-pack-bases-once` gives them a pin, and the English fixtures a form row
-for each lemma they gloss and their forms do not hold — `leaf`, `can`, `put` —, which moves no byte). A language that pins its pool writes
-it, readings or not, whole or split.
+Every committed language pins its pool, and so does every `testdata/` fixture since
+ship-lingua-pack-bases-once (D6): en-fr, en-es, es-fr and es-en pin the sorted union their whole
+pack carried, which keeps its bytes; fr-en and fr-es, which have no grammar, pin one tag, `NOUN`, and
+their whole packs gain that `tags` section (13 bytes: 5,869 and 5,744 B). The English fixtures also
+list each lemma they gloss and their forms do not hold as a form of itself (`leaf`, `can`, `put`),
+which moves no byte. A language that pins its pool writes it, readings or not, whole or split.
 
 **The 5 MiB budget applies to each part** as to a whole pack, each with a remedy it carries: a layer
 names its expression table when it has one (longest entries, then rarest), else its glossed lemmas; a
@@ -898,8 +902,31 @@ either is over. Measured on the committed tables (2026-10-22), against 5,242,880
 | fr-es | 1,984,066 | 1,477,318 | 506,988 |
 
 Three bases (3,988,240 B) and six layers (5,498,762 B) make 9,487,002 B, against 13,473,847 B of whole
-packs. **The package still ships whole packs** until `ship-lingua-pack-bases-once`: `build.sh`, the
-pins, `gen_pack.sh`, the extension's loader and the agent plugin are unchanged.
+packs.
+
+**What a package carries** (ship-lingua-pack-bases-once). Each listed pair's **layer** at the pair's
+path, `apps/lingua-extension/assets/packs/<pair>.lingua`, where its whole pack lived — so the Safari
+host's localisation script, which reads the shipped natives from the pair names there, reads them
+unchanged — and each listed pair's studied language's **base**, once, at
+`assets/bases/<studied>.lingua`: six layers and three bases, nine files, and no whole pack
+(`tool/check_variants.mjs`). The engine fetches the default pair's base and layer at start and
+another listed pair's on first need; the Apple app's review page fetches the same files from the
+extension it embeds (`AppPageResource.swift`). The agent plugin keeps reading whole packs, built
+with `build.sh <pair> <out>`.
+
+- **`build.sh [--testdata] --parts <pair> <base.lingua> <layer.lingua>`**, the flag read after the
+  mode's, builds the parts: from the committed tables, each checked against its own record of
+  `pin.json` and named when it differs, or from `testdata/<pair>/`. `yarn gen:pack:real` and
+  `yarn gen:pack` run it for every listed pair, a language's second pair building its base again
+  and refused if one byte differs; `lingua-extension-check` does the same beside each whole pack and
+  compares the reviewer's rebuild of the nine files with it.
+- **The pins' three records.** `pin.json` records `pack`, `base` and `layer`, each `{sha256, size}`.
+  The reduce, update and dry modes build the parts beside the whole pack and record all three
+  (`pack_sources.py record-build --pack --base --layer`); **`record-parts --pin --base --layer`**
+  writes the two parts' records alone, `pack` untouched — how the six pins gained theirs without a
+  reduction. A reader pair's `base` is its reference's (`check-reducer`, which names the pair, its
+  reference and both bases). Reduced again under the same sources (`pack_report.py --identical`),
+  the layer may move with `pack_version`, which it carries, and the base may not.
 
 ## The Wiktionary editions' rules
 
