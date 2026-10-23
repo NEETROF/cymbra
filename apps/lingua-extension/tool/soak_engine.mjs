@@ -11,7 +11,8 @@
 //   --pair    one the catalogue routes: en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-en, en-it,
 //             it-fr, it-es, fr-it or es-it
 //             (add-lingua-translation-matrix-models pins en-es and routes es-en and en-es;
-//             add-lingua-french-translation pins fr-en, routes fr-en, and routes fr-es via fr-en;
+//             add-lingua-french-translation pins fr-en, routes fr-en, and routes fr-es through
+//             fr-en then en-es;
 //             add-lingua-italian-translation-models pins it-en 2.0 and en-it 2.1 and routes it-en and
 //             en-it, it-fr and it-es through it-en, fr-it and es-it through en-it);
 //             the corpus is its studied language's: the Italian selections, which

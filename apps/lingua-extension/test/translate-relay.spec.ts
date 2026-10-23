@@ -168,7 +168,7 @@ describe("relayTranslation", () => {
       selection: { start: 7, end: 13 }, // « caduta »
       language: "it",
     };
-    expect(MARKED_PAIRS).toContain("it-fr"); // 92 of 97, 3 % withheld; inert until change 20 lists it-fr
+    expect(MARKED_PAIRS).toContain("it-fr"); // 93 of 97, 3 % withheld; inert until change 20 lists it-fr
     const result = await relayTranslation(access, request, pairOf(request.language, "fr"));
     expect(pairs).toEqual(["it-fr", "it-fr"]);
     expect(seen).toEqual([

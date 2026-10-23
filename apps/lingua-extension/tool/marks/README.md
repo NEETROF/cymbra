@@ -83,9 +83,9 @@ change 50 routes them, and the en-it model through en-it, fr-it and es-it, now t
 programme's change 2 (`add-lingua-italian-translation-models`) pins it-en 2.0 and en-it 2.1 and
 routes Italian's six pairs, and the it-en model through it-en and it-fr, over the Italian selections
 row 19 (`measure-lingua-it-fr-translation-marks` D2) added to the corpus, which closes change 2's
-D4 — their runs are recorded in `TRANSLATION.md`; a pair the catalogue does not route is refused. A studied language the corpus held no selection of would be reported, not refused:
-« 0 selections run » and « tool/marks/corpus.json holds no … selection: nothing was soaked », exit
-status 0.
+D4 — their runs are recorded in `TRANSLATION.md`; a pair the catalogue does not route is refused.
+A studied language the corpus held no selection of would be reported, not refused: « 0 selections
+run » and « tool/marks/corpus.json holds no … selection: nothing was soaked », exit status 0.
 
 ```bash
 node --experimental-strip-types tool/soak_engine.mjs --pair en-fr --models /tmp/models            # ~15 s
@@ -198,7 +198,7 @@ D4). en-fr and es-fr were measured on 2026-10-05, judged in French; es-en and en
 | **en-es, engine, judged in Spanish** | **96 / 96 — 100 %**      | **4 %**  | **First tier: marked (shipped since change 35)**                               |
 | **fr-en, engine, judged in English** | **95 / 96 — 99.0 %**     | **4 %**  | **First tier: marked (shipped since change 52)**                               |
 | **fr-es, engine (pivot fr→en→es)**   | **90 / 91 — 98.9 %**     | **9 %**  | **First tier: marked (shipped since change 52)**                               |
-| **it-fr, engine (pivot it→en→fr)**   | **92 / 97 — 94.8 %**     | **3 %**  | **First tier: marked (listed, inert until the Italian programme's change 20)** |
+| **it-fr, engine (pivot it→en→fr)**   | **93 / 97 — 95.9 %**     | **3 %**  | **First tier: marked (listed, inert until the Italian programme's change 20)** |
 | es-fr, gloss-located (experiment)    | 76 / 78 — 97.4 %         | 22 %     | —                                                                              |
 | en-fr, gloss-located (experiment)    | 76 / 79 — 96.2 %         | 21 %     | —                                                                              |
 | es-en, gloss-located (experiment)    | 75 / 78 — 96.2 %         | 22 %     | —                                                                              |
@@ -245,25 +245,26 @@ What these numbers say:
 - **The 8 French selections right after an elided piece** (`d'enseigner`, `l'armée`, …) are correct
   on both pairs but « l'instant », withheld on both. No request trapped on either French pair: one engine
   built per run, every fragment reconciled.
-- **it-fr is on the first tier** through two models, it-en then en-fr: 92 of its 97 shown marks
+- **it-fr is on the first tier** through two models, it-en then en-fr: 93 of its 97 shown marks
   correct, 3 withheld — listed in `MARKED_PAIRS`, inert until the Italian programme's change 20
-  (`enable-lingua-italian`) lists it-fr in `packs.json`. Its five wrong marks, by `k`: « isole »
+  (`enable-lingua-italian`) lists it-fr in `packs.json`. Its four wrong marks, by `k`: « isole »
   marked « granit » instead of « îles » (k 38), « battaglia » marked « au » alone instead of
-  « combat » (k 52), « comprendono » marked « qui » (k 57, as en-fr's « make » was), « rilasciò »
-  marked the auxiliary « a » alone instead of « a sorti » (k 69), and « agli sgoccioli » rendered
-  « son infarest" », no French word, the marks on it (k 82). Its three withheld: « gran parte della »
+  « combat » (k 52), « comprendono » marked « qui » (k 57, as en-fr's « make » was) and « rilasciò »
+  marked the auxiliary « a » alone instead of « a sorti » (k 69). Its three withheld: « gran parte della »
   → « une grande partie de » (k 0), « Per quanto riguarda » → « Quant à » (k 61) and « stereotipata »,
   rendered « stéréotypée » unmarked (k 71).
 - **The criteria's Italian cases** (Judging): the one-word pasts are marked on their compound
   rendering — « ai vu » (k 37, carrying the « j' » the route adds), « a rencontré » (k 65), « a
   accusé » (k 81) — but for k 69's auxiliary alone; after a fused preposition, « Tout | long »
-  (k 6, « Tout au long de »), « mieux » (k 22) and « derniers » (k 91) are correct and k 82 wrong;
+  (k 6, « Tout au long de »), « mieux » (k 22) and « derniers » (k 91) are correct, k 82 doubtful;
   after the one elided piece, « seul » (k 86); gender or number never decided a verdict
   (« ennemies », k 79).
-- **Three it-fr lines are doubtful**, counted correct and flagged `doubtful:` in `engine_reason`:
+- **Four it-fr lines are doubtful**, counted correct and flagged `doubtful:` in `engine_reason`:
   « discordanza » → « discorde » (k 14) and « coppia » → « paire » (k 20), loose renderings the
-  mark follows, and « Fa' cadere » → « Lâche le » (k 29), the mark carrying « micro »'s article.
-  Counted wrong, it-fr is 89 / 97, 91.8 %: the tier holds either way.
+  mark follows; « Fa' cadere » → « Lâche le » (k 29), the mark carrying « micro »'s article; and
+  « agli sgoccioli » rendered « son infarest" » (k 82), a garbled non-word the mark follows, as
+  es-fr's k 15 (« indifféronteurs ») was judged. Counted wrong, it-fr is 89 / 97, 91.8 %: the tier
+  holds either way.
 - **No request trapped on it-fr**: one engine built, every fragment reconciled. The fragment alone
   moved the engine's mark to the right word once (« dilemmes » → « similaires », k 67) and trimmed
   it twice (k 7, k 96). Run twice, the results were byte for byte the same.

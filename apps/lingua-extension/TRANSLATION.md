@@ -150,8 +150,8 @@ its own route and judged in its native language — es-fr's measurement says not
 en-fr, es-fr, es-en, en-es, fr-en and fr-es are measured and listed; es-en and en-es were listed
 ahead of their readers, inert until changes 34 and 35 shipped them, and fr-en and fr-es until
 change 52 shipped them. it-fr is measured through it-en then en-fr on the Italian selections and
-judged in French (the Italian programme's row 19, `measure-lingua-it-fr-translation-marks`): 92 of
-its 97 shown marks correct, 3 % withheld, on the first tier — listed ahead of its readers, inert
+judged in French (the Italian programme's row 19, `measure-lingua-it-fr-translation-marks`): 93 of
+its 97 shown marks correct (89 of 97 with its doubtful lines counted wrong), 3 % withheld, on the first tier — listed ahead of its readers, inert
 until row 20 (`enable-lingua-italian`) lists it-fr in `packs.json`. Rows 24, 29, 38, 49 and 53
 measure the other Italian pairs through their routes before they ship.
 

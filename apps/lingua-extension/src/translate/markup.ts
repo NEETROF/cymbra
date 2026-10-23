@@ -16,7 +16,7 @@
  * es-fr goes through English, two alignments chained: 89 of its 90 shown marks were right, 10 %
  * withheld — which says nothing of es-en's one model, measured on its own: 94 of 96, 4 % withheld;
  * en-es, 96 of 96, 4 % withheld. French the same way: fr-en 95 of 96, 4 % withheld; fr-es, through
- * English, 90 of 91, 9 % withheld. Italian: it-fr, through it-en then en-fr, 92 of 97, 3 % withheld.
+ * English, 90 of 91, 9 % withheld. Italian: it-fr, through it-en then en-fr, 93 of 97, 3 % withheld.
  * A pair outside the list is translated without a mark (add-lingua-spanish-translation-pivot D3,
  * generalise-lingua-translation-routes-by-pair D4). A listed pair ships, or is listed ahead of its
  * readers and inert until a change lists it in packs.json: es-en and en-es until changes 34 and 35

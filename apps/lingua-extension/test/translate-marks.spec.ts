@@ -270,9 +270,9 @@ describe("A pair's marks are measured before they are shown", () => {
     }
   });
 
-  it("An Italian selection, through English, judged in French: it-fr, the Italian selections through it-en then en-fr, is listed on its own figures — 92 of 97, 3 % withheld, whatever the other pairs' are (measure-lingua-it-fr-translation-marks D3, D4)", () => {
+  it("An Italian selection, through English, judged in French: it-fr, the Italian selections through it-en then en-fr, is listed on its own figures — 93 of 97, 3 % withheld, whatever the other pairs' are (measure-lingua-it-fr-translation-marks D3, D4)", () => {
     expect(nativeOf("it-fr")).toBe("fr");
-    expect(judged("it-fr")).toEqual({ correct: 92, shown: 97, withheld: 3, total: 100 });
+    expect(judged("it-fr")).toEqual({ correct: 93, shown: 97, withheld: 3, total: 100 });
     expect(firstTier(judged("it-fr"))).toBe(true);
     expect(MARKED_PAIRS).toContain("it-fr");
     // The Italian selections, in order: its own measurement, on no other pair's selections.
@@ -297,7 +297,7 @@ describe("A pair's marks are measured before they are shown", () => {
       .filter((row) => row !== "")
       .map((row) => row.split("\t"));
     const doubtful = rows.filter((row) => row[6]!.startsWith("doubtful")).map((row) => row[0]);
-    expect(doubtful).toEqual(["14", "20", "29"]);
+    expect(doubtful).toEqual(["14", "20", "29", "82"]);
     const strict = { ...judged("it-fr"), correct: judged("it-fr").correct - doubtful.length };
     expect(firstTier(strict)).toBe(true);
   });
