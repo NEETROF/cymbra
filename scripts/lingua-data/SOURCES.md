@@ -608,8 +608,10 @@ that is its own lemma, the only forms holding a capital, which only Italian's an
 a word standing alone in capitals up as written; and into `tables/it/lexical.tsv`, Italian's dictionary
 words, glossed or not; no rank, level or reading. A pair glosses a row from its own glosses of the
 row's expansions, else of its synonyms (`acronym_gloss`, D3: `USA` through `America` and `Stati
-Uniti`; `NATO`, which names neither, has no gloss), at change 16. The candidates measured on the Italian
-corpora for the owner (`TARI`, `AGI`, `FAI` …) are not rows until the owner names them (task 5.1).
+Uniti`; `NATO`, which names neither, has no gloss), at change 16. The owner kept `NATO` and `USA` alone
+(2026-10-23, task 5.1): `FAI` and `AGI` are too rare in the Italian corpora, `TARI` is already read as
+the tax, and `RAI`, which passes the measurement, is held back by `check_lowercase`. The first reduction
+holding the rows is `lingua-pack-update` run 40013770231.
 
 `tables/it/studied.json` (`{"reference": "it-fr"}`) and `tables/it/tags.tsv` were committed by hand
 before the first update, as French's were: `record-build` refuses a studied language without its
