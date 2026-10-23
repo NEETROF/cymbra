@@ -29,14 +29,14 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use lingua_core::packs::pack::Pack;
-use lingua_pack::measure::{Gates, measure};
+use lingua_pack::measure::{Gates, measure, parse_args};
 
 const USAGE: &str =
     "usage: lingua-pack-measure [--min-content <percent>] <pack.lingua> <treebank.conllu>";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let Some((gates, paths)) = parse(&args) else {
+    let Some((gates, paths)) = parse_args(&args) else {
         eprintln!("{USAGE}");
         return ExitCode::FAILURE;
     };
@@ -48,24 +48,6 @@ fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
-}
-
-/// The gates and the two paths, or None when the arguments are not `[--min-content P] PACK TREEBANK`.
-fn parse(args: &[String]) -> Option<(Gates, [&str; 2])> {
-    let mut gates = Gates::default();
-    let mut paths = Vec::new();
-    let mut rest = args.iter();
-    while let Some(arg) = rest.next() {
-        if arg == "--min-content" {
-            gates.content = rest.next()?.parse().ok()?;
-        } else {
-            paths.push(arg.as_str());
-        }
-    }
-    let [pack, treebank] = paths.as_slice() else {
-        return None;
-    };
-    Some((gates, [pack, treebank]))
 }
 
 fn run(pack: &Path, treebank: &Path, gates: &Gates) -> Result<bool, Box<dyn std::error::Error>> {

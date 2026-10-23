@@ -167,6 +167,25 @@ pub fn measure(pack: &Pack, conllu: &str) -> Measurement {
     m
 }
 
+/// `lingua-pack-measure`'s arguments, `[--min-content P] PACK TREEBANK`: the gates and the two
+/// paths, or None when the arguments are not that shape.
+pub fn parse_args(args: &[String]) -> Option<(Gates, [&str; 2])> {
+    let mut gates = Gates::default();
+    let mut paths = Vec::new();
+    let mut rest = args.iter();
+    while let Some(arg) = rest.next() {
+        if arg == "--min-content" {
+            gates.content = rest.next()?.parse().ok()?;
+        } else {
+            paths.push(arg.as_str());
+        }
+    }
+    let [pack, treebank] = paths.as_slice() else {
+        return None;
+    };
+    Some((gates, [pack, treebank]))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -282,5 +301,39 @@ mod tests {
             ["content-word lemmas: 90.00 % < 90.5 %"]
         );
         assert_eq!(Gates::default(), Gates::PROGRAMME);
+    }
+
+    fn args(words: &[&str]) -> Vec<String> {
+        words.iter().map(|w| (*w).to_string()).collect()
+    }
+
+    #[test]
+    fn the_arguments_are_two_paths_and_an_optional_content_gate() {
+        let plain = args(&["it-fr.lingua", "pud.conllu"]);
+        assert_eq!(
+            parse_args(&plain),
+            Some((Gates::PROGRAMME, ["it-fr.lingua", "pud.conllu"]))
+        );
+        let italian = args(&["--min-content", "90.5", "it-fr.lingua", "pud.conllu"]);
+        let (gates, paths) = parse_args(&italian).expect("parsed");
+        assert_eq!(gates.content, 90.5);
+        assert_eq!((gates.resolved, gates.aux), (MIN_RESOLVED, MIN_AUX));
+        assert_eq!(paths, ["it-fr.lingua", "pud.conllu"]);
+        let after = args(&["it-fr.lingua", "pud.conllu", "--min-content", "90.5"]);
+        assert_eq!(parse_args(&after).expect("parsed").0.content, 90.5);
+    }
+
+    #[test]
+    fn malformed_arguments_are_refused() {
+        for words in [
+            &[][..],
+            &["it-fr.lingua"][..],
+            &["a", "b", "c"][..],
+            &["--min-content", "a", "b"][..],
+            &["a", "b", "--min-content"][..],
+            &["--min-content", "ninety", "a", "b"][..],
+        ] {
+            assert_eq!(parse_args(&args(words)), None, "{words:?}");
+        }
     }
 }
