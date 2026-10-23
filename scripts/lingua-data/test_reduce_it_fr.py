@@ -1,0 +1,753 @@
+# Copyright 2026 NEETROF
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+# this file except in compliance with the License. You may obtain a copy of the
+# License at http://www.apache.org/licenses/LICENSE-2.0
+
+"""Unit tests for the IT->FR reducer's Italian rules (add-lingua-italian-forms-tables) and for
+UD Italian-MarkIT's counts (`reduce_italian_treebank.py`), on entries shaped as the English
+Wiktionary's dump writes them — no download, wordfreq doubled.
+
+Run: python3 -m unittest discover -s scripts/lingua-data -p "test_*.py"
+"""
+
+import collections
+import importlib.util
+import io
+import json
+import os
+import re
+import tarfile
+import tempfile
+import unittest
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_spec = importlib.util.spec_from_file_location("reduce_it_fr", os.path.join(_HERE, "reduce-it-fr.py"))
+red = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(red)
+import reduce_italian_treebank as treebank  # noqa: E402 — beside this file
+
+_TOKENIZE_RS = os.path.join(_HERE, "..", "..", "crates", "lingua-core", "src", "analysis", "tokenize.rs")
+
+
+def entry(word, pos="noun", forms=(), senses=None):
+    """A kaikki entry: a word, its inflections `(form, [tags])`, and senses (a meaning by default)."""
+    return {
+        "word": word,
+        "pos": pos,
+        "forms": [{"form": f, "tags": list(t)} for f, t in forms],
+        "senses": senses if senses is not None else [{"glosses": ["a meaning"]}],
+    }
+
+
+def form_of(word, *targets, pos="verb", tags=("form-of",)):
+    """An entry that is only a form of `targets` (`creduta`: « feminine singular of creduto »)."""
+    return entry(word, pos=pos, senses=[{"tags": list(tags), "form_of": [{"word": t} for t in targets]}])
+
+
+def alt_of(word, *targets, pos, tags=("alt-of",)):
+    """An entry pointing at `targets` by `alt_of` (`un`: « apocopic form of uno »)."""
+    return entry(word, pos=pos, senses=[{"glosses": ["a pointer"], "tags": list(tags), "alt_of": [{"word": t} for t in targets]}])
+
+
+def compound(word, pos="verb"):
+    """A clitic compound's entry (`dirmelo`: « compound of the infinitive dire with me and lo »)."""
+    return entry(word, pos=pos, senses=[{"glosses": ["compound of something with lo"], "tags": ["compound-of"]}])
+
+
+PRESENT_3S = ["indicative", "present", "singular", "third-person"]
+PRESENT_1S = ["first-person", "indicative", "present", "singular"]
+PARTICIPLE = ["participle", "past"]
+# What a verb's conjugation table opens with, in the dump: its bookkeeping and its auxiliary.
+TABLE_HEAD = [
+    ("irregular", ["table-tags"]),
+    ("it-conj", ["inflection-template"]),
+    ("avére", ["auxiliary"]),
+]
+
+# A small Italian section: every rule of design D3–D6 has an entry here.
+ENTRIES = [
+    # D3 — a form of a form, along one part of speech.
+    entry("credere", pos="verb", forms=[*TABLE_HEAD, ("crédo", PRESENT_1S), ("credùto", PARTICIPLE)]),
+    entry(
+        "creduto",
+        pos="verb",
+        forms=[("creduta", ["feminine"]), ("creduti", ["masculine", "plural"]), ("credute", ["feminine", "plural"])],
+        senses=[{"tags": ["form-of", "participle", "past"], "form_of": [{"word": "credere"}]}],
+    ),
+    form_of("creduta", "creduto", tags=("feminine", "form-of", "participle", "singular")),
+    # D3 — the table's stress marks: a mark but on the last letter dropped; the last letter's kept
+    # unless the cell's entry is the bare spelling.
+    entry(
+        "dare",
+        pos="verb",
+        forms=[
+            ("dàre", ["canonical"]),
+            *TABLE_HEAD,
+            ("dàre", ["infinitive"]),
+            ("dàto", PARTICIPLE),
+            ("dièdi", ["first-person", "historic", "past", "singular"]),
+            ("darà", ["future", "singular", "third-person"]),
+            ("dò", PRESENT_1S),
+            ("dà", PRESENT_3S),
+            ("dài", ["imperative", "second-person", "singular"]),
+            ("darèbbe", ["conditional", "singular", "third-person"]),
+            ("dèttero", ["archaic", "historic", "past", "plural", "third-person"]),
+        ],
+    ),
+    form_of("dà", "dare"),
+    form_of("do", "dare"),
+    entry("do", senses=[{"glosses": ["do (musical note)"], "tags": ["masculine"]}]),
+    form_of("darà", "dare"),
+    form_of("dai", "dare"),
+    alt_of("dai", "da", pos="contraction", tags=("abbreviation", "alt-of", "contraction")),
+    entry("da", pos="prep"),
+    entry("da", pos="verb", senses=[{"glosses": ["misspelling of dà"], "tags": ["alt-of", "misspelling"], "alt_of": [{"word": "dà"}]}]),
+    entry("avere", pos="verb", forms=[*TABLE_HEAD, ("hà", PRESENT_3S), ("hò", PRESENT_1S), ("avùto", PARTICIPLE)]),
+    entry("ha", pos="verb", senses=[{"tags": ["form-of"], "form_of": [{"word": "avere and", "extra": "(obsolete) havere"}]}]),
+    form_of("ho", "avere"),
+    # D3 — a reflexive verb's rows written with their pronoun.
+    entry("lavare", pos="verb", forms=[*TABLE_HEAD, ("làvo", PRESENT_1S), ("làva", PRESENT_3S)]),
+    entry(
+        "lavarsi",
+        pos="verb",
+        forms=[
+            ("lavàrsi", ["canonical"]),
+            *TABLE_HEAD,
+            ("lavàrsi", ["infinitive"]),
+            ("lavàndosi", ["gerund"]),
+            ("lavàtosi", PARTICIPLE),
+            ("mi làvo", PRESENT_1S),
+            ("si làva", PRESENT_3S),
+            ("làvati", ["imperative", "second-person", "singular"]),
+        ],
+        senses=[
+            {"glosses": ["reflexive of lavare"], "tags": ["form-of", "reflexive"], "form_of": [{"word": "lavare"}]},
+            {"glosses": ["to wash (oneself)"]},
+        ],
+    ),
+    form_of("lavatosi", "lavarsi", tags=("form-of", "participle", "past")),
+    compound("lavandosi"),
+    entry(
+        "pentirsi",
+        pos="verb",
+        forms=[
+            ("pentìrsi", ["canonical"]),
+            *TABLE_HEAD,
+            ("pentìrsi", ["infinitive"]),
+            ("pentèndosi", ["gerund"]),
+            ("mi pènto", PRESENT_1S),
+            ("si pènte", PRESENT_3S),
+            ("pentìtevi", ["imperative", "plural", "second-person"]),
+            ("ti pentìre", ["imperative", "negative", "second-person", "singular"]),
+        ],
+        senses=[{"glosses": ["to repent"]}],
+    ),
+    form_of("pentendosi", "pentirsi", tags=("form-of", "gerund")),
+    form_of("pento", "pentirsi", tags=("first-person", "form-of", "indicative", "present", "singular")),
+    # D3 — a row carrying another clitic, a multi-word lemma's cells, alternatives, a bracket.
+    entry(
+        "andare",
+        pos="verb",
+        forms=[("andàre [auxiliary essere]", ["canonical"]), *TABLE_HEAD, ("vàdo", PRESENT_1S), ("vài", ["indicative", "present", "second-person", "singular"]), ("và", PRESENT_3S)],
+    ),
+    form_of("va", "andare"),
+    form_of("vai", "andare"),
+    entry("andarsene", pos="verb", forms=[*TABLE_HEAD, ("me ne vàdo", PRESENT_1S), ("andàrsene", ["infinitive"]), ("vàttene", ["imperative"])], senses=[{"glosses": ["to go away"]}]),
+    entry("stare zitto", pos="verb", forms=[("stò zitto", PRESENT_1S)], senses=[{"glosses": ["to keep quiet"]}]),
+    entry("potere", pos="verb", forms=[*TABLE_HEAD, ("puote, pote", ["archaic", "present", "third-person"]), ("può", PRESENT_3S)]),
+    form_of("può", "potere"),
+    # D3 — a derived word's row, and its own entry.
+    entry("casa", forms=[("case", ["plural"]), ("casétta", ["diminutive"]), ("casóne", ["augmentative", "masculine"]), ("ca'", ["alternative", "apocopic"])], senses=[{"glosses": ["house"], "tags": ["feminine"]}]),
+    entry("casetta", forms=[("casette", ["plural"])], senses=[{"glosses": ["diminutive of casa"], "tags": ["diminutive", "feminine", "form-of"], "form_of": [{"word": "casa"}]}]),
+    entry("vero", pos="adj", forms=[("vera", ["feminine"]), ("veri", ["masculine", "plural"]), ("verissimo", ["superlative"]), ("veramente", ["adverb"])], senses=[{"glosses": ["true"]}]),
+    entry("veramente", pos="adv"),
+    entry("mare", forms=[("mari", ["plural"]), ("marittimo", ["adjective", "relational"])], senses=[{"glosses": ["sea"], "tags": ["masculine"]}]),
+    # D3 — a doubtful inflection, and a gender marker.
+    entry("bello", pos="adj", forms=[("bella", ["feminine"]), ("belli", ["masculine", "plural"]), ("bèllo", ["archaic"]), ("bello'", ["misspelling"]), ("m", ["masculine"])]),
+    # D5 — one lemma per form: a noun a verb's form takes (M8).
+    entry("portare", pos="verb", forms=[*TABLE_HEAD, ("pòrta", PRESENT_3S), ("pòrto", PRESENT_1S)]),
+    entry("porta", forms=[("porte", ["plural"])], senses=[{"glosses": ["door"], "tags": ["feminine"]}]),
+    form_of("porta", "portare"),
+    entry("legge", forms=[("leggi", ["plural"])], senses=[{"glosses": ["law"], "tags": ["feminine"]}]),
+    entry("leggere", pos="verb", forms=[*TABLE_HEAD, ("lègge", PRESENT_3S)]),
+    form_of("legge", "leggere"),
+    entry("vita", forms=[("vite", ["plural"])], senses=[{"glosses": ["life"], "tags": ["feminine"]}]),
+    entry("vite", forms=[("viti", ["plural"])], senses=[{"glosses": ["vine"], "tags": ["feminine"]}]),
+    # D5 — names.
+    entry("bianco", pos="adj", forms=[("bianca", ["feminine"]), ("bianchi", ["masculine", "plural"])], senses=[{"glosses": ["white"]}]),
+    entry("bianca", senses=[{"glosses": ["female equivalent of bianco"], "tags": ["feminine", "form-of"], "form_of": [{"word": "bianco"}]}, {"glosses": ["cue ball"], "tags": ["feminine"]}]),
+    entry("Bianca", pos="name", senses=[{"glosses": ["a female given name"]}]),
+    entry("Roma", pos="name", senses=[{"glosses": ["Rome"]}]),
+    entry("roma", senses=[{"glosses": ["a type of rice"]}]),
+    entry("bambino", forms=[("bambini", ["plural"])], senses=[{"glosses": ["child"], "tags": ["masculine"]}]),
+    entry("Bambini", pos="name", senses=[{"glosses": ["a surname"]}]),
+    # D4 — the elided pieces, as the dump writes them, and the words they stand for.
+    alt_of("l'", "il/lo", "la", pos="article", tags=("abbreviation", "alt-of", "apocopic")),
+    entry("il", pos="article", forms=[("i", ["plural"]), ("la", ["feminine"]), ("lo (l')", ["masculine", "singular"]), ("gli", ["masculine", "plural"]), ("le", ["feminine", "plural"])]),
+    entry("lo", pos="article", forms=[("gli", ["plural"]), ("il", ["masculine", "singular"])]),
+    entry("lo", pos="pron", forms=[("li", ["plural"]), ("la", ["feminine"])]),
+    entry("la", pos="pron"),
+    entry("uno", pos="num", forms=[("una", ["feminine"])]),
+    form_of("una", "uno", pos="article", tags=("feminine", "form-of", "singular")),
+    alt_of("un", "uno", pos="article", tags=("abbreviation", "alt-of", "apocopic", "masculine")),
+    alt_of("un'", "una", pos="article", tags=("abbreviation", "alt-of", "apocopic")),
+    entry("buono", pos="adj", forms=[("buona", ["feminine"])]),
+    alt_of("buon", "buono", pos="adj", tags=("abbreviation", "alt-of", "apocopic")),
+    entry("questo", pos="pron", forms=[("questa", ["feminine"])]),
+    entry("anche", pos="adv"),
+    alt_of("dello", "di lo", pos="contraction", tags=("abbreviation", "alt-of", "contraction")),
+    alt_of("dell'", "di l'", pos="contraction", tags=("abbreviation", "alt-of", "contraction")),
+    alt_of("del", "di", pos="contraction", tags=("abbreviation", "alt-of", "contraction")),
+    alt_of("della", "di", pos="contraction", tags=("abbreviation", "alt-of", "contraction")),
+    alt_of("nel", "in il", pos="contraction", tags=("abbreviation", "alt-of", "contraction")),
+    alt_of("al", "a", pos="contraction", tags=("abbreviation", "alt-of", "contraction")),
+    alt_of("po'", "poco", pos="noun", tags=("abbreviation", "alt-of", "apocopic", "masculine")),
+    entry("poco", pos="adv"),
+    # D4 — a plain word beginning with an elided piece, and a clitic compound.
+    entry("c'è", pos="verb", senses=[{"glosses": ["there is"]}]),
+    entry("dell'anno", pos="phrase"),
+    compound("dirmelo"),
+    compound("vattene"),
+    entry("vattene", pos="intj", senses=[{"glosses": ["go away!"]}]),
+    compound("fallo"),
+    entry("fallo", senses=[{"glosses": ["foul"], "tags": ["masculine"]}]),
+    compound("farlo"),
+    # D6 — hyphenated words, ranked by MarkIT's evidence.
+    entry("pellerossa", senses=[{"glosses": ["redskin"]}]),
+    entry("anglo-americano", pos="adj"),
+    entry("nord-est", pos="noun"),
+]
+
+# wordfreq, doubled: its Italian list in order, with the elided pieces' stems, a token beginning with
+# a piece, and words no rank may go to (the order wordfreq gives them is irrelevant to the rules).
+TOP = [
+    "di", "l", "il", "la", "lo", "un", "d", "una", "da", "po", "del", "della", "nel", "al", "dai", "dell'acqua",
+    "anche", "questo", "quest", "buon", "dare", "avere", "ha", "porta", "portare", "legge", "leggere",
+    "vita", "vite", "bianca", "bianco", "roma", "bambini", "bambino", "credere", "farlo", "lavarsi",
+    "lavare", "casa", "vero", "veramente", "casetta", "poco", "uno", "dirmelo", "fallo", "mare",
+    "bello", "pentirsi", "andare", "potere", "do", "andarsene", "pellerossa", "dello", "buono",
+]
+# Zipf frequencies: the list's order, and the forms wordfreq attests.
+FREQUENCY = {word: 7.0 - i * 0.05 for i, word in enumerate(TOP)}
+FREQUENCY.update(
+    {
+        "bianca": 4.78, "bianco": 4.99, "roma": 5.63, "bambini": 4.97, "bambino": 4.63, "porta": 5.41, "portare": 5.09,
+        "legge": 5.64, "leggere": 4.9, "anglo-americano": 6.5, "nord-est": 6.5,
+    }
+)
+FREQUENCY.update(
+    {
+        w: 3.0
+        for w in (
+            "creduta", "creduto", "creduti", "credo", "dato", "diedi", "darà", "dà", "dai", "do", "darebbe", "ho",
+            "lavo", "lava", "pento", "pente", "pentire", "pentendo", "pentite", "vado", "vai", "va", "può",
+            "case", "casette", "vera", "veri", "verissimo", "mari", "belli", "porto", "porte", "leggi", "viti", "bianchi",
+            "i", "gli", "le", "li", "questa", "buona", "vite", "dirmi",
+        )
+    }
+)
+
+
+def frequency(word):
+    return FREQUENCY.get(word, 0.0)
+
+
+def top_n(n):
+    return TOP[:n]
+
+
+# MarkIT's counts, doubled: `porta` read as portare, `vite` as vita, `lo` as the pronoun.
+COUNTS = collections.Counter({("porta", "portare"): 3, ("porta", "porta"): 1, ("vite", "vita"): 2, ("lo", "lo"): 5, ("lo", "il"): 2, ("anglo-americano", "anglo-americano"): 1})
+
+
+def section(entries=ENTRIES):
+    survey = red.Survey()
+    for e in entries:
+        survey.read(e)
+    lexicon = red.Lexicon(survey)
+    for e in entries:
+        lexicon.read(e)
+    lexicon.drop_clitic_rows()
+    return lexicon
+
+
+def reduce(max_lemmas=200, entries=ENTRIES, counts=COUNTS):
+    lexicon = section(entries)
+    red.name_or_word(lexicon.candidates, lexicon.poses, frequency)
+    red.own_words(lexicon)
+    forms, ranks, step = red.reduce_forms(lexicon, counts, treebank.markit_zipf(counts), frequency, top_n, max_lemmas)
+    red.seed_pieces(forms)
+    return lexicon, forms, ranks, step
+
+
+class Forms(unittest.TestCase):
+    """What a form is (D3)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.lexicon, cls.forms, cls.ranks, _ = reduce()
+
+    def test_spec_scenario_a_participle_s_agreement(self):
+        # `creduta` is listed only as the feminine of the participle `creduto`, filed under credere.
+        self.assertEqual(self.forms["creduta"], "credere")
+        self.assertEqual(self.forms["creduti"], "credere")
+
+    def test_spec_scenario_the_table_s_stress_marks(self):
+        for form in ("dare", "dato", "diedi", "darà", "dà", "darebbe"):
+            self.assertEqual(self.forms.get(form), "dare", form)
+        # `ha`: avere's entry for the cell is the bare spelling.
+        self.assertEqual(self.forms["ha"], "avere")
+        self.assertNotIn("hà", self.forms)
+        # `do` is the bare spelling of dò, whose cell `do`'s entry carries.
+        self.assertNotIn("dò", self.forms)
+        # `da` the preposition is no form of dare, and a marked row never reaches the table.
+        self.assertEqual(self.forms["da"], "da")
+        self.assertFalse(any(c in "àèéìíòóùú" for f in self.forms for c in f[:-1].rstrip("'")), "a mark not on the last letter")
+
+    def test_the_stress_helpers(self):
+        self.assertEqual(red.without_stress("dàre"), "dare")
+        self.assertEqual(red.without_stress("darèbbe"), "darebbe")
+        self.assertEqual(red.without_stress("darà"), "darà")
+        self.assertEqual(red.without_stress("dà'"), "dà'")
+        # A loan's marks are spelling, not stress.
+        self.assertEqual(red.without_stress("würstel"), "würstel")
+        self.assertEqual(red.bare("hà"), "ha")
+        self.assertEqual(red.bare("dà'"), "da'")
+        self.assertIsNone(red.bare("dare"))
+
+    def test_spec_scenario_a_row_written_with_its_pronoun(self):
+        self.assertEqual(self.forms["lavo"], "lavare")
+        self.assertEqual(self.forms["lava"], "lavare")
+        self.assertNotIn("lavarsi", self.forms)
+        self.assertNotIn("lavarsi", self.ranks)
+        self.assertNotIn("lavarsi", self.lexicon.lemmas)
+        for form in ("pento", "pente", "pentire", "pentirsi", "pentendo", "pentite"):
+            self.assertEqual(self.forms.get(form), "pentirsi", form)
+        # Its rows carrying the pronoun are no forms: the enclitic rule reads them.
+        for form in ("pentendosi", "pentitevi", "lavatosi", "lavandosi", "lavati"):
+            self.assertNotIn(form, self.forms, form)
+        self.assertFalse(any(" " in form for form in self.forms))
+
+    def test_a_row_carrying_another_clitic_gives_no_form(self):
+        # andarsene's rows (`me ne vàdo`, `vàttene`) give nothing, and andarsene is no lemma.
+        self.assertNotIn("andarsene", self.forms)
+        self.assertNotIn("andarsene", self.ranks)
+        self.assertNotIn("vattene", self.forms)
+        self.assertEqual(self.forms["vado"], "andare")
+
+    def test_a_multi_word_cell_a_bracket_and_alternatives_give_no_form(self):
+        self.assertNotIn("stò", self.forms)
+        self.assertNotIn("sto zitto", self.forms)
+        self.assertFalse(any("[" in f or "," in f for f in self.forms))
+        self.assertNotIn("pote", self.forms)
+        self.assertEqual(self.forms["può"], "potere")
+
+    def test_spec_scenario_a_derived_word(self):
+        # casa's diminutive and augmentative rows, vero's adverb row and mare's relational adjective
+        # are no forms of them; each is read from its own entry.
+        self.assertNotIn("casétta", self.forms)
+        self.assertNotIn("casone", self.forms)
+        self.assertEqual(self.forms["casetta"], "casetta")
+        self.assertEqual(self.forms["casette"], "casetta")
+        self.assertEqual(self.forms["veramente"], "veramente")
+        self.assertNotIn("marittimo", self.forms)
+        self.assertEqual(self.forms["verissimo"], "vero")
+
+    def test_spec_scenario_a_doubtful_inflection(self):
+        self.assertNotIn("bello'", self.forms)
+        self.assertEqual(self.forms["belli"], "bello")
+        self.assertNotIn("ca'", self.forms)
+        self.assertNotIn("dettero", self.forms)
+
+    def test_bookkeeping_the_auxiliary_and_a_gender_marker_are_no_forms(self):
+        self.assertNotIn("irregular", self.forms)
+        self.assertNotIn("it-conj", self.forms)
+        # avere's table names its auxiliary: no form of dare.
+        self.assertEqual(self.forms["avere"], "avere")
+        self.assertNotIn("m", self.forms)
+
+    def test_letters(self):
+        for word in ("würstel", "crêpe", "c'era-una-volta", "po'", "l'"):
+            self.assertTrue(red._TOKEN.fullmatch(word), word)
+        for word in ("abc1", "a b", "-lo", "'ndrangheta"):
+            self.assertFalse(red._TOKEN.fullmatch(word), word)
+        self.assertEqual(red.nfc_lower("Città’"), "città'")
+
+
+class Tokenisation(unittest.TestCase):
+    """The tables serve I7, as change 6 writes it (D4)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.lexicon, cls.forms, cls.ranks, _ = reduce()
+
+    def test_spec_scenario_the_elided_pieces_are_forms(self):
+        self.assertEqual(self.forms["lo"], "lo")
+        self.assertEqual(self.forms["dello"], "dello")
+        self.assertEqual(self.forms["una"], "uno")
+        self.assertEqual(self.forms["questo"], "questo")
+        self.assertEqual(self.forms["anche"], "anche")
+        self.assertEqual(self.forms["l'"], "lo")
+        self.assertEqual(self.forms["un'"], "uno")
+        self.assertEqual(self.forms["quest'"], "questo")
+        self.assertEqual(self.forms["anch'"], "anche")
+        self.assertEqual(self.forms["dell'"], "dello")
+
+    def test_spec_scenario_articulated_prepositions(self):
+        self.assertEqual(self.forms["del"], "del")
+        self.assertEqual(self.forms["della"], "della")
+        self.assertIn("del", self.ranks)
+        for split in ("nel", "al"):
+            self.assertNotIn(split, self.forms)
+            self.assertNotIn(split, self.ranks)
+        self.assertEqual(self.forms["dai"], "dare")
+        self.assertNotIn("dai", self.ranks)
+
+    def test_truncations_read_as_their_word_s_lemma(self):
+        self.assertEqual(self.forms["po'"], "poco")
+        self.assertEqual(self.forms["da'"], "dare")
+        self.assertEqual(self.forms["va'"], "andare")
+
+    def test_spec_scenario_a_form_carrying_clitics(self):
+        for word in ("dirmelo", "vattene", "farlo"):
+            self.assertNotIn(word, self.forms, word)
+            self.assertNotIn(word, self.ranks, word)
+        # A noun spelled like a compound stands.
+        self.assertEqual(self.forms["fallo"], "fallo")
+
+    def test_no_plain_word_beginning_with_an_elided_piece(self):
+        for word in ("c'è", "dell'anno", "dell'acqua", "l'ho", "dov'è", "l'anglo-americano"):
+            self.assertFalse(red.is_form(word), word)
+            self.assertNotIn(word, self.forms)
+        for word in ("po'", "l'", "coll'ago"):
+            self.assertTrue(red.is_form(word), word)
+
+    def test_every_word_the_pre_pass_writes(self):
+        words = red.prepass_words()
+        for word in ("lo", "una", "dissi", "dello", "del", "a", "il", "i", "gli", "poco", "dai", "dici", "vai"):
+            self.assertIn(word, words)
+        self.assertNotIn("nel", words)
+        self.assertEqual(red.unwritten_words({w: w for w in words}), [])
+        self.assertIn("dissi", red.unwritten_words({}))
+
+    def test_the_closed_tables_are_change_6_s(self):
+        # The reviewed tables are lingua-core's, as tokenize.rs writes them: a reduction cannot drift
+        # from the pre-pass it serves.
+        with open(_TOKENIZE_RS, encoding="utf-8") as f:
+            source = f.read()
+
+        def table(name):
+            body = source[source.index(f"pub const {name}"):]
+            body = body[: body.index("];")]
+            return [tuple(re.findall(r'"([^"]*)"|None', row)) for row in re.findall(r"^\s*\((.*)\),\s*$", body, re.M)]
+
+        elisions = {f"{w}'": r for w, r in table("ITALIAN_ELISIONS")}
+        self.assertEqual(elisions, red.ELISIONS)
+        self.assertEqual({w: (p, a) for w, p, a in table("ITALIAN_CONTRACTIONS")}, red.CONTRACTIONS)
+        truncations = {f"{w}'": r for w, r in table("ITALIAN_TRUNCATIONS")}
+        self.assertEqual(truncations, red.TRUNCATIONS)
+        elided = {}
+        for row in re.findall(r'^\s*\("(\w+)", "(\w+)", (?:Some\("(\w+)"\)|None)\),\s*$', source[source.index("pub const ITALIAN_ELIDED_PREPOSITIONS"):], re.M):
+            elided[f"{row[0]}'"] = tuple(x for x in row[1:] if x)
+        self.assertEqual(elided, red.ELIDED_PREPOSITIONS)
+        self.assertIn('"disse" if next == "io" => "dissi"', source)
+        self.assertEqual(red.CONTEXT_WORDS, ("dissi",))
+
+
+class Ranks(unittest.TestCase):
+    """Lemmas and ranks (D6)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.lexicon, cls.forms, cls.ranks, _ = reduce()
+
+    def test_spec_scenario_wordfreq_s_elision_stems(self):
+        for stem in ("l", "d", "po", "quest", "dell'acqua"):
+            self.assertIn(stem, TOP)
+            self.assertNotIn(stem, self.ranks)
+            self.assertNotIn(stem, self.forms)
+        self.assertEqual(self.forms["un"], "uno")
+        self.assertEqual(self.forms["buon"], "buono")
+        # Dense: the ranks close up over what was left out.
+        self.assertEqual(sorted(self.ranks.values()), list(range(1, len(self.ranks) + 1)))
+
+    def test_the_stems_wordfreq_counts(self):
+        for stem in ("l", "d", "gl", "ch", "quest", "dov", "all", "dell", "po", "mo", "be"):
+            self.assertIn(stem, red.WORDFREQ_STEMS)
+        for word in ("un", "buon", "nessun", "da", "di", "fa", "va", "sta"):
+            self.assertNotIn(word, red.WORDFREQ_STEMS)
+
+    def test_a_hyphenated_word_ranked_by_markit_s_evidence(self):
+        self.assertIn("anglo-americano", self.ranks)
+        self.assertNotIn("nord-est", self.ranks)
+
+    def test_spec_scenario_every_rank_on_its_own_lemma(self):
+        for lemma in self.ranks:
+            self.assertEqual(self.forms[lemma], lemma, lemma)
+
+    def test_no_infinitive_or_form_carrying_clitics_is_ranked(self):
+        for word in ("lavarsi", "farlo", "dirmelo", "andarsene"):
+            self.assertNotIn(word, self.ranks, word)
+        self.assertIn("pentirsi", self.ranks)
+
+    def test_the_cut(self):
+        _, forms, ranks, _ = reduce(max_lemmas=5)
+        self.assertEqual(len(ranks), 5)
+        # `l`, `un` (uno's apocope) and `d` are passed over: the cut closes up.
+        self.assertEqual(set(ranks), {"di", "il", "la", "lo", "da"})
+        for lemma in ranks:
+            self.assertEqual(forms[lemma], lemma)
+
+
+class OneLemma(unittest.TestCase):
+    """One lemma per form (D5)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.lexicon, cls.forms, cls.ranks, step = reduce()
+        cls.step = staticmethod(step)
+
+    def test_spec_scenario_one_lemma_per_form(self):
+        # MarkIT's counts favour portare.
+        self.assertEqual(self.forms["porta"], "portare")
+        self.assertNotIn("porta", self.ranks)
+        # With no count, the form's own entry: the law, not leggere's form.
+        self.assertEqual(self.forms["legge"], "legge")
+        # And the tables name the rule that decided.
+        decided = red.decisions(self.forms, self.lexicon, self.step, COUNTS, frequency)
+        self.assertGreaterEqual(decided["MarkIT's counts"], 1)
+        self.assertGreaterEqual(decided["its own entry"], 1)
+        lemmas = self.lexicon.lemmas
+        self.assertEqual(red.decided_by("porta", {"porta", "portare"}, COUNTS, lemmas, frequency), "MarkIT's counts")
+        self.assertEqual(red.decided_by("legge", {"legge", "leggere"}, COUNTS, lemmas, frequency), "its own entry")
+        self.assertEqual(red.decided_by("x", {"bianco", "porta"}, COUNTS, lemmas, frequency), "frequency")
+        self.assertEqual(red.decided_by("x", {"a", "b"}, COUNTS, lemmas, frequency), "alphabetical order")
+        self.assertEqual(red.decided_by("x", {"a", "b"}, COUNTS, lemmas, frequency, {"x": ("b", "why")}), "override")
+
+    def test_the_override_list_is_empty_and_decides_first(self):
+        self.assertEqual(red.OVERRIDES, {})
+        self.assertEqual(red.choose_lemma("porta", {"porta", "portare"}, COUNTS, {"porta"}, frequency, {"porta": ("porta", "why")}), "porta")
+
+    def test_spec_scenario_a_name_and_a_word(self):
+        # `bianca`: the name, a cue ball and bianco's feminine — the commoner reading by wordfreq.
+        self.assertEqual(self.forms["bianca"], "bianco")
+        # `roma`: a name and a rice, one lemma string: the city stays.
+        self.assertEqual(self.forms["roma"], "roma")
+        self.assertIn("roma", self.ranks)
+        # A name alone, spelled like another word's form, reads as the word.
+        self.assertEqual(self.forms["bambini"], "bambino")
+        self.assertNotIn("bambini", self.ranks)
+
+    def test_the_names_rule_s_branches(self):
+        poses = {"bianca": {"noun", "name"}, "bianco": {"adj"}, "bambini": {"name"}, "bambino": {"noun"}, "roma": {"name", "noun"}, "maria": {"name"}, "mario": {"name"}}
+        candidates = {"bianca": {"bianca", "bianco"}, "bambini": {"bambini", "bambino"}, "roma": {"roma"}, "maria": {"maria", "mario"}}
+        moved = red.name_or_word(candidates, poses, frequency)
+        self.assertEqual(candidates, {"bianca": {"bianco"}, "bambini": {"bambino"}, "roma": {"roma"}, "maria": {"maria", "mario"}})
+        self.assertEqual(moved, {"names read as another word": 1, "kept the commoner reading, another word's": 1})
+        candidates = {"bianca": {"bianca", "bianco"}}
+        red.name_or_word(candidates, poses, lambda w: {"bianca": 6.0}.get(w, 1.0))
+        self.assertEqual(candidates, {"bianca": {"bianca"}})
+
+    def test_m8_s_cost(self):
+        cost = red.m8_cost(self.forms, self.ranks, self.lexicon, top_n, tops=(25, 50))
+        self.assertIn((24, "porta", "portare"), cost[25])
+        self.assertEqual(cost[25], cost[50])
+
+
+class MorphIt(unittest.TestCase):
+    """Morph-it!'s additions (D3)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.lexicon, cls.forms, cls.ranks, _ = reduce()
+
+    def test_spec_scenario_morph_it_completes_a_verb(self):
+        pairs = {("credettero", "credere"), ("crederono", "credere")}
+        added = red.morph_it_additions(pairs, self.forms, self.ranks, self.lexicon, lambda w: 2.0)
+        self.assertEqual(added, {"credettero": "credere", "crederono": "credere"})
+
+    def test_spec_scenario_morph_it_never_moves_a_reading(self):
+        # `porta`, which the Wiktionary reads, and `vite`, which it lists under vita and vite.
+        pairs = {("porta", "porgere"), ("vite", "vite"), ("porte", "portare")}
+        self.assertEqual(red.morph_it_additions(pairs, self.forms, self.ranks, self.lexicon, frequency), {})
+
+    def test_morph_it_adds_under_a_ranked_lemma_alone(self):
+        pairs = {("xyzzi", "xyzzo"), ("credetti", "credere"), ("farlo", "fare"), ("nel", "in"), ("bianca", "bianco")}
+        added = red.morph_it_additions(pairs, self.forms, self.ranks, self.lexicon, lambda w: 2.0 if w != "nonattested" else 0.0)
+        self.assertEqual(added, {"credetti": "credere"})
+        self.assertEqual(red.morph_it_additions({("credetti", "credere")}, self.forms, self.ranks, self.lexicon, lambda w: 0.0), {})
+
+    def test_reading_the_archive(self):
+        lines = "\n".join(
+            [
+                "credettero\tcredere\tVER:ind+past+3+p",
+                "crederlo\tcredere\tVER:inf+pres+lo",
+                "Città\tcittà\tNOUN-F:s",
+                "cent'\tcento\tDET-NUM-CARD",
+                "broken line",
+                "più\tpiù\tADV",
+            ]
+        ).encode("latin-1")
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, red.MORPH_IT)
+            with tarfile.open(path, "w:gz") as archive:
+                info = tarfile.TarInfo(red.MORPH_IT_MEMBER)
+                info.size = len(lines)
+                archive.addfile(info, io.BytesIO(lines))
+            pairs = red.read_morph_it(path)
+        self.assertEqual(pairs, {("credettero", "credere"), ("città", "città"), ("cent'", "cento"), ("più", "più")})
+
+
+class Treebank(unittest.TestCase):
+    """UD Italian-MarkIT's training and development sections (D2, D5, D6)."""
+
+    SAMPLE = (
+        "# sent_id = 1\n"
+        "1-2\tdel\t_\t_\t_\t_\t_\t_\t_\t_\n"
+        "1\tdi\tdi\tADP\t_\t_\t3\tcase\t_\t_\n"
+        "2\til\til\tDET\t_\t_\t3\tdet\t_\t_\n"
+        "3\tPorta\tporta\tNOUN\t_\t_\t0\troot\t_\t_\n"
+        "4\tporta\tportare\tVERB\t_\t_\t3\tacl\t_\t_\n"
+        "5\tè\tessere\tAUX\t_\t_\t4\tcop\t_\t_\n"
+        "6\tanglo-americano\tanglo-americano\tADJ\t_\t_\t3\tamod\t_\t_\n"
+        "7\tconseguenza\tconseguenza\tNOUN\t_\t_\t3\tfixed\t_\t_\n"
+        "7.1\tx\tx\tX\t_\t_\t_\t_\t_\t_\n"
+        "8\tL’\til\tDET\t_\t_\t3\tdet\t_\t_\n"
+    )
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.train = os.path.join(self._tmp.name, "it_markit-ud-train.conllu")
+        with open(self.train, "w", encoding="utf-8") as f:
+            f.write(self.SAMPLE)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_counts_of_a_form_under_each_lemma(self):
+        counts = treebank.markit_counts([self.train])
+        self.assertEqual(counts[("porta", "porta")], 1)
+        self.assertEqual(counts[("porta", "portare")], 1)
+        self.assertEqual(counts[("l'", "il")], 1)
+        # A multi-word token and an empty node carry no lemma of their own.
+        self.assertNotIn(("del", "_"), counts)
+        self.assertNotIn(("x", "x"), counts)
+        self.assertEqual(sum(counts.values()), 8)
+
+    def test_a_hyphenated_lemma_s_own_frequency(self):
+        zipf = treebank.markit_zipf(treebank.markit_counts([self.train]))
+        self.assertEqual(set(zipf), {"anglo-americano"})
+        self.assertAlmostEqual(zipf["anglo-americano"], 8.0969, places=3)
+
+    def test_the_part_of_speech_of_a_word(self):
+        pos = treebank.markit_pos_counts([self.train])
+        self.assertEqual(pos[("portare", "VERB")], 1)
+        self.assertEqual(pos[("essere", "VERB")], 1)
+        self.assertEqual(pos[("il", "DET")], 1)
+        self.assertEqual(pos[("l'", "DET")], 1)
+        self.assertNotIn(("conseguenza", "NOUN"), pos)
+
+    def test_spec_scenario_the_test_section_is_held_out(self):
+        for name in ("it_markit-ud-test.conllu", "it_pud-ud-test.conllu"):
+            path = os.path.join(self._tmp.name, name)
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(self.SAMPLE)
+            with self.assertRaises(ValueError):
+                treebank.markit_counts([path])
+            with self.assertRaises(ValueError):
+                treebank.markit_pos_counts([path])
+        self.assertEqual(red.MARKIT, ("it_markit-ud-train.conllu", "it_markit-ud-dev.conllu"))
+
+
+def _read(work, name):
+    with open(os.path.join(work, name), encoding="utf-8") as f:
+        return f.read()
+
+
+class Reduction(unittest.TestCase):
+    """The reduction end to end, over a work folder (D9)."""
+
+    def write_work(self, work, morph_it=False):
+        entries = list(ENTRIES)
+        # Every word the pre-pass writes a form, as the real section makes it.
+        listed = {e["word"].lower() for e in entries}
+        entries += [entry(word, pos="pron") for word in red.prepass_words() if word not in listed]
+        with open(os.path.join(work, red.KAIKKI), "w", encoding="utf-8") as f:
+            f.write("not json\n")
+            for e in entries:
+                f.write(json.dumps(e, ensure_ascii=False) + "\n")
+        for name in red.MARKIT:
+            with open(os.path.join(work, name), "w", encoding="utf-8") as f:
+                f.write(Treebank.SAMPLE)
+        if morph_it:
+            data = "credettero\tcredere\tVER:ind+past+3+p\n".encode("latin-1")
+            with tarfile.open(os.path.join(work, red.MORPH_IT), "w:gz") as archive:
+                info = tarfile.TarInfo(red.MORPH_IT_MEMBER)
+                info.size = len(data)
+                archive.addfile(info, io.BytesIO(data))
+
+    def run_reduction(self, work, morph_it, listed=True):
+        words = red.prepass_words()
+        everything = {**{w: 3.0 for w in words}, **FREQUENCY, "credettero": 2.0}
+        listed = TOP + [w for w in words if w not in TOP] if listed else TOP
+        lines = []
+        summary = red.reduce(
+            work, 300, "2026.10.23", lambda w: everything.get(w, 0.0), lambda n: listed[:n], morph_it=morph_it, report=lines.append
+        )
+        return summary, lines
+
+    def test_a_reduction_writes_italian_s_tables_and_it_fr_s(self):
+        with tempfile.TemporaryDirectory() as work:
+            self.write_work(work, morph_it=True)
+            summary, lines = self.run_reduction(work, red.MORPH_IT)
+            read = lambda name: _read(work, name)  # noqa: E731
+            forms = dict(line.split("\t") for line in read("forms.tsv").splitlines())
+            self.assertEqual(forms["credettero"], "credere")
+            self.assertEqual(forms["l'"], "lo")
+            self.assertEqual(read("lexical.tsv"), "")
+            self.assertEqual(read("gloss.tsv"), "")
+            ranks = [line.split("\t") for line in read("freq.tsv").splitlines()]
+            self.assertEqual([int(r) for _, r in ranks], list(range(1, len(ranks) + 1)))
+            manifest = json.loads(read("manifest.json"))
+            self.assertEqual(manifest["meta"]["studied"], "it")
+            self.assertEqual(manifest["meta"]["native"], "fr")
+            self.assertEqual(manifest["meta"]["pack_version"], "2026.10.23")
+            self.assertEqual(manifest["meta"]["analyzer_version"], red.analyser_version())
+            self.assertNotIn("levels_estimated", manifest["meta"])
+            notice = read("NOTICE")
+            for source in manifest["sources"]:
+                self.assertIn(source["name"], notice)
+            self.assertIn("Morph-it!", notice)
+            self.assertNotIn("PUD", notice)
+            self.assertEqual(summary["morph-it added"], 1)
+            self.assertTrue(any("Morph-it! added 1 form" in line for line in lines))
+            first = {name: read(name) for name in ("forms.tsv", "freq.tsv", "NOTICE", "manifest.json")}
+            self.run_reduction(work, red.MORPH_IT)
+            self.assertEqual({name: read(name) for name in first}, first, "the same inputs give the same tables")
+
+    def test_without_morph_it(self):
+        with tempfile.TemporaryDirectory() as work:
+            self.write_work(work)
+            summary, _ = self.run_reduction(work, None)
+            self.assertEqual(summary["morph-it added"], 0)
+            notice = _read(work, "NOTICE")
+            self.assertNotIn("Morph-it!", notice)
+            # Pinned, it is read: a reduction without it fails, naming it.
+            with self.assertRaises(SystemExit) as raised:
+                self.run_reduction(work, red.MORPH_IT)
+            self.assertIn(red.MORPH_IT, str(raised.exception))
+
+    def test_a_word_the_pre_pass_writes_and_no_form_fails_the_reduction(self):
+        with tempfile.TemporaryDirectory() as work:
+            self.write_work(work)
+            with open(os.path.join(work, red.KAIKKI), "w", encoding="utf-8") as f:
+                for e in ENTRIES:
+                    f.write(json.dumps(e, ensure_ascii=False) + "\n")
+            with self.assertRaises(SystemExit) as raised:
+                self.run_reduction(work, None, listed=False)
+            self.assertIn("pre-pass", str(raised.exception))
+
+
+if __name__ == "__main__":
+    unittest.main()
