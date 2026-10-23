@@ -351,6 +351,16 @@ KEPT_FORM = "a form of the spelling as common as its word or commoner"
 KEPT_TWO_WORDS = "its senses spell more than one word"
 KEPT_NO_FORM = "no word form"
 KEPT_TABLE = "a word of a reviewed table"
+KEPT_OWNER = "kept apart by the owner"
+
+# The dictionary's spellings the owner keeps apart (D2, task 4.1, 2026-10-23): spelling → reason. Each
+# reads as it read before the rule, a word of its own; editing it changes the rules' sha256, as for any
+# rule.
+SPELLINGS_KEPT_APART = {
+    "casinò": "the gambling house, which the section gives as « alternative form of casino »; il casino is a mess",
+    "cè": "a mistyped c'è far more often than the section's « nonstandard spelling of cioè »",
+    "omg": "the web's « oh my god », not the section's « alternative form of ogm »",
+}
 
 # The web's Italian written without its accents (D3): spelling → word, each row a decision by name —
 # the owner's review of the measured list (tasks 2.2 and 4.1) —, never a rule on marks: a rule would
@@ -393,8 +403,10 @@ WEB_SPELLINGS = {
     "visibilita": "visibilità", "volonta": "volontà",
 }
 WEB_REASON = "written on the web without its accent; the owner's reviewed list"
-# The owner's exception rows (D3), outside the method and the boundary: spellings the section gives a
-# sense of their own — a rare homograph — that the web writes for a commoner word, each with its reason.
+# The owner's exception rows (D3; task 0.1, settled by the owner on 2026-10-23), outside the method and
+# the boundary: spellings the section gives a sense of their own — a rare homograph — that the web
+# writes for a commoner word, each with its reason. `finche`, `felicita`, `umidita` and the method's
+# other homographs are not rows: they read as the tables read them.
 OWNER_EXCEPTIONS = {
     "perche": (
         "perché",
@@ -416,6 +428,16 @@ OWNER_EXCEPTIONS = {
         "caffè",
         "caffè written without its accent: the section gives caffe as caffo's feminine plural and caffa's plural "
         "(odd, of a number); wordfreq 3.75 against caffè's 4.83",
+    ),
+    "gia": (
+        "già",
+        "già written without its accent (the owner, 2026-10-23): the section lists gìa, the archaic imperfect of "
+        "gire, so the tables read gia as ire; wordfreq 4.59 against già's 5.95",
+    ),
+    "liberta": (
+        "libertà",
+        "libertà written without its accent (the owner, 2026-10-23): the section gives liberta as liberto's "
+        "feminine (a freedwoman), which the tables read it as; wordfreq 3.73 against libertà's 5.16",
     ),
 }
 
@@ -913,8 +935,9 @@ def dictionary_spellings(path, frequency, kept=None):
     spells `fa`); a spelling whose senses spell two words is kept apart (`nè`: *né*, and *neh*). The
     word must be strictly commoner than the spelling and than each of the spelling's forms — the
     inflections its entries list (`_row_forms`) and the words a form-of sense of which points at it. A
-    row of a reviewed table is that table's (`_reviewed`), and a word that is no form has no form to
-    read. With `kept` (a dict), each spelling kept apart is recorded there with its reason
+    row of a reviewed table is that table's (`_reviewed`), a word the owner keeps apart by name
+    (`SPELLINGS_KEPT_APART`: `casinò`, `omg`, `cè`) reads as before, and a word that is no form has no
+    form to read. With `kept` (a dict), each spelling kept apart is recorded there with its reason
     (`KEPT_*`)."""
     spells = collections.defaultdict(set)
     formed = collections.defaultdict(set)
@@ -944,6 +967,8 @@ def dictionary_spellings(path, frequency, kept=None):
         targets = {t for t in spells[word] if t != word and t not in PIECES}
         if _reviewed(word):
             why = KEPT_TABLE
+        elif word in SPELLINGS_KEPT_APART:
+            why = KEPT_OWNER
         elif len(targets) > 1:
             why = KEPT_TWO_WORDS
         elif not targets or not is_form(word) or not is_form(next(iter(targets))):
@@ -969,7 +994,7 @@ def spellings_report(spellings, kept):
         f"dictionary spellings read as their word={len(spellings)}: "
         + ", ".join(f"{s} → {w}" for s, w in sorted(spellings.items()))
     ]
-    for why in (KEPT_COMMONER, KEPT_FORM, KEPT_TWO_WORDS, KEPT_NO_FORM, KEPT_TABLE):
+    for why in (KEPT_COMMONER, KEPT_FORM, KEPT_TWO_WORDS, KEPT_NO_FORM, KEPT_TABLE, KEPT_OWNER):
         words = sorted(w for w, reason in kept.items() if reason == why)
         lines.append(f"dictionary spellings kept apart, {why}={len(words)}: " + ", ".join(words))
     return lines

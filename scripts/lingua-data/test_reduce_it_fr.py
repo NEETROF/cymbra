@@ -815,6 +815,9 @@ SPELLING_ENTRIES = [
         forms=[*TABLE_HEAD, ("sguàrdi", ["indicative", "present", "second-person", "singular"]), ("sguardàvo", ["first-person", "imperfect", "indicative", "singular"])],
         senses=[{"glosses": ["alternative form of guardare"], "tags": ["alt-of", "alternative", "obsolete"], "alt_of": [{"word": "guardare"}]}],
     ),
+    # A spelling the owner keeps apart: `casinò`, the gambling house.
+    entry("casino", senses=[{"glosses": ["mess"]}]),
+    misspelt("casinò", "casino", pos="noun", tags=("alt-of", "alternative")),
     # A row of a reviewed table is that table's: an apocope, a row of the web's list.
     misspelt("giu", "giu.", pos="noun", tags=("alt-of", "alternative")),
     misspelt("bel", "bello", pos="adj", tags=("alt-of", "alternative")),
@@ -824,7 +827,7 @@ SPELLING_FREQUENCY = {
     "sopratutto": 4.21, "fa": 6.09, "fà": 3.72, "fare": 6.15, "né": 5.21, "neh": 3.0, "nè": 4.55, "è": 7.10,
     "e'": 7.46, "fico": 4.0, "figo": 4.5, "ubbidire": 3.0, "obbedire": 3.2, "altero": 3.0, "altiero": 2.0,
     "altiera": 3.5, "vabbè": 4.4, "giu": 4.08, "daccordo": 3.5, "bel": 5.15, "bello": 5.3, "guardare": 5.2,
-    "sguardo": 4.4, "sguardi": 3.89, "sguardare": 1.0, "sguardavo": 1.0,
+    "sguardo": 4.4, "sguardi": 3.89, "sguardare": 1.0, "sguardavo": 1.0, "casino": 4.58, "casinò": 3.77,
 }
 
 
@@ -899,6 +902,12 @@ class DictionarySpellings(unittest.TestCase):
         self.assertEqual(self.kept["daccordo"], red.KEPT_NO_FORM)
         self.assertEqual(self.kept["bel"], red.KEPT_TABLE)
         self.assertEqual(self.kept["giu"], red.KEPT_TABLE)
+        # The owner's three (task 4.1, 2026-10-23), each with its reason.
+        self.assertEqual(self.kept["casinò"], red.KEPT_OWNER)
+        self.assertNotIn("casinò", self.table)
+        self.assertEqual(set(red.SPELLINGS_KEPT_APART), {"casinò", "omg", "cè"})
+        self.assertTrue(all(red.SPELLINGS_KEPT_APART.values()))
+        self.assertIn(f"{red.KEPT_OWNER}=1: casinò", "\n".join(red.spellings_report(self.table, self.kept)))
         # The report names each one read and each one kept apart, by its reason.
         lines = red.spellings_report(self.table, self.kept)
         self.assertTrue(lines[0].startswith("dictionary spellings read as their word=5: caffé → caffè, fà → fa"))
@@ -1000,9 +1009,10 @@ class WebSpellings(unittest.TestCase):
         self.assertEqual(forms["perche"], "perché")
         self.assertEqual(forms["perca"], "perca")
         self.assertIsNone(red.web_spelling("perca"))
+        # The owner's six (task 0.1, 2026-10-23): the four the design named, `gia` and `liberta`.
         self.assertEqual(
             {s: w for s, (w, _) in red.OWNER_EXCEPTIONS.items()},
-            {"perche": "perché", "cosi": "così", "citta": "città", "caffe": "caffè"},
+            {"perche": "perché", "cosi": "così", "citta": "città", "caffe": "caffè", "gia": "già", "liberta": "libertà"},
         )
         for spelling, (word, reason) in red.OWNER_EXCEPTIONS.items():
             self.assertNotIn(spelling, red.WEB_SPELLINGS)
@@ -1026,9 +1036,11 @@ class WebSpellings(unittest.TestCase):
         for spelling in ("cafe", "verra", "ando", "tribu", "dara", "potro", "carita", "arrivera", "finira", "agora"):
             self.assertNotIn(spelling, red.WEB_SPELLINGS, spelling)
         # The section's own homographs are no rows of the method: the owner's exceptions, and the ones
-        # the method leaves (`gìa`, gire's imperfect; `liberta`, liberto's feminine).
-        for spelling in ("perche", "cosi", "citta", "caffe", "gia", "liberta", "umidita"):
+        # the method leaves, which the owner keeps as the tables read them (`finche`, `felicita`, `umidita`).
+        for spelling in ("perche", "cosi", "citta", "caffe", "gia", "liberta", "umidita", "finche", "felicita"):
             self.assertNotIn(spelling, red.WEB_SPELLINGS, spelling)
+        for spelling in ("umidita", "finche", "felicita"):
+            self.assertNotIn(spelling, red.OWNER_EXCEPTIONS, spelling)
 
     def test_spec_scenario_a_dictionary_update_names_a_row(self):
         rows = {"cosi": "così", "gia": "già", "perche": "perché", "sara": "essere", "giu": "giù", "piu": "più", "puo": "potere"}

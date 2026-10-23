@@ -244,10 +244,11 @@ is written for *dà*, *fà* or *dì* in the corpus.
 
 ### D2 as built
 
-- **The rule reads 3,209 spellings**, not the dozen the proposal names: every word the section gives
-  only as an alternative form or spelling (2,198), an obsolete, archaic or dated one (823), a
-  misspelling (168) or a nonstandard one (13) of a commoner word, 7 mixed. 774 become forms of the tables
-  (their word ranked); **264 were ranked lemmas** and leave the ranks — `perchè` 124, `ve` 1,050 (→ *vi*),
+- **The rule reads 3,206 spellings** (3,209 before the owner kept three apart), not the dozen the
+  proposal names: every word the section gives only as an alternative form or spelling (2,196), an
+  obsolete, archaic or dated one (823), a misspelling (168) or a nonstandard one (12) of a commoner word,
+  7 mixed. 771 become forms of the tables (their word ranked); **261 were ranked lemmas** and leave the
+  ranks — `perchè` 124, `ve` 1,050 (→ *vi*),
   `et` 1,057 (→ *e*), `sino` 1,477 (→ *fino*), `finchè` 2,666, `sopratutto` 3,177, `oramai` 3,517,
   `poichè` 3,645, `alcool` 3,664, `bo` 4,037 (→ *boh*), `core` 4,045 (→ *cuore*), … (the PR lists them
   all).
@@ -255,7 +256,8 @@ is written for *dà*, *fà* or *dì* in the corpus.
   `anti`, `figo`, `puzza`, `click`, `zombie`, `obbedire` …), 144 with a form as common as the word (the
   forms guard: `altiero`, `canaria`), 15 whose senses spell two words (`nè`: *né* and *neh*; `je`), 332
   with no word form (`nov`, `mag`, `dic`: the months' abbreviations; `daccordo`, « alternative spelling
-  of d'accordo », a word beginning with an elided piece), 1 a reviewed table's row (`giu`, D3's).
+  of d'accordo », a word beginning with an elided piece), 1 a reviewed table's row (`giu`, D3's), and the
+  owner's 3 (`SPELLINGS_KEPT_APART`, below).
 - **Clarified while measuring**, each by D2's own terms: a pointer at several words spells no word
   (`vabbè`, « alternative form of va bene », would have read as `va`; `menomale`, `daccordo`); an
   apocope, an abbreviation, a clipping, a contraction or a pronunciation spelling is no spelling (`un`,
@@ -270,11 +272,13 @@ is written for *dà*, *fà* or *dì* in the corpus.
   is dropped once the section is read (`Lexicon.drop_spelling_rows`, 1,069 forms); a form no other word
   claims follows (`alcoolici` → *alcolico*, `annunziato` …). One move is left, a form of a form:
   `accise` (*accisa*'s plural, and *acciso*'s, the participle of the archaic `accidere`) → *uccidere*.
-- **Its costs:** 5 forms lose their reading, their word unranked — `toh` (→ `to'`), `tiè` (→ `tie'`),
-  `quer` (→ the apocope `quel`), `velia`, `postproduzione` (→ the hyphenated `post-produzione`);
-  readings a reader may doubt, the dictionary's: `core` → *cuore* (also English's « core »), `casinò` →
-  *casino*, `omg` → *ogm*, `cè` → *cioè* (often a mistyped *c'è*), `deo` → *dio*, `jo` → *io*, `lugo` →
-  *luogo*, `bueno` → *buono*, `hora` → *ora*, `seoul` → *seul*, `et` → *e*.
+- **Its costs:** 12 forms lose their reading and read as unknown words, none as another word: the
+  spellings `toh` (Zipf 3.30, rank 13,309, → `to'`), `tiè` (→ `tie'`), `quer` (→ the apocope `quel`),
+  `velia`, `postproduzione` (→ the hyphenated `post-produzione`), and forms whose chain now ends on an
+  unranked word — `accellera`, `querci`, `soprese`, `velie`, `ziani`, and `citto` and `liberte`, rows of
+  the exceptions' own entries (all under Zipf 2.1). Readings a reader may doubt, the dictionary's:
+  `core` → *cuore* (also English's « core »), `deo` → *dio*, `jo` → *io*, `lugo` → *luogo*, `bueno` →
+  *buono*, `hora` → *ora*, `seoul` → *seul*, `et` → *e*; `casinò`, `omg` and `cè` the owner keeps apart.
 
 ### D3 as built
 
@@ -293,7 +297,7 @@ is written for *dà*, *fà* or *dì* in the corpus.
 | Not half as frequent as its word | 25 (`po`, `the`, `be`, `como`, `ultra`, `toto`, `ventitre`, `trentatre` …) |
 | Spanish writes it more | 5 (`dara`, `potro`, `carita`, `ando`, `tribu`) |
 | French writes it more | 5 (`verra`, `arrivera`, `agora`, `finira`, `portera`) |
-| **Rows** | **100**, and the owner's 4 exceptions |
+| **Rows** | **100**, and the owner's 6 exceptions |
 
 **The rows**, by band — the spelling, its accented form (and its word when another), the spelling's
 Zipf / the accented form's:
@@ -309,7 +313,7 @@ No spelling two words share: a row's second accented form is a misspelling the t
 of its own (`piú` 4.49, `puó`, `ció`, `giú`, `saró`, `ahimé`, `vabbé` …), a list of 43f's kind for
 Italian; each row reads as the commoner, the accented word.
 
-**The owner's four exception rows**, outside the method and the boundary (task 0.1):
+**The owner's exception rows**, outside the method and the boundary (task 0.1: the four D3 named, and `gia` and `liberta`, settled on 2026-10-23):
 
 | Spelling | The section | Zipf it / en / fr / es | The accented word | In the corpus and Tatoeba |
 |---|---|---|---|---|
@@ -317,13 +321,14 @@ Italian; each row reads as the commoner, the accented word.
 | `cosi` | *coso*'s plural (*thingy*), *cosare*'s present | 5.12 / 2.21 / 2.39 / 2.20 | `così` 6.14 | 4: 3 *così* (MarkIT « ottenibili cosi facilmente », `informale`, Tatoeba), 1 the surname « Francesca Cosi »; `così` 12,625 |
 | `citta` | *citto*'s feminine (Tuscan, archaic: a girl) | 4.16 / 2.04 / 1.84 / 1.66 | `città` 5.77 | 2, Tatoeba's « sarò in citta »: *città*; `città` 4,004 |
 | `caffe` | *caffo*'s feminine plural, *caffa*'s plural (odd, of a number) | 3.75 / 2.32 / 1.75 / 1.75 | `caffè` 4.83 | 0; `caffè` 2,895, `caffé` 9 |
+| `gia` (the owner's, 2026-10-23) | `gìa`, *gire*'s archaic imperfect, listed by *gire* and *ire*: the tables read `gia` as *ire* | 4.59 / 3.07 / 2.86 / 2.81 | `già` 5.95 | 1, the syllable « -gia- » in a Wikipedia article; `già` 5,996 |
+| `liberta` (the owner's, 2026-10-23) | *liberto*'s feminine (a freedwoman): the tables read it as *liberto* | 3.73 / 1.27 / 1.93 / 2.59 | `libertà` 5.16 | 0; `libertà` 563 |
 
-Each would pass every test but the section's rare homograph. **The method leaves others of that
-kind**, the owner's to add or not: `gia` (4.59 against `già` 5.95; *gire*'s archaic imperfect `gìa`,
-which today reads `gia` as *ire*), `liberta` (3.73 against `libertà` 5.16; *liberto*'s feminine, a
-freedwoman), `umidita` (2.75 against 4.06), `felicita`, `capacita`, `gravita`, `utilita` (verb forms of
-*felicitare*, *capacitare*, *gravitare* …), `finche` (3.55 against `finché` 4.85). D3's text named `gia`
-and `liberta` among the rows the method passes: the section's entries say otherwise.
+Each would pass every test but the section's rare homograph. D3's text named `gia` and `liberta`
+among the rows the method passes: the section's entries say otherwise, and the owner made them
+exception rows (below). The method leaves others of that kind, which read as the tables read them:
+`umidita` (2.75 against 4.06), `felicita`, `capacita`, `gravita`, `utilita` (verb forms of *felicitare*,
+*capacitare*, *gravitare* …), `finche` (3.55 against `finché` 4.85).
 
 **Clarified at the boundary**, as 43e reads it: a name's entry says nothing of the word (`sara`,
 `gia`'s `Gia`: D3 named `sara` a row); a spelling of another word D2 does not read passes (`giu`,
@@ -354,11 +359,27 @@ sentence, the names rule sets it aside; at a sentence's start it reads as *esser
 ### What the dispatch will move (local preview)
 
 The reduction of the pinned sources with D2 and D3, run locally (task 2.3 makes the real one, and
-should find the same bytes): `forms.tsv` 128,429 → 129,742 rows (1,324 in: 509 spellings, 815 forms of
-the lemmas entering; 11 out); `freq.tsv` 365 lemmas out, all spellings (2 in the top 1,000, 18 in the
-top 5,000, 50 in the top 10,000), 365 in at ranks 9,775 to 60,000 — names that were forms of a
-spelling's paradigm (`uffizi`, `annunziato`) and the cut's next words. The whole pack 1,287,014 →
-1,296,174 B. Measured as `it-ud.sh` measures (the gate, not a choice: nothing was tuned on it), with
+should find the same bytes), with the owner's decisions: `forms.tsv` 128,429 → 129,736 rows (1,319 in:
+509 spellings, 810 forms of the lemmas entering; 12 out); `freq.tsv` 362 lemmas out, all spellings (2 in
+the top 1,000, 18 in the top 5,000, 49 in the top 10,000), 362 in at ranks 9,776 to 60,000 — names that
+were forms of a spelling's paradigm (`uffizi`, `annunziato`) and the cut's next words. The whole pack
+1,287,014 → 1,295,051 B. Measured as `it-ud.sh` measures (the gate, not a choice: nothing was tuned on it), with
 this change's core on both: UD Italian-PUD 99.26 / 91.38 / 99.90 % (D1 moves nothing there) → 99.26 /
 **91.31** / 99.90 % of 19,155 words, 8,909 content words and 985 auxiliaries, against the gates 98.5 /
 90.5 / 97; MarkIT's test section 99.43 / 94.68 / 98.87 → 99.43 / 94.65 / 98.87 %.
+
+## Owner's decisions, 2026-10-23
+
+Guillaume settled tasks 0.1 and 4.1 on this section's figures:
+
+- **Task 0.1 — the exception rows**: the four D3 named, `perche` → *perché*, `cosi` → *così*, `citta` →
+  *città*, `caffe` → *caffè*, and two more the measurement found, `gia` → *già* (the tables read it as
+  the archaic *gire*'s imperfect, *ire*) and `liberta` → *libertà* (read as *liberto*'s feminine), each
+  with its reason and figures in `OWNER_EXCEPTIONS`. `finche`, `felicita`, `umidita` and the method's
+  other homographs are no rows: they read as the tables read them.
+- **Task 4.1 — D2's report and D3's list**: D3's 100 rows as listed. Three of D2's readings are wrong and
+  kept apart by name, each with its reason, in `SPELLINGS_KEPT_APART`: `casinò` (the gambling house is
+  not *il casino*), `omg` (the web's « oh my god », not *ogm*) and `cè` (a mistyped *c'è*, not *cioè*);
+  they read as before, words of their own. `core` → *cuore* (poetic, Romanesco) and `deo` → *dio* stay.
+  The 12 forms that lose their reading are accepted as recorded costs: none is misread — each reads as
+  an unknown word —, and the most frequent, the interjection `toh`, is Zipf 3.30 (rank 13,309).

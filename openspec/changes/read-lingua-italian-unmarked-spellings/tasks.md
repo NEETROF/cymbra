@@ -2,7 +2,7 @@
 
 ## 0. Owner, first
 
-- [ ] 0.1 [manual] The owner settles the four exception rows (`perche` → *perché*, `cosi` → *così*, `citta` → *città*, `caffe` → *caffè*) on their figures (D3), before the tables are reduced.
+- [x] 0.1 [manual] The owner settles the four exception rows (`perche` → *perché*, `cosi` → *così*, `citta` → *città*, `caffe` → *caffè*) on their figures (D3), before the tables are reduced. *Settled by the owner on 2026-10-23: the four, and `gia` → *già* and `liberta` → *libertà*; `finche`, `felicita`, `umidita` stay as they read (design, « Owner's decisions, 2026-10-23 »).*
 
 ## 1. The apostrophe rule (crates/lingua-core)
 
@@ -11,8 +11,8 @@
 
 ## 2. The tables (scripts/lingua-data)
 
-- [x] 2.1 `reduce-it-fr.py`: the dictionary's spellings (D2) read as 43d reads French's, without the marks condition, with the frequency condition; the report names the spellings read and refused; `test_reduce_it_fr.py` covers a marked spelling (`perchè`), one with a sense of its own, one whose word is rarer. *As built: 3,209 spellings read, 264 of them ranked before; a spelling's forms follow it only where no other word claims them (`drop_spelling_rows`, design, Implementation).*
-- [x] 2.2 The reviewed list (D3): a script lists every candidate with its figures and the test that keeps or drops it, and D1's cost on the corpus and Tatoeba; the kept rows join `reduce-it-fr.py` as one literal with their shared reason, the four exception rows with theirs, the dropped ones recorded by group in the design; the boundary check (`web_boundary`) and the pointing-entry rule as 43e's; tests cover a kept row, an exception row, a word of its own, a cross-language exclusion, the boundary check. *100 rows and the four exceptions; the script (never committed) and the figures are the design's Implementation section and the pull request's.*
+- [x] 2.1 `reduce-it-fr.py`: the dictionary's spellings (D2) read as 43d reads French's, without the marks condition, with the frequency condition; the report names the spellings read and refused; `test_reduce_it_fr.py` covers a marked spelling (`perchè`), one with a sense of its own, one whose word is rarer. *As built: 3,206 spellings read, 261 of them ranked before; a spelling's forms follow it only where no other word claims them (`drop_spelling_rows`, design, Implementation).*
+- [x] 2.2 The reviewed list (D3): a script lists every candidate with its figures and the test that keeps or drops it, and D1's cost on the corpus and Tatoeba; the kept rows join `reduce-it-fr.py` as one literal with their shared reason, the four exception rows with theirs, the dropped ones recorded by group in the design; the boundary check (`web_boundary`) and the pointing-entry rule as 43e's; tests cover a kept row, an exception row, a word of its own, a cross-language exclusion, the boundary check. *100 rows and the owner's six exceptions; the script (never committed) and the figures are the design's Implementation section and the pull request's.*
 - [ ] 2.3 [owner-dispatched, after 0.1 and 4.1] `lingua-pack-update` in mode `reduce` for it-fr from its pinned sources: `tables/it/forms.tsv` gains the rows, `tables/it-fr/{pin.json, manifest.json, README.md}` move; `it-ud.sh`'s figures recorded; `bash scripts/lingua-data/build.sh it-fr /tmp/it-fr.lingua` passes against the new pin.
 
 ## 3. The fixture and the baseline
@@ -22,7 +22,7 @@
 
 ## 4. Owner
 
-- [ ] 4.1 [manual] The owner reads D2's report and D3's list with its figures and its groups left out, and may move a row before the tables are reduced (2.3).
+- [x] 4.1 [manual] The owner reads D2's report and D3's list with its figures and its groups left out, and may move a row before the tables are reduced (2.3). *Read by the owner on 2026-10-23: D3's 100 rows kept; D2's `casinò`, `omg`, `cè` kept apart by name (`SPELLINGS_KEPT_APART`), `core` and `deo` kept; the 12 forms losing their reading accepted (design, « Owner's decisions, 2026-10-23 »).*
 
 ## 5. Gates
 

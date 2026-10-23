@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: An Italian spelling the dictionary gives only as a marked word reads as that word when the marked word is the commoner
-Italian's reduction SHALL read a form the English Wiktionary's Italian section gives only as a misspelling, alternative, obsolete or nonstandard spelling of one other word — every sense of every entry of it such a spelling or a form of that word, whether the mark it lacks or changes is an accent or a letter; an apocope, an abbreviation, a clipping, a contraction or a pointer at several words being no spelling, and a pointer at a piece of Italian's tokenisation pre-pass being the piece's — as a form of that word, when wordfreq rates the word strictly commoner than the spelling and than each of the spelling's own forms; the spelling's inflections and the entries pointing at it SHALL follow it where no other word claims them, and nothing of the spelling's own SHALL remain. A spelling with a sense of its own beside the marking, or whose senses spell two words, SHALL keep its entry. The reduction's report SHALL name the spellings read and the ones refused with the test that refused them.
+Italian's reduction SHALL read a form the English Wiktionary's Italian section gives only as a misspelling, alternative, obsolete or nonstandard spelling of one other word — every sense of every entry of it such a spelling or a form of that word, whether the mark it lacks or changes is an accent or a letter; an apocope, an abbreviation, a clipping, a contraction or a pointer at several words being no spelling, and a pointer at a piece of Italian's tokenisation pre-pass being the piece's — as a form of that word, when wordfreq rates the word strictly commoner than the spelling and than each of the spelling's own forms; the spelling's inflections and the entries pointing at it SHALL follow it where no other word claims them, and nothing of the spelling's own SHALL remain. A spelling with a sense of its own beside the marking, or whose senses spell two words, SHALL keep its entry, and so SHALL a spelling the owner keeps apart by name with its reason. The reduction's report SHALL name the spellings read and the ones refused with the test that refused them.
 
 #### Scenario: A dictionary spelling
 - **WHEN** the section gives `perchè` only as a misspelling of *perché*, and wordfreq rates *perché* the commoner
@@ -21,6 +21,10 @@ Italian's reduction SHALL read a form the English Wiktionary's Italian section g
 - **WHEN** the section marks a spelling as a word wordfreq rates rarer than the spelling
 - **THEN** the spelling is not read by the rule, and the reduction's report says so
 
+#### Scenario: A spelling the owner keeps apart
+- **WHEN** the section gives `casinò` as an alternative form of *casino*, and the owner keeps it apart
+- **THEN** it keeps its own entry, and the reduction's report names it among the spellings kept apart
+
 #### Scenario: A form another word claims
 - **WHEN** an inflection of a spelling the rule reads is also another word's form (`sguardi`, a row of the archaic `sguardare` and *sguardo*'s plural)
 - **THEN** it stays that other word's form, and an inflection no other word claims follows the spelling to its word
@@ -33,8 +37,8 @@ Italian's reduction SHALL read as a form of its accented word each spelling of a
 - **THEN** each reads as `più`, *potere* (`può`'s word) and `cioè`
 
 #### Scenario: The owner's exceptions
-- **WHEN** « perche », « cosi », « citta » and « caffe » — which the section gives as *perca*'s plural, *coso*'s plural, *citto*'s feminine and *caffo*'s feminine plural — are looked up after the tables are reduced with the owner's four rows
-- **THEN** each reads as `perché`, `così`, `città` and `caffè`
+- **WHEN** « perche », « cosi », « citta », « caffe », « gia » and « liberta » — which the section gives as *perca*'s plural, *coso*'s plural, *citto*'s feminine, *caffo*'s feminine plural, *gire*'s archaic imperfect and *liberto*'s feminine — are looked up after the tables are reduced with the owner's six rows
+- **THEN** each reads as `perché`, `così`, `città`, `caffè`, `già` and `libertà`
 
 #### Scenario: A word of its own
 - **WHEN** « e », « da », « papa », « eta » and « pero » are looked up
