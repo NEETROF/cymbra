@@ -20,7 +20,9 @@
 //! analysis at `1.0.0` (add-lingua-italian-analysis): its pre-pass reads every word in NFC, its
 //! cascade reads a verb's clitic pronouns off an unlisted form, its closed classes flag a phrase
 //! gloss's function words and an Italian document's names are set aside; its probes gain two
-//! phrases with a clitic and a grammar pair (D7).
+//! phrases with a clitic and a grammar pair (D7). Italian's detection guard, at `1.1.0`
+//! (add-lingua-italian-detection-guard), takes the `misto` page's Catalan and Galician blocks out
+//! of its analysis.
 //!
 //! The corpus, `baseline/pages-it.txt`, is authored for these tests, page by page, around what a
 //! later change of the Italian stage must show, with two exceptions, quoted from texts in the

@@ -73,3 +73,36 @@ add-lingua-italian-analysis measured its cascade on a prototype of those tables.
 ```bash
 scripts/lingua-data/measure/it-ud.sh
 ```
+
+## Italian's detection guard
+
+`it-guard.sh` measures the guard that keeps Italian's neighbours out of Italian
+(add-lingua-italian-detection-guard, task 1.1). `it-guard-corpus.json` pins its samples:
+- each neighbour's Wikipedia (Catalan, Galician, Venetian, Sicilian, Neapolitan, Sardinian, Corsican,
+  Friulian, Latin, Occitan, Romanian), the articles an English seed list links to, by revision;
+- the Italian corpora: UD Italian-PUD, UD Italian-MarkIT, a sample of Tatoeba's Italian export,
+  Italian Wikipedia articles, *I promessi sposi* and *Pinocchio* from Project Gutenberg, and the
+  baseline's `pages-it.txt`.
+
+It fetches each into a directory of its own under DATA (`work/measure-it-guard/` by default), checked
+by sha256, and then works offline. Two sources move upstream:
+- Tatoeba regenerates its export weekly. Its sample is the 20,000 sentence ids committed in
+  `it-guard-tatoeba-ids.txt` (drawn once, seed 42, from the export of 2026-10-17), so a later export
+  is read with a warning, by id; Tatoeba may have edited or deleted some of those sentences since.
+- Project Gutenberg offers no versioned URL. `files/N/N-0.txt` has not changed since 2024, but a
+  re-posting would change its sha256, and the fetch would then refuse it.
+
+lingua-core's own gate reads every block (`italian_guard_measure`, an example of the crate); a port
+of the guard's reading explains each refusal, and must agree with the gate on every block read as
+Italian. It prints:
+- the share of each neighbour read as Italian, with and without the guard;
+- every Italian block refused, with its markers;
+- the recall gate, which is the exit status: at most one Italian block in a thousand, and none of
+  `pages-it.txt`.
+
+`it_guard.py words` measures D3's candidate words one by one on the same samples: the rules the
+design's Measurement writes down, and the words they keep. Nothing fetched is committed.
+
+```bash
+scripts/lingua-data/measure/it-guard.sh
+```

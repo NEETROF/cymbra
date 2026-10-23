@@ -16,13 +16,14 @@
 //! add-lingua-italian-baseline).
 //!
 //! Italian is a studied language served by its own analysis (analyser `1.0.0`,
-//! add-lingua-italian-analysis): its tokenisation pre-pass (add-lingua-italian-tokenisation) —
-//! `l'uomo` is `lo` + `uomo`, `dell'acqua` `dello` + `acqua`, `c'è` `ci` + `è`, `nel` `in` + `il`
+//! add-lingua-italian-analysis; `1.1.0` with its detection guard): its tokenisation pre-pass
+//! (add-lingua-italian-tokenisation) — `l'uomo` is `lo` + `uomo`, `dell'acqua` `dello` + `acqua`, `c'è` `ci` + `è`, `nel` `in` + `il`
 //! sharing its span, `del` whole, `po'` `poco` — reading every word in NFC; its cascade, the
 //! pack's forms then the enclitic rule (`dirmelo` is `dire`, `vattene` `andare`, `eccolo`
 //! `ecco`); its closed classes (`non`, `di`, `il`, `che` are function words); and its names rule.
-//! `perche'` is still `perche` by the edge trim every language has, and there is no detection
-//! guard, so the `misto` page's Catalan and Galician blocks are analysed as Italian. This freezes
+//! `perche'` is still `perche` by the edge trim every language has. Its detection guard
+//! (add-lingua-italian-detection-guard) keeps the `misto` page's Catalan and Galician blocks,
+//! which whichlang reads as Italian, out of the analysis. This freezes
 //! what the engine makes of raw Italian text today, over a thirteen-page corpus
 //! (`baseline/pages-it.txt`, its sources in `support/italian.rs`), so that each later change of
 //! the Italian stage shows its effect as the diff of a re-bless. It is not Italian support: no
@@ -392,25 +393,26 @@ fn what_the_baseline_shows_today() {
         );
     }
 
-    // The misto page: its Italian blocks, and its Catalan and Galician ones — whichlang reads them
-    // as Italian and Italian has no guard yet —, are analysed; its English, Spanish, French and
-    // Latin ones (whichlang reads the Latin as French) are not.
+    // The misto page: its Italian blocks alone are analysed. whichlang reads its Catalan and
+    // Galician blocks as Italian, and Italian's detection guard excludes them
+    // (add-lingua-italian-detection-guard: `ningú` and `havia`, `unha`, against no Italian
+    // marker); its English, Spanish, French and Latin ones (whichlang reads the Latin as French)
+    // are not Italian either.
     let misto = tokens(&analysed(&engine, "misto"));
     let analysed_blocks =
         |block: usize| misto.iter().filter(|(_, _, b)| *b == block as u64).count();
-    for block in MISTO_ITALIAN.into_iter().chain(MISTO_CATALAN_GALICIAN) {
+    for block in MISTO_ITALIAN {
         assert!(analysed_blocks(block) > 5, "block {block}: {misto:?}");
     }
     for block in MISTO_ENGLISH_SPANISH_FRENCH
         .into_iter()
+        .chain(MISTO_CATALAN_GALICIAN)
         .chain([MISTO_LATIN])
     {
         assert_eq!(analysed_blocks(block), 0, "block {block}: {misto:?}");
     }
-    // Italian's elisions run on the Catalan block too: `s'alçava` is `si` + `alçava`.
-    assert!(has(&misto, "si", "si"), "{misto:?}");
-    assert!(has(&misto, "alçava", "alçava"), "{misto:?}");
-    assert!(has(&misto, "unha", "unha"), "{misto:?}");
+    assert!(!has(&misto, "alçava", "alçava"), "{misto:?}");
+    assert!(!has(&misto, "unha", "unha"), "{misto:?}");
 }
 
 /// The source text each token written `surface` covers, in document order.

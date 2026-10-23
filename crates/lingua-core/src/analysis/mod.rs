@@ -103,8 +103,11 @@ pub const FRENCH_ANALYZER_VERSION: &str = "1.3.0";
 /// `sviluppatasi` → `sviluppare`), then the form — there is no plural rule, the one the design
 /// proposed having been measured out (its D6); its six closed classes flag a phrase gloss's function
 /// words, `non` among them; and an Italian document's names are set aside
-/// (`engine::document_names`). What it still lacks, each a rule of Italian's own that bumps this
-/// version when it lands: no detection guard (whichlang reads Catalan and Galician as Italian),
-/// no apostrophe read as an accent (`perche'` is `perche` by the edge trim), no acronym kept in
+/// (`engine::document_names`). `1.1.0` since add-lingua-italian-detection-guard: a block whichlang
+/// reads as Italian is not Italian when the function words of its neighbours — Catalan, Galician,
+/// Venetian, Sicilian, Neapolitan, Sardinian, Corsican, Friulian, Latin, Occitan, Romanian —
+/// outnumber its Italian ones (`language::italic_neighbour`), and such a block is no longer counted.
+/// What it still lacks, each a rule of Italian's own that bumps this version when it lands: no
+/// apostrophe read as an accent (`perche'` is `perche` by the edge trim), no acronym kept in
 /// capitals and no expression keys of its own.
-pub const ITALIAN_ANALYZER_VERSION: &str = "1.0.0";
+pub const ITALIAN_ANALYZER_VERSION: &str = "1.1.0";

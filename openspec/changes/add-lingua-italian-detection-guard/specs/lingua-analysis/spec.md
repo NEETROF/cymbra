@@ -2,8 +2,8 @@
 
 ## ADDED Requirements
 
-### Requirement: Catalan, Galician and Italy's regional languages are not read as Italian
-The core SHALL refuse as Italian a block the detector reads as Italian whose function words of the neighbour languages the guard knows — Catalan, Galician and the regional languages of Italy and Corsica, named in the design and each kept by measurement —, counted together, outnumber its Italian ones, a neighbour's function word counting only where it is written in lowercase, a word opened by an apostrophe counting with it. A refused block SHALL be excluded from an Italian analysis and SHALL give Italian no vote in a document's language; a block with as many Italian markers as neighbour ones, or with none, SHALL stay Italian. No marker SHALL be a word Italian writes in any register or region. The rule SHALL bump Italian's analyser version and no other, and no part of it SHALL run on text read as English, Spanish or French, whose output SHALL NOT move.
+### Requirement: Catalan, Galician, Italy's regional languages, Latin, Occitan and Romanian are not read as Italian
+The core SHALL refuse as Italian a block the detector reads as Italian whose function words of the neighbour languages the guard knows — Catalan and Galician, and the regional languages of Italy and Corsica, Latin, Occitan and Romanian as the design's measurement keeps them —, counted together, outnumber its Italian ones, a neighbour's function word counting only where it is written in lowercase, a word an apostrophe opens and no quote closes at once counting with its apostrophe. A refused block SHALL be excluded from an Italian analysis and SHALL give Italian no vote in a document's language; a block with as many Italian markers as neighbour ones, or with none, SHALL stay Italian. No marker SHALL be a word Italian writes in any register or region. The rule SHALL bump Italian's analyser version and no other, and no part of it SHALL run on text read as English, Spanish or French, whose output SHALL NOT move.
 
 #### Scenario: A Catalan sentence
 - **WHEN** « El far s'alçava a la vora del penya-segat, i ningú no recordava qui l'havia construït. », which the detector reads as Italian, is offered as Italian
@@ -18,24 +18,36 @@ The core SHALL refuse as Italian a block the detector reads as Italian whose fun
 - **THEN** it is not Italian
 
 #### Scenario: A Sicilian sentence
-- **WHEN** « Lu patruni dici ca nun ci su' sordi, ma iddu campa bonu. », read as Italian by the detector, is offered as Italian
+- **WHEN** « Iu sugnu cuntentu pirchì chiddu ca dicisti è veru. », read as Italian by the detector, is offered as Italian
 - **THEN** it is not Italian
 
 #### Scenario: A Neapolitan sentence
 - **WHEN** « Tengo 'na casa piccerella vicino 'o mare, e 'a sera guardo 'e stelle. », read as Italian by the detector, is offered as Italian
-- **THEN** it is not Italian, its elided articles `'na`, `'o`, `'a` and `'e` counting with their apostrophe
+- **THEN** it is not Italian, its elided articles `'o`, `'a` and `'e` counting with their apostrophe
 
 #### Scenario: A Sardinian, a Corsican and a Friulian sentence
 - **WHEN** « Sa domo est manna e sos pitzinnos giogant in sa pratza. », « A casa mea hè vicinu à a chjesa, è u paese hè chjucu. » and « Cheste e je la cjase dai miei nonos, e jo o soi nassût culì. », each read as Italian by the detector, are offered as Italian
 - **THEN** none is Italian
 
-#### Scenario: Italian naming Catalan, Sicilian and Latin places and works is kept
+#### Scenario: A Latin, an Occitan and a Romanian sentence
+- **WHEN** « Ubi concordia, ibi victoria, sed discordia omnia perdit. », « La lenga occitana foguèt parlada dins tota la region. » and « Copiii se jucau în curte toată ziua, dar mama îi chema acasă. », each read as Italian by the detector, are offered as Italian
+- **THEN** none is Italian
+
+#### Scenario: Italian naming Catalan, Sicilian and Latin places and works is kept when its Italian markers outnumber theirs
 - **WHEN** « Abbiamo visitato il Castell dels Tres Dragons a Barcellona, poi il Lu Capu a Siracusa, e letto anche il De bello Gallico. » is offered as Italian
 - **THEN** it is Italian: its one neighbour marker, `dels` inside a name, is outnumbered by its Italian ones, `abbiamo` and `anche`
+
+#### Scenario: A letter quoted in Italian
+- **WHEN** « La lettera 'a' si pronuncia sempre aperta in questa parola. » is offered as Italian
+- **THEN** it is Italian: a quote closes `'a` at once, so it is a quoted letter, not Neapolitan's article
 
 #### Scenario: Regional Italian is kept
 - **WHEN** « Ma va', non ci credo mica che sei andato giù in piazza con quel caldo. » and « Dai, vieni su che ti faccio vedere una cosa. » are offered as Italian
 - **THEN** both are Italian: `su`, `ci`, `ma` and `va'` are markers of neither table
+
+#### Scenario: Romanesco and informal Italian are kept
+- **WHEN** « Nun ce la faccio più, sò stanco morto. » and « Non sò che dire. » are offered as Italian
+- **THEN** both are Italian: `nun` and `sò`, Italian in an informal register, are markers of neither table
 
 #### Scenario: A capital makes a name
 - **WHEN** « Durante il viaggio abbiamo letto che El Niño e Os Lusíadas sono nomi, non parole. » is offered as Italian

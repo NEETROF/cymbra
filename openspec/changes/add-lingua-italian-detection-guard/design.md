@@ -25,15 +25,18 @@ See proposal.md — Why. What constrains the shape:
   | Catalan | yes | « El far s'alçava a la vora del penya-segat, i ningú no recordava qui l'havia construït. » |
   | Galician | yes | « Non hai unha solución sinxela, pero o concello xa traballa nela. » |
   | Venetian | yes | « Ghe xe tanta zente in piassa e tuti i parla. » (« El canal xe pien de barche… » → Spanish) |
-  | Sicilian | yes | « Lu patruni dici ca nun ci su' sordi, ma iddu campa bonu. » |
+  | Sicilian | yes | « Lu patruni dici ca nun ci su' sordi, ma iddu campa bonu. »; at implementation, once `nun` and `iddu` were left out, « Iu sugnu cuntentu pirchì chiddu ca dicisti è veru. » (the scenario's) |
   | Neapolitan | yes (4 of 6) | « Tengo 'na casa piccerella vicino 'o mare, e 'a sera guardo 'e stelle. » (« 'O sole mio… » → Portuguese) |
   | Sardinian | yes | « Sa domo est manna e sos pitzinnos giogant in sa pratza. » |
   | Corsican | yes | « A casa mea hè vicinu à a chjesa, è u paese hè chjucu. » |
   | Friulian | yes (2 of 3) | « Cheste e je la cjase dai miei nonos, e jo o soi nassût culì. » |
   | Latin | 1 of 12 | « Gallia est omnis divisa… » → French; « Pater noster… » → English; « Ubi concordia, ibi victoria… » → Italian |
+  | Occitan (probed at implementation) | 3 of 13 | « La lenga occitana foguèt parlada dins tota la region. » (« Lo far se quilhava… » → French, « Los enfants jogavan… » → Spanish) |
+  | Romanian (probed at implementation) | 1 of 3 | « Copiii se jucau în curte toată ziua, dar mama îi chema acasă. » (« Guvernul a aprobat bugetul… » → French) |
 
   Every scenario sentence of the spec is one of these, checked to be read as Italian first, as
-  change 42 checked its own.
+  change 42 checked its own; the Occitan and Romanian rows were probed on 2026-10-23, when the
+  measurement brought them in (Measurement).
 - Change 7 puts Italian at `1.0.0`; the Italian corpus's `misto` page holds English, Spanish,
   French, Catalan, Galician and Latin blocks around Italian ones — change 5 authored the Catalan
   and Galician blocks to read as Italian; the Latin one lands under its nearest class.
@@ -147,7 +150,9 @@ before it is looked up, a neighbour marker counted in lowercase only, the apostr
 (an Italian elided piece `l'`, `dell'` ends at its apostrophe and is no marker on its own). One
 Italian addition: a word opened by an apostrophe (U+0027 or U+2019, which typeset Neapolitan
 writes) — the Neapolitan elided articles `'o`, `'a`, `'e`, `'nu`, `'na` — is looked up with its
-apostrophe, as Spanish's guard looks up Occitan's `qu'`, `m'`, `t'`. It lives in a second entry
+apostrophe, as Spanish's guard looks up Occitan's `qu'`, `m'`, `t'`; as implemented, not when a
+quote closes the word at once (« la lettera 'a' » quotes a letter), and the measurement leaves
+`'na` out (Measurement). It lives in a second entry
 point, `guard_words_opened(text, f)`, which hands Italian's callback the word and whether an
 apostrophe opened it; `guard_words` and French's and Spanish's readings are byte for byte what they
 were, held by their existing tests and by a new case of `the_french_guard_reads_words_as_its_doc_says`
@@ -201,15 +206,184 @@ apostrophe-opened word, straight and typographic; an NFD block; the leak the gua
 French and Spanish guards' tests unchanged, French's gaining the opening-quote case. The
 baseline's `misto` assertion names the blocks kept.
 
+## Measurement
+
+Fetched on 2026-10-23 and pinned in `scripts/lingua-data/measure/it-guard-corpus.json`: each
+Wikipedia article by its revision (its wikitext's sha1 and sha256), every other file by URL and
+sha256, UD by commit, Tatoeba's sample by its sentence ids. `it_guard.py` (run by `it-guard.sh`)
+fetches them, each source into a directory of its own, and then works offline; neither the samples
+nor the figures are committed. lingua-core's own gate reads every block (the `italian_guard_measure`
+example); a port of the guard's reading explains each refusal and agrees with the gate on all
+50,219 blocks read as Italian. A block is a paragraph (Wikipedia wikitext rendered to text:
+templates, tables, references, files and categories out, the text of `lang` and quotation
+templates kept; Project Gutenberg paragraphs), a sentence (UD, Tatoeba) or a line
+(`pages-it.txt`), without soft hyphens, trimmed, of 12 bytes or more.
+
+| Source | What | Licence |
+|---|---|---|
+| Wikipedia, eleven neighbours | ca, gl, vec, scn, nap, sc, co, fur, la, oc, ro: the articles 75 English seed titles link to (56–75 per wiki, 753 in all) | CC BY-SA 4.0 |
+| UD Italian-PUD | test, `71d932aa` | CC BY-SA 3.0 |
+| UD Italian-MarkIT | train, dev and test, `e210079d` | CC BY 4.0 |
+| Tatoeba | 20,000 sentences drawn once (seed 42, French's choice) from the Italian export of 2026-10-17; their ids are committed (`it-guard-tatoeba-ids.txt`), since Tatoeba regenerates the export weekly — and may edit or delete a sentence | CC BY 2.0 FR |
+| Italian Wikipedia | 64 articles: the regional languages and their places, songs and authors that quote them (*'O sole mio*, Eduardo, Camilleri…), Spanish and Catalan names, everyday subjects | CC BY-SA 4.0 |
+| Project Gutenberg | Manzoni, *I promessi sposi* (#45334); Collodi, *Pinocchio* (#52484): `files/N/N-0.txt`, unchanged since 2024 but not versioned — a re-posting would change its sha256, and the fetch would refuse it | public domain |
+| `pages-it.txt` | its 65 Italian blocks (the `misto` page's six foreign ones aside) | — |
+
+**What "better" means, written before any figure** (the script implements each rule, `it_guard.py
+words`). Rule 1 (D2): a neighbour is kept when whichlang reads a tenth of its Wikipedia blocks as
+Italian or more. Rule 2 (D3): no candidate that is a current Italian word or written form, in any
+register or region, elided and truncated pieces included. Rule 3 (D3, D6): a neighbour word is kept
+when it counts in a kept neighbour's block read as Italian, and every Italian block it helps refuse
+is, read by hand, a quotation or a name — a misfire drops every neighbour word counting in it.
+Rule 4 (D3): an Italian word is kept when every kept neighbour writes it at most a tenth as often,
+per thousand words, as the Italian corpora do. The recall gate is D6's: at most one Italian block
+in a thousand refused, none of `pages-it.txt`'s.
+
+**Added or amended during the measurement**, each with its reason:
+- *Rule 5, a deviation from D6.* D6 keeps a word that refuses no Italian block but a quotation or
+  a name, and warns that a zero-tolerance rule would drop `el` at the first Italian block quoting
+  Spanish. The implementation adds a mechanical gate instead: every refused block of the Italian
+  corpora counts against the one in a thousand, quotations and names included, and while it fails
+  the neighbour word counting in the most refused blocks goes (tie: the one catching fewer
+  neighbour blocks). It drops `el`, as D6 warned. The owner weighs it against counting only
+  misfires (task 4.1, figures below).
+- *Catalan and Galician are kept against rule 1* (9.7 % and 3.2 % of their blocks read as Italian):
+  the requirement is named for them, two scenarios refuse their sentences, and the baseline's
+  scenario excludes the `misto` page's blocks. Rule 3's first half does not apply to their words —
+  their Wikipedia samples are seldom read as Italian, so "catching the sample" cannot test words
+  kept for the sentences the spec refuses; rule 3's second half and the gate still do.
+- *Rule 2 applied systematically*: every candidate checked against an Italian forms list (change
+  9's prototype tables) and `tokenize.rs`'s elided forms and truncations, after the first list of
+  refusals showed `quand` (« quand'è ») and `entrò` missed by hand.
+- *Rule 4, amended after its first output*: as first written, it counted Italian quoted in the
+  neighbours' articles (bibliographies, an Italian law's title in a Catalan article) as their
+  writing, and would have taken 19 of the 28 Italian words out. Measured instead on the blocks
+  that hold one of the neighbour's own words, then each flag read by hand: `dal` (Venetian,
+  Friulian, Occitan), `essere` and `hanno` (Neapolitan), `quella` and `questi` (Corsican) are their
+  own words and go; seven are kept because every flag was an Italian name, title or quotation
+  (`italian_read_as_quotation`): `avere`, `dalla`, `dalle`, `degli`, `della`, `delle`, `nel`
+  (« Università degli studi di Udine », « Tu scendi dalle stelle », « Gallicano nel Lazio »).
+- *After the review of the pull request*: seven neighbour words left out — `on` (« on line »),
+  `cum` (« cum laude »), `pas` (« pas dosé »), `comme` (« comme il faut »), `'na` (the informal
+  « 'na »), `sas` (« & C. sas »), Italian in some register, and `as`, the English word Italian
+  quotes —, and an apostrophe opens no word that a quote closes at once (D4, « la lettera 'a' »).
+- *By the owner's decision of 2026-10-23* (below): romanesco and informal Italian `sò`, `nun` and
+  `je` left out.
+
+**Rule 1, and the neighbours with the guard** (share of blocks read as Italian; of the text in
+brackets):
+
+| Neighbour | Blocks | Without | With | D2's default | Kept |
+|---|---:|---:|---:|---|---|
+| Catalan | 9,325 | 9.7 % (1.7) | 9.0 % (1.3) | kept | yes, by the spec |
+| Galician | 6,132 | 3.2 % (0.4) | 3.2 % (0.4) | kept | yes, by the spec |
+| Venetian | 1,595 | 58.9 % (77.1) | 29.2 % (14.5) | kept | yes |
+| Sicilian | 1,557 | 82.9 % (95.4) | 66.4 % (46.6) | kept | yes |
+| Neapolitan | 760 | 71.3 % (86.0) | 27.8 % (6.6) | kept | yes |
+| Sardinian | 1,437 | 37.6 % (33.5) | 26.7 % (6.7) | kept | yes |
+| Corsican | 1,514 | 83.2 % (96.9) | 57.9 % (36.8) | kept | yes |
+| Friulian | 1,582 | 37.3 % (31.5) | 31.8 % (17.7) | kept | yes |
+| Latin | 5,233 | 23.1 % (13.9) | 20.5 % (7.4) | out | yes, by rule 1 |
+| Occitan | 4,723 | 14.6 % (3.2) | 12.6 % (1.6) | out | yes, by rule 1 |
+| Romanian | 6,655 | 31.9 % (30.5) | 9.3 % (1.0) | out | yes, by rule 1 |
+| Pooled | 40,513 | 25.4 % (18.8) | 16.8 % (4.6) | | |
+
+Catalan's and Galician's blocks read as Italian are mostly short — headings, names, Italian
+titles in their bibliographies (22 % of Catalan's blocks under 40 bytes, 1.5 % from 100); long
+Catalan and Galician prose is read as Spanish, French or Portuguese. What leaks elsewhere is short
+lines without a marker of either table, sentence-initial capitals (« Lu patruni… »), and
+Italian quoted in the neighbours' own articles.
+
+**The words.** Of 258 candidates (D3's, and the Occitan and Romanian tables of Spanish's and
+French's guards once rule 1 kept them), rule 2 takes 19 out, rule 3 66 that no neighbour block
+read as Italian holds (Occitan's mostly; Catalan's and Galician's stay, 14 of them), and one
+misfire: `u`, Corsican's article, is the letter's Italian name in 13 refused blocks about spelling
+(« Maschile singolare finito in consonante o in u: »). The review takes seven more, the owner
+three. The gate then failed — 67 blocks of 39,934, every one a quotation or a name — and rule 5
+took `iddu` (17 refused blocks; 13 neighbour blocks caught), `lu` (9; 368), `chì` (6; 288) and
+`el` (6; 495), leaving 158 neighbour words and 23 Italian ones.
+
+**Italian refused.** 37 of 39,934 blocks read as Italian (0.093 %), all in Italian Wikipedia's
+articles on the neighbour languages; none in UD (992 and 1,289 read as Italian), Tatoeba (19,699),
+the two books (3,044 and 1,851) or `pages-it.txt` (65). Twenty-seven are quotations — Sardinian,
+Corsican, Venetian, Sicilian and Catalan paradigms and phrasebook lines, Neapolitan lyrics and a
+proverb (« Tutte 'e strade pórteno a Roma »), the Sicilian School's « Per la vertute de la
+calamita », a Romanian line and a Romanian dish —, ten are names and titles (Eduardo's « È arrivato 'o trentuno » and « Chi è cchiù felice 'e
+me! », « Munasterio 'e Santachiara », « Expositio seu comentum super Comedia », « Grafia
+dell'Escòla dau Pò »). No misfire is left. The pull request lists all 37.
+
+**Cost** (D5), on the 39,934 Italian blocks read as Italian (6.3 MB; Apple M2 Max, release build;
+WebAssembly under Node 22, built as `italian_guard_measure`'s doc says), best of seven: the guard
+is the difference between the gate for Italian and the gate for English, which reads the block the
+same way and has no guard.
+
+| µs per KB | whichlang | Italian's guard | French's, for scale (change 42) |
+|---|---|---|---|
+| native | 17.2–17.5 | 16.1–16.5 (94 %) | 16.5–21.1 (100–123 %) |
+| WebAssembly | 14.9–15.9 | 18.6–19.3 (119–128 %) | 19.4–23.8 (138–159 %) |
+
+A 20 KB Italian article costs about 0.4 ms more in WebAssembly; a reader of English, Spanish or
+French pays nothing.
+
+**Owner's decisions, 2026-10-23 (task 4.1).** Guillaume read the figures below, measured before
+the last change, on the 161-word table, and decided:
+1. Rule 5 stays, and the gate stays strict: every refused block counts.
+2. Latin, Occitan and Romanian stay in.
+3. Catalan and Galician stay in.
+4. Romanesco and informal Italian `sò`, `nun` and `je` leave the table: « Nun ce la faccio più,
+   sò stanco morto » and « Non sò che dire » are Italian, as D3 and the requirement say of any
+   register or region, and as `'na` already was. With them out, Sicilian is read as Italian on
+   66.4 % of its blocks, Corsican on 57.9 %, Friulian on 31.8 %, and 37 Italian blocks are
+   refused. The spec's first Sicilian sentence, whose only markers were `nun` and `iddu`, is now
+   read as Italian; its scenario takes « Iu sugnu cuntentu pirchì chiddu ca dicisti è veru. ».
+
+The figures the decisions were taken on — the same samples, each choice against the 161-word
+table:
+
+| Variant | Neighbour words | Neighbours read as Italian with the guard | Italian refused |
+|---|---:|---|---:|
+| The 161-word table, as presented | 161 | pooled 16.5 % (4.3) | 38 (0.095 %) |
+| Rule 5 out: the gate counts misfires only, `iddu`, `lu`, `chì`, `el` stay | 165 | pooled 15.6 % (3.3); Sicilian 54.3, Corsican 48.0, Venetian 23.5 % | 69 (0.173 %), all quotations or names |
+| Latin, Occitan and Romanian out (D2's default) | 82 | pooled 19.5 % (8.1); Romanian 24.8, Latin 22.8, Occitan 14.1 % | 36 (0.090 %) |
+| Catalan and Galician out (D2's rule) | 128 | pooled 16.6 % (4.3); Catalan 9.5, Galician 3.2 % | 33 (0.083 %); the `misto` blocks and two scenarios are Italian again |
+| Romanesco `sò`, `nun` and `je` out — chosen, now implemented | 158 | pooled 16.8 % (4.6); Sicilian 66.4, Corsican 57.9 % | 37 (0.093 %) |
+
+### Deviations from the decisions above
+
+- **D2**: Latin, Occitan and Romanian are kept, by D2's own rule; Catalan and Galician are kept
+  against it, because the spec names them. The owner confirmed both (2026-10-23).
+- **D6**: rule 5, above — the gate counts quotations and names and prunes words until it passes;
+  it took `iddu`, `lu`, `chì` and `el`. The owner kept it (2026-10-23).
+- **D3, neighbour markers**: `u` (Corsican) is left out as the letter's Italian name. Rule 2 and
+  the review leave out, beyond D3's list, `molt`, `tot`, `avi`, `pe`, `pola`, `unni`, `on`,
+  `cum`, `pas`, `comme`, `'na`, `sas`, `as`, and the owner romanesco `sò`, `nun` and `je`
+  (D3 listed them as Corsican's, Sicilian's and Neapolitan's, Friulian's), and Occitan's and Romanian's Italian words (`ma`,
+  `sul`, `qual`, `sia`, `lor`, `quand`, `entrò`, `ambe`, `care`, `dar`, `fi`, `din`). D3's `co`
+  is in no neighbour's list and « co' » (*coi*) is an Italian truncation: not added.
+- **D3, Italian markers**: `dal`, `essere`, `hanno`, `quella` and `questi` are left out as
+  measured (`dal` against Venetian, as D3 anticipated, and Friulian).
+- **D4**: an apostrophe opens no word that a quote closes at once (« la lettera 'a' »); a quote
+  that closes later (« ha risposto 'a domani' ») still leaves the word opened.
+- **D5**: the guard's cost is the gate's difference, Italian against English: `italic_neighbour`
+  is private, and the example uses the crate's public gate.
+- **The spec**: the Neapolitan scenario counts `'o`, `'a` and `'e` (`'na` is Italian's), the
+  Sicilian scenario takes another sentence (its first held only `nun` and `iddu`), the requirement
+  names Latin, Occitan and Romanian among the neighbours, with a scenario for them, and scenarios
+  for a letter quoted in Italian and for romanesco and informal Italian.
+
 ## Risks / Trade-offs
 
 - [Italian recall] → D6's gate; every Italian block refused is named in the pull request.
-- [A neighbour whichlang files elsewhere] → D2's rule; a neighbour below a tenth adds no word.
+- [A neighbour whichlang files elsewhere] → D2's rule; a neighbour below a tenth adds no word
+  (Catalan and Galician excepted, Measurement).
 - [Dialect quoted inside Italian] → a block, not a document, is refused: an Italian page keeps its
   Italian blocks.
 - [Words shared with the neighbours] → never markers on either side (D3).
-- [A word opened by a quote] → only Italian's reading sees it, and only the five Neapolitan
-  articles are markers; « 'o » quoted in Italian is one word in a block Italian's markers carry.
+- [A word opened by a quote] → only Italian's reading sees it, and only four Neapolitan articles
+  are markers (`'a`, `'e`, `'nu`, `'o`). A quote closing the word at once makes it a quotation
+  (« la lettera 'a' »); one closing after the next word does not, so « Mi ha risposto 'a domani' »
+  is refused when no Italian marker outweighs it — the price of reading Neapolitan's own
+  « 'a sera guardo 'e stelle », measured at four Neapolitan blocks for one Italian title.
 
 ## Migration Plan
 
