@@ -71,8 +71,10 @@ carrying clitics is ranked.
 Italian written without its marks, or with others (read-lingua-italian-unmarked-spellings). A word the
 section gives only as a spelling of one word — a misspelling, an alternative, obsolete, archaic or
 nonstandard spelling or form — is a form of that word when wordfreq rates the word the commoner
-(`perchè` → *perché*, `fà` → *fare*; D2, `dictionary_spellings`), its own forms following it where no
-other word claims them; the report names each spelling read and each kept apart. The web's spellings
+(`perchè` → *perché*, `fà` → *fare*; D2, `dictionary_spellings`), its paradigm following it where no
+other word claims a form (`Lexicon.drop_spelling_rows`), a form only it reads keeping no reading when
+another language writes it more or a source names it (`foreign_readings`); the report names each
+spelling read and each kept apart. The web's spellings
 without their accent read as their word by a reviewed list and the owner's exceptions (`piu` → *più*,
 `perche` → *perché*; D3, `WEB_SPELLINGS`, `OWNER_EXCEPTIONS`), the reduction stopping for a person when
 the section names a row (`Lexicon.web_boundary`) or a row's word is no ranked lemma.
@@ -405,8 +407,9 @@ WEB_SPELLINGS = {
 WEB_REASON = "written on the web without its accent; the owner's reviewed list"
 # The owner's exception rows (D3; task 0.1, settled by the owner on 2026-10-23), outside the method and
 # the boundary: spellings the section gives a sense of their own — a rare homograph — that the web
-# writes for a commoner word, each with its reason. `finche`, `felicita`, `umidita` and the method's
-# other homographs are not rows: they read as the tables read them.
+# writes for a commoner word, each with its reason — and `pò`, po' with a wrong accent, added at review on
+# the owner's behalf. `finche`, `felicita`, `umidita` and the method's other homographs are not rows: they
+# read as the tables read them.
 OWNER_EXCEPTIONS = {
     "perche": (
         "perché",
@@ -438,6 +441,12 @@ OWNER_EXCEPTIONS = {
         "libertà",
         "libertà written without its accent (the owner, 2026-10-23): the section gives liberta as liberto's "
         "feminine (a freedwoman), which the tables read it as; wordfreq 3.73 against libertà's 5.16",
+    ),
+    "pò": (
+        "poco",
+        "po' written with a grave accent (added at review, 2026-10-23): « un pò », wordfreq 4.47, the web's "
+        "commonest misspelling of po', which the tables read as poco; the section lists pò in potere's table, an "
+        "archaic and southern third person (« nun pò »), which the tables read it as before",
     ),
 }
 
@@ -625,10 +634,6 @@ class Lexicon:
         # (form, word): a clitic-bearing row of a reflexive or pronominal verb, whose link to the verb
         # is dropped once the section is read (`drop_clitic_rows`).
         self._clitic_rows = set()
-        # (form, spelling): a form a dictionary spelling's entry lists, or an entry pointing at one,
-        # whose link to the spelling is dropped where another word claims the form
-        # (`drop_spelling_rows`).
-        self._spelling_rows = set()
         self._meaning = set()
         self._web_entries = collections.defaultdict(list)
         self._web_listed = collections.defaultdict(list)
@@ -652,7 +657,6 @@ class Lexicon:
             self.link(word, self.spellings[word], pos)
             for form in self._rows(entry, word, (word,)):
                 self.link(form, word, pos)
-                self._spelling_rows.add((form, word))
             return
         if any(_is_compound(s) for s in senses) or (word in self.survey.compounds and pos in _CLITIC_POS):
             # A clitic compound's entries read the compound: the enclitic rule reads it (D4).
@@ -687,8 +691,6 @@ class Lexicon:
                     self.link(word, web_spelling(target), pos)
                 elif is_form(target) and target not in PIECES:
                     self.link(word, target, pos)
-                    if target in self.spellings:
-                        self._spelling_rows.add((word, target))
 
     def _record_boundary(self, entry, word):
         """What `web_boundary` needs of one entry: each sense's kind (`_sense_kind`), whether the entry
@@ -813,19 +815,39 @@ class Lexicon:
         for form in [f for f, opts in self.candidates.items() if not opts]:
             del self.candidates[form]
 
+    def spelling_paradigms(self):
+        """The dictionary spellings' paradigms (read-lingua-italian-unmarked-spellings D2, as
+        implemented): the spellings, and every form all whose candidates lie inside them, again until
+        nothing joins — `accidere` (« alternative form of uccidere »), its participle `acciso`, whose
+        one word is `accidere`, and so on. A form with a word of its own beside is none (`accise`, also
+        *accisa*'s plural)."""
+        paradigm = set(self.spellings)
+        grown = True
+        while grown:
+            grown = False
+            for form, opts in self.candidates.items():
+                if form not in paradigm and opts and opts <= paradigm:
+                    paradigm.add(form)
+                    grown = True
+        return paradigm
+
     def drop_spelling_rows(self):
-        """A form a dictionary spelling's entry lists, or an entry pointing at one, follows the spelling
-        to its word only where no other word claims it (read-lingua-italian-unmarked-spellings D2, as
-        implemented): `sguardi`, a row of the archaic `sguardare` (« alternative form of guardare »),
-        stays *sguardo*'s plural, and `annate` *annata*'s, rather than the commoner verb's — the
-        choice among a form's words (D5) would give it to the verb by its frequency. A form no other
-        word claims follows (`alcoolici` → *alcolico*); another spelling is no other word."""
-        for form, spelling in sorted(self._spelling_rows):
-            others = self.candidates.get(form, set()) - {spelling} - set(self.spellings)
-            if form != spelling and others and spelling in self.candidates[form]:
-                self.candidates[form].discard(spelling)
-                self.links[form].pop(spelling, None)
-                self.stats["forms of a dictionary spelling another word claims"] += 1
+        """A form of a dictionary spelling's paradigm (`spelling_paradigms`) follows the spelling to its
+        word only where no other word claims it (read-lingua-italian-unmarked-spellings D2, as
+        implemented, transitive at review): `sguardi`, a row of the archaic `sguardare` (« alternative
+        form of guardare »), stays *sguardo*'s plural, `annate` *annata*'s, and `accise` *accisa*'s, a
+        row of the participle `acciso` of the archaic `accidere` — the choice among a form's words (D5)
+        would give each to the commoner verb by its frequency. A form no other word claims follows
+        (`alcoolici` → *alcolico*); another spelling's paradigm is no other word."""
+        paradigm = self.spelling_paradigms()
+        for form, opts in self.candidates.items():
+            inside = opts & paradigm
+            if form in paradigm or not inside or not opts - paradigm:
+                continue
+            for member in inside:
+                opts.discard(member)
+                self.links[form].pop(member, None)
+            self.stats["forms of a dictionary spelling another word claims"] += 1
 
     def _written(self, text, owners):
         """A row as Italian writes it (D3): its stress marks dropped but the last letter's
@@ -1255,6 +1277,32 @@ def prepass_words():
     return sorted(words)
 
 
+def readings_without_spellings(kaikki, survey, counts, frequency, top_n, max_lemmas):
+    """The forms the tables read without the dictionary's spellings (D2) — every other rule as the
+    reduction applies it —: what a form read before D2, for `foreign_readings`."""
+    lexicon = read_kaikki(kaikki, survey)
+    name_or_word(lexicon.candidates, lexicon.poses, frequency)
+    own_words(lexicon)
+    read_apocopes(lexicon)
+    read_web_spellings(lexicon)
+    forms, _, _ = reduce_forms(lexicon, counts, treebank.markit_zipf(counts), frequency, top_n, max_lemmas)
+    return set(forms)
+
+
+def foreign_readings(forms, paradigm, before, frequency, foreign, names):
+    """The forms only a dictionary spelling reads (read-lingua-italian-unmarked-spellings D2, at
+    review): a form of a spelling's paradigm the tables did not read before D2 (`before`) is another
+    language's word when English, French or Spanish writes it more often than Italian does
+    (`foreign`, D3's test: `intro`, `secure`, `provide`, `spare`, `surge`, `antique`, `ata`), or a
+    name when a source says so (`names`: the section's name entries, MarkIT's proper nouns,
+    Morph-it!'s `NPR` — `abbado`, `ati`, `bucci`): it keeps no reading, as before. Sorted."""
+    return sorted(
+        form
+        for form in forms
+        if form in paradigm and form not in before and (foreign(form) > frequency(form) or form in names)
+    )
+
+
 def unread_web_spellings(forms):
     """The rows of the web's list and the owner's exceptions the forms table does not read as their
     word (D3) — their word no ranked lemma: the reduction refuses them, a row following the tables'
@@ -1296,6 +1344,19 @@ def read_morph_it(path, member=MORPH_IT_MEMBER, encoding=MORPH_IT_ENCODING):
             continue
         pairs.add((nfc_lower(form), nfc_lower(lemma)))
     return pairs
+
+
+def read_morph_it_names(path, member=MORPH_IT_MEMBER, encoding=MORPH_IT_ENCODING):
+    """The words Morph-it! lists as proper nouns (its `NPR` category), lowercased and in NFC: the name
+    check of a form only a dictionary spelling reads (`foreign_readings`)."""
+    names = set()
+    with tarfile.open(path, "r:gz") as archive:
+        data = archive.extractfile(member).read().decode(encoding)
+    for line in data.split("\n"):
+        fields = line.rstrip("\r").split("\t")
+        if len(fields) == 3 and fields[2].startswith("NPR"):
+            names.add(nfc_lower(fields[0]))
+    return names
 
 
 def morph_it_additions(pairs, forms, ranks, lexicon, frequency):
@@ -1414,15 +1475,17 @@ def manifest(pack_version, morph_it=True):
     }
 
 
-def reduce(work, max_lemmas, pack_version, frequency, top_n, morph_it=MORPH_IT, report=print):
+def reduce(work, max_lemmas, pack_version, frequency, top_n, morph_it=MORPH_IT, report=print, foreign=None):
     """The reduction over the raw sources in `work`, its tables written there. `morph_it` is the
-    archive's file name in `work`, or None to read the Wiktionary alone. Answers what the report
-    prints, as a dict, for the measurement."""
+    archive's file name in `work`, or None to read the Wiktionary alone. `foreign(word)` is the highest
+    Zipf frequency English, French and Spanish give a word (D3's test, read for D2's forms too), None
+    to skip that test. Answers what the report prints, as a dict, for the measurement."""
     kaikki = os.path.join(work, KAIKKI)
     survey = survey_kaikki(kaikki)
     kept = {}
     spellings = dictionary_spellings(kaikki, frequency, kept)
     lexicon = read_kaikki(kaikki, survey, spellings)
+    paradigm = lexicon.spelling_paradigms()
     # The web's list stops for a person when the section names a row (read-lingua-italian-unmarked-
     # spellings D3), as on a word the pre-pass writes and no form.
     crossed = lexicon.web_boundary()
@@ -1451,6 +1514,17 @@ def reduce(work, max_lemmas, pack_version, frequency, top_n, morph_it=MORPH_IT, 
             raise SystemExit(f"it-fr: {path} is missing: Morph-it! is among it-fr's pinned sources (pack_sources.py PINNED['it-fr'])")
         added = morph_it_additions(read_morph_it(path), forms, ranks, lexicon, frequency)
         forms.update(added)
+    alien = []
+    if foreign is not None and spellings:
+        before = readings_without_spellings(kaikki, survey, counts, frequency, top_n, max_lemmas)
+        names = {word for word, poses in lexicon.poses.items() if "name" in poses}
+        markit = treebank.markit_pos_counts([os.path.join(work, name) for name in MARKIT])
+        names |= {word for (word, upos) in markit if upos == "PROPN"}
+        if morph_it is not None:
+            names |= read_morph_it_names(os.path.join(work, morph_it))
+        alien = foreign_readings(forms, paradigm, before, frequency, foreign, names)
+        for form in alien:
+            del forms[form]
     missing = seed_pieces(forms)
     unwritten = unwritten_words(forms)
     if missing or unwritten:
@@ -1486,6 +1560,7 @@ def reduce(work, max_lemmas, pack_version, frequency, top_n, morph_it=MORPH_IT, 
         "read": dict(lexicon.stats),
         "dictionary spellings": dict(spellings),
         "dictionary spellings kept apart": dict(kept),
+        "foreign readings": alien,
         "web spellings": len(WEB_SPELLINGS),
         "owner's exceptions": len(OWNER_EXCEPTIONS),
     }
@@ -1505,6 +1580,10 @@ def reduce(work, max_lemmas, pack_version, frequency, top_n, morph_it=MORPH_IT, 
     report("reduced it-fr: read " + ", ".join(f"{n} {what}" for what, n in sorted(lexicon.stats.items())))
     for line in spellings_report(spellings, kept):
         report(f"reduced it-fr: {line}")
+    report(
+        f"reduced it-fr: forms only a dictionary spelling reads, left unread as another language's word or a "
+        f"name={len(alien)}: " + ", ".join(alien)
+    )
     report(
         f"reduced it-fr: the web's spellings without their accent, {len(WEB_SPELLINGS)} row(s) of the reviewed "
         f"list and {len(OWNER_EXCEPTIONS)} owner's exception(s), each read as its word"
@@ -1529,6 +1608,10 @@ def main():
             zipf[word] = zipf_frequency(word, "it")
         return zipf[word]
 
+    def foreign(word):
+        """The highest Zipf frequency English, French and Spanish give `word` (D3's test)."""
+        return max(zipf_frequency(word, lang) for lang in ("en", "fr", "es"))
+
     reduce(
         a.work,
         a.max_lemmas,
@@ -1536,6 +1619,7 @@ def main():
         frequency,
         lambda n: top_n_list("it", n),
         report=lambda line: print(line, file=sys.stderr),
+        foreign=foreign,
     )
 
 

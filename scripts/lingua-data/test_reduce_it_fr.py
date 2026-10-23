@@ -926,11 +926,44 @@ class DictionarySpellings(unittest.TestCase):
         self.assertEqual(lexicon.stats["forms of a dictionary spelling another word claims"], 1)
         # A form two spellings claim follows them: another spelling is no other word.
         lexicon = red.Lexicon(red.Survey(), {"x": "y", "z": "y"})
+        lexicon.link("x", "y", "verb")
+        lexicon.link("z", "y", "verb")
         lexicon.link("w", "x", "verb")
         lexicon.link("w", "z", "verb")
-        lexicon._spelling_rows.update({("w", "x"), ("w", "z")})
         lexicon.drop_spelling_rows()
         self.assertEqual(lexicon.candidates["w"], {"x", "z"})
+
+    def test_a_form_of_a_form_of_a_spelling_another_word_claims_stays_its(self):
+        # At review: `accise` is *accisa*'s plural and a row of `acciso`, the participle of the archaic
+        # `accidere` (« alternative form of uccidere »), whose one word is `accidere`: the paradigm is
+        # transitive, `accise` stays accisa's, and `acciso`, which no other word claims, follows.
+        entries = [
+            entry("uccidere", pos="verb"),
+            entry("accisa", forms=[("accise", ["plural"])], senses=[{"glosses": ["excise tax"]}]),
+            entry("accidere", pos="verb", senses=[{"glosses": ["x"], "tags": ["alt-of", "alternative", "obsolete"], "alt_of": [{"word": "uccidere"}]}]),
+            entry(
+                "acciso",
+                pos="verb",
+                forms=[("accisa", ["feminine"]), ("accisi", ["masculine", "plural"]), ("accise", ["feminine", "plural"])],
+                senses=[{"tags": ["form-of", "participle", "past"], "form_of": [{"word": "accidere"}]}],
+            ),
+            form_of("accise", "accisa", pos="noun", tags=("feminine", "form-of", "plural")),
+        ]
+        freq = {"uccidere": 4.6, "accidere": 1.0, "accisa": 3.4, "accise": 3.13, "acciso": 1.0, "accisi": 1.0}
+        with tempfile.TemporaryDirectory() as folder:
+            path = _section_file(folder, entries)
+            spellings = red.dictionary_spellings(path, lambda w: freq.get(w, 0.0))
+            self.assertEqual(spellings, {"accidere": "uccidere"})
+            lexicon = red.read_kaikki(path, red.survey_kaikki(path), spellings)
+        self.assertEqual(lexicon.spelling_paradigms(), {"accidere", "acciso", "accisi"})
+        self.assertEqual(lexicon.candidates["accise"], {"accisa"})
+        self.assertEqual(lexicon.candidates["accisa"], {"accisa"})
+        self.assertEqual(lexicon.candidates["accisi"], {"acciso"})
+        top = ["uccidere", "accisa"]
+        forms, ranks, _ = red.reduce_forms(lexicon, collections.Counter(), {}, lambda w: freq.get(w, 0.0), lambda n: top[:n], 10)
+        self.assertEqual(forms["accise"], "accisa")
+        self.assertEqual(forms["accisi"], "uccidere")
+        self.assertEqual(forms["acciso"], "uccidere")
 
     def test_a_spelling_in_the_tables(self):
         # End to end, as the reduction reads it: a form of its word, no rank.
@@ -1009,10 +1042,19 @@ class WebSpellings(unittest.TestCase):
         self.assertEqual(forms["perche"], "perché")
         self.assertEqual(forms["perca"], "perca")
         self.assertIsNone(red.web_spelling("perca"))
-        # The owner's six (task 0.1, 2026-10-23): the four the design named, `gia` and `liberta`.
+        # The owner's six (task 0.1, 2026-10-23): the four the design named, `gia` and `liberta`; and `pò`,
+        # added at review on the owner's behalf.
         self.assertEqual(
             {s: w for s, (w, _) in red.OWNER_EXCEPTIONS.items()},
-            {"perche": "perché", "cosi": "così", "citta": "città", "caffe": "caffè", "gia": "già", "liberta": "libertà"},
+            {
+                "perche": "perché",
+                "cosi": "così",
+                "citta": "città",
+                "caffe": "caffè",
+                "gia": "già",
+                "liberta": "libertà",
+                "pò": "poco",
+            },
         )
         for spelling, (word, reason) in red.OWNER_EXCEPTIONS.items():
             self.assertNotIn(spelling, red.WEB_SPELLINGS)
@@ -1111,15 +1153,60 @@ class Reduction(unittest.TestCase):
                 info.size = len(data)
                 archive.addfile(info, io.BytesIO(data))
 
-    def run_reduction(self, work, morph_it, listed=True):
+    def run_reduction(self, work, morph_it, listed=True, foreign=None, extra=None):
         words = red.prepass_words()
-        everything = {**{w: 3.0 for w in words}, **FREQUENCY, "credettero": 2.0, "puo": 2.0}
+        everything = {**{w: 3.0 for w in words}, **FREQUENCY, "credettero": 2.0, "puo": 2.0, **(extra or {})}
         listed = TOP + [w for w in words if w not in TOP] if listed else TOP
+        listed += [w for w in (extra or {}) if w not in listed]
         lines = []
         summary = red.reduce(
-            work, 300, "2026.10.23", lambda w: everything.get(w, 0.0), lambda n: listed[:n], morph_it=morph_it, report=lines.append
+            work,
+            300,
+            "2026.10.23",
+            lambda w: everything.get(w, 0.0),
+            lambda n: listed[:n],
+            morph_it=morph_it,
+            report=lines.append,
+            foreign=foreign,
         )
         return summary, lines
+
+    def test_a_form_only_a_spelling_reads_is_no_other_language_s_word_nor_a_name(self):
+        # At review: `intrare` (« alternative form of entrare ») reads as entrare; its rows `intro` and
+        # `intra` had no reading before. `intro`, which English writes more, and `intra`, a name to
+        # Morph-it!, keep none; `intrava`, which neither says anything of, follows.
+        spelling = entry(
+            "intrare",
+            pos="verb",
+            forms=[*TABLE_HEAD, ("ìntro", PRESENT_1S), ("ìntra", PRESENT_3S), ("intràva", ["imperfect", "third-person"])],
+            senses=[{"glosses": ["x"], "tags": ["alt-of", "alternative", "obsolete"], "alt_of": [{"word": "entrare"}]}],
+        )
+        # `intrare` itself is no word of wordfreq's: before D2 it was an unranked lemma, its rows unread.
+        extra = {"entrare": 5.0, "intro": 3.25, "intra": 2.0, "intrava": 1.5}
+        with tempfile.TemporaryDirectory() as work:
+            self.write_work(work, morph_it=True, extra=[entry("entrare", pos="verb"), spelling])
+            data = "intra\tIntra\tNPR\n".encode("latin-1")
+            with tarfile.open(os.path.join(work, red.MORPH_IT), "w:gz") as archive:
+                info = tarfile.TarInfo(red.MORPH_IT_MEMBER)
+                info.size = len(data)
+                archive.addfile(info, io.BytesIO(data))
+            foreign = {"intro": 3.81}
+            summary, lines = self.run_reduction(work, red.MORPH_IT, foreign=lambda w: foreign.get(w, 0.0), extra=extra)
+            forms = dict(line.split("\t") for line in _read(work, "forms.tsv").splitlines())
+            self.assertEqual(forms["intrava"], "entrare")
+            self.assertNotIn("intro", forms)
+            self.assertNotIn("intra", forms)
+            self.assertEqual(summary["foreign readings"], ["intra", "intro"])
+            self.assertTrue(any(line.endswith("name=2: intra, intro") for line in lines), lines)
+            # Without the test, both read as entrare.
+            summary, _ = self.run_reduction(work, red.MORPH_IT, extra=extra)
+            forms = dict(line.split("\t") for line in _read(work, "forms.tsv").splitlines())
+            self.assertEqual((forms["intro"], forms["intra"]), ("entrare", "entrare"))
+            self.assertEqual(summary["foreign readings"], [])
+        self.assertEqual(
+            red.foreign_readings({"a": "x", "b": "x", "c": "x"}, {"a", "b"}, {"b"}, lambda w: 3.0, lambda w: 1.0, set()),
+            [],
+        )
 
     def test_a_reduction_writes_italian_s_tables_and_it_fr_s(self):
         with tempfile.TemporaryDirectory() as work:

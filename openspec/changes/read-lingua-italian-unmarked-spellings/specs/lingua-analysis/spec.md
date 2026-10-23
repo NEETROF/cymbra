@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: The apostrophe that stands for an accent reads as the accented word
-The core SHALL read an Italian word — or what remains of one after its elided pieces are split off — ending in a vowel and an apostrophe with neither a letter nor a digit after it, no single quote opened before the word still open there, as the form the pack lists whose final vowel is that vowel accented, when the pack lists such a form: one token spanning the rest and its apostrophe, its text the accented form, its written capital kept. Where the pack lists the vowel under both accents, a form the pack files under the other SHALL be read as the other's spelling and the other SHALL win, and `è` SHALL be tried before `é` where neither is filed under the other. A word Italian's pre-pass lists with its apostrophe — a truncation, an elided form written alone — SHALL keep that reading, whatever the pack lists; the literary apocopes and truncations `ne'`, `de'`, `co'`, `pe'`, `a'`, `su'`, `que'`, `ca'`, `ve'`, `mi'`, `fra'`, `to'`, `i'`, `me'`, `vo'` and `fe'` SHALL never be read for an accent; and a word whose accented form the pack does not list SHALL be read as before, its apostrophe outside the word. The rule SHALL bump Italian's analyser version and no other.
+The core SHALL read an Italian word — or what remains of one after its elided pieces are split off — ending in a vowel and an apostrophe with neither a letter nor a digit after it, no single quote opened before the word still open there, as the form the pack lists whose final vowel is that vowel accented, when the pack lists such a form and, where the pack carries its ranks, ranks that form's word within 23,000: one token spanning the rest and its apostrophe, its text the accented form, its written capital kept. Where the pack lists the vowel under both accents, a form the pack files under the other SHALL be read as the other's spelling and the other SHALL win; where neither is filed under the other, the one whose word the pack ranks higher SHALL win, and `è` SHALL be tried before `é` where the pack ranks neither. A word Italian's pre-pass lists with its apostrophe — a truncation, an elided form written alone — SHALL keep that reading, whatever the pack lists; the literary apocopes and truncations `ne'`, `de'`, `co'`, `pe'`, `a'`, `su'`, `que'`, `ca'`, `ve'`, `mi'`, `fra'`, `to'`, `i'`, `me'`, `vo'` and `fe'` SHALL never be read for an accent; and a word whose accented form the pack does not list, or ranks beyond that bound, SHALL be read as before, its apostrophe outside the word. In telling whether a quote is open, the apostrophe of a truncation or of a word read for an accent SHALL close none, and a quote mark after a space or the start of the text SHALL open one before `.`, `…` or a number but an elided decade (`‘80`). The rule SHALL bump Italian's analyser version and no other.
 
 #### Scenario: An apostrophe for an accent
 - **WHEN** « perche' », « piu' », « citta' », « e' » and « puo' » are tokenised as Italian with a pack that lists `perché`, `più`, `città`, `è` and `può`
@@ -24,6 +24,18 @@ The core SHALL read an Italian word — or what remains of one after its elided 
 #### Scenario: A misspelling the pack ranks as a word of its own
 - **WHEN** « E' » is tokenised with a pack listing `è` as a form of `essere` and `é` under itself
 - **THEN** the token is `È`: neither is filed under the other, and `è` is tried first
+
+#### Scenario: A stray apostrophe on a word the pack ranks low
+- **WHEN** « vita' » and « governo' » are tokenised with a pack that lists `vità` under itself at rank 33,926 and `governò` as a form of `governare` at rank 3,722
+- **THEN** the tokens are `vita`, its apostrophe outside the word, and `governò`
+
+#### Scenario: The commoner of two accents
+- **WHEN** « se' » is tokenised with a pack listing `sé` at rank 655 and `sè` at rank 2,911, neither filed under the other
+- **THEN** the token is `sé`
+
+#### Scenario: A quote an accent spelling does not close
+- **WHEN** « Mi serve 'un po' di lavoro' », « Disse: 'c'e' lavoro' », « il cosiddetto '...lavoro' » and « '2 lavoro' » are tokenised with a pack that lists `lavorò` and `è`
+- **THEN** each `lavoro` is read as written, the quote still open: `po'` and `e'` close none, and a quote mark before dots or a number opens one
 
 #### Scenario: A listed word with its apostrophe
 - **WHEN** « po' » and « da' » are tokenised as Italian with a pack that lists `pò` and `dà`

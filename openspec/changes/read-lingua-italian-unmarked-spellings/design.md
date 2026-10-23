@@ -59,8 +59,10 @@ See proposal.md — Why. What constrains the shape:
 
 - Capitals without accents in running text other than `E'`.
 - A spelling of a word the tables do not rank.
-- The apocopes `ne'`, `de'`, `co'`, `pe'`, `a'`, `su'`: read as change 6 reads an unlisted trailing
-  apostrophe (outside the word) — a rule of their own if the reader's books ask for it.
+- The apocopes `ne'`, `de'`, `co'`, `pe'`, `a'`, `su'` — sixteen as implemented, `que'`, `ca'`, `ve'`,
+  `mi'`, `fra'`, `to'`, `i'`, `me'`, `vo'`, `fe'` added by measurement —: read as change 6 reads an
+  unlisted trailing apostrophe (outside the word) — a rule of their own if the reader's books ask for
+  it.
 
 ## Decisions
 
@@ -181,11 +183,19 @@ its word's, as a form of it (no readings exist before; `tags.tsv` holds `NOUN` a
   rare against « E' vero »; measured on the corpus and Tatoeba.
 - [A truncation written for an accented word] → `da'`, `fa'`, `sta'`, `va'` keep their lemma (the
   card right); `di'` for *dì* reads *dire* (rare); named in D1.
-- [The apocopes of books] → excluded from D1 (`ne'` never `né`); a rule of their own later.
-- [A spelling that is a word] → the list excludes every form the tables list as a word; the rule
-  of D1 never applies to a word the tables list as written; the four exceptions are the owner's.
+- [The apocopes of books] → excluded from D1 (`ne'` never `né`, sixteen as implemented); a rule of
+  their own later.
+- [A spelling that is a word] → the list excludes every form the tables list as a word; the
+  exceptions are the owner's.
 - [The accent spelling read as an elided piece by the phrase gloss] → named for change 12.
-- [A quoted word ending in a vowel] → no re-attachment after an opening quote (change 6's D5).
+- [A quoted word ending in a vowel] → no re-attachment while a quote the scan sees is open. The scan
+  is a heuristic, not a parser: a quote it misses — opened where it reads none — leaves the closing
+  mark to read as an accent, on any vowel-final word whose accented form the tables list and rank
+  within 23,000 (« 'un po' di lavoro' » read `lavorò` before review). As implemented at review, a
+  truncation's or an accent spelling's apostrophe closes no quote, a quote mark after a space
+  before `.`, `…` or a number opens one, and the rank guard leaves the tables' rare tokens unread;
+  what a stray or a missed quote still reads is the cost (measured: none in the corpus and Tatoeba
+  but the cases named in the Implementation).
 
 ## Migration Plan
 
@@ -227,16 +237,41 @@ UD Italian-PUD and MarkIT's test section were read by nothing D1, D2 or D3 decid
   `frà`), `to'` (*togli*, 3, `tò`), `i'` (*io*, 3, `ì`), `me'` (*meglio*, 2, `mè`), `vo'` (*voglio*,
   2, `vò`), `fe'` (*fece*, 1, `fè`). Each reads as change 6 read it, its apostrophe outside the word.
 - **The quote** is change 6's own scan (`inside_a_quote`): no quote opened before the word still open,
-  so « ‘Ma e' vero’ » keeps `e`.
+  so « ‘Ma e' vero’ » keeps `e`. **At review**, two rules: a mark after a word the pre-pass reads
+  with its apostrophe — a truncation, or a word whose apostrophe stands for an accent — is that
+  word's, and closes no quote (« 'un po' di lavoro' », « 'c'e' lavoro' » keep `lavoro`); and a quote
+  mark after a space or the start opens a quote before `.`, `…` or a number (« '...lavoro' »,
+  « '2 lavoro' »), but an elided decade, two digits and neither a letter nor a digit after them
+  (« anni ‘80, un po' » still reads `poco`; the review asked for any digit, which would have read
+  change 6's scenario's `po'` as written). Neither moves a truncation's reading in the corpus or
+  Tatoeba (583 and 7,192 read as before).
+- **At review — a rank guard.** The tables list some 4,875 accented forms a vowel-final word could
+  read, rare tokens among them that a stray apostrophe would make words of: `vita'` → `vità`, `come'`
+  → `comè`, `dove'` → `dovè`, `chi'` → `chì`, `no'` → `nò`, `lui'` → `luì` (ranks 33,926–55,162). A
+  candidate is read only when the pack ranks its word within 23,000 (`ITALIAN_ACCENT_RANK`): the
+  criterion, written before the figures, took the geometric middle between the rarest word a right
+  read reaches (`piè`, 15,547, of « pie' ») and the commonest of the six (`vità`, 33,926), rounded to
+  thousands. The lexicon now carries the pack's ranks (`Lexicon::lemma_rank`; a lexicon without them,
+  a test's stand-in, reads every listed form). It keeps `perché` 43, `più` 16, *essere* 29, *potere*
+  334, `città` 99, `così` 46, `già` 68, `caffè` 898, *governare* 3,722 (`governo'`), *tenere* 684
+  (`terra'`), `piè`.
+- **At review — the commoner of two accents.** Where neither is filed under the other, the one the pack
+  ranks higher: « se' » reads `sé` (655), not the misspelling `sè` (2,911) the tables rank as a word;
+  `è` before `é` where the pack ranks neither.
 
 **D1's cost, measured.** In the corpus, with the 16 excluded, the rule reads 34 tokens: `E'`/`e'` 20
 times — 18 *è* (MarkIT's 14 « E' un tipo… », Tatoeba's 1, the `informale` page's 3), 2 the Tuscan
 *egli* in Manzoni (« e' poteva ben aspettare »), D1's accepted cost —; the `informale` page's `perche'`,
-`citta'`, `piu'`; `pie'` → `piè` and `pa'` → `pà` (*piede*, *papà*, right); and 9 wrong or neutral:
-`se'` (*sei*, Dante and Collodi) → `sè` 3, `so'` (dialect *sono*) → `sò` 3 (whose word is *essere*
-anyway), `cchiu'` (Neapolitan) → `cchiù` 2, `che'` (*che i*, Dante) → `ché` 1. The whole Tatoeba export:
-46 tokens, `E'`/`e'` 43 — 41 *è*, 2 the Tuscan proverb « Batti il buono, e' megliora » —, `finche'` →
-`finché`, `qua'` → `quà` (read as *qua*), `Dato'` (a Malaysian title) → `datò`. Left outside as before:
+`citta'`, `piu'`; `pie'` → `piè` (*piede*, right); and 10 wrong or neutral: `se'` (*sei*, Dante and
+Collodi) → `sè` 3, `so'` (dialect *sono*) → `sò` 3 (whose word is *essere* anyway), `cchiu'`
+(Neapolitan) → `cchiù` 2, `che'` (*che i*, Dante) → `ché` 1, and `Pa'` → `Pà` 1 — De Gregori's « A Pa' »,
+for Pasolini, which a first reading of these figures took for *papà*. The whole Tatoeba export: 46
+tokens, `E'`/`e'` 43 — 41 *è*, 2 the Tuscan proverb « Batti il buono, e' megliora » —, `finche'` →
+`finché`, `qua'` → `quà` (read as *qua*), `Dato'` (a Malaysian title) → `datò`. **With the rank guard
+and the commoner accent (at review)**: the corpus reads 31 — `cchiu'` (`cchiù` 39,592, beyond the
+bound) and `Pa'` (`pà` 35,032) are left as written, and `se'` reads `sé`, still not its *sei* —, and
+Tatoeba 45, `Dato'` left (`datò`, a form of *datare* 26,328, beyond the bound); every `E'`/`e'`, `perche'`, `citta'`, `piu'`,
+`pie'`, `che'`, `so'`, `qua'` and `finche'` read as before. Left outside as before:
 `de'` 613, `que'` 267, `ne'` 106, `a'` 99, `co'` 81, `ca'` 17, `su'` 13, `ve'` 10, `i'` 5, `fra'` 4, `mi'`
 4, `vo'` 3, `pe'` 3, `to'` 3, `me'` 2. Change 6's truncations (583: `po'` 480, `da'` 68 — Manzoni's
 *dai*, « da' primi suoi anni » —, `di'` 18, `va'` 13, `fa'` 4, `sta'` 2) keep their reading: none of them
@@ -270,8 +305,24 @@ is written for *dà*, *fà* or *dì* in the corpus.
   row of `sguardare`) → *guardare*, `annate` and `annessi` → *andare*, `salse` → *salire*, `carcasse` →
   *caricare*, `reduci` → *ridurre*, `acconti` → *raccontare*. The link from such a form to the spelling
   is dropped once the section is read (`Lexicon.drop_spelling_rows`, 1,069 forms); a form no other word
-  claims follows (`alcoolici` → *alcolico*, `annunziato` …). One move is left, a form of a form:
-  `accise` (*accisa*'s plural, and *acciso*'s, the participle of the archaic `accidere`) → *uccidere*.
+  claims follows (`alcoolici` → *alcolico*, `annunziato` …). **At review the drop is transitive**: a
+  spelling and every form all whose candidates lie inside its paradigm form one paradigm
+  (`Lexicon.spelling_paradigms`), and a form another word claims leaves it — `accise` (*accisa*'s
+  plural, and a row of `acciso`, the participle of the archaic `accidere`) reads as *accisa* again, not
+  *uccidere*. Against the first reduction it moves five rows: `accise` → *accisa*; `profferta` and
+  `profferte` (*profferta* the offer, rows of the archaic `profferire`) read as nothing, their noun
+  unranked; `lir` leaves the ranks' last place and `ragghianti` takes it.
+- **At review — a form only a spelling reads is no other language's word, nor a name.** A form of a
+  spelling's paradigm the tables did not read before D2 (a second reduction without D2's spellings
+  tells) keeps no reading when English, French or Spanish writes it more often than Italian (D3's
+  test) or when a source names it — the section's name entries, MarkIT's proper nouns, Morph-it!'s
+  `NPR` (`foreign_readings`). 135 forms keep no reading: 132 by the languages — `intro` (→ *entrare*),
+  `ata` (→ *aiutare*), `secure`, `securi` (→ *sicuro*), `provide`, `spare`, `surge`, `antique`,
+  `cheri`, `chere`, `adequate`, `estimate`, `construire`, `resolve`, `repose`, `heroine`, `tomate`,
+  `instrumento`, `propietario`, `veneno`, `ruina`, `filme`, `week-end` … (the reduction's report
+  names them all) — and 3 by the names, `abbado`, `ati`, `bucci`. Left read, nothing says otherwise of
+  them: `ato` (3.12; Spanish 2.92), `antiqua`, `spedi` (→ *spiedo*) and `testori` (→ *tessitore*),
+  surnames no source of the reduction lists.
 - **Its costs:** 12 forms lose their reading and read as unknown words, none as another word: the
   spellings `toh` (Zipf 3.30, rank 13,309, → `to'`), `tiè` (→ `tie'`), `quer` (→ the apocope `quel`),
   `velia`, `postproduzione` (→ the hyphenated `post-produzione`), and forms whose chain now ends on an
@@ -297,7 +348,7 @@ is written for *dà*, *fà* or *dì* in the corpus.
 | Not half as frequent as its word | 25 (`po`, `the`, `be`, `como`, `ultra`, `toto`, `ventitre`, `trentatre` …) |
 | Spanish writes it more | 5 (`dara`, `potro`, `carita`, `ando`, `tribu`) |
 | French writes it more | 5 (`verra`, `arrivera`, `agora`, `finira`, `portera`) |
-| **Rows** | **100**, and the owner's 6 exceptions |
+| **Rows** | **100**, and 7 exception rows (the owner's six, and `pò`, added at review) |
 
 **The rows**, by band — the spelling, its accented form (and its word when another), the spelling's
 Zipf / the accented form's:
@@ -323,6 +374,7 @@ Italian; each row reads as the commoner, the accented word.
 | `caffe` | *caffo*'s feminine plural, *caffa*'s plural (odd, of a number) | 3.75 / 2.32 / 1.75 / 1.75 | `caffè` 4.83 | 0; `caffè` 2,895, `caffé` 9 |
 | `gia` (the owner's, 2026-10-23) | `gìa`, *gire*'s archaic imperfect, listed by *gire* and *ire*: the tables read `gia` as *ire* | 4.59 / 3.07 / 2.86 / 2.81 | `già` 5.95 | 1, the syllable « -gia- » in a Wikipedia article; `già` 5,996 |
 | `liberta` (the owner's, 2026-10-23) | *liberto*'s feminine (a freedwoman): the tables read it as *liberto* | 3.73 / 1.27 / 1.93 / 2.59 | `libertà` 5.16 | 0; `libertà` 563 |
+| `pò` → *poco* (added at review, 2026-10-23) | in *potere*'s table, an archaic and southern third person (« nun pò »): the tables read `pò` as *potere* | 4.47 / 0 / 0 / 0 | `po'` (*poco*) | 4: 1 *poco* (Tatoeba « un pò sadico »), 2 a Neapolitan song's « nun pò » (*può*), 1 the river in an Occitan name |
 
 Each would pass every test but the section's rare homograph. D3's text named `gia` and `liberta`
 among the rows the method passes: the section's entries say otherwise, and the owner made them
@@ -363,7 +415,10 @@ should find the same bytes), with the owner's decisions: `forms.tsv` 128,429 →
 509 spellings, 810 forms of the lemmas entering; 12 out); `freq.tsv` 362 lemmas out, all spellings (2 in
 the top 1,000, 18 in the top 5,000, 49 in the top 10,000), 362 in at ranks 9,776 to 60,000 — names that
 were forms of a spelling's paradigm (`uffizi`, `annunziato`) and the cut's next words. The whole pack
-1,287,014 → 1,295,051 B. Measured as `it-ud.sh` measures (the gate, not a choice: nothing was tuned on it), with
+1,287,014 → 1,295,059 B (the dispatch of 2026-10-23, run 39993975336, wrote these bytes). With the
+review's fixes, reduced again locally: `forms.tsv` 129,736 → 129,599 rows (the 135 foreign readings,
+`profferta`, `profferte` out; `accise` → *accisa*, `pò` → *poco*), `freq.tsv` `lir` → `ragghianti`;
+UD figures unchanged. Measured as `it-ud.sh` measures (the gate, not a choice: nothing was tuned on it), with
 this change's core on both: UD Italian-PUD 99.26 / 91.38 / 99.90 % (D1 moves nothing there) → 99.26 /
 **91.31** / 99.90 % of 19,155 words, 8,909 content words and 985 auxiliaries, against the gates 98.5 /
 90.5 / 97; MarkIT's test section 99.43 / 94.68 / 98.87 → 99.43 / 94.65 / 98.87 %.
@@ -383,3 +438,12 @@ Guillaume settled tasks 0.1 and 4.1 on this section's figures:
   they read as before, words of their own. `core` → *cuore* (poetic, Romanesco) and `deo` → *dio* stay.
   The 12 forms that lose their reading are accepted as recorded costs: none is misread — each reads as
   an unknown word —, and the most frequent, the interjection `toh`, is Zipf 3.30 (rank 13,309).
+
+## Review, 2026-10-23
+
+The review of the pull request confirmed D1's probes, the exception rows, the kept-apart spellings,
+`WEB_SPELLINGS` and the golden, and asked for the fixes recorded above under « At review »: the
+transitive drop (D2 as built), the quote scan's two rules, the rank guard and the commoner of two
+accents (D1 as built), and the languages-and-names test of a form only a spelling reads (D2 as
+built). `pò` → *poco* joins the exception rows on the owner's behalf, as an obvious case of their
+class (D3 as built). The tables are reduced again after it.
