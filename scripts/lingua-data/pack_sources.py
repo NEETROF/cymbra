@@ -144,14 +144,16 @@ ITALIAN_MARKIT = {
 # (https://docs.sslmit.unibo.it/lib/exe/fetch.php?media=resources:morph-it.tgz, Last-Modified
 # 2018-05-03, 2,617,548 B, sha256 b137343dc095e038ebfaef7c743185e85ec35f5322a1b8629b600e6e898c7024),
 # which holds version 0.4.8 — the site's figures are 0.4.7's —, kept unmodified as a one-off release
-# the owner uploads, since the site offers no address at a version: a URL naming a release, as a URL
-# naming a commit, means the same bytes for as long as the repository exists. CC BY-SA 2.0 (one of
-# its two licences, the other the LGPL). Removing this entry, and `MORPH_IT` in reduce-it-fr.py, leaves
-# it out (task 5.1, the owner's).
+# the owner uploads, since the site offers no address at a version. A release asset, unlike a
+# commit, can be deleted or uploaded again under its name, so the entry carries the sha256 its bytes
+# must have, checked at every fetch (`expected_sha256`), the first included. CC BY-SA 2.0 (one of
+# its two licences, the other the LGPL); the owner keeps it among it-fr's sources (task 5.1,
+# 2026-10-23).
 MORPH_IT = {
     "morph-it": {
         "file": "morph-it-0.4.8.tgz",
         "url": f"https://github.com/{REPOSITORY}/releases/download/lingua-pack-sources-morph-it-0.4.8/morph-it-0.4.8.tgz",
+        "sha256": "b137343dc095e038ebfaef7c743185e85ec35f5322a1b8629b600e6e898c7024",
     },
 }
 
@@ -948,6 +950,17 @@ def kept_editions(pair: str, record: dict, keep) -> dict:
     return kept
 
 
+def expected_sha256(name: str, spec: dict, dest: Path) -> str:
+    """The sha256 of a fetched `PINNED` source, refused when its entry names another: a source pinned
+    at a release asset of the repository's own (Morph-it!) carries the sha256 its bytes must have,
+    since an asset can be deleted or uploaded again under its name, which a commit cannot."""
+    got = sha256(dest)
+    want = spec.get("sha256")
+    if want is not None and got != recorded_sha256(want, name):
+        raise PinError(f"{name}: {dest.name} has sha256 {got}, but {spec['url']} must serve {want}")
+    return got
+
+
 def fetch_pinned(pin: Path, work: Path, *, fetch=download, build=build_esdb, cache: Path | None = None) -> None:
     """Every raw source as recorded, into `work`, each checked by sha256 (re-reduce mode). A release
     asset is read from `cache` when an earlier fetch kept it there (`release_asset`). A kaikki
@@ -987,7 +1000,7 @@ def fetch_pinned(pin: Path, work: Path, *, fetch=download, build=build_esdb, cac
         entry = sources.get(name) or {}
         dest = work / spec["file"]
         fetch(entry.get("url") or spec["url"], dest)
-        got = sha256(dest)
+        got = expected_sha256(name, spec, dest)
         if got != entry.get("sha256"):
             raise PinError(f"{name}: {dest.name} has sha256 {got}, pin.json records {entry.get('sha256')}")
     # Each release asset from the release its record names (add-lingua-pack-es-en D2), its names
@@ -1126,7 +1139,7 @@ def fetch_live(
     for name, spec in PINNED.get(pair, {}).items():
         dest = work / spec["file"]
         fetch(spec["url"], dest)
-        sources[name] = {"url": spec["url"], "sha256": sha256(dest)}
+        sources[name] = {"url": spec["url"], "sha256": expected_sha256(name, spec, dest)}
     esdb = ESDB.get(pair)
     if esdb is not None:
         sources["esdb"] = {k: esdb[k] for k in ("repository", "tag", "commit")}

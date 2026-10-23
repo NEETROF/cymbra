@@ -1410,6 +1410,28 @@ class DumpsOnly(unittest.TestCase):
             "it-fr loads the shared rules and MarkIT's, no edition's: its glosses are change 16's",
         )
 
+    def test_a_source_pinned_at_a_release_carries_the_sha256_its_bytes_must_have(self):
+        # Morph-it! is pinned at a release asset of the repository's own, which can be deleted or
+        # uploaded again under its name: its entry names the sha256, checked at every fetch.
+        import inspect
+        import unittest.mock as mock
+
+        spec = ps.PINNED["it-fr"]["morph-it"]
+        self.assertEqual(spec["sha256"], "b137343dc095e038ebfaef7c743185e85ec35f5322a1b8629b600e6e898c7024")
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = Path(tmp) / spec["file"]
+            dest.write_bytes(b"another archive")
+            digest = hashlib.sha256(b"another archive").hexdigest()
+            with self.assertRaisesRegex(ps.PinError, r"morph-it: morph-it-0\.4\.8\.tgz has sha256 [0-9a-f]{64}, but .* must serve b137343d"):
+                ps.expected_sha256("morph-it", spec, dest)
+            with mock.patch.dict(spec, {"sha256": digest}):
+                self.assertEqual(ps.expected_sha256("morph-it", spec, dest), digest)
+            # A source pinned at a commit names none: the pin records what the commit serves.
+            self.assertNotIn("sha256", ps.PINNED["it-fr"]["markit-train"])
+            self.assertEqual(ps.expected_sha256("markit-train", ps.PINNED["it-fr"]["markit-train"], dest), digest)
+        for fetching in (ps.fetch_live, ps.fetch_pinned):
+            self.assertIn("expected_sha256(name, spec, dest)", inspect.getsource(fetching), fetching.__name__)
+
     def test_every_catalogue_name_is_ascii_and_in_one_edition_alone(self):
         # GitHub renames a release asset whose name holds a character outside these on upload: an
         # asset named `kaikki-es-Francés.jsonl.zst` would be served under another name, and
