@@ -96,13 +96,15 @@ pub fn vocab_words(
 }
 
 /// The language's name in the plugin's French copy. French is named so the match stays
-/// exhaustive (add-lingua-french-baseline D8): no French pack is published, and one copied into
-/// `~/.lingua/` by hand is read by the baseline analysis.
+/// exhaustive (add-lingua-french-baseline D8), and Italian likewise
+/// (add-lingua-italian-baseline D8): the plugin follows the packs installed in its directory, and
+/// no Italian pack exists.
 pub fn language_name(language: StudiedLanguage) -> &'static str {
     match language {
         StudiedLanguage::English => "Anglais",
         StudiedLanguage::Spanish => "Espagnol",
         StudiedLanguage::French => "Français",
+        StudiedLanguage::Italian => "Italien",
     }
 }
 

@@ -70,11 +70,13 @@ export function shippedNatives(pairs = shippedPairs()) {
  * The lingua-core constant that holds each studied language's analyser version
  * (generalise-lingua-analysis-by-language). test/packs.spec.ts holds it to
  * crates/lingua-core/src/analysis/language.rs, so a language added there fails here first.
+ * Italian is named since add-lingua-italian-baseline (D4), though no listed pair studies it yet.
  */
 export const ANALYZER_CONSTANTS = Object.freeze({
   en: "ANALYZER_VERSION",
   es: "SPANISH_ANALYZER_VERSION",
   fr: "FRENCH_ANALYZER_VERSION",
+  it: "ITALIAN_ANALYZER_VERSION",
 });
 
 /** lingua-core's analyser version for `language`, read from the source of analysis/mod.rs. */

@@ -1347,7 +1347,10 @@ fn grammar_sections(
 /// add-lingua-french-expression-keys D1, D2, D4, D6; `al menos` → `a el menos`,
 /// `tener en cuenta` → `tener en contar`, add-lingua-spanish-expression-keys D1,
 /// D2, D4) —, the function review finds such an expression card's gloss through.
-/// English keeps the split at spaces.
+/// English keeps the split at spaces. An Italian headword is keyed through the
+/// same reading, which the baseline gives it (add-lingua-italian-baseline D2): its
+/// words as the tokeniser reads them, each piece its dictionary form, as an English
+/// key's are, and no name.
 fn expression_key(headword: &str, studied: StudiedLanguage, lex: &impl Lexicon) -> Option<String> {
     if studied != StudiedLanguage::English {
         return reading_expression_key(headword, studied, lex);

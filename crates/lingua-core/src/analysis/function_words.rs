@@ -523,12 +523,15 @@ const FRENCH: &[&[&str]] = &[
 /// lemmatisation cascade produced (lowercase), never a surface form.
 ///
 /// Each language is judged by its own tables only: `de` is not an English
-/// function word, nor `the` a Spanish one, nor `ne` a Spanish one.
+/// function word, nor `the` a Spanish one, nor `ne` a Spanish one. Italian has
+/// none while the baseline serves it (add-lingua-italian-baseline D2): `non`,
+/// `di`, `il`, `che` count like any other word.
 pub fn is_function_word(lemma: &str, studied: StudiedLanguage) -> bool {
     let tables: &[&[&str]] = match studied {
         StudiedLanguage::English => ENGLISH,
         StudiedLanguage::Spanish => SPANISH,
         StudiedLanguage::French => FRENCH,
+        StudiedLanguage::Italian => &[],
     };
     tables
         .iter()
@@ -540,12 +543,14 @@ pub fn is_function_word(lemma: &str, studied: StudiedLanguage) -> bool {
 /// tables [`is_function_word`] reads, each language read by its own. `du`, `des`,
 /// `al` and `del` are contractions, not prepositions. The phrase gloss reads it to
 /// tell an expression built on a verb from one built on a preposition
-/// (choose-lingua-overlapping-expressions D2).
+/// (choose-lingua-overlapping-expressions D2). Italian has none while the
+/// baseline serves it (add-lingua-italian-baseline D2).
 pub fn is_preposition(lemma: &str, studied: StudiedLanguage) -> bool {
-    let table = match studied {
+    let table: &[&str] = match studied {
         StudiedLanguage::English => PREPOSITIONS_AND_PARTICLES,
         StudiedLanguage::Spanish => ES_PREPOSITIONS,
         StudiedLanguage::French => FR_PREPOSITIONS,
+        StudiedLanguage::Italian => &[],
     };
     table.binary_search(&lemma).is_ok()
 }
@@ -603,6 +608,23 @@ mod tests {
     }
 
     const FR: StudiedLanguage = StudiedLanguage::French;
+
+    #[test]
+    fn spec_scenario_no_italian_word_is_a_function_word_yet() {
+        // add-lingua-italian-baseline D2: Italian has no table while the baseline serves it.
+        const IT: StudiedLanguage = StudiedLanguage::Italian;
+        for lemma in [
+            "non", "di", "il", "che", "la", "e", "a", "essere", "avere", "de", "the", "pas",
+        ] {
+            assert!(!is_function_word(lemma, IT), "{lemma:?}");
+            assert!(!is_preposition(lemma, IT), "{lemma:?}");
+        }
+        // English, Spanish and French answer as before.
+        assert!(is_function_word("the", EN));
+        assert!(is_function_word("de", StudiedLanguage::Spanish));
+        assert!(is_function_word("pas", FR));
+        assert!(is_preposition("de", FR));
+    }
 
     #[test]
     fn each_language_is_judged_by_its_own_tables() {

@@ -1035,7 +1035,10 @@ fn assembled(
 pub(crate) mod tests {
     use super::*;
     use crate::analysis::lexicon::build_lexicon_blobs;
-    use crate::analysis::{ANALYZER_VERSION, FRENCH_ANALYZER_VERSION, SPANISH_ANALYZER_VERSION};
+    use crate::analysis::{
+        ANALYZER_VERSION, FRENCH_ANALYZER_VERSION, ITALIAN_ANALYZER_VERSION,
+        SPANISH_ANALYZER_VERSION,
+    };
     use crate::packs::format::{read_container, write_container};
 
     // Builds a gloss.zst section from (lemma_id, gloss) pairs, using the
@@ -1335,6 +1338,71 @@ pub(crate) mod tests {
         assert!(matches!(
             Pack::load(&sample_pack_bytes_with("pt", "en", FRENCH_ANALYZER_VERSION)),
             Err(PackError::UnknownLanguage(tag)) if tag == "pt"
+        ));
+    }
+
+    #[test]
+    fn spec_scenario_an_italian_pack_at_italian_s_analyser_version() {
+        // add-lingua-italian-baseline: a pack studying Italian loads against Italian's own
+        // version, the baseline's `0.1.0`, and is glossed in French, English or Spanish.
+        assert_eq!(ITALIAN_ANALYZER_VERSION, "0.1.0");
+        let bytes = sample_pack_bytes_with("it", "fr", ITALIAN_ANALYZER_VERSION);
+        let italian = Pack::load(&bytes).expect("an Italian pack at Italian's version loads");
+        assert_eq!(italian.studied(), StudiedLanguage::Italian);
+        assert_eq!(italian.meta().analyzer_version, "0.1.0");
+        assert_eq!(italian.pair().key(), "it-fr");
+        assert_eq!(Pack::studied_in(&bytes).unwrap(), StudiedLanguage::Italian);
+        for native in ["en", "es"] {
+            let bytes = sample_pack_bytes_with("it", native, ITALIAN_ANALYZER_VERSION);
+            let pack = Pack::load(&bytes).expect("an it-en or it-es pack loads");
+            assert_eq!(pack.pair().key(), format!("it-{native}"));
+        }
+        // Compared with Italian's own version, never another language's: an Italian pack at
+        // French's, English's or Spanish's is refused as built for another analyser generation.
+        for other in [
+            FRENCH_ANALYZER_VERSION,
+            ANALYZER_VERSION,
+            SPANISH_ANALYZER_VERSION,
+        ] {
+            let refused = Pack::load(&sample_pack_bytes_with("it", "fr", other)).err();
+            assert!(
+                matches!(
+                    refused,
+                    Some(PackError::IncompatibleAnalyzer { ref pack, ref core })
+                        if pack == other && core == ITALIAN_ANALYZER_VERSION
+                ),
+                "{other}"
+            );
+        }
+        // And a French pack at Italian's version is refused against French's.
+        assert!(matches!(
+            Pack::load(&sample_pack_bytes_with("fr", "en", ITALIAN_ANALYZER_VERSION)),
+            Err(PackError::IncompatibleAnalyzer { core, .. }) if core == FRENCH_ANALYZER_VERSION
+        ));
+    }
+
+    #[test]
+    fn spec_scenario_an_italian_pack_glossed_in_a_language_the_core_does_not_know_as_native() {
+        // add-lingua-italian-baseline D3: Italian is no native language before change 32, so a
+        // pack studying Italian glossed in Italian is refused as glossed in an unknown native
+        // language — the pack-glossed-in-its-own-language rule cannot fire for it yet.
+        let bytes = sample_pack_bytes_with("it", "it", ITALIAN_ANALYZER_VERSION);
+        let err = Pack::load(&bytes)
+            .err()
+            .expect("a pack glossed in Italian is refused");
+        assert!(
+            matches!(&err, PackError::UnknownNative(tag) if tag == "it"),
+            "{err}"
+        );
+        assert!(err.to_string().contains("\"it\""), "{err}");
+        assert!(matches!(
+            Pack::pair_in(&bytes),
+            Err(PackError::UnknownNative(tag)) if tag == "it"
+        ));
+        // A pack of another language glossed in Italian is refused the same way.
+        assert!(matches!(
+            Pack::load(&sample_pack_bytes_with("en", "it", ANALYZER_VERSION)),
+            Err(PackError::UnknownNative(tag)) if tag == "it"
         ));
     }
 

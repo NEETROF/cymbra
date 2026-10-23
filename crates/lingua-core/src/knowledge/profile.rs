@@ -69,7 +69,9 @@ impl NativeLanguage {
     /// language never studies. `None` for a language the core cannot analyse;
     /// every native language it knows is studied too since French became one
     /// (add-lingua-french-baseline), so a French-native reader never studies
-    /// French.
+    /// French. Italian is studied and no native language yet
+    /// (add-lingua-italian-baseline D3): no native language maps to it, and every
+    /// reader may study it.
     pub fn studied(self) -> Option<StudiedLanguage> {
         StudiedLanguage::from_tag(self.tag())
     }
@@ -227,6 +229,38 @@ mod tests {
         assert_eq!(NativeLanguage::English.studied(), Some(EN));
         assert_eq!(NativeLanguage::Spanish.studied(), Some(ES));
         assert_eq!(NativeLanguage::French.studied(), Some(FR));
+    }
+
+    #[test]
+    fn no_native_language_maps_to_italian() {
+        // add-lingua-italian-baseline D3: Italian is a studied language and no native language
+        // before change 32, so every reader may study it, and an `it` gloss tag names no native.
+        const IT: StudiedLanguage = StudiedLanguage::Italian;
+        assert!(
+            NativeLanguage::ALL
+                .iter()
+                .all(|native| native.studied() != Some(IT))
+        );
+        assert_eq!(NativeLanguage::from_tag(IT.tag()), None);
+        for native in NativeLanguage::ALL {
+            let mut profile = Profile::english_for_french();
+            assert_eq!(profile.set(native, vec![IT]), Ok(()), "{native:?}");
+            assert_eq!(profile, Profile::studying(native, IT));
+        }
+        // A French-native reader studying Italian, the it-fr reader of change 16 on.
+        let mut french = Profile::english_for_french();
+        french
+            .set_studied_languages(vec![IT, EN])
+            .expect("Italian then English for a French reader");
+        assert_eq!(french.studied_languages, vec![IT, EN]);
+        assert_eq!(
+            LanguagePair {
+                studied: IT,
+                native: NativeLanguage::French
+            }
+            .key(),
+            "it-fr"
+        );
     }
 
     #[test]

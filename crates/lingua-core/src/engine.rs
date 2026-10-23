@@ -199,12 +199,21 @@ pub fn analyse_page_json(
 /// (`june`, `mr`, `mrs`, [`CefrLevels::level`]) is a word a reader learns, never a
 /// name. Neither reading runs for Spanish or French, whose levels are estimated
 /// and go only to dictionary words.
+///
+/// An Italian document has no names while the baseline serves Italian
+/// (add-lingua-italian-baseline D2): the rule runs in every language it names,
+/// Spanish's base rule included, so Italian returns before it, its capitals left
+/// to the rule that belongs to no language (a capital outside the lexicon).
 fn document_names(
     tokens: &[AnalysedToken],
     blocks: &[&str],
     studied: StudiedLanguage,
     pack: &Pack,
 ) -> HashSet<String> {
+    match studied {
+        StudiedLanguage::Italian => return HashSet::new(),
+        StudiedLanguage::English | StudiedLanguage::Spanish | StudiedLanguage::French => {}
+    }
     let french = studied == StudiedLanguage::French;
     let english = studied == StudiedLanguage::English;
     let mut lowercase = HashSet::new();
@@ -456,12 +465,13 @@ pub const SPANISH_CLITIC_PRONOUNS: &[&str] = &[
 /// [`SPANISH_KEY_WRITTEN`] — written as the pre-pass gives it, lowercased, the
 /// typographic apostrophe read as the straight one: so `à la` is never `au`
 /// (`à le`), nor `a la` « al » (`a el`). English keys are their lemmas, as
-/// before.
+/// before, and so are Italian's while the baseline serves it
+/// (add-lingua-italian-baseline D2).
 pub fn expression_piece(surface: &str, lemma: &str, studied: StudiedLanguage) -> String {
     let listed = match studied {
         StudiedLanguage::French => FRENCH_KEY_WRITTEN,
         StudiedLanguage::Spanish => SPANISH_KEY_WRITTEN,
-        StudiedLanguage::English => return lemma.to_owned(),
+        StudiedLanguage::English | StudiedLanguage::Italian => return lemma.to_owned(),
     };
     let written = surface.replace('\u{2019}', "'").to_lowercase();
     if listed.binary_search(&written.as_str()).is_ok() {
@@ -520,12 +530,14 @@ pub fn french_expression_key(headword: &str, lexicon: &(impl Lexicon + ?Sized)) 
     reading_expression_key(headword, StudiedLanguage::French, lexicon)
 }
 
-/// How many tokens an expression may span in the studied language.
+/// How many tokens an expression may span in the studied language: Italian's is
+/// the window every language had before one had its own, while the baseline
+/// serves it (add-lingua-italian-baseline D2).
 fn expression_window(studied: StudiedLanguage) -> usize {
     match studied {
         StudiedLanguage::French => FRENCH_EXPRESSION_WINDOW,
         StudiedLanguage::Spanish => SPANISH_EXPRESSION_WINDOW,
-        StudiedLanguage::English => EXPRESSION_WINDOW,
+        StudiedLanguage::English | StudiedLanguage::Italian => EXPRESSION_WINDOW,
     }
 }
 
@@ -1395,7 +1407,10 @@ pub fn word_grammar_json(
 mod tests {
     use super::*;
     use crate::analysis::lexicon::{FstLexicon, build_lexicon_blobs};
-    use crate::analysis::{ANALYZER_VERSION, FRENCH_ANALYZER_VERSION, SPANISH_ANALYZER_VERSION};
+    use crate::analysis::{
+        ANALYZER_VERSION, FRENCH_ANALYZER_VERSION, ITALIAN_ANALYZER_VERSION,
+        SPANISH_ANALYZER_VERSION,
+    };
     use crate::knowledge::level::CefrLevel;
     use crate::knowledge::status::{KnownSource, Status};
     use crate::packs::format::write_container;
@@ -2302,6 +2317,103 @@ mod tests {
         // Without the marks, both are names.
         assert_eq!(french_classes(&pack, &blocks, "Paris"), [NAME]);
         assert_eq!(french_classes(&pack, &blocks, "Jean-Pierre"), [NAME]);
+    }
+
+    #[test]
+    fn spec_scenario_an_italian_page_is_read_by_the_baseline() {
+        // add-lingua-italian-baseline D2: Italian keeps a capitalised word in mid-sentence as an
+        // ordinary token (no names rule), splits no elision or articulated preposition, flags no
+        // function word, names its own version, and matches an expression of its pack by its
+        // lemmas, as English keys one.
+        const IT: StudiedLanguage = StudiedLanguage::Italian;
+        let blocks = [
+            "Ieri sera Augusto ha guardato Eugenia a lungo, poi ha pregato Dio nella casa dell'uomo.",
+            "Tutti i nobili della corte guardavano la scena con molta attenzione quella sera.",
+        ];
+        let forms = [
+            ("guardato", "guardare"),
+            ("guardavano", "guardare"),
+            ("ha", "avere"),
+            ("faccio", "fare"),
+        ];
+        let lemmas = [
+            "eugenia",
+            "dio",
+            "guardare",
+            "avere",
+            "fare",
+            "casa",
+            "colazione",
+            "la",
+            "di",
+            "poi",
+            "con",
+            "il",
+            "non",
+            "che",
+        ];
+        // `eugenia` and `dio` are lemmas but not dictionary words: Spanish's names rule would set
+        // both aside, being capitalised in mid-sentence and never written in lowercase.
+        let pack = build_pack_with_names(
+            IT,
+            &forms,
+            &lemmas,
+            &[],
+            &[("casa", "maison")],
+            &[("fare colazione", "prendre le petit-déjeuner")],
+            &[],
+            Some(&["casa", "guardare", "colazione"]),
+        );
+        assert_eq!(pack.pair().key(), "it-fr");
+        let page = analyse_page(&blocks, IT, &pack, &KnowledgeState::new());
+        assert!(page.analysable);
+        assert_eq!(page.analyzer_version, ITALIAN_ANALYZER_VERSION);
+        assert_eq!(page.analyzer_version, "0.1.0");
+        let class_of = |surface: &str| {
+            page.tokens
+                .iter()
+                .find(|t| t.surface == surface)
+                .map(|t| (t.lemma.as_str(), t.class))
+        };
+        assert_eq!(class_of("Eugenia"), Some(("eugenia", TokenClass::Unknown)));
+        assert_eq!(class_of("Dio"), Some(("dio", TokenClass::Unknown)));
+        // The rule that belongs to no language still holds: a capital outside the lexicon.
+        assert_eq!(
+            class_of("Augusto"),
+            Some(("augusto", TokenClass::ProperNounOutOfLexicon))
+        );
+        assert_eq!(
+            class_of("guardato"),
+            Some(("guardare", TokenClass::Unknown))
+        );
+        assert_eq!(
+            class_of("dell'uomo"),
+            Some(("dell'uomo", TokenClass::Unknown))
+        );
+        assert_eq!(class_of("nella"), Some(("nella", TokenClass::Unknown)));
+        assert_eq!(class_of("della"), Some(("della", TokenClass::Unknown)));
+
+        // No function word, and the expression is matched by its lemmas: `faccio` is `fare`.
+        let phrase = gloss_phrase(
+            "Non so che fare: domani faccio colazione con il caffè.",
+            IT,
+            &pack,
+            &KnowledgeState::new(),
+        );
+        assert!(phrase.tokens.iter().all(|t| !t.function_word));
+        assert_eq!(phrase.expressions.len(), 1, "{:?}", phrase.expressions);
+        let found = &phrase.expressions[0];
+        assert_eq!(found.key, "fare colazione");
+        assert_eq!(found.gloss, "prendre le petit-déjeuner");
+        assert_eq!(
+            (
+                phrase.tokens[found.start].surface.as_str(),
+                phrase.tokens[found.end - 1].surface.as_str()
+            ),
+            ("faccio", "colazione")
+        );
+        assert_eq!(expression_piece("La", "il", IT), "il");
+        assert_eq!(expression_window(IT), EXPRESSION_WINDOW);
     }
 
     #[test]
