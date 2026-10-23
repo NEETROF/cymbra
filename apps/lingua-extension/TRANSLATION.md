@@ -147,11 +147,13 @@ reached only once a pack glossed in that native language ships, since a reader i
 of their native language alone: change 25 lists es-en's and en-es's routes, and changes 34 and 35
 ship their pairs. Marks are measured per pair (`MARKED_PAIRS`, `tool/marks/README.md`), each on
 its own route and judged in its native language — es-fr's measurement says nothing of es-en's.
-No Italian pair is measured yet (`MARKED_PAIRS` keeps its six): the Italian programme's rows 19,
-24, 29, 38, 49 and 53 measure each through its route before it ships.
 en-fr, es-fr, es-en, en-es, fr-en and fr-es are measured and listed; es-en and en-es were listed
 ahead of their readers, inert until changes 34 and 35 shipped them, and fr-en and fr-es until
-change 52 shipped them.
+change 52 shipped them. it-fr is measured through it-en then en-fr on the Italian selections and
+judged in French (the Italian programme's row 19, `measure-lingua-it-fr-translation-marks`): 92 of
+its 97 shown marks correct, 3 % withheld, on the first tier — listed ahead of its readers, inert
+until row 20 (`enable-lingua-italian`) lists it-fr in `packs.json`. Rows 24, 29, 38, 49 and 53
+measure the other Italian pairs through their routes before they ship.
 
 It is bundled, so the reviewed package decides what is accepted; the host only serves bytes. The
 setting's cost (« Télécharge 25,8 Mo une fois ») is computed from it, and so is what the build, the
@@ -293,10 +295,9 @@ instance is poisoned from then on. It is how a model is tried before it ships �
 change 35, now that change 25 pins its route, fr-en and fr-es before change 52, now that change
 50 routes them, and the en-it model through en-it, fr-it and es-it before any Italian speaker is
 offered it, now that the Italian programme's change 2 pins it (`add-lingua-italian-translation-models`
-D4) — and it never runs in CI: the programme's M25 recommends a manual tool. The it-en soak is
-row 19's (the Italian programme's `measure-lingua-it-fr-translation-marks`), as is the Italian
-corpus: `tool/marks/corpus.json` holds no Italian selection until then, and the tool reports no
-selection for it-en, it-fr and it-es (below). The memory
+D4), and the it-en model through it-en and it-fr over the Italian selections, which the programme's
+row 19 (`measure-lingua-it-fr-translation-marks` D2) added to `tool/marks/corpus.json` (below) — and
+it never runs in CI: the programme's M25 recommends a manual tool. The memory
 figure is Node's RSS, not the worker's (the ≈ 322 MiB of es-fr above was measured in the browser),
 and the soak says nothing of the two-model bound: a run loads one route and deletes nothing. `tool/marks/README.md` says how.
 
@@ -403,13 +404,40 @@ engine build, isolated or in one instance; the browsers' workers were not run. T
 these pairs (45, 50 and 54) read these figures; they decide nothing here, and a trap on another
 input still costs the reader one respawn.
 
-The it-en model is not soaked here: the it-en soak and the Italian corpus are row 19's
-(`measure-lingua-it-fr-translation-marks`, the Italian programme's), which selects Italian's from
-UD Italian-PUD by the rule every language shares and soaks it-en over them before it-fr ships
-(row 20, `enable-lingua-italian`). `tool/marks/corpus.json` holds no Italian selection until then,
-and the soak tool reports no selection for it-en, it-fr and it-es — « 0 selections run, 0 translated, 0 trapped, 0 timed out » and « tool/marks/corpus.json
-holds no it selection: nothing was soaked », exit status 0 — rather than refusing, and without
-loading the engine or the route. No Italian pair ships before row 19's soak.
+The it-en model is soaked below, over the Italian selections.
+
+#### it-en and it-fr, soaked before it-fr ships (2026-10-23)
+
+`node --experimental-strip-types tool/soak_engine.mjs --pair it-en --models <dir> --isolate`, then
+`--pair it-fr`, each also in one instance, over the 100 Italian selections of
+`tool/marks/corpus.json` — which the Italian programme's row 19 (`measure-lingua-it-fr-translation-marks`
+D1) selected from UD Italian-PUD by the rule every language shares — with the six models assembled
+locally from Mozilla's registry by `tool/assemble_model_site.mjs` (all eighteen files kept, every pin
+held) (`measure-lingua-it-fr-translation-marks` D2). The it-en model is the new one on both routes:
+it-en alone, then first before en-fr. These runs close change 2's D4, which handed the it-en soak to
+row 19. The same engine (`a6310e24…`, `.wasm` `7ef4b3fd…3122`) and machine as the soaks above
+(MacBook Pro `Mac14,6`, Apple M2 Max, 12 cores, 64 GB; macOS 26.5.2; Node 22.22.2).
+
+|                        | it-en `--isolate`           | it-fr `--isolate`           | it-en, one instance        | it-fr, one instance        |
+| ---------------------- | --------------------------- | --------------------------- | -------------------------- | -------------------------- |
+| Models                 | `it-en/base-memory/2.0`     | it-en 2.0, then en-fr 2.0   | `it-en/base-memory/2.0`    | it-en 2.0, then en-fr 2.0  |
+| Selections translated  | **100 / 100**               | **100 / 100**               | **100 / 100**              | **100 / 100**              |
+| Trapped, timed out     | **0, 0**                    | **0, 0**                    | **0, 0**                   | **0, 0**                   |
+| Time per sentence      | 136 / 138 / 190 ms          | 217 / 220 / 314 ms          | 33 / 37 / 166 ms           | 67 / 73 / 271 ms           |
+| Memory high-water mark | 389.1 MiB (highest child's) | 546.4 MiB (highest child's) | 411.5 MiB (this process's) | 555.0 MiB (this process's) |
+| Whole run              | 41 s                        | 68 s                        | 5 s                        | 8 s                        |
+
+Times are median / mean / max; maxRSS is Node's, not the worker's. Beside them, in the same session
+and in one instance: es-fr 66 / 72 / 288 ms and 562.1 MiB, en-fr 34 / 37 / 181 ms and 415.1 MiB — in
+this tool it-en costs what en-fr costs, and it-fr what es-fr costs. The machine's one-minute load
+average stayed between 2.5 and 3.1 during the runs. No selection of the committed Italian corpus
+trapped it-en 2.0 or it-fr in Node (V8) with this engine build, isolated or in one instance; the
+browsers' workers were not run. Row 20 (`enable-lingua-italian`) reads these figures; they decide
+nothing here, and a trap on another input still costs the reader one respawn.
+
+The marks measurement of row 19 (`tool/measure_marks.mjs --pair it-fr`, the same day, machine,
+engine and models) asked every Italian selection twice through one engine: no request trapped, and
+`tool/marks/README.md` lists no trapped selection.
 
 ## What never happens
 

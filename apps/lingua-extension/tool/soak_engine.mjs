@@ -3,19 +3,20 @@
 // the extension tags it (relay.ts), then the fragment alone — and a report of what trapped, by
 // corpus id, how long a sentence took and how much memory the run reached. It is how a model is
 // tried before it ships (en-es before change 35; fr-en and fr-es before change 52; en-it through
-// en-it, fr-it and es-it before any Italian speaker is offered it), and it never runs in CI:
+// en-it, fr-it and es-it before any Italian speaker is offered it; it-en through it-en and it-fr
+// before it-fr ships), and it never runs in CI:
 // the programme's M25 says a manual tool, and a run costs ≈ 100 MB of models and about a minute.
 //
 // Usage: node --experimental-strip-types tool/soak_engine.mjs --pair <pair> --models <dir> [--limit N] [--isolate]
 //   --pair    one the catalogue routes: en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-en, en-it,
 //             it-fr, it-es, fr-it or es-it
 //             (add-lingua-translation-matrix-models pins en-es and routes es-en and en-es;
-//             add-lingua-french-translation pins fr-en and routes fr-en, and fr-es through English;
+//             add-lingua-french-translation pins fr-en, routes fr-en, and routes fr-es via fr-en;
 //             add-lingua-italian-translation-models pins it-en 2.0 and en-it 2.1 and routes it-en and
 //             en-it, it-fr and it-es through it-en, fr-it and es-it through en-it);
-//             the corpus is its studied language's. The corpus holds no Italian selection until
-//             measure-lingua-it-fr-translation-marks (the Italian programme's row 19) selects them,
-//             so it-en, it-fr and it-es report no selection until then
+//             the corpus is its studied language's: the Italian selections, which
+//             measure-lingua-it-fr-translation-marks (the Italian programme's row 19) added, for
+//             it-en, it-fr and it-es
 //   --models  an assembled site directory (tool/assemble_model_site.mjs); every file is checked
 //             against the catalogue's sha256 before use
 //   --limit   the first N selections only, N a positive whole number
@@ -77,8 +78,8 @@ function childExecArgv() {
 async function selections(pair, limit) {
   const studied = studiedOf(pair);
   const items = corpus.items.filter((i) => i.lang === studied).slice(0, limit ?? undefined);
-  // A studied language the corpus has no selection of (Italian, until row 19 of the Italian
-  // programme selects it) has nothing to soak: no treebank is pinned for it, and none is read.
+  // A studied language the corpus has no selection of has nothing to soak: no treebank need be
+  // pinned for it, and none is read.
   if (items.length === 0) return [];
   const sentences = new Map(parseConllu(await pudText(studied)).map((s) => [s.id, s.text]));
   return items.map((item) => ({

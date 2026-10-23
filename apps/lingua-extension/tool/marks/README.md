@@ -2,10 +2,12 @@
 
 How often the translated sentence marks the right words for the reader's selection, per pair: en-fr
 and es-fr (release-lingua-spanish-translation), es-en and en-es
-(measure-lingua-translation-matrix-marks), fr-en and fr-es (add-lingua-french-translation). es-fr
-and fr-es go through English — es-en then en-fr, fr-en then en-es — so their marks cross two
-alignments. A measurement is a pair's — es-fr's says nothing of es-en, measured on its own route and
-judged in English (generalise-lingua-translation-routes-by-pair D6), nor fr-es's of fr-en's.
+(measure-lingua-translation-matrix-marks), fr-en and fr-es (add-lingua-french-translation), it-fr
+(measure-lingua-it-fr-translation-marks). es-fr, fr-es and it-fr go through English — es-en then
+en-fr, fr-en then en-es, it-en then en-fr — so their marks cross two alignments. A measurement is a
+pair's — es-fr's says nothing of es-en, measured on its own route and judged in English
+(generalise-lingua-translation-routes-by-pair D6), nor fr-es's of fr-en's, nor it-fr's of the it-en
+model alone.
 Decision D2 of the Spanish programme fixed what the result decides before anything was measured:
 
 - **≥ 90 % correct and ≤ 25 % withheld:** marked;
@@ -17,31 +19,34 @@ measured on the same Spanish selections as es-fr, en-es on the same English ones
 the same French ones as fr-en — while the results and the judgments are filed per **pair**, and the
 judge reads the pair's **native language**, the one its route translates into. Every studied
 language's selections come from the same sentences by one rule (add-lingua-french-translation D4):
-French, added, moved no English or Spanish selection, nor any committed result.
+French, added, moved no English or Spanish selection, nor any committed result; Italian, added after
+it (measure-lingua-it-fr-translation-marks D1), moved no English, Spanish or French selection, nor any
+committed result.
 
-| File                   | What it holds                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `select_corpus.mjs`    | The selection rule: every tenth PUD sentence, the same in every language, one word each (noun, verb, noun, adjective in turn)                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `pud.mjs`              | PUD English, Spanish and French (French at add-lingua-french-forms-tables' pin), fetched at pinned commits and checked by sha256 (CC BY-SA, never committed)                                                                                                                                                                                                                                                                                                                                                                                  |
-| `corpus.json`          | The 300 selections, 100 per studied language (`lang`: en, es, fr), each step's three from one sentence: sentence id, token, word, offsets; no Italian selection yet — the Italian corpus is row 19's (the Italian programme's `measure-lingua-it-fr-translation-marks`)                                                                                                                                                                                                                                                                       |
-| `engine.mjs`           | The pinned engine in Node with a route's models built as `engine-worker.ts` builds them: one markup string in, its translation out — shared by the harness and the soak                                                                                                                                                                                                                                                                                                                                                                       |
-| `measure.mjs`          | The loop: each selection marked exactly as `relay.ts` marks it — tagged sentence, fragment alone, reconciled — and the experiment's mark; a trap answered per request, as the extension answers it                                                                                                                                                                                                                                                                                                                                            |
-| `stop-words.mjs`       | The experiment's stop words per native language (fr, en, es): the function words skipped when the gloss is looked for in the sentence; the harness picks the route's native language's                                                                                                                                                                                                                                                                                                                                                        |
-| `../measure_marks.mjs` | The harness: the pinned engine and the catalogue's models, the corpus of a pair's studied language through `measure.mjs` over that pair's route; writes `results-<pair>.jsonl`                                                                                                                                                                                                                                                                                                                                                                |
-| `../soak_engine.mjs`   | The soak (harden-lingua-translation-engine D4): a pair's route over the same corpus, reporting what trapped, the time per sentence and the memory high-water mark                                                                                                                                                                                                                                                                                                                                                                             |
-| `results-<pair>.jsonl` | Per selection: the translated sentence (`translation`) with its marks bracketed (`shown`), the fragment's own translation (`alone`, null when it trapped twice, `""` for an empty fragment), and the experiment's mark (`gloss`, null when the pair's `tables/<pair>/gloss.tsv` is not committed or holds no gloss); a sentence the engine trapped on twice is `trapped: true` with no translation — `results-en-fr.jsonl`, `results-es-fr.jsonl`, `results-es-en.jsonl`, `results-en-es.jsonl`, `results-fr-en.jsonl`, `results-fr-es.jsonl` |
-| `judged-<pair>.tsv`    | Every mark judged correct, wrong or withheld, with a reason for each wrong one — `judged-en-fr.tsv`, `judged-es-fr.tsv`, `judged-es-en.tsv`, `judged-en-es.tsv`, `judged-fr-en.tsv`, `judged-fr-es.tsv`                                                                                                                                                                                                                                                                                                                                       |
-| `tier.mjs`             | D2's first tier and the count of a judged file, as read above; `test/translate-marks.spec.ts` holds `MARKED_PAIRS` to it                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| File                   | What it holds                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `select_corpus.mjs`    | The selection rule: every tenth PUD sentence, the same in every language, one word each (noun, verb, noun, adjective in turn)                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `pud.mjs`              | PUD English, Spanish, French and Italian (French at add-lingua-french-forms-tables' pin, Italian at `master`'s head on 2026-10-22, the corpus's own pin), fetched at pinned commits and checked by sha256 (CC BY-SA, never committed)                                                                                                                                                                                                                                                                                                                                |
+| `corpus.json`          | The 400 selections, 100 per studied language (`lang`: en, es, fr, it), each step's four from one sentence: sentence id, token, word, offsets                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `engine.mjs`           | The pinned engine in Node with a route's models built as `engine-worker.ts` builds them: one markup string in, its translation out — shared by the harness and the soak                                                                                                                                                                                                                                                                                                                                                                                              |
+| `measure.mjs`          | The loop: each selection marked exactly as `relay.ts` marks it — tagged sentence, fragment alone, reconciled — and the experiment's mark; a trap answered per request, as the extension answers it                                                                                                                                                                                                                                                                                                                                                                   |
+| `stop-words.mjs`       | The experiment's stop words per native language (fr, en, es): the function words skipped when the gloss is looked for in the sentence; the harness picks the route's native language's                                                                                                                                                                                                                                                                                                                                                                               |
+| `../measure_marks.mjs` | The harness: the pinned engine and the catalogue's models, the corpus of a pair's studied language through `measure.mjs` over that pair's route; writes `results-<pair>.jsonl`                                                                                                                                                                                                                                                                                                                                                                                       |
+| `../soak_engine.mjs`   | The soak (harden-lingua-translation-engine D4): a pair's route over the same corpus, reporting what trapped, the time per sentence and the memory high-water mark                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `results-<pair>.jsonl` | Per selection: the translated sentence (`translation`) with its marks bracketed (`shown`), the fragment's own translation (`alone`, null when it trapped twice, `""` for an empty fragment), and the experiment's mark (`gloss`, null when the pair's `tables/<pair>/gloss.tsv` is not committed or holds no gloss); a sentence the engine trapped on twice is `trapped: true` with no translation — `results-en-fr.jsonl`, `results-es-fr.jsonl`, `results-es-en.jsonl`, `results-en-es.jsonl`, `results-fr-en.jsonl`, `results-fr-es.jsonl`, `results-it-fr.jsonl` |
+| `judged-<pair>.tsv`    | Every mark judged correct, wrong or withheld, with a reason for each wrong one — `judged-en-fr.tsv`, `judged-es-fr.tsv`, `judged-es-en.tsv`, `judged-en-es.tsv`, `judged-fr-en.tsv`, `judged-fr-es.tsv`, `judged-it-fr.tsv`                                                                                                                                                                                                                                                                                                                                          |
+| `tier.mjs`             | D2's first tier and the count of a judged file, as read above; `test/translate-marks.spec.ts` holds `MARKED_PAIRS` to it                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
 ## Running it again
 
 One pair per run, named as the catalogue routes it; the corpus is its studied language's, the stop
-words its native language's. The catalogue routes twelve pairs — the six below, and Italian's six
-since `add-lingua-italian-translation-models` (it-en, en-it, it-fr, it-es, fr-it, es-it) — but the
-harness measures the six below only: the Italian corpus is row 19's (the Italian programme's
-`measure-lingua-it-fr-translation-marks`), the Italian stop words row 38's
-(`measure-lingua-en-it-translation-marks`), and each Italian pair is measured by its own row (19,
-24, 29, 38, 49, 53) before it ships:
+words its native language's. The catalogue routes twelve pairs — the six of the matrix, and Italian's
+six since `add-lingua-italian-translation-models` (it-en, en-it, it-fr, it-es, fr-it, es-it) — and
+the harness measures the seven below: the Italian selections are in the corpus since the Italian
+programme's row 19 (`measure-lingua-it-fr-translation-marks`), which measured it-fr on them; it-en
+and it-es are measured on the same selections by rows 24 and 29, and the pairs glossed in Italian need
+the Italian stop words, row 38's (`measure-lingua-en-it-translation-marks`) — each Italian pair is
+measured by its own row (19, 24, 29, 38, 49, 53) before it ships:
 
 ```bash
 node tool/assemble_model_site.mjs /tmp/models                                                  # or read models.cymbra.app: omit --models
@@ -51,6 +56,7 @@ node --experimental-strip-types tool/measure_marks.mjs --pair es-en --models /tm
 node --experimental-strip-types tool/measure_marks.mjs --pair en-es --models /tmp/models      # the English selections, judged in Spanish
 node --experimental-strip-types tool/measure_marks.mjs --pair fr-en --models /tmp/models      # the French selections, judged in English
 node --experimental-strip-types tool/measure_marks.mjs --pair fr-es --models /tmp/models      # the same, through English, judged in Spanish
+node --experimental-strip-types tool/measure_marks.mjs --pair it-fr --models /tmp/models      # the Italian selections, through English, judged in French
 node tool/marks/select_corpus.mjs                                                             # only to rebuild corpus.json; deterministic
 ```
 
@@ -75,11 +81,11 @@ what a run costs in time and memory. It is how en-es is tried before it ships (c
 that change 25 pins the en-es route in the catalogue, and fr-en and fr-es before change 52, now that
 change 50 routes them, and the en-it model through en-it, fr-it and es-it, now that the Italian
 programme's change 2 (`add-lingua-italian-translation-models`) pins it-en 2.0 and en-it 2.1 and
-routes Italian's six pairs — their runs are recorded in `TRANSLATION.md`; a pair the catalogue does
-not route is refused. The it-en soak is row 19's (`measure-lingua-it-fr-translation-marks`), with
-the Italian corpus: until then the tool reports no selection for it-en, it-fr and it-es — « 0
-selections run » and « tool/marks/corpus.json holds no it selection: nothing was soaked », exit
-status 0 — rather than refusing.
+routes Italian's six pairs, and the it-en model through it-en and it-fr, over the Italian selections
+row 19 (`measure-lingua-it-fr-translation-marks` D2) added to the corpus, which closes change 2's
+D4 — their runs are recorded in `TRANSLATION.md`; a pair the catalogue does not route is refused. A studied language the corpus held no selection of would be reported, not refused:
+« 0 selections run » and « tool/marks/corpus.json holds no … selection: nothing was soaked », exit
+status 0.
 
 ```bash
 node --experimental-strip-types tool/soak_engine.mjs --pair en-fr --models /tmp/models            # ~15 s
@@ -90,6 +96,8 @@ node --experimental-strip-types tool/soak_engine.mjs --pair fr-es --models /tmp/
 node --experimental-strip-types tool/soak_engine.mjs --pair en-it --models /tmp/models --isolate  # the English selections, through en-it
 node --experimental-strip-types tool/soak_engine.mjs --pair fr-it --models /tmp/models --isolate  # the French selections, fr-en then en-it
 node --experimental-strip-types tool/soak_engine.mjs --pair es-it --models /tmp/models --isolate  # the Spanish selections, es-en then en-it
+node --experimental-strip-types tool/soak_engine.mjs --pair it-en --models /tmp/models --isolate  # the Italian selections, through it-en
+node --experimental-strip-types tool/soak_engine.mjs --pair it-fr --models /tmp/models --isolate  # the same, it-en then en-fr
 ```
 
 Each selection goes through the engine as `relay.ts` sends it: the sentence with the selection
@@ -172,27 +180,32 @@ recomputed from the committed judgments (`tier.mjs`). The rates read D2 as the s
 
 ## Results
 
-Engine pinned by `engine-pin.json`; models `en-fr` base-memory 2.0, `es-en` 2.0, `en-es` 2.1 and
-`fr-en` 2.0 (`model-manifest.json`). The pairs listed in `MARKED_PAIRS` (`src/translate/markup.ts`)
-are the ones on the first tier here, and `test/translate-marks.spec.ts` holds the list to the judged
-files. en-fr and es-fr were measured on 2026-10-05, judged in French; es-en and en-es on 2026-10-08
+Engine pinned by `engine-pin.json`; models `en-fr` base-memory 2.0, `es-en` 2.0, `en-es` 2.1,
+`fr-en` 2.0 and `it-en` 2.0 (`model-manifest.json`). The pairs listed in `MARKED_PAIRS`
+(`src/translate/markup.ts`) are the judged pairs on the first tier here, and
+`test/translate-marks.spec.ts` holds the list to the judged files: every listed pair judged, a judged
+pair listed exactly when its committed judgment reaches the tier (measure-lingua-it-fr-translation-marks
+D4). en-fr and es-fr were measured on 2026-10-05, judged in French; es-en and en-es on 2026-10-08
 (measure-lingua-translation-matrix-marks), judged in English and in Spanish; fr-en and fr-es on
-2026-10-09 (add-lingua-french-translation), judged in English and in Spanish — one judge each.
+2026-10-09 (add-lingua-french-translation), judged in English and in Spanish; it-fr on 2026-10-23
+(measure-lingua-it-fr-translation-marks), judged in French — one judge each.
 
-|                                      | Correct (of shown marks) | Withheld | D2                                               |
-| ------------------------------------ | ------------------------ | -------- | ------------------------------------------------ |
-| **es-fr, engine (pivot es→en→fr)**   | **89 / 90 — 98.9 %**     | **10 %** | **First tier: marked**                           |
-| en-fr, engine                        | 96 / 97 — 99.0 %         | 3 %      | (reference; the study found 83 / 87)             |
-| **es-en, engine, judged in English** | **94 / 96 — 97.9 %**     | **4 %**  | **First tier: marked (shipped since change 34)** |
-| **en-es, engine, judged in Spanish** | **96 / 96 — 100 %**      | **4 %**  | **First tier: marked (shipped since change 35)** |
-| **fr-en, engine, judged in English** | **95 / 96 — 99.0 %**     | **4 %**  | **First tier: marked (shipped since change 52)** |
-| **fr-es, engine (pivot fr→en→es)**   | **90 / 91 — 98.9 %**     | **9 %**  | **First tier: marked (shipped since change 52)** |
-| es-fr, gloss-located (experiment)    | 76 / 78 — 97.4 %         | 22 %     | —                                                |
-| en-fr, gloss-located (experiment)    | 76 / 79 — 96.2 %         | 21 %     | —                                                |
-| es-en, gloss-located (experiment)    | 75 / 78 — 96.2 %         | 22 %     | —                                                |
-| en-es, gloss-located (experiment)    | —                        | —        | left empty: no `tables/en-es/gloss.tsv` yet (22) |
-| fr-en, gloss-located (experiment)    | —                        | —        | left empty: no French gloss table yet (48)       |
-| fr-es, gloss-located (experiment)    | —                        | —        | left empty: no French gloss table yet (49)       |
+|                                      | Correct (of shown marks) | Withheld | D2                                                                             |
+| ------------------------------------ | ------------------------ | -------- | ------------------------------------------------------------------------------ |
+| **es-fr, engine (pivot es→en→fr)**   | **89 / 90 — 98.9 %**     | **10 %** | **First tier: marked**                                                         |
+| en-fr, engine                        | 96 / 97 — 99.0 %         | 3 %      | (reference; the study found 83 / 87)                                           |
+| **es-en, engine, judged in English** | **94 / 96 — 97.9 %**     | **4 %**  | **First tier: marked (shipped since change 34)**                               |
+| **en-es, engine, judged in Spanish** | **96 / 96 — 100 %**      | **4 %**  | **First tier: marked (shipped since change 35)**                               |
+| **fr-en, engine, judged in English** | **95 / 96 — 99.0 %**     | **4 %**  | **First tier: marked (shipped since change 52)**                               |
+| **fr-es, engine (pivot fr→en→es)**   | **90 / 91 — 98.9 %**     | **9 %**  | **First tier: marked (shipped since change 52)**                               |
+| **it-fr, engine (pivot it→en→fr)**   | **92 / 97 — 94.8 %**     | **3 %**  | **First tier: marked (listed, inert until the Italian programme's change 20)** |
+| es-fr, gloss-located (experiment)    | 76 / 78 — 97.4 %         | 22 %     | —                                                                              |
+| en-fr, gloss-located (experiment)    | 76 / 79 — 96.2 %         | 21 %     | —                                                                              |
+| es-en, gloss-located (experiment)    | 75 / 78 — 96.2 %         | 22 %     | —                                                                              |
+| en-es, gloss-located (experiment)    | —                        | —        | left empty: no `tables/en-es/gloss.tsv` yet (22)                               |
+| fr-en, gloss-located (experiment)    | —                        | —        | left empty: no French gloss table yet (48)                                     |
+| fr-es, gloss-located (experiment)    | —                        | —        | left empty: no French gloss table yet (49)                                     |
+| it-fr, gloss-located (experiment)    | —                        | —        | left empty: no `tables/it-fr/gloss.tsv` yet (the Italian programme's 16)       |
 
 What these numbers say:
 
@@ -230,8 +243,30 @@ What these numbers say:
   « voudrait » → « el … querría” » (k 25). Counted wrong, fr-en is 93 / 96 and fr-es 89 / 91: the
   tier holds either way.
 - **The 8 French selections right after an elided piece** (`d'enseigner`, `l'armée`, …) are correct
-  on both pairs but « l'instant », withheld on both. No request trapped on fr-en or fr-es: one engine
+  on both pairs but « l'instant », withheld on both. No request trapped on either French pair: one engine
   built per run, every fragment reconciled.
+- **it-fr is on the first tier** through two models, it-en then en-fr: 92 of its 97 shown marks
+  correct, 3 withheld — listed in `MARKED_PAIRS`, inert until the Italian programme's change 20
+  (`enable-lingua-italian`) lists it-fr in `packs.json`. Its five wrong marks, by `k`: « isole »
+  marked « granit » instead of « îles » (k 38), « battaglia » marked « au » alone instead of
+  « combat » (k 52), « comprendono » marked « qui » (k 57, as en-fr's « make » was), « rilasciò »
+  marked the auxiliary « a » alone instead of « a sorti » (k 69), and « agli sgoccioli » rendered
+  « son infarest" », no French word, the marks on it (k 82). Its three withheld: « gran parte della »
+  → « une grande partie de » (k 0), « Per quanto riguarda » → « Quant à » (k 61) and « stereotipata »,
+  rendered « stéréotypée » unmarked (k 71).
+- **The criteria's Italian cases** (Judging): the one-word pasts are marked on their compound
+  rendering — « ai vu » (k 37, carrying the « j' » the route adds), « a rencontré » (k 65), « a
+  accusé » (k 81) — but for k 69's auxiliary alone; after a fused preposition, « Tout | long »
+  (k 6, « Tout au long de »), « mieux » (k 22) and « derniers » (k 91) are correct and k 82 wrong;
+  after the one elided piece, « seul » (k 86); gender or number never decided a verdict
+  (« ennemies », k 79).
+- **Three it-fr lines are doubtful**, counted correct and flagged `doubtful:` in `engine_reason`:
+  « discordanza » → « discorde » (k 14) and « coppia » → « paire » (k 20), loose renderings the
+  mark follows, and « Fa' cadere » → « Lâche le » (k 29), the mark carrying « micro »'s article.
+  Counted wrong, it-fr is 89 / 97, 91.8 %: the tier holds either way.
+- **No request trapped on it-fr**: one engine built, every fragment reconciled. The fragment alone
+  moved the engine's mark to the right word once (« dilemmes » → « similaires », k 67) and trimmed
+  it twice (k 7, k 96). Run twice, the results were byte for byte the same.
 - **Sampling error:** about ±6 % at 100 selections.
 
 **The experiment** marks the first word of the sentence that matches the pack's gloss of the
@@ -245,5 +280,7 @@ selected word, in the pair's native language, its stop words left out (`stop-wor
 - fr-en's and fr-es's columns are empty: change 43 commits fr-en's gloss table empty, and the harness
   reads a table only when it holds a gloss. Once changes 48 and 49 commit French's glosses, a later
   run may fill them without touching the engine's columns.
+- it-fr's columns are empty: no `tables/it-fr/gloss.tsv` was committed at the run (the Italian
+  programme's change 16 commits it); a later run may fill them the same way.
 
 A later change may try it as a fallback; nothing here ships it.
