@@ -65,7 +65,7 @@ TREEBANK = [
     "7\tè\tessere\tAUX\t_\tMood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin\t2\taux\t_\t_",
     # The subjunctive the readings do not give.
     "8\tparla\tparlare\tVERB\t_\tMood=Sub|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin\t2\tconj\t_\t_",
-    # A present participle the tables read as a noun of its own: read, not agreeing.
+    # A present participle the tables read as a noun of its own: not read as a verb.
     "9\tparlante\tparlante\tVERB\t_\tNumber=Sing|Tense=Pres|VerbForm=Part\t2\tconj\t_\t_",
     # An article read; an apocope with no reading.
     "10\til\til\tDET\t_\tDefinite=Def|Gender=Masc|Number=Sing|PronType=Art\t11\tdet\t_\t_",
@@ -107,8 +107,8 @@ class Measuring(unittest.TestCase):
     def test_spec_scenario_the_readings_figures_are_reported(self):
         # Five finite verbs, the auxiliary among them: read; the subjunctive alone disagreeing.
         self.assertEqual(self.figures("VERB fin"), (5, 5, 4))
-        # The past participle agrees; `parlante`, read as its own noun, is read and does not agree.
-        self.assertEqual(self.figures("VERB part"), (2, 2, 1))
+        # The past participle agrees; `parlante`, read as its own noun alone, is not read as a verb.
+        self.assertEqual(self.figures("VERB part"), (2, 1, 1))
         self.assertEqual(self.figures("VERB ger"), (1, 1, 1))
         # `il` agrees; `un` reads nothing; `la` (il's) has no reading in this fixture.
         self.assertEqual(self.figures("DET"), (3, 1, 1))
@@ -124,7 +124,7 @@ class Measuring(unittest.TestCase):
             lines[1:],
             [
                 "  finite verbs      5 words  100.00 % read   80.00 % agree",
-                "  participles       2 words  100.00 % read   50.00 % agree",
+                "  participles       2 words   50.00 % read  100.00 % agree",
                 "  gerunds           1 words  100.00 % read  100.00 % agree",
                 "  nouns             1 words  100.00 % read  100.00 % agree",
                 "  determiners       3 words   33.33 % read  100.00 % agree",

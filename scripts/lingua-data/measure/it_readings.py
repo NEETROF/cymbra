@@ -9,7 +9,8 @@
 
 For each part of speech, over the words whose form the committed tables map to the treebank's
 lemma: the share that carry a reading of their own (`grammar.tsv`, marked `-` — what the card
-shows), and the share of those whose treebank part of speech and features are among their readings.
+shows) in that part of speech — `si`, a pronoun the tables read only as the musical note, is not
+read as a pronoun —, and the share of those whose treebank features are among those readings.
 An auxiliary counts as a verb; the conditional's and the imperative's tense is left aside, as the
 tables write neither (design D3, D7); a present participle reads its number, a past one its gender
 and number, a gerund nothing more, as UD Italian-MarkIT writes them. UD Italian-PUD writes its verbs
@@ -152,11 +153,11 @@ def measure(lines, forms, own):
         pos, want = project(upos, features, xpos)
         group = group_of(pos, want)
         counts[group, "words"] += 1
-        readings = own.get(word, [])
+        readings = [f for p, f in own.get(word, []) if p == pos]
         if not readings:
             continue
         counts[group, "read"] += 1
-        if agrees(want, [f for p, f in readings if p == pos]):
+        if agrees(want, readings):
             counts[group, "agree"] += 1
     return counts
 
