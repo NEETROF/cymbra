@@ -376,6 +376,15 @@ review of 2026-10-23:
   pairs --after it-fr` names it from `tables/it/studied.json`, the update's Reduce step reports it
   against an empty folder, and the committed-tables check accepts a studied folder holding its record
   and its pool alone while no folder of its reference exists.
+- *The update's version, reduced again (D9).* The update writes `pack_version` as its snapshot
+  (`2026.10.23`); the reduce job of `lingua-extension-check` reduced the same pinned sources again and
+  named the rules (`2026.10.23+06c137f`), moving the manifest, the pack and the layer — every earlier
+  pair's update had been followed by a re-reduction committed by hand (fr-en's `2026.10.09` among
+  them). A re-reduction of the tables an update committed, under the rules its pin records, now gives
+  the update's version again (`pack_sources.reduces_an_update`): the same sources under the same
+  rules make the same tables, the same dictionary (*Two releases, one dictionary*), and the reduce job
+  reproduces it-fr's committed manifest and pin byte for byte. Under other rules a re-reduction still
+  names them; no committed pin moves.
 - *The gate's refusal (D8).* The measurement fails, naming the gate and the figure, as Spanish's and
   French's do; the update workflow does not run it, and it is run on the update's tables before they
   are merged.

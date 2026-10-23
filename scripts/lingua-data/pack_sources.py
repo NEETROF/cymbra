@@ -9,8 +9,9 @@
 `tables/<pair>/pin.json` records where the committed tables came from and what they build:
 
 - `snapshot`: the day the sources were read (`2026.09.26`); it is also the pack's `pack_version`
-  when the tables come from an update, and names it with the reducer's rules when they come from a
-  re-reduction of the same sources (`2026.09.26+1dff19c`). A pair that is not its studied
+  when the tables come from an update — and from a re-reduction under the rules that update recorded,
+  which makes them again —, and names it with the reducer's rules when they come from a re-reduction
+  of the same sources under other rules (`2026.09.26+1dff19c`). A pair that is not its studied
   language's reference names, in either mode, its snapshot, its rules and the studied tables it
   read (`2026.10.08+733f815.5e0c2a1`, `pack_version`): its version moves when they do.
 - `pack`: sha256 and size of the pack the tables build — every lane must obtain exactly that.
@@ -1267,16 +1268,36 @@ def studied_digest(tables: dict) -> str:
 def pack_version(pin: Path, reducer: Path, *, live: bool = False) -> str:
     """The `pack_version` a pair's tables are reduced under (lingua-data-packs, *A pack says which
     dictionary it is*): its snapshot for an update (`live`), and its snapshot and rules after a
-    re-reduction of the same sources (`2026.10.03+0d876dc`). A pair that is not its studied
-    language's reference reads tables it does not write, so its version names them too, in either
-    mode: its snapshot, its rules and the digest of the studied tables its build reads
+    re-reduction of the same sources (`2026.10.03+0d876dc`) — but a re-reduction of the tables an
+    update committed, under the very rules that update recorded, which are those tables again, so
+    their version again (`reduces_an_update`, *Two releases, one dictionary*). A pair that is not its
+    studied language's reference reads tables it does not write, so its version names them too, in
+    either mode: its snapshot, its rules and the digest of the studied tables its build reads
     (`2026.10.08+733f815.5e0c2a1`, add-lingua-pack-es-en D3) — the version moves when they do,
     though nothing of the pair's own moved."""
     snapshot = get(load(pin), "snapshot")
     studied = studied_record(pin)
     if studied is None:
-        return snapshot if live else f"{snapshot}+{rules_sha256(reducer)[:7]}"
+        if live or reduces_an_update(pin, reducer):
+            return snapshot
+        return f"{snapshot}+{rules_sha256(reducer)[:7]}"
     return f"{snapshot}+{rules_sha256(reducer)[:7]}.{studied_digest(studied['tables'])[:7]}"
+
+
+def reduces_an_update(pin: Path, reducer: Path) -> bool:
+    """Whether a re-reduction of a reference pair reads the tables an update committed, under the
+    rules it recorded: the committed `manifest.json` beside the pin names the snapshot alone — an
+    update's version — and `reducer` is the rules the pin records. The same sources under the same
+    rules make the same tables, so the reduce job reproduces the update's manifest and pin byte for
+    byte (add-lingua-italian-forms-tables: it-fr's first update, committed as the update wrote it).
+    Once the rules move, the re-reduction is a new snapshot of tables and names them."""
+    record = load(pin)
+    try:
+        committed = json.loads((pin.parent / "manifest.json").read_text(encoding="utf-8"))["meta"]["pack_version"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return False
+    recorded = record.get("reducer", {}).get("sha256") if isinstance(record.get("reducer"), dict) else None
+    return committed == record.get("snapshot") and recorded == rules_sha256(reducer)
 
 
 # The records of a pin, in the order it is saved.

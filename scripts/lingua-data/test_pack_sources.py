@@ -2239,6 +2239,38 @@ class ReaderPair(unittest.TestCase):
         with self.assertRaisesRegex(ps.PinError, r"^es-en: pin.json records the base none for es/"):
             self.check("es-en")
 
+    def test_a_re_reduction_of_an_update_under_its_rules_gives_its_version_again(self):
+        # it-fr's first update committed its tables as the update wrote them (`2026.10.23`); the
+        # reduce job reduces them again from the pinned sources under the rules the pin records, and
+        # must write the same manifest and pin (*Two releases, one dictionary*). Under other rules, the
+        # re-reduction is a new snapshot of tables and names them.
+        fr = self.root / "reduce-es-fr.py"
+        manifest = self.root / "es-fr" / "manifest.json"
+        rules = ps.rules_sha256(fr)[:7]
+        # No manifest yet: a re-reduction names its rules.
+        self.assertEqual(ps.pack_version(self.pins["es-fr"], fr), f"2026.10.08+{rules}")
+        manifest.write_text(json.dumps({"meta": {"pack_version": "2026.10.08"}}))
+        self.assertTrue(ps.reduces_an_update(self.pins["es-fr"], fr))
+        self.assertEqual(ps.pack_version(self.pins["es-fr"], fr), "2026.10.08")
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(ps.main(["version", "--pin", str(self.pins["es-fr"]), "--reducer", str(fr)]), 0)
+        self.assertEqual(out.getvalue(), "2026.10.08\n")
+        # Tables a re-reduction committed keep their rules' version.
+        manifest.write_text(json.dumps({"meta": {"pack_version": f"2026.10.08+{rules}"}}))
+        self.assertEqual(ps.pack_version(self.pins["es-fr"], fr), f"2026.10.08+{rules}")
+        # The rules moved since the update: a new snapshot of tables, named by its rules.
+        manifest.write_text(json.dumps({"meta": {"pack_version": "2026.10.08"}}))
+        fr.write_text("# es-fr's rules, edited\n")
+        self.assertFalse(ps.reduces_an_update(self.pins["es-fr"], fr))
+        self.assertEqual(ps.pack_version(self.pins["es-fr"], fr), f"2026.10.08+{ps.rules_sha256(fr)[:7]}")
+        # A manifest that does not read is no update's.
+        manifest.write_text("{")
+        self.assertFalse(ps.reduces_an_update(self.pins["es-fr"], fr))
+        # A reader pair's version names its rules and studied tables in either mode, as before.
+        reader = self.root / "reduce-es-en.py"
+        (self.root / "es-en" / "manifest.json").write_text(json.dumps({"meta": {"pack_version": "2026.10.08"}}))
+        self.assertEqual(ps.pack_version(self.pins["es-en"], reader), ps.pack_version(self.pins["es-en"], reader, live=True))
+
     def test_spec_scenario_an_updated_dictionary_for_a_reader_pair(self):
         # A reader pair's pack_version names the studied tables it read, so it moves when one of
         # them does though nothing of the pair's own moved (lingua-data-packs, *An updated
@@ -2684,12 +2716,13 @@ class Record(unittest.TestCase):
             ps.check_reducer(pin, reducer)
             manifest = json.loads((pin.parent / "manifest.json").read_text())
             # The pack says which dictionary it is: the snapshot for tables an update reduced, the
-            # snapshot and the rules for tables a re-reduction made from the same sources — and,
-            # for a pair that is not its studied language's reference, the studied tables it read.
-            self.assertIn(
+            # snapshot and the rules for tables a re-reduction made from the same sources under other
+            # rules — and, for a pair that is not its studied language's reference, the studied tables
+            # it read. The version the reduce job reduces them again under, byte for byte.
+            self.assertEqual(
                 manifest["meta"]["pack_version"],
-                (ps.pack_version(pin, reducer, live=True), ps.pack_version(pin, reducer)),
-                f"{pair}: the pack says which dictionary it is",
+                ps.pack_version(pin, reducer),
+                f"{pair}: the pack says which dictionary it is, as a re-reduction writes it",
             )
             if "studied" in record:
                 digest = ps.studied_digest(record["studied"]["tables"])[:7]
