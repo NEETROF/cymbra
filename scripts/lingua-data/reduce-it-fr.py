@@ -1394,6 +1394,16 @@ _REGIONS = frozenset(
 # A form's own sense, or a table's row, marked as a region's or a register's reads nothing (D3, D5):
 # the dialectal and hypercorrect rows (`fò`, `peròro`), a regional sense.
 _REGISTERS = _REGIONS | {"slang", "colloquial", "informal", "Internet", "vulgar", "hypercorrect"}
+# A row or a form's own sense of the language's poetry and letters (D3, D6): read as its cell, it reads
+# under the lemma the forms file the form under, and never names another word — `sono`, a poetic
+# Latinism of *suonare*'s present, names no *suonare*, `possente` (*potere*'s literary participle) no
+# *potere*, while `veggo` and `vegga` stay *vedere*'s.
+_LITERARY = frozenset({"poetic", "Latinism", "literary"})
+# A lemma entry whose every meaning is marked archaic or of poetry and letters holds its word as no
+# part of speech a card names (D6): `diro` (« dire », literary) is named on no card of `dire`,
+# `ideo` on none of `idea`, *cano* on none of `cane`. A rare or dated meaning still names its word
+# (`arreso`, *arrendere*'s participle).
+_MARKED_MEANINGS = _LITERARY | {"archaic"}
 # A determiner's or pronoun's head naming a plural headword (`gli`, `le`), whose table lists the
 # singular (D4).
 _PLURAL_HEADS = frozenset({"p", "m-p", "f-p", "mf-p", "mfbysense-p"})
@@ -1621,7 +1631,14 @@ class Readings:
     - `shared`: the rows of the article table kaikki writes under each of *il*, *lo*, *la*, *gli*,
       *le* that an article's own head does not name, kept only under the article the forms table
       files the form under (D4);
+    - `literary_table`, `literary_senses`: the rows and senses tagged poetic, Latinism or literary
+      (`_LITERARY`), read as the others are, but never toward another word than the form's own (D6);
+    - `misspelt`: form → `(word, part of speech)`, the words an entry of the form gives it as a
+      doubtful spelling of (`anno`, a verb entry, « misspelling of hanno »), whose readings it names
+      no other word with (D6, `misspelt_readings`);
     - `poses`: lemma → the parts of speech of its lemma entries, among those read;
+    - `named_poses`: the same from the entries holding a meaning unmarked (`_MARKED_MEANINGS`), the
+      parts of speech another form may name the lemma in (D6);
     - `standard`: the words with a lemma entry that is not only regional (D6).
     """
 
@@ -1630,22 +1647,58 @@ class Readings:
         self.senses = collections.defaultdict(set)
         self.spelt = collections.defaultdict(set)
         self.shared = collections.defaultdict(set)
+        self.literary_table = collections.defaultdict(set)
+        self.literary_senses = collections.defaultdict(set)
+        self.misspelt = collections.defaultdict(set)
         self.poses = collections.defaultdict(set)
+        self.named_poses = collections.defaultdict(set)
         self.standard = set()
 
-    def pairs(self, forms):
+    def misspelt_readings(self):
+        """`(form, lemma) → tags` the form names no other word with (D6): where an entry of the form
+        is a doubtful spelling of a cell of the lemma's table, in that entry's part of speech, the
+        cell's own readings — `anno` (the year), whose verb entry is « misspelling of hanno », names no
+        *avere* as its third person plural, which *avere*'s table lists as `hanno` (and as the disused
+        `ànno`, its qualifier dropped by kaikki). Another cell's reading stands (`puzza`, a noun entry
+        spelling *puzzo*, still names *puzzare*'s present), and so does every reading of the form's own
+        lemma (`diè`, *dare*'s poetic passato remoto)."""
+        cells = collections.defaultdict(set)
+        for (form, lemma), tags in (*self.table.items(), *self.literary_table.items()):
+            if form != lemma:
+                cells[form].update((lemma, tag) for tag in tags)
+        out = collections.defaultdict(set)
+        for form, spelt in self.misspelt.items():
+            for word, upos in spelt:
+                for lemma, tag in cells.get(word, ()):
+                    if parse_tag(tag)[0] == upos:
+                        out[(form, lemma)].add(tag)
+        return out
+
+    def pairs(self, forms, literary=True):
         """`(form, lemma) → tags`: a table's reading of a pair wins over a form entry's senses of the
         same part of speech — `grandi`, which *grande*'s noun table lists, keeps its adjective entry's
         reading (D5); a spelling's table and the shared article table only where `forms` files the
-        form under that lemma."""
+        form under that lemma, a spelling's only in a part of speech the word's own table does not give
+        that pair; the poetic, Latin and literary rows and senses unless `literary` is false."""
         tables = collections.defaultdict(set)
         for pair, tags in self.table.items():
             tables[pair] |= tags
-        for source in (self.spelt, self.shared):
-            for pair, tags in source.items():
-                if forms.get(pair[0]) == pair[1]:
-                    tables[pair] |= tags
+        if literary:
+            for pair, tags in self.literary_table.items():
+                tables[pair] |= tags
+        for pair, tags in self.shared.items():
+            if forms.get(pair[0]) == pair[1]:
+                tables[pair] |= tags
+        for pair, tags in self.spelt.items():
+            if forms.get(pair[0]) == pair[1]:
+                # The word's own table first: a spelling's inflection reads only in a part of speech
+                # the word's table gives nothing of (`moglie`, which *moglia*'s table lists as its
+                # plural, stays *moglie*'s singular).
+                given = {parse_tag(tag)[0] for tag in self.table.get(pair, ())}
+                tables[pair] |= {tag for tag in tags if parse_tag(tag)[0] not in given}
         out = {pair: set(tags) for pair, tags in self.senses.items()}
+        for pair, tags in self.literary_senses.items() if literary else ():
+            out.setdefault(pair, set()).update(tags)
         for pair, tags in tables.items():
             given = {parse_tag(tag)[0] for tag in tags}
             out[pair] = {tag for tag in out.get(pair, ()) if parse_tag(tag)[0] not in given} | tags
@@ -1680,6 +1733,23 @@ def _dialect_rows(rows):
     return {i for table, ok in zip(tables, kept) if not ok for i in table}
 
 
+def _masculine_superlative(tags, form):
+    """An adjective's superlative named with no agreement (D4) is its masculine singular, the form a
+    head names, in `-o`: *bello*'s head names `bellissimo`, *abile*'s `abilissimo`, and so does the
+    superlative's own entry (« superlative of bello »), whose feminine and plurals it lists
+    (`bellissima`)."""
+    if "superlative" in tags and not tags & {"masculine", "feminine", "plural"} and form.endswith("o"):
+        return tags | {"masculine"}
+    return tags
+
+
+def _unmarked_meaning(senses):
+    """Whether a lemma entry holds a meaning no archaic, poetic, Latin or literary tag marks
+    (`_MARKED_MEANINGS`, D6) — an entry with no sense too."""
+    meanings = [sense for sense in senses if not _is_form_of(sense)]
+    return not meanings or any(not set(sense.get("tags") or ()) & _MARKED_MEANINGS for sense in meanings)
+
+
 def _row_skipped(tags):
     """A row that gives no reading of its own (D3–D5): bookkeeping, doubtful, a repeated cell, a
     region's or a register's, a derived word's."""
@@ -1710,6 +1780,14 @@ def read_readings(entry, readings, survey, spellings=None):
     senses = entry.get("senses") or []
     if any(_is_compound(sense) for sense in senses):
         return
+    for sense in senses:
+        # A doubtful spelling of another word (D6): `anno`, « misspelling of hanno ».
+        if _alternative(sense) and set(sense.get("tags") or ()) & _DOUBTFUL:
+            readings.misspelt[word].update(
+                (nfc_lower(ref.get("word")), upos)
+                for ref in sense.get("alt_of") or ()
+                if isinstance(ref, dict) and ref.get("word")
+            )
     spelt = (spellings or {}).get(word)
     if spelt is None and senses and all(_alternative(sense) for sense in senses):
         return
@@ -1724,14 +1802,19 @@ def read_readings(entry, readings, survey, spellings=None):
     participle = _participle_entry(senses) if upos == "VERB" else None
     for sense in senses:
         tags = set(sense.get("tags") or ())
+        if upos == "ADJ":
+            tags = _masculine_superlative(tags, word)
         if not _is_form_of(sense) or tags & _NOT_A_READING or tags & _REGISTERS:
             continue
         for target in _form_targets(sense):
             target = survey.plain_of(nfc_lower(target))
             if _TOKEN.fullmatch(target):
-                readings.senses[(word, target)].update(reading_tags(upos, _participle_sense(tags, target)))
+                into = readings.literary_senses if tags & _LITERARY else readings.senses
+                into[(word, target)].update(reading_tags(upos, _participle_sense(tags, target)))
     if meaning and spelt is None:
         readings.poses[word].add(upos)
+        if _unmarked_meaning(senses):
+            readings.named_poses[word].add(upos)
         if not all(set(sense.get("tags") or ()) & _REGIONS for sense in senses):
             readings.standard.add(word)
     if not meaning and participle is None and spelt is None:
@@ -1773,9 +1856,14 @@ def read_readings(entry, readings, survey, spellings=None):
             continue
         if i < start and form in cells:
             continue
-        if upos == "NOUN" and "masculine" in tags and "plural" not in tags:
+        if upos == "NOUN" and "masculine" in tags and ("plural" not in tags or (genders and "Masc" not in genders)):
+            # A feminine noun's masculine, singular or plural (`signorina`: `signorino`, `signorini`).
             continue
+        if upos == "ADJ":
+            tags = _masculine_superlative(tags, form)
         into = readings.shared if article and i >= start and form not in named else table
+        if into is readings.table and tags & _LITERARY:
+            into = readings.literary_table
         into[(form, home)].update(reading_tags(upos, tags, genders, participle))
 
 
@@ -1791,9 +1879,13 @@ def _read_reflexive(entry, word, clitic, plain, readings, survey):
     if clitic != "si":
         return
     lemma = plain or word
+    senses = entry.get("senses") or []
+    if _unmarked_meaning(senses):
+        # The reflexive's meaning names its lemma, the plain verb's too where it is filed under it
+        # (`arreso`, of *arrendersi*, names *arrendere*, an archaic verb of its own).
+        readings.named_poses[lemma].add("VERB")
     if plain is None:
         readings.poses[word].add("VERB")
-        senses = entry.get("senses") or []
         if not all(set(sense.get("tags") or ()) & _REGIONS for sense in senses):
             readings.standard.add(word)
     rows = entry.get("forms") or ()
@@ -1803,11 +1895,12 @@ def _read_reflexive(entry, word, clitic, plain, readings, survey):
         text = nfc_lower(row.get("form"))
         if i in dialect or _row_skipped(tags) or not text:
             continue
+        into = readings.literary_table if tags & _LITERARY else readings.table
         words = text.split()
         if len(words) == 2 and words[0] in REFLEXIVE_PRONOUNS:
             form = written_form(words[1], (lemma, word), survey.form_links)
             if _TOKEN.fullmatch(form):
-                readings.table[(form, lemma)].update(reading_tags("VERB", tags))
+                into[(form, lemma)].update(reading_tags("VERB", tags))
             continue
         if len(words) != 1 or plain is not None:
             continue
@@ -1819,7 +1912,7 @@ def _read_reflexive(entry, word, clitic, plain, readings, survey):
         if base.endswith("r"):
             base += "e"
         if len(base) > 2 and _TOKEN.fullmatch(base):
-            readings.table[(base, word)].update(reading_tags("VERB", tags))
+            into[(base, word)].update(reading_tags("VERB", tags))
 
 
 def _kind(tag):
@@ -1830,13 +1923,18 @@ def _kind(tag):
 
 def compose(outer, inner):
     """A form of a form (D5): the outer reading — of the word the form is a form of — with the inner
-    one's agreement, along one part of speech, a verb's only through a participle; None otherwise. A
+    one's agreement, along one part of speech, a verb's only through a participle, a nominal's never
+    through a plural; None otherwise. A
     present participle takes the inner number alone (`parlanti` → `parlante` → *parlare*): it has no
     gender, whatever the participle sense of its plural's own entry names (« plural of dormiente »,
     tagged as a participle with neither `present` nor `past`)."""
     upos, features = parse_tag(outer)
     inner_upos, inner_features = parse_tag(inner)
     if upos != inner_upos:
+        return None
+    if upos != "VERB" and features.get("Number") == "Plur":
+        # A plural is no base another form inflects from: `colli`, the plural of `colle` (« hill »),
+        # is no form of *colla*, whose plural `colle` also is.
         return None
     if upos == "VERB" and (features.get("VerbForm") != "Part" or inner_features.get("VerbForm") not in (None, "Part")):
         return None
@@ -1867,17 +1965,30 @@ def grammar_rows(readings, forms, ranks, overrides=OVERRIDES):
     - A reading's part of speech is one the dictionary holds its lemma as, when it holds the lemma
       as one of those read: a participle filed under a noun's spelling names its verb instead
       (`parlata`, the noun, names *parlare*) (D5).
-    - `other` only toward an entry of the dictionary that is not only regional (D6).
+    - `other` only toward an entry of the dictionary that is not only regional, in a part of speech
+      an entry holds the word as with a meaning not marked archaic, poetic or literary (D6:
+      `dire` names no *diro*, « dire », literary), and never from
+      a poetic, Latin or literary row or sense alone, directly or through a form of a form (D6:
+      `sono` names no *suonare*; `asperrima`, the literary superlative's feminine, stays *aspro*'s).
+    - `other` never with the reading of a cell an entry of the form gives it as a doubtful spelling
+      of (`misspelt_readings`: `anno` names no *avere*).
     - Never through a link an override row sets aside (`set_aside`)."""
     excluded = set_aside(readings, overrides)
+    misspelt = readings.misspelt_readings()
+    plain = readings.pairs(forms, literary=False)
     by_form = collections.defaultdict(dict)
+    literary = {}
     for (form, lemma), tags in readings.pairs(forms).items():
         if tags and (form, lemma) not in excluded:
             by_form[form][lemma] = tags
+            literary[(form, lemma)] = tags - plain.get((form, lemma), set())
     rows = set()
     for form, own in forms.items():
         direct = by_form.get(form, {})
         options = {lemma: set(tags) for lemma, tags in direct.items()}
+        # The readings some row or sense not of poetry or letters gives (D6): those another word may be
+        # named with.
+        named = {lemma: tags - literary[(form, lemma)] for lemma, tags in direct.items()}
         for inner_word, inner_tags in direct.items():
             if inner_word == form:
                 continue
@@ -1885,19 +1996,26 @@ def grammar_rows(readings, forms, ranks, overrides=OVERRIDES):
                 if lemma in (inner_word, form):
                     continue
                 kinds = {_kind(tag) for tag in direct.get(lemma, ())}
-                made = {compose(outer, inner) for outer in outer_tags for inner in inner_tags} - {None}
-                made = {tag for tag in made if _kind(tag) not in kinds}
-                if made:
-                    options.setdefault(lemma, set()).update(made)
+                for outer in outer_tags:
+                    for inner in inner_tags:
+                        tag = compose(outer, inner)
+                        if tag is None or _kind(tag) in kinds:
+                            continue
+                        options.setdefault(lemma, set()).add(tag)
+                        if outer not in literary[(inner_word, lemma)] and inner not in literary[(form, inner_word)]:
+                            named.setdefault(lemma, set()).add(tag)
         for lemma, tags in options.items():
             if lemma not in ranks:
                 continue
+            mark = "-" if lemma == own else "other"
             held = readings.poses.get(lemma)
+            if mark == "other":
+                held = readings.named_poses.get(lemma)
+                if not held or lemma not in readings.standard:
+                    continue
+                tags = named.get(lemma, set()) - misspelt.get((form, lemma), set())
             if held:
                 tags = {tag for tag in tags if parse_tag(tag)[0] in held}
-            mark = "-" if lemma == own else "other"
-            if mark == "other" and (lemma not in readings.poses or lemma not in readings.standard):
-                continue
             rows.update((form, lemma, tag, mark) for tag in tags)
     return sorted(f"{form}\t{lemma}\t{tag}\t{mark}\n" for form, lemma, tag, mark in rows)
 
