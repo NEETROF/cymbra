@@ -50,7 +50,8 @@ pub enum StudiedLanguage {
     /// Italian (add-lingua-italian-baseline), served by its own analysis since
     /// add-lingua-italian-analysis: its tokenisation pre-pass, NFC, its cascade and
     /// its enclitic rule, its closed classes and its names rule — nothing of
-    /// English's, Spanish's or French's ([`crate::analysis::ITALIAN_ANALYZER_VERSION`]).
+    /// English's, Spanish's or French's ([`crate::analysis::ITALIAN_ANALYZER_VERSION`]); and its
+    /// detection guard since add-lingua-italian-detection-guard (`italic_neighbour`).
     Italian,
 }
 

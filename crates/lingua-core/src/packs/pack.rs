@@ -1360,12 +1360,14 @@ pub(crate) mod tests {
         }
         // Compared with Italian's own version, never another language's: an Italian pack at
         // French's, English's or Spanish's is refused as built for another analyser generation,
-        // and so is one built at `0.2.0`, the version Italian had before its own analysis, or by
-        // the baseline's tokeniser, at `0.1.0`, which keeps `l'uomo` whole.
+        // and so is one built at `1.0.0`, before Italian's detection guard
+        // (add-lingua-italian-detection-guard), at `0.2.0`, the version Italian had before its own
+        // analysis, or by the baseline's tokeniser, at `0.1.0`, which keeps `l'uomo` whole.
         for other in [
             FRENCH_ANALYZER_VERSION,
             ANALYZER_VERSION,
             SPANISH_ANALYZER_VERSION,
+            "1.0.0",
             "0.2.0",
             "0.1.0",
         ] {
