@@ -211,3 +211,36 @@ re-blessing; every pin is unchanged; `cross_native` and `languages` pass.
 
 Nothing deploys and nothing is released; no listed pair studies Italian, so no package changes
 beyond two compile-forced lines. Rollback is a revert.
+
+## Implementation notes
+
+Recorded when the change was implemented; each is a small consequence of the decisions above, not a
+new one.
+
+- **The Manzoni page (D5).** The 1840 edition's first paragraph runs on for some seven hundred words,
+  to « … le fatiche della vendemmia » and past it. The page quotes its first two sentences, one block
+  each — « Quel ramo … in nuovi seni. » and « La costiera … di forma più comune. » —, in the edition's
+  spellings (`talchè`, `purchè`) and with its typographic apostrophe, checked against it.wikisource.org's
+  proofread transcription. Task 5.1 leaves the owner the choice of a longer excerpt.
+- **The Collodi block (D5).** Its three lines of dialogue are one block, the four dots of the 1883
+  edition kept as printed (« — C’era una volta.... »), where the table above writes an ellipsis.
+- **The fixture's function words (D5).** As the French fixture files `la` and `les` under `le`, the
+  it-fr fixture files the articles `lo`, `la`, `i`, `gli`, `le` under `il` and `un`, `una` under
+  `uno`; so it lists the single letter `i` beside `a`, `e`, `è` and `o`. It lists no articulated
+  preposition, no elided and no enclitic form, so that each shows in the golden as the baseline reads
+  it, its lemma itself.
+- **How the builder keys an Italian expression (D2).** The pack builder keys every language but English
+  through the core's reading of the headword (`reading_expression_key`); for Italian that reading is
+  the baseline's, each piece its lemma (`expression_piece`'s English arm), two to five tokens
+  (`EXPRESSION_WINDOW`), and no name is written. So the fixture's `ad alta voce` is keyed `ad alto
+  voce`, which a page's « ad alta voce » meets, and a headword the baseline reads as one token is not
+  keyed. No code changes for it.
+- **Task 2.2's refusal.** An engine's refusal throws a `JsError`, which cannot be built off wasm: the
+  host test (`tests/languages.rs`) holds the refusal of an `it` pack glossed in English through the
+  core's `PackSet` the engine holds, and `tests/languages_wasm.rs` through the engine itself.
+- **Task 7.1.** The app's pairs are built by `appPairs(port)` in `src/app/translation.ts`
+  (`readerPairs` over the shipped list), which `app.ts` calls: `app.ts` is excluded from coverage,
+  and the helper is what the test holds.
+- **Duplication.** `sonar-project.properties` excludes `tests/support/italian.rs` from copy-paste
+  detection, as the French baseline excluded `french.rs`: its lists of words are token-identical to
+  the other scenarios' once CPD normalises the literals.
