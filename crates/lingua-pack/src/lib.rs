@@ -648,7 +648,10 @@ pub fn build_whole_and_split(inputs: &PackInputs) -> Result<(Vec<u8>, SplitPack)
 /// words only when they are not the pair's glossed lemmas — the builder leaves the lexical table
 /// out otherwise, and the reader then takes the layer's glosses for them. Either would make two
 /// pairs of one language build two bases, which the split refuses by construction rather than
-/// leave to the committed-tables checks.
+/// leave to the committed-tables checks. A pair that glosses nothing, whose studied language has
+/// no dictionary words yet (Italian's first reference, add-lingua-italian-forms-tables D9), is
+/// not refused for it: the base without a lexical table and the layer without glosses name no
+/// dictionary word, which is what the empty table says.
 fn split_sections(inputs: &PackInputs) -> Result<Built, BuildError> {
     if inputs.tag_pool.is_none() {
         return Err(BuildError::NoPinnedPool);
@@ -670,7 +673,7 @@ fn split_sections(inputs: &PackInputs) -> Result<Built, BuildError> {
         )));
     }
     let built = build_sections(inputs)?;
-    if inputs.lexical.is_some() && built.lexical.is_empty() {
+    if inputs.lexical.is_some() && built.lexical.is_empty() && !inputs.glosses.is_empty() {
         return Err(BuildError::BaseFollowsPair(format!(
             "the dictionary words ({LEXICAL_TABLE}) are the lemmas the pair glosses, so the base \
              would carry no lexical table and take the layer's glosses for them"
@@ -3720,6 +3723,24 @@ mod tests {
         inp.lexical = Some(vec!["city".into(), "run".into()]);
         let split = build_split(&inp).unwrap();
         assert!(section_of(&split.base, section::LEXICAL).is_some());
+    }
+
+    #[test]
+    fn a_pair_that_glosses_nothing_splits_with_no_dictionary_word() {
+        // Italian's first reference (add-lingua-italian-forms-tables D9): forms and ranks, no
+        // gloss and an empty lexical.tsv. Neither part names a dictionary word, as the table says:
+        // the base carries no lexical table and the layer no gloss.
+        let mut inp = pinned_inputs();
+        inp.glosses.clear();
+        inp.senses.clear();
+        inp.expressions.clear();
+        inp.lexical = Some(Vec::new());
+        let (whole, split) = build_whole_and_split(&inp).expect("splits");
+        assert!(section_of(&whole, section::LEXICAL).is_none());
+        assert!(section_of(&split.base, section::LEXICAL).is_none());
+        let pack = Pack::assemble(&split.base, &split.layer).expect("one base");
+        assert!(!pack.is_dictionary_word("city"));
+        assert_eq!(pack.gloss("city"), None);
     }
 
     #[test]
