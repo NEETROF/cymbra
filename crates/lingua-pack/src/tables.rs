@@ -26,7 +26,9 @@
 //! pair, which `tables/<studied>/studied.json` names; its `pin.json` is their provenance. The
 //! dictionary words (`lexical.tsv`) are that pair's glossed lemmas — or, as its reduction writes
 //! them, every one but those it glosses by a proper noun's senses alone (French's, which leave
-//! `paris` and `durand` out: refine-lingua-fr-en-glosses D2).
+//! `paris` and `durand` out: refine-lingua-fr-en-glosses D2) — and, in either set, the
+//! language's acronym rows, forms in capitals that are their own lemmas, glossed or not
+//! (French's `CA`, Italian's `NATO` and `USA`: keep-lingua-italian-acronyms-and-names D5).
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -35,7 +37,8 @@ use lingua_core::packs::format::{Section, read_container};
 use lingua_core::packs::meta::BaseMeta;
 
 use crate::{
-    LEXICAL_TABLE, Manifest, STUDIED_SIDE, TAG_POOL_TABLE, read_lines, read_senses, tsv_pairs,
+    LEXICAL_TABLE, Manifest, STUDIED_SIDE, TAG_POOL_TABLE, read_lines, read_optional, read_senses,
+    tsv_pairs,
 };
 
 /// The file of a studied folder naming its reference pair.
@@ -118,6 +121,21 @@ fn names_only(pair: &Pair) -> Result<BTreeSet<String>, String> {
         .into_iter()
         .filter(|(_, runs)| runs.iter().all(|(tag, _)| tag == "PROPN"))
         .map(|(lemma, _)| lemma)
+        .collect())
+}
+
+/// A studied folder's acronym rows (keep-lingua-french-acronyms-in-capitals D2,
+/// keep-lingua-italian-acronyms-and-names D2, D5): the forms of its `forms.tsv` holding a
+/// capital, each its own lemma, as its reference's reduction writes them (`CA`, `NATO`,
+/// `USA`). A folder without forms has none.
+fn acronym_rows(dir: &Path) -> Result<BTreeSet<String>, String> {
+    let text = read_optional(dir, "forms.tsv")
+        .map_err(|e| format!("{}/forms.tsv: {e}", folder_name(dir)))?
+        .unwrap_or_default();
+    Ok(tsv_pairs(&text)
+        .into_iter()
+        .filter(|(form, lemma)| form == lemma && form.chars().any(char::is_uppercase))
+        .map(|(form, _)| form)
         .collect())
 }
 
@@ -235,19 +253,29 @@ fn check_studied(dir: &Path, pairs: &[Pair]) -> Result<(), String> {
         ));
     }
     let words: BTreeSet<String> = words.into_iter().collect();
-    let glossed = glossed(reference)?;
+    // The acronym rows are dictionary words whatever their sense runs and whether glossed
+    // (keep-lingua-italian-acronyms-and-names D5): `NATO`, unglossed, and `USA`, glossed by a proper
+    // noun's run, beside French's `CA`, glossed by a noun's.
+    let rows = acronym_rows(dir)?;
+    let glossed: BTreeSet<String> = glossed(reference)?.union(&rows).cloned().collect();
     if words == glossed {
         return Ok(());
     }
     // The other set the reference's reduction may write: its glossed lemmas less those it glosses
-    // by a proper noun's senses alone — all of them, never some (*Names left out by halves*).
-    let names = names_only(reference)?;
+    // by a proper noun's senses alone — all of them, never some (*Names left out by halves*) —,
+    // the acronym rows kept.
+    let names: BTreeSet<String> = names_only(reference)?.difference(&rows).cloned().collect();
     let words_not_names: BTreeSet<String> = glossed.difference(&names).cloned().collect();
     if !names.is_empty() && words == words_not_names {
         return Ok(());
     }
+    let and_rows = if rows.is_empty() {
+        String::new()
+    } else {
+        format!(" (its {} acronym rows among them)", rows.len())
+    };
     Err(format!(
-        "{lang}/{LEXICAL_TABLE} is not the lemmas its reference {} glosses: {} only in \
+        "{lang}/{LEXICAL_TABLE} is not the lemmas its reference {} glosses{and_rows}: {} only in \
          {LEXICAL_TABLE} ({}), {} only in {}/gloss.tsv ({}); nor those less the {} it glosses by \
          a proper noun's senses alone: {} only in {LEXICAL_TABLE} ({}), {} left out ({}). Reduce \
          {} again (build.sh writes it).",
@@ -271,7 +299,8 @@ fn check_studied(dir: &Path, pairs: &[Pair]) -> Result<(), String> {
 /// finds its studied language's folder beside it and holds no table of it. Each studied folder
 /// names an existing reference pair of its language, holds its studied tables and
 /// `studied.json` alone, pins its tag pool, and holds as its dictionary words that pair's
-/// glossed lemmas, or all of them but those it glosses by a proper noun's senses alone.
+/// glossed lemmas, or all of them but those it glosses by a proper noun's senses alone — its
+/// acronym rows in either set (keep-lingua-italian-acronyms-and-names D5).
 /// Answers the pairs read, by name; an error names the folder and the file at fault, and the
 /// reference pair whose reduction writes a studied table.
 pub fn check_committed_tables(root: &Path) -> Result<Vec<String>, String> {
@@ -636,6 +665,70 @@ mod tests {
         let root = french("names-broken", "lot\nmaison\n");
         root.write("fr-en/senses.tsv", "lot\n");
         assert!(root.error().contains("fr-en/senses.tsv"));
+    }
+
+    /// Italian read by it-fr, which glosses `roma` and `firenze` by a proper noun's senses alone,
+    /// `marco` by a name's beside a noun's and `USA` by a proper noun's; `tables/it/forms.tsv` holds
+    /// the acronym rows `NATO` and `USA` (keep-lingua-italian-acronyms-and-names D5), `nato` read as
+    /// *nascere* beside them.
+    fn italian(tag: &str, glossed: &[&str], lexical: &str) -> Root {
+        let root = Root::new(tag);
+        root.pair("it-fr", glossed);
+        root.write(
+            "it-fr/senses.tsv",
+            "firenze\tPROPN:1\nmarco\tPROPN:1\tNOUN:1\nroma\tPROPN:1\nUSA\tPROPN:2\n",
+        );
+        root.studied("it", "it-fr", Some(POOL), Some(lexical));
+        root.write(
+            "it/forms.tsv",
+            "NATO\tNATO\nUSA\tUSA\nfirenze\tfirenze\nmarco\tmarco\nnato\tnascere\nroma\troma\n",
+        );
+        root
+    }
+
+    #[test]
+    fn spec_scenario_the_rows_are_dictionary_words() {
+        // Before change 16 glosses anything, the rows alone (D6); after, either set with the rows,
+        // `NATO` unglossed and `USA` glossed by a proper noun's run alone.
+        let passes = |root: Root| {
+            assert_eq!(
+                check_committed_tables(&root.0),
+                Ok(vec!["it-fr".to_owned()])
+            );
+        };
+        passes(italian("it-rows", &[], "NATO\nUSA\n"));
+        let all = ["USA", "firenze", "marco", "roma"];
+        passes(italian("it-all", &all, "NATO\nUSA\nfirenze\nmarco\nroma\n"));
+        passes(italian("it-names-out", &all, "NATO\nUSA\nmarco\n"));
+    }
+
+    #[test]
+    fn spec_scenario_the_checks_hold_italian_s_words() {
+        let all = ["USA", "firenze", "marco", "roma"];
+        // The rows left out: named.
+        let err = italian("it-no-rows", &[], "").error();
+        assert!(
+            err.contains("reference it-fr glosses (its 2 acronym rows among them)")
+                && err.contains("2 only in it-fr/gloss.tsv (NATO, USA)"),
+            "{err}"
+        );
+        let err = italian("it-no-usa", &all, "NATO\nmarco\n").error();
+        assert!(err.contains("1 left out (USA)"), "{err}");
+        // A name that is no row listed while another is left out: named.
+        let err = italian("it-halves", &all, "NATO\nUSA\nmarco\nroma\n").error();
+        assert!(
+            err.contains("less the 2 it glosses by a proper noun's senses alone")
+                && err.contains("1 only in lexical.tsv (roma)"),
+            "{err}"
+        );
+        // A word with a common sense beside a name's left out: named.
+        let err = italian("it-word-out", &all, "NATO\nUSA\n").error();
+        assert!(err.contains("1 left out (marco)"), "{err}");
+        // A capital that is no form's own lemma is no row.
+        let root = italian("it-stray", &[], "NATO\nUSA\n");
+        root.write("it/forms.tsv", "NATO\tNATO\nUSA\tuso\n");
+        let err = root.error();
+        assert!(err.contains("1 only in lexical.tsv (USA)"), "{err}");
     }
 
     #[test]

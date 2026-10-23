@@ -1129,7 +1129,9 @@ class Reduction(unittest.TestCase):
     WEB = {"puo": "potere"}
 
     def setUp(self):
-        for table, rows in ((red.WEB_SPELLINGS, self.WEB), (red.OWNER_EXCEPTIONS, {})):
+        # Italian's acronym rows are the section's real headwords, which this small section has only
+        # where a test writes them (keep-lingua-italian-acronyms-and-names D2).
+        for table, rows in ((red.WEB_SPELLINGS, self.WEB), (red.OWNER_EXCEPTIONS, {}), (red.acronyms.ACRONYMS, {})):
             patch = mock.patch.dict(table, rows, clear=True)
             patch.start()
             self.addCleanup(patch.stop)
@@ -1243,6 +1245,58 @@ class Reduction(unittest.TestCase):
             first = {name: read(name) for name in ("forms.tsv", "freq.tsv", "NOTICE", "manifest.json")}
             self.run_reduction(work, red.MORPH_IT)
             self.assertEqual({name: read(name) for name in first}, first, "the same inputs give the same tables")
+
+    # keep-lingua-italian-acronyms-and-names D2, D6: the section's `NATO` and `USA` entries, `nato`
+    # and `usa` read as their words, the rows its table holds.
+    ACRONYM_ENTRIES = [
+        entry("NATO", pos="name", senses=[{"glosses": ["NATO"], "tags": ["abbreviation", "acronym"]}]),
+        {
+            "word": "USA",
+            "pos": "name",
+            "senses": [{"glosses": ["initialism of the United States of America"], "alt_of": [{"word": "the United States of America"}]}],
+            "synonyms": [{"word": "America"}, {"word": "Stati Uniti"}],
+        },
+        entry("nascere", pos="verb", forms=[*TABLE_HEAD, ("nàto", PARTICIPLE)]),
+        entry("uso", pos="adj", forms=[("usa", ["feminine", "singular"])]),
+        entry("ONU", pos="name", senses=[{"glosses": ["UN"]}]),
+    ]
+    ACRONYM_FREQUENCY = {"nascere": 4.0, "uso": 4.5, "onu": 3.5, "nato": 4.2, "usa": 4.4}
+
+    def test_spec_scenario_the_rows(self):
+        real = {
+            "NATO": ((), (), "PROPN", "the alliance"),
+            "USA": ((), ("America", "Stati Uniti"), "PROPN", "the country"),
+        }
+        with mock.patch.dict(red.acronyms.ACRONYMS, real, clear=True), tempfile.TemporaryDirectory() as work:
+            self.write_work(work, extra=self.ACRONYM_ENTRIES)
+            summary, lines = self.run_reduction(work, None, extra=self.ACRONYM_FREQUENCY)
+            forms = dict(line.split("\t") for line in _read(work, "forms.tsv").splitlines())
+            ranks = dict(line.split("\t") for line in _read(work, "freq.tsv").splitlines())
+            # Each row a form in capitals, its own lemma, with no rank; the lower case keeps its reading.
+            self.assertEqual((forms["NATO"], forms["USA"]), ("NATO", "USA"))
+            self.assertEqual((forms["nato"], forms["usa"]), ("nascere", "uso"))
+            self.assertEqual([f for f in forms if any(c.isupper() for c in f)], ["NATO", "USA"])
+            self.assertFalse({"NATO", "USA"} & set(ranks))
+            # The rows alone are Italian's dictionary words until change 16's glosses (D6).
+            self.assertEqual(_read(work, "lexical.tsv"), "NATO\nUSA\n")
+            self.assertEqual(_read(work, "gloss.tsv"), "")
+            self.assertEqual(summary["acronyms"], ["NATO", "USA"])
+            self.assertIn("reduced it-fr: acronyms=2 (NATO, USA), each a form in capitals that is its own lemma", "\n".join(lines))
+
+    def test_a_row_the_section_or_the_tables_do_not_back_fails_the_reduction(self):
+        for rows, refused in (
+            # No entry headed as the row: a row never writes one.
+            ({"ANSA": ((), (), "PROPN", "the press agency")}, "row ANSA has no entry headed ANSA"),
+            # A synonym its entry does not give.
+            ({"USA": ((), ("Stati Uniti", "Usa"), "PROPN", "x")}, "row USA names Usa"),
+            # Its lower case read as its own entry: the tables read it right with no row.
+            ({"ONU": ((), (), "PROPN", "x")}, "row(s) ONU"),
+        ):
+            with mock.patch.dict(red.acronyms.ACRONYMS, rows, clear=True), tempfile.TemporaryDirectory() as work:
+                self.write_work(work, extra=self.ACRONYM_ENTRIES)
+                with self.assertRaises(SystemExit) as raised:
+                    self.run_reduction(work, None, extra=self.ACRONYM_FREQUENCY)
+                self.assertIn(refused, str(raised.exception))
 
     def test_without_morph_it(self):
         with tempfile.TemporaryDirectory() as work:

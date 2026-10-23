@@ -1402,8 +1402,9 @@ class DumpsOnly(unittest.TestCase):
         self.assertIn('MARKIT = ("it_markit-ud-train.conllu", "it_markit-ud-dev.conllu")', reducer)
         self.assertEqual(
             [p.name for p in ps.rule_files(HERE / "reduce-it-fr.py")],
-            ["reduce-it-fr.py", "reduce_common.py", "reduce_italian_treebank.py"],
-            "it-fr loads the shared rules and MarkIT's, no edition's: its glosses are change 16's",
+            ["reduce-it-fr.py", "reduce_common.py", "reduce_italian_acronyms.py", "reduce_italian_treebank.py"],
+            "it-fr loads the shared rules, Italian's acronym table (keep-lingua-italian-acronyms-and-names) and "
+            "MarkIT's, no edition's: its glosses are change 16's",
         )
 
     def test_a_source_pinned_at_a_release_carries_the_sha256_its_bytes_must_have(self):
