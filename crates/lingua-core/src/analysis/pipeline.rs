@@ -118,7 +118,7 @@ pub(crate) fn resolve_lemmas(
     lexicon: &(impl Lexicon + ?Sized),
 ) -> (String, Vec<String>) {
     if alone
-        && reads_acronyms(studied)
+        && studied.reads_acronyms()
         && token.parts.is_empty()
         && let Some(acronym) = french::acronym(&token.text, lexicon)
     {
@@ -248,7 +248,7 @@ pub(crate) fn alone_in_capitals(
     tokens: &[Token],
     studied: StudiedLanguage,
 ) -> Vec<bool> {
-    if !reads_acronyms(studied) {
+    if !studied.reads_acronyms() {
         return vec![false; tokens.len()];
     }
     let shapes: Vec<Written> = tokens.iter().map(|token| written(text, token)).collect();
@@ -260,13 +260,6 @@ pub(crate) fn alone_in_capitals(
                 && !neighbour_in_capitals(i, i + 1..tokens.len(), tokens, &shapes)
         })
         .collect()
-}
-
-/// Whether a studied language reads a word standing alone in capitals as the acronym its
-/// pack lists: French (keep-lingua-french-acronyms-in-capitals) and Italian
-/// (keep-lingua-italian-acronyms-and-names D1). English and Spanish lowercase every word.
-fn reads_acronyms(studied: StudiedLanguage) -> bool {
-    matches!(studied, StudiedLanguage::French | StudiedLanguage::Italian)
 }
 
 /// Whether token `i`'s nearest neighbour among `others` (indexes, nearest first) is

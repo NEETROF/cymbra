@@ -94,6 +94,17 @@ impl StudiedLanguage {
         }
     }
 
+    /// Whether this language's analysis reads a word standing alone in capitals as the
+    /// acronym its pack lists, looked up as written before the cascade: French
+    /// (keep-lingua-french-acronyms-in-capitals) and Italian
+    /// (keep-lingua-italian-acronyms-and-names D1). English and Spanish lowercase every word.
+    /// The one list of them: the analysis gates on it (`pipeline::alone_in_capitals`,
+    /// `pipeline::resolve_lemmas`), and the pack builder accepts a form in capitals only in a
+    /// pack studying such a language.
+    pub fn reads_acronyms(self) -> bool {
+        matches!(self, StudiedLanguage::French | StudiedLanguage::Italian)
+    }
+
     fn whichlang_target(self) -> whichlang::Lang {
         match self {
             StudiedLanguage::English => whichlang::Lang::Eng,
@@ -1182,6 +1193,16 @@ mod tests {
             serde_json::from_str::<StudiedLanguage>("\"Italian\"").unwrap(),
             IT
         );
+    }
+
+    #[test]
+    fn french_and_italian_alone_read_acronyms() {
+        // keep-lingua-french-acronyms-in-capitals, keep-lingua-italian-acronyms-and-names D1.
+        assert_eq!(
+            StudiedLanguage::ALL.map(StudiedLanguage::reads_acronyms),
+            [false, false, true, true]
+        );
+        assert_eq!(StudiedLanguage::ALL, [EN, ES, FR, IT]);
     }
 
     #[test]

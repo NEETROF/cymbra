@@ -125,16 +125,18 @@ fn names_only(pair: &Pair) -> Result<BTreeSet<String>, String> {
 }
 
 /// A studied folder's acronym rows (keep-lingua-french-acronyms-in-capitals D2,
-/// keep-lingua-italian-acronyms-and-names D2, D5): the forms of its `forms.tsv` holding a
-/// capital, each its own lemma, as its reference's reduction writes them (`CA`, `NATO`,
-/// `USA`). A folder without forms has none.
+/// keep-lingua-italian-acronyms-and-names D2, D5): the forms of its `forms.tsv` written as
+/// the builder accepts an acronym — wholly in capitals, two letters or more
+/// ([`crate::is_acronym`]) —, each its own lemma, as its reference's reduction writes them
+/// (`CA`, `NATO`, `USA`). A form merely holding a capital (`Roma`) is none. A folder without
+/// forms has none.
 fn acronym_rows(dir: &Path) -> Result<BTreeSet<String>, String> {
     let text = read_optional(dir, "forms.tsv")
         .map_err(|e| format!("{}/forms.tsv: {e}", folder_name(dir)))?
         .unwrap_or_default();
     Ok(tsv_pairs(&text)
         .into_iter()
-        .filter(|(form, lemma)| form == lemma && form.chars().any(char::is_uppercase))
+        .filter(|(form, lemma)| form == lemma && crate::is_acronym(form))
         .map(|(form, _)| form)
         .collect())
 }
@@ -686,20 +688,27 @@ mod tests {
         root
     }
 
+    fn italian_passes(root: Root) {
+        assert_eq!(
+            check_committed_tables(&root.0),
+            Ok(vec!["it-fr".to_owned()])
+        );
+    }
+
     #[test]
     fn spec_scenario_the_rows_are_dictionary_words() {
-        // Before change 16 glosses anything, the rows alone (D6); after, either set with the rows,
-        // `NATO` unglossed and `USA` glossed by a proper noun's run alone.
-        let passes = |root: Root| {
-            assert_eq!(
-                check_committed_tables(&root.0),
-                Ok(vec!["it-fr".to_owned()])
-            );
-        };
-        passes(italian("it-rows", &[], "NATO\nUSA\n"));
+        // Before change 16 glosses anything, the rows alone (D6): `NATO` glossed by no sense run.
+        italian_passes(italian("it-rows", &[], "NATO\nUSA\n"));
+        // `USA` glossed by a proper noun's run alone is a dictionary word all the same.
+        italian_passes(italian("it-usa", &["USA"], "NATO\nUSA\n"));
+    }
+
+    #[test]
+    fn spec_scenario_every_glossed_lemma_or_every_one_but_the_names() {
+        // D5: either set the checks accept for every studied language, the rows in both.
         let all = ["USA", "firenze", "marco", "roma"];
-        passes(italian("it-all", &all, "NATO\nUSA\nfirenze\nmarco\nroma\n"));
-        passes(italian("it-names-out", &all, "NATO\nUSA\nmarco\n"));
+        italian_passes(italian("it-all", &all, "NATO\nUSA\nfirenze\nmarco\nroma\n"));
+        italian_passes(italian("it-names-out", &all, "NATO\nUSA\nmarco\n"));
     }
 
     #[test]
@@ -729,6 +738,12 @@ mod tests {
         root.write("it/forms.tsv", "NATO\tNATO\nUSA\tuso\n");
         let err = root.error();
         assert!(err.contains("1 only in lexical.tsv (USA)"), "{err}");
+        // Nor is a form its own lemma that merely holds a capital, or a single letter in capitals:
+        // a row is written as the builder accepts an acronym.
+        let root = italian("it-not-acronyms", &[], "I\nNATO\nRoma\nUSA\n");
+        root.write("it/forms.tsv", "I\tI\nNATO\tNATO\nRoma\tRoma\nUSA\tUSA\n");
+        let err = root.error();
+        assert!(err.contains("2 only in lexical.tsv (I, Roma)"), "{err}");
     }
 
     #[test]

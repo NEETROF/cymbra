@@ -320,9 +320,7 @@ fn check_capitals<'a>(
     lemmas: impl IntoIterator<Item = &'a str>,
 ) -> Result<(), BuildError> {
     let capital = |word: &str| word.chars().any(char::is_uppercase);
-    let acronym = |word: &str| {
-        matches!(studied, StudiedLanguage::French | StudiedLanguage::Italian) && is_acronym(word)
-    };
+    let acronym = |word: &str| studied.reads_acronyms() && is_acronym(word);
     for (form, lemma) in pairs {
         if (capital(form) || capital(lemma)) && !(form == lemma && acronym(form)) {
             let named = if capital(form) { form } else { lemma };
