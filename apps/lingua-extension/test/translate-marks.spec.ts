@@ -47,8 +47,9 @@ describe("A pair's marks are measured before they are shown", () => {
     const corpus = JSON.parse(readFileSync(join(marks, "corpus.json"), "utf8")) as {
       items: { lang: string; id: string }[];
     };
-    expect(new Set(corpus.items.map((item) => item.lang))).toEqual(new Set(["en", "es", "fr"])); // per studied language
-    for (const pair of MARKED_PAIRS) {
+    expect(new Set(corpus.items.map((item) => item.lang))).toEqual(new Set(["en", "es", "fr", "it"])); // per studied language
+    // Every judged pair, listed or not (measure-lingua-it-fr-translation-marks D4).
+    for (const pair of judgedPairs()) {
       const lines = results(pair);
       const items = corpus.items.filter((item) => item.lang === studiedOf(pair));
       expect(lines).toHaveLength(items.length);
@@ -56,19 +57,19 @@ describe("A pair's marks are measured before they are shown", () => {
       expect(judged(pair).total).toBe(lines.length);
     }
     // Nothing is filed by studied language any more.
-    for (const language of ["en", "es", "fr"]) {
+    for (const language of ["en", "es", "fr", "it"]) {
       expect(existsSync(join(marks, `results-${language}.jsonl`))).toBe(false);
       expect(existsSync(join(marks, `judged-${language}.tsv`))).toBe(false);
     }
   });
 
-  it("A studied language added to the corpus: English, Spanish and French, 100 selections each, every step's three taken from one sentence (add-lingua-french-translation D4)", () => {
+  it("A studied language added to the corpus: English, Spanish, French and Italian, 100 selections each, every step's four taken from one sentence (add-lingua-french-translation D4, measure-lingua-it-fr-translation-marks D1)", () => {
     const corpus = JSON.parse(readFileSync(join(marks, "corpus.json"), "utf8")) as {
       source: Record<string, { repo: string; commit: string; file: string; sha256: string }>;
       rule: string;
       items: { k: number; id: string; lang: string; word: string; start: number; end: number }[];
     };
-    expect(Object.keys(corpus.source)).toEqual(["en", "es", "fr"]);
+    expect(Object.keys(corpus.source)).toEqual(["en", "es", "fr", "it"]);
     // French PUD at the commit and sha256 add-lingua-french-forms-tables pins (its D9).
     expect(corpus.source.fr).toEqual({
       repo: "UD_French-PUD",
@@ -77,7 +78,7 @@ describe("A pair's marks are measured before they are shown", () => {
       sha256: "4dfed37b83d76e77fd2e9963d0be00d723e9a010e7e2a746f8b7640c48063c10",
     });
     expect(corpus.rule).toMatch(/the next sentence \(every language\)$/);
-    for (const language of ["en", "es", "fr"]) {
+    for (const language of ["en", "es", "fr", "it"]) {
       expect(
         corpus.items.filter((item) => item.lang === language),
         language,
@@ -90,12 +91,13 @@ describe("A pair's marks are measured before they are shown", () => {
       expect(
         items.map((item) => item.lang),
         `k ${k}`,
-      ).toEqual(["en", "es", "fr"]);
-      expect(new Set(items.map((item) => item.id)).size, `k ${k}`).toBe(1); // one sentence, read in three languages
+      ).toEqual(["en", "es", "fr", "it"]);
+      expect(new Set(items.map((item) => item.id)).size, `k ${k}`).toBe(1); // one sentence, read in four languages
     }
-    // A selection is a word, letters only, never an elided piece (« l' ») or a contraction (« du »).
-    for (const item of corpus.items.filter((i) => i.lang === "fr")) {
-      expect(item.word).toMatch(/^\p{L}{3,}$/u);
+    // A selection is a word, letters only, never an elided piece (« l' », « dell' ») or a contraction
+    // (« du », « nel »).
+    for (const item of corpus.items.filter((i) => i.lang === "fr" || i.lang === "it")) {
+      expect(item.word, `${item.lang} k ${item.k}`).toMatch(/^\p{L}{3,}$/u);
       expect(item.end - item.start).toBe(item.word.length);
     }
     // Added, French moved no other language's selection: each step's English and Spanish items are the
@@ -109,8 +111,49 @@ describe("A pair's marks are measured before they are shown", () => {
     }
   });
 
-  it("every result line's key is `translation`, its value the bracketed sentence without its brackets, its marks the bracketed slices (D1)", () => {
-    for (const pair of MARKED_PAIRS) {
+  it("Italian added to the corpus: each step's Italian selection is read from the sentence its other three were, and every selection of the other languages, and every committed result of the six measured pairs, stays as it was (measure-lingua-it-fr-translation-marks D1)", () => {
+    const corpus = JSON.parse(readFileSync(join(marks, "corpus.json"), "utf8")) as {
+      source: Record<string, { repo: string; commit: string; file: string; sha256: string }>;
+      items: { k: number; id: string; lang: string; word: string; upos: string }[];
+    };
+    // UD Italian-PUD at master's head on 2026-10-22, the corpus's own pin (D1).
+    expect(corpus.source.it).toEqual({
+      repo: "UD_Italian-PUD",
+      commit: "71d932aa096368331ba2fd9bc906ec8dd853da8e",
+      file: "it_pud-ud-test.conllu",
+      sha256: "ad5d302bdfd05194155d9ad43dc54c3cb915076d66b3eb6ef33eca9a11f1372a",
+    });
+    const italian = corpus.items.filter((item) => item.lang === "it");
+    const english = corpus.items.filter((item) => item.lang === "en");
+    // Italian has a word on every step, so no step moved to a later sentence: each Italian selection is
+    // read from its step's English one's sentence, the first being « parte ».
+    expect(italian.map((item) => [item.k, item.id])).toEqual(english.map((item) => [item.k, item.id]));
+    expect(italian.slice(0, 6).map((item) => item.word)).toEqual([
+      "parte",
+      "insegnare",
+      "volta",
+      "società",
+      "esperti",
+      "cresciuti",
+    ]);
+    // NOUN, VERB, NOUN, ADJ in turn, but on the eight steps the rule's fallback served.
+    const cycle = ["NOUN", "VERB", "NOUN", "ADJ"];
+    expect(italian.filter((item) => item.upos !== cycle[item.k % 4]).map((item) => item.k)).toEqual([
+      3, 11, 23, 31, 41, 49, 75, 83,
+    ]);
+    // Added, Italian moved nothing: the six measured pairs' results are on their studied language's
+    // selections, in order, word for word.
+    for (const pair of ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"]) {
+      const items = corpus.items.filter((item) => item.lang === studiedOf(pair));
+      expect(
+        results(pair).map((line) => [line.k, line.id, line.word]),
+        pair,
+      ).toEqual(items.map((item) => [item.k, item.id, item.word]));
+    }
+  });
+
+  it("every result line's key is `translation`, its value the bracketed sentence without its brackets, its marks the bracketed slices (D1) — for every judged pair, listed or not", () => {
+    for (const pair of judgedPairs()) {
       for (const line of results(pair)) {
         expect(line).not.toHaveProperty("french");
         expect(line).toHaveProperty("translation");
@@ -227,9 +270,41 @@ describe("A pair's marks are measured before they are shown", () => {
     }
   });
 
-  it("structural: the list is exactly the judged pairs on the first tier — a pair with no judged file, or short of the tier, is not listed", () => {
-    expect(MARKED_PAIRS).toEqual(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"]);
-    expect(new Set(judgedPairs())).toEqual(new Set(MARKED_PAIRS));
+  it("An Italian selection, through English, judged in French: it-fr, the Italian selections through it-en then en-fr, is listed on its own figures — 93 of 97, 3 % withheld, whatever the other pairs' are (measure-lingua-it-fr-translation-marks D3, D4)", () => {
+    expect(nativeOf("it-fr")).toBe("fr");
+    expect(judged("it-fr")).toEqual({ correct: 93, shown: 97, withheld: 3, total: 100 });
+    expect(firstTier(judged("it-fr"))).toBe(true);
+    expect(MARKED_PAIRS).toContain("it-fr");
+    // The Italian selections, in order: its own measurement, on no other pair's selections.
+    const corpus = JSON.parse(readFileSync(join(marks, "corpus.json"), "utf8")) as {
+      items: { lang: string; id: string }[];
+    };
+    const lines = results("it-fr");
+    expect(lines.map((line) => line.id)).toEqual(
+      corpus.items.filter((item) => item.lang === "it").map((item) => item.id),
+    );
+    // No request trapped and every fragment reconciled; the experiment left empty, no it-fr gloss
+    // table being committed at the run (the Italian programme's change 16).
+    expect(lines.every((line) => line.trapped === false && line.alone !== null && line.alone !== "")).toBe(true);
+    expect(lines.every((line) => line.gloss === null)).toBe(true);
+    // An Italian selection marked in the French sentence: « Nel corso » → « Tout au long de », an
+    // expression's rendering (the criteria's example, step 6).
+    expect(lines.find((line) => line.k === 6)?.shown).toMatch(/^⟦Tout⟧ au ⟦long⟧ de l'histoire/u);
+    // One judge — the doubtful lines named, and the tier held with them counted wrong (89 / 97).
+    const rows = readFileSync(join(marks, "judged-it-fr.tsv"), "utf8")
+      .split("\n")
+      .slice(1)
+      .filter((row) => row !== "")
+      .map((row) => row.split("\t"));
+    const doubtful = rows.filter((row) => row[6]!.startsWith("doubtful")).map((row) => row[0]);
+    expect(doubtful).toEqual(["14", "20", "29", "82"]);
+    const strict = { ...judged("it-fr"), correct: judged("it-fr").correct - doubtful.length };
+    expect(firstTier(strict)).toBe(true);
+  });
+
+  it("structural: the list is the judged pairs on the first tier — every listed pair judged, a judged pair listed exactly when its committed judgment reaches the tier, a pair with no judged file not listed (measure-lingua-it-fr-translation-marks D4)", () => {
+    expect(MARKED_PAIRS).toEqual(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr"]);
+    for (const pair of MARKED_PAIRS) expect(judgedPairs(), pair).toContain(pair);
     for (const pair of judgedPairs()) expect(MARKED_PAIRS.includes(pair), pair).toBe(firstTier(judged(pair)));
     expect(existsSync(join(marks, "judged-de-fr.tsv"))).toBe(false);
     expect(MARKED_PAIRS).not.toContain("de-fr");

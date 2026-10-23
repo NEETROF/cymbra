@@ -472,7 +472,7 @@ describe("the committed catalogue", () => {
     }
   });
 
-  it("A route of a pair studying French: no reader's pairs need fr-en or fr-es, and no reader fetches the fr-en model (french-translation D2)", () => {
+  it("A route of a pair studying French: no reader's pairs need fr-en, nor fr-es, and no reader fetches the fr-en model (french-translation D2)", () => {
     const c = parseCatalogue(committed);
     // Routed, on a list where no shipped pair studies French: change 35's, before change 52 listed fr-en and
     // fr-es (enable-lingua-french D5, below).

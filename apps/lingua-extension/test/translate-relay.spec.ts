@@ -82,8 +82,8 @@ describe("relayTranslation", () => {
     expect(marks.map((m) => fr.slice(m.start, m.end))).toEqual(["maison"]);
   });
 
-  it("The shipped pairs today: en-fr and es-fr are marked, as before; es-en, en-es, fr-en and fr-es are listed ahead of their readers (routes-by-pair D4, matrix-marks D5, french-translation D7)", () => {
-    expect(MARKED_PAIRS).toEqual(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"]);
+  it("The shipped pairs today: en-fr and es-fr are marked, as before; es-en, en-es, fr-en and fr-es were listed ahead of their readers, and it-fr is, inert until the Italian programme's change 20 (routes-by-pair D4, matrix-marks D5, french-translation D7, it-fr-translation-marks D4)", () => {
+    expect(MARKED_PAIRS).toEqual(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr"]);
     // Keyed by pair, never by studied language: a language alone is not in the list.
     expect(MARKED_PAIRS).not.toContain("en");
     expect(MARKED_PAIRS).not.toContain("es");
@@ -153,6 +153,31 @@ describe("relayTranslation", () => {
     if (result.kind !== "translated") throw new Error("not translated");
     const { sentence: es, marks } = result.translation;
     expect(marks.map((m) => es.slice(m.start, m.end))).toEqual(["caída"]);
+  });
+
+  it("An Italian selection, through English, judged in French: a reader of French on an Italian page goes through it-fr, marked in the French sentence on it-fr's own figures (it-fr-translation-marks D4)", async () => {
+    const { access, seen, pairs } = engine((markup) => ({
+      ok: true,
+      html:
+        markup === "caduta"
+          ? "chute"
+          : "Avec la <b>chute</b> de la dynastie Qing en 1911, la Mongolie déclare son indépendance.",
+    }));
+    const request = {
+      sentence: "Con la caduta della dinastia Qing nel 1911, la Mongolia dichiarò l'indipendenza.",
+      selection: { start: 7, end: 13 }, // « caduta »
+      language: "it",
+    };
+    expect(MARKED_PAIRS).toContain("it-fr"); // 93 of 97, 3 % withheld; inert until change 20 lists it-fr
+    const result = await relayTranslation(access, request, pairOf(request.language, "fr"));
+    expect(pairs).toEqual(["it-fr", "it-fr"]);
+    expect(seen).toEqual([
+      "Con la <b>caduta</b> della dinastia Qing nel 1911, la Mongolia dichiarò l'indipendenza.",
+      "caduta",
+    ]);
+    if (result.kind !== "translated") throw new Error("not translated");
+    const { sentence: fr, marks } = result.translation;
+    expect(marks.map((m) => fr.slice(m.start, m.end))).toEqual(["chute"]);
   });
 
   it("translates a sentence through an unmeasured pair untagged, once, without a mark (pivot D3)", async () => {

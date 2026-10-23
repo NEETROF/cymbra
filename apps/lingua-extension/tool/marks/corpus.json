@@ -17,6 +17,12 @@
       "commit": "db260db10fe728853c549760801229ef4e7b16e1",
       "file": "fr_pud-ud-test.conllu",
       "sha256": "4dfed37b83d76e77fd2e9963d0be00d723e9a010e7e2a746f8b7640c48063c10"
+    },
+    "it": {
+      "repo": "UD_Italian-PUD",
+      "commit": "71d932aa096368331ba2fd9bc906ec8dd853da8e",
+      "file": "it_pud-ud-test.conllu",
+      "sha256": "ad5d302bdfd05194155d9ad43dc54c3cb915076d66b3eb6ef33eca9a11f1372a"
     }
   },
   "rule": "every tenth PUD sentence; NOUN, VERB, NOUN, ADJ in turn; not the first word, letters only (3+), not in a multiword token; else the first NOUN/VERB/ADJ; else the next sentence (every language)",
@@ -52,6 +58,16 @@
       "end": 33
     },
     {
+      "k": 0,
+      "id": "n01001011",
+      "lang": "it",
+      "token": 4,
+      "word": "parte",
+      "upos": "NOUN",
+      "start": 13,
+      "end": 18
+    },
+    {
       "k": 1,
       "id": "n01004009",
       "lang": "en",
@@ -80,6 +96,16 @@
       "upos": "VERB",
       "start": 13,
       "end": 22
+    },
+    {
+      "k": 1,
+      "id": "n01004009",
+      "lang": "it",
+      "token": 3,
+      "word": "insegnare",
+      "upos": "VERB",
+      "start": 10,
+      "end": 19
     },
     {
       "k": 2,
@@ -112,6 +138,16 @@
       "end": 33
     },
     {
+      "k": 2,
+      "id": "n01010042",
+      "lang": "it",
+      "token": 2,
+      "word": "volta",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 9
+    },
+    {
       "k": 3,
       "id": "n01016014",
       "lang": "en",
@@ -140,6 +176,16 @@
       "upos": "ADJ",
       "start": 101,
       "end": 107
+    },
+    {
+      "k": 3,
+      "id": "n01016014",
+      "lang": "it",
+      "token": 2,
+      "word": "società",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 10
     },
     {
       "k": 4,
@@ -172,6 +218,16 @@
       "end": 16
     },
     {
+      "k": 4,
+      "id": "n01019005",
+      "lang": "it",
+      "token": 3,
+      "word": "esperti",
+      "upos": "NOUN",
+      "start": 16,
+      "end": 23
+    },
+    {
       "k": 5,
       "id": "n01022016",
       "lang": "en",
@@ -202,6 +258,16 @@
       "end": 53
     },
     {
+      "k": 5,
+      "id": "n01022016",
+      "lang": "it",
+      "token": 7,
+      "word": "cresciuti",
+      "upos": "VERB",
+      "start": 36,
+      "end": 45
+    },
+    {
       "k": 6,
       "id": "n01025045",
       "lang": "en",
@@ -229,6 +295,16 @@
       "word": "travers",
       "upos": "NOUN",
       "start": 2,
+      "end": 9
+    },
+    {
+      "k": 6,
+      "id": "n01025045",
+      "lang": "it",
+      "token": 3,
+      "word": "corso",
+      "upos": "NOUN",
+      "start": 4,
       "end": 9
     },
     {
@@ -262,6 +338,16 @@
       "end": 60
     },
     {
+      "k": 7,
+      "id": "n01029011",
+      "lang": "it",
+      "token": 7,
+      "word": "originaria",
+      "upos": "ADJ",
+      "start": 25,
+      "end": 35
+    },
+    {
       "k": 8,
       "id": "n01033021",
       "lang": "en",
@@ -290,6 +376,16 @@
       "upos": "NOUN",
       "start": 44,
       "end": 50
+    },
+    {
+      "k": 8,
+      "id": "n01033021",
+      "lang": "it",
+      "token": 4,
+      "word": "ricercatori",
+      "upos": "NOUN",
+      "start": 12,
+      "end": 23
     },
     {
       "k": 9,
@@ -322,6 +418,16 @@
       "end": 15
     },
     {
+      "k": 9,
+      "id": "n01036020",
+      "lang": "it",
+      "token": 5,
+      "word": "fossero",
+      "upos": "VERB",
+      "start": 22,
+      "end": 29
+    },
+    {
       "k": 10,
       "id": "n01041018",
       "lang": "en",
@@ -350,6 +456,16 @@
       "upos": "NOUN",
       "start": 4,
       "end": 12
+    },
+    {
+      "k": 10,
+      "id": "n01041018",
+      "lang": "it",
+      "token": 2,
+      "word": "medici",
+      "upos": "NOUN",
+      "start": 2,
+      "end": 8
     },
     {
       "k": 11,
@@ -382,6 +498,16 @@
       "end": 7
     },
     {
+      "k": 11,
+      "id": "n01045035",
+      "lang": "it",
+      "token": 2,
+      "word": "giudice",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 10
+    },
+    {
       "k": 12,
       "id": "n01050014",
       "lang": "en",
@@ -410,6 +536,16 @@
       "upos": "NOUN",
       "start": 32,
       "end": 36
+    },
+    {
+      "k": 12,
+      "id": "n01050014",
+      "lang": "it",
+      "token": 4,
+      "word": "livelli",
+      "upos": "NOUN",
+      "start": 18,
+      "end": 25
     },
     {
       "k": 13,
@@ -442,6 +578,16 @@
       "end": 48
     },
     {
+      "k": 13,
+      "id": "n01054011",
+      "lang": "it",
+      "token": 11,
+      "word": "pubblicate",
+      "upos": "VERB",
+      "start": 50,
+      "end": 60
+    },
+    {
       "k": 14,
       "id": "n01059008",
       "lang": "en",
@@ -470,6 +616,16 @@
       "upos": "NOUN",
       "start": 6,
       "end": 17
+    },
+    {
+      "k": 14,
+      "id": "n01059008",
+      "lang": "it",
+      "token": 2,
+      "word": "discordanza",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 14
     },
     {
       "k": 15,
@@ -502,6 +658,16 @@
       "end": 115
     },
     {
+      "k": 15,
+      "id": "n01063011",
+      "lang": "it",
+      "token": 22,
+      "word": "maggiore",
+      "upos": "ADJ",
+      "start": 114,
+      "end": 122
+    },
+    {
       "k": 16,
       "id": "n01066093",
       "lang": "en",
@@ -530,6 +696,16 @@
       "upos": "NOUN",
       "start": 19,
       "end": 26
+    },
+    {
+      "k": 16,
+      "id": "n01066093",
+      "lang": "it",
+      "token": 3,
+      "word": "trascuratezza",
+      "upos": "NOUN",
+      "start": 9,
+      "end": 22
     },
     {
       "k": 17,
@@ -562,6 +738,16 @@
       "end": 14
     },
     {
+      "k": 17,
+      "id": "n01070017",
+      "lang": "it",
+      "token": 3,
+      "word": "commentato",
+      "upos": "VERB",
+      "start": 8,
+      "end": 18
+    },
+    {
       "k": 18,
       "id": "n01074020",
       "lang": "en",
@@ -590,6 +776,16 @@
       "upos": "NOUN",
       "start": 15,
       "end": 18
+    },
+    {
+      "k": 18,
+      "id": "n01074020",
+      "lang": "it",
+      "token": 3,
+      "word": "gioco",
+      "upos": "NOUN",
+      "start": 7,
+      "end": 12
     },
     {
       "k": 19,
@@ -622,6 +818,16 @@
       "end": 48
     },
     {
+      "k": 19,
+      "id": "n01078025",
+      "lang": "it",
+      "token": 17,
+      "word": "nazista",
+      "upos": "ADJ",
+      "start": 88,
+      "end": 95
+    },
+    {
       "k": 20,
       "id": "n01084008",
       "lang": "en",
@@ -647,6 +853,16 @@
       "lang": "fr",
       "token": 4,
       "word": "couple",
+      "upos": "NOUN",
+      "start": 18,
+      "end": 24
+    },
+    {
+      "k": 20,
+      "id": "n01084008",
+      "lang": "it",
+      "token": 4,
+      "word": "coppia",
       "upos": "NOUN",
       "start": 18,
       "end": 24
@@ -682,6 +898,16 @@
       "end": 8
     },
     {
+      "k": 21,
+      "id": "n01087005",
+      "lang": "it",
+      "token": 3,
+      "word": "sostenere",
+      "upos": "VERB",
+      "start": 11,
+      "end": 20
+    },
+    {
       "k": 22,
       "id": "n01091013",
       "lang": "en",
@@ -710,6 +936,16 @@
       "upos": "NOUN",
       "start": 22,
       "end": 27
+    },
+    {
+      "k": 22,
+      "id": "n01091013",
+      "lang": "it",
+      "token": 3,
+      "word": "migliore",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 12
     },
     {
       "k": 23,
@@ -742,6 +978,16 @@
       "end": 39
     },
     {
+      "k": 23,
+      "id": "n01094014",
+      "lang": "it",
+      "token": 4,
+      "word": "mercati",
+      "upos": "NOUN",
+      "start": 18,
+      "end": 25
+    },
+    {
       "k": 24,
       "id": "n01097098",
       "lang": "en",
@@ -770,6 +1016,16 @@
       "upos": "NOUN",
       "start": 4,
       "end": 9
+    },
+    {
+      "k": 24,
+      "id": "n01097098",
+      "lang": "it",
+      "token": 4,
+      "word": "fermata",
+      "upos": "NOUN",
+      "start": 16,
+      "end": 23
     },
     {
       "k": 25,
@@ -802,6 +1058,16 @@
       "end": 71
     },
     {
+      "k": 25,
+      "id": "n01102006",
+      "lang": "it",
+      "token": 2,
+      "word": "detto",
+      "upos": "VERB",
+      "start": 3,
+      "end": 8
+    },
+    {
       "k": 26,
       "id": "n01107006",
       "lang": "en",
@@ -830,6 +1096,16 @@
       "upos": "NOUN",
       "start": 4,
       "end": 15
+    },
+    {
+      "k": 26,
+      "id": "n01107006",
+      "lang": "it",
+      "token": 8,
+      "word": "richieste",
+      "upos": "NOUN",
+      "start": 33,
+      "end": 42
     },
     {
       "k": 27,
@@ -862,6 +1138,16 @@
       "end": 95
     },
     {
+      "k": 27,
+      "id": "n01110008",
+      "lang": "it",
+      "token": 9,
+      "word": "identiche",
+      "upos": "ADJ",
+      "start": 51,
+      "end": 60
+    },
+    {
       "k": 28,
       "id": "n01114025",
       "lang": "en",
@@ -889,6 +1175,16 @@
       "word": "adultes",
       "upos": "NOUN",
       "start": 7,
+      "end": 14
+    },
+    {
+      "k": 28,
+      "id": "n01114025",
+      "lang": "it",
+      "token": 2,
+      "word": "adulti",
+      "upos": "NOUN",
+      "start": 8,
       "end": 14
     },
     {
@@ -922,6 +1218,16 @@
       "end": 13
     },
     {
+      "k": 29,
+      "id": "n01118003",
+      "lang": "it",
+      "token": 2,
+      "word": "cadere",
+      "upos": "VERB",
+      "start": 4,
+      "end": 10
+    },
+    {
       "k": 30,
       "id": "n01121032",
       "lang": "en",
@@ -950,6 +1256,16 @@
       "upos": "NOUN",
       "start": 65,
       "end": 69
+    },
+    {
+      "k": 30,
+      "id": "n01121032",
+      "lang": "it",
+      "token": 10,
+      "word": "volta",
+      "upos": "NOUN",
+      "start": 55,
+      "end": 60
     },
     {
       "k": 31,
@@ -982,6 +1298,16 @@
       "end": 15
     },
     {
+      "k": 31,
+      "id": "n01127089",
+      "lang": "it",
+      "token": 6,
+      "word": "scelta",
+      "upos": "VERB",
+      "start": 19,
+      "end": 25
+    },
+    {
       "k": 32,
       "id": "n01130003",
       "lang": "en",
@@ -1010,6 +1336,16 @@
       "upos": "NOUN",
       "start": 15,
       "end": 19
+    },
+    {
+      "k": 32,
+      "id": "n01130003",
+      "lang": "it",
+      "token": 5,
+      "word": "punto",
+      "upos": "NOUN",
+      "start": 20,
+      "end": 25
     },
     {
       "k": 33,
@@ -1042,6 +1378,16 @@
       "end": 14
     },
     {
+      "k": 33,
+      "id": "n01134015",
+      "lang": "it",
+      "token": 3,
+      "word": "riconosciuto",
+      "upos": "VERB",
+      "start": 10,
+      "end": 22
+    },
+    {
       "k": 34,
       "id": "n01138026",
       "lang": "en",
@@ -1070,6 +1416,16 @@
       "upos": "NOUN",
       "start": 13,
       "end": 21
+    },
+    {
+      "k": 34,
+      "id": "n01138026",
+      "lang": "it",
+      "token": 3,
+      "word": "episodi",
+      "upos": "NOUN",
+      "start": 8,
+      "end": 15
     },
     {
       "k": 35,
@@ -1102,6 +1458,16 @@
       "end": 51
     },
     {
+      "k": 35,
+      "id": "n01142008",
+      "lang": "it",
+      "token": 21,
+      "word": "incredibile",
+      "upos": "ADJ",
+      "start": 93,
+      "end": 104
+    },
+    {
       "k": 36,
       "id": "n01145028",
       "lang": "en",
@@ -1129,6 +1495,16 @@
       "word": "volontaires",
       "upos": "NOUN",
       "start": 12,
+      "end": 23
+    },
+    {
+      "k": 36,
+      "id": "n01145028",
+      "lang": "it",
+      "token": 4,
+      "word": "volontari",
+      "upos": "NOUN",
+      "start": 14,
       "end": 23
     },
     {
@@ -1162,6 +1538,16 @@
       "end": 34
     },
     {
+      "k": 37,
+      "id": "n01149027",
+      "lang": "it",
+      "token": 3,
+      "word": "vidi",
+      "upos": "VERB",
+      "start": 12,
+      "end": 16
+    },
+    {
       "k": 38,
       "id": "w01003056",
       "lang": "en",
@@ -1189,6 +1575,16 @@
       "word": "îles",
       "upos": "NOUN",
       "start": 4,
+      "end": 8
+    },
+    {
+      "k": 38,
+      "id": "w01003056",
+      "lang": "it",
+      "token": 2,
+      "word": "isole",
+      "upos": "NOUN",
+      "start": 3,
       "end": 8
     },
     {
@@ -1222,6 +1618,16 @@
       "end": 87
     },
     {
+      "k": 39,
+      "id": "w01007004",
+      "lang": "it",
+      "token": 18,
+      "word": "limitato",
+      "upos": "ADJ",
+      "start": 91,
+      "end": 99
+    },
+    {
       "k": 40,
       "id": "w01010046",
       "lang": "en",
@@ -1250,6 +1656,16 @@
       "upos": "NOUN",
       "start": 22,
       "end": 26
+    },
+    {
+      "k": 40,
+      "id": "w01010046",
+      "lang": "it",
+      "token": 8,
+      "word": "stato",
+      "upos": "NOUN",
+      "start": 32,
+      "end": 37
     },
     {
       "k": 41,
@@ -1282,6 +1698,16 @@
       "end": 15
     },
     {
+      "k": 41,
+      "id": "w01016070",
+      "lang": "it",
+      "token": 2,
+      "word": "esempio",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 10
+    },
+    {
       "k": 42,
       "id": "w01020018",
       "lang": "en",
@@ -1310,6 +1736,16 @@
       "upos": "NOUN",
       "start": 28,
       "end": 34
+    },
+    {
+      "k": 42,
+      "id": "w01020018",
+      "lang": "it",
+      "token": 2,
+      "word": "causa",
+      "upos": "NOUN",
+      "start": 2,
+      "end": 7
     },
     {
       "k": 43,
@@ -1342,6 +1778,16 @@
       "end": 13
     },
     {
+      "k": 43,
+      "id": "w01025085",
+      "lang": "it",
+      "token": 8,
+      "word": "importanti",
+      "upos": "ADJ",
+      "start": 35,
+      "end": 45
+    },
+    {
       "k": 44,
       "id": "w01028069",
       "lang": "en",
@@ -1370,6 +1816,16 @@
       "upos": "NOUN",
       "start": 4,
       "end": 13
+    },
+    {
+      "k": 44,
+      "id": "w01028069",
+      "lang": "it",
+      "token": 2,
+      "word": "reazione",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 11
     },
     {
       "k": 45,
@@ -1402,6 +1858,16 @@
       "end": 107
     },
     {
+      "k": 45,
+      "id": "w01031015",
+      "lang": "it",
+      "token": 3,
+      "word": "tende",
+      "upos": "VERB",
+      "start": 13,
+      "end": 18
+    },
+    {
       "k": 46,
       "id": "w01035081",
       "lang": "en",
@@ -1430,6 +1896,16 @@
       "upos": "NOUN",
       "start": 4,
       "end": 12
+    },
+    {
+      "k": 46,
+      "id": "w01035081",
+      "lang": "it",
+      "token": 2,
+      "word": "realtà",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 9
     },
     {
       "k": 47,
@@ -1462,6 +1938,16 @@
       "end": 11
     },
     {
+      "k": 47,
+      "id": "w01038044",
+      "lang": "it",
+      "token": 3,
+      "word": "indigeni",
+      "upos": "ADJ",
+      "start": 16,
+      "end": 24
+    },
+    {
       "k": 48,
       "id": "w01042055",
       "lang": "en",
@@ -1490,6 +1976,16 @@
       "upos": "NOUN",
       "start": 4,
       "end": 10
+    },
+    {
+      "k": 48,
+      "id": "w01042055",
+      "lang": "it",
+      "token": 2,
+      "word": "temporali",
+      "upos": "NOUN",
+      "start": 2,
+      "end": 11
     },
     {
       "k": 49,
@@ -1522,6 +2018,16 @@
       "end": 15
     },
     {
+      "k": 49,
+      "id": "w01046056",
+      "lang": "it",
+      "token": 2,
+      "word": "governo",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 10
+    },
+    {
       "k": 50,
       "id": "w01050067",
       "lang": "en",
@@ -1550,6 +2056,16 @@
       "upos": "NOUN",
       "start": 11,
       "end": 16
+    },
+    {
+      "k": 50,
+      "id": "w01050067",
+      "lang": "it",
+      "token": 3,
+      "word": "caduta",
+      "upos": "NOUN",
+      "start": 7,
+      "end": 13
     },
     {
       "k": 51,
@@ -1582,6 +2098,16 @@
       "end": 14
     },
     {
+      "k": 51,
+      "id": "w01053015",
+      "lang": "it",
+      "token": 3,
+      "word": "esatto",
+      "upos": "ADJ",
+      "start": 7,
+      "end": 13
+    },
+    {
       "k": 52,
       "id": "w01058009",
       "lang": "en",
@@ -1610,6 +2136,16 @@
       "upos": "NOUN",
       "start": 50,
       "end": 56
+    },
+    {
+      "k": 52,
+      "id": "w01058009",
+      "lang": "it",
+      "token": 11,
+      "word": "battaglia",
+      "upos": "NOUN",
+      "start": 60,
+      "end": 69
     },
     {
       "k": 53,
@@ -1642,6 +2178,16 @@
       "end": 24
     },
     {
+      "k": 53,
+      "id": "w01063048",
+      "lang": "it",
+      "token": 3,
+      "word": "rappresentavano",
+      "upos": "VERB",
+      "start": 8,
+      "end": 23
+    },
+    {
       "k": 54,
       "id": "w01066040",
       "lang": "en",
@@ -1670,6 +2216,16 @@
       "upos": "NOUN",
       "start": 35,
       "end": 40
+    },
+    {
+      "k": 54,
+      "id": "w01066040",
+      "lang": "it",
+      "token": 2,
+      "word": "capodanno",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 12
     },
     {
       "k": 55,
@@ -1702,6 +2258,16 @@
       "end": 28
     },
     {
+      "k": 55,
+      "id": "w01070031",
+      "lang": "it",
+      "token": 3,
+      "word": "astronomico",
+      "upos": "ADJ",
+      "start": 16,
+      "end": 27
+    },
+    {
       "k": 56,
       "id": "w01072079",
       "lang": "en",
@@ -1727,6 +2293,16 @@
       "lang": "fr",
       "token": 4,
       "word": "siècle",
+      "upos": "NOUN",
+      "start": 13,
+      "end": 19
+    },
+    {
+      "k": 56,
+      "id": "w01072079",
+      "lang": "it",
+      "token": 4,
+      "word": "secolo",
       "upos": "NOUN",
       "start": 13,
       "end": 19
@@ -1762,6 +2338,16 @@
       "end": 13
     },
     {
+      "k": 57,
+      "id": "w01075039",
+      "lang": "it",
+      "token": 15,
+      "word": "comprendono",
+      "upos": "VERB",
+      "start": 67,
+      "end": 78
+    },
+    {
       "k": 58,
       "id": "w01080129",
       "lang": "en",
@@ -1790,6 +2376,16 @@
       "upos": "NOUN",
       "start": 35,
       "end": 42
+    },
+    {
+      "k": 58,
+      "id": "w01080129",
+      "lang": "it",
+      "token": 4,
+      "word": "seguito",
+      "upos": "NOUN",
+      "start": 18,
+      "end": 25
     },
     {
       "k": 59,
@@ -1822,6 +2418,16 @@
       "end": 7
     },
     {
+      "k": 59,
+      "id": "w01085004",
+      "lang": "it",
+      "token": 4,
+      "word": "buoni",
+      "upos": "ADJ",
+      "start": 19,
+      "end": 24
+    },
+    {
       "k": 60,
       "id": "w01089040",
       "lang": "en",
@@ -1850,6 +2456,16 @@
       "upos": "NOUN",
       "start": 8,
       "end": 14
+    },
+    {
+      "k": 60,
+      "id": "w01089040",
+      "lang": "it",
+      "token": 3,
+      "word": "tempo",
+      "upos": "NOUN",
+      "start": 7,
+      "end": 12
     },
     {
       "k": 61,
@@ -1882,6 +2498,16 @@
       "end": 30
     },
     {
+      "k": 61,
+      "id": "w01095090",
+      "lang": "it",
+      "token": 3,
+      "word": "riguarda",
+      "upos": "VERB",
+      "start": 11,
+      "end": 19
+    },
+    {
       "k": 62,
       "id": "w01099012",
       "lang": "en",
@@ -1910,6 +2536,16 @@
       "upos": "NOUN",
       "start": 4,
       "end": 16
+    },
+    {
+      "k": 62,
+      "id": "w01099012",
+      "lang": "it",
+      "token": 2,
+      "word": "spiegazioni",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 14
     },
     {
       "k": 63,
@@ -1942,6 +2578,16 @@
       "end": 34
     },
     {
+      "k": 63,
+      "id": "w01102020",
+      "lang": "it",
+      "token": 15,
+      "word": "paramilitari",
+      "upos": "ADJ",
+      "start": 67,
+      "end": 79
+    },
+    {
       "k": 64,
       "id": "w01106073",
       "lang": "en",
@@ -1970,6 +2616,16 @@
       "upos": "NOUN",
       "start": 9,
       "end": 17
+    },
+    {
+      "k": 64,
+      "id": "w01106073",
+      "lang": "it",
+      "token": 3,
+      "word": "quota",
+      "upos": "NOUN",
+      "start": 7,
+      "end": 12
     },
     {
       "k": 65,
@@ -2002,6 +2658,16 @@
       "end": 22
     },
     {
+      "k": 65,
+      "id": "w01111089",
+      "lang": "it",
+      "token": 2,
+      "word": "conobbe",
+      "upos": "VERB",
+      "start": 9,
+      "end": 16
+    },
+    {
       "k": 66,
       "id": "w01115023",
       "lang": "en",
@@ -2030,6 +2696,16 @@
       "upos": "NOUN",
       "start": 25,
       "end": 35
+    },
+    {
+      "k": 66,
+      "id": "w01115023",
+      "lang": "it",
+      "token": 11,
+      "word": "recensioni",
+      "upos": "NOUN",
+      "start": 60,
+      "end": 70
     },
     {
       "k": 67,
@@ -2062,6 +2738,16 @@
       "end": 53
     },
     {
+      "k": 67,
+      "id": "w01119059",
+      "lang": "it",
+      "token": 5,
+      "word": "simili",
+      "upos": "ADJ",
+      "start": 21,
+      "end": 27
+    },
+    {
       "k": 68,
       "id": "w01125036",
       "lang": "en",
@@ -2090,6 +2776,16 @@
       "upos": "NOUN",
       "start": 52,
       "end": 58
+    },
+    {
+      "k": 68,
+      "id": "w01125036",
+      "lang": "it",
+      "token": 7,
+      "word": "ore",
+      "upos": "NOUN",
+      "start": 42,
+      "end": 45
     },
     {
       "k": 69,
@@ -2122,6 +2818,16 @@
       "end": 19
     },
     {
+      "k": 69,
+      "id": "w01130099",
+      "lang": "it",
+      "token": 6,
+      "word": "rilasciò",
+      "upos": "VERB",
+      "start": 24,
+      "end": 32
+    },
+    {
       "k": 70,
       "id": "w01133014",
       "lang": "en",
@@ -2150,6 +2856,16 @@
       "upos": "NOUN",
       "start": 27,
       "end": 30
+    },
+    {
+      "k": 70,
+      "id": "w01133014",
+      "lang": "it",
+      "token": 4,
+      "word": "sceneggiatore",
+      "upos": "NOUN",
+      "start": 22,
+      "end": 35
     },
     {
       "k": 71,
@@ -2182,6 +2898,16 @@
       "end": 79
     },
     {
+      "k": 71,
+      "id": "w01136029",
+      "lang": "it",
+      "token": 10,
+      "word": "stereotipata",
+      "upos": "ADJ",
+      "start": 69,
+      "end": 81
+    },
+    {
       "k": 72,
       "id": "w01140032",
       "lang": "en",
@@ -2210,6 +2936,16 @@
       "upos": "NOUN",
       "start": 31,
       "end": 38
+    },
+    {
+      "k": 72,
+      "id": "w01140032",
+      "lang": "it",
+      "token": 4,
+      "word": "metodo",
+      "upos": "NOUN",
+      "start": 17,
+      "end": 23
     },
     {
       "k": 73,
@@ -2242,6 +2978,16 @@
       "end": 9
     },
     {
+      "k": 73,
+      "id": "w01143037",
+      "lang": "it",
+      "token": 14,
+      "word": "interpreta",
+      "upos": "VERB",
+      "start": 70,
+      "end": 80
+    },
+    {
       "k": 74,
       "id": "w01147122",
       "lang": "en",
@@ -2270,6 +3016,16 @@
       "upos": "NOUN",
       "start": 3,
       "end": 7
+    },
+    {
+      "k": 74,
+      "id": "w01147122",
+      "lang": "it",
+      "token": 2,
+      "word": "agosto",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 9
     },
     {
       "k": 75,
@@ -2302,6 +3058,16 @@
       "end": 13
     },
     {
+      "k": 75,
+      "id": "n02002007",
+      "lang": "it",
+      "token": 2,
+      "word": "agenti",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 10
+    },
+    {
       "k": 76,
       "id": "n02027007",
       "lang": "en",
@@ -2330,6 +3096,16 @@
       "upos": "NOUN",
       "start": 23,
       "end": 29
+    },
+    {
+      "k": 76,
+      "id": "n02027007",
+      "lang": "it",
+      "token": 5,
+      "word": "agenti",
+      "upos": "NOUN",
+      "start": 20,
+      "end": 26
     },
     {
       "k": 77,
@@ -2362,6 +3138,16 @@
       "end": 32
     },
     {
+      "k": 77,
+      "id": "n02038007",
+      "lang": "it",
+      "token": 3,
+      "word": "procede",
+      "upos": "VERB",
+      "start": 17,
+      "end": 24
+    },
+    {
       "k": 78,
       "id": "n02048002",
       "lang": "en",
@@ -2390,6 +3176,16 @@
       "upos": "VERB",
       "start": 21,
       "end": 29
+    },
+    {
+      "k": 78,
+      "id": "n02048002",
+      "lang": "it",
+      "token": 4,
+      "word": "sveglia",
+      "upos": "NOUN",
+      "start": 15,
+      "end": 22
     },
     {
       "k": 79,
@@ -2422,6 +3218,16 @@
       "end": 14
     },
     {
+      "k": 79,
+      "id": "n02073024",
+      "lang": "it",
+      "token": 16,
+      "word": "nemiche",
+      "upos": "ADJ",
+      "start": 72,
+      "end": 79
+    },
+    {
       "k": 80,
       "id": "n03001007",
       "lang": "en",
@@ -2452,6 +3258,16 @@
       "end": 35
     },
     {
+      "k": 80,
+      "id": "n03001007",
+      "lang": "it",
+      "token": 2,
+      "word": "differenza",
+      "upos": "NOUN",
+      "start": 2,
+      "end": 12
+    },
+    {
       "k": 81,
       "id": "n03005025",
       "lang": "en",
@@ -2477,6 +3293,16 @@
       "lang": "fr",
       "token": 11,
       "word": "taxait",
+      "upos": "VERB",
+      "start": 51,
+      "end": 57
+    },
+    {
+      "k": 81,
+      "id": "n03005025",
+      "lang": "it",
+      "token": 10,
+      "word": "accusò",
       "upos": "VERB",
       "start": 51,
       "end": 57
@@ -2512,6 +3338,16 @@
       "end": 28
     },
     {
+      "k": 82,
+      "id": "n03008011",
+      "lang": "it",
+      "token": 6,
+      "word": "sgoccioli",
+      "upos": "NOUN",
+      "start": 12,
+      "end": 21
+    },
+    {
       "k": 83,
       "id": "n04003043",
       "lang": "en",
@@ -2540,6 +3376,16 @@
       "upos": "NOUN",
       "start": 20,
       "end": 27
+    },
+    {
+      "k": 83,
+      "id": "n04003043",
+      "lang": "it",
+      "token": 2,
+      "word": "canzone",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 10
     },
     {
       "k": 84,
@@ -2572,6 +3418,16 @@
       "end": 38
     },
     {
+      "k": 84,
+      "id": "n04007018",
+      "lang": "it",
+      "token": 6,
+      "word": "nota",
+      "upos": "NOUN",
+      "start": 23,
+      "end": 27
+    },
+    {
       "k": 85,
       "id": "n05001005",
       "lang": "en",
@@ -2600,6 +3456,16 @@
       "upos": "VERB",
       "start": 62,
       "end": 72
+    },
+    {
+      "k": 85,
+      "id": "n05001005",
+      "lang": "it",
+      "token": 12,
+      "word": "rappresenta",
+      "upos": "VERB",
+      "start": 63,
+      "end": 74
     },
     {
       "k": 86,
@@ -2632,6 +3498,16 @@
       "end": 8
     },
     {
+      "k": 86,
+      "id": "n05003022",
+      "lang": "it",
+      "token": 6,
+      "word": "unico",
+      "upos": "NOUN",
+      "start": 19,
+      "end": 24
+    },
+    {
       "k": 87,
       "id": "n05008012",
       "lang": "en",
@@ -2660,6 +3536,16 @@
       "upos": "ADJ",
       "start": 37,
       "end": 44
+    },
+    {
+      "k": 87,
+      "id": "n05008012",
+      "lang": "it",
+      "token": 8,
+      "word": "preoccupato",
+      "upos": "ADJ",
+      "start": 34,
+      "end": 45
     },
     {
       "k": 88,
@@ -2692,6 +3578,16 @@
       "end": 48
     },
     {
+      "k": 88,
+      "id": "w02003037",
+      "lang": "it",
+      "token": 7,
+      "word": "chiostro",
+      "upos": "NOUN",
+      "start": 21,
+      "end": 29
+    },
+    {
       "k": 89,
       "id": "w02006081",
       "lang": "en",
@@ -2720,6 +3616,16 @@
       "upos": "VERB",
       "start": 68,
       "end": 77
+    },
+    {
+      "k": 89,
+      "id": "w02006081",
+      "lang": "it",
+      "token": 16,
+      "word": "vincere",
+      "upos": "VERB",
+      "start": 75,
+      "end": 82
     },
     {
       "k": 90,
@@ -2752,6 +3658,16 @@
       "end": 11
     },
     {
+      "k": 90,
+      "id": "w02009002",
+      "lang": "it",
+      "token": 2,
+      "word": "rigore",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 9
+    },
+    {
       "k": 91,
       "id": "w02014013",
       "lang": "en",
@@ -2780,6 +3696,16 @@
       "upos": "ADJ",
       "start": 12,
       "end": 20
+    },
+    {
+      "k": 91,
+      "id": "w02014013",
+      "lang": "it",
+      "token": 4,
+      "word": "ultimi",
+      "upos": "ADJ",
+      "start": 10,
+      "end": 16
     },
     {
       "k": 92,
@@ -2812,6 +3738,16 @@
       "end": 10
     },
     {
+      "k": 92,
+      "id": "w02017061",
+      "lang": "it",
+      "token": 2,
+      "word": "tracce",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 9
+    },
+    {
       "k": 93,
       "id": "w03003039",
       "lang": "en",
@@ -2840,6 +3776,16 @@
       "upos": "VERB",
       "start": 72,
       "end": 80
+    },
+    {
+      "k": 93,
+      "id": "w03003039",
+      "lang": "it",
+      "token": 14,
+      "word": "capitanata",
+      "upos": "VERB",
+      "start": 64,
+      "end": 74
     },
     {
       "k": 94,
@@ -2872,6 +3818,16 @@
       "end": 29
     },
     {
+      "k": 94,
+      "id": "w03007039",
+      "lang": "it",
+      "token": 2,
+      "word": "commercio",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 12
+    },
+    {
       "k": 95,
       "id": "w04001027",
       "lang": "en",
@@ -2900,6 +3856,16 @@
       "upos": "ADJ",
       "start": 15,
       "end": 25
+    },
+    {
+      "k": 95,
+      "id": "w04001027",
+      "lang": "it",
+      "token": 4,
+      "word": "inferiore",
+      "upos": "ADJ",
+      "start": 12,
+      "end": 21
     },
     {
       "k": 96,
@@ -2932,6 +3898,16 @@
       "end": 18
     },
     {
+      "k": 96,
+      "id": "w04004051",
+      "lang": "it",
+      "token": 18,
+      "word": "parte",
+      "upos": "NOUN",
+      "start": 90,
+      "end": 95
+    },
+    {
       "k": 97,
       "id": "w04010027",
       "lang": "en",
@@ -2960,6 +3936,16 @@
       "upos": "VERB",
       "start": 78,
       "end": 88
+    },
+    {
+      "k": 97,
+      "id": "w04010027",
+      "lang": "it",
+      "token": 13,
+      "word": "incontrano",
+      "upos": "VERB",
+      "start": 74,
+      "end": 84
     },
     {
       "k": 98,
@@ -2992,6 +3978,16 @@
       "end": 21
     },
     {
+      "k": 98,
+      "id": "w05003012",
+      "lang": "it",
+      "token": 4,
+      "word": "sospensione",
+      "upos": "NOUN",
+      "start": 13,
+      "end": 24
+    },
+    {
       "k": 99,
       "id": "w05006058",
       "lang": "en",
@@ -3020,6 +4016,16 @@
       "upos": "ADJ",
       "start": 2,
       "end": 7
+    },
+    {
+      "k": 99,
+      "id": "w05006058",
+      "lang": "it",
+      "token": 6,
+      "word": "esterne",
+      "upos": "ADJ",
+      "start": 21,
+      "end": 28
     }
   ]
 }

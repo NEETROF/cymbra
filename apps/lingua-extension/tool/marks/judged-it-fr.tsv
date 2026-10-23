@@ -1,0 +1,101 @@
+k	id	word	upos	engine_marks	engine	engine_reason	gloss_marks	gloss	gloss_reason
+0	n01001011	parte	NOUN		withheld	no mark (« gran parte della » → « une grande partie de »)			
+1	n01004009	insegnare	VERB	d'enseigner	correct				
+2	n01010042	volta	NOUN	fois	correct				
+3	n01016014	società	NOUN	La société	correct				
+4	n01019005	esperti	NOUN	experts	correct				
+5	n01022016	cresciuti	VERB	ont augmenté	correct				
+6	n01025045	corso	NOUN	Tout | long	correct	« Nel corso » → « Tout au long de », an expression's rendering, its marks split			
+7	n01029011	originaria	ADJ	originaire de	correct				
+8	n01033021	ricercatori	NOUN	chercheurs	correct				
+9	n01036020	fossero	VERB	ait	correct				
+10	n01041018	medici	NOUN	médecins	correct				
+11	n01045035	giudice	NOUN	juge	correct				
+12	n01050014	livelli	NOUN	niveaux	correct				
+13	n01054011	pubblicate	VERB	publiées	correct				
+14	n01059008	discordanza	NOUN	discorde	correct	doubtful: « discordanza » rendered « discorde » (strife), a loose rendering the mark follows			
+15	n01063011	maggiore	ADJ	plus grande	correct				
+16	n01066093	trascuratezza	NOUN	"La négligence	correct				
+17	n01070017	commentato	VERB	a commenté	correct				
+18	n01074020	gioco	NOUN	jeu	correct				
+19	n01078025	nazista	ADJ	nazi	correct				
+20	n01084008	coppia	NOUN	paire	correct	doubtful: « coppia » (a couple) rendered « paire », a loose rendering the mark follows			
+21	n01087005	sostenere	VERB	soutenir	correct				
+22	n01091013	migliore	NOUN	mieux	correct				
+23	n01094014	mercati	NOUN	des marchés	correct				
+24	n01097098	fermata	NOUN	arrêt	correct				
+25	n01102006	detto	VERB	déclaré	correct				
+26	n01107006	richieste	NOUN	demandes	correct				
+27	n01110008	identiche	ADJ	identiques	correct				
+28	n01114025	adulti	NOUN	adultes	correct				
+29	n01118003	cadere	VERB	Lâche le	correct	doubtful: the mark is on « Lâche » (« Fa' cadere »), with a stray « le » (« micro »'s article)			
+30	n01121032	volta	NOUN	fois	correct				
+31	n01127089	scelta	VERB	choisie	correct				
+32	n01130003	punto	NOUN	point	correct				
+33	n01134015	riconosciuto	VERB	crédité	correct				
+34	n01138026	episodi	NOUN	épisodes	correct				
+35	n01142008	incredibile	ADJ	incroyable	correct				
+36	n01145028	volontari	NOUN	bénévoles	correct				
+37	n01149027	vidi	VERB	, j'ai vu	correct	carries « j' », the subject the route adds, and the comma before it			
+38	w01003056	isole	NOUN	granit	wrong	marks « granit » instead of « îles »			
+39	w01007004	limitato	ADJ	limité	correct				
+40	w01010046	stato	NOUN	l'état	correct				
+41	w01016070	esempio	NOUN	exemple	correct				
+42	w01020018	causa	NOUN	En raison	correct				
+43	w01025085	importanti	ADJ	d'importantes	correct				
+44	w01028069	reazione	NOUN	réaction	correct				
+45	w01031015	tende	VERB	a tendance	correct				
+46	w01035081	realtà	NOUN	fait	correct				
+47	w01038044	indigeni	ADJ	autochtones	correct				
+48	w01042055	temporali	NOUN	Les orages	correct				
+49	w01046056	governo	NOUN	gouvernement	correct				
+50	w01050067	caduta	NOUN	chute	correct				
+51	w01053015	esatto	ADJ	exacte	correct				
+52	w01058009	battaglia	NOUN	au	wrong	marks « au » alone instead of « combat »			
+53	w01063048	rappresentavano	VERB	représentaient	correct				
+54	w01066040	capodanno	NOUN	Nouvel An	correct				
+55	w01070031	astronomico	ADJ	astronomique	correct				
+56	w01072079	secolo	NOUN	siècle	correct				
+57	w01075039	comprendono	VERB	qui	wrong	marks « qui » instead of « comprennent »			
+58	w01080129	seguito	NOUN	plus tard	correct				
+59	w01085004	buoni	ADJ	bons	correct				
+60	w01089040	tempo	NOUN	époque	correct				
+61	w01095090	riguarda	VERB		withheld	no mark (« Per quanto riguarda » → « Quant à »)			
+62	w01099012	spiegazioni	NOUN	Les explications	correct				
+63	w01102020	paramilitari	ADJ	paramilitaires	correct				
+64	w01106073	quota	NOUN	altitude	correct				
+65	w01111089	conobbe	VERB	a rencontré	correct	« conobbe » (met) rendered « a rencontré », a compound past			
+66	w01115023	recensioni	NOUN	critiques	correct				
+67	w01119059	simili	ADJ	similaires	correct				
+68	w01125036	ore	NOUN	des heures	correct				
+69	w01130099	rilasciò	VERB	a	wrong	marks the auxiliary « a » alone instead of « a sorti »			
+70	w01133014	sceneggiatore	NOUN	scénariste	correct				
+71	w01136029	stereotipata	ADJ		withheld	no mark (« stereotipata » → « stéréotypée », unmarked)			
+72	w01140032	metodo	NOUN	méthode	correct				
+73	w01143037	interpreta	VERB	il a joué	correct	carries « il », the subject the route adds			
+74	w01147122	agosto	NOUN	août	correct				
+75	n02002007	agenti	NOUN	agents	correct				
+76	n02027007	agenti	NOUN	agents	correct				
+77	n02038007	procede	VERB	procède	correct				
+78	n02048002	sveglia	NOUN	réveil	correct				
+79	n02073024	nemiche	ADJ	ennemies	correct				
+80	n03001007	differenza	NOUN	Contrairement	correct				
+81	n03005025	accusò	VERB	a accusé	correct				
+82	n03008011	sgoccioli	NOUN	son infarest",	correct	doubtful: « agli sgoccioli » rendered « son infarest" », a garbled non-word the mark follows (as es-fr k 15)			
+83	n04003043	canzone	NOUN	chanson	correct				
+84	n04007018	nota	NOUN	note	correct				
+85	n05001005	rappresenta	VERB	représente	correct				
+86	n05003022	unico	NOUN	seul	correct				
+87	n05008012	preoccupato	ADJ	préoccupé	correct				
+88	w02003037	chiostro	NOUN	cloître	correct				
+89	w02006081	vincere	VERB	gagner	correct				
+90	w02009002	rigore	NOUN	rigueur	correct				
+91	w02014013	ultimi	ADJ	derniers	correct				
+92	w02017061	tracce	NOUN	traces	correct				
+93	w03003039	capitanata	VERB	commandé	correct				
+94	w03007039	commercio	NOUN	commerce	correct				
+95	w04001027	inferiore	ADJ	inférieure	correct				
+96	w04004051	parte	NOUN	partie de	correct				
+97	w04010027	incontrano	VERB	se retrouvent	correct				
+98	w05003012	sospensione	NOUN	suspension	correct				
+99	w05006058	esterne	ADJ	externes	correct				

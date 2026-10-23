@@ -9,14 +9,17 @@
 // there as the extension answers it (measure-lingua-translation-matrix-marks D2).
 //
 // Usage: node --experimental-strip-types tool/measure_marks.mjs --pair <pair> [--models <assembled-site-dir>]
-//   The pair is one the catalogue routes (en-fr, es-fr, es-en, en-es, fr-en, and fr-es through
-//   English); the corpus is its studied language's, and the gloss experiment's stop words are its
-//   native language's, read from the route's last model (tool/marks/stop-words.mjs). The experiment
-//   reads the pair's gloss table only when it holds a gloss (add-lingua-french-translation D6). The
-//   models come from that directory (tool/assemble_model_site.mjs) or, without it, from the
-//   catalogue's host; every file is checked against the catalogue's sha256 before use. The engine
-//   itself is loaded by tool/marks/engine.mjs, shared with the soak (tool/soak_engine.mjs); a
-//   request that traps it is asked once more on a fresh one.
+//   The pair is one the catalogue routes and the corpus holds selections of: en-fr, es-fr, es-en,
+//   en-es, fr-en, fr-es, and it-fr through it-en then en-fr (measure-lingua-it-fr-translation-marks).
+//   it-en and it-es are measured on the same Italian selections by their own rows, and a pair glossed
+//   in Italian once tool/marks/stop-words.mjs holds Italian's. The corpus is the pair's studied
+//   language's, and the gloss experiment's stop words are its native language's, read from the
+//   route's last model (tool/marks/stop-words.mjs). The experiment reads the pair's gloss table only
+//   when it holds a gloss (add-lingua-french-translation D6). The models come from that directory
+//   (tool/assemble_model_site.mjs) or, without it, from the catalogue's host; every file is checked
+//   against the catalogue's sha256 before use. The engine itself is loaded by tool/marks/engine.mjs,
+//   shared with the soak (tool/soak_engine.mjs); a request that traps it is asked once more on a
+//   fresh one.
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
