@@ -13,10 +13,14 @@
 // limitations under the License.
 
 //! The Italian invariance baseline's scenario (`italian_baseline.rs`): its corpus, probes and
-//! reader (add-lingua-italian-baseline D5). Italian has its tokenisation pre-pass at `0.2.0`
+//! reader (add-lingua-italian-baseline D5). Italian has its tokenisation pre-pass since `0.2.0`
 //! (add-lingua-italian-tokenisation): elided pieces, the articulated prepositions split but for
-//! the `di` family, truncations read as their word; its probes gain an elided piece and a
-//! contraction a word card is handed alone, and three phrases (D7).
+//! the `di` family, truncations read as their word; its probes gained an elided piece and a
+//! contraction a word card is handed alone, and three phrases (D7). Italian has its own
+//! analysis at `1.0.0` (add-lingua-italian-analysis): its pre-pass reads every word in NFC, its
+//! cascade reads a verb's clitic pronouns off an unlisted form, its closed classes flag a phrase
+//! gloss's function words and an Italian document's names are set aside; its probes gain two
+//! phrases with a clitic and a grammar pair (D7).
 //!
 //! The corpus, `baseline/pages-it.txt`, is authored for these tests, page by page, around what a
 //! later change of the Italian stage must show, with two exceptions, quoted from texts in the
@@ -147,6 +151,8 @@ const PHRASES: &[&str] = &[
     "dirmelo subito",
     "vattene",
     "eccolo di nuovo",
+    "Non lo so, dimmelo tu",
+    "Eccolo, è arrivato dall'Italia",
     "E' troppo tardi perche' la citta' e' piu' lontana",
     "non di il che",
     "The lighthouse stood",
@@ -160,7 +166,8 @@ const PHRASES: &[&str] = &[
 /// (word as written, dictionary form) pairs a word card asks the grammar of. The fixture has no
 /// grammar tables: each answers its gloss alone, and a written word Italian's pre-pass splits
 /// answers its pieces — `al`, `l'uomo` —, an elided piece handed alone none (`l’`), asked by its
-/// written reading (`lo`) or by its lemma (`il`).
+/// written reading (`lo`) or by its lemma (`il`); a verb carrying its clitics, by its verb
+/// (`dirmelo`, `vattene`).
 const GRAMMAR: &[(&str, &str)] = &[
     ("è", "essere"),
     ("sono", "essere"),
@@ -190,6 +197,7 @@ const GRAMMAR: &[(&str, &str)] = &[
     // The fixture files `lo` under `il`: asked by its lemma, the elided article shows its gloss.
     ("l’", "il"),
     ("dirmelo", "dire"),
+    ("vattene", "andare"),
 ];
 
 /// The pages analysed again for the reader with a history.

@@ -49,7 +49,7 @@ The core SHALL read Italian text in Unicode normalisation form C: its tokenisati
 - **THEN** its token's text is the decomposed source, as before
 
 ### Requirement: Italian lemmatisation cascade
-For each Italian token, the core SHALL produce a lowercase lemma through the cascade: the pack's forms → the enclitic rule → an unlisted plural whose singular the pack does not list either, read as that singular → the form itself. The enclitic rule SHALL run only when the whole form is not in the lexicon, SHALL strip one clitic pronoun (`mi`, `ti`, `si`, `ci`, `vi`, `lo`, `la`, `li`, `le`, `ne`, `gli`) or one combined clitic (`me`, `te`, `se`, `ce`, `ve` or `glie` followed by `lo`, `la`, `li`, `le` or `ne`), and SHALL accept the rest only as a base the lexicon lists shaped to take clitics: an infinitive with its ending restored (a rest in `-r` tried with `-e` restored, then with `-re`), a gerund in `-ando` or `-endo`, an imperative the lexicon files under a verb, one of the five monosyllabic imperatives `da`, `fa`, `va`, `di`, `sta` with the clitic's doubled consonant undone and read as `dare`, `fare`, `andare`, `dire`, `stare`, or `ecco`; the lemma SHALL be the base's. The unlisted-plural step SHALL read `-i` as `-o` (`-chi` as `-co`, `-ghi` as `-go`) and `-e` as `-a` (`-che` as `-ca`, `-ghe` as `-ga`), for a form written in lowercase of four letters or more the pack does not hold, whose singular it does not hold either, and SHALL leave alone an elided or hyphenated word and a form ending in `-ai`, `-ei` or `-ii`. The order SHALL be the determinism contract, and a change to it SHALL bump Italian's analyser version. No step SHALL read a form as a word the pack lists under another lemma: the tables decide (M8).
+For each Italian token, the core SHALL produce a lowercase lemma through the cascade: the pack's forms → the enclitic rule → the form itself. The enclitic rule SHALL run only when the whole form is not in the lexicon and holds neither an apostrophe nor a hyphen, SHALL strip one clitic pronoun (`mi`, `ti`, `si`, `ci`, `vi`, `lo`, `la`, `li`, `le`, `ne`, `gli`) or one combined clitic (`me`, `te`, `se`, `ce`, `ve` or `glie` followed by `lo`, `la`, `li`, `le` or `ne`), and SHALL accept the rest only as a base the lexicon lists shaped to take clitics: one of the five monosyllabic imperatives `da`, `fa`, `va`, `di`, `sta` with the clitic's doubled consonant undone (undoubled before `gli`) and read as `dare`, `fare`, `andare`, `dire`, `stare`; `ecco`; an infinitive with its ending restored (a rest in `-r` tried with `-e` restored, then with `-re`); a gerund in `-ando` or `-endo` or an imperative, a form the lexicon files under a verb; or a regular past participle (`-ato`, `-uto`, `-ito` and their agreement) whose infinitive the lexicon lists as a verb. A verb SHALL be a lemma ending in `-are`, `-ere`, `-ire`, `-rre`, or a reflexive-only verb's `-rsi`. The lemma SHALL be the base's. An unlisted form SHALL NOT be read as a singular the pack does not list: the unlisted-plural rule the design proposed was measured on the Italian treebanks and moved more words for the worse than for the better. The order SHALL be the determinism contract, and a change to it SHALL bump Italian's analyser version. No step SHALL read a form as a word the pack lists under another lemma: the tables decide (M8).
 
 #### Scenario: A clitic on an infinitive
 - **WHEN** « parlarmi », « dirlo » and « porlo » are lemmatised as Italian with a pack listing `parlare`, `dire` and `porre` but not the forms
@@ -79,9 +79,13 @@ For each Italian token, the core SHALL produce a lowercase lemma through the cas
 - **WHEN** « zorbarmi » is lemmatised as Italian with a pack that lists no `zorbare`
 - **THEN** the lemma is `zorbarmi`
 
-#### Scenario: An unlisted plural
+#### Scenario: A past participle with a clitic
+- **WHEN** « sviluppatasi » and « formatosi » are lemmatised as Italian with a pack listing `sviluppare` and `formare`, and filing `sviluppata` under the adjective `sviluppato`
+- **THEN** the lemmas are `sviluppare` and `formare`
+
+#### Scenario: An unlisted plural stays as written
 - **WHEN** « tavoli », « amiche » and « botteghe » are lemmatised as Italian with a pack that lists neither them nor `tavolo`, `amica`, `bottega`
-- **THEN** the lemmas are `tavolo`, `amica` and `bottega`
+- **THEN** the lemmas are `tavoli`, `amiche` and `botteghe`, unknown words as written
 
 #### Scenario: The tables decide
 - **WHEN** « porta » and « porte » are lemmatised as Italian with a pack filing both under `porta`
@@ -89,14 +93,14 @@ For each Italian token, the core SHALL produce a lowercase lemma through the cas
 
 #### Scenario: A plural whose singular is another word's form
 - **WHEN** « vite » is lemmatised as Italian with a pack that lists `vita` but not `vite`
-- **THEN** the lemma is `vite`: the singular the rule would reach is a word the pack lists under another lemma
+- **THEN** the lemma is `vite`, never the `vita` the pack lists
 
 #### Scenario: Italian leaves the baseline's version
 - **WHEN** a page is analysed as Italian after this change
 - **THEN** it reports Italian's own version, at or above `1.0.0`, and a pack built at `0.2.0` is refused as built for another analyser generation
 
 ### Requirement: Italian closed classes
-The core SHALL flag as function words, in a word-by-word gloss in Italian, the Italian articles and other determiners, pronouns, prepositions, conjunctions, the quantifiers `molto`, `tanto`, `poco`, `tutto` and `troppo` among the determiners, the auxiliaries and modals `essere`, `avere`, `potere` and `dovere`, and the negation `non`, `no` and `né`, by the lemma the cascade produced, as English's, Spanish's and French's tables do for their languages. The pieces of a split articulated preposition and of an elision SHALL be flagged by their own lemmas. `mai`, `più`, `neanche`, `nemmeno`, `neppure`, `volere`, `secondo`, `lungo` and `stare` SHALL NOT be flagged.
+The core SHALL flag as function words, in a word-by-word gloss in Italian, the Italian articles and other determiners, pronouns, prepositions, conjunctions, the quantifiers `molto`, `tanto`, `poco`, `tutto` and `troppo` among the determiners, the auxiliaries and modals `essere`, `avere`, `potere` and `dovere`, and the negation `non`, `no` and `né`, by the lemma the cascade produced, as English's, Spanish's and French's tables do for their languages. The pieces of a split articulated preposition and of an elision SHALL be flagged by their own lemmas. `mai`, `più`, `neanche`, `nemmeno`, `neppure`, `volere`, `secondo`, `lungo`, `prima` and `stare` SHALL NOT be flagged, and neither SHALL a combined clitic that is a noun standing alone (`mela`, `vela`, `tela`, `velo`, `cene`).
 
 #### Scenario: An Italian phrase
 - **WHEN** « Non ho visto il cane di Marco » is glossed word by word as Italian with a pack filing `ho` under `avere`
@@ -107,38 +111,38 @@ The core SHALL flag as function words, in a word-by-word gloss in Italian, the I
 - **THEN** `non`, `lo` and `né` are function words, and `mai` is not
 
 #### Scenario: Words that look closed but carry meaning
-- **WHEN** « più », « mai », « sto parlando », « stare », « voglio », « il secondo giorno » and « molto tempo » are glossed word by word as Italian with a pack filing `sto` under `stare` and `voglio` under `volere`
-- **THEN** none of `più`, `mai`, `stare`, `volere` and `secondo` is a function word, and `molto` in « molto tempo » is one
+- **WHEN** « più », « mai », « sto parlando », « stare », « voglio », « il secondo giorno », « prima di tutto », « una mela » and « molto tempo » are glossed word by word as Italian with a pack filing `sto` under `stare` and `voglio` under `volere`
+- **THEN** none of `più`, `mai`, `stare`, `volere`, `secondo`, `prima` and `mela` is a function word, and `molto` in « molto tempo » is one
 
 #### Scenario: The pieces of a contraction and of an elision
 - **WHEN** « al mare » and « l'uomo » are glossed word by word as Italian
 - **THEN** `a`, `il` and `lo` are function words, and `mare` and `uomo` are not
 
 #### Scenario: Each language keeps its own tables
-- **WHEN** `the` is glossed as Italian, and `il` as English, Spanish or French
+- **WHEN** `the` is glossed as Italian, and `di` as English, Spanish or French
 - **THEN** neither is a function word
 
 ### Requirement: An Italian document's names are set aside
 The core SHALL set aside, in an Italian document, every occurrence of a form that the document never writes in lowercase, that it capitalises at least once in mid-sentence — after a letter, a digit, a comma or a semicolon, or right after an elided piece —, and whose dictionary form is not one of the pack's dictionary words, as Spanish's and French's rules do; a hyphenated run the pack does not list SHALL be read as one form for this rule. A form set aside SHALL be excluded from the counts, the statuses and the cards, as any proper noun is.
 
 #### Scenario: A city
-- **WHEN** « Sono andato a Roma. Roma è grande. » is analysed as Italian with a pack that does not list `roma`
+- **WHEN** « Sono andato a Roma. Roma è grande. » is analysed as Italian, and `roma` is a lemma of the pack but not one of its dictionary words
 - **THEN** « Roma » is set aside in both sentences
 
 #### Scenario: After an elided piece
-- **WHEN** « L'Italia è lunga » is analysed as Italian with a pack that does not list `italia`
-- **THEN** « Italia » is set aside, the elided piece counting as mid-sentence
+- **WHEN** « L'Italia è lunga » and « nel cuore dell'Europa » are analysed as Italian, and `italia` and `europa` are lemmas of the pack but not dictionary words
+- **THEN** « Italia » and « Europa » are set aside, the elided piece counting as mid-sentence
 
 #### Scenario: A hyphenated name
-- **WHEN** « con Anna-Maria Rossi » is analysed as Italian with a pack that lists none of its pieces
+- **WHEN** « con Anna-Maria Rossi » is analysed as Italian, and the pack lists `anna` and `maria` but not the run
 - **THEN** « Anna-Maria » is set aside as one form
 
 #### Scenario: A dictionary word
-- **WHEN** « a Firenze, Marco legge » is analysed as Italian with a pack that lists `marco` as a dictionary word
+- **WHEN** « a Firenze, Marco legge » is analysed as Italian, `firenze` a lemma of the pack but no dictionary word and `marco` a dictionary word
 - **THEN** « Firenze » is set aside and « Marco » is not
 
 #### Scenario: Capitals at the head of sentences only
-- **WHEN** « Ecco. Ecco la casa. » is analysed as Italian with a pack that does not list `ecco`
+- **WHEN** « Ecco. Ecco la casa. » is analysed as Italian, and `ecco` is a lemma of the pack but not one of its dictionary words
 - **THEN** « Ecco » is not set aside, having appeared at the head of sentences only
 
 #### Scenario: The same form as a word

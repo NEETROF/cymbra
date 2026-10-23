@@ -20,6 +20,7 @@
 
 #![cfg(target_arch = "wasm32")]
 
+use lingua_core::analysis::ITALIAN_ANALYZER_VERSION;
 use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::packs::meta::{BaseMeta, LayerMeta, Part};
 use lingua_core::packs::{read_container, write_container};
@@ -370,7 +371,8 @@ fn spec_scenario_italian_pieces_keep_their_spans_on_wasm() {
     // add-lingua-italian-tokenisation D6: the pre-pass is pure Rust over the text, so the wasm
     // target reads Italian's pieces with the host's byte spans — an elided piece with its
     // three-byte apostrophe, `nel` and `all’` shared by the preposition and the article, a
-    // truncation spanning its apostrophe — at Italian's `0.2.0`.
+    // truncation spanning its apostrophe — at Italian's own version, no longer a `0.x` since
+    // add-lingua-italian-analysis.
     let engine = LinguaEngine::new(&rewritten(StudiedLanguage::Italian, "fr")).unwrap();
     let page = engine
         .analyse(
@@ -378,7 +380,13 @@ fn spec_scenario_italian_pieces_keep_their_spans_on_wasm() {
             Some("it".to_owned()),
         )
         .unwrap();
-    assert!(page.contains(r#""analyzer_version":"0.2.0""#), "{page}");
+    assert!(!ITALIAN_ANALYZER_VERSION.starts_with("0."));
+    assert!(
+        page.contains(&format!(
+            r#""analyzer_version":"{ITALIAN_ANALYZER_VERSION}""#
+        )),
+        "{page}"
+    );
     for token in [
         r#""start":0,"end":4,"surface":"Lo""#,
         r#""start":4,"end":8,"surface":"uomo""#,

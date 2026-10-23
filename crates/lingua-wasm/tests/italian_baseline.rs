@@ -15,16 +15,18 @@
 //! Italian invariance baseline (`docs/lingua/italian-programme.md`, change 5,
 //! add-lingua-italian-baseline).
 //!
-//! Italian is a studied language served by the baseline analysis, its tokenisation pre-pass
-//! excepted (analyser `0.2.0`, add-lingua-italian-tokenisation): the rules that belong to no
-//! language, Italian's pre-pass and the pack's forms, nothing else — `l'uomo` is `lo` + `uomo`,
-//! `dell'acqua` `dello` + `acqua`, `c'è` `ci` + `è`, `nel` `in` + `il` sharing its span, `del`
-//! whole, `po'` `poco`; `dirmelo` stays whole, `perche'` is `perche` by the edge trim every
-//! language has, nothing is a function word, there is no names rule, no NFC and no detection
-//! guard, so the `misto` page's Catalan and Galician blocks are analysed as Italian. This freezes what the
-//! engine makes of raw Italian text today, over a thirteen-page corpus (`baseline/pages-it.txt`,
-//! its sources in `support/italian.rs`), so that each later change of the Italian stage shows its
-//! effect as the diff of a re-bless. It is not Italian support: no listed pair studies Italian.
+//! Italian is a studied language served by its own analysis (analyser `1.0.0`,
+//! add-lingua-italian-analysis): its tokenisation pre-pass (add-lingua-italian-tokenisation) —
+//! `l'uomo` is `lo` + `uomo`, `dell'acqua` `dello` + `acqua`, `c'è` `ci` + `è`, `nel` `in` + `il`
+//! sharing its span, `del` whole, `po'` `poco` — reading every word in NFC; its cascade, the
+//! pack's forms then the enclitic rule (`dirmelo` is `dire`, `vattene` `andare`, `eccolo`
+//! `ecco`); its closed classes (`non`, `di`, `il`, `che` are function words); and its names rule.
+//! `perche'` is still `perche` by the edge trim every language has, and there is no detection
+//! guard, so the `misto` page's Catalan and Galician blocks are analysed as Italian. This freezes
+//! what the engine makes of raw Italian text today, over a thirteen-page corpus
+//! (`baseline/pages-it.txt`, its sources in `support/italian.rs`), so that each later change of
+//! the Italian stage shows its effect as the diff of a re-bless. It is not Italian support: no
+//! listed pair studies Italian.
 //!
 //! The pack is the hand-written it-fr fixture (`scripts/lingua-data/testdata/it-fr/`) until the
 //! Italian tables are committed (change 16); the engine starts on the real en-fr pack, built from
@@ -44,6 +46,7 @@ mod support;
 
 use std::sync::OnceLock;
 
+use lingua_core::analysis::ITALIAN_ANALYZER_VERSION;
 use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::analysis::tokenize::{
     ITALIAN_CONTRACTIONS, ITALIAN_ELIDED_PREPOSITIONS, ITALIAN_ELISIONS, ITALIAN_TRUNCATIONS,
@@ -197,17 +200,20 @@ fn what_the_baseline_shows_today() {
     assert_eq!(engine.languages(), r#"["en","it"]"#, "en-fr beside it-fr");
     assert_eq!(engine.native_language(), "fr");
 
-    // Every page reports Italian's own version, its pre-pass's.
+    // Every page reports Italian's own version, its own analysis's: no longer one of the
+    // baseline's `0.x`.
+    assert!(!ITALIAN_ANALYZER_VERSION.starts_with("0."));
     for name in ITALIAN.page_names {
         assert_eq!(
             analysed(&engine, name)["analyzer_version"],
-            "0.2.0",
+            ITALIAN_ANALYZER_VERSION,
             "{name}"
         );
     }
 
-    // An elided word is its pieces, each its own span and lemmatised by the baseline: `Lo` is the
-    // fixture's article `il`, `c'è` hides `essere` no longer (D3).
+    // An elided word is its pieces, each its own span and lemmatised by Italian's cascade: `Lo` is
+    // the fixture's article `il`, `c'è` hides `essere` no longer (add-lingua-italian-tokenisation
+    // D3).
     let elisioni_json = analysed(&engine, "elisioni");
     let elisioni = tokens(&elisioni_json);
     assert!(has(&elisioni, "Lo", "il"), "{elisioni:?}");
@@ -286,23 +292,104 @@ fn what_the_baseline_shows_today() {
         );
     }
 
-    // An enclitic form is one token, its lemma itself.
+    // An enclitic form is one token, resolved to its verb (add-lingua-italian-analysis D2): the
+    // infinitive with its ending restored, the monosyllabic imperative with its doubling undone,
+    // `ecco`, the imperative the fixture files under its verb.
     let clitici = tokens(&analysed(&engine, "clitici"));
-    for written in [
-        "dirmelo", "dammelo", "vattene", "eccolo", "farcela", "scrivimi",
+    for (written, verb) in [
+        ("dirmelo", "dire"),
+        ("dammelo", "dare"),
+        ("vattene", "andare"),
+        ("andarsene", "andare"),
+        ("eccolo", "ecco"),
+        ("farcela", "fare"),
+        ("parlargli", "parlare"),
+        ("scrivimi", "scrivere"),
     ] {
-        assert!(has(&clitici, written, written), "{written}: {clitici:?}");
+        assert!(has(&clitici, written, verb), "{written}: {clitici:?}");
+    }
+    // A word the fixture lists is never split.
+    for listed in ["cinema", "sistema", "tema", "vela"] {
+        assert!(has(&clitici, listed, listed), "{listed}: {clitici:?}");
     }
 
-    // No token of any page is a function word: Italian has no table yet.
-    for (name, blocks) in ITALIAN.pages() {
-        for block in blocks {
-            let glossed = engine.phrase_gloss(&block, it()).expect("glossed");
-            assert!(
-                !glossed.contains(r#""function_word":true"#),
-                "{name}: {glossed}"
-            );
-        }
+    // The tecnico page's NFD block is read composed: its words are the pack's, `città` glossed.
+    let tecnico_json = analysed(&engine, "tecnico");
+    let nfd: Vec<&serde_json::Value> = tecnico_json["tokens"]
+        .as_array()
+        .expect("tokens")
+        .iter()
+        .filter(|t| t["block"] == NFD_BLOCK)
+        .collect();
+    assert!(!nfd.is_empty());
+    for token in &nfd {
+        let surface = token["surface"].as_str().expect("a surface");
+        assert_eq!(surface.nfc().collect::<String>(), surface, "{token}");
+    }
+    let citta = nfd
+        .iter()
+        .find(|t| t["surface"] == "città")
+        .expect("the NFD block's `città`, composed");
+    assert_eq!(citta["lemma"], "città");
+    assert_eq!(citta["gloss"], "ville");
+    for (surface, lemma) in [("è", "essere"), ("più", "più")] {
+        assert!(
+            nfd.iter()
+                .any(|t| t["surface"] == surface && t["lemma"] == lemma),
+            "{surface}: {nfd:?}"
+        );
+    }
+
+    // The phrase probes drop their function words: `non`, `di`, `il`, `che` are Italian's.
+    let glossed: serde_json::Value =
+        serde_json::from_str(&engine.phrase_gloss("non di il che", it()).expect("glossed"))
+            .expect("JSON");
+    let flags: Vec<(&str, bool)> = glossed["tokens"]
+        .as_array()
+        .expect("tokens")
+        .iter()
+        .map(|t| {
+            (
+                t["surface"].as_str().expect("a surface"),
+                t["function_word"].as_bool().expect("a flag"),
+            )
+        })
+        .collect();
+    assert_eq!(
+        flags,
+        [("non", true), ("di", true), ("il", true), ("che", true)]
+    );
+    // And a content word is none: `faro`, `marinaio`, `mare` keep their rows.
+    let glossed = engine
+        .phrase_gloss("Il vecchio marinaio chiuse le finestre del faro", it())
+        .expect("glossed");
+    for word in ["marinaio", "faro", "finestre", "chiuse"] {
+        assert!(
+            glossed.contains(&format!(r#""surface":"{word}""#)),
+            "{word}: {glossed}"
+        );
+    }
+
+    // The nomi page's names are set aside, as any proper noun, and counted nowhere.
+    let nomi = analysed(&engine, "nomi");
+    let class_of = |surface: &str| -> Vec<String> {
+        nomi["tokens"]
+            .as_array()
+            .expect("tokens")
+            .iter()
+            .filter(|t| t["surface"] == surface)
+            .map(|t| t["class"].as_str().expect("a class").to_owned())
+            .collect()
+    };
+    for name in [
+        "Rossi", "Bianchi", "Esposito", "Ferrari", "Milano", "Moretti", "Conti", "Napoli",
+        "Torino", "Firenze", "Pisa", "Venezia", "Bari", "Italia", "Europa", "Anna",
+    ] {
+        let classes = class_of(name);
+        assert!(
+            !classes.is_empty() && classes.iter().all(|c| c == "ProperNounOutOfLexicon"),
+            "{name}: {classes:?}"
+        );
     }
 
     // The misto page: its Italian blocks, and its Catalan and Galician ones — whichlang reads them
@@ -454,23 +541,36 @@ fn the_readers_backup_is_version_4() {
 #[test]
 fn the_nfd_block_s_citta_is_glossed_once_italian_composes_it() {
     // The fixture lists `città`, glossed `ville`, a word the corpus has only in its NFD block
-    // (D5): read as it came, decomposed, the word is not the pack's and has no gloss; change 7's
-    // NFC makes the gloss appear in the golden, not only bytes no one sees move.
+    // (add-lingua-italian-baseline D5): read as it came, decomposed, the word was not the pack's
+    // and had no gloss; add-lingua-italian-analysis D1's NFC makes it the pack's, and its gloss
+    // appears in the golden, its span still the decomposed source.
     let engine = ITALIAN.loaded();
     let tecnico = analysed(&engine, "tecnico");
-    let decomposed = "citta\u{300}";
+    let block = &page("tecnico")[NFD_BLOCK];
     let token = tecnico["tokens"]
         .as_array()
         .expect("tokens")
         .iter()
-        .find(|t| t["block"] == NFD_BLOCK && t["surface"] == decomposed)
-        .expect("the NFD block's `città`, as it came");
-    assert_eq!(token["lemma"], decomposed, "lowercased, not composed");
-    assert!(token["gloss"].is_null(), "{token}");
+        .find(|t| t["block"] == NFD_BLOCK && t["surface"] == "citt\u{e0}")
+        .expect("the NFD block's `città`, composed");
+    assert_eq!(token["lemma"], "citt\u{e0}");
+    assert_eq!(token["gloss"], "ville");
+    let (start, end) = (
+        token["start"].as_u64().expect("a start") as usize,
+        token["end"].as_u64().expect("an end") as usize,
+    );
     assert_eq!(
-        engine.gloss("citt\u{e0}", it()).expect("glossed"),
-        Some("ville".to_owned()),
-        "the pack glosses the composed form"
+        &block[start..end],
+        "citta\u{300}",
+        "the span is the source's"
+    );
+    assert!(
+        !tecnico["tokens"]
+            .as_array()
+            .expect("tokens")
+            .iter()
+            .any(|t| t["surface"] == "citta\u{300}"),
+        "no token is left decomposed"
     );
 }
 
@@ -502,7 +602,9 @@ fn a_fixture_left_behind_its_analyser_names_its_manifest() {
     };
     let message = refused.downcast_ref::<String>().expect("a formatted panic");
     assert!(
-        message.contains("pack built for analyzer 0.0.9 but this core is 0.2.0"),
+        message.contains(&format!(
+            "pack built for analyzer 0.0.9 but this core is {ITALIAN_ANALYZER_VERSION}"
+        )),
         "{message}"
     );
     assert!(

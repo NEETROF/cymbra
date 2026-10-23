@@ -27,20 +27,23 @@ treebanks sets the gates this cascade is held to), 10 (the apostrophe-accent spe
   pre-pass makes (the elided forms, the articulated prepositions, the truncations, a run the pack
   lists) and every token's text are composed; spans still point into the source.
 - **Italian's cascade** (`analysis/italian.rs`, new; `lemmatize` dispatches to it): the pack's
-  forms → **the enclitic rule** → an unlisted plural the pack does not list whose singular it does
-  not list either, read as that singular → the form itself (design D2). The enclitic rule reads
+  forms → **the enclitic rule** → the form itself (design D2, as D6's measurement decided it: the
+  unlisted-plural step the design proposed between the two last moved more words of the Italian
+  treebanks for the worse than for the better and was dropped, and a regular past participle was
+  added to the enclitic rule's bases). The enclitic rule reads
   off a form the pack does not list one clitic (`mi`, `ti`, `si`, `ci`, `vi`, `lo`, `la`, `li`,
   `le`, `ne`, `gli`) or one combined clitic (`melo`… `mene`, `telo`…, `selo`…, `celo`…, `velo`…,
   `glielo`… `gliene`), and accepts the rest only as a base the pack lists shaped to take clitics:
   an infinitive with its ending restored (`dir` → `dire`; `por` → `porre`, `-re` tried where `-e` lists nothing), a gerund, an
-  imperative the pack files under a verb, one of the five monosyllabic imperatives whose doubled
+  imperative the pack files under a verb, a regular past participle whose infinitive the pack
+  lists (`sviluppatasi` → `sviluppare`), one of the five monosyllabic imperatives whose doubled
   consonant is undone (`dammi`, `fallo`, `vattene`, `dimmi`, `stacci`), or `ecco`. Italian's
   clitics move no written accent, so Spanish's stress check has no counterpart.
 - **Italian's closed classes** (`analysis/function_words.rs`): determiners, pronouns,
   prepositions, conjunctions, the quantifiers among the determiners, the auxiliaries and modals `essere`, `avere`, `potere`,
   `dovere`, and the negation `non`, `no`, `né`; `mai`, `più`, `neanche`, `nemmeno` and `neppure`
   left out as adverbs that carry meaning, `volere` as a content verb, `secondo` and `lungo` as
-  adjectives, with the sibling tables (D3).
+  adjectives, `prima` and `stare` by D6's counts on MarkIT, with the sibling tables (D3).
 - **An Italian document's names are set aside** (`engine.rs`): Spanish's rule — a form never
   written in lowercase, capitalised at least once mid-sentence, not a dictionary word —, a capital
   right after an elided piece counting as mid-sentence (`l'Italia`, `dell'Europa`), a hyphenated run the
@@ -51,6 +54,10 @@ treebanks sets the gates this cascade is held to), 10 (the apostrophe-accent spe
 - **The Italian golden is re-blessed**: the `clitici` page's forms resolve to their verbs, the
   `tecnico` page's NFD block to its words, the phrase probes drop their function words, the names
   of the `nomi` page are set aside.
+- **The cascade's candidate rules are measured** (D6) on a prototype of change 9's forms tables
+  against UD Italian-PUD and MarkIT's test section; the figures and the rules kept and dropped are
+  recorded in `italian.rs`'s module doc, in the design's *Measured at implementation* and in the
+  pull request.
 - **English, Spanish, French and the six goldens do not move.**
 
 ## Capabilities
@@ -89,5 +96,7 @@ nothing new is offered to them.
 - `apps/lingua-extension/test/packs.spec.ts` (`coreAnalyzerVersion("it", modRs)` reads a version at or above `1.0.0`, by a pattern as French's).
 - `scripts/lingua-data/measure/it-ud.sh` (new): the cascade's lemmas against UD Italian-PUD and
   MarkIT's test section, run once change 9's tables exist.
+- `crates/lingua-pack/tests/pipeline_testdata.rs`: the it-fr fixture's recorded size and sha256,
+  which its new rows move (no `pin.json`).
 - Untouched: every committed table and pin, the six goldens, the English, Spanish and French arms,
   the extension's bundle, the agent, the server, the site.

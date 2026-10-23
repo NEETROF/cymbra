@@ -52,7 +52,9 @@ See proposal.md — Why. What constrains the shape:
   apostrophe-accent spellings (10); acronyms in capitals and names out of the words to learn (11);
   the expression keys (12).
 - A past participle carrying clitics (`andatosene`): literary, rare in prose; measured at change
-  9 and added at a later bump if the treebanks warrant it.
+  9 and added at a later bump if the treebanks warrant it. *Superseded at implementation: D2's
+  candidate « a past participle base » was measured here (D6) and kept — see* Measured at
+  implementation.
 - A gender or number for a piece: the tables file `lo`, `la`, `li`, `le` under the article's lemma.
 
 ## Decisions
@@ -66,6 +68,9 @@ NFD block then resolves to the pack's words; the corpus scenario still asserts t
 committed decomposed.
 
 ### D2 — The cascade: the pack's forms, the enclitic rule, an unlisted plural, the form
+
+*As implemented (see* Measured at implementation*): the pack's forms, the enclitic rule with a
+regular past participle among its bases, the form — step 3 below was measured out.*
 
 `analysis/italian.rs`, beside `spanish.rs` and `french.rs`; `lemmatize` dispatches to it. For each
 token, lowercased (`’` read as `'`) and in NFC:
@@ -203,3 +208,66 @@ change 6: this change archives after them.
 
 Nothing deploys and nothing is released; no listed pair studies Italian. Rollback is a revert
 with the golden's.
+
+## Measured at implementation
+
+Task 8.1 built a prototype of change 9's forms tables from local copies (the English Wiktionary's
+Italian section as kaikki.org extracts it; MarkIT's training and development sections at commit
+`e210079d` for D5's counts; wordfreq 3.1.1's `it` for the ranks): 58,113 lemmas, 296,298 forms,
+D3–D6 of change 9's design followed, without Morph-it! and with its names rule approximated. A
+pack built from it was read by this change's cascade over UD Italian-PUD (`71d932aa`) and MarkIT's
+test section, token by token with and without each candidate rule. **What « better » means was
+written before any figure was read**: a token moves for the better when it takes the treebank's
+lemma with the rule and not without, for the worse the other way, for nothing when it moves and is
+wrong both ways; a rule is kept when it is right on a strict majority of the tokens it moves, on
+the two treebanks pooled, and none of the three figures (resolved, content, auxiliary) falls; a
+rule of D2's base cascade that moves nothing stays, a candidate addition that moves nothing is
+not added.
+
+| Rule | Better | Worse | For nothing | Decision |
+|---|---|---|---|---|
+| Step 3: `-i` → `-o` (with `-chi`, `-ghi`) | 1 | 6 | 3 | dropped; PUD content 90.43 → 90.36 % |
+| Step 3: `-ci`/`-gi` read through `-i` → `-o` | 0 | 0 | 0 | dropped with the step it is a case of |
+| Step 3: `-e` → `-a` (with `-che`, `-ghe`) | 0 | 14 | 7 | dropped; PUD content 90.49 → 90.36 % |
+| Enclitic rule: a regular past participle base | 3 | 0 | 0 | kept (`Formatasi`, `sviluppatasi` ×2) |
+| Enclitic rule, its participle base included (reported) | 91 | 0 | 1 | — |
+
+The unlisted-plural step goes whole: the tables list the regular plurals, so what is left unlisted
+is mostly the plural of an `-e` noun or adjective (`thailandesi`, `viventi`), a loan, a compound
+or a typo, which the rule misreads (`thailandeso`, `famigliara`, `folklora`). The enclitic rule is
+measured on the verb + clitic words the treebanks write as one and split (`dirmelo` = `dir` +
+`me` + `lo`): 133 such words, 127 taking the treebank's verb with the decided cascade (the six
+others: `riaccaparrarselo`, whose verb the prototype does not list; `congratularmi`, read as the
+reflexive `congratularsi` the prototype files `congratulare` under; `andarsene` and `trovarci`,
+which it lists whole; `evolutesi` and `Svoltesi`, irregular participles). With it, the
+prototype gives PUD 98.49 % resolved, 90.56 % content, 93.81 % auxiliary lemmas and MarkIT's test
+section 98.02 / 94.19 / 96.98 — a prototype's figures, under the gates change 9's tables are held
+to.
+
+D3's two counts, decided by rules written before counting: `stare` is an auxiliary in 13 of
+MarkIT's 24 (PUD: 23 of 28), short of the two in three that would have put it in — it stays out;
+`prima` is a preposition in none of MarkIT's 14 (8 adverbs, « prima di » among them, 5 adjectives,
+« la prima volta »; PUD: none of 35) — it leaves D3's prepositions. Reported for the owner (no
+rule set before): `secondo` is ADP in 17 of its 22 occurrences pooled, `circa` an adverb in 15 of
+19, `oltre` in 12 of 15, `fuori` in 8 of 10.
+
+**Other deviations, each a fact of the implementation:**
+
+- *D2*: a verb is a lemma in `-are`, `-ere`, `-ire`, `-rre` or `-rsi` — the last for a
+  reflexive-only verb, under which change 9's D3 files `pentite` and `pentendo` so that this rule
+  reads `pentitevi`; and a form holding an apostrophe or a hyphen is never split, its pieces being
+  the pre-pass's.
+- *D3*: the pronouns hold the combined clitics written as one word before a verb, `glielo` …
+  `gliene`, and not `melo` … `vene`, written apart before a verb and, standing alone, nouns
+  (`mela`, `vela`, `tela`, `velo`, `cene`) a row would hide in every gloss; they hold `ce` and `ve`,
+  the clitics' variants of « ce l'ho », « ve lo dico »; the prepositions hold `ad`, as the
+  conjunctions `ed` and `od`; each table holds the inflected forms a pack may keep as lemmas
+  (`questa`, `nessun`, `tutti`), as Spanish's and French's do.
+- *The spec's scenarios*: *Each language keeps its own tables* reads `di`, not `il`, as English,
+  Spanish and French — `il` is French's « he »; the names scenarios give the name a lemma of the
+  pack that is no dictionary word, as French's do — a pack that does not list it sets it aside by
+  the rule that belongs to no language, which would set « Ecco » aside too; *An unlisted plural*
+  reads the plural as written.
+- *D7*: the it-fr fixture's whole pack moves from 5,841 to 5,956 B (sha256 `bcc19522…`), which
+  `lingua-pack`'s `pipeline_testdata.rs` records; no `pin.json` moves.
+

@@ -56,3 +56,20 @@ nothing.
 ```bash
 scripts/lingua-data/measure/fr-ud.sh
 ```
+
+## Italian forms on two treebanks
+
+`it-ud.sh` measures the it-fr pack, built from the committed tables, with the same harness and
+Italian's own analysis (add-lingua-italian-analysis D6, add-lingua-italian-forms-tables D8): on UD
+Italian-PUD, held to Spanish's gates above (its exit status the script's), and on MarkIT's test
+section, reported beside it and not gated — the reduction reads MarkIT's training and development
+sections. Both are fetched at a pinned commit and checked by sha256 into `work/measure-it/`. Neither
+is committed, and the reduction reads neither.
+
+Italian's tables are committed by add-lingua-italian-forms-tables; until then the script stops,
+saying so. `LINGUA_IT_PACK=<pack.lingua>` measures a pack built elsewhere instead, as
+add-lingua-italian-analysis measured its cascade on a prototype of those tables.
+
+```bash
+scripts/lingua-data/measure/it-ud.sh
+```

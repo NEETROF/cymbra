@@ -26,6 +26,7 @@ mod support;
 
 use std::path::PathBuf;
 
+use lingua_core::analysis::ITALIAN_ANALYZER_VERSION;
 use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::knowledge::level::CefrLevel;
 use lingua_core::knowledge::profile::NativeLanguage;
@@ -802,7 +803,8 @@ fn it() -> Option<String> {
 }
 
 /// An engine started on the real en-fr pack, the Italian pack glossed in French added, analyses an
-/// Italian page by the baseline and Italian's pre-pass (add-lingua-italian-tokenisation); a reader
+/// Italian page by Italian's own analysis (add-lingua-italian-analysis) and its pre-pass
+/// (add-lingua-italian-tokenisation); a reader
 /// of Italian has a backup of schema version 4, which
 /// restores whole; a reader of English on the same engine keeps version 1
 /// (add-lingua-italian-baseline D7).
@@ -823,7 +825,14 @@ fn spec_scenario_an_italian_reader_s_backup_is_version_4() {
             it(),
         )
         .unwrap();
-    assert!(page.contains(r#""analyzer_version":"0.2.0""#), "{page}");
+    // Italian's own version, no longer one of the baseline's `0.x`.
+    assert!(!ITALIAN_ANALYZER_VERSION.starts_with("0."));
+    assert!(
+        page.contains(&format!(
+            r#""analyzer_version":"{ITALIAN_ANALYZER_VERSION}""#
+        )),
+        "{page}"
+    );
     // Italian's pre-pass: the elided word is two pieces with their own spans, the articulated
     // preposition `nella` the preposition and the article sharing its span, `del` whole.
     assert!(

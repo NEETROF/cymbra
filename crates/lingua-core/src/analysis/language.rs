@@ -47,10 +47,10 @@ pub enum StudiedLanguage {
     /// add-lingua-french-analysis: its tokenisation pre-pass, NFC, its cascade,
     /// its closed classes and its names rule — nothing of English's or Spanish's.
     French,
-    /// Italian (add-lingua-italian-baseline), served by the baseline analysis until
-    /// its own rules are written: the rules that belong to no language and the
-    /// pack's forms, nothing of English's, Spanish's or French's
-    /// ([`crate::analysis::ITALIAN_ANALYZER_VERSION`]).
+    /// Italian (add-lingua-italian-baseline), served by its own analysis since
+    /// add-lingua-italian-analysis: its tokenisation pre-pass, NFC, its cascade and
+    /// its enclitic rule, its closed classes and its names rule — nothing of
+    /// English's, Spanish's or French's ([`crate::analysis::ITALIAN_ANALYZER_VERSION`]).
     Italian,
 }
 
@@ -132,9 +132,9 @@ pub fn block_is_studied(text: &str, studied: StudiedLanguage) -> bool {
 /// no class for Catalan, Galician, Occitan or Romanian and reads many of their blocks as Spanish
 /// or French: Spanish's guard refuses Catalan and Galician (add-lingua-spanish-detection-guard)
 /// and Occitan (add-lingua-spanish-occitan-guard), French's Catalan, Occitan and Romanian;
-/// English has none, and neither has Italian while the baseline serves it
+/// English has none, and neither has Italian until add-lingua-italian-detection-guard writes it
 /// (add-lingua-italian-baseline D2): whichlang reads Catalan and Galician blocks as Italian, and a
-/// learner of Italian counts them until Italian's guard is written. A guard runs only for the
+/// learner of Italian counts them until then. A guard runs only for the
 /// language it protects, and only when that language is asked about: a reader of English pays
 /// for neither, a reader of Spanish for Spanish's alone. `None` when whichlang finds none of
 /// `languages`, or the guard refuses the block, which is then excluded as any other language's
@@ -900,15 +900,20 @@ mod tests {
 
     #[test]
     fn spec_scenario_each_language_reports_its_own_version() {
-        // add-lingua-italian-baseline D1: Italian reads its own constant, a `0.x` version while
-        // the baseline serves it, and the three others keep theirs; `0.2.0` since
-        // add-lingua-italian-tokenisation gives it its pre-pass.
+        // add-lingua-italian-baseline D1: Italian reads its own constant, and the three others
+        // keep theirs; add-lingua-italian-analysis D5: Italian's own analysis leaves the
+        // baseline's `0.x` versions, at or above `1.0.0`.
         assert_eq!(
             IT.analyzer_version(),
             crate::analysis::ITALIAN_ANALYZER_VERSION
         );
-        assert_eq!(IT.analyzer_version(), "0.2.0");
-        assert!(IT.analyzer_version().starts_with("0."));
+        let major: u32 = IT
+            .analyzer_version()
+            .split('.')
+            .next()
+            .and_then(|major| major.parse().ok())
+            .expect("a semantic version");
+        assert!(major >= 1, "{}", IT.analyzer_version());
         for language in [EN, ES, FR] {
             assert_ne!(
                 language.analyzer_version(),

@@ -110,7 +110,7 @@ pub fn analyse_page(
 
     // A document's names are set aside like a proper noun outside the lexicon, in every studied
     // language (add-lingua-spanish-names, add-lingua-french-analysis D4,
-    // leave-lingua-names-out-of-english-and-spanish-words D4).
+    // leave-lingua-names-out-of-english-and-spanish-words D4, add-lingua-italian-analysis D4).
     let names = document_names(&tokens, blocks, studied, pack);
     let mut coverage = Coverage::default();
     let mut out = Vec::with_capacity(tokens.len());
@@ -124,9 +124,9 @@ pub fn analyse_page(
             knowledge,
         ) {
             // Only a word the reader has said nothing of: a name they mark stays theirs. French
-            // also reads a hyphenated run the pack does not list as one form.
+            // and Italian also read a hyphenated run the pack does not list as one form.
             TokenClass::Unknown
-                if (token.parts.is_empty() || studied == StudiedLanguage::French)
+                if (token.parts.is_empty() || reads_runs_as_names(studied))
                     && names.contains(&token.surface.to_lowercase()) =>
             {
                 TokenClass::ProperNounOutOfLexicon
@@ -200,28 +200,21 @@ pub fn analyse_page_json(
 /// name. Neither reading runs for Spanish or French, whose levels are estimated
 /// and go only to dictionary words.
 ///
-/// An Italian document has no names while the baseline serves Italian
-/// (add-lingua-italian-baseline D2): the rule runs in every language it names,
-/// Spanish's base rule included, so Italian returns before it, its capitals left
-/// to the rule that belongs to no language (a capital outside the lexicon).
+/// An Italian document's names follow French's two readings
+/// (add-lingua-italian-analysis D4): a capital right after an elided piece is in
+/// mid-sentence (`l'Italia`, `dell'Europa`, `un'Olanda`), and a hyphenated run the
+/// pack does not list is one form (`Anna-Maria`). Neither of English's runs for it.
 fn document_names(
     tokens: &[AnalysedToken],
     blocks: &[&str],
     studied: StudiedLanguage,
     pack: &Pack,
 ) -> HashSet<String> {
-    match studied {
-        StudiedLanguage::Italian => return HashSet::new(),
-        StudiedLanguage::English | StudiedLanguage::Spanish | StudiedLanguage::French => {}
-    }
-    let french = studied == StudiedLanguage::French;
+    let runs = reads_runs_as_names(studied);
     let english = studied == StudiedLanguage::English;
     let mut lowercase = HashSet::new();
     let mut capitalised: HashMap<String, &str> = HashMap::new();
-    for token in tokens
-        .iter()
-        .filter(|token| french || token.parts.is_empty())
-    {
+    for token in tokens.iter().filter(|token| runs || token.parts.is_empty()) {
         let Some(first) = token.surface.chars().next() else {
             continue;
         };
@@ -232,8 +225,7 @@ fn document_names(
         let text = blocks.get(token.block).copied().unwrap_or("");
         if !first.is_uppercase() {
             lowercase.insert(form);
-        } else if mid_sentence(text, token.start)
-            || (french && after_elided_piece(text, token.start))
+        } else if mid_sentence(text, token.start) || (runs && after_elided_piece(text, token.start))
         {
             capitalised.entry(form).or_insert(&token.lemma);
         }
@@ -249,6 +241,18 @@ fn document_names(
         .collect()
 }
 
+/// Whether a studied language reads a document's names with French's two readings
+/// (add-lingua-french-analysis D4, add-lingua-italian-analysis D4): a capital after an
+/// elided piece counts as mid-sentence, and a hyphenated run the pack does not list is
+/// one form. Spanish reads neither, an apostrophe giving it no evidence and its runs
+/// being judged by their parts; English neither.
+fn reads_runs_as_names(studied: StudiedLanguage) -> bool {
+    match studied {
+        StudiedLanguage::French | StudiedLanguage::Italian => true,
+        StudiedLanguage::English | StudiedLanguage::Spanish => false,
+    }
+}
+
 /// Whether an English form, lowercased, is the pronoun `I` or one of its
 /// contractions (`i`, `i'm`, `i'll`, `i’d`, `i've`): capitalised wherever it
 /// stands, so its capital says nothing of a name
@@ -259,8 +263,9 @@ fn is_pronoun_i(form: &str) -> bool {
 
 /// Whether the word at byte `start` of `text` follows an elided piece: an
 /// apostrophe, straight or typographic, right after a letter (`l'Europe`,
-/// `d’Espagne`). The capital is then the word's own, whatever stands before the
-/// piece (add-lingua-french-analysis D4).
+/// `d’Espagne`, Italian's `l'Italia`). The capital is then the word's own, whatever
+/// stands before the piece (add-lingua-french-analysis D4, add-lingua-italian-analysis
+/// D4).
 fn after_elided_piece(text: &str, start: usize) -> bool {
     let Some(before) = text.get(..start) else {
         return false;
@@ -465,8 +470,8 @@ pub const SPANISH_CLITIC_PRONOUNS: &[&str] = &[
 /// [`SPANISH_KEY_WRITTEN`] — written as the pre-pass gives it, lowercased, the
 /// typographic apostrophe read as the straight one: so `à la` is never `au`
 /// (`à le`), nor `a la` « al » (`a el`). English keys are their lemmas, as
-/// before, and so are Italian's while the baseline serves it
-/// (add-lingua-italian-baseline D2).
+/// before, and so are Italian's until add-lingua-italian-expression-keys writes
+/// its own (add-lingua-italian-baseline D2).
 pub fn expression_piece(surface: &str, lemma: &str, studied: StudiedLanguage) -> String {
     let listed = match studied {
         StudiedLanguage::French => FRENCH_KEY_WRITTEN,
@@ -531,8 +536,8 @@ pub fn french_expression_key(headword: &str, lexicon: &(impl Lexicon + ?Sized)) 
 }
 
 /// How many tokens an expression may span in the studied language: Italian's is
-/// the window every language had before one had its own, while the baseline
-/// serves it (add-lingua-italian-baseline D2).
+/// the window every language had before one had its own, until
+/// add-lingua-italian-expression-keys gives it one (add-lingua-italian-baseline D2).
 fn expression_window(studied: StudiedLanguage) -> usize {
     match studied {
         StudiedLanguage::French => FRENCH_EXPRESSION_WINDOW,
@@ -2324,12 +2329,12 @@ mod tests {
     }
 
     #[test]
-    fn spec_scenario_an_italian_page_is_read_by_the_baseline() {
-        // add-lingua-italian-baseline D2: Italian keeps a capitalised word in mid-sentence as an
-        // ordinary token (no names rule), flags no function word, names its own version, and
-        // matches an expression of its pack by its lemmas, as English keys one. Its pre-pass
-        // (add-lingua-italian-tokenisation) splits its elisions and the articulated prepositions
-        // but those of `di`, each piece lemmatised by the baseline.
+    fn spec_scenario_an_italian_page_is_read_by_its_own_analysis() {
+        // add-lingua-italian-analysis: Italian sets its names aside, flags its function words,
+        // names its own version, and still matches an expression of its pack by its lemmas, as
+        // English keys one, until add-lingua-italian-expression-keys. Its pre-pass splits its
+        // elisions and the articulated prepositions but those of `di`, each piece lemmatised by
+        // its cascade.
         const IT: StudiedLanguage = StudiedLanguage::Italian;
         let blocks = [
             "Ieri sera Augusto ha guardato Eugenia a lungo, poi ha pregato Dio nella casa dell'uomo.",
@@ -2357,8 +2362,9 @@ mod tests {
             "non",
             "che",
         ];
-        // `eugenia` and `dio` are lemmas but not dictionary words: Spanish's names rule would set
-        // both aside, being capitalised in mid-sentence and never written in lowercase.
+        // `eugenia` and `dio` are lemmas but not dictionary words: capitalised in mid-sentence
+        // and never written in lowercase, both are set aside, as Spanish's and French's rules set
+        // theirs aside.
         let pack = build_pack_with_names(
             IT,
             &forms,
@@ -2373,28 +2379,24 @@ mod tests {
         let page = analyse_page(&blocks, IT, &pack, &KnowledgeState::new());
         assert!(page.analysable);
         assert_eq!(page.analyzer_version, ITALIAN_ANALYZER_VERSION);
-        assert_eq!(page.analyzer_version, "0.2.0");
+        assert_eq!(page.analyzer_version, "1.0.0");
         let class_of = |surface: &str| {
             page.tokens
                 .iter()
                 .find(|t| t.surface == surface)
                 .map(|t| (t.lemma.as_str(), t.class))
         };
-        assert_eq!(class_of("Eugenia"), Some(("eugenia", TokenClass::Unknown)));
-        assert_eq!(class_of("Dio"), Some(("dio", TokenClass::Unknown)));
+        assert_eq!(class_of("Eugenia"), Some(("eugenia", NAME)));
+        assert_eq!(class_of("Dio"), Some(("dio", NAME)));
         // The rule that belongs to no language still holds: a capital outside the lexicon.
-        assert_eq!(
-            class_of("Augusto"),
-            Some(("augusto", TokenClass::ProperNounOutOfLexicon))
-        );
-        assert_eq!(
-            class_of("guardato"),
-            Some(("guardare", TokenClass::Unknown))
-        );
+        assert_eq!(class_of("Augusto"), Some(("augusto", NAME)));
+        assert_eq!(class_of("guardato"), Some(("guardare", WORD)));
+        // An unlisted lowercase plural is itself: D2's plural rule was measured out (D6).
+        assert_eq!(class_of("nobili"), Some(("nobili", WORD)));
         // « dell'uomo » is `dello` + `uomo`, « nella » `in` + `la` sharing its span, « della »
         // whole: each piece its pack lemma, else itself.
-        assert_eq!(class_of("dello"), Some(("dello", TokenClass::Unknown)));
-        assert_eq!(class_of("uomo"), Some(("uomo", TokenClass::Unknown)));
+        assert_eq!(class_of("dello"), Some(("dello", WORD)));
+        assert_eq!(class_of("uomo"), Some(("uomo", WORD)));
         assert_eq!(class_of("dell'uomo"), None);
         assert_eq!(class_of("nella"), None);
         let nella = page
@@ -2407,16 +2409,23 @@ mod tests {
             (page.tokens[nella].start, page.tokens[nella].end),
             (page.tokens[nella + 1].start, page.tokens[nella + 1].end)
         );
-        assert_eq!(class_of("della"), Some(("della", TokenClass::Unknown)));
+        assert_eq!(class_of("della"), Some(("della", WORD)));
 
-        // No function word, and the expression is matched by its lemmas: `faccio` is `fare`.
+        // The function words are flagged, and the expression is matched by its lemmas: `faccio`
+        // is `fare`.
         let phrase = gloss_phrase(
             "Non so che fare: domani faccio colazione con il caffè.",
             IT,
             &pack,
             &KnowledgeState::new(),
         );
-        assert!(phrase.tokens.iter().all(|t| !t.function_word));
+        let flagged: Vec<&str> = phrase
+            .tokens
+            .iter()
+            .filter(|t| t.function_word)
+            .map(|t| t.surface.as_str())
+            .collect();
+        assert_eq!(flagged, ["Non", "che", "con", "il"]);
         assert_eq!(phrase.expressions.len(), 1, "{:?}", phrase.expressions);
         let found = &phrase.expressions[0];
         assert_eq!(found.key, "fare colazione");
@@ -2430,6 +2439,138 @@ mod tests {
         );
         assert_eq!(expression_piece("La", "il", IT), "il");
         assert_eq!(expression_window(IT), EXPRESSION_WINDOW);
+    }
+
+    /// The classes of every token written `surface` on an Italian page.
+    fn italian_classes(pack: &Pack, blocks: &[&str], surface: &str) -> Vec<TokenClass> {
+        let page = analyse_page(blocks, IT, pack, &KnowledgeState::new());
+        assert!(page.analysable, "{blocks:?}");
+        page.tokens
+            .into_iter()
+            .filter(|token| token.surface == surface)
+            .map(|token| token.class)
+            .collect()
+    }
+
+    /// The names a document's Italian tokens give under `studied`'s rule: the same tokens, so
+    /// that two rules are compared on what each reads.
+    fn italian_names_under(blocks: &[&str], studied: StudiedLanguage, pack: &Pack) -> Vec<String> {
+        let DocumentAnalysis::Analysed(tokens) = analyse_document(blocks, IT, pack.lexicon())
+        else {
+            panic!("{blocks:?} is not analysable as Italian");
+        };
+        let mut names: Vec<String> = document_names(&tokens, blocks, studied, pack)
+            .into_iter()
+            .collect();
+        names.sort_unstable();
+        names
+    }
+
+    const IT: StudiedLanguage = StudiedLanguage::Italian;
+
+    /// The Italian words every names page below uses, so each block reads as Italian.
+    const ITALIAN_WORDS: &[&str] = &["il", "lo", "la", "di", "a", "e", "in", "con", "essere"];
+
+    fn italian_pack(lemmas: &[&str], glosses: &[(&str, &str)]) -> Pack {
+        let all: Vec<&str> = ITALIAN_WORDS.iter().chain(lemmas).copied().collect();
+        build_pack_for(IT, &[("è", "essere")], &all, &[], glosses, &[])
+    }
+
+    #[test]
+    fn spec_scenario_an_italian_city() {
+        // « Sono andato a Roma. Roma è grande. »: `roma` a lemma, not a dictionary word. Both
+        // occurrences go, the one at a sentence's head with the other.
+        let blocks = [
+            "Sono andato a Roma con i miei amici per vedere i monumenti antichi della città.",
+            "Roma è grande e piena di turisti in ogni stagione dell'anno, anche d'inverno.",
+        ];
+        let pack = italian_pack(&["roma"], &[]);
+        assert_eq!(italian_classes(&pack, &blocks, "Roma"), [NAME, NAME]);
+        // Unlisted, the rule that belongs to no language sets it aside the same.
+        assert_eq!(
+            italian_classes(&italian_pack(&[], &[]), &blocks, "Roma"),
+            [NAME, NAME]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_an_italian_capital_after_an_elided_piece() {
+        // The only capitalised `Italia` follows `L'` at the head of its block, `Europa` follows
+        // `dell'`: the elision alone is the evidence, as French reads it.
+        let blocks = [
+            "L'Italia è lunga e stretta, con il mare su tre lati e le montagne a nord.",
+            "Il paese è nel cuore dell'Europa da molti secoli, e la sua storia è antica.",
+        ];
+        let pack = italian_pack(&["italia", "europa"], &[]);
+        assert_eq!(italian_classes(&pack, &blocks, "Italia"), [NAME]);
+        assert_eq!(italian_classes(&pack, &blocks, "Europa"), [NAME]);
+        assert_eq!(
+            italian_names_under(&blocks, IT, &pack),
+            ["europa", "italia"]
+        );
+        // Spanish's rule, on the same tokens, finds no evidence there.
+        assert!(italian_names_under(&blocks, ES, &pack).is_empty());
+        // The typographic apostrophe is evidence too.
+        let typographic = [
+            "Tutti parlano dell\u{2019}Europa con il cuore e con la testa, da molti anni ormai.",
+            "Il paese è antico e la sua storia è lunga, piena di guerre e di poeti.",
+        ];
+        assert_eq!(italian_classes(&pack, &typographic, "Europa"), [NAME]);
+    }
+
+    #[test]
+    fn spec_scenario_an_italian_hyphenated_name() {
+        // « con Anna-Maria Rossi »: the pack lists `anna` and `maria` but not the run, so the
+        // compound rule keeps it; the names rule reads it as one form.
+        let blocks = [
+            "Ieri sera sono uscito con Anna-Maria Rossi e con la sua famiglia per una cena.",
+            "Il ristorante era pieno di gente e la musica era troppo alta per parlare.",
+        ];
+        let pack = italian_pack(&["anna", "maria"], &[("anna", "anne"), ("maria", "marie")]);
+        assert_eq!(italian_classes(&pack, &blocks, "Anna-Maria"), [NAME]);
+        assert!(italian_names_under(&blocks, IT, &pack).contains(&"anna-maria".to_owned()));
+        // Spanish's rule judges a run by its parts: on the same tokens, the run is no name.
+        assert!(!italian_names_under(&blocks, ES, &pack).contains(&"anna-maria".to_owned()));
+        // Listing none of its pieces, the compound rule that belongs to no language sets it aside.
+        assert_eq!(
+            italian_classes(&italian_pack(&[], &[]), &blocks, "Anna-Maria"),
+            [NAME]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_an_italian_dictionary_word() {
+        // « a Firenze, Marco legge »: `marco` glossed, so a dictionary word; `firenze` a lemma
+        // without a gloss.
+        let blocks = [
+            "Quando sono arrivato a Firenze, Marco legge il giornale seduto in piazza.",
+            "Il sole è caldo e la gente cammina piano lungo il fiume con i bambini.",
+        ];
+        let pack = italian_pack(&["firenze", "marco"], &[("marco", "mark")]);
+        assert_eq!(italian_classes(&pack, &blocks, "Firenze"), [NAME]);
+        assert_eq!(italian_classes(&pack, &blocks, "Marco"), [WORD]);
+    }
+
+    #[test]
+    fn spec_scenario_italian_capitals_at_the_head_of_sentences_only() {
+        // « Ecco. Ecco la casa. »: `Ecco` is written only at the head of its sentences.
+        let blocks = [
+            "Ecco. Ecco la casa di mio nonno, con il giardino e la vecchia porta di legno.",
+            "Ecco il paese dove sono nato e dove ho passato tutta la mia infanzia.",
+        ];
+        let pack = italian_pack(&["ecco"], &[]);
+        assert_eq!(italian_classes(&pack, &blocks, "Ecco"), [WORD, WORD, WORD]);
+    }
+
+    #[test]
+    fn spec_scenario_the_same_italian_form_as_a_word() {
+        // « il Sale e il sale »: the form is written in lowercase too.
+        let blocks = [
+            "Il fiume si chiama il Sale e il sale si raccoglie sulle sue rive da sempre.",
+            "La gente del paese vende il sale al mercato della città ogni settimana.",
+        ];
+        let pack = italian_pack(&["sale", "fiume"], &[]);
+        assert_eq!(italian_classes(&pack, &blocks, "Sale"), [WORD]);
     }
 
     #[test]
