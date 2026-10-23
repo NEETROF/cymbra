@@ -698,8 +698,10 @@ fn match_expressions(
 struct PageJoins {
     /// [`shared_spans`]: the second half of a written word the pre-pass split.
     shares_span: Vec<bool>,
-    /// [`is_elided`]: an elided piece, or an Italian truncation (add-lingua-italian-tokenisation
-    /// D6); [`meets_as_written`], which reads it, runs for French alone.
+    /// [`is_elided`]: an elided piece, an Italian truncation (add-lingua-italian-tokenisation D6)
+    /// or an Italian word whose apostrophe stands for its accent (`perche'` read as `perché`,
+    /// read-lingua-italian-unmarked-spellings D1); [`meets_as_written`], which reads it, runs for
+    /// French alone.
     elided: Vec<bool>,
     /// [`is_hyphen_join`] over the text between the two tokens' spans
     /// (choose-lingua-overlapping-expressions D3, G1); never the first token.

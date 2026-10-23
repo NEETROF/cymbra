@@ -165,7 +165,7 @@ pub fn tokenize(
 ) -> Vec<Token> {
     let words: Vec<(usize, &str)> = match language {
         StudiedLanguage::French => french_words(text),
-        StudiedLanguage::Italian => italian_words(text),
+        StudiedLanguage::Italian => italian_words(text, lexicon),
         StudiedLanguage::English | StudiedLanguage::Spanish => {
             text.unicode_word_indices().collect()
         }
@@ -940,9 +940,9 @@ fn italian_truncation(lower: &str) -> Option<&'static str> {
 /// sposi*, read `qué`), `ca'` (*casa*, « Ca' Foscari », read `cà`), `ve'` (*vedi*, `vè`), `mi'`
 /// (*mio*, `mì`), `fra'` (*frate*, `frà`), `to'` (*togli*, `tò`), `i'` (*io*, `ì`), `me'`
 /// (*meglio*, `mè`), `vo'` (*voglio*, `vò`) and `fe'` (*fece*, `fè`). Each stays as an unlisted
-/// trailing apostrophe is read, its apostrophe outside the word. Public for the checks that hold
-/// the tables to the pre-pass.
-pub const ITALIAN_APOCOPES: &[&str] = &[
+/// trailing apostrophe is read, its apostrophe outside the word. Private: the rule's own list, which
+/// no table holds.
+const ITALIAN_APOCOPES: &[&str] = &[
     "a", "ca", "co", "de", "fe", "fra", "i", "me", "mi", "ne", "pe", "que", "su", "to", "ve", "vo",
 ];
 
@@ -950,13 +950,16 @@ pub const ITALIAN_APOCOPES: &[&str] = &[
 /// (read-lingua-italian-unmarked-spellings D1), or `None`: `lower` — the word, or what remains
 /// of it after its elided pieces, lowercase, in NFC and without the apostrophe — ending in a
 /// vowel, that vowel accented (`a` → `à`, `e` → `è` or `é`, `i` → `ì`, `o` → `ò`, `u` → `ù`),
-/// as the pack lists it (`perche` → `perché`, `e` → `è`, `citta` → `città`). Where the pack
-/// lists both of `e`'s, a form it files under the other is the other's spelling, and the other
-/// wins (`perché`, beside `perchè` a form of it; `caffè`, beside `caffé`); where neither is filed
-/// under the other, `è` comes before `é` (`è`, a form of *essere*, beside the misspelling `é` the
-/// tables rank as a word of its own): the tables decide, never a frequency. Change 6's
-/// truncations are never tried — `po'` is `poco`, `da'` `dai`, never `pò`, `dà` — nor the
-/// apocopes ([`ITALIAN_APOCOPES`]).
+/// as the pack lists it (`perche` → `perché`, `e` → `è`, `citta` → `città`) and ranks it within
+/// [`ITALIAN_ACCENT_RANK`]: a form whose word the pack ranks lower is a rare token the tables
+/// list (`vità`, `comè`, `dovè`, `chì`, `nò`, `luì`), and the apostrophe a stray one. Where the
+/// pack lists both of `e`'s, a form it files under the other is the other's spelling, and the
+/// other wins (`perché`, beside `perchè` a form of it; `caffè`, beside `caffé`); where neither is
+/// filed under the other, the one whose word the pack ranks higher (`sé` 655 before `sè` 2,911;
+/// `è`, a form of *essere*, before the misspelling `é`), and `è` before `é` where the pack ranks
+/// neither: the tables decide, never a frequency read at run time. Change 6's truncations are
+/// never tried — `po'` is `poco`, `da'` `dai`, never `pò`, `dà` — nor the apocopes
+/// ([`ITALIAN_APOCOPES`]). A lexicon without ranks (a test's stand-in) passes every listed form.
 fn italian_accented(lower: &str, lexicon: &(impl Lexicon + ?Sized)) -> Option<String> {
     if italian_truncation(lower).is_some() || ITALIAN_APOCOPES.binary_search(&lower).is_ok() {
         return None;
@@ -984,12 +987,27 @@ fn italian_accented(lower: &str, lexicon: &(impl Lexicon + ?Sized)) -> Option<St
             .iter()
             .any(|(other, _)| other != form && other.as_str() == *lemma)
     };
-    let chosen = listed
-        .iter()
-        .find(|candidate| !spells_another(candidate))
-        .or_else(|| listed.first())?;
-    Some(chosen.0.clone())
+    let own: Vec<&(String, &str)> = listed.iter().filter(|c| !spells_another(c)).collect();
+    let candidates = if own.is_empty() {
+        listed.iter().collect()
+    } else {
+        own
+    };
+    candidates
+        .into_iter()
+        .map(|(form, lemma)| (form, lexicon.lemma_rank(lemma)))
+        .filter(|(_, rank)| rank.is_none_or(|rank| rank <= ITALIAN_ACCENT_RANK))
+        .enumerate()
+        .min_by_key(|&(order, (_, rank))| (rank.is_none(), rank, order))
+        .map(|(_, (form, _))| form.clone())
 }
+
+/// The rank within which an accented form's word is read for an apostrophe
+/// (read-lingua-italian-unmarked-spellings, at review): measured on it-fr's tables between the
+/// rarest word a real accent spelling reads as (`piè` 15,547, of « pie' ») and the commonest rare
+/// token a stray apostrophe would read (`vità` 33,926), at their geometric middle rounded to
+/// thousands; `governò` (*governare*, 3,722) and `terrà` (*tenere*, 684) are kept.
+const ITALIAN_ACCENT_RANK: u32 = 23_000;
 
 /// Whether an Italian word is an elided form (D3's, or D4's `dell'`, `all'`,
 /// `dall'`, `nell'`, `sull'`) or a truncation, read lowercase, in NFC and without
@@ -1011,33 +1029,82 @@ fn italian_char_before(text: &str, at: usize) -> Option<char> {
 /// so that an apostrophe after the word starting at `start` closes it (D5, as
 /// implemented). The nearest quote mark before the word — `'`, `’` or `‘` — that
 /// opens or closes one decides: a mark with a letter after it and no letter or digit
-/// before it opens one (`‘due`, `'Sì`); a mark with no letter after it and something
-/// other than a space before it closes one (`fa’`, `qui!’`, `Sì.'`, another
-/// truncation's `po'`). A mark between two letters is inside a word (`c'è`, a
-/// mistyped `l‘uomo`), and one between a space and no letter opens nothing (`‘80`):
-/// the scan goes on past both, and the start of the text is outside any quote. So
-/// « ‘due anni fa’ » reads `fa`, and « ‘Vieni!’ disse, un po' » and « un po' di pane,
-/// va' via » `poco`.
-fn inside_a_quote(text: &str, start: usize) -> bool {
+/// before it opens one (`‘due`, `'Sì`), and so does one after a space or the start
+/// before `.`, `…` or a number (`'...lavoro'`, `'2 lavoro'`) but an elided decade
+/// (`‘80`, two digits and no letter or digit after them); a mark with no letter after
+/// it and something other than a space before it closes one (`fa’`, `qui!’`, `Sì.'`),
+/// unless the word before it is one Italian's pre-pass reads with its apostrophe — a
+/// truncation (`po'`) or a word whose apostrophe stands for an accent (`e'`,
+/// [`italian_accented`]; read-lingua-italian-unmarked-spellings, at review) —, whose
+/// apostrophe is its own. A mark between two letters is inside a word (`c'è`, a
+/// mistyped `l‘uomo`), and one between a space and anything else opens nothing: the
+/// scan goes on past them, and the start of the text is outside any quote. So
+/// « ‘due anni fa’ » reads `fa`, « ‘Vieni!’ disse, un po' », « anni ‘80, un po' » and
+/// « un po' di pane, va' via » `poco`, and « 'un po' di lavoro' » and « 'c'e' lavoro' »
+/// leave `lavoro` as written.
+fn inside_a_quote(text: &str, start: usize, lexicon: &(impl Lexicon + ?Sized)) -> bool {
     for (at, c) in text[..start].char_indices().rev() {
         if !is_apostrophe(c) && c != '\u{2018}' {
             continue;
         }
         let before = italian_char_before(text, at);
-        let letter_after = text[at + c.len_utf8()..]
+        let mut after = text[at + c.len_utf8()..]
             .chars()
-            .find(|&c| c != SOFT_HYPHEN)
-            .is_some_and(char::is_alphabetic);
+            .filter(|&c| c != SOFT_HYPHEN);
+        let next = after.next();
+        let letter_after = next.is_some_and(char::is_alphabetic);
         let letter_before = before.is_some_and(char::is_alphanumeric);
         let space_before = before.is_none_or(char::is_whitespace);
         if letter_after && !letter_before {
             return true;
         }
+        if space_before && opens_before(next, after) {
+            return true;
+        }
         if !letter_after && !space_before {
+            if reads_its_apostrophe(text, at, lexicon) {
+                continue;
+            }
             return false;
         }
     }
     false
+}
+
+/// Whether a quote mark after a space opens a quote by what follows it: `.` or `…`
+/// (`'...lavoro'`), or a number but an elided decade — two digits and neither a letter
+/// nor a digit after them (`‘80`, `'68`).
+fn opens_before(next: Option<char>, mut after: impl Iterator<Item = char>) -> bool {
+    match next {
+        Some('.' | '…') => true,
+        Some(first) if first.is_ascii_digit() => {
+            let decade = after.next().is_some_and(|c| c.is_ascii_digit())
+                && !after.next().is_some_and(char::is_alphanumeric);
+            !decade
+        }
+        _ => false,
+    }
+}
+
+/// Whether the word ending at byte `at` of `text`, right before an apostrophe, is one
+/// Italian's pre-pass reads with its apostrophe: a truncation, or a word whose
+/// apostrophe stands for an accent ([`italian_accented`]). The word is the letters
+/// right before the apostrophe (an elided piece's rest: `e` of `c'e'`), soft hyphens
+/// read as nowhere.
+fn reads_its_apostrophe(text: &str, at: usize, lexicon: &(impl Lexicon + ?Sized)) -> bool {
+    let from = text[..at]
+        .char_indices()
+        .rev()
+        .take_while(|&(_, c)| {
+            c.is_alphabetic()
+                || c == SOFT_HYPHEN
+                || unicode_normalization::char::is_combining_mark(c)
+        })
+        .last()
+        .map_or(at, |(i, _)| i);
+    let lower = french_lowercase(&text[from..at]);
+    !lower.is_empty()
+        && (italian_truncation(&lower).is_some() || italian_accented(&lower, lexicon).is_some())
 }
 
 /// The words of Italian text with their byte offsets (D5, D2's counterpart of
@@ -1052,7 +1119,7 @@ fn inside_a_quote(text: &str, start: usize) -> bool {
 /// then reads one that stands for an accent, taking it into the token's span
 /// (`perche'` is `perche` here and `perché` there, read-lingua-italian-unmarked-spellings
 /// D1).
-fn italian_words(text: &str) -> Vec<(usize, &str)> {
+fn italian_words<'t>(text: &'t str, lexicon: &(impl Lexicon + ?Sized)) -> Vec<(usize, &'t str)> {
     text.unicode_word_indices()
         .map(|(start, word)| {
             let end = start + word.len();
@@ -1064,7 +1131,7 @@ fn italian_words(text: &str) -> Vec<(usize, &str)> {
             let keeps = match after.next() {
                 Some(c) if c.is_alphabetic() => false,
                 Some(c) if c.is_alphanumeric() => elided,
-                _ => (elided || truncation) && !inside_a_quote(text, start),
+                _ => (elided || truncation) && !inside_a_quote(text, start, lexicon),
             };
             if keeps {
                 (start, &text[start..end + apostrophe.len_utf8()])
@@ -1174,7 +1241,7 @@ fn push_italian_word(
             return;
         }
     } else if let Some(apostrophe) = apostrophe_ending_a_word(text, end)
-        && !inside_a_quote(text, start)
+        && !inside_a_quote(text, start, lexicon)
         && let Some(accented) = italian_accented(&lower, lexicon)
     {
         tokens.push(Token {
@@ -2113,6 +2180,159 @@ mod tests {
             texts(&accented("perche' c'e' ‘ciao’ ‘due anni fa’", &[])),
             ["perché", "ci", "è", "ciao", "due", "anni", "fa"]
         );
+    }
+
+    /// The accent stand-in with the pack's ranks, `ranks` naming lemmas and their rank.
+    fn ranked_accent_lexicon(forms: &[(&str, &str)], ranks: &[(&str, u32)]) -> FstLexicon<Vec<u8>> {
+        let lexicon = accent_lexicon(forms);
+        let mut table = vec![0u32; lexicon.lemma_count()];
+        for &(lemma, rank) in ranks {
+            table[lexicon.lemma_id(lemma).expect("a lemma") as usize] = rank;
+        }
+        lexicon.with_ranks(table)
+    }
+
+    #[test]
+    fn a_stray_apostrophe_reads_no_rare_token() {
+        // At review: the tables rank rare tokens a stray apostrophe would read (`vità` 33,926,
+        // `comè` 55,162 …); a form whose word the pack ranks beyond ITALIAN_ACCENT_RANK is not
+        // read, and the apostrophe stays outside the word.
+        let forms = [
+            ("vità", "vità"),
+            ("comè", "comè"),
+            ("dovè", "dovè"),
+            ("chì", "chì"),
+            ("nò", "nò"),
+            ("luì", "luì"),
+            ("governò", "governare"),
+            ("terrà", "tenere"),
+            ("piè", "piè"),
+        ];
+        let ranks = [
+            ("vità", 33_926),
+            ("comè", 55_162),
+            ("dovè", 44_355),
+            ("chì", 50_303),
+            ("nò", 49_990),
+            ("luì", 42_486),
+            ("governare", 3_722),
+            ("tenere", 684),
+            ("piè", 15_547),
+            ("essere", 29),
+            ("perché", 43),
+            ("più", 16),
+        ];
+        let lexicon = ranked_accent_lexicon(&forms, &ranks);
+        let read = |text: &str| -> Vec<String> {
+            tokenize(text, IT, &lexicon)
+                .into_iter()
+                .map(|t| t.text)
+                .collect()
+        };
+        for (text, word) in [
+            ("vita'", "vita"),
+            ("come'", "come"),
+            ("dove'", "dove"),
+            ("chi'", "chi"),
+            ("no'", "no"),
+            ("lui'", "lui"),
+        ] {
+            assert_eq!(read(text), [word], "{text}");
+        }
+        for (text, word) in [
+            ("governo'", "governò"),
+            ("terra'", "terrà"),
+            ("pie'", "piè"),
+            ("perche'", "perché"),
+            ("piu'", "più"),
+            ("E'", "È"),
+        ] {
+            assert_eq!(read(text), [word], "{text}");
+        }
+        // The bound itself is read; one beyond it is not. A form the pack ranks not at all is read
+        // (the stand-ins rank nothing).
+        let edge = ranked_accent_lexicon(
+            &[("bontà", "bontà"), ("onestà", "onestà")],
+            &[
+                ("bontà", ITALIAN_ACCENT_RANK),
+                ("onestà", ITALIAN_ACCENT_RANK + 1),
+            ],
+        );
+        assert_eq!(
+            texts(&tokenize("bonta' onesta'", IT, &edge)),
+            ["bontà", "onesta"]
+        );
+        assert_eq!(
+            texts(&accented("bonta' onesta'", &[("bontà", "bontà")])),
+            ["bontà", "onesta"]
+        );
+    }
+
+    #[test]
+    fn the_pack_s_ranks_choose_between_two_accents() {
+        // At review: neither filed under the other, the one whose word the pack ranks higher —
+        // `sé` 655 before `sè` 2,911, `è` (*essere*) before the misspelling `é`.
+        let lexicon = ranked_accent_lexicon(
+            &[("sè", "sè"), ("sé", "sé"), ("é", "é")],
+            &[("sè", 2_911), ("sé", 655), ("é", 1_500), ("essere", 29)],
+        );
+        assert_eq!(
+            texts(&tokenize("da se' E' vero e'", IT, &lexicon)),
+            ["da", "sé", "È", "vero", "è"]
+        );
+        // Without ranks, `è` before `é`.
+        assert_eq!(
+            texts(&accented("se'", &[("sè", "sè"), ("sé", "sé")])),
+            ["sè"]
+        );
+    }
+
+    #[test]
+    fn a_quote_the_accent_spellings_do_not_close() {
+        // At review: a truncation's or an accent spelling's apostrophe is its own, not a closing
+        // quote; a quote mark after a space before `.`, `…` or a number opens one, but an elided
+        // decade (`‘80`). `lavorò` is listed, so each probe tests the scan.
+        let forms = [("lavorò", "lavorare"), ("bastà", "bastare")];
+        for (text, expected) in [
+            (
+                "Mi serve 'un po' di lavoro'",
+                vec!["Mi", "serve", "un", "po", "di", "lavoro"],
+            ),
+            ("Disse: 'c'e' lavoro'", vec!["Disse", "ci", "e", "lavoro"]),
+            (
+                "il cosiddetto '...lavoro'",
+                vec!["il", "cosiddetto", "lavoro"],
+            ),
+            (
+                "il cosiddetto '…lavoro'",
+                vec!["il", "cosiddetto", "lavoro"],
+            ),
+            ("'2 lavoro'", vec!["lavoro"]),
+            ("'un po' e basta'", vec!["un", "po", "e", "basta"]),
+        ] {
+            assert_eq!(texts(&accented(text, &forms)), expected, "{text}");
+        }
+        // Outside any quote, the same words read their accent; a closed quote closes.
+        assert_eq!(
+            texts(&accented("un po' di lavoro' e basta'", &forms)),
+            ["un", "poco", "di", "lavorò", "e", "bastà"]
+        );
+        assert_eq!(
+            texts(&accented("‘Vieni!’ lavoro'", &forms)),
+            ["Vieni", "lavorò"]
+        );
+        // An elided decade opens nothing: the truncation after it reads.
+        for text in ["anni ‘80, un po'", "nel '68 un po'", "anni ‘80 lavoro'"] {
+            let tokens = accented(text, &forms);
+            let read = texts(&tokens);
+            assert!(
+                read.contains(&"poco") || read.contains(&"lavorò"),
+                "{text}: {read:?}"
+            );
+        }
+        // A digit run that is no decade opens one.
+        assert_eq!(texts(&accented("'2024 lavoro'", &forms)), ["lavoro"]);
+        assert_eq!(texts(&accented("'8 lavoro'", &forms)), ["lavoro"]);
     }
 
     #[test]

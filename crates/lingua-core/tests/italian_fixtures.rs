@@ -347,6 +347,9 @@ const ACCENT_FORMS: &[(&str, &str)] = &[
     // Two apocopes' accented look-alikes the tables list (task 2.2's measurement).
     ("qué", "qué"),
     ("cà", "cà"),
+    // Two words a quoted phrase ends on, listed so that the quotes are what keeps them as written.
+    ("lavorò", "lavorare"),
+    ("bastà", "bastare"),
 ];
 
 /// (text tokenised as Italian with [`ACCENT_FORMS`], the tokens as (text, the source text the span
@@ -419,6 +422,51 @@ const ACCENT_CASES: &[Case] = &[
     (
         "‘ciao’ perche' no",
         &[("ciao", "ciao"), ("perché", "perche'"), ("no", "no")],
+    ),
+    // At review: a truncation's or an accent spelling's apostrophe closes no quote, and a quote
+    // mark after a space opens one before dots or a number.
+    (
+        "Mi serve 'un po' di lavoro'",
+        &[
+            ("Mi", "Mi"),
+            ("serve", "serve"),
+            ("un", "un"),
+            ("po", "po"),
+            ("di", "di"),
+            ("lavoro", "lavoro"),
+        ],
+    ),
+    (
+        "Disse: 'c'e' lavoro'",
+        &[
+            ("Disse", "Disse"),
+            ("ci", "c'"),
+            ("e", "e"),
+            ("lavoro", "lavoro"),
+        ],
+    ),
+    (
+        "il cosiddetto '...lavoro'",
+        &[
+            ("il", "il"),
+            ("cosiddetto", "cosiddetto"),
+            ("lavoro", "lavoro"),
+        ],
+    ),
+    ("'2 lavoro'", &[("lavoro", "lavoro")]),
+    (
+        "'un po' e basta'",
+        &[("un", "un"), ("po", "po"), ("e", "e"), ("basta", "basta")],
+    ),
+    // Outside a quote the same words read their accent.
+    (
+        "un po' di lavoro'",
+        &[
+            ("un", "un"),
+            ("poco", "po'"),
+            ("di", "di"),
+            ("lavorò", "lavoro'"),
+        ],
     ),
 ];
 
