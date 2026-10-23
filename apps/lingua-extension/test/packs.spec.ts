@@ -69,9 +69,9 @@ describe("each pack against its own language's analyser", () => {
     // French has its own analysis (add-lingua-french-analysis): its own version, no longer one of
     // the baseline's `0.x`, read beside the two others'.
     expect(coreAnalyzerVersion("fr", modRs)).toMatch(/^[1-9]\d*\.\d+\.\d+$/);
-    // Italian is served by the baseline (add-lingua-italian-baseline): one of its `0.x` versions,
-    // read beside the three others' though no listed pair studies Italian.
-    expect(coreAnalyzerVersion("it", modRs)).toMatch(/^0\.\d+\.\d+$/);
+    // Italian has its tokenisation pre-pass (add-lingua-italian-tokenisation): `0.2.0`, read beside
+    // the three others' though no listed pair studies Italian.
+    expect(coreAnalyzerVersion("it", modRs)).toBe("0.2.0");
   });
 
   it("reads a pack's studied language, native language and analyser version from its metadata", () => {

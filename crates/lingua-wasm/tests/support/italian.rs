@@ -13,7 +13,10 @@
 // limitations under the License.
 
 //! The Italian invariance baseline's scenario (`italian_baseline.rs`): its corpus, probes and
-//! reader (add-lingua-italian-baseline D5).
+//! reader (add-lingua-italian-baseline D5). Italian has its tokenisation pre-pass at `0.2.0`
+//! (add-lingua-italian-tokenisation): elided pieces, the articulated prepositions split but for
+//! the `di` family, truncations read as their word; its probes gain an elided piece and a
+//! contraction a word card is handed alone, and three phrases (D7).
 //!
 //! The corpus, `baseline/pages-it.txt`, is authored for these tests, page by page, around what a
 //! later change of the Italian stage must show, with two exceptions, quoted from texts in the
@@ -37,11 +40,16 @@
 //! Checked on 2026-10-23: the Manzoni against it.wikisource's proofread transcription of the 1840
 //! edition, the Collodi against its transcription of the Bemporad edition.
 //!
+//! One phrase probe is quoted too: « Nel mezzo del cammin », the opening words of Dante
+//! Alighieri's *Commedia* (Inferno I, 1; Dante died in 1321), in the public domain everywhere.
+//!
 //! The `narrativa` and `manzoni` pages are set as Italian is printed: the typographic apostrophe
 //! `’`, « » without spaces, the dialogue dash, `È` with its accent. The other pages are typed as
 //! the web often has them, with the straight apostrophe, and the `informale` page with the
 //! apostrophe where an accent belongs (`perche'`, `e'`, `piu'`, `citta'`, `E'`), which the edge
-//! trim of every language takes off the word today (`perche'` is `perche`, as `po'` is `po`). One
+//! trim of every language takes off the word until change 10 reads it as an accent (`perche'` is
+//! `perche`), while the `elisioni` page's truncations keep theirs and read as their words (`po'`
+//! is `poco`, add-lingua-italian-tokenisation D5). One
 //! block of the `tecnico` page is committed in NFD on purpose (accents as combining marks, as a
 //! terminal paste or an OCR writes them); `italian_baseline.rs` asserts it still is. The fixture
 //! lists one of its words, `città` (« ville »), which the corpus has nowhere else: read as it came,
@@ -57,8 +65,8 @@
 use super::{Card, PackSource, Scenario};
 
 /// Dictionary forms whose gloss the card shows: the verbs every page uses, M8's homographs,
-/// elided, articulated and enclitic words as the baseline reads them, words from the corpus. Some
-/// have none in the pack, on purpose.
+/// elided, articulated and enclitic words as the baseline read them at `0.1.0`, words from the
+/// corpus. Some have none in the pack, on purpose.
 const LEMMAS: &[&str] = &[
     "essere",
     "avere",
@@ -128,10 +136,13 @@ const PHRASES: &[&str] = &[
     "Quel ramo del lago di Como, che volge a mezzogiorno",
     "L'uomo che aspettavo",
     "la temperatura dell'acqua",
+    "all'alba",
     "un po' di pane",
+    "C'è un po' di pane",
     "c'è stato un errore",
     "del pane e delle uova",
     "nel cassetto",
+    "Nel mezzo del cammin",
     "col cane",
     "dirmelo subito",
     "vattene",
@@ -147,7 +158,9 @@ const PHRASES: &[&str] = &[
 ];
 
 /// (word as written, dictionary form) pairs a word card asks the grammar of. The fixture has no
-/// grammar tables: each answers its gloss alone.
+/// grammar tables: each answers its gloss alone, and a written word Italian's pre-pass splits
+/// answers its pieces — `al`, `l'uomo` —, an elided piece handed alone none (`l’`), asked by its
+/// written reading (`lo`) or by its lemma (`il`).
 const GRAMMAR: &[(&str, &str)] = &[
     ("è", "essere"),
     ("sono", "essere"),
@@ -171,7 +184,11 @@ const GRAMMAR: &[(&str, &str)] = &[
     ("sale", "sale"),
     ("vite", "vita"),
     ("del", "del"),
+    ("al", "a"),
     ("l'uomo", "uomo"),
+    ("l’", "lo"),
+    // The fixture files `lo` under `il`: asked by its lemma, the elided article shows its gloss.
+    ("l’", "il"),
     ("dirmelo", "dire"),
 ];
 

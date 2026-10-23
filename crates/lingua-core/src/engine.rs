@@ -693,7 +693,8 @@ fn match_expressions(
 struct PageJoins {
     /// [`shared_spans`]: the second half of a written word the pre-pass split.
     shares_span: Vec<bool>,
-    /// [`is_elided`]: an elided piece.
+    /// [`is_elided`]: an elided piece, or an Italian truncation (add-lingua-italian-tokenisation
+    /// D6); [`meets_as_written`], which reads it, runs for French alone.
     elided: Vec<bool>,
     /// [`is_hyphen_join`] over the text between the two tokens' spans
     /// (choose-lingua-overlapping-expressions D3, G1); never the first token.
@@ -755,8 +756,9 @@ impl<'a> ExpressionScan<'a> {
     }
 
     /// French and Spanish, whose matches never end inside a written word. English's split
-    /// words stay as they were, and Italian splits none while the baseline serves it
-    /// (add-lingua-italian-baseline D2).
+    /// words stay as they were, and so do Italian's (`al` → `a` + `il`, `all'` → `a` + `lo`,
+    /// add-lingua-italian-tokenisation D4) until add-lingua-italian-expression-keys reads them
+    /// whole (its D5): the keys that read the pieces are that change's (D1).
     fn whole_words(&self) -> bool {
         match self.studied {
             StudiedLanguage::Spanish | StudiedLanguage::French => true,
@@ -2324,9 +2326,10 @@ mod tests {
     #[test]
     fn spec_scenario_an_italian_page_is_read_by_the_baseline() {
         // add-lingua-italian-baseline D2: Italian keeps a capitalised word in mid-sentence as an
-        // ordinary token (no names rule), splits no elision or articulated preposition, flags no
-        // function word, names its own version, and matches an expression of its pack by its
-        // lemmas, as English keys one.
+        // ordinary token (no names rule), flags no function word, names its own version, and
+        // matches an expression of its pack by its lemmas, as English keys one. Its pre-pass
+        // (add-lingua-italian-tokenisation) splits its elisions and the articulated prepositions
+        // but those of `di`, each piece lemmatised by the baseline.
         const IT: StudiedLanguage = StudiedLanguage::Italian;
         let blocks = [
             "Ieri sera Augusto ha guardato Eugenia a lungo, poi ha pregato Dio nella casa dell'uomo.",
@@ -2370,7 +2373,7 @@ mod tests {
         let page = analyse_page(&blocks, IT, &pack, &KnowledgeState::new());
         assert!(page.analysable);
         assert_eq!(page.analyzer_version, ITALIAN_ANALYZER_VERSION);
-        assert_eq!(page.analyzer_version, "0.1.0");
+        assert_eq!(page.analyzer_version, "0.2.0");
         let class_of = |surface: &str| {
             page.tokens
                 .iter()
@@ -2388,11 +2391,22 @@ mod tests {
             class_of("guardato"),
             Some(("guardare", TokenClass::Unknown))
         );
+        // « dell'uomo » is `dello` + `uomo`, « nella » `in` + `la` sharing its span, « della »
+        // whole: each piece its pack lemma, else itself.
+        assert_eq!(class_of("dello"), Some(("dello", TokenClass::Unknown)));
+        assert_eq!(class_of("uomo"), Some(("uomo", TokenClass::Unknown)));
+        assert_eq!(class_of("dell'uomo"), None);
+        assert_eq!(class_of("nella"), None);
+        let nella = page
+            .tokens
+            .iter()
+            .position(|t| t.surface == "in")
+            .expect("the preposition of « nella »");
+        assert_eq!(page.tokens[nella + 1].surface, "la");
         assert_eq!(
-            class_of("dell'uomo"),
-            Some(("dell'uomo", TokenClass::Unknown))
+            (page.tokens[nella].start, page.tokens[nella].end),
+            (page.tokens[nella + 1].start, page.tokens[nella + 1].end)
         );
-        assert_eq!(class_of("nella"), Some(("nella", TokenClass::Unknown)));
         assert_eq!(class_of("della"), Some(("della", TokenClass::Unknown)));
 
         // No function word, and the expression is matched by its lemmas: `faccio` is `fare`.

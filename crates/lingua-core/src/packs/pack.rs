@@ -1344,12 +1344,13 @@ pub(crate) mod tests {
     #[test]
     fn spec_scenario_an_italian_pack_at_italian_s_analyser_version() {
         // add-lingua-italian-baseline: a pack studying Italian loads against Italian's own
-        // version, the baseline's `0.1.0`, and is glossed in French, English or Spanish.
-        assert_eq!(ITALIAN_ANALYZER_VERSION, "0.1.0");
+        // version, `0.2.0` since add-lingua-italian-tokenisation, and is glossed in French,
+        // English or Spanish.
+        assert_eq!(ITALIAN_ANALYZER_VERSION, "0.2.0");
         let bytes = sample_pack_bytes_with("it", "fr", ITALIAN_ANALYZER_VERSION);
         let italian = Pack::load(&bytes).expect("an Italian pack at Italian's version loads");
         assert_eq!(italian.studied(), StudiedLanguage::Italian);
-        assert_eq!(italian.meta().analyzer_version, "0.1.0");
+        assert_eq!(italian.meta().analyzer_version, "0.2.0");
         assert_eq!(italian.pair().key(), "it-fr");
         assert_eq!(Pack::studied_in(&bytes).unwrap(), StudiedLanguage::Italian);
         for native in ["en", "es"] {
@@ -1358,11 +1359,13 @@ pub(crate) mod tests {
             assert_eq!(pack.pair().key(), format!("it-{native}"));
         }
         // Compared with Italian's own version, never another language's: an Italian pack at
-        // French's, English's or Spanish's is refused as built for another analyser generation.
+        // French's, English's or Spanish's is refused as built for another analyser generation,
+        // and so is one built by the baseline's tokeniser, at `0.1.0`, which keeps `l'uomo` whole.
         for other in [
             FRENCH_ANALYZER_VERSION,
             ANALYZER_VERSION,
             SPANISH_ANALYZER_VERSION,
+            "0.1.0",
         ] {
             let refused = Pack::load(&sample_pack_bytes_with("it", "fr", other)).err();
             assert!(

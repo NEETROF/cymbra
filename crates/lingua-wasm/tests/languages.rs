@@ -802,7 +802,8 @@ fn it() -> Option<String> {
 }
 
 /// An engine started on the real en-fr pack, the Italian pack glossed in French added, analyses an
-/// Italian page by the baseline; a reader of Italian has a backup of schema version 4, which
+/// Italian page by the baseline and Italian's pre-pass (add-lingua-italian-tokenisation); a reader
+/// of Italian has a backup of schema version 4, which
 /// restores whole; a reader of English on the same engine keeps version 1
 /// (add-lingua-italian-baseline D7).
 #[test]
@@ -822,10 +823,20 @@ fn spec_scenario_an_italian_reader_s_backup_is_version_4() {
             it(),
         )
         .unwrap();
-    assert!(page.contains(r#""analyzer_version":"0.1.0""#), "{page}");
-    // The baseline: the elided word and the articulated preposition are one token each.
+    assert!(page.contains(r#""analyzer_version":"0.2.0""#), "{page}");
+    // Italian's pre-pass: the elided word is two pieces with their own spans, the articulated
+    // preposition `nella` the preposition and the article sharing its span, `del` whole.
     assert!(
-        page.contains(r#""start":0,"end":6,"surface":"L'uomo","lemma":"l'uomo""#),
+        page.contains(r#""start":0,"end":2,"surface":"Lo","lemma":"il""#),
+        "{page}"
+    );
+    assert!(
+        page.contains(r#""start":2,"end":6,"surface":"uomo","lemma":"uomo""#),
+        "{page}"
+    );
+    assert!(
+        page.contains(r#""start":10,"end":15,"surface":"in","lemma":"in""#)
+            && page.contains(r#""start":10,"end":15,"surface":"la","lemma":"il""#),
         "{page}"
     );
     assert!(page.contains(r#""surface":"del","lemma":"del""#), "{page}");

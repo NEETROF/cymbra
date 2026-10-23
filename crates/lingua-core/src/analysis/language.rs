@@ -901,12 +901,13 @@ mod tests {
     #[test]
     fn spec_scenario_each_language_reports_its_own_version() {
         // add-lingua-italian-baseline D1: Italian reads its own constant, a `0.x` version while
-        // the baseline serves it, and the three others keep theirs.
+        // the baseline serves it, and the three others keep theirs; `0.2.0` since
+        // add-lingua-italian-tokenisation gives it its pre-pass.
         assert_eq!(
             IT.analyzer_version(),
             crate::analysis::ITALIAN_ANALYZER_VERSION
         );
-        assert_eq!(IT.analyzer_version(), "0.1.0");
+        assert_eq!(IT.analyzer_version(), "0.2.0");
         assert!(IT.analyzer_version().starts_with("0."));
         for language in [EN, ES, FR] {
             assert_ne!(

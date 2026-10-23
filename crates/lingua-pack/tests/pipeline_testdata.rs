@@ -141,7 +141,8 @@ fn the_italian_fixture_studies_italian_at_its_analyser_version() {
     // add-lingua-italian-baseline D5: hand-written tables, stamped with Italian's analyser version
     // as committed (not re-stamped here), glossed in French, no grammar and no senses, its pool
     // pinned to one tag (`NOUN`, ship-lingua-pack-bases-once's convention for a fixture without
-    // grammar). An Italian rule that bumps the version bumps the committed manifest with it.
+    // grammar). An Italian rule that bumps the version bumps the committed manifest with it
+    // (add-lingua-italian-tokenisation: `0.2.0`).
     let dir = testdata_dir().parent().unwrap().join("it-fr");
     let inputs = inputs_from_dir(&dir).expect("read the it-fr fixture");
     assert!(inputs.readings.is_empty() && inputs.senses.is_empty());
@@ -166,9 +167,23 @@ fn the_italian_fixture_studies_italian_at_its_analyser_version() {
     // Its expressions are keyed by their words' lemmas, as Italian is read today.
     assert_eq!(pack.expression("ad alto voce"), Some("à voix haute"));
     assert_eq!(pack.expression("a causa di"), Some("à cause de"));
-    // No word the baseline keeps whole is listed: it shows as the baseline reads it.
-    for whole in ["l'uomo", "dell'acqua", "del", "nel", "dirmelo"] {
+    // No word the baseline kept whole and Italian's pre-pass splits is listed: it shows as Italian
+    // reads it.
+    for whole in ["l'uomo", "dell'acqua", "nel", "dirmelo"] {
         assert!(!pack.lexicon().contains(whole), "{whole:?}");
+    }
+    // The words the pre-pass writes are, each glossed (add-lingua-italian-tokenisation D7): an
+    // elided piece's (`lo`), the `di` family's (`del`, `dello`), a truncation's (`poco`, `fai`).
+    for (form, lemma) in [
+        ("lo", "il"),
+        ("del", "del"),
+        ("dello", "dello"),
+        ("poco", "poco"),
+        ("fai", "fare"),
+        ("dissi", "dire"),
+    ] {
+        assert_eq!(pack.lexicon().lemma_of(form), Some(lemma), "{form:?}");
+        assert!(pack.gloss(lemma).is_some(), "{lemma:?}");
     }
     assert!(pack.notice().contains("hand-written"));
 }
@@ -413,7 +428,8 @@ fn the_fixtures_build_whole_as_recorded_and_split_by_their_pin() {
     // assemble into its whole pack. ship-lingua-pack-bases-once D6 pins the six fixtures: the four
     // English and Spanish ones keep their bytes, the two French ones gain the `tags` section of
     // their one-tag pin (`NOUN`), 13 bytes each. add-lingua-italian-baseline D5 adds it-fr's, born
-    // with its one-tag pin.
+    // with its one-tag pin; add-lingua-italian-tokenisation D7 moves it, the fixture gaining the
+    // words Italian's pre-pass writes and its manifest `0.2.0`.
     let root = testdata_dir().parent().unwrap().to_path_buf();
     for (pair, size, sha256) in [
         (
@@ -448,8 +464,8 @@ fn the_fixtures_build_whole_as_recorded_and_split_by_their_pin() {
         ),
         (
             "it-fr",
-            4956,
-            "303fd2c0ba106e7dfd6e352ee2e84ea1d9581c39fc9908e70560b23b463d5ca0",
+            5841,
+            "beacf33cf67c60f7083bb30abd12449860cd05628bcaa76c31bd39145516ad74",
         ),
     ] {
         let inputs = inputs_from_dir(&root.join(pair)).unwrap_or_else(|e| panic!("{pair}: {e}"));
