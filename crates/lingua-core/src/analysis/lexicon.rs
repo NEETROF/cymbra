@@ -40,6 +40,15 @@ pub trait Lexicon {
     fn contains(&self, word_lower: &str) -> bool {
         self.lemma_of(word_lower).is_some() || self.contains_lemma(word_lower)
     }
+
+    /// The frequency rank of `lemma`, a lemma of the lexicon, when the lexicon carries its
+    /// pack's ranks and ranks it (1 = the commonest); `None` otherwise — a lexicon built
+    /// without ranks (a test's stand-in) ranks nothing. Italian's pre-pass reads it to tell an
+    /// accented word from a rare token the tables list (read-lingua-italian-unmarked-spellings
+    /// D1, as implemented).
+    fn lemma_rank(&self, _lemma: &str) -> Option<u32> {
+        None
+    }
 }
 
 /// Error building a [`FstLexicon`] from its two blobs.
@@ -102,6 +111,9 @@ pub struct FstLexicon<D: AsRef<[u8]>> {
     forms: fst::Map<D>,
     lemma_pool: Vec<String>,
     lemma_set: HashSet<String>,
+    /// Rank per lemma id (0 = unranked), the pack's frequency table; empty for a lexicon
+    /// built without one ([`FstLexicon::with_ranks`]).
+    ranks: Vec<u32>,
 }
 
 impl<D: AsRef<[u8]>> FstLexicon<D> {
@@ -142,7 +154,20 @@ impl<D: AsRef<[u8]>> FstLexicon<D> {
             forms,
             lemma_pool,
             lemma_set,
+            ranks: Vec::new(),
         })
+    }
+
+    /// The lexicon carrying `ranks`, one per lemma id (0 = unranked): the pack's frequency
+    /// table, which [`Lexicon::lemma_rank`] then reads.
+    pub fn with_ranks(mut self, ranks: Vec<u32>) -> Self {
+        self.ranks = ranks;
+        self
+    }
+
+    /// The rank per lemma id the lexicon carries (0 = unranked), empty when it carries none.
+    pub fn ranks(&self) -> &[u32] {
+        &self.ranks
     }
 }
 
@@ -190,6 +215,14 @@ impl<D: AsRef<[u8]>> Lexicon for FstLexicon<D> {
 
     fn contains_lemma(&self, lemma: &str) -> bool {
         self.lemma_set.contains(lemma)
+    }
+
+    fn lemma_rank(&self, lemma: &str) -> Option<u32> {
+        let id = self.lemma_id(lemma)?;
+        self.ranks
+            .get(id as usize)
+            .copied()
+            .filter(|&rank| rank != 0)
     }
 }
 

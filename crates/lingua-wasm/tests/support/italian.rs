@@ -22,7 +22,8 @@
 //! gloss's function words and an Italian document's names are set aside; its probes gain two
 //! phrases with a clitic and a grammar pair (D7). Italian's detection guard, at `1.1.0`
 //! (add-lingua-italian-detection-guard), takes the `misto` page's Catalan and Galician blocks out
-//! of its analysis.
+//! of its analysis. At `1.2.0` (read-lingua-italian-unmarked-spellings) the apostrophe that stands
+//! for an accent reads as the accented word: the `informale` page moves, and nothing else.
 //!
 //! The corpus, `baseline/pages-it.txt`, is authored for these tests, page by page, around what a
 //! later change of the Italian stage must show, with two exceptions, quoted from texts in the
@@ -53,9 +54,11 @@
 //! `’`, « » without spaces, the dialogue dash, `È` with its accent. The other pages are typed as
 //! the web often has them, with the straight apostrophe, and the `informale` page with the
 //! apostrophe where an accent belongs (`perche'`, `e'`, `piu'`, `citta'`, `E'`), which the edge
-//! trim of every language takes off the word until change 10 reads it as an accent (`perche'` is
-//! `perche`), while the `elisioni` page's truncations keep theirs and read as their words (`po'`
-//! is `poco`, add-lingua-italian-tokenisation D5). One
+//! trim of every language took off the word until change 10 read it as an accent (`perche'` is
+//! `perché`, `E'` `È`, read-lingua-italian-unmarked-spellings D1, at `1.2.0`), and the accent left
+//! out (`perche`, `cosi`), read through the fixture's two spelling rows, while the `elisioni` page's
+//! truncations keep their apostrophe and read as their words (`po'` is `poco`,
+//! add-lingua-italian-tokenisation D5). One
 //! block of the `tecnico` page is committed in NFD on purpose (accents as combining marks, as a
 //! terminal paste or an OCR writes them); `italian_baseline.rs` asserts it still is. The fixture
 //! lists one of its words, `città` (« ville »), which the corpus has nowhere else: read as it came,

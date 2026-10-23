@@ -33,26 +33,32 @@ the four commonest web spellings unread; and it marks `perchè`, `nè` and `caff
   `perche'` → `perché`, `piu'` → `più`, `citta'` → `città`, `e'` → `è`, `E'` → `È`, `c'e'` → `ci` +
   `è`, `dov'e'` → `dove` + `è`, `puo'` → `può`, `cosi'` → `così`, `caffe'` → `caffè` —, one token
   spanning the apostrophe. When the pack lists both `è`- and `é`-spellings of a word (`perchè` as a
-  form of *perché* beside `perché`), the one the pack files under itself wins, else `è` before `é`:
-  the tables decide, never a frequency, since wordfreq cannot tell the writings apart. Change 6's
-  eight truncations keep their reading (`da'` → `dai`, not `dà`); the literary apocopes `ne'`, `de'`,
-  `co'`, `pe'`, `a'`, `su'` are never read for an accent.
+  form of *perché* beside `perché`), the one the pack files under the other is the other's spelling;
+  otherwise the one the pack ranks higher (`se'` → `sé`), else `è` before `é`: the tables decide,
+  never a frequency read at run time, since wordfreq cannot tell the writings apart. A form whose
+  word the pack ranks beyond 23,000 is not read (`vita'` stays `vita`, never the rare token `vità`).
+  Change 6's eight truncations keep their reading (`da'` → `dai`, not `dà`); sixteen literary
+  apocopes (`ne'`, `de'`, `co'`, `pe'`, `a'`, `su'`, and `que'`, `ca'`, `ve'`, `mi'`, `fra'`, `to'`,
+  `i'`, `me'`, `vo'`, `fe'`, which the implementation measured) are never read for an accent; and the
+  apostrophe of a truncation or an accent spelling closes no quote (design, Implementation).
 - **The dictionary's own accent-less spellings read as their word** (D2, change 43d's rule without
   its condition that the spelling be the word with its marks dropped, on purpose): a form the
   Italian section gives only as a misspelling or alternative spelling of a marked word — every
   sense of every entry of it such a spelling — is a form of that word in the tables when wordfreq
   rates the marked word commoner than the spelling and than each of the spelling's forms;
-  `perchè`, `nè`, `caffé`, `fà`, `stà`, `và`, `sù`, `pò` and the doubled-consonant misspellings
-  (`sopratutto`) come in.
+  `perchè`, `caffé`, `fà`, `stà`, `và`, `sù` and the doubled-consonant misspellings (`sopratutto`)
+  come in — 3,206 spellings in all, as implemented —, `nè` stays apart (its senses also spell
+  *neh*), and so do `casinò`, `omg` and `cè`, by the owner's decision.
 - **The web's accent-less spellings read as the words a reviewed list names** (D3, change 43e's
   method): every Italian form of the tables ending in an accented vowel, its accent dropped, kept
   when wordfreq attests the spelling at Zipf ≥ 2.5, the section gives it no meaning of its own, its
   accented word has a sense of its own in the section that is no name's (until change 16's
   dictionary words, which re-check the rows), it is less than half as frequent as that word, and
-  neither English, French nor Spanish writes it more often than Italian does; **four exception rows
-  the owner settles**, outside the method as 43e's `sure` → *sûr*: `perche` → *perché*, `cosi` →
-  *così*, `citta` → *città*, `caffe` → *caffè*, each the section's rare homograph against the web's
-  commonest spelling. Left out, by group: the words of their own (`e`, `da`, `si`, `se`, `ne`,
+  neither English, French nor Spanish writes it more often than Italian does; **exception rows the
+  owner settles**, outside the method as 43e's `sure` → *sûr*: `perche` → *perché*, `cosi` →
+  *così*, `citta` → *città*, `caffe` → *caffè* — and, settled on 2026-10-23, `gia` → *già* and
+  `liberta` → *libertà*, with `pò` → *poco* added at review —, each the section's rare homograph
+  against the web's commonest spelling. Left out, by group: the words of their own (`e`, `da`, `si`, `se`, `ne`,
   `la`, `li`), `papa` (commoner than *papà*: 5.15 against 4.66), `eta` and `pero` (the Greek letter, the pear
   tree; Spanish writes them more besides: 4.10 against 3.73, 6.57 against 4.42), `cafe` (English's, 4.09 against 3.33).
 - **A spelling carries nothing of its own** (D4): no rank, no level, no gloss, no dictionary word;

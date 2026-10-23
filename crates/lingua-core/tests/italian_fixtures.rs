@@ -31,6 +31,11 @@
 //! function-word flag through the phrase gloss — and the names rule over a page,
 //! through `analyse_page` (each branch of its design's D4).
 //!
+//! The apostrophe that stands for an accent (read-lingua-italian-unmarked-spellings, task 1.2,
+//! `ACCENT_CASES` over a stand-in listing the accented words): each vowel, after an elided
+//! piece, on a capital, with two accents listed, beside change 6's truncations, the apocopes the
+//! rule never reads, a word the pack does not accent and the quotes.
+//!
 //! Any change to a fixture's expectation is a behavioural change of the Italian
 //! analyser and demands an `ITALIAN_ANALYZER_VERSION` bump; English's, Spanish's
 //! and French's fixtures and baselines do not move.
@@ -252,10 +257,12 @@ const CASES: &[Case] = &[
         "c'è un po'",
         &[("ci", "c'"), ("è", "è"), ("un", "un"), ("poco", "po'")],
     ),
-    // --- an apostrophe for an accent, a closing quote: outside the word, as today (D5) ---
+    // --- an apostrophe for an accent where the pack lists the accented word, `è` here
+    // (read-lingua-italian-unmarked-spellings D1; `ACCENT_CASES` below); outside the word where
+    // it lists none (`perché`, `città`); a closing quote outside the word (D5) ---
     ("perche'", &[("perche", "perche")]),
-    ("e'", &[("e", "e")]),
-    ("E' tardi", &[("E", "E"), ("tardi", "tardi")]),
+    ("e'", &[("è", "e'")]),
+    ("E' tardi", &[("È", "E'"), ("tardi", "tardi")]),
     ("citta'", &[("citta", "citta")]),
     ("‘ciao’", &[("ciao", "ciao")]),
     (
@@ -313,6 +320,162 @@ fn lexicon() -> FstLexicon<Vec<u8>> {
     FstLexicon::from_slices(bytes, &pool).expect("load")
 }
 
+/// The forms the accent rule's stand-in pack lists (read-lingua-italian-unmarked-spellings D1):
+/// the accented words of the cases, each filed under itself or its verb; `perchè` and `caffé`
+/// filed under `perché` and `caffè`, as the dictionary's spellings are (D2); the truncations'
+/// accented look-alikes (`pò`, `dà`) and the apocopes' (`né`, `sù`), which the rule never reads.
+const ACCENT_FORMS: &[(&str, &str)] = &[
+    ("è", "essere"),
+    ("perché", "perché"),
+    ("perchè", "perché"),
+    ("più", "più"),
+    ("città", "città"),
+    ("può", "potere"),
+    ("così", "così"),
+    ("caffè", "caffè"),
+    ("caffé", "caffè"),
+    ("già", "già"),
+    ("lunedì", "lunedì"),
+    ("però", "però"),
+    ("virtù", "virtù"),
+    ("pò", "pò"),
+    ("dà", "dare"),
+    ("né", "né"),
+    ("sù", "su"),
+    // The misspelling `é`, which the tables rank as a word of its own: `è` is not filed under it.
+    ("é", "é"),
+    // Two apocopes' accented look-alikes the tables list (task 2.2's measurement).
+    ("qué", "qué"),
+    ("cà", "cà"),
+    // Two words a quoted phrase ends on, listed so that the quotes are what keeps them as written.
+    ("lavorò", "lavorare"),
+    ("bastà", "bastare"),
+];
+
+/// (text tokenised as Italian with [`ACCENT_FORMS`], the tokens as (text, the source text the span
+/// covers)): the apostrophe that stands for an accent (D1), each vowel, after an elided piece, on a
+/// capital, with two accents listed, beside change 6's listed words, the apocopes and the quotes.
+const ACCENT_CASES: &[Case] = &[
+    // --- one token spanning the word and its apostrophe, each vowel ---
+    ("perche'", &[("perché", "perche'")]),
+    ("perche’", &[("perché", "perche’")]),
+    ("piu'", &[("più", "piu'")]),
+    ("citta'", &[("città", "citta'")]),
+    ("e'", &[("è", "e'")]),
+    ("puo'", &[("può", "puo'")]),
+    ("cosi'", &[("così", "cosi'")]),
+    ("caffe'", &[("caffè", "caffe'")]),
+    ("gia'", &[("già", "gia'")]),
+    ("lunedi'", &[("lunedì", "lunedi'")]),
+    ("pero'", &[("però", "pero'")]),
+    ("virtu'", &[("virtù", "virtu'")]),
+    ("perche' no?", &[("perché", "perche'"), ("no", "no")]),
+    // --- after an elided piece ---
+    ("c'e'", &[("ci", "c'"), ("è", "e'")]),
+    (
+        "non c'e' problema",
+        &[
+            ("non", "non"),
+            ("ci", "c'"),
+            ("è", "e'"),
+            ("problema", "problema"),
+        ],
+    ),
+    ("dov'e'", &[("dove", "dov'"), ("è", "e'")]),
+    ("com'e'", &[("come", "com'"), ("è", "e'")]),
+    ("l'e'", &[("lo", "l'"), ("è", "e'")]),
+    ("cos'e'?", &[("cosa", "cos'"), ("è", "e'")]),
+    ("quant’e’", &[("quanto", "quant’"), ("è", "e’")]),
+    // --- a capital kept ---
+    ("E' vero", &[("È", "E'"), ("vero", "vero")]),
+    ("E’ tardi", &[("È", "E’"), ("tardi", "tardi")]),
+    ("Perche'", &[("Perché", "Perche'")]),
+    ("PIU'", &[("Più", "PIU'")]),
+    ("C'E'", &[("Ci", "C'"), ("È", "E'")]),
+    // --- two accents listed: the one filed under itself ---
+    (
+        "perche' caffe'",
+        &[("perché", "perche'"), ("caffè", "caffe'")],
+    ),
+    // --- change 6's listed words first: never `pò`, `dà` ---
+    ("po'", &[("poco", "po'")]),
+    ("da'", &[("dai", "da'")]),
+    ("Da'", &[("Dai", "Da'")]),
+    ("di'", &[("dici", "di'")]),
+    // --- the apocopes, never: the apostrophe outside the word ---
+    ("ne'", &[("ne", "ne")]),
+    ("su'", &[("su", "su")]),
+    ("de'", &[("de", "de")]),
+    ("co'", &[("co", "co")]),
+    ("pe'", &[("pe", "pe")]),
+    ("a'", &[("a", "a")]),
+    ("que' due", &[("que", "que"), ("due", "due")]),
+    ("Ca' Foscari", &[("Ca", "Ca"), ("Foscari", "Foscari")]),
+    // --- a word the tables do not accent, or no word to accent ---
+    ("ciao'", &[("ciao", "ciao")]),
+    ("uomo'", &[("uomo", "uomo")]),
+    ("perche'2", &[("perche", "perche")]),
+    ("perché'", &[("perché", "perché")]),
+    // --- the quotes: no accent read inside one ---
+    ("‘perche’", &[("perche", "perche")]),
+    ("'perche'", &[("perche", "perche")]),
+    (
+        "‘ciao’ perche' no",
+        &[("ciao", "ciao"), ("perché", "perche'"), ("no", "no")],
+    ),
+    // At review: a truncation's or an accent spelling's apostrophe closes no quote, and a quote
+    // mark after a space opens one before dots or a number.
+    (
+        "Mi serve 'un po' di lavoro'",
+        &[
+            ("Mi", "Mi"),
+            ("serve", "serve"),
+            ("un", "un"),
+            ("po", "po"),
+            ("di", "di"),
+            ("lavoro", "lavoro"),
+        ],
+    ),
+    (
+        "Disse: 'c'e' lavoro'",
+        &[
+            ("Disse", "Disse"),
+            ("ci", "c'"),
+            ("e", "e"),
+            ("lavoro", "lavoro"),
+        ],
+    ),
+    (
+        "il cosiddetto '...lavoro'",
+        &[
+            ("il", "il"),
+            ("cosiddetto", "cosiddetto"),
+            ("lavoro", "lavoro"),
+        ],
+    ),
+    ("'2 lavoro'", &[("lavoro", "lavoro")]),
+    (
+        "'un po' e basta'",
+        &[("un", "un"), ("po", "po"), ("e", "e"), ("basta", "basta")],
+    ),
+    // Outside a quote the same words read their accent.
+    (
+        "un po' di lavoro'",
+        &[
+            ("un", "un"),
+            ("poco", "po'"),
+            ("di", "di"),
+            ("lavorò", "lavoro'"),
+        ],
+    ),
+];
+
+fn accent_lexicon() -> FstLexicon<Vec<u8>> {
+    let lemmas = ["a", "e", "o", "essere", "potere", "dare", "su", "due"];
+    let (bytes, pool) = build_lexicon_blobs(ACCENT_FORMS, &lemmas).expect("build");
+    FstLexicon::from_slices(bytes, &pool).expect("load")
+}
+
 /// Each token's text beside the source text its span covers.
 fn read<'t>(text: &'t str, tokens: &'t [Token]) -> Vec<(&'t str, &'t str)> {
     tokens
@@ -341,13 +504,32 @@ fn italian_tokenisation_fixtures() {
 }
 
 #[test]
+fn italian_accent_fixtures() {
+    // read-lingua-italian-unmarked-spellings, task 1.2: the apostrophe that stands for an accent.
+    let lex = accent_lexicon();
+    let wrong: Vec<String> = ACCENT_CASES
+        .iter()
+        .filter_map(|(text, expected)| {
+            let tokens = tokenize(text, IT, &lex);
+            let got = read(text, &tokens);
+            (got != *expected).then(|| format!("{text:?}: expected {expected:?}, got {got:?}"))
+        })
+        .collect();
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+}
+
+#[test]
 fn italian_spans_follow_the_text() {
     // Every span lies inside the text and starts no earlier than the last one; the pieces of one
     // written word never overlap but at a shared span; no token's text holds a typographic
     // apostrophe; no piece is a compound but a hyphenated run's.
-    let lex = lexicon();
-    for (text, _) in CASES {
-        let tokens = tokenize(text, IT, &lex);
+    let (lex, accents) = (lexicon(), accent_lexicon());
+    let cases = CASES
+        .iter()
+        .map(|case| (case, &lex))
+        .chain(ACCENT_CASES.iter().map(|case| (case, &accents)));
+    for ((text, _), lex) in cases {
+        let tokens = tokenize(text, IT, lex);
         let mut last = (0, 0);
         for token in &tokens {
             assert!(

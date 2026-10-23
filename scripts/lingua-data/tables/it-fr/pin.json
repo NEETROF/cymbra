@@ -1,19 +1,19 @@
 {
   "snapshot": "2026.10.23",
   "pack": {
-    "sha256": "2e03059fd3dcfcf6e80ce25b8e4f0f4f55dbec1b5114d6caa515e17d4f4de1c3",
-    "size": 1287014
+    "sha256": "57322380816b0c8f4e850eef0372da7e81c166015da06cf3d9d84a80cb10290d",
+    "size": 1296403
   },
   "base": {
-    "sha256": "43c86394e01658aa2dd129aeab10ee81b73b1ad01459fdfb377770466005004c",
-    "size": 1285594
+    "sha256": "9460cc1a2b8ae32ca286a24186f6178b1bd7dc361fc7d358c4632e9636fd8e77",
+    "size": 1294975
   },
   "layer": {
-    "sha256": "b953b39ae96871e8252d47d94ea1a75d7642602ae0c4dafdf85a9d79091cd102",
-    "size": 1645
+    "sha256": "bc5f4a9f97142930367779db45f3ef16874ede168631121ee9888dc455c85bf4",
+    "size": 1653
   },
   "reducer": {
-    "sha256": "06c137f8aa5495eaa0f0aa7e4fc50f714b9afbff2345446200ca189a4b8e3716",
+    "sha256": "aac119ba86ff1576c26b97d9e5e5ceb41cd73a49fd0c8e733efa6f5f246bda12",
     "files": [
       "reduce-it-fr.py",
       "reduce_common.py",

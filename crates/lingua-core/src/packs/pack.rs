@@ -238,9 +238,9 @@ pub struct Pack {
     /// studied language's analyser is the one every analysis of this pack
     /// runs, and its glosses are written in the native language.
     pair: LanguagePair,
+    /// The form→lemma lexicon, carrying the rank per lemma id (0 = unranked), which the
+    /// tokeniser reads too ([`Lexicon::lemma_rank`]).
     lexicon: FstLexicon<Vec<u8>>,
-    /// Rank per lemma id (0 = unranked).
-    freq: Vec<u32>,
     /// CEFR level code per lemma id (0 = no level, 1..=6 = A1..=C2). Empty when
     /// the pack carries no level table.
     levels: Vec<u8>,
@@ -337,6 +337,7 @@ impl Pack {
         let lexicon = FstLexicon::from_slices(forms, lemmas).map_err(PackError::Lexicon)?;
 
         let freq = parse_freq(take(section::FREQ)?, lexicon.lemma_count())?;
+        let lexicon = lexicon.with_ranks(freq);
         let levels = match sections.iter().find(|s| s.name == section::LEVELS) {
             Some(s) => parse_levels(&s.data, lexicon.lemma_count())?,
             None => Vec::new(),
@@ -388,7 +389,6 @@ impl Pack {
             meta,
             pair,
             lexicon,
-            freq,
             levels,
             glosses,
             lexical,
@@ -627,7 +627,7 @@ impl Pack {
     pub fn lemmas_in_rank_band(&self, lo: u32, hi: u32) -> Vec<(&str, Option<&str>)> {
         (0..self.lexicon.lemma_count() as u64)
             .filter_map(|id| {
-                let rank = *self.freq.get(id as usize)?;
+                let rank = *self.lexicon.ranks().get(id as usize)?;
                 if rank == 0 || rank < lo || rank > hi {
                     return None;
                 }
@@ -678,7 +678,7 @@ impl Pack {
     pub fn dictionary_words(&self) -> Vec<(&str, u32)> {
         (0..self.lexicon.lemma_count() as u64)
             .filter_map(|id| {
-                let rank = *self.freq.get(id as usize)?;
+                let rank = *self.lexicon.ranks().get(id as usize)?;
                 let leveled = self.levels.get(id as usize).is_some_and(|&code| code != 0);
                 if rank == 0 || !(leveled || self.is_dictionary_id(id)) {
                     return None;
@@ -724,7 +724,7 @@ impl FrequencyRanks for Pack {
     /// itself, so its rank is its own.
     fn rank(&self, lemma: &str) -> Option<u32> {
         let id = self.lexicon.id_of(lemma)? as usize;
-        match self.freq.get(id).copied() {
+        match self.lexicon.ranks().get(id).copied() {
             Some(0) | None => None,
             Some(rank) => Some(rank),
         }
@@ -1424,6 +1424,12 @@ pub(crate) mod tests {
         assert_eq!(pack.rank("city"), Some(1_200));
         assert_eq!(pack.rank("seldom"), None); // present but unranked
         assert_eq!(pack.rank("absent"), None);
+        // The lexicon carries the same ranks, by lemma, for the tokeniser
+        // (read-lingua-italian-unmarked-spellings, at review); a form is no lemma.
+        assert_eq!(pack.lexicon().lemma_rank("run"), Some(500));
+        assert_eq!(pack.lexicon().lemma_rank("seldom"), None);
+        assert_eq!(pack.lexicon().lemma_rank("running"), None);
+        assert_eq!(pack.lexicon().lemma_rank("absent"), None);
         // French glosses.
         assert_eq!(pack.gloss("run"), Some("courir"));
         assert_eq!(pack.gloss("city"), Some("ville"));
