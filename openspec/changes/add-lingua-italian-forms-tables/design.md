@@ -289,6 +289,18 @@ stays** (task 5.1's choice).
 | UD Italian-PUD (gate) | 19,155 | **99.26 %** | **91.39 %** of 8,909 | **99.90 %** of 985 |
 | MarkIT test (reported) | 8,985 | 99.43 % | 94.65 % of 4,113 | 98.87 % of 530 |
 
+**At the update (2026.10.23).** `lingua-pack-update` run 39974561742 reduced the section derived from
+the English edition's dump of 2026-10-21 (624,122 entries, sha256 `ae7de484…`) under these rules:
+128,429 forms (809 of them Morph-it!'s, under 638 lemmas), 60,000 lemmas, the last (`aiu`) at Zipf
+2.06; of the 15,489 forms reaching several lemmas, 3 by an override, 1,268 by MarkIT's counts, 6,045 by
+the own entry, 8,134 by frequency, 39 alphabetically; the names rule 1,710; M8's cost 32 / 47 / 69; the
+pack 1,287,014 B (sha256 `2e03059f…`), its base 1,285,594 B and its layer 1,645 B. `it-ud.sh` on the
+committed tables: **PUD 99.26 / 91.38 / 99.90** (19,155 / 8,909 / 985 words) against 98.5 / 90.5 / 97,
+MarkIT's test section 99.43 / 94.68 / 98.87; 768 content words missed, 92.50 % without the 77 `-mente`
+adverbs and the 31 feminine nouns; without Morph-it! 99.22 / 91.30 / 99.90. Reduced again on another
+machine from the release's asset, the tables come out byte for byte. The figures below are the local
+reduction's, on kaikki.org's per-language extract.
+
 For information, not a gate: without the 77 `-mente` adverbs and the 31 feminine nouns, PUD's content
 words read 92.51 % (8,142 of 8,801). Of the 15,471 forms of the tables that reach several lemmas, 3
 are decided by an override, 1,267 by MarkIT's counts, 6,040 by the form's own entry, 8,122 by the

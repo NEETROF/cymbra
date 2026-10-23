@@ -597,12 +597,14 @@ fixture (`testdata/it-fr/`) until change 16. Its reducer loads `reduce_common.py
 `reduce_italian_treebank.py`, MarkIT's counts, a rule module of its own that a later Italian pair may
 load: an edit of `reduce-it-fr.py` re-pins it-fr alone.
 
-`tables/it/studied.json` (`{"reference": "it-fr"}`) and `tables/it/tags.tsv` are committed by hand
+`tables/it/studied.json` (`{"reference": "it-fr"}`) and `tables/it/tags.tsv` were committed by hand
 before the first update, as French's were: `record-build` refuses a studied language without its
-pinned pool. Until that update writes `tables/it-fr/`, no folder names it-fr: every pair's runs (the
-reduce job, the monthly check) meet no Italian pair, the committed-tables check accepts a studied
-folder holding its record and its pool alone while its reference has no folder (`lingua_pack::tables`),
-and `pack_sources.py pairs --after it-fr` names it-fr, the update's pair.
+pinned pool. Before that update wrote `tables/it-fr/`, no folder named it-fr: every pair's runs met no
+Italian pair, the committed-tables check accepts a studied folder holding its record and its pool
+alone while its reference has no folder (`lingua_pack::tables`), and `pack_sources.py pairs --after`
+names a reference from its studied folder — the path a later language's first update takes too. The
+first update is `lingua-pack-update` run 39974561742 (2026-10-23), dispatched on the implementation
+branch as fr-en's was.
 
 | Table | Upstream source | Licence | Reduction |
 |---|---|---|---|
@@ -613,9 +615,11 @@ and `pack_sources.py pairs --after it-fr` names it-fr, the update's pair.
 | `tables/it-fr/gloss.tsv` | none yet | — | empty until change 16 |
 | `NOTICE` | the section, wordfreq, MarkIT, Morph-it! while pinned | — | the attribution stack, embedded in the pack; UD Italian-PUD is measured against, never shipped |
 
-**The sources pinned** (`tables/it-fr/pin.json`, written by the first update): the Italian section
-derived from the English edition's dump of the update's day, under it-fr's own release
-`lingua-pack-sources-it-fr-<snapshot>`; MarkIT's `it_markit-ud-train.conllu` and
+**The sources pinned** (`tables/it-fr/pin.json`): the Italian section derived on 2026-10-23 from the
+English edition's dump regenerated on 2026-10-21 11:23 (decompressed sha256 `60a6073c…`,
+26,611,939,151 B; 3,082,192,147 B gzipped) — 624,122 entries, 665,207,473 B, sha256 `ae7de484…`,
+33,120,545 B as its zstd asset `kaikki-Italian.jsonl.zst`, under it-fr's own release
+`lingua-pack-sources-it-fr-2026.10.23`; MarkIT's `it_markit-ud-train.conllu` and
 `it_markit-ud-dev.conllu` at `e210079df0aea331ec1dcaa90648d815ce94c3ce` (1,266,080 B, sha256
 `4f6fc342…`, and 665,430 B, sha256 `633b6186…`), the default branch's head of 2026-10-23; Morph-it!'s
 archive as its site serves it (https://docs.sslmit.unibo.it/lib/exe/fetch.php?media=resources:morph-it.tgz,
@@ -631,15 +635,18 @@ them, and the reduction refuses to read a test section (`reduce_italian_treebank
 implementation*), on local copies: kaikki.org's own extract of the Italian section (2026-10-21,
 770,859,636 B, the same 623,702 entries the dump-derived file holds, laid out differently), MarkIT's two
 sections and Morph-it! as pinned, wordfreq 3.1.1; the update's figures are recorded in
-`tables/it-fr/README.md`. 128,418 forms, 812 of them Morph-it!'s (under 641 lemmas); `forms.tsv`
-2,390,841 B, `freq.tsv` 862,406 B; the 60,000th lemma at Zipf 2.07; the pack 1,286,037 B, its base
-1,284,614 B and its layer 1,648 B. **Italian's gates** are 98.5 % resolved, **90.5 %** of content words
+`tables/it-fr/README.md`. 128,418 forms, 812 of them Morph-it!'s (under 641 lemmas); the 60,000th
+lemma at Zipf 2.07. **At the update** (2026.10.23, the committed tables): 128,429 forms, 809 of them
+Morph-it!'s (under 638 lemmas), `forms.tsv` 2,390,960 B, `freq.tsv` 862,388 B, the 60,000th lemma
+(`aiu`) at Zipf 2.06; the pack 1,287,014 B, its base 1,285,594 B and its layer 1,645 B; PUD **99.26 /
+91.38 / 99.90**, MarkIT test 99.43 / 94.68 / 98.87; reduced again on another machine from the release's
+asset, the same bytes. **Italian's gates** are 98.5 % resolved, **90.5 %** of content words
 (the owner's, 2026-10-23: MarkIT's counts are about sixteen times thinner than GSD's, UD reads a
 participle as its verb where the dictionary keeps the noun, and no measured variant reached Spanish's
-93.5 %) and 97 % of auxiliaries (`measure/it-ud.sh`, `lingua-pack-measure --min-content`). On UD
-Italian-PUD, **99.26 % of 19,155 words resolve, 91.39 % of 8,909 content words and 99.90 % of 985
-auxiliaries take PUD's lemma**; MarkIT's test section, reported: 99.43 %, 94.65 % of 4,113, 98.87 % of
-530. M8's cost: 32 / 47 / 69 dictionary nouns read as a verb among wordfreq's 1,000 / 2,000 / 5,000.
+93.5 %) and 97 % of auxiliaries (`measure/it-ud.sh`, `lingua-pack-measure --min-content`). At
+implementation, on UD Italian-PUD, 99.26 % of 19,155 words resolved, 91.39 % of 8,909 content words and
+99.90 % of 985 auxiliaries took PUD's lemma; MarkIT's test section, reported: 99.43 %, 94.65 % of 4,113,
+98.87 % of 530. M8's cost: 32 / 47 / 69 dictionary nouns read as a verb among wordfreq's 1,000 / 2,000 / 5,000.
 
 ## The editions' dumps
 
