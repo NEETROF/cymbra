@@ -191,3 +191,174 @@ its word's, as a form of it (no readings exist before; `tags.tsv` holds `NOUN` a
 
 Nothing deploys and nothing is released; no package carries it-fr. Rollback is a revert with the
 tables', the pin's, the fixture's and the golden's.
+
+## Implementation — task 2.2's measurement and what departs from the decisions
+
+Measured on 2026-10-23, before the owner's read (tasks 0.1 and 4.1), by criteria written before any
+figure was read, on it-fr's pinned sources: the Italian section of the release
+`lingua-pack-sources-it-fr-2026.10.23` (sha256 `ae7de484…`), MarkIT's training and development
+sections and Morph-it! 0.4.8 (`b137343d…`), from which `reduce-it-fr.py` at change 9's head writes
+change 9's committed tables byte for byte (128,429 forms); wordfreq 3.1.1 installed by hash from
+`requirements-reduce.txt`. A first pass on kaikki.org's own extract of the section (`cfb9e823…`) gave
+the same rows, the same apocopes and figures within a few spellings. The running text is change 8's Italian
+corpus but its held-out parts — the `pages-it` baseline, the two Gutenberg novels, its Italian Wikipedia
+sample, its 20,000-sentence Tatoeba sample (`it-guard-tatoeba-ids.txt`) and MarkIT's training and
+development sections, 990,502 words —, and the whole Tatoeba export (989,119 sentences) beside it.
+UD Italian-PUD and MarkIT's test section were read by nothing D1, D2 or D3 decides.
+
+### D1 as built
+
+- **Change 6's listed words, not the pack's apostrophe forms, come first.** Change 9's tables list 87
+  forms ending in an apostrophe — the pieces, and `e'` (the Tuscan *ei*), `i'` (*io*), `de'`, `ca'`,
+  `vo'`, `pro'`, `citta'`, `liberta'`, the imperatives `rifa'`, `disfa'` … from the section's entries
+  and Morph-it!. Read as D1 writes it (« the rest as written is not listed »), « E' vero » would read
+  as before, against D1's own example. The rule consults the pack for the accented form alone; what
+  keeps its apostrophe's reading is what Italian's pre-pass lists (the truncations, an elided form
+  written alone). The spec's ADDED requirement says so.
+- **`è` or `é`: a form the pack files under the other is the other's spelling.** The tables rank the
+  misspelling `é` as a word of its own (wordfreq 5.17) while `è` is a form of *essere*: « the one the
+  pack files under itself wins » read every « E' » as `É`. The rule drops a candidate the pack files
+  under the other candidate (`perchè` under `perché`, `caffé` under `caffè`), then tries `è` before `é`;
+  every outcome D1 names is kept, « E' » is `È`.
+- **The closed list grows from six to sixteen**, by the measurement: ten literary apocopes and
+  truncations the rule read as no word of theirs, each a form the tables list with the accent and that
+  Italian does not write so — `que'` (*quei*, 267 times in *I promessi sposi*, read `qué`), `ca'`
+  (« Ca' Foscari », 17, `cà`), `ve'` (*vedi*, 10, `vè`), `mi'` (*mio*, 4, `mì`), `fra'` (*frate*, 4,
+  `frà`), `to'` (*togli*, 3, `tò`), `i'` (*io*, 3, `ì`), `me'` (*meglio*, 2, `mè`), `vo'` (*voglio*,
+  2, `vò`), `fe'` (*fece*, 1, `fè`). Each reads as change 6 read it, its apostrophe outside the word.
+- **The quote** is change 6's own scan (`inside_a_quote`): no quote opened before the word still open,
+  so « ‘Ma e' vero’ » keeps `e`.
+
+**D1's cost, measured.** In the corpus, with the 16 excluded, the rule reads 34 tokens: `E'`/`e'` 20
+times — 18 *è* (MarkIT's 14 « E' un tipo… », Tatoeba's 1, the `informale` page's 3), 2 the Tuscan
+*egli* in Manzoni (« e' poteva ben aspettare »), D1's accepted cost —; the `informale` page's `perche'`,
+`citta'`, `piu'`; `pie'` → `piè` and `pa'` → `pà` (*piede*, *papà*, right); and 9 wrong or neutral:
+`se'` (*sei*, Dante and Collodi) → `sè` 3, `so'` (dialect *sono*) → `sò` 3 (whose word is *essere*
+anyway), `cchiu'` (Neapolitan) → `cchiù` 2, `che'` (*che i*, Dante) → `ché` 1. The whole Tatoeba export:
+46 tokens, `E'`/`e'` 43 — 41 *è*, 2 the Tuscan proverb « Batti il buono, e' megliora » —, `finche'` →
+`finché`, `qua'` → `quà` (read as *qua*), `Dato'` (a Malaysian title) → `datò`. Left outside as before:
+`de'` 613, `que'` 267, `ne'` 106, `a'` 99, `co'` 81, `ca'` 17, `su'` 13, `ve'` 10, `i'` 5, `fra'` 4, `mi'`
+4, `vo'` 3, `pe'` 3, `to'` 3, `me'` 2. Change 6's truncations (583: `po'` 480, `da'` 68 — Manzoni's
+*dai*, « da' primi suoi anni » —, `di'` 18, `va'` 13, `fa'` 4, `sta'` 2) keep their reading: none of them
+is written for *dà*, *fà* or *dì* in the corpus.
+
+### D2 as built
+
+- **The rule reads 3,209 spellings**, not the dozen the proposal names: every word the section gives
+  only as an alternative form or spelling (2,198), an obsolete, archaic or dated one (823), a
+  misspelling (168) or a nonstandard one (13) of a commoner word, 7 mixed. 774 become forms of the tables
+  (their word ranked); **264 were ranked lemmas** and leave the ranks — `perchè` 124, `ve` 1,050 (→ *vi*),
+  `et` 1,057 (→ *e*), `sino` 1,477 (→ *fino*), `finchè` 2,666, `sopratutto` 3,177, `oramai` 3,517,
+  `poichè` 3,645, `alcool` 3,664, `bo` 4,037 (→ *boh*), `core` 4,045 (→ *cuore*), … (the PR lists them
+  all).
+- **Kept apart**, as the report names them: 1,739 whose word is not the commoner (99 ranked: `the`,
+  `anti`, `figo`, `puzza`, `click`, `zombie`, `obbedire` …), 144 with a form as common as the word (the
+  forms guard: `altiero`, `canaria`), 15 whose senses spell two words (`nè`: *né* and *neh*; `je`), 332
+  with no word form (`nov`, `mag`, `dic`: the months' abbreviations; `daccordo`, « alternative spelling
+  of d'accordo », a word beginning with an elided piece), 1 a reviewed table's row (`giu`, D3's).
+- **Clarified while measuring**, each by D2's own terms: a pointer at several words spells no word
+  (`vabbè`, « alternative form of va bene », would have read as `va`; `menomale`, `daccordo`); an
+  apocope, an abbreviation, a clipping, a contraction or a pronunciation spelling is no spelling (`un`,
+  `ca'`, `bici`: change 9 reads the apocopes); a pointer at one of change 6's pieces is the piece's,
+  so `fà` (« misspelling of fa » and « of fa' ») spells *fa* — `nè` stays apart, against the proposal,
+  its second entry spelling *neh*.
+- **Departure — a spelling's forms follow it only where no other word claims them.** Read as D2 writes
+  it (« its inflections and the entries pointing at it follow »), an archaic verb's paradigm carried 43
+  forms of other words to the commoner verb by D5's frequency choice: `sguardi` (*sguardo*'s plural, a
+  row of `sguardare`) → *guardare*, `annate` and `annessi` → *andare*, `salse` → *salire*, `carcasse` →
+  *caricare*, `reduci` → *ridurre*, `acconti` → *raccontare*. The link from such a form to the spelling
+  is dropped once the section is read (`Lexicon.drop_spelling_rows`, 1,069 forms); a form no other word
+  claims follows (`alcoolici` → *alcolico*, `annunziato` …). One move is left, a form of a form:
+  `accise` (*accisa*'s plural, and *acciso*'s, the participle of the archaic `accidere`) → *uccidere*.
+- **Its costs:** 5 forms lose their reading, their word unranked — `toh` (→ `to'`), `tiè` (→ `tie'`),
+  `quer` (→ the apocope `quel`), `velia`, `postproduzione` (→ the hyphenated `post-produzione`);
+  readings a reader may doubt, the dictionary's: `core` → *cuore* (also English's « core »), `casinò` →
+  *casino*, `omg` → *ogm*, `cè` → *cioè* (often a mistyped *c'è*), `deo` → *dio*, `jo` → *io*, `lugo` →
+  *luogo*, `bueno` → *buono*, `hora` → *ora*, `seoul` → *seul*, `et` → *e*.
+
+### D3 as built
+
+**The candidates** (the tables after D2): every form ending in an accented vowel, the accent dropped —
+4,902 spellings. Tests in order; a group is named by its first failing test.
+
+| Group | Spellings |
+|---|---|
+| Below Zipf 2.5 | 3,711 |
+| Named by the section — a word of its own | 649 (`di`, `e`, `che`, `la`, `si`, `da`, `se`, `ne`, `li`, `su`, `fa`, `te`, `re`, `papa`, `eta`, `pero`, `citta`, `meta`, `faro`, `passera` …) |
+| — a form of a word | 336 (`cosi`, `perche`, `caffe`, `liberta` (*liberto*'s feminine), `unita`, `necessita`, `stabilita`, `capacita`, `felicita`, `finche`, the passato remoto's `-o` spellings that are the present's first person: `domando`, `comincio`, `dichiaro` …) |
+| — an inflection a word's entry lists | 4 (`gia`: `gìa`, *gire*'s imperfect; `dira`, `umidita`, `tome`) |
+| — the dictionary's spelling, D2's | 6 (`ve`, `bo`, `anziche`, `pieta`, `pote`, `benche`: read by D2) |
+| — its word's spelling | 1 (`aho`) |
+| Its word a name or no word of the section | 60 (`to`, `co`, `pre`, `que`, `canada`, `jose`, `cafe` (and English 4.09 against 3.33), `peru`, `forli`, `nicolo` …) |
+| Not half as frequent as its word | 25 (`po`, `the`, `be`, `como`, `ultra`, `toto`, `ventitre`, `trentatre` …) |
+| Spanish writes it more | 5 (`dara`, `potro`, `carita`, `ando`, `tribu`) |
+| French writes it more | 5 (`verra`, `arrivera`, `agora`, `finira`, `portera`) |
+| **Rows** | **100**, and the owner's 4 exceptions |
+
+**The rows**, by band — the spelling, its accented form (and its word when another), the spelling's
+Zipf / the accented form's:
+
+| Zipf | Rows | Spellings (spelling's Zipf / the accented form's) |
+|---|---|---|
+| 4.00– | 5 | `piu` → più 5.22/6.63, `puo` → può, *potere* 4.61/6.01, `sara` → sarà, *essere* 4.53/5.73, `cio` → ciò 4.14/5.70, `giu` → giù 4.08/4.80 |
+| 3.50–4.00 | 17 | `societa` → società 3.97/5.56, `realta` → realtà 3.92/5.40, `venerdi` → venerdì 3.90/4.79, `attivita` → attività 3.86/5.36, `cioe` → cioè 3.86/5.28, `lunedi` → lunedì 3.85/4.67, `vabbe` → vabbè 3.80/4.40, `possibilita` → possibilità 3.75/5.25, `qualita` → qualità 3.74/5.18, `giovedi` → giovedì 3.72/4.51, `verita` → verità 3.68/5.16, `martedi` → martedì 3.67/4.44, `universita` → università 3.64/5.11, `fara` → farà, *fare* 3.61/4.89, `mercoledi` → mercoledì 3.56/4.42, `chissa` → chissà 3.53/4.64, `responsabilita` → responsabilità 3.51/4.95 |
+| 3.00–3.50 | 28 | `proprieta` → proprietà 3.46/5.04, `difficolta` → difficoltà 3.44/5.01, `pubblicita` → pubblicità 3.43/4.79, `saro` → sarò, *essere* 3.41/4.65, `comunita` → comunità 3.40/5.08, `avra` → avrà, *avere* 3.38/4.97, `umanita` → umanità 3.37/4.44, `gesu` → gesù 3.34/4.85, `novita` → novità 3.31/4.67, `sanita` → sanità 3.28/4.59, `potra` → potrà, *potere* 3.27/4.89, `autorita` → autorità 3.26/4.92, `quantita` → quantità 3.26/4.86, `modalita` → modalità 3.24/4.73, `volonta` → volontà 3.24/4.80, `velocita` → velocità 3.23/4.83, `poiche` → poiché 3.22/4.95, `opportunita` → opportunità 3.19/4.76, `andra` → andrà, *andare* 3.18/4.64, `dignita` → dignità 3.18/4.58, `curiosita` → curiosità 3.15/4.52, `facolta` → facoltà 3.13/4.64, `identita` → identità 3.12/4.71, `avro` → avrò, *avere* 3.10/4.38, `nonche` → nonché 3.08/4.73, `dovra` → dovrà, *dovere* 3.07/4.72, `percio` → perciò 3.04/4.78, `solidarieta` → solidarietà 3.00/4.52 |
+| 2.50–3.00 | 50 | `bensi` → bensì 2.94/4.31, `riusci` → riuscì, *riuscire* 2.94/4.09, `schiavitu` → schiavitù 2.92/4.04, `personalita` → personalità 2.91/4.60, `disponibilita` → disponibilità 2.89/4.29, `priorita` → priorità 2.87/4.40, `probabilita` → probabilità 2.87/4.45, `civilta` → civiltà 2.86/4.44, `andro` → andrò, *andare* 2.85/4.17, `virtu` → virtù 2.84/4.36, `poverta` → povertà 2.79/4.39, `mentalita` → mentalità 2.77/4.16, `criminalita` → criminalità 2.76/4.11, `affinche` → affinché 2.75/4.41, `parita` → parità 2.74/4.27, `varieta` → varietà 2.73/4.57, `entita` → entità 2.69/4.38, `specialita` → specialità 2.69/4.05, `nullita` → nullità 2.68/3.52, `contabilita` → contabilità 2.67/3.75, `dovro` → dovrò, *dovere* 2.66/4.14, `vedra` → vedrà, *vedere* 2.66/4.17, `purche` → purché 2.65/3.93, `localita` → località 2.64/4.55, `tabu` → tabù 2.64/3.69, `trinita` → trinità 2.64/3.66, `celebrita` → celebrità 2.63/3.99, `popolarita` → popolarità 2.63/4.08, `professionalita` → professionalità 2.63/3.91, `legalita` → legalità 2.62/4.11, `succedera` → succederà, *succedere* 2.61/4.16, `vedro` → vedrò, *vedere* 2.61/3.83, `maturita` → maturità 2.60/4.14, `provera` → proverà, *provare* 2.60/3.31, `daro` → darò, *dare* 2.59/3.86, `visibilita` → visibilità 2.57/4.24, `rimarra` → rimarrà, *rimanere* 2.56/4.17, `sensibilita` → sensibilità 2.56/4.30, `altresi` → altresì 2.55/4.07, `attualita` → attualità 2.55/4.09, `serenita` → serenità 2.55/3.97, `sovranita` → sovranità 2.54/4.22, `granche` → granché 2.53/3.68, `serieta` → serietà 2.53/3.93, `funzionalita` → funzionalità 2.52/4.02, `ahime` → ahimè 2.51/3.66, `bonta` → bontà 2.51/4.02, `tranquillita` → tranquillità 2.51/4.00, `indennita` → indennità 2.50/3.82, `validita` → validità 2.50/4.02 |
+
+No spelling two words share: a row's second accented form is a misspelling the tables rank as a word
+of its own (`piú` 4.49, `puó`, `ció`, `giú`, `saró`, `ahimé`, `vabbé` …), a list of 43f's kind for
+Italian; each row reads as the commoner, the accented word.
+
+**The owner's four exception rows**, outside the method and the boundary (task 0.1):
+
+| Spelling | The section | Zipf it / en / fr / es | The accented word | In the corpus and Tatoeba |
+|---|---|---|---|---|
+| `perche` | *perca*'s plural (the perch); `perché`'s entry lists it as an obsolete alternative | 4.95 / 1.68 / 3.59 / 1.74 | `perché` 6.18 | 1 (`informale`: *perché*); no *perca*; `perché` 19,881 |
+| `cosi` | *coso*'s plural (*thingy*), *cosare*'s present | 5.12 / 2.21 / 2.39 / 2.20 | `così` 6.14 | 4: 3 *così* (MarkIT « ottenibili cosi facilmente », `informale`, Tatoeba), 1 the surname « Francesca Cosi »; `così` 12,625 |
+| `citta` | *citto*'s feminine (Tuscan, archaic: a girl) | 4.16 / 2.04 / 1.84 / 1.66 | `città` 5.77 | 2, Tatoeba's « sarò in citta »: *città*; `città` 4,004 |
+| `caffe` | *caffo*'s feminine plural, *caffa*'s plural (odd, of a number) | 3.75 / 2.32 / 1.75 / 1.75 | `caffè` 4.83 | 0; `caffè` 2,895, `caffé` 9 |
+
+Each would pass every test but the section's rare homograph. **The method leaves others of that
+kind**, the owner's to add or not: `gia` (4.59 against `già` 5.95; *gire*'s archaic imperfect `gìa`,
+which today reads `gia` as *ire*), `liberta` (3.73 against `libertà` 5.16; *liberto*'s feminine, a
+freedwoman), `umidita` (2.75 against 4.06), `felicita`, `capacita`, `gravita`, `utilita` (verb forms of
+*felicitare*, *capacitare*, *gravitare* …), `finche` (3.55 against `finché` 4.85). D3's text named `gia`
+and `liberta` among the rows the method passes: the section's entries say otherwise.
+
+**Clarified at the boundary**, as 43e reads it: a name's entry says nothing of the word (`sara`,
+`gia`'s `Gia`: D3 named `sara` a row); a spelling of another word D2 does not read passes (`giu`,
+« alternative form of giu. », the abbreviation of *giugno*); an inflection a source marks doubtful is
+no inflection (`perché` lists `perche` as « alternative, obsolete »). **Added**: the reduction also
+stops when a row's word is no ranked lemma (`unread_web_spellings`), a row following the tables'
+choices.
+
+**The rows in running text** (the corpus and the whole Tatoeba): 54 occurrences — 17 the accented word
+(`cosi` 3, `difficolta` 2, `venerdi` 2, `citta` 2, `perche`, `fara` « Domani fara bello? », `cio`
+« cio è », `responsabilita`, `riusci`, `lunedi`, `martedi`, `realta`), 34 names (`Sara` 30 — mid-
+sentence, the names rule sets it aside; at a sentence's start it reads as *essere* —, the surnames
+`Cosi` and `Fara`, `Avro`, the acronym `CIO`), 3 other (`giu.`, the syllable `-giu-`, Sicilian `chissa`).
+
+### D5 as built
+
+- `ITALIAN_ANALYZER_VERSION` is `1.2.0`; `packs.spec.ts` already matches Italian's version by its
+  pattern (change 7), and does not move.
+- **The fixture gains the two spelling rows alone.** It lists `perché`, `più`, `può` and `così` since
+  changes 7 and 8; glossing them, as D5 asks, would move every page that writes `più` (`manzoni`,
+  `narrativa`, `nomi`, `tecnico`, `grammatica`) and the probes that count glossed words (the universe
+  111 → 114, the estimate 83 → 85, A2's typical vocabulary), against D5's « nothing else moves ».
+- The golden moves by the `informale` page (8 tokens: `È`, `perché`, `città`, `è`, `più`, `perche` →
+  *perché*, `cosi` → *così*, `è`), its phrase probe (5 tokens), the version on every page and the pack's
+  line (5,956 → 5,963 B); nothing else. The fixture's whole pack is 5,963 B
+  (`pipeline_testdata.rs` records its sha256).
+
+### What the dispatch will move (local preview)
+
+The reduction of the pinned sources with D2 and D3, run locally (task 2.3 makes the real one, and
+should find the same bytes): `forms.tsv` 128,429 → 129,742 rows (1,324 in: 509 spellings, 815 forms of
+the lemmas entering; 11 out); `freq.tsv` 365 lemmas out, all spellings (2 in the top 1,000, 18 in the
+top 5,000, 50 in the top 10,000), 365 in at ranks 9,775 to 60,000 — names that were forms of a
+spelling's paradigm (`uffizi`, `annunziato`) and the cut's next words. The whole pack 1,287,014 →
+1,296,174 B. Measured as `it-ud.sh` measures (the gate, not a choice: nothing was tuned on it), with
+this change's core on both: UD Italian-PUD 99.26 / 91.38 / 99.90 % (D1 moves nothing there) → 99.26 /
+**91.31** / 99.90 % of 19,155 words, 8,909 content words and 985 auxiliaries, against the gates 98.5 /
+90.5 / 97; MarkIT's test section 99.43 / 94.68 / 98.87 → 99.43 / 94.65 / 98.87 %.
