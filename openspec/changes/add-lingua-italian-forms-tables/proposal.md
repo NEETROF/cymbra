@@ -46,9 +46,10 @@ without moving the gates.
     spelling (`perche`, `citta`) — left out here (change 10 reads them by its reviewed list);
   - **one lemma per form**: a reviewed override list (empty), then the counts of MarkIT's
     training and development sections, then the form's own entry, then the lemma's frequency, then
-    alphabetical order; a form that is a name and a commoner word keeps the commoner reading
-    (`roma` stays the city; `bianca` and `chiara` read as *bianco* and *chiaro* against the names,
-    by frequency — measured);
+    alphabetical order; a form whose own entries are names alone reads as the other word
+    (`bambini` → *bambino*; `roma`, which no other word reads, stays the city) — as implemented, the
+    design's *Measured at implementation*; the override list holds the owner's `stato` and `stati` →
+    *essere* and `bianca` → *bianco*;
   - **Morph-it!'s forms**, when the owner keeps it among the pinned sources (I11), read after the
     Wiktionary's: a form Morph-it! lists under a lemma the
     Wiktionary ranks, which the Wiktionary lists under no lemma, joins the table; a form the
@@ -74,7 +75,8 @@ without moving the gates.
   wordfreq 3.1.1. UD Italian-PUD is no pinned source: the measurement script pins its commit and
   sha256, as French's does, so the pin never names it.
 - **A measurement** (`scripts/lingua-data/measure/it-ud.sh`): the real analyser over UD
-  Italian-PUD, held to Spanish's gates (98.5 / 93.5 / 97), and over MarkIT's test section,
+  Italian-PUD, held to Spanish's gates (98.5 / 93.5 / 97) — Italian's content gate set at 90.5 %
+  by the owner on 2026-10-23 (the design's *Measured at implementation*) —, and over MarkIT's test section,
   reported; both fetched at a pinned commit, checked by sha256, never committed, never read by the
   reduction — the counts come from MarkIT's training and development sections alone, so PUD and
   MarkIT's test section are held out.

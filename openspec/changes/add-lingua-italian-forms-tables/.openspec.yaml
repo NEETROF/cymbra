@@ -4,3 +4,4 @@ archiveAfter:
   - migrate-lingua-pack-sources-to-raw-dumps
   - add-lingua-italian-baseline
   - add-lingua-italian-tokenisation
+  - split-lingua-pack-format
