@@ -66,9 +66,10 @@ section, reported beside it and not gated — the reduction reads MarkIT's train
 sections. Both are fetched at a pinned commit and checked by sha256 into `work/measure-it/`. Neither
 is committed, and the reduction reads neither.
 
-Italian's tables are committed by add-lingua-italian-forms-tables; until then the script stops,
-saying so. `LINGUA_IT_PACK=<pack.lingua>` measures a pack built elsewhere instead, as
-add-lingua-italian-analysis measured its cascade on a prototype of those tables.
+Italian's tables are committed by add-lingua-italian-forms-tables, the first update of it-fr writing
+them; until then the script stops, saying so. `LINGUA_IT_PACK=<pack.lingua>` measures a pack built
+elsewhere instead, as add-lingua-italian-analysis measured its cascade on a prototype of those
+tables, and add-lingua-italian-forms-tables its tables reduced locally before the update.
 
 ```bash
 scripts/lingua-data/measure/it-ud.sh

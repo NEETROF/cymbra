@@ -14,9 +14,10 @@
 # pinned commit and checked by sha256; neither is committed (PUD is CC BY-SA 3.0, MarkIT CC BY 4.0),
 # and the reduction never reads them. The exit status is PUD's.
 #
-# Italian's tables are committed by add-lingua-italian-forms-tables (change 9): until then there is
-# no it-fr pack to build, and the script says so. LINGUA_IT_PACK=<pack.lingua> measures a pack built
-# elsewhere instead — the prototype add-lingua-italian-analysis measured its cascade on.
+# Italian's tables are committed by add-lingua-italian-forms-tables (change 9), its first update of
+# it-fr writing them: until then there is no it-fr pack to build, and the script says so.
+# LINGUA_IT_PACK=<pack.lingua> measures a pack built elsewhere instead — the prototype
+# add-lingua-italian-analysis measured its cascade on, or change 9's tables reduced locally.
 #
 #   scripts/lingua-data/measure/it-ud.sh
 #   LINGUA_IT_PACK=/path/to/it-fr.lingua scripts/lingua-data/measure/it-ud.sh
@@ -26,7 +27,8 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # UD Italian-PUD, the commit the Italian marks corpus pins (apps/lingua-extension/tool/marks/pud.mjs).
 PUD_COMMIT=71d932aa096368331ba2fd9bc906ec8dd853da8e
 PUD_SHA256=ad5d302bdfd05194155d9ad43dc54c3cb915076d66b3eb6ef33eca9a11f1372a
-# UD Italian-MarkIT, the default branch's head of 2026-10-23.
+# UD Italian-MarkIT at the commit it-fr's reduction reads its other two sections at
+# (pack_sources.py PINNED["it-fr"]), the default branch's head of 2026-10-23.
 MARKIT_COMMIT=e210079df0aea331ec1dcaa90648d815ce94c3ce
 MARKIT_TEST_SHA256=9048ed0064e3989e2c37377755a28c25c7e462b1ad916e5808dc0a7ce95fc3fc
 work="$here/../work/measure-it"
