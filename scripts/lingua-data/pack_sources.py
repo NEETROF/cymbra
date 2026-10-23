@@ -9,8 +9,9 @@
 `tables/<pair>/pin.json` records where the committed tables came from and what they build:
 
 - `snapshot`: the day the sources were read (`2026.09.26`); it is also the pack's `pack_version`
-  when the tables come from an update, and names it with the reducer's rules when they come from a
-  re-reduction of the same sources (`2026.09.26+1dff19c`). A pair that is not its studied
+  when the tables come from an update — and from a re-reduction under the rules that update recorded,
+  which makes them again —, and names it with the reducer's rules when they come from a re-reduction
+  of the same sources under other rules (`2026.09.26+1dff19c`). A pair that is not its studied
   language's reference names, in either mode, its snapshot, its rules and the studied tables it
   read (`2026.10.08+733f815.5e0c2a1`, `pack_version`): its version moves when they do.
 - `pack`: sha256 and size of the pack the tables build — every lane must obtain exactly that.
@@ -120,6 +121,43 @@ FRENCH_GSD = {
     },
 }
 
+# UD Italian-MarkIT's training and development sections, read for their counts of each form under each
+# lemma, of each hyphenated lemma and of each word under each part of speech
+# (add-lingua-italian-forms-tables D2, reduce_italian_treebank.py), at the default branch's head of
+# 2026-10-23 (CC BY 4.0). Its test section is the measurement's (measure/it-ud.sh), never the
+# reduction's; UD Italian-PUD is no pinned source at all — every PINNED entry is fetched into the
+# reduction's work folder and named by pin.json, which the held-out gate forbids —, so it-ud.sh pins
+# it, as fr-ud.sh pins UD French-PUD.
+ITALIAN_MARKIT = {
+    "markit-train": {
+        "file": "it_markit-ud-train.conllu",
+        "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_Italian-MarkIT/"
+        "e210079df0aea331ec1dcaa90648d815ce94c3ce/it_markit-ud-train.conllu",
+    },
+    "markit-dev": {
+        "file": "it_markit-ud-dev.conllu",
+        "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_Italian-MarkIT/"
+        "e210079df0aea331ec1dcaa90648d815ce94c3ce/it_markit-ud-dev.conllu",
+    },
+}
+# Morph-it! (add-lingua-italian-forms-tables D2, D3; the programme's I11), a second source of Italian
+# forms, read for what it adds that the Wiktionary lacks: the archive its site serves
+# (https://docs.sslmit.unibo.it/lib/exe/fetch.php?media=resources:morph-it.tgz, Last-Modified
+# 2018-05-03, 2,617,548 B, sha256 b137343dc095e038ebfaef7c743185e85ec35f5322a1b8629b600e6e898c7024),
+# which holds version 0.4.8 — the site's figures are 0.4.7's —, kept unmodified as a one-off release
+# the owner uploads, since the site offers no address at a version. A release asset, unlike a
+# commit, can be deleted or uploaded again under its name, so the entry carries the sha256 its bytes
+# must have, checked at every fetch (`expected_sha256`), the first included. CC BY-SA 2.0 (one of
+# its two licences, the other the LGPL); the owner keeps it among it-fr's sources (task 5.1,
+# 2026-10-23).
+MORPH_IT = {
+    "morph-it": {
+        "file": "morph-it-0.4.8.tgz",
+        "url": f"https://github.com/{REPOSITORY}/releases/download/lingua-pack-sources-morph-it-0.4.8/morph-it-0.4.8.tgz",
+        "sha256": "b137343dc095e038ebfaef7c743185e85ec35f5322a1b8629b600e6e898c7024",
+    },
+}
+
 # The sources each pair reads at a commit — en-fr's read on 2026-09-25/26. The URLs name a commit,
 # never a branch: the AGID URL the pipeline once used named `master`, a branch en-wl/wordlist no
 # longer has, and worked through a leftover redirect. At a commit, a URL means the same bytes for
@@ -156,6 +194,9 @@ PINNED = {
     # The same two files, at the same commit, read for the part of speech a function word's row opens
     # on (refine-lingua-fr-es-glosses D8): fr-es's pin records them as fr-en's does.
     "fr-es": FRENCH_GSD,
+    # Italian's reference pair (add-lingua-italian-forms-tables D2): MarkIT's two sections, and
+    # Morph-it! at the owner's one-off release.
+    "it-fr": {**ITALIAN_MARKIT, **MORPH_IT},
 }
 # ESDB, the English Speller Database (switch-lingua-inflections-to-esdb): not a file but a database
 # its repository builds; `scowl.txt` is its export. Built at the commit of `rel-2026.02.25`, with
@@ -194,6 +235,8 @@ EDITIONS = {
             "kaikki-French.jsonl": ("entries", "fr"),
             # en-es's direct fallback (add-lingua-pack-en-es D2).
             "kaikki-en-traductions-es.jsonl": ("translations", "en", "es"),
+            # Italian's studied side: its forms and their lemmas (add-lingua-italian-forms-tables D2).
+            "kaikki-Italian.jsonl": ("entries", "it"),
         },
     },
     # The French Wiktionary: 736,590,407 B gzipped (regenerated 2026-10-02 00:10).
@@ -268,6 +311,10 @@ DUMPS = {
         "es": ("kaikki-es-Frances.jsonl", "kaikki-es-traductions.jsonl"),
         "fr": ("kaikki-fr-traductions.jsonl",),
     },
+    # The English Wiktionary's Italian section, Italian's studied side: its forms and their lemmas
+    # (add-lingua-italian-forms-tables D2) — a file of the English edition's catalogue. it-fr's
+    # glosses, from the Italian edition's French section, are change 16's.
+    "it-fr": {"en": ("kaikki-Italian.jsonl",)},
 }
 # The source record of a pin written before the dumps: kaikki's per-language extract, kept whole as
 # a release asset (D5). Read as recorded, never written again.
@@ -418,7 +465,12 @@ def pairs(tables: Path, after: str | None = None) -> list[str]:
     """The pairs of `tables`, each studied language's reference first, then its other pairs, by
     name; with `after`, that pair, then — when it is its language's reference — the pairs that read
     its studied folder, which must be reduced again after it. No pair at all fails: a loop over
-    none would reduce nothing and pass."""
+    none would reduce nothing and pass.
+
+    A reference's first update (add-lingua-italian-forms-tables D9): its studied folder, committed
+    by hand with the inputs no reducer writes, names it, and its own folder is not written yet — the
+    update writes it whole. Named by `after`, it is that update's pair; it is no pair of the list
+    otherwise, having no tables to reduce again or check."""
     names = [folder.name for folder in folders(tables) if is_pair(folder)]
     if not names:
         raise PinError(f"{tables} holds no pair (a folder named <studied>-<native>)")
@@ -426,6 +478,8 @@ def pairs(tables: Path, after: str | None = None) -> list[str]:
     ordered = sorted(names, key=lambda n: (refs[studied_of(n)] != n, n))
     if after is None:
         return ordered
+    if after not in names and is_pair_name(after) and reference_of(tables / studied_of(after)) == after:
+        return [after, *(n for n in ordered if studied_of(n) == studied_of(after))]
     if after not in names:
         raise PinError(f"{after} is no pair of {tables} ({', '.join(ordered)})")
     if refs.get(studied_of(after)) != after:
@@ -897,6 +951,17 @@ def kept_editions(pair: str, record: dict, keep) -> dict:
     return kept
 
 
+def expected_sha256(name: str, spec: dict, dest: Path) -> str:
+    """The sha256 of a fetched `PINNED` source, refused when its entry names another: a source pinned
+    at a release asset of the repository's own (Morph-it!) carries the sha256 its bytes must have,
+    since an asset can be deleted or uploaded again under its name, which a commit cannot."""
+    got = sha256(dest)
+    want = spec.get("sha256")
+    if want is not None and got != recorded_sha256(want, name):
+        raise PinError(f"{name}: {dest.name} has sha256 {got}, but {spec['url']} must serve {want}")
+    return got
+
+
 def fetch_pinned(pin: Path, work: Path, *, fetch=download, build=build_esdb, cache: Path | None = None) -> None:
     """Every raw source as recorded, into `work`, each checked by sha256 (re-reduce mode). A release
     asset is read from `cache` when an earlier fetch kept it there (`release_asset`). A kaikki
@@ -936,7 +1001,7 @@ def fetch_pinned(pin: Path, work: Path, *, fetch=download, build=build_esdb, cac
         entry = sources.get(name) or {}
         dest = work / spec["file"]
         fetch(entry.get("url") or spec["url"], dest)
-        got = sha256(dest)
+        got = expected_sha256(name, spec, dest)
         if got != entry.get("sha256"):
             raise PinError(f"{name}: {dest.name} has sha256 {got}, pin.json records {entry.get('sha256')}")
     # Each release asset from the release its record names (add-lingua-pack-es-en D2), its names
@@ -1075,7 +1140,7 @@ def fetch_live(
     for name, spec in PINNED.get(pair, {}).items():
         dest = work / spec["file"]
         fetch(spec["url"], dest)
-        sources[name] = {"url": spec["url"], "sha256": sha256(dest)}
+        sources[name] = {"url": spec["url"], "sha256": expected_sha256(name, spec, dest)}
     esdb = ESDB.get(pair)
     if esdb is not None:
         sources["esdb"] = {k: esdb[k] for k in ("repository", "tag", "commit")}
@@ -1203,16 +1268,36 @@ def studied_digest(tables: dict) -> str:
 def pack_version(pin: Path, reducer: Path, *, live: bool = False) -> str:
     """The `pack_version` a pair's tables are reduced under (lingua-data-packs, *A pack says which
     dictionary it is*): its snapshot for an update (`live`), and its snapshot and rules after a
-    re-reduction of the same sources (`2026.10.03+0d876dc`). A pair that is not its studied
-    language's reference reads tables it does not write, so its version names them too, in either
-    mode: its snapshot, its rules and the digest of the studied tables its build reads
+    re-reduction of the same sources (`2026.10.03+0d876dc`) — but a re-reduction of the tables an
+    update committed, under the very rules that update recorded, which are those tables again, so
+    their version again (`reduces_an_update`, *Two releases, one dictionary*). A pair that is not its
+    studied language's reference reads tables it does not write, so its version names them too, in
+    either mode: its snapshot, its rules and the digest of the studied tables its build reads
     (`2026.10.08+733f815.5e0c2a1`, add-lingua-pack-es-en D3) — the version moves when they do,
     though nothing of the pair's own moved."""
     snapshot = get(load(pin), "snapshot")
     studied = studied_record(pin)
     if studied is None:
-        return snapshot if live else f"{snapshot}+{rules_sha256(reducer)[:7]}"
+        if live or reduces_an_update(pin, reducer):
+            return snapshot
+        return f"{snapshot}+{rules_sha256(reducer)[:7]}"
     return f"{snapshot}+{rules_sha256(reducer)[:7]}.{studied_digest(studied['tables'])[:7]}"
+
+
+def reduces_an_update(pin: Path, reducer: Path) -> bool:
+    """Whether a re-reduction of a reference pair reads the tables an update committed, under the
+    rules it recorded: the committed `manifest.json` beside the pin names the snapshot alone — an
+    update's version — and `reducer` is the rules the pin records. The same sources under the same
+    rules make the same tables, so the reduce job reproduces the update's manifest and pin byte for
+    byte (add-lingua-italian-forms-tables: it-fr's first update, committed as the update wrote it).
+    Once the rules move, the re-reduction is a new snapshot of tables and names them."""
+    record = load(pin)
+    try:
+        committed = json.loads((pin.parent / "manifest.json").read_text(encoding="utf-8"))["meta"]["pack_version"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return False
+    recorded = record.get("reducer", {}).get("sha256") if isinstance(record.get("reducer"), dict) else None
+    return committed == record.get("snapshot") and recorded == rules_sha256(reducer)
 
 
 # The records of a pin, in the order it is saved.

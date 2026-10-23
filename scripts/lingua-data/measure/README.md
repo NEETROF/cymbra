@@ -61,14 +61,17 @@ scripts/lingua-data/measure/fr-ud.sh
 
 `it-ud.sh` measures the it-fr pack, built from the committed tables, with the same harness and
 Italian's own analysis (add-lingua-italian-analysis D6, add-lingua-italian-forms-tables D8): on UD
-Italian-PUD, held to Spanish's gates above (its exit status the script's), and on MarkIT's test
+Italian-PUD, held to Italian's gates (its exit status the script's) — Spanish's 98.5 % resolved and
+97 % of auxiliaries, and 90.5 % of content words, the owner's gate of 2026-10-23
+(`lingua-pack-measure --min-content`) —, and on MarkIT's test
 section, reported beside it and not gated — the reduction reads MarkIT's training and development
 sections. Both are fetched at a pinned commit and checked by sha256 into `work/measure-it/`. Neither
 is committed, and the reduction reads neither.
 
-Italian's tables are committed by add-lingua-italian-forms-tables; until then the script stops,
-saying so. `LINGUA_IT_PACK=<pack.lingua>` measures a pack built elsewhere instead, as
-add-lingua-italian-analysis measured its cascade on a prototype of those tables.
+Italian's tables are committed by add-lingua-italian-forms-tables, the first update of it-fr writing
+them; until then the script stops, saying so. `LINGUA_IT_PACK=<pack.lingua>` measures a pack built
+elsewhere instead, as add-lingua-italian-analysis measured its cascade on a prototype of those
+tables, and add-lingua-italian-forms-tables its tables reduced locally before the update.
 
 ```bash
 scripts/lingua-data/measure/it-ud.sh

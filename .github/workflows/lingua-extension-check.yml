@@ -106,7 +106,10 @@ jobs:
           set -euo pipefail
           # Every pair with committed tables (generalise-lingua-pack-reducer): the folders named
           # <studied>-<native>; tables/<studied>/ holds a studied language's side, read by its pairs
-          # (split-lingua-pack-tables-by-language).
+          # (split-lingua-pack-tables-by-language). it-fr, Italian's reference, once its first update
+          # writes tables/it-fr/ (add-lingua-italian-forms-tables D9): built whole and in parts
+          # against its pin as the six, its base Italian's; before it, tables/it/ holds the inputs
+          # committed by hand alone and no folder names it-fr, so the loop meets no Italian pair.
           for tables in ../../scripts/lingua-data/tables/*-*/; do
             pair="$(basename "$tables")"
             # Tables reduced by other rules than the repository's — the pair's reducer or a shared
@@ -147,8 +150,11 @@ jobs:
       # en-es) equals it on the studied side. The French card's lines over both are pinned by
       # test/word-card-fr-en.spec.ts and test/word-card-fr-es.spec.ts. it-fr (the Italian
       # programme's change 5, add-lingua-italian-baseline) freezes Italian's baseline analysis over
-      # the hand-written fixture scripts/lingua-data/testdata/it-fr/ until change 16 commits its
-      # tables, beside the real en-fr pack, whose update moves its `beside en-fr` line alone.
+      # the hand-written fixture scripts/lingua-data/testdata/it-fr/ — still, once change 9
+      # (add-lingua-italian-forms-tables D9) commits Italian's forms and ranks: a pack of forms
+      # and ranks alone would blind the golden's gloss, expression and level probes — until
+      # change 16 commits its tables, beside the real en-fr pack, whose update moves its
+      # `beside en-fr` line alone.
       - name: Invariance baselines (en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr)
         run: cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline --test fr_es_baseline --test italian_baseline
       # What a pack studies does not depend on how it glosses (add-lingua-pack-lexical-layer):

@@ -31,6 +31,29 @@ pub const MIN_CONTENT: f64 = 93.5;
 /// Auxiliaries.
 pub const MIN_AUX: f64 = 97.0;
 
+/// The three gates a measurement is held to, in percent.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Gates {
+    pub resolved: f64,
+    pub content: f64,
+    pub aux: f64,
+}
+
+impl Gates {
+    /// The programme's gates, Spanish's (`MIN_RESOLVED`, `MIN_CONTENT`, `MIN_AUX`).
+    pub const PROGRAMME: Gates = Gates {
+        resolved: MIN_RESOLVED,
+        content: MIN_CONTENT,
+        aux: MIN_AUX,
+    };
+}
+
+impl Default for Gates {
+    fn default() -> Self {
+        Gates::PROGRAMME
+    }
+}
+
 /// What a pack does with a treebank's words.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Measurement {
@@ -81,13 +104,20 @@ impl Measurement {
         )
     }
 
-    /// The gates this measurement misses, in words; none when it passes.
+    /// The programme's gates this measurement misses, in words; none when it passes.
     pub fn failures(&self) -> Vec<String> {
+        self.failures_against(&Gates::PROGRAMME)
+    }
+
+    /// The gates of `gates` this measurement misses, in words: a studied language whose gate the
+    /// owner set apart is measured against its own (Italian's content gate, 90.5 %,
+    /// add-lingua-italian-forms-tables D8).
+    pub fn failures_against(&self, gates: &Gates) -> Vec<String> {
         let mut out = Vec::new();
         for (name, got, gate) in [
-            ("tokens resolved", self.resolved_percent(), MIN_RESOLVED),
-            ("content-word lemmas", self.content_percent(), MIN_CONTENT),
-            ("auxiliary lemmas", self.aux_percent(), MIN_AUX),
+            ("tokens resolved", self.resolved_percent(), gates.resolved),
+            ("content-word lemmas", self.content_percent(), gates.content),
+            ("auxiliary lemmas", self.aux_percent(), gates.aux),
         ] {
             if got < gate {
                 out.push(format!("{name}: {got:.2} % < {gate} %"));
@@ -135,6 +165,25 @@ pub fn measure(pack: &Pack, conllu: &str) -> Measurement {
         }
     }
     m
+}
+
+/// `lingua-pack-measure`'s arguments, `[--min-content P] PACK TREEBANK`: the gates and the two
+/// paths, or None when the arguments are not that shape.
+pub fn parse_args(args: &[String]) -> Option<(Gates, [&str; 2])> {
+    let mut gates = Gates::default();
+    let mut paths = Vec::new();
+    let mut rest = args.iter();
+    while let Some(arg) = rest.next() {
+        if arg == "--min-content" {
+            gates.content = rest.next()?.parse().ok()?;
+        } else {
+            paths.push(arg.as_str());
+        }
+    }
+    let [pack, treebank] = paths.as_slice() else {
+        return None;
+    };
+    Some((gates, [pack, treebank]))
 }
 
 #[cfg(test)]
@@ -224,5 +273,67 @@ mod tests {
             ..m.clone()
         };
         assert!(pass.failures().is_empty());
+    }
+
+    #[test]
+    fn a_language_s_own_gate() {
+        // Italian's content gate, the owner's 90.5 % (add-lingua-italian-forms-tables D8).
+        let m = Measurement {
+            tokens: 100,
+            resolved: 99,
+            content: 1000,
+            content_agree: 914,
+            aux: 10,
+            aux_agree: 10,
+        };
+        assert_eq!(m.failures(), ["content-word lemmas: 91.40 % < 93.5 %"]);
+        let italian = Gates {
+            content: 90.5,
+            ..Gates::default()
+        };
+        assert!(m.failures_against(&italian).is_empty());
+        let under = Measurement {
+            content_agree: 900,
+            ..m.clone()
+        };
+        assert_eq!(
+            under.failures_against(&italian),
+            ["content-word lemmas: 90.00 % < 90.5 %"]
+        );
+        assert_eq!(Gates::default(), Gates::PROGRAMME);
+    }
+
+    fn args(words: &[&str]) -> Vec<String> {
+        words.iter().map(|w| (*w).to_string()).collect()
+    }
+
+    #[test]
+    fn the_arguments_are_two_paths_and_an_optional_content_gate() {
+        let plain = args(&["it-fr.lingua", "pud.conllu"]);
+        assert_eq!(
+            parse_args(&plain),
+            Some((Gates::PROGRAMME, ["it-fr.lingua", "pud.conllu"]))
+        );
+        let italian = args(&["--min-content", "90.5", "it-fr.lingua", "pud.conllu"]);
+        let (gates, paths) = parse_args(&italian).expect("parsed");
+        assert_eq!(gates.content, 90.5);
+        assert_eq!((gates.resolved, gates.aux), (MIN_RESOLVED, MIN_AUX));
+        assert_eq!(paths, ["it-fr.lingua", "pud.conllu"]);
+        let after = args(&["it-fr.lingua", "pud.conllu", "--min-content", "90.5"]);
+        assert_eq!(parse_args(&after).expect("parsed").0.content, 90.5);
+    }
+
+    #[test]
+    fn malformed_arguments_are_refused() {
+        for words in [
+            &[][..],
+            &["it-fr.lingua"][..],
+            &["a", "b", "c"][..],
+            &["--min-content", "a", "b"][..],
+            &["a", "b", "--min-content"][..],
+            &["--min-content", "ninety", "a", "b"][..],
+        ] {
+            assert_eq!(parse_args(&args(words)), None, "{words:?}");
+        }
     }
 }

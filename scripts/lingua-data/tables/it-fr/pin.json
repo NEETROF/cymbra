@@ -1,0 +1,58 @@
+{
+  "snapshot": "2026.10.23",
+  "pack": {
+    "sha256": "2e03059fd3dcfcf6e80ce25b8e4f0f4f55dbec1b5114d6caa515e17d4f4de1c3",
+    "size": 1287014
+  },
+  "base": {
+    "sha256": "43c86394e01658aa2dd129aeab10ee81b73b1ad01459fdfb377770466005004c",
+    "size": 1285594
+  },
+  "layer": {
+    "sha256": "b953b39ae96871e8252d47d94ea1a75d7642602ae0c4dafdf85a9d79091cd102",
+    "size": 1645
+  },
+  "reducer": {
+    "sha256": "06c137f8aa5495eaa0f0aa7e4fc50f714b9afbff2345446200ca189a4b8e3716",
+    "files": [
+      "reduce-it-fr.py",
+      "reduce_common.py",
+      "reduce_italian_treebank.py"
+    ]
+  },
+  "sources": {
+    "markit-train": {
+      "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_Italian-MarkIT/e210079df0aea331ec1dcaa90648d815ce94c3ce/it_markit-ud-train.conllu",
+      "sha256": "4f6fc3423acb00d49e1e167bd21b11ebbc23e22275fd6f5eeb4d75cfbbccc5c6"
+    },
+    "markit-dev": {
+      "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_Italian-MarkIT/e210079df0aea331ec1dcaa90648d815ce94c3ce/it_markit-ud-dev.conllu",
+      "sha256": "633b6186f47ecfebfcff4ff9c7e19a0cbffd1f655f14fc1e9265b12bda597f97"
+    },
+    "morph-it": {
+      "url": "https://github.com/NEETROF/cymbra/releases/download/lingua-pack-sources-morph-it-0.4.8/morph-it-0.4.8.tgz",
+      "sha256": "b137343dc095e038ebfaef7c743185e85ec35f5322a1b8629b600e6e898c7024"
+    },
+    "kaikki-en": {
+      "release": "lingua-pack-sources-it-fr-2026.10.23",
+      "url": "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz",
+      "fetched": "2026-10-23",
+      "last_modified": "Wed, 21 Oct 2026 11:23:03 GMT",
+      "dump": {
+        "sha256": "60a6073c7cd3f77a6f76fac8135dc8e34ca38ce1d12052f855fe36a5a1c2f965",
+        "size": 26611939151,
+        "compressed_size": 3082192147
+      },
+      "files": {
+        "kaikki-Italian.jsonl": {
+          "asset": "kaikki-Italian.jsonl.zst",
+          "sha256": "ae7de484ba53e3a6a472b9672a69d7e7fdc96cf55b68c5399a5b338adb387f0b",
+          "size": 665207473
+        }
+      }
+    },
+    "wordfreq": {
+      "version": "3.1.1"
+    }
+  }
+}

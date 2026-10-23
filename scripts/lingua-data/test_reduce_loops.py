@@ -673,7 +673,7 @@ class Loops(unittest.TestCase):
     def test_a_french_dispatch_runs_in_the_fr_group(self):
         workflow = WORKFLOWS / "lingua-pack-update.yml"
         text = workflow.read_text(encoding="utf-8")
-        self.assertIn("options: [en-fr, es-fr, es-en, en-es, fr-en, fr-es, all]", text)
+        self.assertIn("options: [en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr, all]", text)
         groups = {pair: concurrency_group(workflow, pair) for pair in ("en-fr", "en-es", "es-fr", "es-en", "fr-en", "fr-es", "all", "")}
         self.assertEqual(
             groups,
@@ -689,6 +689,45 @@ class Loops(unittest.TestCase):
                 "": "lingua-pack-update-monthly",
             },
         )
+
+    def italian_before_its_first_update(self) -> None:
+        """Italian's studied folder as committed by hand before it-fr's first update
+        (add-lingua-italian-forms-tables D9): its record naming it-fr and its pinned tag pool; no
+        folder of it-fr's yet."""
+        (self.tables / "it").mkdir()
+        (self.tables / "it" / "studied.json").write_text('{"reference": "it-fr"}\n')
+        (self.tables / "it" / "tags.tsv").write_text("NOUN\n")
+
+    def test_spec_scenario_it_fr_s_first_update(self):
+        self.italian_before_its_first_update()
+        # Every pair's runs meet no Italian pair: it has no tables to reduce again yet.
+        done = self.reduce_job()
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(self.built(), ["reduce en-fr", "reduce es-fr", "reduce en-es", "reduce es-en"])
+        self.log.unlink()
+        # Dispatched, its update runs with no folder of its own: reported against none, its raw
+        # sources kept for the release step, Italian's hand-committed folder reported on.
+        done = self.update("update", "it-fr")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(self.built(), ["update it-fr"])
+        self.assertEqual(self.kept_work(), ["it-fr"])
+        self.assertEqual(list((self.temp / "committed" / "it-fr").iterdir()), [], "reported against no tables")
+        self.assertEqual(sorted(p.name for p in (self.temp / "committed" / "it").iterdir()), ["studied.json", "tags.tsv"])
+        # The update wrote both folders (build.sh, doubled here, writes none): each is reported.
+        (self.tables / "it-fr").mkdir()
+        (self.tables / "it-fr" / "gloss.tsv").write_text("")
+        (self.tables / "it" / "forms.tsv").write_text("casa\tcasa\n")
+        done = self.report("update")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        reports = self.reported()
+        self.assertEqual(sorted(reports), ["it", "it-fr"])
+        self.assertIn(f"report {self.temp}/committed/it-fr scripts/lingua-data/tables/it-fr ", reports["it-fr"])
+        self.assertIn("'forms.tsv': 'casa\\tcasa'", reports["it"])
+
+    def test_an_italian_dispatch_runs_in_the_it_group(self):
+        workflow = WORKFLOWS / "lingua-pack-update.yml"
+        self.assertEqual(concurrency_group(workflow, "it-fr"), "lingua-pack-update-it")
+        self.assertEqual(concurrency_group(workflow, "it-en"), "lingua-pack-update-it")
 
     # — lingua-extension-check, the `check` job's build of every pair —
 

@@ -583,6 +583,71 @@ lemmas glossed, every other row byte for byte (19,070 lemmas and `CA`, 13,227 di
 57.1 % (7,087 of the top 10,000), `mwe.tsv` byte for byte, the pack 1,982,362 → 1,983,054 B. Only
 fr-en's rule digest moves; fr-es's pin records the new studied tables.
 
+## IT → FR: Italian studied
+
+Reduced by `reduce-it-fr.py` (add-lingua-italian-forms-tables, change 9 of
+`docs/lingua/italian-programme.md`): it-fr is **Italian's reference pair** (I5), whose reduction writes
+`tables/it/` (`tables/it/studied.json`), and which every later pair studying Italian (it-en, it-es)
+reads as committed. It writes Italian's forms and ranks from the English Wiktionary's Italian section;
+its glosses (from the Italian Wiktionary's French section), Italian's dictionary words, readings and
+levels are later changes' (16, 13, 14), so `tables/it-fr/gloss.tsv` and `tables/it/lexical.tsv` are
+empty and `tables/it/tags.tsv` holds the one tag change 4 pins for a pool-less fixture, `NOUN`, until
+change 13. No package carries it-fr (`packs.json` is unchanged), and the Italian baseline keeps its
+fixture (`testdata/it-fr/`) until change 16. Its reducer loads `reduce_common.py` (for `write`) and
+`reduce_italian_treebank.py`, MarkIT's counts, a rule module of its own that a later Italian pair may
+load: an edit of `reduce-it-fr.py` re-pins it-fr alone.
+
+`tables/it/studied.json` (`{"reference": "it-fr"}`) and `tables/it/tags.tsv` were committed by hand
+before the first update, as French's were: `record-build` refuses a studied language without its
+pinned pool. Before that update wrote `tables/it-fr/`, no folder named it-fr: every pair's runs met no
+Italian pair, the committed-tables check accepts a studied folder holding its record and its pool
+alone while its reference has no folder (`lingua_pack::tables`), and `pack_sources.py pairs --after`
+names a reference from its studied folder — the path a later language's first update takes too. The
+first update is `lingua-pack-update` run 39974561742 (2026-10-23), dispatched on the implementation
+branch as fr-en's was.
+
+| Table | Upstream source | Licence | Reduction |
+|---|---|---|---|
+| `tables/it/forms.tsv` (`form → lemma`) | **kaikki.org**: the English Wiktionary's (`enwiktionary`) Italian section (`kaikki-Italian.jsonl`, `DUMPS["it-fr"]`), a file of the English edition's catalogue (`EDITIONS["en"]`); **UD Italian-MarkIT**'s training and development sections at a commit (`PINNED["it-fr"]`), for homographs; **Morph-it!** 0.4.8, while pinned (I11) | kaikki: CC BY-SA 4.0 + GFDL; MarkIT: CC BY 4.0, read for counts only; Morph-it!: CC BY-SA 2.0 (dual with the LGPL) | the inflections a lemma's entry lists and the first word of each form-of target of a form's own entry — an apocope's `alt_of` among them (`un` → *uno*, `buon` → *buono*) —, lowercased, NFC, the typographic apostrophe read as `'`; never kaikki's bookkeeping or a verb's auxiliary row, a multi-word construction, an inflection tagged alternative, obsolete, archaic, rare, dated, uncommon, misspelt, nonstandard, proscribed, abbreviated or clipped, a gender or number marker, nor a row naming a derived word — a noun's or an adjective's diminutive, augmentative, pejorative, derogatory or endearing form, an adjective's adverb (`vero` → `veramente`), a noun's relational adjective (`mare` → `marittimo`), a name's demonym, a plural noun's `plural-of` row —, nor any row of a name's entry, the derived word read from its own entry, whose « diminutive of casa » is a meaning (`casetta` its own lemma). **The tables' stress marks**: every mark but on the last letter dropped (`dàre` → `dare`, `darèbbe` → `darebbe`), the last letter's kept unless the entry carrying the cell's form-of link is the bare spelling (`hà` → `ha`, `dò` → `do`; `dà` and `darà` keep theirs); a loan's marks stay (`würstel`). **A reflexive verb's rows** written with their pronoun (`mi làvo`) give their bare form, under the plain verb where the section has one (`lavo` → *lavare*; `lavarsi` no lemma) and under the reflexive otherwise (`pento` → *pentirsi*), whose rows carrying the pronoun give their bare base (`pentire`, `pentendo`, `pentite`) for the enclitic rule; a row carrying any other clitic (`me ne vàdo`, `ce la fàccio`) and every row of a verb whose infinitive carries one (`andarsene`, `esserci`) give no form, nor a clitic compound's entries (`dirmelo`, `vattene`, `eccolo`: the enclitic rule reads them; `fallo` the noun stands). **A form of a form along one part of speech** (`creduta` → `creduto` → *credere*). **Italian's tokenisation** (I7, change 6's closed tables, held to tokenize.rs by test_reduce_it_fr.py): every word the pre-pass writes is a form, the reduction failing if one is not; each elided piece and truncation a form of its word's lemma (`l'` → *lo*, `un'` → *uno*, `po'` → *poco*, `va'` → *andare*); the `di` family (`del` … `delle`) lemmas of their own, `dell'` → *dello*; the 25 other articulated prepositions no form, `dai` a form of *dare*; no plain word beginning with a piece (`c'è`, `dell'acqua`). **One lemma per form**: a form whose own lemma entries are names alone reads as the other word (`bambini`, a surname, → *bambino*), `roma` the city; then `OVERRIDES` — the owner's `stato` and `stati` → *essere* (2026-10-23), and `bianca` → *bianco* —, MarkIT's counts, the form's own entry, the lemma's frequency, the alphabet. **The apocopes** written without an apostrophe read as their word alone by a reviewed table (`APOCOPES`: `un` → *uno*, `buon`, `nessun`, `alcun`, `ciascun`, `qualcun`, `bel` → *bello*, `san` → *santo*, `gran`, `quel`, `tal`, `qual`). **Morph-it!** adds a form it lists under a ranked lemma that the Wiktionary names nowhere, never one carrying clitics, never moving a reading. Only the forms of kept lemmas wordfreq attests, every lemma's own form, and the pieces |
+| `tables/it/freq.tsv` (`lemma → rank`) | **wordfreq** Italian list; **UD Italian-MarkIT**'s frequency of a hyphenated lemma | CC BY-SA 4.0 | the top 60,000 lemmas, dense rank: wordfreq's order, inflected forms skipped, and its stems of every elided piece (`l`, `d`, `gl`, `quest` — Zipf 4.05 —, `dell`, `all`, …) but the apocopes written without an apostrophe (`APOCOPES`, read as their words) and `cent`, the euro cent, its truncations' stems that are no word (`po`, `mo`, `be`), the articulated prepositions it splits (`dai` too), and the verb forms and infinitives carrying clitics (`farlo`, `lavarsi`, `pentirmi`, `figuriamoci`); a word whose own form reads as another gives its rank to the next; a hyphenated word only when MarkIT attests it, at the lower of wordfreq's estimate and MarkIT's own frequency |
+| `tables/it/tags.tsv` | the one tag change 4 pins for a pool-less studied language, `NOUN` | — | committed by hand; change 13 writes Italian's pool |
+| `tables/it/lexical.tsv` | none yet | — | empty: change 11's acronym rows and change 16's dictionary words fill it; the builder splits a pair glossing nothing with an empty table, neither part naming a dictionary word |
+| `tables/it-fr/gloss.tsv` | none yet | — | empty until change 16 |
+| `NOTICE` | the section, wordfreq, MarkIT, Morph-it! while pinned | — | the attribution stack, embedded in the pack; UD Italian-PUD is measured against, never shipped |
+
+**The sources pinned** (`tables/it-fr/pin.json`): the Italian section derived on 2026-10-23 from the
+English edition's dump regenerated on 2026-10-21 11:23 (decompressed sha256 `60a6073c…`,
+26,611,939,151 B; 3,082,192,147 B gzipped) — 624,122 entries, 665,207,473 B, sha256 `ae7de484…`,
+33,120,545 B as its zstd asset `kaikki-Italian.jsonl.zst`, under it-fr's own release
+`lingua-pack-sources-it-fr-2026.10.23`; MarkIT's `it_markit-ud-train.conllu` and
+`it_markit-ud-dev.conllu` at `e210079df0aea331ec1dcaa90648d815ce94c3ce` (1,266,080 B, sha256
+`4f6fc342…`, and 665,430 B, sha256 `633b6186…`), the default branch's head of 2026-10-23; Morph-it!'s
+archive as its site serves it (https://docs.sslmit.unibo.it/lib/exe/fetch.php?media=resources:morph-it.tgz,
+Last-Modified 2018-05-03, 2,617,548 B, sha256 `b137343d…`, which `PINNED` carries and every fetch
+checks — the owner keeps it, 2026-10-23), read for its lexicon
+`current_version/morph-it_048.txt` (version 0.4.8, Latin-1, 505,074 lines; the site's figures are
+0.4.7's) and never extracted, kept unmodified as the owner's one-off release
+`lingua-pack-sources-morph-it-0.4.8` since the site offers no address at a version; wordfreq 3.1.1. UD
+Italian-PUD (`71d932aa…`) and MarkIT's test section are no pinned source: `measure/it-ud.sh` pins
+them, and the reduction refuses to read a test section (`reduce_italian_treebank.held_out`).
+
+**Measured at implementation** (add-lingua-italian-forms-tables, its design's *Measured at
+implementation*), on local copies: kaikki.org's own extract of the Italian section (2026-10-21,
+770,859,636 B, the same 623,702 entries the dump-derived file holds, laid out differently), MarkIT's two
+sections and Morph-it! as pinned, wordfreq 3.1.1; the update's figures are recorded in
+`tables/it-fr/README.md`. 128,418 forms, 812 of them Morph-it!'s (under 641 lemmas); the 60,000th
+lemma at Zipf 2.07. **At the update** (2026.10.23, the committed tables): 128,429 forms, 809 of them
+Morph-it!'s (under 638 lemmas), `forms.tsv` 2,390,960 B, `freq.tsv` 862,388 B, the 60,000th lemma
+(`aiu`) at Zipf 2.06; the pack 1,287,014 B, its base 1,285,594 B and its layer 1,645 B; PUD **99.26 /
+91.38 / 99.90**, MarkIT test 99.43 / 94.68 / 98.87; reduced again on another machine from the release's
+asset, the same bytes. **Italian's gates** are 98.5 % resolved, **90.5 %** of content words
+(the owner's, 2026-10-23: MarkIT's counts are about sixteen times thinner than GSD's, UD reads a
+participle as its verb where the dictionary keeps the noun, and no measured variant reached Spanish's
+93.5 %) and 97 % of auxiliaries (`measure/it-ud.sh`, `lingua-pack-measure --min-content`). At
+implementation, on UD Italian-PUD, 99.26 % of 19,155 words resolved, 91.39 % of 8,909 content words and
+99.90 % of 985 auxiliaries took PUD's lemma; MarkIT's test section, reported: 99.43 %, 94.65 % of 4,113,
+98.87 % of 530. M8's cost: 32 / 47 / 69 dictionary nouns read as a verb among wordfreq's 1,000 / 2,000 / 5,000.
+
 ## The editions' dumps
 
 kaikki is read at **three addresses, one dump per Wiktionary edition**
@@ -1006,6 +1071,6 @@ The denylist is code, not just prose: `lingua_pack::licence::is_denied` fails th
 
 - **Raw sources are never committed.** They download into `scripts/lingua-data/work/` (git-ignored), dated.
 - **The pack is never committed.** CI rebuilds it and caches it; the reproducibility test (`crates/lingua-pack/tests/pipeline_testdata.rs`) proves two builds over the same tables are byte-identical.
-- **Adding a pair is a reducer, not a format change**: the container and the builder are pair-keyed, and what a pair does with a Wiktionary's glosses and with its forms is shared (`reduce_common.py`, driven by a `Studied` — the language's word pattern, form-of target wording, coordinators and wordfreq code — and by the `Edition` of the Wiktionary its glosses come from, `reduce_edition_<native>.py`). A new pair writes `reduce-<pair>.py` for its own inflection and level sources and registers its sources in `pack_sources.py`; the analyser must also know the language (lingua-core). Candidate sources for the Romance pairs: Morphalou (fr, LGPL-LR), morph-it! (it, CC BY-SA 2.0/LGPL), MorphoBr (pt, Apache-2.0), kaikki/frwiktionary glosses.
+- **Adding a pair is a reducer, not a format change**: the container and the builder are pair-keyed, and what a pair does with a Wiktionary's glosses and with its forms is shared (`reduce_common.py`, driven by a `Studied` — the language's word pattern, form-of target wording, coordinators and wordfreq code — and by the `Edition` of the Wiktionary its glosses come from, `reduce_edition_<native>.py`). A new pair writes `reduce-<pair>.py` for its own inflection and level sources and registers its sources in `pack_sources.py`; the analyser must also know the language (lingua-core). Candidate sources for the Romance pairs: Morphalou (fr, LGPL-LR), MorphoBr (pt, Apache-2.0), kaikki/frwiktionary glosses; Morph-it! (it, CC BY-SA 2.0/LGPL) is read by it-fr under its CC BY-SA 2.0 option while the owner keeps it pinned (*IT → FR* above).
 
 `testdata/en-fr/` holds a tiny hand-made fixture (a few lines, not real source data) so the pipeline and its reproducibility test run in CI without any download.

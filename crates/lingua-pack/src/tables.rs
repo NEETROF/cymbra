@@ -171,11 +171,23 @@ fn check_pair(root: &Path, pair: &Pair) -> Result<(), String> {
     Ok(())
 }
 
+/// Whether a studied folder awaits its reference's first reduction (add-lingua-italian-forms-tables
+/// D9): it holds the inputs a person commits — its record and its pinned tag pool — and nothing
+/// else, and no folder of the reference it names exists yet, which that reduction writes whole. No
+/// pair reads such a folder: a pair beside it holds tables of its own, which the folder lacks.
+fn awaits_its_first_reduction(dir: &Path, reference: &str) -> Result<bool, String> {
+    let root = dir.parent().unwrap_or(dir);
+    Ok(files_of(dir)? == [STUDIED_RECORD, TAG_POOL_TABLE] && !root.join(reference).exists())
+}
+
 /// Checks one studied folder against the pairs that read it.
 fn check_studied(dir: &Path, pairs: &[Pair]) -> Result<(), String> {
     let lang = folder_name(dir);
     let named = reference_of(dir)?;
     let Some(reference) = pairs.iter().find(|p| p.name == named) else {
+        if awaits_its_first_reduction(dir, &named)? {
+            return Ok(());
+        }
         return Err(format!(
             "{lang}/{STUDIED_RECORD} names {named:?} as the pair that writes it, which has no \
              tables"
@@ -496,6 +508,37 @@ mod tests {
                 "{err}"
             );
         }
+    }
+
+    #[test]
+    fn a_studied_folder_awaiting_its_reference_s_first_reduction() {
+        // Italian before it-fr's first update (add-lingua-italian-forms-tables D9): its record and
+        // its pinned pool, committed by hand; no it-fr folder yet. No pair reads it.
+        let root = matrix("first-reduction");
+        root.studied("it", "it-fr", Some("NOUN\n"), None);
+        assert_eq!(
+            check_committed_tables(&root.0),
+            Ok(vec![
+                "en-fr".to_owned(),
+                "es-en".to_owned(),
+                "es-fr".to_owned()
+            ])
+        );
+        // A table beside them is a reduction's, which needs its reference's tables.
+        root.write("it/forms.tsv", "casa\tcasa\n");
+        assert!(root.error().contains("names \"it-fr\""), "{}", root.error());
+        root.remove("it/forms.tsv");
+        // Without its pinned pool, it is no folder awaiting anything.
+        root.remove("it/tags.tsv");
+        assert!(
+            root.error().contains("which has no tables"),
+            "{}",
+            root.error()
+        );
+        root.write("it/tags.tsv", "NOUN\n");
+        // A folder of the reference's that holds no tables is the reference's own failure.
+        std::fs::create_dir_all(root.0.join("it-fr")).unwrap();
+        assert!(check_committed_tables(&root.0).is_err());
     }
 
     #[test]

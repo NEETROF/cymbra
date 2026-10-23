@@ -27,7 +27,8 @@ use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::analysis::lexicon::Lexicon;
 use lingua_core::analysis::pipeline::headword_reading;
 use lingua_core::analysis::tokenize::{
-    FRENCH_ELISIONS, FRENCH_INVERSION_PRONOUNS, is_elided, tokenize,
+    FRENCH_ELISIONS, FRENCH_INVERSION_PRONOUNS, ITALIAN_CONTRACTIONS, ITALIAN_ELIDED_PREPOSITIONS,
+    ITALIAN_ELISIONS, ITALIAN_TRUNCATIONS, is_elided, tokenize,
 };
 use lingua_core::engine::{
     expression_piece, french_expression_key, holds_french_contraction, reading_expression_key,
@@ -112,7 +113,9 @@ fn section_of<'a>(sections: &'a [(String, Vec<u8>)], name: &str) -> Option<&'a [
 #[test]
 fn every_committed_pair_holds_to_its_studied_language() {
     let pairs = check_committed_tables(&tables()).unwrap_or_else(|e| panic!("{e}"));
-    for pair in ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"] {
+    for pair in [
+        "en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr",
+    ] {
         assert!(pairs.iter().any(|p| p == pair), "{pair} is read");
     }
 }
@@ -2650,4 +2653,249 @@ fn spec_scenario_a_layer_and_its_base() {
         Pack::pair_in(&en_es.layer),
         Err(PackError::NotAWholePack { .. })
     ));
+}
+
+// Italian's studied side (add-lingua-italian-forms-tables, the Italian programme's change 9): it-fr,
+// Italian's reference pair (I5), writes tables/it/. `studied.json` and the pinned pool `tags.tsv` were
+// committed by hand first (D9); the update of 2026.10.23 wrote the rest, tables/it-fr/ included.
+
+/// it-fr's pack, whole and as its base and layer, built once per test binary.
+fn it_fr() -> &'static (Vec<u8>, SplitPack) {
+    static IT_FR: OnceLock<(Vec<u8>, SplitPack)> = OnceLock::new();
+    IT_FR.get_or_init(|| {
+        let inputs =
+            inputs_from_tables(&tables(), "it-fr").unwrap_or_else(|e| panic!("it-fr: {e}"));
+        build_whole_and_split(&inputs).unwrap_or_else(|e| panic!("split it-fr: {e}"))
+    })
+}
+
+#[test]
+fn spec_scenario_the_reference_and_the_pipeline() {
+    // tables/it/studied.json names it-fr; tags.tsv holds the one canonical tag until change 13's
+    // pool; lexical.tsv holds nothing until change 11's acronym rows and change 16's dictionary
+    // words; the pack builds whole and in parts to its pin; no package lists it-fr.
+    let it = tables().join("it");
+    assert_eq!(json(&it.join(STUDIED_RECORD))["reference"], "it-fr");
+    assert_eq!(
+        std::fs::read_to_string(it.join("tags.tsv")).unwrap(),
+        "NOUN\n"
+    );
+    let packs = json(
+        &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../apps/lingua-extension/packs.json"),
+    );
+    assert!(
+        !packs["pairs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|p| p == "it-fr"),
+        "packs.json lists it-fr"
+    );
+    assert_eq!(
+        files(&it),
+        [
+            "forms.tsv",
+            "freq.tsv",
+            "lexical.tsv",
+            "studied.json",
+            "tags.tsv"
+        ]
+    );
+    assert_eq!(std::fs::read_to_string(it.join("lexical.tsv")).unwrap(), "");
+    let dir = tables().join("it-fr");
+    let held = files(&dir);
+    for file in ["NOTICE", "gloss.tsv", "manifest.json", "pin.json"] {
+        assert!(held.iter().any(|f| f == file), "it-fr/{file}");
+    }
+    assert!(
+        held.iter().all(|f| [
+            "NOTICE",
+            "README.md",
+            "gloss.tsv",
+            "manifest.json",
+            "pin.json"
+        ]
+        .contains(&f.as_str())),
+        "it-fr/ holds {held:?}"
+    );
+    assert_eq!(std::fs::read_to_string(dir.join("gloss.tsv")).unwrap(), "");
+    let manifest = json(&dir.join("manifest.json"));
+    assert_eq!(manifest["meta"]["studied"], "it");
+    assert_eq!(manifest["meta"]["native"], "fr");
+    assert_eq!(
+        manifest["meta"]["analyzer_version"],
+        lingua_core::analysis::ITALIAN_ANALYZER_VERSION
+    );
+    assert!(
+        manifest["meta"]
+            .get("levels_estimated")
+            .is_none_or(|v| v == false)
+    );
+    // The reference's pin: its sources, its rules, its pack and parts, and no studied record.
+    let pin = json(&dir.join("pin.json"));
+    assert!(pin.get("studied").is_none());
+    assert_eq!(
+        pin["reducer"]["files"],
+        serde_json::json!([
+            "reduce-it-fr.py",
+            "reduce_common.py",
+            "reduce_italian_treebank.py"
+        ])
+    );
+    let sources = pin["sources"].as_object().unwrap();
+    for name in ["kaikki-en", "markit-dev", "markit-train", "wordfreq"] {
+        assert!(sources.contains_key(name), "pin.json records {name}");
+    }
+    assert!(
+        sources
+            .keys()
+            .all(|name| !name.contains("pud") && !name.contains("test")),
+        "a held-out treebank is never a pinned source: {:?}",
+        sources.keys()
+    );
+    let english = sources["kaikki-en"]["files"].as_object().unwrap();
+    assert_eq!(
+        english.keys().map(String::as_str).collect::<Vec<_>>(),
+        ["kaikki-Italian.jsonl"]
+    );
+    let notice = std::fs::read_to_string(dir.join("NOTICE")).unwrap();
+    for credit in [
+        "enwiktionary",
+        "Italian section",
+        "wordfreq",
+        "UD Italian-MarkIT",
+    ] {
+        assert!(notice.contains(credit), "it-fr/NOTICE names {credit:?}");
+    }
+    assert_eq!(
+        sources.contains_key("morph-it"),
+        notice.contains("Morph-it!"),
+        "Morph-it! credited while it is pinned"
+    );
+    assert!(
+        !notice.contains("PUD"),
+        "PUD is measured against, never shipped"
+    );
+    let (whole, split) = it_fr();
+    assert_eq!(pin["pack"]["sha256"], sha256_hex(whole).as_str());
+    assert_eq!(pin["pack"]["size"], whole.len());
+    assert_eq!(pin["base"]["sha256"], sha256_hex(&split.base).as_str());
+    assert_eq!(pin["layer"]["sha256"], sha256_hex(&split.layer).as_str());
+    assert!(whole.len() < MAX_PACK_BYTES);
+    let pack = Pack::load(whole).unwrap();
+    assert_eq!(pack.pair().key(), "it-fr");
+    assert!(pack.dictionary_words().is_empty());
+}
+
+#[test]
+fn spec_scenario_every_word_italian_s_pre_pass_writes_is_a_form() {
+    // Change 6's pre-pass (I7): every word it hands the lookup is a form of a ranked lemma, each
+    // elided piece and truncation a form of the word it stands for, the `di` family lemmas of their
+    // own, and the articulated prepositions it splits neither forms nor ranks — `dai` excepted, a
+    // form of dare and no rank, the truncation `da'`'s word (add-lingua-italian-forms-tables D4).
+    let forms = tsv(&tables().join("it/forms.tsv"));
+    let ranks = tsv(&tables().join("it/freq.tsv"));
+    let mut written: BTreeSet<&str> = BTreeSet::new();
+    written.extend(ITALIAN_ELISIONS.iter().map(|(_, read)| *read));
+    written.insert("dissi");
+    for (_, preposition, article) in ITALIAN_CONTRACTIONS {
+        written.extend([*preposition, *article]);
+    }
+    for (_, read, article) in ITALIAN_ELIDED_PREPOSITIONS {
+        written.insert(read);
+        written.extend(*article);
+    }
+    written.extend(ITALIAN_TRUNCATIONS.iter().map(|(_, read)| *read));
+    for word in &written {
+        let lemma = forms
+            .get(*word)
+            .unwrap_or_else(|| panic!("{word}: the pre-pass writes it, and it/forms.tsv lacks it"));
+        assert!(
+            ranks.contains_key(lemma),
+            "{word} → {lemma}: no ranked lemma"
+        );
+    }
+    for (written, read) in ITALIAN_ELISIONS.iter().chain(ITALIAN_TRUNCATIONS) {
+        assert_eq!(
+            forms.get(&format!("{written}'")),
+            forms.get(*read),
+            "{written}' reads as {read}"
+        );
+    }
+    assert_eq!(forms.get("dell'").map(String::as_str), Some("dello"));
+    for word in ["del", "dello", "della", "dei", "degli", "delle"] {
+        assert_eq!(forms.get(word).map(String::as_str), Some(word));
+        assert!(ranks.contains_key(word), "{word} is no ranked lemma");
+    }
+    for (contraction, _, _) in ITALIAN_CONTRACTIONS {
+        assert!(!ranks.contains_key(*contraction), "{contraction} is ranked");
+        if *contraction == "dai" {
+            assert_eq!(forms.get("dai").map(String::as_str), Some("dare"));
+        } else {
+            assert!(!forms.contains_key(*contraction), "{contraction} is a form");
+        }
+    }
+    for (written, _, article) in ITALIAN_ELIDED_PREPOSITIONS {
+        if article.is_some() {
+            assert!(!forms.contains_key(&format!("{written}'")), "{written}'");
+        }
+    }
+    // No verb form carrying clitics: the enclitic rule reads them.
+    for word in [
+        "dirmelo",
+        "vattene",
+        "eccolo",
+        "lavarsi",
+        "andarsene",
+        "pentirmi",
+    ] {
+        assert!(!forms.contains_key(word), "{word} is a form");
+    }
+    // The apocopes written without an apostrophe read as their words (D6's reviewed table), and the
+    // owner's overrides stand (D5: `stato` and `stati` → essere, 2026-10-23).
+    for (form, lemma) in [
+        ("un", "uno"),
+        ("buon", "buono"),
+        ("bel", "bello"),
+        ("san", "santo"),
+        ("stato", "essere"),
+        ("stati", "essere"),
+        ("bianca", "bianco"),
+    ] {
+        assert_eq!(forms.get(form).map(String::as_str), Some(lemma), "{form}");
+        assert!(!ranks.contains_key(form), "{form} is ranked");
+    }
+}
+
+#[test]
+fn spec_scenario_every_rank_on_its_own_italian_lemma() {
+    // Every ranked lemma's own form reads as itself, and the pack gives each lemma its own rank.
+    let forms = tsv(&tables().join("it/forms.tsv"));
+    let ranks: BTreeMap<String, u32> = tsv(&tables().join("it/freq.tsv"))
+        .into_iter()
+        .map(|(lemma, rank)| (lemma, rank.parse().unwrap()))
+        .collect();
+    assert_eq!(ranks.len(), 60_000);
+    let elsewhere: Vec<&String> = ranks
+        .keys()
+        .filter(|lemma| forms.get(*lemma) != Some(*lemma))
+        .take(10)
+        .collect();
+    assert!(elsewhere.is_empty(), "{elsewhere:?}");
+    let pack = Pack::load(&it_fr().0).unwrap();
+    let top = ranks.values().copied().max().unwrap();
+    for lo in (1..=top).step_by(1000) {
+        let hi = lo + 999;
+        let got: BTreeSet<&str> = pack
+            .lemmas_in_rank_band(lo, hi)
+            .into_iter()
+            .map(|(lemma, _)| lemma)
+            .collect();
+        let want: BTreeSet<&str> = ranks
+            .iter()
+            .filter(|(_, rank)| (lo..=hi).contains(*rank))
+            .map(|(lemma, _)| lemma.as_str())
+            .collect();
+        assert_eq!(got, want, "it-fr: ranks {lo}–{hi}");
+    }
 }
