@@ -526,18 +526,107 @@ const FRENCH: &[&[&str]] = &[
 /// quantifiers `molto`, `tanto`, `poco`, `tutto`, `troppo`, as Spanish's hold `mucho`,
 /// `poco`, `tanto`, `todo` and French's `beaucoup`, `peu`, `tant`, `tout`. Inflected forms
 /// too, which a pack may keep as lemmas of their own (`questa`, `mia`, `nessun`, `tutti`).
-/// `certo` and `vario` are left out: adjectives with a meaning of their own, as French's
-/// `certain`.
+/// `qualsiasi` and `qualunque` by measurement (design, *Measured at implementation*): a
+/// determiner in each of MarkIT's test section's occurrences (2 of 2, 1 of 1; with UD
+/// Italian-PUD, 4 of 4 and 2 of 3, « una persona qualunque » the other). `certo` and `vario`
+/// are left out: adjectives with a meaning of their own, as French's `certain`.
 const IT_DETERMINERS: &[&str] = &[
-    "alcun", "alcuna", "alcune", "alcuni", "alcuno", "altra", "altre", "altri", "altro", "ciascun",
-    "ciascuna", "ciascuno", "codesta", "codeste", "codesti", "codesto", "degli", "dei", "del",
-    "della", "delle", "dello", "gli", "i", "il", "la", "le", "lo", "loro", "mia", "mie", "miei",
-    "mio", "molta", "molte", "molti", "molto", "nessun", "nessuna", "nessuno", "nostra", "nostre",
-    "nostri", "nostro", "ogni", "poca", "poche", "pochi", "poco", "qualche", "quegli", "quei",
-    "quel", "quella", "quelle", "quelli", "quello", "questa", "queste", "questi", "questo",
-    "stessa", "stesse", "stessi", "stesso", "sua", "sue", "suo", "suoi", "tale", "tali", "tanta",
-    "tante", "tanti", "tanto", "troppa", "troppe", "troppi", "troppo", "tua", "tue", "tuo", "tuoi",
-    "tutta", "tutte", "tutti", "tutto", "un", "una", "uno", "vostra", "vostre", "vostri", "vostro",
+    "alcun",
+    "alcuna",
+    "alcune",
+    "alcuni",
+    "alcuno",
+    "altra",
+    "altre",
+    "altri",
+    "altro",
+    "ciascun",
+    "ciascuna",
+    "ciascuno",
+    "codesta",
+    "codeste",
+    "codesti",
+    "codesto",
+    "degli",
+    "dei",
+    "del",
+    "della",
+    "delle",
+    "dello",
+    "gli",
+    "i",
+    "il",
+    "la",
+    "le",
+    "lo",
+    "loro",
+    "mia",
+    "mie",
+    "miei",
+    "mio",
+    "molta",
+    "molte",
+    "molti",
+    "molto",
+    "nessun",
+    "nessuna",
+    "nessuno",
+    "nostra",
+    "nostre",
+    "nostri",
+    "nostro",
+    "ogni",
+    "poca",
+    "poche",
+    "pochi",
+    "poco",
+    "qualche",
+    "qualsiasi",
+    "qualunque",
+    "quegli",
+    "quei",
+    "quel",
+    "quella",
+    "quelle",
+    "quelli",
+    "quello",
+    "questa",
+    "queste",
+    "questi",
+    "questo",
+    "stessa",
+    "stesse",
+    "stessi",
+    "stesso",
+    "sua",
+    "sue",
+    "suo",
+    "suoi",
+    "tale",
+    "tali",
+    "tanta",
+    "tante",
+    "tanti",
+    "tanto",
+    "troppa",
+    "troppe",
+    "troppi",
+    "troppo",
+    "tua",
+    "tue",
+    "tuo",
+    "tuoi",
+    "tutta",
+    "tutte",
+    "tutti",
+    "tutto",
+    "un",
+    "una",
+    "uno",
+    "vostra",
+    "vostre",
+    "vostri",
+    "vostro",
 ];
 
 /// Italian personal pronouns, stressed (`io` … `loro`, `me`, `te`, `sé`, `egli`, `ella`,
@@ -545,30 +634,38 @@ const IT_DETERMINERS: &[&str] = &[
 /// the variants `me`, `te`, `ce`, `ve` of « me lo », « ce l'ho », written apart); the combined
 /// clitics written as one word before a verb, `glielo`, `gliela`, `glieli`, `gliele`,
 /// `gliene`; relative and interrogative (`che`, `cui`, `chi`, `quale`) and indefinite
-/// (`ciò`, `qualcosa`, `qualcuno`, `ognuno`, `chiunque`, `niente`, `nulla`). The other
+/// (`ciò`, `qualcosa`, `qualcuno`, `ognuno`, `chiunque`, `niente`, `nulla`); the
+/// demonstratives `colui`, `colei`, `coloro`, `costui`, `costei`, `costoro` (MarkIT: `colui`
+/// and `coloro` pronouns, 1 of 1 each; pooled with PUD, 1 of 1 and 2 of 3; the four others
+/// written in neither, and pronouns alone in the dictionary). The other
 /// combined clitics are written apart before a verb (« me lo dice ») and joined only after
 /// one (`dirmelo`, which the enclitic rule reads as `dire`): as one word standing alone they
 /// are nouns — `mela` (apple), `vela` (sail), `tela` (cloth), `velo` (veil), `cene`
 /// (dinners) — which a row here would hide in every gloss. `quanto` and `cosa` are left out:
 /// « quanto » is also « how much », « cosa » the noun « thing ».
 const IT_PRONOUNS: &[&str] = &[
-    "ce", "che", "chi", "chiunque", "ci", "ciò", "cui", "egli", "ella", "essa", "esse", "essi",
-    "esso", "gli", "gliela", "gliele", "glieli", "glielo", "gliene", "io", "la", "le", "lei", "li",
-    "lo", "loro", "lui", "me", "mi", "ne", "niente", "noi", "nulla", "ognuna", "ognuno",
-    "qualcosa", "qualcuna", "qualcuno", "quale", "quali", "si", "sé", "te", "ti", "tu", "ve", "vi",
-    "voi",
+    "ce", "che", "chi", "chiunque", "ci", "ciò", "colei", "coloro", "colui", "costei", "costoro",
+    "costui", "cui", "egli", "ella", "essa", "esse", "essi", "esso", "gli", "gliela", "gliele",
+    "glieli", "glielo", "gliene", "io", "la", "le", "lei", "li", "lo", "loro", "lui", "me", "mi",
+    "ne", "niente", "noi", "nulla", "ognuna", "ognuno", "qualcosa", "qualcuna", "qualcuno",
+    "quale", "quali", "si", "sé", "te", "ti", "tu", "ve", "vi", "voi",
 ];
 
 /// Italian prepositions: the simple ones (`di`, `a` and its `ad` before a vowel, `da`, `in`,
 /// `con`, `su`, `per`, `tra`, `fra`) and `senza`, `verso`, `contro`, `sopra`, `sotto`,
 /// `dentro`, `fuori`, `dopo`, `durante`, `tranne`, `presso`, `oltre`, `attraverso`,
-/// `mediante`, `circa`, `entro`. The articulated ones never reach this: the pre-pass splits
-/// them (`nel` → `in` + `il`) or keeps the `di` family whole, a determiner. `secondo` and
-/// `lungo` are left out: everyday adjectives (« il secondo giorno », « un lungo viaggio ») a
-/// preposition's row would hide in every gloss, as French measured `certain` out. `prima` is
-/// left out by measurement (design D6): MarkIT's test section tags none of its 14 as a
-/// preposition (8 adverbs, « prima di » included, and 5 adjectives, « la prima volta »), UD
-/// Italian-PUD none of its 35.
+/// `mediante`, `circa`, `entro`; and, by measurement, `fino` (« fino a »), `nonostante`,
+/// `tramite`, `malgrado` and `eccetto` — each introducing a phrase in every one of its
+/// occurrences the treebanks write (MarkIT's test section: `fino` 5 of 5, `nonostante` 3 of 3;
+/// pooled with UD Italian-PUD: 27 of 27, 9 of 9, `tramite` 6 of 6, `malgrado` 1 of 1;
+/// `eccetto` written in neither, and a preposition alone in the dictionary). The articulated
+/// ones never reach this: the pre-pass splits them (`nel` → `in` + `il`) or keeps the `di`
+/// family whole, a determiner. `secondo` and `lungo` are left out: everyday adjectives (« il
+/// secondo giorno », « un lungo viaggio ») a preposition's row would hide in every gloss, as
+/// French measured `certain` out. Left out by measurement (design D6): `prima` — MarkIT's
+/// test section tags none of its 14 as a preposition, and has it introduce a phrase (« prima
+/// di ») in 5 of them (pooled: 19 of 49); 5 are the adjective « la prima volta » —, and `salvo`
+/// — its one MarkIT occurrence is the adjective « safe ».
 const IT_PREPOSITIONS: &[&str] = &[
     "a",
     "ad",
@@ -581,11 +678,15 @@ const IT_PREPOSITIONS: &[&str] = &[
     "di",
     "dopo",
     "durante",
+    "eccetto",
     "entro",
+    "fino",
     "fra",
     "fuori",
     "in",
+    "malgrado",
     "mediante",
+    "nonostante",
     "oltre",
     "per",
     "presso",
@@ -594,12 +695,15 @@ const IT_PREPOSITIONS: &[&str] = &[
     "sotto",
     "su",
     "tra",
+    "tramite",
     "tranne",
     "verso",
 ];
 
 /// Italian coordinating and subordinating conjunctions, `ed` and `od` before a vowel among
-/// them.
+/// them, and `dove` (« where »), as French lists `où` and Spanish `donde`: relative or
+/// interrogative in each of its occurrences (MarkIT's test section 6 of 6, pooled with UD
+/// Italian-PUD 24 of 24).
 const IT_CONJUNCTIONS: &[&str] = &[
     "affinché",
     "anzi",
@@ -607,6 +711,7 @@ const IT_CONJUNCTIONS: &[&str] = &[
     "che",
     "cioè",
     "come",
+    "dove",
     "dunque",
     "e",
     "ed",
@@ -785,7 +890,8 @@ mod tests {
         // `stare` and `volere` as the pack files `sto` and `voglio`.
         for lemma in [
             "più", "mai", "neanche", "nemmeno", "neppure", "anche", "ancora", "stare", "volere",
-            "secondo", "lungo", "prima", "certo", "quanto", "cosa", "parlare", "giorno", "tempo",
+            "secondo", "lungo", "prima", "salvo", "certo", "quanto", "cosa", "parlare", "giorno",
+            "tempo",
         ] {
             assert!(!is_function_word(lemma, IT), "{lemma:?} carries meaning");
         }
@@ -853,10 +959,41 @@ mod tests {
             (
                 IT_DETERMINERS,
                 &[
-                    "il", "lo", "la", "i", "gli", "le", "un", "uno", "una", "questo", "quello",
-                    "codesto", "mio", "loro", "ogni", "qualche", "alcuno", "nessuno", "ciascuno",
-                    "tale", "altro", "stesso", "del", "dello", "della", "dei", "degli", "delle",
-                    "molto", "tanto", "poco", "tutto", "troppo",
+                    "il",
+                    "lo",
+                    "la",
+                    "i",
+                    "gli",
+                    "le",
+                    "un",
+                    "uno",
+                    "una",
+                    "questo",
+                    "quello",
+                    "codesto",
+                    "mio",
+                    "loro",
+                    "ogni",
+                    "qualche",
+                    "alcuno",
+                    "nessuno",
+                    "ciascuno",
+                    "tale",
+                    "altro",
+                    "stesso",
+                    "del",
+                    "dello",
+                    "della",
+                    "dei",
+                    "degli",
+                    "delle",
+                    "molto",
+                    "tanto",
+                    "poco",
+                    "tutto",
+                    "troppo",
+                    "qualsiasi",
+                    "qualunque",
                 ][..],
             ),
             (
@@ -865,7 +1002,8 @@ mod tests {
                     "io", "tu", "lui", "lei", "egli", "ella", "esso", "noi", "voi", "loro", "me",
                     "te", "sé", "mi", "ti", "si", "ci", "vi", "lo", "la", "li", "le", "ne", "gli",
                     "glielo", "gliene", "che", "cui", "chi", "quale", "ciò", "qualcosa",
-                    "qualcuno", "ognuno", "chiunque", "niente", "nulla",
+                    "qualcuno", "ognuno", "chiunque", "niente", "nulla", "colui", "colei",
+                    "coloro", "costui", "costei", "costoro",
                 ][..],
             ),
             (
@@ -896,6 +1034,11 @@ mod tests {
                     "mediante",
                     "circa",
                     "entro",
+                    "fino",
+                    "nonostante",
+                    "tramite",
+                    "malgrado",
+                    "eccetto",
                 ][..],
             ),
             (
@@ -927,6 +1070,7 @@ mod tests {
                     "affinché",
                     "finché",
                     "purché",
+                    "dove",
                     "oppure",
                     "ovvero",
                     "tuttavia",

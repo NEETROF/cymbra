@@ -477,6 +477,8 @@ const ANALYSIS_FORMS: &[(&str, &str)] = &[
     ("porte", "porta"),
     ("vite", "vita"),
     ("sviluppata", "sviluppato"),
+    ("sa", "sapere"),
+    ("fa", "fare"),
 ];
 
 /// The analysis's lemmas, each its own form.
@@ -554,6 +556,8 @@ const ANALYSIS_LEMMAS: &[&str] = &[
     "tutto",
     "che",
     "subito",
+    "risultare",
+    "vestire",
 ];
 
 /// (text glossed as Italian, each token as (surface, lemma, function word)).
@@ -648,6 +652,14 @@ const ANALYSIS_CASES: &[AnalysisCase] = &[
     ("vela", &[("vela", "vela", false)]),
     ("mela", &[("mela", "mela", false)]),
     ("zorbarmi", &[("zorbarmi", "zorbarmi", false)]),
+    // --- a present indicative takes no clitic; an undoubled monosyllable takes only `gli` ---
+    ("stone", &[("stone", "stone", false)]),
+    ("sami", &[("sami", "sami", false)]),
+    ("falo", &[("falo", "falo", false)]),
+    ("dami", &[("dami", "dami", false)]),
+    // --- an augmentative is no participle before `ne` ---
+    ("risultatone", &[("risultatone", "risultatone", false)]),
+    ("vestitone", &[("vestitone", "vestitone", false)]),
     ("zorbarlo", &[("zorbarlo", "zorbarlo", false)]),
     // --- an unlisted plural stays as written: D2's step 3 was measured out (D6) ---
     ("tavoli", &[("tavoli", "tavoli", false)]),
@@ -727,6 +739,24 @@ const ANALYSIS_CASES: &[AnalysisCase] = &[
             ("del", "del", true),
             ("pane", "pane", false),
             ("subito", "subito", false),
+        ],
+    ),
+    (
+        "fino a dove, nonostante tutto",
+        &[
+            ("fino", "fino", true),
+            ("a", "a", true),
+            ("dove", "dove", true),
+            ("nonostante", "nonostante", true),
+            ("tutto", "tutto", true),
+        ],
+    ),
+    (
+        "salvo qualunque cosa",
+        &[
+            ("salvo", "salvo", false),
+            ("qualunque", "qualunque", true),
+            ("cosa", "cosa", false),
         ],
     ),
     (
@@ -886,6 +916,38 @@ fn italian_names_fixtures() {
         })
         .collect();
     assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+}
+
+#[test]
+fn a_name_ending_like_a_clitic_stays_a_name() {
+    // A present indicative takes no clitic: « Stone » is no `sto` + `ne` read as `stare`, nor
+    // « Sami » `sa` + `mi` read as `sapere`, though the pack files `sto` and `sa` under their
+    // verbs; each keeps its own lemma, outside the lexicon, and is set aside as a name.
+    let pack = italian_pack(
+        &[("è", "essere"), ("sto", "stare"), ("sa", "sapere")],
+        &[
+            "stare", "sapere", "il", "lo", "la", "di", "a", "e", "in", "con", "essere",
+        ],
+        &[],
+    );
+    let blocks = [
+        "Ieri sera ho incontrato Sami e Stone al mercato, vicino alla stazione del paese.",
+        "Il mercato era pieno di gente e di colori, e la musica suonava in piazza.",
+    ];
+    let page = analyse_page(&blocks, IT, &pack, &KnowledgeState::new());
+    assert!(page.analysable);
+    for (surface, lemma) in [("Sami", "sami"), ("Stone", "stone")] {
+        let token = page
+            .tokens
+            .iter()
+            .find(|t| t.surface == surface)
+            .unwrap_or_else(|| panic!("{surface}"));
+        assert_eq!(
+            (token.lemma.as_str(), token.class),
+            (lemma, NAME),
+            "{surface}"
+        );
+    }
 }
 
 #[test]

@@ -35,15 +35,19 @@ treebanks sets the gates this cascade is held to), 10 (the apostrophe-accent spe
   `le`, `ne`, `gli`) or one combined clitic (`melo`… `mene`, `telo`…, `selo`…, `celo`…, `velo`…,
   `glielo`… `gliene`), and accepts the rest only as a base the pack lists shaped to take clitics:
   an infinitive with its ending restored (`dir` → `dire`; `por` → `porre`, `-re` tried where `-e` lists nothing), a gerund, an
-  imperative the pack files under a verb, a regular past participle whose infinitive the pack
-  lists (`sviluppatasi` → `sviluppare`), one of the five monosyllabic imperatives whose doubled
-  consonant is undone (`dammi`, `fallo`, `vattene`, `dimmi`, `stacci`), or `ecco`. Italian's
+  imperative the pack files under a verb (never a present indicative: « Stone » is no `sto` +
+  `ne`), a regular past participle whose infinitive the pack lists (`sviluppatasi` →
+  `sviluppare`, but not before a lone `ne`: `risultatone`), one of the five monosyllabic
+  imperatives whose doubled consonant is undone (`dammi`, `fallo`, `vattene`, `dimmi`, `stacci`),
+  or `ecco`. Italian's
   clitics move no written accent, so Spanish's stress check has no counterpart.
 - **Italian's closed classes** (`analysis/function_words.rs`): determiners, pronouns,
   prepositions, conjunctions, the quantifiers among the determiners, the auxiliaries and modals `essere`, `avere`, `potere`,
   `dovere`, and the negation `non`, `no`, `né`; `mai`, `più`, `neanche`, `nemmeno` and `neppure`
   left out as adverbs that carry meaning, `volere` as a content verb, `secondo` and `lungo` as
-  adjectives, `prima` and `stare` by D6's counts on MarkIT, with the sibling tables (D3).
+  adjectives, `prima`, `salvo` and `stare` by their counts on MarkIT; `dove`, `fino`, `nonostante`,
+  `tramite`, `malgrado`, `eccetto`, `qualsiasi`, `qualunque`, `colui` and its kin added by the same
+  counts, with the sibling tables (D3).
 - **An Italian document's names are set aside** (`engine.rs`): Spanish's rule — a form never
   written in lowercase, capitalised at least once mid-sentence, not a dictionary word —, a capital
   right after an elided piece counting as mid-sentence (`l'Italia`, `dell'Europa`), a hyphenated run the

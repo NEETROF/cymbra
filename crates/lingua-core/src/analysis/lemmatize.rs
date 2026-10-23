@@ -156,8 +156,9 @@ const IRREGULARS: &[(&str, &str)] = &[
 /// unlisted lowercase plural whose singular the pack does not hold either, the
 /// form — never an English or a Spanish rule. Italian runs its own
 /// (add-lingua-italian-analysis, [`super::italian`]): the pack's forms, the enclitic
-/// rule, an unlisted plural whose singular the pack does not hold either, the form —
-/// never an English, a Spanish or a French table or rule.
+/// rule (a regular past participle among its bases), the form — no plural rule, the
+/// one its design proposed having been measured out (D6) — never an English, a Spanish
+/// or a French table or rule.
 pub fn lemmatize(
     form: &str,
     studied: StudiedLanguage,

@@ -23,12 +23,18 @@
 //!    `ce`, `ve`; then `gli`, `mi`, `ti`, `si`, `ci`, `vi`, `lo`, `la`, `li`, `le`, `ne`), and
 //!    the rest accepted only as a base the pack lists shaped to take clitics: one of the five
 //!    monosyllabic imperatives `da`, `fa`, `va`, `di`, `sta` with the clitic's doubled
-//!    consonant undone (`dammi`, `fallo`, `vattene`, `dimmi`, `stacci`; `digli`, `fagli`
-//!    without doubling) and read by their table; `ecco`; an infinitive with its ending
-//!    restored (`dir` → `dire`, `por` → `porre`, `-re` tried where `-e` lists nothing); a
-//!    gerund or an imperative, a form the pack files under a verb (`parlando`, `parla`,
-//!    `scrivi`, `prendete`, `andiamo`); else a regular past participle read as its infinitive
-//!    (`sviluppata` → `sviluppare`, `formata` → `formare`). The lemma is the base's. One split
+//!    consonant undone (`dammi`, `fallo`, `vattene`, `dimmi`, `stacci`) and read by their
+//!    table, undoubled only before `gli` and `glie-` (`digli`, `fagli`, `diglielo`: `gli`
+//!    never doubles; `falo`, `dami`, `stami` are none of theirs); `ecco`; an infinitive with
+//!    its ending restored (`dir` → `dire`, `por` → `porre`, `-re` tried where `-e` lists
+//!    nothing); a gerund or an imperative, a form the pack files under a verb, of three
+//!    letters or more, in `-o` only as a gerund (`-ndo`) or a first-person plural (`-iamo`)
+//!    (`parlando`, `parla`, `scrivi`, `prendete`, `andiamo`) — a clitic follows an imperative,
+//!    an infinitive, a gerund or a participle, never a present indicative, so « Stone » is no
+//!    `sto` + `ne` read as `stare`, nor « Sami » `sa` + `mi` read as `sapere`; else a regular
+//!    past participle read as its infinitive (`sviluppata` → `sviluppare`, `formata` →
+//!    `formare`), but before a lone `ne`, which would read an augmentative (`risultatone`,
+//!    `vestitone`, `peccatone`, `gelatone`) as a participle. The lemma is the base's. One split
 //!    only: `dirmelo` is `dir` + `melo`, never `dirme` + `lo` read again. Italian spelling
 //!    moves no written accent when a clitic attaches, so Spanish's stress check has no
 //!    counterpart;
@@ -53,21 +59,33 @@
 //! lemma (MarkIT's test section: 98.02 %, 94.19 %, 96.98 %) — a prototype's figures, under the
 //! gates change 9's tables are held to; `measure/it-ud.sh` measures the committed tables once
 //! change 9 writes them.
-//! - *Kept — the enclitic rule*: on the verb + clitic words both treebanks write as one
-//!   (`dirmelo`, which UD splits into `dir` + `me` + `lo`), it gives the verb's lemma to 91
-//!   more words (45 on PUD, 46 on MarkIT), none fewer, and moves one for nothing
-//!   (`congratularmi`, filed by the prototype under the reflexive `congratularsi` where PUD
-//!   writes `congratulare`): 127 of the 133 take the treebank's verb.
+//! - *The enclitic rule* (the change's core, reported): on the 133 verb + clitic words both
+//!   treebanks write as one (`dirmelo`, which UD splits into `dir` + `me` + `lo`), it gives
+//!   the verb's lemma to 91 more (45 on PUD, 46 on MarkIT), none fewer, and moves one for
+//!   nothing (`congratularmi`, filed by the prototype under the reflexive `congratularsi`
+//!   where PUD writes `congratulare`): 127 of the 133 take the treebank's verb. On every other
+//!   measured word it moves, 17 better, none worse, 14 for nothing: a plural participle or
+//!   adjective the prototype does not list read as an imperative and `ti` (`inviati` →
+//!   `inviare` is right; `certificati` → `certificare`, `impiegati` → `impiegare`, `porti` →
+//!   `porre`, `fatti` → `fare` where the treebank has the noun or the adjective).
 //! - *Kept — a past participle base* (D2's candidate): a regular participle the tables file
-//!   under an adjective (`sviluppata`, `formata`) read as its infinitive; 3 words better
-//!   (`Formatasi`, `sviluppatasi` twice), none worse, no other word moved. A participle the
-//!   tables file under its verb (`andatosene`) was already read by the verb-form base.
+//!   under an adjective (`sviluppata`, `formata`) read as its infinitive; 3 tokens better
+//!   (`Formatasi`, `sviluppatasi` twice: two word types, each with `si` — a thin sample), none
+//!   worse, no other word moved.
+//! - *Guards added at review*, moving no word of either treebank: no verb-form base in `-o`
+//!   but a gerund or a first-person plural, and none of two letters (« Stone », « Sami »); no
+//!   undoubled monosyllable but before `gli`; no participle base before a lone `ne` (the
+//!   augmentatives). A known cost stays: a verb is told by its infinitive's ending
+//!   ([`is_verb`]), so a noun or an adjective in `-are`, `-ere`, `-ire` passes (`marlo` →
+//!   `mare`); telling them apart needs a part of speech the pack does not carry.
 //! - *Dropped — an unlisted plural read as its singular* (D2's step 3), every part of it: the
 //!   forms tables list the regular plurals, so what is left unlisted is mostly a plural of an
 //!   `-e` noun or adjective, a loan or a typo. `-i` → `-o` (with `-chi` → `-co`, `-ghi` →
 //!   `-go`): 1 word better, 6 worse, 3 moved for nothing (`thailandesi` → `thailandeso`,
 //!   `dettagli` → `dettaglo`), PUD's content figure falling from 90.43 % to 90.36 %;
-//!   `-ci`/`-gi` read through it moved nothing; `-e` → `-a` (with `-che` → `-ca`, `-ghe` →
+//!   `-ci`/`-gi` read through it moved nothing, and goes with the step it is a case of — a
+//!   departure from the written criterion, which keeps a base rule that moves nothing;
+//!   `-e` → `-a` (with `-che` → `-ca`, `-ghe` →
 //!   `-ga`): none better, 14 worse, 7 for nothing (`famigliare` → `famigliara`, `folklore` →
 //!   `folklora`, `cresciute` → `cresciuta`). An unlisted plural stays itself, an unknown word.
 //!
@@ -145,10 +163,16 @@ fn enclitic_lemma(lower: &str, lexicon: &(impl Lexicon + ?Sized)) -> Option<Stri
 /// The lemma of `rest`, what is left once `clitic` is read off, when it is a base that takes
 /// clitics: one of the five monosyllabic imperatives with the clitic's first consonant
 /// doubled, or before `gli` undoubled; `ecco`; an infinitive with its ending restored; a
-/// gerund or an imperative, any form the pack files under a verb; a regular past participle.
+/// gerund or an imperative ([`verb_form_lemma`]); a regular past participle, but before a lone
+/// `ne` (an augmentative: `risultatone` is no `risultato` + `ne`).
 fn base_lemma(rest: &str, clitic: &str, lexicon: &(impl Lexicon + ?Sized)) -> Option<String> {
     if let Some(verb) = monosyllabic_imperative(rest, clitic) {
         return Some(verb.to_owned());
+    }
+    // One of the five without its doubling, before another clitic than `gli`, is no imperative
+    // of theirs (`falo`, `dami`, `stami`): they double every other clitic's consonant.
+    if monosyllable(rest).is_some() {
+        return None;
     }
     if rest == "ecco" {
         return lexicon.lemma_of(rest).map(str::to_owned);
@@ -163,12 +187,31 @@ fn base_lemma(rest: &str, clitic: &str, lexicon: &(impl Lexicon + ?Sized)) -> Op
             .find_map(|ending| lexicon.lemma_of(&format!("{rest}{ending}")))?;
         return is_verb(restored).then(|| restored.to_owned());
     }
-    // A gerund (`parlando`) or an imperative (`parla`, `prendete`): a form the pack files
-    // under a verb.
-    if let Some(lemma) = lexicon.lemma_of(rest).filter(|lemma| is_verb(lemma)) {
-        return Some(lemma.to_owned());
+    if let Some(lemma) = verb_form_lemma(rest, lexicon) {
+        return Some(lemma);
+    }
+    if clitic == "ne" {
+        return None;
     }
     past_participle_lemma(rest, lexicon)
+}
+
+/// The verb of a gerund (`parlando`) or an imperative (`parla`, `prendete`, `andiamo`): a form
+/// the pack files under a verb, of three letters or more, ending in `-o` only as a gerund
+/// (`-ndo`) or a first-person plural (`-iamo`). A clitic follows only an imperative, an
+/// infinitive, a gerund or a participle: a present indicative never takes one (« Stone » is no
+/// `sto` + `ne`, `stare`), and a monosyllable is the table's (« Sami » is no `sa` + `mi`,
+/// `sapere`).
+fn verb_form_lemma(rest: &str, lexicon: &(impl Lexicon + ?Sized)) -> Option<String> {
+    if rest.chars().count() <= 2
+        || (rest.ends_with('o') && !rest.ends_with("ndo") && !rest.ends_with("iamo"))
+    {
+        return None;
+    }
+    lexicon
+        .lemma_of(rest)
+        .filter(|lemma| is_verb(lemma))
+        .map(str::to_owned)
 }
 
 /// The verb of one of the five monosyllabic imperatives `rest` writes before `clitic`: the
@@ -181,6 +224,11 @@ fn monosyllabic_imperative(rest: &str, clitic: &str) -> Option<&'static str> {
         let doubled = clitic.chars().next()?;
         rest.strip_suffix(doubled)?
     };
+    monosyllable(base)
+}
+
+/// The verb of one of the five monosyllabic imperatives, by its table.
+fn monosyllable(base: &str) -> Option<&'static str> {
     MONOSYLLABIC_IMPERATIVES
         .binary_search_by_key(&base, |&(form, _)| form)
         .ok()
@@ -200,7 +248,10 @@ fn past_participle_lemma(rest: &str, lexicon: &(impl Lexicon + ?Sized)) -> Optio
     })
 }
 
-/// Whether a lemma of the pack is a verb, by its infinitive's ending ([`VERB_ENDINGS`]).
+/// Whether a lemma of the pack is a verb, by its infinitive's ending ([`VERB_ENDINGS`]). A known
+/// cost: a noun or an adjective with such an ending passes too (`mare`, `popolare`,
+/// `carattere`), so an unlisted `marlo` reads as `mare`; telling them apart needs a part of
+/// speech the pack does not carry.
 fn is_verb(lemma: &str) -> bool {
     VERB_ENDINGS.iter().any(|ending| lemma.ends_with(ending))
 }
@@ -299,6 +350,8 @@ mod tests {
         assert_eq!(reads("fiorlo", &lex), "fiorlo");
         let pore = lexicon(&[], &["pore", "porre"]);
         assert_eq!(reads("porlo", &pore), "porlo");
+        // A known cost: a verb is told by its ending, and `mare` ends in `-are` (`is_verb`).
+        assert_eq!(reads("marlo", &lex), "mare");
     }
 
     #[test]
@@ -357,11 +410,38 @@ mod tests {
             assert_eq!(reads(form, &lex), lemma, "{form}");
             assert_eq!(reads(form, &lexicon(&[], &[])), lemma, "{form}, no pack");
         }
-        // Without doubling before another clitic than `gli`, only a form the pack files under a
-        // verb is a base: `fa` is, `da` and `di` are not.
-        assert_eq!(reads("dalo", &lex), "dalo");
-        assert_eq!(reads("dila", &lex), "dila");
-        assert_eq!(reads("falo", &lex), "fare");
+        // Without doubling, only before `gli`: the five double every other clitic's consonant,
+        // so `falo`, `dami`, `dila` and `stami` are none of theirs, whatever the pack files.
+        let stare = lexicon(&[("sta", "stare"), ("fa", "fare")], &["stare", "fare"]);
+        for form in ["dalo", "dami", "dila", "falo", "stami"] {
+            assert_eq!(reads(form, &lex), form, "{form}");
+            assert_eq!(reads(form, &stare), form, "{form}");
+        }
+    }
+
+    #[test]
+    fn a_present_indicative_takes_no_clitic() {
+        // A clitic follows an imperative, an infinitive, a gerund or a participle, never a
+        // present indicative: « Stone » is no `sto` + `ne` (`stare`), « Sami » no `sa` + `mi`
+        // (`sapere`), though the pack files `sto` and `sa` under their verbs.
+        let lex = lexicon(
+            &[
+                ("sto", "stare"),
+                ("sa", "sapere"),
+                ("parlo", "parlare"),
+                ("andiamo", "andare"),
+                ("parlando", "parlare"),
+            ],
+            &["stare", "sapere", "parlare", "andare", "dare"],
+        );
+        for form in ["Stone", "stone", "Sami", "sami", "parlone", "salo"] {
+            assert_eq!(reads(form, &lex), form.to_lowercase(), "{form}");
+        }
+        // A form in `-o` is a base as a gerund or a first-person plural; a monosyllable by its
+        // table.
+        assert_eq!(reads("andiamocene", &lex), "andare");
+        assert_eq!(reads("parlandogli", &lex), "parlare");
+        assert_eq!(reads("dammi", &lex), "dare");
     }
 
     #[test]
@@ -401,6 +481,7 @@ mod tests {
                 "finire",
                 "andare",
                 "sviluppato",
+                "vestire",
             ],
         );
         for (form, lemma) in [
@@ -409,8 +490,9 @@ mod tests {
             ("vendutolo", "vendere"),
             ("finitala", "finire"),
             ("formatesi", "formare"),
-            // A participle the pack files under its verb is a verb form already.
+            // A participle the pack files under its verb, in `-o`, is read as a participle too.
             ("andatosene", "andare"),
+            ("vestitolo", "vestire"),
         ] {
             assert_eq!(reads(form, &lex), lemma, "{form}");
         }
@@ -418,6 +500,30 @@ mod tests {
         assert_eq!(reads("cantatolo", &lex), "cantatolo");
         let noun = lexicon(&[], &["mare"]);
         assert_eq!(reads("maritala", &noun), "maritala");
+    }
+
+    #[test]
+    fn an_augmentative_is_no_participle_with_ne() {
+        // Before a lone `ne` a participle is no base: `-one` is the augmentative's ending
+        // (`risultatone`, a big result), never `risultato` + `ne` read as `risultare`.
+        let lex = lexicon(
+            &[],
+            &["risultare", "vestire", "peccare", "gelare", "parlare"],
+        );
+        for form in ["risultatone", "vestitone", "peccatone", "gelatone"] {
+            assert_eq!(reads(form, &lex), form, "{form}");
+        }
+        // A combined clitic ending in `ne` still reads one: `parlatosene`.
+        assert_eq!(reads("parlatosene", &lex), "parlare");
+    }
+
+    #[test]
+    fn a_participle_the_tables_file_as_a_noun_stays_whole() {
+        // `fatto` and `vista` filed as nouns, as the tables may (M8): neither an imperative nor a
+        // regular participle, `fattolo` and `vistala` stay as written.
+        let lex = lexicon(&[], &["fatto", "vista", "fare", "vedere"]);
+        assert_eq!(reads("fattolo", &lex), "fattolo");
+        assert_eq!(reads("vistala", &lex), "vistala");
     }
 
     #[test]

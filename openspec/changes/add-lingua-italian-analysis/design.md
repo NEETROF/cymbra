@@ -70,7 +70,11 @@ committed decomposed.
 ### D2 — The cascade: the pack's forms, the enclitic rule, an unlisted plural, the form
 
 *As implemented (see* Measured at implementation*): the pack's forms, the enclitic rule with a
-regular past participle among its bases, the form — step 3 below was measured out.*
+regular past participle among its bases, the form — step 3 below was measured out. At review, the
+imperative base was narrowed to what takes clitics (three letters or more, in `-o` only as a
+gerund or a first-person plural: « Stone » is no `sto` + `ne`, « Sami » no `sa` + `mi`), the
+undoubled monosyllables to `gli` and `glie-` alone (`falo`, `dami` read nothing), and the
+participle base refused before a lone `ne` (`risultatone`).*
 
 `analysis/italian.rs`, beside `spanish.rs` and `french.rs`; `lemmatize` dispatches to it. For each
 token, lowercased (`’` read as `'`) and in NFC:
@@ -119,6 +123,13 @@ dropped from the cascade and named in `italian.rs`'s doc, as French's rejected r
 problem is the apostrophe (`perche'`), change 10's.
 
 ### D3 — Italian's closed classes
+
+*As implemented (see* Measured at implementation*): `prima` and `salvo` are left out of the
+prepositions by their counts, and `fino`, `nonostante`, `tramite`, `malgrado`, `eccetto` added to
+them; `dove` joins the conjunctions, `qualsiasi` and `qualunque` the determiners, `colui`, `colei`,
+`coloro`, `costui`, `costei`, `costoro` the pronouns; of the combined clitics, the pronouns hold
+`glielo` … `gliene` alone, the others being nouns standing alone (`mela`, `vela`); `ad`, `ce`, `ve`
+and the tables' inflected forms are added.*
 
 Six sorted tables, flagged by the cascade's lemma: determiners (the articles `il`, `lo`, `la`,
 `i`, `gli`, `le`, `un`, `uno`, `una`; the demonstratives `questo`, `quello`, `codesto`; the
@@ -229,12 +240,20 @@ not added.
 | Step 3: `-i` → `-o` (with `-chi`, `-ghi`) | 1 | 6 | 3 | dropped; PUD content 90.43 → 90.36 % |
 | Step 3: `-ci`/`-gi` read through `-i` → `-o` | 0 | 0 | 0 | dropped with the step it is a case of |
 | Step 3: `-e` → `-a` (with `-che`, `-ghe`) | 0 | 14 | 7 | dropped; PUD content 90.49 → 90.36 % |
-| Enclitic rule: a regular past participle base | 3 | 0 | 0 | kept (`Formatasi`, `sviluppatasi` ×2) |
-| Enclitic rule, its participle base included (reported) | 91 | 0 | 1 | — |
+| Enclitic rule: a regular past participle base | 3 | 0 | 0 | kept (`Formatasi`, `sviluppatasi` ×2: 3 tokens, 2 word types, all with `si`) |
+| Enclitic rule on the 133 verb + clitic words written as one (reported) | 91 | 0 | 1 | — |
+| Enclitic rule on every other measured word it moves (reported) | 17 | 0 | 14 | — |
 
 The unlisted-plural step goes whole: the tables list the regular plurals, so what is left unlisted
 is mostly the plural of an `-e` noun or adjective (`thailandesi`, `viventi`), a loan, a compound
-or a typo, which the rule misreads (`thailandeso`, `famigliara`, `folklora`). The enclitic rule is
+or a typo, which the rule misreads (`thailandeso`, `famigliara`, `folklora`). Its `-ci`/`-gi` case
+moved nothing; dropping it with the step it is a case of departs from the written criterion, which
+keeps a base rule that moves nothing. The participle base is kept on a thin sample — 3 tokens, 2
+word types, every one with `si` —, which its figures say and no more. The enclitic rule's other
+moves, on the words the treebanks write whole, are a plural participle or adjective the prototype
+does not list read as an imperative and `ti`: right where the treebank has the verb (`inviati` →
+`inviare`), for nothing where it has the noun or the adjective (`certificati` → `certificare`,
+`impiegati` → `impiegare`, `porti` → `porre`, `fatti` → `fare`). The enclitic rule is
 measured on the verb + clitic words the treebanks write as one and split (`dirmelo` = `dir` +
 `me` + `lo`): 133 such words, 127 taking the treebank's verb with the decided cascade (the six
 others: `riaccaparrarselo`, whose verb the prototype does not list; `congratularmi`, read as the
@@ -245,18 +264,49 @@ section 98.02 / 94.19 / 96.98 — a prototype's figures, under the gates change 
 to.
 
 D3's two counts, decided by rules written before counting: `stare` is an auxiliary in 13 of
-MarkIT's 24 (PUD: 23 of 28), short of the two in three that would have put it in — it stays out;
-`prima` is a preposition in none of MarkIT's 14 (8 adverbs, « prima di » among them, 5 adjectives,
-« la prima volta »; PUD: none of 35) — it leaves D3's prepositions. Reported for the owner (no
-rule set before): `secondo` is ADP in 17 of its 22 occurrences pooled, `circa` an adverb in 15 of
-19, `oltre` in 12 of 15, `fuori` in 8 of 10.
+MarkIT's 24, short of the two in three that would have put it in — it stays out, although pooled
+with PUD (23 of 28) it is an auxiliary in 36 of 52, 69 %, above two thirds: the criterion named
+MarkIT, and the owner may move it; `prima` is a preposition in none of MarkIT's 14 (8 adverbs,
+« prima di » among them, 5 adjectives, « la prima volta »; PUD: none of 35) — it leaves D3's
+prepositions; read as introducing a phrase (UPOS ADP/SCONJ/CCONJ, deprel `case`, `mark`, `cc`,
+or a `fixed` « prima di »), it does so in 5 of MarkIT's 14 and 19 of 49 pooled, out either way.
+Reported for the owner (no rule set before): `secondo` is ADP in 17 of its 22 occurrences
+pooled, `circa` an adverb in 15 of 19, `oltre` in 12 of 15, `fuori` in 8 of 10.
+
+At review, the closed-class words French or Spanish list but D3 left out without a reason were
+decided by the same two thirds of MarkIT's occurrences, the function reading written before
+counting (a preposition introducing a phrase as above; a determiner or pronoun as DET or PRON;
+`dove` as ADV, SCONJ or PRON); with no MarkIT occurrence, the pooled figure; with none in either,
+the dictionary's parts of speech, a word with no content one added:
+
+| Word | MarkIT | PUD + MarkIT | Verdict |
+|---|---|---|---|
+| `dove` | 6 / 6 | 24 / 24 | added (conjunctions) |
+| `fino` | 5 / 5 | 27 / 27 | added (prepositions); « fine, thin » never written |
+| `nonostante` | 3 / 3 | 9 / 9 | added (prepositions) |
+| `qualsiasi` | 2 / 2 | 4 / 4 | added (determiners) |
+| `qualunque` | 1 / 1 | 2 / 3 | added (determiners); the other, « una persona qualunque » |
+| `colui` | 1 / 1 | 1 / 1 | added (pronouns) |
+| `coloro` | 1 / 1 | 2 / 3 | added (pronouns) |
+| `tramite` | — | 6 / 6 | added (prepositions), by the pooled figure |
+| `malgrado` | — | 1 / 1 | added (prepositions), by the pooled figure |
+| `eccetto` | — | — | added (prepositions): a preposition alone in the dictionary |
+| `colei`, `costui`, `costei`, `costoro` | — | — | added (pronouns): pronouns alone in the dictionary |
+| `salvo` | 0 / 1 | 0 / 1 | left out: its one occurrence is the adjective « safe » |
 
 **Other deviations, each a fact of the implementation:**
 
 - *D2*: a verb is a lemma in `-are`, `-ere`, `-ire`, `-rre` or `-rsi` — the last for a
   reflexive-only verb, under which change 9's D3 files `pentite` and `pentendo` so that this rule
   reads `pentitevi`; and a form holding an apostrophe or a hyphen is never split, its pieces being
-  the pre-pass's.
+  the pre-pass's. A known cost: told by its ending, a noun or an adjective in `-are`, `-ere`,
+  `-ire` passes as a verb (`mare`, `popolare`, `carattere`: an unlisted `marlo` reads as `mare`);
+  telling them apart needs a part of speech the pack does not carry.
+- *D2, at review*: the guards above (an imperative base of three letters or more, in `-o` only as
+  `-ndo` or `-iamo`; the undoubled monosyllables before `gli` alone; no participle base before a
+  lone `ne`) move no word of either treebank; they keep names (« Stone », « Sami », set aside as
+  names at `0.2.0`) and augmentatives (`risultatone`, `vestitone`, `peccatone`, `gelatone`) from
+  being read as verbs.
 - *D3*: the pronouns hold the combined clitics written as one word before a verb, `glielo` …
   `gliene`, and not `melo` … `vene`, written apart before a verb and, standing alone, nouns
   (`mela`, `vela`, `tela`, `velo`, `cene`) a row would hide in every gloss; they hold `ce` and `ve`,
