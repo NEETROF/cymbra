@@ -25,7 +25,6 @@ import hashlib
 import html
 import json
 import os
-import random
 import re
 import subprocess
 import sys
@@ -59,24 +58,29 @@ def http_get(url):
             time.sleep(5 * (attempt + 1))
 
 
-def store(path, data, want):
-    """Writes `data` to `path` when its sha256 is `want`; refuses it otherwise."""
+def store(path, data, want, snapshot=False):
+    """Writes `data` to `path` when its sha256 is `want`; refuses it otherwise, unless the file is a
+    snapshot that moves upstream (Tatoeba's weekly export), which is kept with a warning."""
     got = sha256(data)
     if got != want:
-        sys.exit(f"error: {path}: sha256 {got}, the list pins {want}")
+        if not snapshot:
+            sys.exit(f"error: {path}: sha256 {got}, the list pins {want}")
+        print(f"warning: {path} is not the measured snapshot (sha256 {got}); sampled by id", file=sys.stderr)
     with open(path + ".part", "wb") as f:
         f.write(data)
     os.replace(path + ".part", path)
     return got
 
 
-def checked(path, want):
+def checked(path, want, snapshot=False):
     if not os.path.isfile(path):
         return False
     with open(path, "rb") as f:
         got = sha256(f.read())
     if got != want:
-        sys.exit(f"error: {path}: sha256 {got}, the list pins {want}")
+        if not snapshot:
+            sys.exit(f"error: {path}: sha256 {got}, the list pins {want}")
+        print(f"warning: {path} is not the measured snapshot (sha256 {got}); sampled by id", file=sys.stderr)
     return True
 
 
@@ -113,9 +117,10 @@ def fetch(list_path, data):
         else:
             for file in source["files"]:
                 path = os.path.join(folder, file["name"])
-                if not checked(path, file["sha256"]):
+                snapshot = file.get("snapshot", False)
+                if not checked(path, file["sha256"], snapshot):
                     time.sleep(1.0)
-                    store(path, http_get(file["url"]), file["sha256"])
+                    store(path, http_get(file["url"]), file["sha256"], snapshot)
         print(f"{source['id']}: ok", file=sys.stderr)
 
 
@@ -137,11 +142,19 @@ def conllu_blocks(path):
         return [line[len("# text = "):] for line in f if line.startswith("# text = ")]
 
 
-def tatoeba_blocks(path, sample, seed):
+def tatoeba_blocks(path, ids_path):
+    """The sentences the committed ids name, in their order: the sample drawn once (seed 42) from
+    the export of 2026-10-17. A later export may have edited or deleted some; deleted ones are
+    counted and left out."""
     with bz2.open(path, "rt", encoding="utf-8") as f:
-        rows = [line.rstrip("\n").split("\t") for line in f]
-    rows = sorted(((int(r[0]), r[2]) for r in rows if len(r) >= 3), key=lambda r: r[0])
-    return [text for _, text in random.Random(seed).sample(rows, sample)]
+        texts = {int(r[0]): r[2] for r in (line.rstrip("\n").split("\t") for line in f) if len(r) >= 3}
+    with open(ids_path, encoding="utf-8") as f:
+        ids = [int(line) for line in f if line.strip() and not line.startswith("#")]
+    missing = [i for i in ids if i not in texts]
+    if missing:
+        print(f"warning: {len(missing)} of {len(ids)} sampled Tatoeba sentences are gone from this export",
+              file=sys.stderr)
+    return [texts[i] for i in ids if i in texts]
 
 
 def gutenberg_blocks(path):
@@ -325,7 +338,8 @@ def source_blocks(source, data, repo):
     if fmt == "conllu":
         return [b for f in source["files"] for b in conllu_blocks(os.path.join(folder, f["name"]))]
     if fmt == "tatoeba":
-        return tatoeba_blocks(os.path.join(folder, source["files"][0]["name"]), source["sample"], source["seed"])
+        ids = os.path.join(repo, "scripts/lingua-data/measure", source["ids"])
+        return tatoeba_blocks(os.path.join(folder, source["files"][0]["name"]), ids)
     if fmt == "gutenberg":
         return gutenberg_blocks(os.path.join(folder, source["files"][0]["name"]))
     if fmt == "pages":
@@ -383,10 +397,13 @@ def guard_words(text):
     return words
 
 
-def opened(text, start):
-    """Whether an apostrophe opens the word at `start` (guard_words_opened): a straight one or
-    U+2019 just before it, after no letter, mark or digit."""
+def opened(text, start, end):
+    """Whether an apostrophe opens the word at `start`..`end` (guard_words_opened): a straight one or
+    U+2019 just before it, after no letter, mark or digit, and no quote closing it just after it
+    (« la lettera 'a' » quotes a letter)."""
     if start == 0 or text[start - 1] not in APOSTROPHES:
+        return False
+    if end < len(text) and text[end] in APOSTROPHES:
         return False
     return start == 1 or not (text[start - 2].isalnum() or unicodedata.category(text[start - 2])[0] == "M")
 
@@ -404,7 +421,7 @@ def tokens(text):
         if len(word.encode("utf-8")) > LONGEST_MARKER_BYTES and not decomposed:
             continue
         lowercase = not any(c.isupper() for c in word)
-        out.append((unicodedata.normalize("NFC", word).lower(), lowercase, opened(text, start)))
+        out.append((unicodedata.normalize("NFC", word).lower(), lowercase, opened(text, start, end)))
     return out
 
 
@@ -632,8 +649,10 @@ def words(list_path, data, repo):
     print(f"Kept by the spec though they catch none: {sorted(w for w in named if not caught.get(w))}")
     # Rule 3(b): the words a refused Italian block, read by hand as genuine Italian, drops.
     drops = candidates.get("misfire_drops", {})
-    table = neighbour_table - set(uncaught) - set(drops)
+    review = candidates.get("review_drops", {})
+    table = neighbour_table - set(uncaught) - set(drops) - set(review)
     print(f"Rule 3(b), dropped after reading the refused blocks: {sorted(drops)}")
+    print(f"Left out after the review: {sorted(review)}")
 
     def refusals(nt, it):
         return [(s, b, found(t, nt, it)) for s, b, t in read if s["kind"] == "italian"

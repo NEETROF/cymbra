@@ -54,6 +54,15 @@
   },
   "misfire_drops": {
    "u": "the letter's Italian name, in 13 refused Italian Wikipedia blocks about pronunciation and spelling: « Maschile singolare finito in consonante o in u: », « La u è pronunciata come in italiano. », « come una u francese o una ü tedesca »"
+  },
+  "review_drops": {
+   "on": "« disponibile on line », « consultabile anche on line »: an Italian spelling, as `par`, `pro`, `ad`",
+   "cum": "« cum laude », « cum imperio »; it also caught the Corsican « cum'è », a quotation",
+   "pas": "« pas dosé », « pas de deux », French terms Italian writes",
+   "as": "English « as », which Italian prose quotes (« … as of 2018 »): seven neighbour blocks caught",
+   "comme": "« comme il faut », a French phrase Italian writes",
+   "'na": "« 'na cosa », the informal una (any register or region)",
+   "sas": "« Rossi & C. sas », an Italian company form"
   }
  },
  "sources": [
@@ -969,15 +978,14 @@
   {
    "id": "tatoeba-ita",
    "kind": "italian",
-   "label": "Tatoeba, Italian export (20,000, seed 42)",
+   "label": "Tatoeba, Italian export (20,000 ids, seed 42)",
    "format": "tatoeba",
    "licence": "CC BY 2.0 FR",
-   "sample": 20000,
-   "seed": 42,
-   "note": "Tatoeba regenerates its exports weekly: the sha256 pins the export of 2026-10-17 (Last-Modified); a later one is refused.",
+   "note": "Tatoeba regenerates its exports weekly: the sha256 pins the export of 2026-10-17, the one measured; a later one is read with a warning, through the 20,000 ids drawn from it once (seed 42) and committed in it-guard-tatoeba-ids.txt. Sentences may be edited or deleted upstream.",
    "files": [
-    {"name": "ita_sentences.tsv.bz2", "url": "https://downloads.tatoeba.org/exports/per_language/ita/ita_sentences.tsv.bz2", "sha256": "b13339cb1e0c6033ba23954cdf814d70f2b9d0a040d8408dfcab732797919f4f"}
-   ]
+    {"name": "ita_sentences.tsv.bz2", "url": "https://downloads.tatoeba.org/exports/per_language/ita/ita_sentences.tsv.bz2", "sha256": "b13339cb1e0c6033ba23954cdf814d70f2b9d0a040d8408dfcab732797919f4f", "snapshot": true}
+   ],
+   "ids": "it-guard-tatoeba-ids.txt"
   },
   {
    "id": "wiki-it",
@@ -1062,7 +1070,8 @@
    "licence": "public domain (Project Gutenberg)",
    "files": [
     {"name": "45334-0.txt", "url": "https://www.gutenberg.org/files/45334/45334-0.txt", "sha256": "c77cbedc6cc9e54b4ea277a91a8923023b65e574a87e91b52b8d51ec6c16b73f"}
-   ]
+   ],
+   "note": "Project Gutenberg offers no versioned URL: files/N/N-0.txt is the posted text, unchanged since 2024, but a re-posting would change its sha256, and the fetch would then refuse it."
   },
   {
    "id": "pg-pinocchio",
@@ -1072,7 +1081,8 @@
    "licence": "public domain (Project Gutenberg)",
    "files": [
     {"name": "52484-0.txt", "url": "https://www.gutenberg.org/files/52484/52484-0.txt", "sha256": "1f9f651efd16fa6a36409cf3a4dc7160acbdd58fdf4686c91a773cfe90ef1e46"}
-   ]
+   ],
+   "note": "Project Gutenberg offers no versioned URL: files/N/N-0.txt is the posted text, unchanged since 2024, but a re-posting would change its sha256, and the fetch would then refuse it."
   },
   {
    "id": "pages-it",

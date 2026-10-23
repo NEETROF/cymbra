@@ -132,10 +132,10 @@ pub fn block_is_studied(text: &str, studied: StudiedLanguage) -> bool {
 /// guard refuses the block as a neighbour's (add-lingua-french-detection-guard D5). whichlang has
 /// no class for Catalan, Galician, Occitan, Romanian, Latin or the regional languages of Italy,
 /// and reads many of their blocks as Spanish, French or Italian: Spanish's guard refuses Catalan
-/// and Galician (add-lingua-spanish-detection-guard) and Occitan (add-lingua-spanish-occitan-guard),
-/// French's Catalan, Occitan and Romanian, Italian's Catalan, Galician, Venetian, Sicilian,
-/// Neapolitan, Sardinian, Corsican, Friulian, Latin, Occitan and Romanian
-/// (add-lingua-italian-detection-guard); English has none. A guard runs only for the
+/// and Galician (add-lingua-spanish-detection-guard) and Occitan
+/// (add-lingua-spanish-occitan-guard), French's Catalan, Occitan and Romanian, Italian's Catalan,
+/// Galician, Venetian, Sicilian, Neapolitan, Sardinian, Corsican, Friulian, Latin, Occitan and
+/// Romanian (add-lingua-italian-detection-guard); English has none. A guard runs only for the
 /// language it protects, and only when that language is asked about: a reader of English pays
 /// for none, a reader of Spanish for Spanish's alone. `None` when whichlang finds none of
 /// `languages`, or the guard refuses the block, which is then excluded as any other language's
@@ -670,10 +670,10 @@ fn guard_words(text: &str, mut f: impl FnMut(&str)) {
 
 /// Function words Catalan, Galician, the regional languages of Italy and Corsica, Latin, Occitan
 /// and Romanian write and Italian does not, sorted by bytes for binary search
-/// (add-lingua-italian-detection-guard D3): 167 in one pooled table, since the guard asks « Italian
+/// (add-lingua-italian-detection-guard D3): 161 in one pooled table, since the guard asks « Italian
 /// or not », not which neighbour (D1). Counted only where written in lowercase (`El Niño` and `Lu
-/// Capu` are names); Neapolitan's elided articles `'a`, `'na`, `'nu` and `'o` only in a word an
-/// apostrophe opens (D4, [`guard_words_opened`]).
+/// Capu` are names); Neapolitan's elided articles `'a`, `'e`, `'nu` and `'o` only in a word an
+/// apostrophe opens and no quote closes (D4, [`guard_words_opened`]).
 ///
 /// Each word is kept as measured, one by one, on the samples `scripts/lingua-data/measure/
 /// it-guard-corpus.json` pins, fetched on 2026-10-23 (none is in the repository; `it_guard.py`
@@ -685,25 +685,31 @@ fn guard_words(text: &str, mut f: impl FnMut(&str)) {
 /// requirement names: their words that catch no Wikipedia block are kept for the sentences it
 /// refuses. Left out:
 /// - Italian words, in any register or region, with the reading that writes them: Catalan's
-///   `per`, `però`, `sempre`, `molt` (« molt'altro ») and `tot` (« un tot »); Galician's `hai`
+///   `per`, `però`, `sempre`, `molt` (« molt'altro »), `tot` (« un tot ») and `on` (« disponibile on
+///   line »); Galician's `hai`
 ///   (*you have*), `polo` (« polo nord »), `pero` (the pear tree), `o` (*or*) and `pola`
 ///   (regional, the jackdaw); Sicilian's `li` (the clitic), `avi` (« i nostri avi ») and `unni`
-///   (« gli unni »); Neapolitan's `pe` (« pe' »); Venetian's `sto` (« sto bene »), `anca`
-///   (*hip*), `par` (« par condicio ») and `so` (*I know*); Sardinian's `sa` (*he knows*), `pro`
-///   (« pro e contro ») and `est` (*east*); Latin's `qui` (*here*), `ad` (« ad esempio ») and
-///   `esse` (*they*); `cos` (« cos'è ») and `pi` (the letter); Occitan's `ma`, `sul`, `qual`
-///   (« qual è »), `sia`, `lor` (« lor signori »), `quand` (« quand'è »), `entrò` and `ambe`
-///   (« ambe le mani »); Romanian's `care` (« care amiche »), `dar` (« dar retta »), `fi` (the
-///   letter) and `din` (« din don »);
+///   (« gli unni »); Neapolitan's `pe` (« pe' »), `'na` (« 'na cosa », the informal *una*) and
+///   `comme` (« comme il faut »); Venetian's `sto` (« sto bene »), `anca` (*hip*), `par`
+///   (« par condicio ») and `so` (*I know*); Sardinian's `sa`
+///   (*he knows*), `pro` (« pro e contro »), `est` (*east*) and `sas` (« Rossi & C. sas »);
+///   Latin's `qui` (*here*), `ad` (« ad esempio »), `esse` (*they*) and `cum` (« cum laude »,
+///   which also caught Corsican's « cum'è »); `cos` (« cos'è ») and `pi` (the letter); Occitan's
+///   `ma`, `sul`, `qual` (« qual è »), `sia`, `lor` (« lor signori »), `quand` (« quand'è »),
+///   `entrò`, `ambe` (« ambe le mani ») and `pas` (« pas dosé », « pas de deux »); Romanian's
+///   `care` (« care amiche »), `dar` (« dar retta »), `fi` (the letter) and `din` (« din don »);
+/// - `as`, Galician's article, the English word Italian prose quotes (« as of 2018 »), for seven
+///   neighbour blocks caught;
 /// - `u`, Corsican's article and the letter's Italian name: it refused thirteen Italian blocks
 ///   about spelling (« La u è pronunciata come in italiano. »);
-/// - `iddu`, `lu`, `chì`, `el` and `'e`, which refuse only quotations and names (Corsican
-///   conjugations, Sicilian sentences glossed, Neapolitan song titles), but too many of them for
-///   the recall gate — at most one block of the Italian corpora in a thousand (D6);
+/// - `iddu`, `lu`, `chì` and `el`, which refuse only quotations and names (Corsican conjugations,
+///   Sicilian sentences glossed, Catalan examples), but too many of them for the recall gate as
+///   the implementation counts it — every refused block of the Italian corpora, at most one in a
+///   thousand — which departs from D6 and is the owner's to confirm;
 /// - the candidates no neighbour block read as Italian holds (66, Occitan's mostly).
 const ITALIC_NEIGHBOUR_MARKERS: &[&str] = &[
     "'a",       // Neapolitan, an elided article, counted with its apostrophe
-    "'na",      // Neapolitan, an elided article, counted with its apostrophe
+    "'e",       // Neapolitan, an elided article, counted with its apostrophe
     "'nu",      // Neapolitan, an elided article, counted with its apostrophe
     "'o",       // Neapolitan, an elided article, counted with its apostrophe
     "această",  // Romanian
@@ -720,7 +726,6 @@ const ITALIC_NEIGHBOUR_MARKERS: &[&str] = &[
     "aqueste",  // Occitan
     "aquestes", // Catalan, Occitan
     "aquests",  // Catalan
-    "as",       // Galician
     "at",       // Sardinian
     "atque",    // Latin
     "atât",     // Romanian
@@ -735,10 +740,8 @@ const ITALIC_NEIGHBOUR_MARKERS: &[&str] = &[
     "chiddu",   // Sicilian
     "chistu",   // Sicilian
     "coas",     // Galician
-    "comme",    // Neapolitan
     "comu",     // Sicilian
     "cu",       // Sicilian, Romanian
-    "cum",      // Latin
     "cun",      // Sardinian, Friulian
     "cussu",    // Sardinian
     "cussì",    // Venetian
@@ -804,9 +807,7 @@ const ITALIC_NEIGHBOUR_MARKERS: &[&str] = &[
     "nela",     // Galician
     "ningú",    // Catalan
     "nun",      // Sicilian
-    "on",       // Catalan
     "os",       // Galician
-    "pas",      // Occitan
     "pels",     // Catalan
     "pentru",   // Romanian
     "pirchì",   // Sicilian
@@ -816,7 +817,6 @@ const ITALIC_NEIGHBOUR_MARKERS: &[&str] = &[
     "quan",     // Occitan
     "quessu",   // Corsican
     "quod",     // Latin
-    "sas",      // Sardinian, Occitan
     "sau",      // Romanian
     "sed",      // Latin
     "segons",   // Catalan
@@ -930,18 +930,23 @@ fn italic_markers(text: &str) -> (usize, usize) {
 
 /// Calls `f` with each word of `text` as [`guard_words`] reads it, and whether an apostrophe opens
 /// it: a straight one or U+2019, which typeset Neapolitan writes, just before the word and after
-/// no letter, mark or digit (« vicino 'o mare », « ’a sera »; never `uomo` in « l'uomo »). Italian's
-/// guard looks Neapolitan's elided articles up with their apostrophe, as Spanish's looks Occitan's
-/// `qu'` up (add-lingua-italian-detection-guard D4); French's and Spanish's readings are untouched.
+/// no letter, mark or digit (« vicino 'o mare », « ’a sera »; never `uomo` in « l'uomo »), unless
+/// another closes it at once — « la lettera 'a' » quotes a letter. Italian's guard looks
+/// Neapolitan's elided articles up with their apostrophe, as Spanish's looks Occitan's `qu'` up
+/// (add-lingua-italian-detection-guard D4); French's and Spanish's readings are untouched.
 fn guard_words_opened(text: &str, mut f: impl FnMut(&str, bool)) {
+    let apostrophe = |c: char| c == '\'' || c == '\u{2019}';
     guard_words(text, |word| {
-        // `guard_words` hands out slices of `text`: where this one starts.
+        // `guard_words` hands out slices of `text`: where this one starts and ends.
         let start = word.as_ptr().addr() - text.as_ptr().addr();
+        debug_assert!(text.get(start..start + word.len()) == Some(word));
+        let end = start + word.len();
         let mut before = text[..start].chars().rev();
-        let opened = before.next().is_some_and(|c| c == '\'' || c == '\u{2019}')
+        let opened = before.next().is_some_and(apostrophe)
             && !before
                 .next()
-                .is_some_and(|c| c.is_alphanumeric() || is_combining_mark(c));
+                .is_some_and(|c| c.is_alphanumeric() || is_combining_mark(c))
+            && !text[end..].chars().next().is_some_and(apostrophe);
         f(word, opened);
     });
 }
@@ -2092,7 +2097,8 @@ mod tests {
     #[test]
     fn spec_scenario_a_neapolitan_sentence_counts_its_elided_articles() {
         assert!(!block_is_studied(read_as_italian(NEAPOLITAN), IT));
-        // `'na`, `'o` and `'a`, each with its apostrophe; `'e` is left out (D6, the gate).
+        // `'o`, `'a` and `'e`, each with its apostrophe; `'na` is Italian's informal « 'na », left
+        // out.
         assert_eq!(italic_markers(NEAPOLITAN), (3, 0));
         // Typeset Neapolitan writes U+2019.
         let typeset = NEAPOLITAN.replace('\'', "\u{2019}");
@@ -2194,9 +2200,9 @@ mod tests {
         assert!(!italic_neighbour("la casa"));
         assert!(!italic_neighbour(""));
         assert!(italic_neighbour("xe ghe anche"));
-        // « 'o » quoted in Italian is one word in a block Italian's markers carry (Risks).
+        // « 'o' » quoted in Italian: a quote closes the word at once, so it is no elided article.
         let quoted = "Il dittongo 'o' è più chiuso nella pronuncia della gente del posto.";
-        assert_eq!(italic_markers(quoted), (1, 2));
+        assert_eq!(italic_markers(quoted), (0, 2));
         assert!(block_is_studied(read_as_italian(quoted), IT));
     }
 
@@ -2232,7 +2238,7 @@ mod tests {
 
     #[test]
     fn the_italian_tables_are_sorted_disjoint_and_short() {
-        assert_eq!(ITALIC_NEIGHBOUR_MARKERS.len(), 167);
+        assert_eq!(ITALIC_NEIGHBOUR_MARKERS.len(), 161);
         assert_eq!(ITALIAN_MARKERS.len(), 23);
         for table in [ITALIC_NEIGHBOUR_MARKERS, ITALIAN_MARKERS] {
             for pair in table.windows(2) {
@@ -2253,14 +2259,17 @@ mod tests {
         for word in ITALIC_NEIGHBOUR_MARKERS {
             assert!(ITALIAN_MARKERS.binary_search(word).is_err(), "{word}");
         }
-        // Left out as Italian words, in any register or region (D3), as the measurement's own
-        // reading of the corpora (`u`), or for the recall gate (`iddu`, `lu`, `chì`, `el`, `'e`).
+        // Left out as Italian words, in any register or region (D3, and the review: `on`, `cum`,
+        // `pas`, `comme`, `'na`, `sas`), as an English word Italian quotes (`as`), as the
+        // measurement's own reading of the corpora (`u`), or for the recall gate (`iddu`, `lu`,
+        // `chì`, `el`).
         for word in [
             "per", "però", "sempre", "molt", "tot", "hai", "polo", "pero", "o", "pola", "li",
             "avi", "unni", "pe", "sto", "anca", "par", "so", "sa", "pro", "est", "qui", "ad",
             "esse", "cos", "pi", "ma", "sul", "qual", "sia", "lor", "quand", "entrò", "ambe",
-            "care", "dar", "fi", "din", "u", "iddu", "lu", "chì", "el", "'e", "e", "a", "in",
-            "non", "no", "del", "al", "su", "la", "di", "che", "da", "si",
+            "care", "dar", "fi", "din", "on", "cum", "pas", "comme", "'na", "sas", "as", "u",
+            "iddu", "lu", "chì", "el", "e", "a", "in", "non", "no", "del", "al", "su", "la", "di",
+            "che", "da", "si",
         ] {
             assert!(
                 ITALIC_NEIGHBOUR_MARKERS.binary_search(&word).is_err(),
@@ -2317,6 +2326,28 @@ mod tests {
             words("co-fondatore 2a 'na"),
             read(&[("co-fondatore", false), ("na", true)])
         );
+        // A quote closing the word at once, straight or typographic, makes it a quotation.
+        assert_eq!(
+            words("'a' \u{2019}e\u{2019} 'o\u{2019} 'nu"),
+            read(&[("a", false), ("e", false), ("o", false), ("nu", true)])
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_letter_quoted_in_italian_is_not_neapolitan() {
+        for block in [
+            "La lettera 'a' si pronuncia sempre aperta in questa parola.",
+            "Nella parola casa la \u{2019}a\u{2019} finale non porta l'accento.",
+        ] {
+            // `questa` and `Nella` are Italian's; the quoted letter is nobody's.
+            assert_eq!(italic_markers(block), (0, 1), "{block}");
+            assert!(block_is_studied(read_as_italian(block), IT), "{block}");
+        }
+        // The rule's limit: a quote that closes after the next word leaves the first one opened,
+        // as Neapolitan's own articles are (« 'a sera guardo 'e stelle »).
+        let phrase = "Mi ha risposto 'a domani' ed è uscito senza salutare.";
+        assert_eq!(italic_markers(phrase), (1, 0));
+        assert!(!block_is_studied(phrase, IT));
     }
 
     /// Detection as it was before Italian's guard: [`detect`] with the Italian arm unguarded.

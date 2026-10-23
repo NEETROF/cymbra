@@ -21,6 +21,14 @@
 //! gate for English, which reads the block as the gate does and has no guard; and the gate for
 //! Italian. The guard's cost is the difference between the two gates, in µs per KB of text (D5).
 //!
+//! The WebAssembly figures were taken with the same three passes, compiled by `wasm-pack build
+//! --target nodejs --release` in a scratch crate outside the workspace: it depends on lingua-core
+//! by path and on whichlang and wasm-bindgen 0.2.126, and exposes a `Blocks` holding the file's
+//! text with `whichlang()`, which counts the lines `whichlang::detect_language` reads as Italian,
+//! and `gate(italian)`, which counts the lines `block_is_studied` keeps for Italian or English.
+//! Node 22 loads it, times each call with `performance.now()`, best of seven, and divides by the
+//! file's KB — the guard, again, Italian's gate less English's.
+//!
 //! ```bash
 //! cargo run --release -p lingua-core --example italian_guard_measure -- blocks.txt
 //! cargo run --release -p lingua-core --example italian_guard_measure -- --time blocks.txt

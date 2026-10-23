@@ -67,13 +67,14 @@ The matrix programme's architecture holds. What Italian adds or stresses:
   native alone is a version 2 file already.
 - **Detection.** whichlang knows Italian and none of its neighbours: probed with whichlang itself,
   it reads Catalan, Galician, Venetian, Sicilian, Neapolitan, Sardinian, Corsican and Friulian
-  sentences as Italian, and Latin ones seldom (`crates/lingua-core/src/analysis/language.rs`, the
-  Galician probe; `crates/lingua-wasm/tests/french_baseline.rs`, the Catalan one). Change 8 adds
+  sentences as Italian, and Latin ones about a quarter of the time
+  (`crates/lingua-core/src/analysis/language.rs`, the Galician probe;
+  `crates/lingua-wasm/tests/french_baseline.rs`, the Catalan one). Change 8 adds
   French's guard shape for Italian — function words pooled and compared, measured word by word —
   over eleven neighbours: Venetian, Sicilian, Neapolitan, Sardinian, Corsican and Friulian kept by
   measurement, Latin, Occitan and Romanian brought in by the same measurement (D2's rule moved them
-  from their default), Catalan and Galician kept because the spec names them though they fall under
-  the rule; a recall gate on Italian corpora (37 of 39,934 Italian blocks refused, all quotations
+  from their default), Catalan and Galician kept because the spec names them though they fall below
+  its tenth; a recall gate on Italian corpora (38 of 39,934 Italian blocks refused, all quotations
   or names).
 - **Tokenisation.** Italian stacks what French and Spanish had apart: elision pieces (as French),
   articulated prepositions (I7, where Spanish has al and del only), truncation, the web's apostrophe

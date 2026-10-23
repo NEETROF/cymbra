@@ -16,8 +16,8 @@
 //! add-lingua-italian-baseline).
 //!
 //! Italian is a studied language served by its own analysis (analyser `1.0.0`,
-//! add-lingua-italian-analysis; `1.1.0` with its detection guard): its tokenisation pre-pass (add-lingua-italian-tokenisation) —
-//! `l'uomo` is `lo` + `uomo`, `dell'acqua` `dello` + `acqua`, `c'è` `ci` + `è`, `nel` `in` + `il`
+//! add-lingua-italian-analysis; `1.1.0` with its detection guard): its tokenisation pre-pass
+//! (add-lingua-italian-tokenisation) — `l'uomo` is `lo` + `uomo`, `dell'acqua` `dello` + `acqua`, `c'è` `ci` + `è`, `nel` `in` + `il`
 //! sharing its span, `del` whole, `po'` `poco` — reading every word in NFC; its cascade, the
 //! pack's forms then the enclitic rule (`dirmelo` is `dire`, `vattene` `andare`, `eccolo`
 //! `ecco`); its closed classes (`non`, `di`, `il`, `che` are function words); and its names rule.

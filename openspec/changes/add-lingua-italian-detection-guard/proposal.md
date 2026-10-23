@@ -1,4 +1,4 @@
-# add-lingua-italian-detection-guard — Catalan, Galician and Italy's regional languages are not read as Italian
+# add-lingua-italian-detection-guard — Catalan, Galician, Italy's regional languages, Latin, Occitan and Romanian are not read as Italian
 
 ## Why
 
@@ -33,9 +33,10 @@ on Italian — and bumps Italian's analyser version.
   Neapolitan, Sardinian, Corsican and Friulian (read as Italian on their probe sentences, D2's
   table), each kept in the pooled table when the measurement on its Wikipedia confirms whichlang
   reads at least a tenth of its blocks as Italian; Latin, Occitan and Romanian measured on the same
-  rule, left out by default (Latin's probes land elsewhere; Occitan and Romanian have French's and
-  Spanish's guards). Spanish, Portuguese and French have classes of their own and are not the
-  guard's concern. The requirement names no list: the design does, and the measurement prunes it.
+  rule (Latin's probes land elsewhere; Occitan and Romanian have French's and Spanish's guards).
+  The measurement brought Latin, Occitan and Romanian in, and Catalan and Galician stay below the
+  tenth, kept because the requirement names them (design, Measurement; the owner settles both).
+  Spanish, Portuguese and French have classes of their own and are not the guard's concern.
 - **Read as French's guard reads a block** (D4): a neighbour's word counts only where it is written
   in lowercase (« El Niño », « Os Lusíadas » are names); a word joins across a hyphen, a middle dot
   or a full stop between letters; a run holding a digit is not a word; a decomposed word is composed
@@ -68,8 +69,8 @@ None.
 
 ### Modified Capabilities
 
-- `lingua-analysis`: ADDED — *Catalan, Galician and Italy's regional languages are not read as
-  Italian*; MODIFIED — *An Italian invariance baseline runs beside the English, Spanish and French
+- `lingua-analysis`: ADDED — *Catalan, Galician, Italy's regional languages, Latin, Occitan and
+  Romanian are not read as Italian*; MODIFIED — *An Italian invariance baseline runs beside the English, Spanish and French
   ones* (change 7's text; its « what the baseline shows today » scenario says the Catalan and
   Galician blocks are excluded). The version bump moves no requirement: *Italian is a studied
   language served by its own analysis* (change 7) says « at or above `1.0.0` ». This change
