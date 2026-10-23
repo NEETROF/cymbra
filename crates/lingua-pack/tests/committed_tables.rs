@@ -113,7 +113,9 @@ fn section_of<'a>(sections: &'a [(String, Vec<u8>)], name: &str) -> Option<&'a [
 #[test]
 fn every_committed_pair_holds_to_its_studied_language() {
     let pairs = check_committed_tables(&tables()).unwrap_or_else(|e| panic!("{e}"));
-    for pair in ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"] {
+    for pair in [
+        "en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr",
+    ] {
         assert!(pairs.iter().any(|p| p == pair), "{pair} is read");
     }
 }
@@ -2654,22 +2656,8 @@ fn spec_scenario_a_layer_and_its_base() {
 }
 
 // Italian's studied side (add-lingua-italian-forms-tables, the Italian programme's change 9): it-fr,
-// Italian's reference pair (I5), writes tables/it/. `studied.json` and the pinned pool `tags.tsv` are
-// committed by hand first (D9); the update the owner dispatches writes the rest, tables/it-fr/
-// included. Until it lands, tables/it/ holds those two files alone and no folder names it-fr: the
-// checks below hold that state and say so, and every check of the tables runs once they are there.
-
-/// Whether it-fr's tables are committed: the owner's dispatch of `lingua-pack-update` writes them.
-fn italian_tables() -> bool {
-    let landed = tables().join("it-fr").join("pin.json").is_file();
-    if !landed {
-        eprintln!(
-            "note: tables/it-fr/ is not committed yet (add-lingua-italian-forms-tables task 2.3): \
-             Italian's forms and ranks are checked once the owner's update writes them"
-        );
-    }
-    landed
-}
+// Italian's reference pair (I5), writes tables/it/. `studied.json` and the pinned pool `tags.tsv` were
+// committed by hand first (D9); the update of 2026.10.23 wrote the rest, tables/it-fr/ included.
 
 /// it-fr's pack, whole and as its base and layer, built once per test binary.
 fn it_fr() -> &'static (Vec<u8>, SplitPack) {
@@ -2703,11 +2691,6 @@ fn spec_scenario_the_reference_and_the_pipeline() {
             .any(|p| p == "it-fr"),
         "packs.json lists it-fr"
     );
-    if !italian_tables() {
-        assert_eq!(files(&it), ["studied.json", "tags.tsv"]);
-        assert!(!tables().join("it-fr").exists());
-        return;
-    }
     assert_eq!(
         files(&it),
         [
@@ -2810,9 +2793,6 @@ fn spec_scenario_every_word_italian_s_pre_pass_writes_is_a_form() {
     // elided piece and truncation a form of the word it stands for, the `di` family lemmas of their
     // own, and the articulated prepositions it splits neither forms nor ranks — `dai` excepted, a
     // form of dare and no rank, the truncation `da'`'s word (add-lingua-italian-forms-tables D4).
-    if !italian_tables() {
-        return;
-    }
     let forms = tsv(&tables().join("it/forms.tsv"));
     let ranks = tsv(&tables().join("it/freq.tsv"));
     let mut written: BTreeSet<&str> = BTreeSet::new();
@@ -2890,9 +2870,6 @@ fn spec_scenario_every_word_italian_s_pre_pass_writes_is_a_form() {
 #[test]
 fn spec_scenario_every_rank_on_its_own_italian_lemma() {
     // Every ranked lemma's own form reads as itself, and the pack gives each lemma its own rank.
-    if !italian_tables() {
-        return;
-    }
     let forms = tsv(&tables().join("it/forms.tsv"));
     let ranks: BTreeMap<String, u32> = tsv(&tables().join("it/freq.tsv"))
         .into_iter()

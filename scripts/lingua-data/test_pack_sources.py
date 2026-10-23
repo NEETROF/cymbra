@@ -27,9 +27,6 @@ import urllib.parse
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-# Italian's reference pair, once the owner's first update of it-fr commits its tables
-# (add-lingua-italian-forms-tables D9): until then tables/it/ holds the inputs committed by hand alone.
-ITALIAN_LANDED = ["it-fr"] if (HERE / "tables" / "it-fr" / "pin.json").is_file() else []
 sys.path.insert(0, str(HERE))
 
 import pack_sources as ps  # noqa: E402
@@ -1179,8 +1176,7 @@ class Legacy(unittest.TestCase):
             return f"sha256:{digest}\n".encode()
 
         committed = sorted(p.parent.name for p in (HERE / "tables").glob("*/pin.json"))
-        # it-fr's tables land with the owner's first update (add-lingua-italian-forms-tables D9).
-        self.assertEqual(committed, sorted(["en-es", "en-fr", "es-en", "es-fr", "fr-en", "fr-es", *ITALIAN_LANDED]))
+        self.assertEqual(committed, ["en-es", "en-fr", "es-en", "es-fr", "fr-en", "fr-es", "it-fr"])
         for pair in committed:
             pin = self.tables / pair / "pin.json"
             pin.parent.mkdir(parents=True)
@@ -2599,11 +2595,8 @@ class Record(unittest.TestCase):
         # en-es, which reads tables/en, after en-fr (add-lingua-pack-en-es); fr-en, French's reference,
         # among the references (add-lingua-french-forms-tables); fr-es, which reads tables/fr, after
         # it (add-lingua-pack-fr-es): fr-en's update brings it along. it-fr, Italian's reference, among
-        # the references once its first update lands (add-lingua-italian-forms-tables D9); named
-        # before, it is that update's pair.
-        self.assertEqual(
-            ps.pairs(HERE / "tables"), ["en-fr", "es-fr", "fr-en", *ITALIAN_LANDED, "en-es", "es-en", "fr-es"]
-        )
+        # the references (add-lingua-italian-forms-tables D9).
+        self.assertEqual(ps.pairs(HERE / "tables"), ["en-fr", "es-fr", "fr-en", "it-fr", "en-es", "es-en", "fr-es"])
         self.assertEqual(ps.pairs(HERE / "tables", after="it-fr"), ["it-fr"])
         self.assertEqual(ps.pairs(HERE / "tables", after="fr-en"), ["fr-en", "fr-es"])
         self.assertEqual(ps.pairs(HERE / "tables", after="fr-es"), ["fr-es"])
