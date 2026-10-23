@@ -7,7 +7,7 @@ Italian's reference reduction (it-fr's) and every pair glossing Italian SHALL re
 
 #### Scenario: The rows
 - **WHEN** it-fr is reduced with the reviewed table holding `NATO` and `USA`
-- **THEN** `tables/it/forms.tsv` maps `NATO` to `NATO` and `USA` to `USA`, the forms holding a capital, `freq.tsv` and `level.tsv` hold neither, and `nato` and `usa` still map to *nascere* and *usare*
+- **THEN** `tables/it/forms.tsv` maps `NATO` to `NATO` and `USA` to `USA`, the forms holding a capital, `freq.tsv` and `level.tsv` hold neither, and `nato` and `usa` keep the readings the tables gave them, *nascere* and *uso*
 
 #### Scenario: A pair glosses the synonyms
 - **WHEN** it-fr glosses `USA`, whose entry points at the English name and names the synonyms `America` and `Stati Uniti`

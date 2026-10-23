@@ -148,6 +148,79 @@ gains `NATO` → `NATO` and `nato` → `nascere`; the golden re-blessed on its v
 probes added (the `notizie` page writes `ONU`, `RAI`, `PIL`, `UE`, none a row, so no page moves).
 The six goldens do not move.
 
+## As implemented (2026-10-23)
+
+### Task 5.1's measurement, for the owner
+
+The criteria were written before any figure was read. **Candidates**: every headword of the pinned
+section (`kaikki-Italian.jsonl` of it-fr's pin, 665,207,473 B) written wholly in capitals — 212 by this
+reading, letters only, two or more (the design counted 211) — whose lower case `tables/it/forms.tsv`
+reads as another word, or as a lemma of its own spelling that another entry of the section heads; plus
+`NATO`, `USA`, `TARI`, `AGI`, `FAI` whatever the computation said, and the two-letter ones, measured but
+kept out. **Corpora**, each sentence or paragraph a block: UD Italian-PUD (19,530 words), MarkIT's three
+sections (34,299), every Italian sentence of Tatoeba (6,016,976; the guard's 20,000 a subset), the
+Italian Wikipedia sample of change 8 (542,868, markup stripped), *I promessi sposi* (239,278) and
+*Pinocchio* (42,359), and the section's own usage examples (149,392): 7,044,702 words, 7,090 of them
+in capitals. **Counted**, by D1's rule emulated over letter runs: each token written exactly as the
+candidate, standing alone in capitals (what the rule reads as the acronym) or beside a word in
+capitals (a headline or a shout, read as before), each alone occurrence then read one by one. **The
+rule for a recommendation**: at least three alone, at most one in ten of them a shouted word, and a
+majority meaning the section's entry gives; `TARI`, `AGI` or `FAI` implemented only if clearly so (five
+or more alone, none shouted).
+
+| Candidate | The tables read its lower case as | Alone in capitals | Of them the acronym | Shouted word read as it | In a line of capitals | Recommendation |
+|---|---|---|---|---|---|---|
+| `NATO` | *nascere* | 27 (PUD 1, Tatoeba 10, Wikipedia 16) | 27, the alliance | 0 | 0 | row (implemented) |
+| `USA` | *uso* | 29 (MarkIT 2, Tatoeba 21, Wikipedia 4, examples 2) | 29, the country | 0 | 0 (1 in a hyphenated run) | row (implemented) |
+| `RAI` | `rai` itself, a lemma ranked 1,214 that the section also heads as a poetic noun (« rays ») | 11 (Wikipedia 10, examples 1) | 11, the broadcaster | 0 | 0 | passes the rule; `check_lowercase` refuses it as written (its lower case is its own lemma), so a row needs that check widened — the owner's call |
+| `FAI` | *fare* | 2 (MarkIT) | 2, the *Fondo per l'Ambiente Italiano* | 0 | 0 | too few to recommend |
+| `AGI` | *agio* | 1 (Wikipedia) | 1, the press agency | 0 | 0 | too few to recommend |
+| `TARI` | `tari` itself, the tax's own entry lowercased (ranked 15,602), not *tarare* | 0 | — | 0 | 0 | none written: no row; the tables already read it as the tax |
+| `LUCE`, `FANS`, `TUT`, `SUA`, `ANCA`, `IDEM`, `GIP` | *luce*, `fans`, `tut`, *suo*, *anca*, *idem*, `gip` | 0 | — | 0 | 0 | none written: no row |
+| `MI` (two letters) | `mi` | 58 (Tatoeba) | 0 | 58: `mi` typed in capitals at a sentence's head | 1 | stays out, confirmed |
+| `AI` (two letters) | split by the pre-pass | 5 (Tatoeba 4, examples 1) | 5, *intelligenza artificiale* | 0 | 1 | stays out: the pre-pass reads it as `a` + `i` whatever its case (D1) |
+| `NE`, `SE`, `LE`, `AD` (two letters) | `ne`, `se`, *il*, `ad` | 2, 1, 1, 2 | `NE`/`SE` compass points, `AD` once an *amministratore delegato* | `NE` and `AD` once each a word cited in capitals | `SE` 3, `SO` 3, `SU` 2, `NO` 1, `TI` 1 | stay out |
+
+The corpora are edited text with little news: `TARI`, a municipal tax, is written nowhere in them, and
+`FAI` and `AGI` once or twice. Written as a word (« la Nato », « gli Usa ») an acronym is never reached
+by a row, and these corpora rarely write it so: a capital initial after a lowercase word, 5 `Nato`
+(the participle among them, after a full stop), 1 `Usa`, 44 `Rai`.
+
+### Departures
+
+- **`usa` reads as *uso*.** The committed tables read `usa` as *uso*'s feminine, not *usare*'s third
+  person: the scenario *The rows* says « keep the readings the tables gave them, *nascere* and *uso* »,
+  and `USA`'s reason names it. Nothing else depends on which.
+- **Italian's version string is English's and French's.** `1.3.0` (D7) is the string English and French
+  have; the core compares a pack with its studied language's own constant, so nothing is ambiguous, but
+  two core tests assumed four distinct strings: `language.rs`'s *each language reports its own version*
+  now holds each language to its own constant, and `pack.rs`'s Italian refusals pass over the versions
+  equal to Italian's and add `1.2.0` and `1.1.0` (*A pack built before is refused*).
+- **`USA`'s row names synonyms and no expansion.** Its entry's one pointer is the English name, never
+  a row's (D3 never shows the entry's English): the row is `((), ("America", "Stati Uniti"), "PROPN",
+  …)`. `check_rows` reads an entry's synonyms at its own level and at its senses'.
+- **`check_lowercase`.** D2's « a row SHALL exist only where … the acronym's lowercase is a form of
+  another word of the tables » is checked at reduction, read as a form whose lemma is not the lower case
+  itself (`nato` → *nascere*): a row like `ONU` or `RAI`, whose lower case is a lemma of its own
+  spelling, is refused until a person widens the check.
+- **`check_studied` reads the rows from `forms.tsv`.** The accepted sets are `glossed ∪ rows` and
+  `(glossed − (names − rows)) ∪ rows`, a row being a form of the studied folder's `forms.tsv` holding a
+  capital and its own lemma; French's `CA`, glossed by a noun's run, leaves French's sets as they were.
+- **`tables/it-fr/README.md`** and `SOURCES.md` describe the rows on this branch; the dispatch (2.3)
+  writes the data alone.
+- **`packs.spec.ts`** already matched Italian's version by its pattern: unchanged.
+
+### What the reduce dispatch writes (task 2.3), reduced locally
+
+From it-fr's pinned sources with the pinned interpreter and wordfreq, on this branch's rules:
+`tables/it/forms.tsv` gains `NATO` and `USA` (129,599 → 129,601 rows), `tables/it/lexical.tsv` holds
+them alone, `freq.tsv` and `NOTICE` are byte for byte; `manifest.json` reads `1.3.0` and the snapshot
+with the new rules' digest; the pack grows 1,296,403 → 1,304,230 B (the lexical section, a bitset over
+every lemma, and two forms), its base 1,294,975 → 1,302,802 B. Filed and recorded on a scratch copy of
+the tables, every committed-tables check, `cross_native`, the reducer tests and `check-reducer` pass;
+`measure/it-ud.sh` reads UD Italian-PUD 99.26 / 91.31 / 99.90 and MarkIT's test section 99.43 / 94.65 /
+98.87, as before.
+
 ## Risks / Trade-offs
 
 - [A shouted word read as the acronym] → the rule reads the neighbours, as French's: « LA NATO HA
