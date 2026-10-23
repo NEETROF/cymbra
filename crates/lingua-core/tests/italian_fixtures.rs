@@ -12,25 +12,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Non-regression fixtures for Italian's tokenisation pre-pass
-//! (add-lingua-italian-tokenisation, task 1.6 — at least 80 cases), grouped by
-//! rule: each elided form, the rule again on what follows, the words that stay
-//! whole, the `di` family, the other articulated prepositions, the truncations,
-//! the apostrophe for an accent and the quotes, the hyphenated runs. Every case
-//! states each token beside the source text its span covers, so every split is
-//! checked with its spans. Any change to a fixture's expectation is a behavioural
-//! change of the Italian analyser and demands an `ITALIAN_ANALYZER_VERSION` bump;
-//! English's, Spanish's and French's fixtures and baselines do not move.
+//! Non-regression fixtures for Italian's analysis, grouped by rule.
 //!
-//! The lexicon is a small stand-in for the forms tables
-//! (add-lingua-italian-forms-tables): it lists the single-letter words the
-//! tokeniser drops when unlisted — `è`, `a`, `e`, `o`.
+//! Its tokenisation pre-pass (add-lingua-italian-tokenisation, task 1.6 — at least
+//! 80 cases): each elided form, the rule again on what follows, the words that stay
+//! whole, the `di` family, the other articulated prepositions, the truncations, the
+//! apostrophe for an accent and the quotes, the hyphenated runs. Every case states
+//! each token beside the source text its span covers, so every split is checked
+//! with its spans.
+//!
+//! The rules of its own analysis (add-lingua-italian-analysis, task 6.1 — at least
+//! 70 cases): NFC in the pre-pass (decomposed words, elisions and articulated
+//! prepositions), the cascade (listed forms, the enclitic rule by each base shape,
+//! the combined clitics, the five monosyllabic imperatives with and without
+//! doubling, `ecco`, a past participle, the words never split, a base the pack does
+//! not list, an unlisted plural left as written), the closed classes in a phrase
+//! (each class, each word left out) — each asserting every token's lemma and
+//! function-word flag through the phrase gloss — and the names rule over a page,
+//! through `analyse_page` (each branch of its design's D4).
+//!
+//! Any change to a fixture's expectation is a behavioural change of the Italian
+//! analyser and demands an `ITALIAN_ANALYZER_VERSION` bump; English's, Spanish's
+//! and French's fixtures and baselines do not move.
+//!
+//! The lexicons are small stand-ins for the forms tables
+//! (add-lingua-italian-forms-tables): the tokeniser's lists the single-letter words
+//! it drops when unlisted — `è`, `a`, `e`, `o`; the analysis's the verbs, forms and
+//! words its cases name.
 
 use lingua_core::analysis::ITALIAN_ANALYZER_VERSION;
+use lingua_core::analysis::function_words::is_function_word;
 use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::analysis::lexicon::{FstLexicon, build_lexicon_blobs};
+use lingua_core::analysis::percent::TokenClass;
 use lingua_core::analysis::tokenize::{Token, tokenize};
-use lingua_core::engine::word_grammar;
+use lingua_core::engine::{analyse_page, gloss_phrase, word_grammar};
+use lingua_core::knowledge::KnowledgeState;
 use lingua_core::packs::pack::section;
 use lingua_core::packs::{Pack, PackMeta, write_container};
 
@@ -377,11 +394,21 @@ fn english_spanish_and_french_read_the_fixtures_as_before() {
 
 /// An Italian pack holding the stand-in lexicon, at Italian's analyser version.
 fn pack() -> Pack {
-    let (forms, pool) = build_lexicon_blobs(FORMS, LEMMAS).expect("lexicon");
-    let lemma_count = FstLexicon::from_slices(forms.clone(), &pool)
-        .expect("load")
-        .lemma_count();
+    italian_pack(FORMS, LEMMAS, &[])
+}
+
+/// An Italian pack of `forms` and `lemmas`, its dictionary words `dictionary` in a lexical
+/// section (none without one), at Italian's analyser version.
+fn italian_pack(forms: &[(&str, &str)], lemmas: &[&str], dictionary: &[&str]) -> Pack {
+    let (forms, pool) = build_lexicon_blobs(forms, lemmas).expect("lexicon");
+    let lex = FstLexicon::from_slices(forms.clone(), &pool).expect("load");
+    let lemma_count = lex.lemma_count();
     let freq = vec![0u8; lemma_count * 4];
+    let mut lexical = vec![0u8; lemma_count.div_ceil(8)];
+    for word in dictionary {
+        let id = lex.id_of(word).expect("a dictionary word is a lemma") as usize;
+        lexical[id / 8] |= 1 << (id % 8);
+    }
     let meta = serde_json::to_vec(&PackMeta {
         studied: "it".into(),
         native: "fr".into(),
@@ -391,11 +418,14 @@ fn pack() -> Pack {
         levels_estimated: false,
     })
     .expect("meta");
-    let sections: [(&str, &[u8]); 3] = [
+    let mut sections: Vec<(&str, &[u8])> = vec![
         (section::FORMS, &forms),
         (section::LEMMAS, pool.as_bytes()),
         (section::FREQ, &freq),
     ];
+    if !dictionary.is_empty() {
+        sections.push((section::LEXICAL, &lexical));
+    }
     Pack::load(&write_container(&meta, &sections)).expect("an Italian pack loads")
 }
 
@@ -420,4 +450,526 @@ fn a_word_card_reads_the_written_word_through_the_pre_pass() {
     assert!(pieces("po'", "poco").is_empty());
     assert!(pieces("del", "del").is_empty());
     assert!(pieces("dirmelo", "dirmelo").is_empty());
+}
+
+// --- add-lingua-italian-analysis (task 6.1) ---
+
+/// The analysis's stand-in pack: the forms its cases need, filed as the forms tables file them
+/// (`sto` under `stare`, `parlando` and `parla` under `parlare`, `porte` under `porta`), and
+/// `sviluppata` under the adjective `sviluppato`.
+const ANALYSIS_FORMS: &[(&str, &str)] = &[
+    ("è", "essere"),
+    ("È", "essere"),
+    ("sarà", "essere"),
+    ("ho", "avere"),
+    ("so", "sapere"),
+    ("sto", "stare"),
+    ("voglio", "volere"),
+    ("visto", "vedere"),
+    ("parlando", "parlare"),
+    ("parla", "parlare"),
+    ("scrivi", "scrivere"),
+    ("prendete", "prendere"),
+    ("andiamo", "andare"),
+    ("dicendo", "dire"),
+    ("facendo", "fare"),
+    ("guarda", "guardare"),
+    ("porte", "porta"),
+    ("vite", "vita"),
+    ("sviluppata", "sviluppato"),
+    ("sa", "sapere"),
+    ("fa", "fare"),
+];
+
+/// The analysis's lemmas, each its own form.
+const ANALYSIS_LEMMAS: &[&str] = &[
+    "a",
+    "e",
+    "o",
+    "i",
+    "essere",
+    "avere",
+    "sapere",
+    "stare",
+    "volere",
+    "vedere",
+    "parlare",
+    "scrivere",
+    "prendere",
+    "andare",
+    "dire",
+    "fare",
+    "dare",
+    "guardare",
+    "porre",
+    "condurre",
+    "portare",
+    "sviluppare",
+    "sviluppato",
+    "formare",
+    "ecco",
+    "città",
+    "età",
+    "università",
+    "più",
+    "perché",
+    "pietà",
+    "tardi",
+    "poco",
+    "di",
+    "da",
+    "in",
+    "con",
+    "il",
+    "lo",
+    "la",
+    "gli",
+    "le",
+    "ci",
+    "ne",
+    "mi",
+    "ti",
+    "si",
+    "vi",
+    "non",
+    "né",
+    "mai",
+    "oggi",
+    "cane",
+    "marco",
+    "secondo",
+    "giorno",
+    "molto",
+    "tempo",
+    "mare",
+    "uomo",
+    "cinema",
+    "sistema",
+    "tema",
+    "vela",
+    "mela",
+    "porta",
+    "vita",
+    "pane",
+    "del",
+    "prima",
+    "tutto",
+    "che",
+    "subito",
+    "risultare",
+    "vestire",
+];
+
+/// (text glossed as Italian, each token as (surface, lemma, function word)).
+type AnalysisCase = (&'static str, &'static [(&'static str, &'static str, bool)]);
+
+const ANALYSIS_CASES: &[AnalysisCase] = &[
+    // --- NFC in the pre-pass: a decomposed word is the pack's composed one (D1) ---
+    ("citta\u{300}", &[("città", "città", false)]),
+    ("Citta\u{300}", &[("Città", "città", false)]),
+    ("piu\u{300}", &[("più", "più", false)]),
+    ("perche\u{301}", &[("perché", "perché", true)]),
+    ("sara\u{300}", &[("sarà", "essere", true)]),
+    (
+        "E\u{300} tardi",
+        &[("È", "essere", true), ("tardi", "tardi", false)],
+    ),
+    ("l'eta\u{300}", &[("lo", "lo", true), ("età", "età", false)]),
+    (
+        "dall'eta\u{300}",
+        &[
+            ("da", "da", true),
+            ("lo", "lo", true),
+            ("età", "età", false),
+        ],
+    ),
+    ("c'e\u{300}", &[("ci", "ci", true), ("è", "essere", true)]),
+    (
+        "nell'universita\u{300}",
+        &[
+            ("in", "in", true),
+            ("lo", "lo", true),
+            ("università", "università", false),
+        ],
+    ),
+    ("attivita\u{300}", &[("attività", "attività", false)]),
+    (
+        "un po' di pieta\u{300}",
+        &[
+            ("un", "un", true),
+            ("poco", "poco", true),
+            ("di", "di", true),
+            ("pietà", "pietà", false),
+        ],
+    ),
+    // --- the enclitic rule: an infinitive, its ending restored (D2) ---
+    ("parlarmi", &[("parlarmi", "parlare", false)]),
+    ("dirlo", &[("dirlo", "dire", false)]),
+    ("porlo", &[("porlo", "porre", false)]),
+    ("condurlo", &[("condurlo", "condurre", false)]),
+    ("vederci", &[("vederci", "vedere", false)]),
+    ("esserci", &[("esserci", "essere", true)]),
+    ("averne", &[("averne", "avere", true)]),
+    // --- a combined clitic, longest first ---
+    ("dirmelo", &[("dirmelo", "dire", false)]),
+    ("dargliela", &[("dargliela", "dare", false)]),
+    ("andarsene", &[("andarsene", "andare", false)]),
+    ("vedermene", &[("vedermene", "vedere", false)]),
+    ("darcela", &[("darcela", "dare", false)]),
+    ("dirvelo", &[("dirvelo", "dire", false)]),
+    ("portarglielo", &[("portarglielo", "portare", false)]),
+    // --- a gerund, an imperative: a form the pack files under a verb ---
+    ("parlandogli", &[("parlandogli", "parlare", false)]),
+    ("dicendolo", &[("dicendolo", "dire", false)]),
+    ("facendone", &[("facendone", "fare", false)]),
+    ("scrivimi", &[("scrivimi", "scrivere", false)]),
+    ("prendetelo", &[("prendetelo", "prendere", false)]),
+    ("andiamocene", &[("andiamocene", "andare", false)]),
+    ("parlagliene", &[("parlagliene", "parlare", false)]),
+    ("Guardala", &[("Guardala", "guardare", false)]),
+    // --- the five monosyllabic imperatives, the doubling undone, `gli` without it ---
+    ("dammi", &[("dammi", "dare", false)]),
+    ("fallo", &[("fallo", "fare", false)]),
+    ("vattene", &[("vattene", "andare", false)]),
+    ("dimmi", &[("dimmi", "dire", false)]),
+    ("stacci", &[("stacci", "stare", false)]),
+    ("dammelo", &[("dammelo", "dare", false)]),
+    ("Dimmelo", &[("Dimmelo", "dire", false)]),
+    ("digli", &[("digli", "dire", false)]),
+    ("fagli", &[("fagli", "fare", false)]),
+    ("diglielo", &[("diglielo", "dire", false)]),
+    // --- `ecco` ---
+    ("eccolo", &[("eccolo", "ecco", false)]),
+    ("eccomi", &[("eccomi", "ecco", false)]),
+    ("eccotelo", &[("eccotelo", "ecco", false)]),
+    // --- a regular past participle, kept by D6's measurement ---
+    ("sviluppatasi", &[("sviluppatasi", "sviluppare", false)]),
+    ("formatosi", &[("formatosi", "formare", false)]),
+    // --- a listed word is never split; a base the pack does not list reads nothing ---
+    ("cinema", &[("cinema", "cinema", false)]),
+    ("sistema", &[("sistema", "sistema", false)]),
+    ("tema", &[("tema", "tema", false)]),
+    ("vela", &[("vela", "vela", false)]),
+    ("mela", &[("mela", "mela", false)]),
+    ("zorbarmi", &[("zorbarmi", "zorbarmi", false)]),
+    // --- a present indicative takes no clitic; an undoubled monosyllable takes only `gli` ---
+    ("stone", &[("stone", "stone", false)]),
+    ("sami", &[("sami", "sami", false)]),
+    ("falo", &[("falo", "falo", false)]),
+    ("dami", &[("dami", "dami", false)]),
+    // --- an augmentative is no participle before `ne` ---
+    ("risultatone", &[("risultatone", "risultatone", false)]),
+    ("vestitone", &[("vestitone", "vestitone", false)]),
+    ("zorbarlo", &[("zorbarlo", "zorbarlo", false)]),
+    // --- an unlisted plural stays as written: D2's step 3 was measured out (D6) ---
+    ("tavoli", &[("tavoli", "tavoli", false)]),
+    ("amiche", &[("amiche", "amiche", false)]),
+    ("botteghe", &[("botteghe", "botteghe", false)]),
+    ("fuochi", &[("fuochi", "fuochi", false)]),
+    ("vite", &[("vite", "vita", false)]),
+    ("porte", &[("porte", "porta", false)]),
+    // --- the closed classes in a phrase (D3) ---
+    (
+        "Non ho visto il cane di Marco",
+        &[
+            ("Non", "non", true),
+            ("ho", "avere", true),
+            ("visto", "vedere", false),
+            ("il", "il", true),
+            ("cane", "cane", false),
+            ("di", "di", true),
+            ("Marco", "marco", false),
+        ],
+    ),
+    (
+        "non lo so",
+        &[
+            ("non", "non", true),
+            ("lo", "lo", true),
+            ("so", "sapere", false),
+        ],
+    ),
+    (
+        "né oggi né mai",
+        &[
+            ("né", "né", true),
+            ("oggi", "oggi", false),
+            ("né", "né", true),
+            ("mai", "mai", false),
+        ],
+    ),
+    ("più", &[("più", "più", false)]),
+    (
+        "sto parlando",
+        &[("sto", "stare", false), ("parlando", "parlare", false)],
+    ),
+    ("voglio", &[("voglio", "volere", false)]),
+    (
+        "il secondo giorno",
+        &[
+            ("il", "il", true),
+            ("secondo", "secondo", false),
+            ("giorno", "giorno", false),
+        ],
+    ),
+    (
+        "molto tempo",
+        &[("molto", "molto", true), ("tempo", "tempo", false)],
+    ),
+    (
+        "al mare",
+        &[
+            ("a", "a", true),
+            ("il", "il", true),
+            ("mare", "mare", false),
+        ],
+    ),
+    ("l'uomo", &[("lo", "lo", true), ("uomo", "uomo", false)]),
+    (
+        "prima di tutto",
+        &[
+            ("prima", "prima", false),
+            ("di", "di", true),
+            ("tutto", "tutto", true),
+        ],
+    ),
+    (
+        "del pane, subito",
+        &[
+            ("del", "del", true),
+            ("pane", "pane", false),
+            ("subito", "subito", false),
+        ],
+    ),
+    (
+        "fino a dove, nonostante tutto",
+        &[
+            ("fino", "fino", true),
+            ("a", "a", true),
+            ("dove", "dove", true),
+            ("nonostante", "nonostante", true),
+            ("tutto", "tutto", true),
+        ],
+    ),
+    (
+        "salvo qualunque cosa",
+        &[
+            ("salvo", "salvo", false),
+            ("qualunque", "qualunque", true),
+            ("cosa", "cosa", false),
+        ],
+    ),
+    (
+        "che ci sia con gli",
+        &[
+            ("che", "che", true),
+            ("ci", "ci", true),
+            ("sia", "sia", false),
+            ("con", "con", true),
+            ("gli", "gli", true),
+        ],
+    ),
+];
+
+#[test]
+fn italian_analysis_fixtures() {
+    let pack = italian_pack(ANALYSIS_FORMS, ANALYSIS_LEMMAS, &[]);
+    let knowledge = KnowledgeState::new();
+    let wrong: Vec<String> = ANALYSIS_CASES
+        .iter()
+        .filter_map(|(text, expected)| {
+            let glossed = gloss_phrase(text, IT, &pack, &knowledge);
+            let got: Vec<(&str, &str, bool)> = glossed
+                .tokens
+                .iter()
+                .map(|t| (t.surface.as_str(), t.lemma.as_str(), t.function_word))
+                .collect();
+            (got != *expected).then(|| format!("{text:?}: expected {expected:?}, got {got:?}"))
+        })
+        .collect();
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+}
+
+/// The names rule's stand-in pack (D4): the names its cases write as lemmas that are no
+/// dictionary words, `anna`, `maria`, `marco` and `sale` dictionary words, and the function
+/// words of its blocks.
+const NAMES_LEMMAS: &[&str] = &[
+    "roma", "italia", "europa", "olanda", "firenze", "ecco", "anna", "maria", "marco", "sale",
+    "il", "lo", "la", "di", "a", "e", "in", "con", "essere",
+];
+
+/// The names pack's dictionary words.
+const NAMES_DICTIONARY: &[&str] = &[
+    "anna", "maria", "marco", "sale", "il", "lo", "la", "di", "a", "e", "in", "con", "essere",
+];
+
+/// (the document's blocks, a surface, the class of each of its occurrences, in order).
+type NameCase = (&'static [&'static str], &'static str, &'static [TokenClass]);
+
+const NAME: TokenClass = TokenClass::ProperNounOutOfLexicon;
+const WORD: TokenClass = TokenClass::Unknown;
+
+const NAME_CASES: &[NameCase] = &[
+    // --- Spanish's rule: a capital in mid-sentence, never in lowercase, no dictionary word ---
+    (
+        &["Sono andato a Roma con i miei amici per vedere i monumenti antichi della città."],
+        "Roma",
+        &[NAME],
+    ),
+    (
+        &[
+            "Sono andato a Roma con i miei amici per vedere i monumenti antichi della città.",
+            "Roma è grande e piena di turisti in ogni stagione dell'anno, anche d'inverno.",
+        ],
+        "Roma",
+        &[NAME, NAME],
+    ),
+    // --- no evidence: the head of a block, of a sentence ---
+    (
+        &[
+            "Roma è una grande città piena di monumenti, di chiese e di turisti.",
+            "Roma attira ogni anno milioni di visitatori da tutto il mondo.",
+        ],
+        "Roma",
+        &[WORD, WORD],
+    ),
+    (
+        &[
+            "Ecco. Ecco la casa di mio nonno, con il giardino e la vecchia porta di legno.",
+            "Ecco il paese dove sono nato e dove ho passato tutta la mia infanzia.",
+        ],
+        "Ecco",
+        &[WORD, WORD, WORD],
+    ),
+    // --- a capital right after an elided piece, straight or typographic, even at a head ---
+    (
+        &["L'Italia è lunga e stretta, con il mare su tre lati e le montagne a nord."],
+        "Italia",
+        &[NAME],
+    ),
+    (
+        &["Il paese è nel cuore dell'Europa da molti secoli, e la sua storia è antica."],
+        "Europa",
+        &[NAME],
+    ),
+    (
+        &["Tutti parlano dell\u{2019}Europa con il cuore e con la testa, da molti anni ormai."],
+        "Europa",
+        &[NAME],
+    ),
+    (
+        &["Questa pianura è come un'Olanda in miniatura, piena di canali e di biciclette."],
+        "Olanda",
+        &[NAME],
+    ),
+    // --- a hyphenated run the pack does not list is one form ---
+    (
+        &["Ieri sera sono uscito con Anna-Maria e con la sua famiglia per una cena in centro."],
+        "Anna-Maria",
+        &[NAME],
+    ),
+    (
+        &["Anna-Maria è una ragazza molto simpatica, e tutti i suoi amici le vogliono bene."],
+        "Anna-Maria",
+        &[WORD],
+    ),
+    // --- a dictionary word stays a word ---
+    (
+        &["Quando sono arrivato a Firenze, Marco legge il giornale seduto in piazza."],
+        "Firenze",
+        &[NAME],
+    ),
+    (
+        &["Quando sono arrivato a Firenze, Marco legge il giornale seduto in piazza."],
+        "Marco",
+        &[WORD],
+    ),
+    // --- a form the document also writes in lowercase ---
+    (
+        &["Il fiume si chiama il Sale e il sale si raccoglie sulle sue rive da sempre."],
+        "Sale",
+        &[WORD],
+    ),
+];
+
+/// The classes of every token written `surface` on an Italian page.
+fn classes(pack: &Pack, blocks: &[&str], surface: &str) -> Vec<TokenClass> {
+    let page = analyse_page(blocks, IT, pack, &KnowledgeState::new());
+    assert!(page.analysable, "{blocks:?}");
+    assert_eq!(page.analyzer_version, ITALIAN_ANALYZER_VERSION);
+    page.tokens
+        .into_iter()
+        .filter(|token| token.surface == surface)
+        .map(|token| token.class)
+        .collect()
+}
+
+#[test]
+fn italian_names_fixtures() {
+    let pack = italian_pack(&[("è", "essere")], NAMES_LEMMAS, NAMES_DICTIONARY);
+    let wrong: Vec<String> = NAME_CASES
+        .iter()
+        .filter_map(|(blocks, surface, expected)| {
+            let got = classes(&pack, blocks, surface);
+            (got != *expected)
+                .then(|| format!("{surface:?} in {blocks:?}: expected {expected:?}, got {got:?}"))
+        })
+        .collect();
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+}
+
+#[test]
+fn a_name_ending_like_a_clitic_stays_a_name() {
+    // A present indicative takes no clitic: « Stone » is no `sto` + `ne` read as `stare`, nor
+    // « Sami » `sa` + `mi` read as `sapere`, though the pack files `sto` and `sa` under their
+    // verbs; each keeps its own lemma, outside the lexicon, and is set aside as a name.
+    let pack = italian_pack(
+        &[("è", "essere"), ("sto", "stare"), ("sa", "sapere")],
+        &[
+            "stare", "sapere", "il", "lo", "la", "di", "a", "e", "in", "con", "essere",
+        ],
+        &[],
+    );
+    let blocks = [
+        "Ieri sera ho incontrato Sami e Stone al mercato, vicino alla stazione del paese.",
+        "Il mercato era pieno di gente e di colori, e la musica suonava in piazza.",
+    ];
+    let page = analyse_page(&blocks, IT, &pack, &KnowledgeState::new());
+    assert!(page.analysable);
+    for (surface, lemma) in [("Sami", "sami"), ("Stone", "stone")] {
+        let token = page
+            .tokens
+            .iter()
+            .find(|t| t.surface == surface)
+            .unwrap_or_else(|| panic!("{surface}"));
+        assert_eq!(
+            (token.lemma.as_str(), token.class),
+            (lemma, NAME),
+            "{surface}"
+        );
+    }
+}
+
+#[test]
+fn at_least_seventy_cases_cover_italian_s_own_analysis() {
+    // add-lingua-italian-analysis task 6.1.
+    let cases = ANALYSIS_CASES.len() + NAME_CASES.len();
+    assert!(
+        cases >= 70,
+        "task 6.1 asks for at least 70 cases, got {cases}"
+    );
+}
+
+#[test]
+fn english_spanish_and_french_keep_their_function_words() {
+    // Italian's tables are Italian's: `il`, `di`, `non` flag nothing in English or Spanish.
+    for language in [StudiedLanguage::English, StudiedLanguage::Spanish] {
+        for lemma in ["il", "di", "non", "gli", "né"] {
+            assert!(!is_function_word(lemma, language), "{lemma} {language:?}");
+        }
+    }
+    assert!(is_function_word("the", StudiedLanguage::English));
+    assert!(is_function_word("de", StudiedLanguage::Spanish));
+    assert!(is_function_word("pas", StudiedLanguage::French));
+    assert!(!is_function_word("the", IT) && !is_function_word("de", IT));
 }

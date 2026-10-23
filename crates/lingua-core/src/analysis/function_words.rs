@@ -24,10 +24,11 @@
 //! would not do, since the hundred commonest lemmas hold `time`, `people`,
 //! `say` and `know`, exactly the words worth a row.
 //!
-//! Spanish's tables (add-lingua-spanish-analysis D5) and French's
-//! (add-lingua-french-analysis D3) follow, in the same six classes, each holding
-//! its language's dictionary forms and the inflected forms a pack may keep as
-//! lemmas of their own; French's flag « pas » (M21).
+//! Spanish's tables (add-lingua-spanish-analysis D5), French's
+//! (add-lingua-french-analysis D3) and Italian's (add-lingua-italian-analysis D3)
+//! follow, in the same six classes, each holding its language's dictionary forms
+//! and the inflected forms a pack may keep as lemmas of their own; French's flag
+//! « pas » (M21), Italian's « non ».
 //!
 //! Every table MUST stay sorted: lookups binary-search them directly (a test
 //! enforces the ordering). Adding a studied language means adding its tables,
@@ -517,21 +518,266 @@ const FRENCH: &[&[&str]] = &[
     FR_NEGATION,
 ];
 
+/// Italian articles and other determiners (add-lingua-italian-analysis D3): the articles
+/// `il`, `lo`, `la`, `i`, `gli`, `le`, `un`, `uno`, `una`; the demonstratives `questo`,
+/// `quello` (`quel`, `quei`, `quegli`), `codesto`; the possessives; `ogni`, `qualche`,
+/// `alcuno`, `nessuno`, `ciascuno`, `tale`, `altro`, `stesso`; the `di` family, `del`,
+/// `dello`, `della`, `dei`, `degli`, `delle`, which the pre-pass keeps whole (M21); and the
+/// quantifiers `molto`, `tanto`, `poco`, `tutto`, `troppo`, as Spanish's hold `mucho`,
+/// `poco`, `tanto`, `todo` and French's `beaucoup`, `peu`, `tant`, `tout`. Inflected forms
+/// too, which a pack may keep as lemmas of their own (`questa`, `mia`, `nessun`, `tutti`).
+/// `qualsiasi` and `qualunque` by measurement (design, *Measured at implementation*): a
+/// determiner in each of MarkIT's test section's occurrences (2 of 2, 1 of 1; with UD
+/// Italian-PUD, 4 of 4 and 2 of 3, « una persona qualunque » the other). `certo` and `vario`
+/// are left out: adjectives with a meaning of their own, as French's `certain`.
+const IT_DETERMINERS: &[&str] = &[
+    "alcun",
+    "alcuna",
+    "alcune",
+    "alcuni",
+    "alcuno",
+    "altra",
+    "altre",
+    "altri",
+    "altro",
+    "ciascun",
+    "ciascuna",
+    "ciascuno",
+    "codesta",
+    "codeste",
+    "codesti",
+    "codesto",
+    "degli",
+    "dei",
+    "del",
+    "della",
+    "delle",
+    "dello",
+    "gli",
+    "i",
+    "il",
+    "la",
+    "le",
+    "lo",
+    "loro",
+    "mia",
+    "mie",
+    "miei",
+    "mio",
+    "molta",
+    "molte",
+    "molti",
+    "molto",
+    "nessun",
+    "nessuna",
+    "nessuno",
+    "nostra",
+    "nostre",
+    "nostri",
+    "nostro",
+    "ogni",
+    "poca",
+    "poche",
+    "pochi",
+    "poco",
+    "qualche",
+    "qualsiasi",
+    "qualunque",
+    "quegli",
+    "quei",
+    "quel",
+    "quella",
+    "quelle",
+    "quelli",
+    "quello",
+    "questa",
+    "queste",
+    "questi",
+    "questo",
+    "stessa",
+    "stesse",
+    "stessi",
+    "stesso",
+    "sua",
+    "sue",
+    "suo",
+    "suoi",
+    "tale",
+    "tali",
+    "tanta",
+    "tante",
+    "tanti",
+    "tanto",
+    "troppa",
+    "troppe",
+    "troppi",
+    "troppo",
+    "tua",
+    "tue",
+    "tuo",
+    "tuoi",
+    "tutta",
+    "tutte",
+    "tutti",
+    "tutto",
+    "un",
+    "una",
+    "uno",
+    "vostra",
+    "vostre",
+    "vostri",
+    "vostro",
+];
+
+/// Italian personal pronouns, stressed (`io` … `loro`, `me`, `te`, `sé`, `egli`, `ella`,
+/// `esso`) and clitic (`mi`, `ti`, `si`, `ci`, `vi`, `lo`, `la`, `li`, `le`, `ne`, `gli`, and
+/// the variants `me`, `te`, `ce`, `ve` of « me lo », « ce l'ho », written apart); the combined
+/// clitics written as one word before a verb, `glielo`, `gliela`, `glieli`, `gliele`,
+/// `gliene`; relative and interrogative (`che`, `cui`, `chi`, `quale`) and indefinite
+/// (`ciò`, `qualcosa`, `qualcuno`, `ognuno`, `chiunque`, `niente`, `nulla`); the
+/// demonstratives `colui`, `colei`, `coloro`, `costui`, `costei`, `costoro` (MarkIT: `colui`
+/// and `coloro` pronouns, 1 of 1 each; pooled with PUD, 1 of 1 and 2 of 3; the four others
+/// written in neither, and pronouns alone in the dictionary). The other
+/// combined clitics are written apart before a verb (« me lo dice ») and joined only after
+/// one (`dirmelo`, which the enclitic rule reads as `dire`): as one word standing alone they
+/// are nouns — `mela` (apple), `vela` (sail), `tela` (cloth), `velo` (veil), `cene`
+/// (dinners) — which a row here would hide in every gloss. `quanto` and `cosa` are left out:
+/// « quanto » is also « how much », « cosa » the noun « thing ».
+const IT_PRONOUNS: &[&str] = &[
+    "ce", "che", "chi", "chiunque", "ci", "ciò", "colei", "coloro", "colui", "costei", "costoro",
+    "costui", "cui", "egli", "ella", "essa", "esse", "essi", "esso", "gli", "gliela", "gliele",
+    "glieli", "glielo", "gliene", "io", "la", "le", "lei", "li", "lo", "loro", "lui", "me", "mi",
+    "ne", "niente", "noi", "nulla", "ognuna", "ognuno", "qualcosa", "qualcuna", "qualcuno",
+    "quale", "quali", "si", "sé", "te", "ti", "tu", "ve", "vi", "voi",
+];
+
+/// Italian prepositions: the simple ones (`di`, `a` and its `ad` before a vowel, `da`, `in`,
+/// `con`, `su`, `per`, `tra`, `fra`) and `senza`, `verso`, `contro`, `sopra`, `sotto`,
+/// `dentro`, `fuori`, `dopo`, `durante`, `tranne`, `presso`, `oltre`, `attraverso`,
+/// `mediante`, `circa`, `entro`; and, by measurement, `fino` (« fino a »), `nonostante`,
+/// `tramite`, `malgrado` and `eccetto` — each introducing a phrase in every one of its
+/// occurrences the treebanks write (MarkIT's test section: `fino` 5 of 5, `nonostante` 3 of 3;
+/// pooled with UD Italian-PUD: 27 of 27, 9 of 9, `tramite` 6 of 6, `malgrado` 1 of 1;
+/// `eccetto` written in neither, and a preposition alone in the dictionary). The articulated
+/// ones never reach this: the pre-pass splits them (`nel` → `in` + `il`) or keeps the `di`
+/// family whole, a determiner. `secondo` and `lungo` are left out: everyday adjectives (« il
+/// secondo giorno », « un lungo viaggio ») a preposition's row would hide in every gloss, as
+/// French measured `certain` out. Left out by measurement (design D6): `prima` — MarkIT's
+/// test section tags none of its 14 as a preposition, and has it introduce a phrase (« prima
+/// di ») in 5 of them (pooled: 19 of 49); 5 are the adjective « la prima volta » —, and `salvo`
+/// — its one MarkIT occurrence is the adjective « safe ».
+const IT_PREPOSITIONS: &[&str] = &[
+    "a",
+    "ad",
+    "attraverso",
+    "circa",
+    "con",
+    "contro",
+    "da",
+    "dentro",
+    "di",
+    "dopo",
+    "durante",
+    "eccetto",
+    "entro",
+    "fino",
+    "fra",
+    "fuori",
+    "in",
+    "malgrado",
+    "mediante",
+    "nonostante",
+    "oltre",
+    "per",
+    "presso",
+    "senza",
+    "sopra",
+    "sotto",
+    "su",
+    "tra",
+    "tramite",
+    "tranne",
+    "verso",
+];
+
+/// Italian coordinating and subordinating conjunctions, `ed` and `od` before a vowel among
+/// them, and `dove` (« where »), as French lists `où` and Spanish `donde`: relative or
+/// interrogative in each of its occurrences (MarkIT's test section 6 of 6, pooled with UD
+/// Italian-PUD 24 of 24).
+const IT_CONJUNCTIONS: &[&str] = &[
+    "affinché",
+    "anzi",
+    "benché",
+    "che",
+    "cioè",
+    "come",
+    "dove",
+    "dunque",
+    "e",
+    "ed",
+    "eppure",
+    "finché",
+    "infatti",
+    "ma",
+    "mentre",
+    "né",
+    "o",
+    "od",
+    "oppure",
+    "ovvero",
+    "perché",
+    "perciò",
+    "però",
+    "poiché",
+    "purché",
+    "quando",
+    "quindi",
+    "se",
+    "sebbene",
+    "siccome",
+    "tuttavia",
+];
+
+/// Italian auxiliaries and modals (Spanish's `ser`, `haber`, `poder`, `deber`; French's
+/// `être`, `avoir`, `pouvoir`, `devoir`). `volere` is left out, a content verb as Spanish's
+/// `querer` and French's `vouloir`; and so is `stare`, the progressive's auxiliary (« sto
+/// parlando ») but also « to stay », as French leaves `aller` out — measured (design D6):
+/// MarkIT's test section tags 13 of its 24 as an auxiliary, short of the clear majority (two
+/// in three) that would have put it in (UD Italian-PUD: 23 of 28).
+const IT_AUXILIARIES_AND_MODALS: &[&str] = &["avere", "dovere", "essere", "potere"];
+
+/// Italian negation: `non`, `no` and `né`. `mai`, `più`, `neanche`, `nemmeno` and `neppure`
+/// are left out, as English's `never`, Spanish's `nunca` and French's `jamais`: adverbs with
+/// content of their own (« non più » is « no longer », « mai » « never »); so are `anche` and
+/// `ancora`.
+const IT_NEGATION: &[&str] = &["no", "non", "né"];
+
+/// The six Italian tables (add-lingua-italian-analysis D3). Like Spanish's and French's, a
+/// word may stand in two classes: `gli`, `la`, `le`, `lo` and `loro` are determiners and
+/// pronouns, `che` a pronoun and a conjunction, `né` a conjunction and a negation.
+const ITALIAN: &[&[&str]] = &[
+    IT_DETERMINERS,
+    IT_PRONOUNS,
+    IT_PREPOSITIONS,
+    IT_CONJUNCTIONS,
+    IT_AUXILIARIES_AND_MODALS,
+    IT_NEGATION,
+];
+
 /// Whether a dictionary form is a closed-class word of the studied language:
 /// an article or other determiner, a pronoun, a preposition or particle, a
 /// conjunction, an auxiliary or modal, or a negation. `lemma` is what the
 /// lemmatisation cascade produced (lowercase), never a surface form.
 ///
 /// Each language is judged by its own tables only: `de` is not an English
-/// function word, nor `the` a Spanish one, nor `ne` a Spanish one. Italian has
-/// none while the baseline serves it (add-lingua-italian-baseline D2): `non`,
-/// `di`, `il`, `che` count like any other word.
+/// function word, nor `the` a Spanish one, nor `ne` a Spanish one, nor `il` an
+/// English, Spanish or French one.
 pub fn is_function_word(lemma: &str, studied: StudiedLanguage) -> bool {
     let tables: &[&[&str]] = match studied {
         StudiedLanguage::English => ENGLISH,
         StudiedLanguage::Spanish => SPANISH,
         StudiedLanguage::French => FRENCH,
-        StudiedLanguage::Italian => &[],
+        StudiedLanguage::Italian => ITALIAN,
     };
     tables
         .iter()
@@ -539,18 +785,18 @@ pub fn is_function_word(lemma: &str, studied: StudiedLanguage) -> bool {
 }
 
 /// Whether a dictionary form is a preposition of the studied language: English's
-/// prepositions and particles, Spanish's prepositions, French's — one class of the
-/// tables [`is_function_word`] reads, each language read by its own. `du`, `des`,
-/// `al` and `del` are contractions, not prepositions. The phrase gloss reads it to
-/// tell an expression built on a verb from one built on a preposition
-/// (choose-lingua-overlapping-expressions D2). Italian has none while the
-/// baseline serves it (add-lingua-italian-baseline D2).
+/// prepositions and particles, Spanish's prepositions, French's, Italian's — one
+/// class of the tables [`is_function_word`] reads, each language read by its own.
+/// `du`, `des`, `al` and `del` are contractions, not prepositions, and so are
+/// Italian's `del`, `della`…, determiners. The phrase gloss reads it to tell an
+/// expression built on a verb from one built on a preposition
+/// (choose-lingua-overlapping-expressions D2).
 pub fn is_preposition(lemma: &str, studied: StudiedLanguage) -> bool {
     let table: &[&str] = match studied {
         StudiedLanguage::English => PREPOSITIONS_AND_PARTICLES,
         StudiedLanguage::Spanish => ES_PREPOSITIONS,
         StudiedLanguage::French => FR_PREPOSITIONS,
-        StudiedLanguage::Italian => &[],
+        StudiedLanguage::Italian => IT_PREPOSITIONS,
     };
     table.binary_search(&lemma).is_ok()
 }
@@ -609,21 +855,255 @@ mod tests {
 
     const FR: StudiedLanguage = StudiedLanguage::French;
 
+    const IT: StudiedLanguage = StudiedLanguage::Italian;
+
+    /// Each lemma of a lemmatised Italian phrase, flagged or not.
+    fn italian_flags(lemmas: &[&str]) -> Vec<bool> {
+        lemmas
+            .iter()
+            .map(|lemma| is_function_word(lemma, IT))
+            .collect()
+    }
+
     #[test]
-    fn spec_scenario_no_italian_word_is_a_function_word_yet() {
-        // add-lingua-italian-baseline D2: Italian has no table while the baseline serves it.
-        const IT: StudiedLanguage = StudiedLanguage::Italian;
+    fn spec_scenario_an_italian_phrase() {
+        // « Non ho visto il cane di Marco », lemmatised with `ho` filed under `avere`.
+        assert_eq!(
+            italian_flags(&["non", "avere", "visto", "il", "cane", "di", "marco"]),
+            [true, true, false, true, false, true, false]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_italian_negation() {
+        // « non lo so » and « né oggi né mai ».
+        assert_eq!(italian_flags(&["non", "lo", "sapere"]), [true, true, false]);
+        assert_eq!(
+            italian_flags(&["né", "oggi", "né", "mai"]),
+            [true, false, true, false]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_italian_words_that_look_closed_but_carry_meaning() {
+        // « più », « mai », « sto parlando », « voglio », « il secondo giorno », « molto tempo »:
+        // `stare` and `volere` as the pack files `sto` and `voglio`.
         for lemma in [
-            "non", "di", "il", "che", "la", "e", "a", "essere", "avere", "de", "the", "pas",
+            "più", "mai", "neanche", "nemmeno", "neppure", "anche", "ancora", "stare", "volere",
+            "secondo", "lungo", "prima", "salvo", "certo", "quanto", "cosa", "parlare", "giorno",
+            "tempo",
         ] {
-            assert!(!is_function_word(lemma, IT), "{lemma:?}");
-            assert!(!is_preposition(lemma, IT), "{lemma:?}");
+            assert!(!is_function_word(lemma, IT), "{lemma:?} carries meaning");
         }
-        // English, Spanish and French answer as before.
-        assert!(is_function_word("the", EN));
-        assert!(is_function_word("de", StudiedLanguage::Spanish));
-        assert!(is_function_word("pas", FR));
-        assert!(is_preposition("de", FR));
+        assert_eq!(
+            italian_flags(&["il", "secondo", "giorno"]),
+            [true, false, false]
+        );
+        assert_eq!(italian_flags(&["molto", "tempo"]), [true, false]);
+        // The combined clitics joined only after a verb are nouns standing alone: `mela`
+        // (apple), `vela` (sail), `tela` (cloth), `velo` (veil), `cene` (dinners).
+        for lemma in ["mela", "vela", "tela", "velo", "telo", "cene", "mele"] {
+            assert!(!is_function_word(lemma, IT), "{lemma:?}");
+        }
+    }
+
+    #[test]
+    fn spec_scenario_the_pieces_of_an_italian_contraction_and_elision() {
+        // « al mare » is `a` + `il` + `mare`; « l'uomo » is `lo` + `uomo`; « dell'acqua »
+        // `dello` + `acqua`.
+        assert_eq!(italian_flags(&["a", "il", "mare"]), [true, true, false]);
+        assert_eq!(italian_flags(&["lo", "uomo"]), [true, false]);
+        assert_eq!(italian_flags(&["dello", "acqua"]), [true, false]);
+    }
+
+    #[test]
+    fn spec_scenario_each_language_keeps_its_own_tables() {
+        // `the` is no Italian function word, nor `di` an English, Spanish or French one, nor
+        // `il` an English or Spanish one (French's `il` is its own pronoun, « he »).
+        assert!(!is_function_word("the", IT));
+        for language in [EN, StudiedLanguage::Spanish, FR] {
+            assert!(!is_function_word("di", language), "{language:?}");
+            assert!(
+                !is_function_word("non", language) || language == FR,
+                "{language:?}"
+            );
+        }
+        assert!(!is_function_word("il", EN) && !is_function_word("il", StudiedLanguage::Spanish));
+        assert!(is_function_word("il", FR) && is_function_word("il", IT));
+        for lemma in ["de", "pas", "haber", "of", "être", "jamais"] {
+            assert!(!is_function_word(lemma, IT), "{lemma:?}");
+        }
+        // Italian's prepositions are its own.
+        for lemma in [
+            "di", "a", "ad", "da", "in", "con", "su", "per", "tra", "fra", "dopo",
+        ] {
+            assert!(
+                is_preposition(lemma, IT),
+                "{lemma:?} is an Italian preposition"
+            );
+        }
+        for lemma in [
+            "del", "della", "il", "che", "secondo", "lungo", "prima", "de", "of",
+        ] {
+            assert!(
+                !is_preposition(lemma, IT),
+                "{lemma:?} is no Italian preposition"
+            );
+        }
+        assert!(!is_preposition("di", EN) && !is_preposition("di", FR));
+    }
+
+    #[test]
+    fn italian_classes_hold_what_they_name() {
+        for (table, sample) in [
+            (
+                IT_DETERMINERS,
+                &[
+                    "il",
+                    "lo",
+                    "la",
+                    "i",
+                    "gli",
+                    "le",
+                    "un",
+                    "uno",
+                    "una",
+                    "questo",
+                    "quello",
+                    "codesto",
+                    "mio",
+                    "loro",
+                    "ogni",
+                    "qualche",
+                    "alcuno",
+                    "nessuno",
+                    "ciascuno",
+                    "tale",
+                    "altro",
+                    "stesso",
+                    "del",
+                    "dello",
+                    "della",
+                    "dei",
+                    "degli",
+                    "delle",
+                    "molto",
+                    "tanto",
+                    "poco",
+                    "tutto",
+                    "troppo",
+                    "qualsiasi",
+                    "qualunque",
+                ][..],
+            ),
+            (
+                IT_PRONOUNS,
+                &[
+                    "io", "tu", "lui", "lei", "egli", "ella", "esso", "noi", "voi", "loro", "me",
+                    "te", "sé", "mi", "ti", "si", "ci", "vi", "lo", "la", "li", "le", "ne", "gli",
+                    "glielo", "gliene", "che", "cui", "chi", "quale", "ciò", "qualcosa",
+                    "qualcuno", "ognuno", "chiunque", "niente", "nulla", "colui", "colei",
+                    "coloro", "costui", "costei", "costoro",
+                ][..],
+            ),
+            (
+                IT_PREPOSITIONS,
+                &[
+                    "di",
+                    "a",
+                    "da",
+                    "in",
+                    "con",
+                    "su",
+                    "per",
+                    "tra",
+                    "fra",
+                    "senza",
+                    "verso",
+                    "contro",
+                    "sopra",
+                    "sotto",
+                    "dentro",
+                    "fuori",
+                    "dopo",
+                    "durante",
+                    "tranne",
+                    "presso",
+                    "oltre",
+                    "attraverso",
+                    "mediante",
+                    "circa",
+                    "entro",
+                    "fino",
+                    "nonostante",
+                    "tramite",
+                    "malgrado",
+                    "eccetto",
+                ][..],
+            ),
+            (
+                IT_CONJUNCTIONS,
+                &[
+                    "e",
+                    "ed",
+                    "o",
+                    "od",
+                    "ma",
+                    "però",
+                    "anzi",
+                    "né",
+                    "che",
+                    "se",
+                    "perché",
+                    "poiché",
+                    "siccome",
+                    "quando",
+                    "mentre",
+                    "come",
+                    "dunque",
+                    "quindi",
+                    "perciò",
+                    "infatti",
+                    "cioè",
+                    "sebbene",
+                    "benché",
+                    "affinché",
+                    "finché",
+                    "purché",
+                    "dove",
+                    "oppure",
+                    "ovvero",
+                    "tuttavia",
+                    "eppure",
+                ][..],
+            ),
+            (
+                IT_AUXILIARIES_AND_MODALS,
+                &["essere", "avere", "potere", "dovere"][..],
+            ),
+            (IT_NEGATION, &["non", "no", "né"][..]),
+        ] {
+            for word in sample {
+                assert!(table.binary_search(word).is_ok(), "{word:?}");
+                assert!(is_function_word(word, IT), "{word:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn an_italian_word_stands_in_two_classes_only_where_it_reads_two_ways() {
+        let mut seen: Vec<&str> = Vec::new();
+        let mut twice: Vec<&str> = Vec::new();
+        for table in ITALIAN {
+            for word in *table {
+                if seen.contains(word) {
+                    twice.push(word);
+                }
+                seen.push(word);
+            }
+        }
+        twice.sort_unstable();
+        assert_eq!(twice, ["che", "gli", "la", "le", "lo", "loro", "né"]);
     }
 
     #[test]
@@ -806,7 +1286,7 @@ mod tests {
 
     #[test]
     fn every_table_is_sorted_and_free_of_duplicates() {
-        for table in ENGLISH.iter().chain(SPANISH).chain(FRENCH) {
+        for table in ENGLISH.iter().chain(SPANISH).chain(FRENCH).chain(ITALIAN) {
             for pair in table.windows(2) {
                 assert!(
                     pair[0] < pair[1],
@@ -817,7 +1297,7 @@ mod tests {
             }
         }
         // An English lemma belongs to one class: listing it twice would hide a
-        // table that went stale. (Spanish and French words may stand in two.)
+        // table that went stale. (Spanish, French and Italian words may stand in two.)
         let mut all: Vec<&str> = ENGLISH.iter().flat_map(|t| t.iter().copied()).collect();
         let total = all.len();
         all.sort_unstable();

@@ -237,8 +237,8 @@ fn written(text: &str, token: &Token) -> Written {
 /// their own text through it, so the four read a word alike.
 ///
 /// Every answer is no for a text read as English, Spanish or Italian, without reading
-/// it: their analyses do not move, and Italian's is the baseline
-/// (add-lingua-italian-baseline D2).
+/// it: their analyses do not move, and Italian keeps no acronym in capitals until
+/// keep-lingua-italian-acronyms-and-names writes its rule.
 pub(crate) fn alone_in_capitals(
     text: &str,
     tokens: &[Token],

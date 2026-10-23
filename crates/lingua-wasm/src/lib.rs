@@ -140,9 +140,9 @@ fn fresh_state(packs: &PackSet) -> LinguaState {
 /// not that of `hacer tiempo`, which wins the key. A card whose lemma is itself a key — the
 /// winner's name (`hacer tiempo`), a lemma chain (`bueno día`) — is read there, as before.
 ///
-/// An Italian expression card is read at its lemma, as an English one is, while the baseline
-/// serves Italian (add-lingua-italian-baseline D2): its key is its words' lemmas, and its pack
-/// carries no expression names.
+/// An Italian expression card is read at its lemma, as an English one is, until
+/// add-lingua-italian-expression-keys gives Italian keys of its own (add-lingua-italian-baseline
+/// D2): its key is its words' lemmas, and its pack carries no expression names.
 fn readable_gloss(pack: Option<&Pack>, card: &Card) -> Option<String> {
     pack.and_then(|pack| pack_gloss(pack, &card.lemma))
         .or_else(|| card.gloss.clone())

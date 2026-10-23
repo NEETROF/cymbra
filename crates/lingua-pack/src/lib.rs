@@ -1363,8 +1363,8 @@ fn grammar_sections(
 /// English keeps the split at spaces. An Italian headword is keyed through the
 /// same reading (add-lingua-italian-baseline D2): its words as Italian's pre-pass
 /// reads them (add-lingua-italian-tokenisation: `all'alba` → `a` + `lo` + `alba`),
-/// each piece its dictionary form by the baseline, as an English key's are, and no
-/// name.
+/// each piece its dictionary form by Italian's cascade (add-lingua-italian-analysis),
+/// as an English key's are, and no name.
 fn expression_key(headword: &str, studied: StudiedLanguage, lex: &impl Lexicon) -> Option<String> {
     if studied != StudiedLanguage::English {
         return reading_expression_key(headword, studied, lex);

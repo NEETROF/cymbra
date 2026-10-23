@@ -27,6 +27,7 @@
 
 mod french;
 pub mod function_words;
+mod italian;
 pub mod language;
 pub mod lemmatize;
 pub mod lexicon;
@@ -94,9 +95,16 @@ pub const FRENCH_ANALYZER_VERSION: &str = "1.3.0";
 /// own span (`l'uomo` → `lo` + `uomo`, `c'è` → `ci` + `è`); the articulated prepositions of
 /// `di` whole (`del`, `della`; `dell'` read as `dello`), the others split into the preposition
 /// and the article sharing the span (`nel` → `in` + `il`, `all'` → `a` + `lo`); a truncation
-/// read as its word, its apostrophe in its span (`po'` → `poco`). What it still lacks, each a
-/// rule of Italian's own that bumps this version when it lands: no apostrophe read as an accent
-/// (`perche'` is `perche` by the edge trim), no enclitic split (`dirmelo` stays whole), no
-/// Unicode (NFC) normalisation, no exception table or cascade, no function-word table, no names
-/// rule and no detection guard (whichlang reads Catalan and Galician as Italian).
-pub const ITALIAN_ANALYZER_VERSION: &str = "0.2.0";
+/// read as its word, its apostrophe in its span (`po'` → `poco`). `1.0.0` since
+/// add-lingua-italian-analysis gives it its own analysis, leaving the baseline's `0.x` versions:
+/// its pre-pass reads every word in NFC; its cascade (`analysis/italian.rs`) reads the pack's
+/// forms, then a verb's clitic pronouns off an unlisted form (the enclitic rule, a regular past
+/// participle among its bases: `dirmelo` → `dire`, `dammi` → `dare`, `eccolo` → `ecco`,
+/// `sviluppatasi` → `sviluppare`), then the form — there is no plural rule, the one the design
+/// proposed having been measured out (its D6); its six closed classes flag a phrase gloss's function
+/// words, `non` among them; and an Italian document's names are set aside
+/// (`engine::document_names`). What it still lacks, each a rule of Italian's own that bumps this
+/// version when it lands: no detection guard (whichlang reads Catalan and Galician as Italian),
+/// no apostrophe read as an accent (`perche'` is `perche` by the edge trim), no acronym kept in
+/// capitals and no expression keys of its own.
+pub const ITALIAN_ANALYZER_VERSION: &str = "1.0.0";

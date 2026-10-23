@@ -33,8 +33,10 @@
 //! articulated prepositions of `di` whole (`del`, `della`; `dell'` read as
 //! `dello`) and splits the others into the preposition and the article
 //! (`nel` → `in` + `il`, sharing the span), and reads a truncation as its word
-//! (`po'` → `poco`), its apostrophe kept in its span. Adding a studied language
-//! means adding a pre-pass, not touching the tokeniser.
+//! (`po'` → `poco`), its apostrophe kept in its span; like French's, it reads every
+//! word in NFC before comparing it with anything and writes every token's text
+//! composed, each span still the source's (add-lingua-italian-analysis D1). Adding a
+//! studied language means adding a pre-pass, not touching the tokeniser.
 //!
 //! Every language reads a word without the soft hyphens (U+00AD) an e-book or a
 //! page hides inside it to let a line break there (« vi‧da », ‧ standing for the
@@ -146,8 +148,9 @@ const IRREGULAR_CONTRACTIONS: &[(&str, &str)] = &[
 /// inversions. Italian takes an arm of its own (add-lingua-italian-tokenisation):
 /// its words keep a listed trailing apostrophe (`italian_words`), then
 /// `push_italian_word` and `push_italian_run` read its elisions, its articulated
-/// prepositions and its truncations; it has no U+202F rule and no NFC (D2), and
-/// `dirmelo` stays whole. All share the rules that belong to no language:
+/// prepositions and its truncations, each word read in NFC (add-lingua-italian-analysis
+/// D1); it has no U+202F rule (D2), and `dirmelo` stays whole — the enclitic rule is
+/// its cascade's. All share the rules that belong to no language:
 /// segmentation, the hyphen run, the compound rule, the digit drop, the
 /// edge-apostrophe trim and the single-letter rule.
 pub fn tokenize(
@@ -210,7 +213,7 @@ pub fn tokenize(
 }
 
 /// Emits an ordinary single-word token, applying the pre-pass: apostrophe
-/// normalisation/trimming, NFC (Spanish, French), the language's contraction split
+/// normalisation/trimming, NFC (Spanish, French, Italian), the language's contraction split
 /// (English `n't`, Spanish `al`/`del`), the digit drop and the
 /// single-letter-needs-the-lexicon rule.
 ///
@@ -222,7 +225,8 @@ pub fn tokenize(
 /// would panic. For French, what reaches this is the word that remains — the
 /// rules every language shares, its text composed; its span stays the source's,
 /// combining marks included. Italian reads its elisions, articulated prepositions
-/// and truncations before this ([`push_italian_word`]), with French's casing.
+/// and truncations before this ([`push_italian_word`]), with French's casing, and
+/// what reaches this is likewise composed (add-lingua-italian-analysis D1).
 /// Every rule reads the word without its soft hyphens,
 /// so « could‧n't » is `could` + `not` (ignore-lingua-soft-hyphens D2).
 fn push_word(
@@ -278,15 +282,16 @@ fn push_word(
     });
 }
 
-/// The word in NFC for Spanish and French, so a decomposed accent reads as the
-/// pack's precomposed one (add-lingua-spanish-analysis D1,
-/// add-lingua-french-analysis D1); English text as it came — its output must not
-/// move —, and Italian's while the baseline serves it (add-lingua-italian-baseline
-/// D2): NFC is a rule of its own analysis.
+/// The word in NFC for Spanish, French and Italian, so a decomposed accent reads as
+/// the pack's precomposed one (add-lingua-spanish-analysis D1,
+/// add-lingua-french-analysis D1, add-lingua-italian-analysis D1); English text as it
+/// came — its output must not move.
 fn nfc_for(word: &str, language: StudiedLanguage) -> String {
     match language {
-        StudiedLanguage::English | StudiedLanguage::Italian => word.to_owned(),
-        StudiedLanguage::Spanish | StudiedLanguage::French => word.nfc().collect(),
+        StudiedLanguage::English => word.to_owned(),
+        StudiedLanguage::Spanish | StudiedLanguage::French | StudiedLanguage::Italian => {
+            word.nfc().collect()
+        }
     }
 }
 
@@ -440,7 +445,9 @@ const AFTER_EUPHONIC_T: &[&str] = &["elle", "elles", "il", "ils", "on"];
 /// A French written piece as the pre-pass compares it: without its soft hyphens,
 /// lowercase and in NFC, so a decomposed `ç'` is the elided `ç'`, a decomposed
 /// `peut-être` the run the pack lists (add-lingua-french-analysis D1) and
-/// « lors‧qu » the elided `lorsqu` (ignore-lingua-soft-hyphens D2).
+/// « lors‧qu » the elided `lorsqu` (ignore-lingua-soft-hyphens D2). Italian's
+/// pre-pass compares its written pieces the same way (add-lingua-italian-analysis
+/// D1): its elided forms, its articulated prepositions, its truncations.
 fn french_lowercase(written: &str) -> String {
     without_soft_hyphens(written).to_lowercase().nfc().collect()
 }
@@ -711,8 +718,9 @@ fn push_french_run(
 }
 
 // Italian's pre-pass (add-lingua-italian-tokenisation, I7). The pieces it writes
-// are lemmatised as any Italian word is: by the baseline (the pack's forms, else
-// the lowercased form) until add-lingua-italian-analysis writes its cascade.
+// are lemmatised as any Italian word is, by Italian's cascade
+// (add-lingua-italian-analysis, `analysis/italian.rs`); every comparison it makes
+// reads the written word in NFC, and every token's text is composed (D1).
 
 const ITALIAN: StudiedLanguage = StudiedLanguage::Italian;
 
@@ -912,10 +920,10 @@ fn italian_truncation(lower: &str) -> Option<&'static str> {
 }
 
 /// Whether an Italian word is an elided form (D3's, or D4's `dell'`, `all'`,
-/// `dall'`, `nell'`, `sull'`) or a truncation, read lowercase and without its soft
-/// hyphens: `(elided, truncation)`.
+/// `dall'`, `nell'`, `sull'`) or a truncation, read lowercase, in NFC and without
+/// its soft hyphens: `(elided, truncation)`.
 fn italian_listed_before_apostrophe(word: &str) -> (bool, bool) {
-    let lower = without_soft_hyphens(word).to_lowercase();
+    let lower = french_lowercase(word);
     (
         italian_elided(&lower, "").is_some(),
         italian_truncation(&lower).is_some(),
@@ -1022,7 +1030,8 @@ fn push_italian_reading(
 /// the rule runs again on what follows, as long as a letter follows the
 /// apostrophe. Returns where the rest starts and the rest. A soft hyphen is read
 /// as nowhere, in the elided piece, in the word after it and right after the
-/// apostrophe (ignore-lingua-soft-hyphens D2).
+/// apostrophe (ignore-lingua-soft-hyphens D2); the written piece and the word after
+/// it are compared in NFC (add-lingua-italian-analysis D1).
 fn push_italian_elisions<'a>(
     tokens: &mut Vec<Token>,
     word: &'a str,
@@ -1044,9 +1053,9 @@ fn push_italian_elisions<'a>(
             .filter(|&c| c != SOFT_HYPHEN)
             .take_while(|c| c.is_alphabetic())
             .flat_map(char::to_lowercase)
+            .nfc()
             .collect();
-        let lower = without_soft_hyphens(written).to_lowercase();
-        let Some(reading) = italian_elided(&lower, &next) else {
+        let Some(reading) = italian_elided(&french_lowercase(written), &next) else {
             break;
         };
         let end = at + i + apostrophe.len_utf8();
@@ -1063,8 +1072,8 @@ fn push_italian_elisions<'a>(
 /// read as the word it stands for, one token spanning the apostrophe (D5); then
 /// an articulated preposition split into the preposition and the article sharing
 /// the span, the `di` family whole (D4); or the rules every language shares
-/// ([`push_word`]). Its text is read as it came: NFC is
-/// add-lingua-italian-analysis's.
+/// ([`push_word`]). Each check reads the word composed and each token's text is
+/// composed (add-lingua-italian-analysis D1); the spans are the source's.
 fn push_italian_word(
     tokens: &mut Vec<Token>,
     word: &str,
@@ -1073,7 +1082,7 @@ fn push_italian_word(
 ) {
     let (at, rest) = push_italian_elisions(tokens, word, start);
     let end = at + rest.len();
-    let lower = without_soft_hyphens(rest).to_lowercase();
+    let lower = french_lowercase(rest);
     // The seam kept the apostrophe of a listed word only: a truncation, or an elided form alone.
     let reading = match lower.strip_suffix(is_apostrophe) {
         Some(bare) => italian_truncation(bare)
@@ -1843,15 +1852,77 @@ mod tests {
     }
 
     #[test]
-    fn italian_is_not_normalised_and_shares_the_rules_of_no_language() {
+    fn spec_scenario_a_decomposed_italian_accent_is_read_composed() {
+        // add-lingua-italian-analysis D1: `città` written as `citta` + U+0300 COMBINING GRAVE
+        // ACCENT is the composed word, its span the decomposed source, combining mark included.
         let lex = lexicon();
-        // `città` written as `citta` + U+0300 COMBINING GRAVE ACCENT stays decomposed: NFC is
-        // add-lingua-italian-analysis's.
         let text = "citta\u{0300} perche\u{0301} l'attivita\u{0300}";
+        let tokens = tokenize(text, IT, &lex);
+        assert_eq!(texts(&tokens), ["città", "perché", "lo", "attività"]);
+        assert_eq!(&text[tokens[0].start..tokens[0].end], "citta\u{0300}");
+        assert_eq!(&text[tokens[3].start..tokens[3].end], "attivita\u{0300}");
+        // English text is never normalised: its output must not move.
         assert_eq!(
-            texts(&tokenize(text, IT, &lex)),
-            ["citta\u{0300}", "perche\u{0301}", "lo", "attivita\u{0300}"]
+            texts(&tokenize("citta\u{0300}", StudiedLanguage::English, &lex)),
+            ["citta\u{0300}"]
         );
+    }
+
+    #[test]
+    fn spec_scenario_a_decomposed_italian_elision_and_articulated_preposition() {
+        // « l'età » and « dall'età », the accent of `età` a combining mark: the pieces are read
+        // as before, and the word after them is composed, its span the source's.
+        let text = "l'eta\u{0300} dall'eta\u{0300}";
+        let tokens = italian(text);
+        assert_eq!(
+            read(text, &tokens),
+            [
+                ("lo", "l'"),
+                ("età", "eta\u{0300}"),
+                ("da", "dall'"),
+                ("lo", "dall'"),
+                ("età", "eta\u{0300}")
+            ]
+        );
+        // A decomposed truncation's neighbour and an articulated preposition before a decomposed
+        // word: each comparison reads the word composed.
+        let text = "Nell'universita\u{0300} c'e\u{0300} un po' di pieta\u{0300}";
+        assert_eq!(
+            texts(&italian(text)),
+            [
+                "In",
+                "lo",
+                "università",
+                "ci",
+                "è",
+                "un",
+                "poco",
+                "di",
+                "pietà"
+            ]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_decomposed_italian_run_the_pack_lists() {
+        // A hyphenated run is one token whose text and parts are composed, so the pack's
+        // composed run is found (`pipeline::resolve_lemmas` reads it whole).
+        let text = "piu\u{0300}-che-perfetto";
+        let tokens = italian(text);
+        assert_eq!(texts(&tokens), ["più-che-perfetto"]);
+        assert_eq!(tokens[0].parts, ["più", "che", "perfetto"]);
+        assert_eq!((tokens[0].start, tokens[0].end), (0, text.len()));
+        let (bytes, pool) =
+            build_lexicon_blobs(&[("più-che-perfetto", "più-che-perfetto")], &[]).expect("build");
+        let listed = FstLexicon::from_slices(bytes, &pool).expect("load");
+        let (lemma, parts) =
+            crate::analysis::pipeline::resolve_lemmas(&tokens[0], false, IT, &listed);
+        assert_eq!((lemma.as_str(), parts.len()), ("più-che-perfetto", 0));
+    }
+
+    #[test]
+    fn italian_shares_the_rules_of_no_language() {
+        let lex = lexicon();
         let text = "x-ray abc123 'team' a b well-being-2 code";
         assert_eq!(
             texts(&tokenize(text, IT, &lex)),
