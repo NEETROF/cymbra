@@ -1,4 +1,5 @@
-import { studiedOf } from "../analyzer/pairs.ts";
+import type { LinguaPort } from "../analyzer/port.ts";
+import { readerPairs, SHIPPED_PAIRS, studiedOf } from "../analyzer/pairs.ts";
 import type { TranslatorSource } from "../translate/create-port.ts";
 import type { ReviewTranslationHint } from "../review/view.ts";
 import type { DownloadEvent } from "../translate/host/downloads.ts";
@@ -74,6 +75,21 @@ export interface AppTranslation {
   hint(language: string): ReviewTranslationHint | null;
   /** The review's « Téléchargez la traduction pour l'app »: the offer made again, a « Plus tard » undone. */
   reoffer(): void;
+}
+
+/**
+ * The reader's pairs the app's models follow (add-lingua-italian-baseline, task 7.1): the listed pair
+ * of their native language that studies each of their studied languages, in their order — the pairs
+ * the extension's own models follow (`readerPairs`, routes-by-pair D5) —, never each studied language
+ * paired with the native one. A language no listed pair studies is left out: Italian, which the core
+ * knows and the catalogue routes before any Italian pair ships, is never offered nor fetched.
+ */
+export async function appPairs(
+  port: Pick<LinguaPort, "studiedLanguages" | "nativeLanguage">,
+  pairs: readonly string[] = SHIPPED_PAIRS,
+): Promise<string[]> {
+  const [native, studied] = await Promise.all([port.nativeLanguage(), port.studiedLanguages()]);
+  return readerPairs(studied, native, pairs);
 }
 
 function remembered(local: AppTranslationDeps["local"]): Remembered {

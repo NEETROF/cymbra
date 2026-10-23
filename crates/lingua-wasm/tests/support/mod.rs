@@ -22,7 +22,8 @@
 //! the words differ. `cross_native.rs` answers the English and Spanish scenarios through the real
 //! pack of the same studied tables glossed in another native language (en-es, es-en); `probes`
 //! and `studied_side` here are how it, `es_en_baseline.rs` and `en_es_baseline.rs` read a golden
-//! probe by probe and remove the native side.
+//! probe by probe and remove the native side. `italian.rs` (`italian_baseline.rs`) freezes it-fr,
+//! a pair no list ships yet, over a hand-written fixture (add-lingua-italian-baseline D5).
 //! A golden is re-blessed with `LINGUA_BLESS=1 cargo test -p lingua-wasm --test <test>`, and the
 //! pull request says why (docs/lingua/language-matrix-programme.md: en-fr and es-fr do not move).
 //!
@@ -40,6 +41,7 @@
 pub mod committed;
 pub mod english;
 pub mod french;
+pub mod italian;
 pub mod spanish;
 
 use std::fmt::Write as _;
@@ -65,7 +67,8 @@ pub struct Card {
 
 /// Where a scenario's own pack is built from (add-lingua-french-baseline D6). The packs loaded
 /// beside it are always built from the committed tables. `french.rs` (`french_baseline.rs`)
-/// freezes a pair that does not ship yet, over a fixture, until its tables are committed.
+/// froze a pair that did not ship yet, over a fixture, until its tables were committed;
+/// `italian.rs` (`italian_baseline.rs`) does the same for it-fr (add-lingua-italian-baseline D6).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PackSource {
     /// The committed tables: `tables/<studied>/` and `tables/<pair>/`, as the extension ships.

@@ -29,12 +29,17 @@
 //!   their glosses French, written exactly as builds wrote it before the profile
 //!   was stored, so a build released before version 2 keeps reading an English
 //!   reader's backup;
-//! - version 3 is a state that names French as a studied language, in its
-//!   profile or in any per-language record (add-lingua-french-baseline D7). A
-//!   build released with version 2 reads the version first, so it refuses such a
+//! - version 4 is a state that names Italian as a studied language, in its
+//!   profile or in any per-language record (add-lingua-italian-baseline D7). A
+//!   build released with version 3 reads the version first, so it refuses such a
 //!   file as unsupported, by name, never as malformed;
+//! - version 3 is a state that names French as a studied language, in its
+//!   profile or in any per-language record, and Italian nowhere
+//!   (add-lingua-french-baseline D7). A build released with version 2 reads the
+//!   version first, so it refuses such a file as unsupported, by name, never as
+//!   malformed. Its files do not move when version 4 exists;
 //! - version 2 is any other state: a reader of Spanish, or a native language
-//!   other than French. Their files do not move when version 3 exists.
+//!   other than French. Their files do not move when version 3 or 4 exists.
 //!
 //! A French native language alone never raises the version: every installed
 //! reader has it.
@@ -54,7 +59,7 @@ use super::review::Deck;
 
 /// The newest backup schema version this build reads and writes. A restore
 /// reads every version from 1 up to it, and refuses any other.
-pub const BACKUP_SCHEMA_VERSION: u32 = 3;
+pub const BACKUP_SCHEMA_VERSION: u32 = 4;
 
 /// The complete local state of the product.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -142,19 +147,26 @@ impl LinguaState {
         serde_json::to_string_pretty(&written).expect("LinguaState is always serialisable")
     }
 
-    /// The schema version a backup of this state is written in: 3 when French
+    /// The schema version a backup of this state is written in: 4 when Italian
     /// is among the profile's studied languages or among the languages the
-    /// knowledge, exposure or deck records hold; else 1 while the profile is the
-    /// default, every record is English and every gloss is French; else 2. A
-    /// build released before version 2 cannot read another language; a gloss in
-    /// another language is one more record of it (add-lingua-card-gloss-language
-    /// D1), so a version 1 file never carries a gloss language. A build released
-    /// before version 3 cannot read French, and refuses the version it is written
-    /// in before reading a record (add-lingua-french-baseline D7).
+    /// knowledge, exposure or deck records hold; else 3 when French is; else 1
+    /// while the profile is the default, every record is English and every gloss
+    /// is French; else 2. A build released before version 2 cannot read another
+    /// language; a gloss in another language is one more record of it
+    /// (add-lingua-card-gloss-language D1), so a version 1 file never carries a
+    /// gloss language. A build released before version 3 cannot read French, nor
+    /// one released before version 4 Italian, and each refuses the version it is
+    /// written in before reading a record (add-lingua-french-baseline D7,
+    /// add-lingua-italian-baseline D7).
     pub fn backup_version(&self) -> u32 {
         let records = self.record_languages();
-        let french = StudiedLanguage::French;
-        if self.profile.studied_languages.contains(&french) || records.contains(&french) {
+        let names = |language: StudiedLanguage| {
+            self.profile.studied_languages.contains(&language) || records.contains(&language)
+        };
+        if names(StudiedLanguage::Italian) {
+            return 4;
+        }
+        if names(StudiedLanguage::French) {
             return 3;
         }
         let english_only = self.profile.is_default()
@@ -334,13 +346,13 @@ mod tests {
         assert!(matches!(
             err,
             RestoreError::UnsupportedVersion {
-                found: 4,
-                supported: 3
+                found: 5,
+                supported: 4
             }
         ));
         assert_eq!(
             err.to_string(),
-            "backup schema v4 is not supported (this build reads v1 to v3)"
+            "backup schema v5 is not supported (this build reads v1 to v4)"
         );
         let none = with_version(&LinguaState::default().to_backup(), 0);
         assert!(matches!(
@@ -353,12 +365,12 @@ mod tests {
     fn the_version_is_read_before_the_records() {
         // A later version is refused as such even when its records would not
         // parse here: it is never reported as malformed.
-        let future = r#"{"schema_version": 4, "knowledge": {"statuses": {"Klingon": {}}}}"#;
+        let future = r#"{"schema_version": 5, "knowledge": {"statuses": {"Klingon": {}}}}"#;
         assert!(matches!(
             LinguaState::from_backup(future),
             Err(RestoreError::UnsupportedVersion {
-                found: 4,
-                supported: 3
+                found: 5,
+                supported: 4
             })
         ));
     }
@@ -846,7 +858,8 @@ mod tests {
             err.to_string(),
             "backup schema v3 is not supported (this build reads v1 to v2)"
         );
-        // This build reads all three versions.
+        // This build reads every version, from 1 to 4.
+        assert_eq!(BACKUP_SCHEMA_VERSION, 4);
         for version in 1..=BACKUP_SCHEMA_VERSION {
             let file = with_version(&LinguaState::default().to_backup(), version);
             assert!(LinguaState::from_backup(&file).is_ok(), "version {version}");
@@ -907,6 +920,161 @@ mod tests {
         let read: OlderState = serde_json::from_str(&backup).expect("a previous build reads it");
         assert!(read.deck.cards[&EN].contains_key("card three"));
         assert_eq!(read.deck.cards[&EN].len(), 20);
+    }
+
+    const IT: StudiedLanguage = StudiedLanguage::Italian;
+
+    /// An Italian card, its gloss written in French: the it-fr reader's.
+    fn uomo() -> Card {
+        Card::new(
+            "uomo",
+            "l'uomo",
+            Provenance {
+                sentence: "L'uomo guardava il mare.".to_owned(),
+                source: EncounterSource::Web {
+                    url: "https://example.it".to_owned(),
+                },
+                captured_at: 1,
+            },
+            Some("homme".to_owned()),
+            "fr",
+        )
+    }
+
+    #[test]
+    fn spec_scenario_an_italian_reader_s_backup() {
+        // lingua-decks-review: Italian studied with French native, backed up and restored.
+        let mut state = LinguaState::default();
+        state
+            .profile
+            .set(NativeLanguage::French, vec![IT])
+            .expect("Italian for a French reader");
+        assert_eq!(state.backup_version(), 4, "Italian in the profile alone");
+        let backup = state.to_backup();
+        assert!(
+            backup.starts_with("{\n  \"schema_version\": 4,"),
+            "{backup}"
+        );
+        assert!(
+            backup.contains("\"studied_languages\": [\n      \"Italian\"\n    ]"),
+            "{backup}"
+        );
+        let restored = LinguaState::from_backup(&backup).expect("restore");
+        assert_eq!(
+            restored.profile,
+            Profile::studying(NativeLanguage::French, IT)
+        );
+        assert_eq!(restored, state, "a version 4 round trip is lossless");
+        // Beside French: still version 4.
+        state
+            .profile
+            .set(NativeLanguage::English, vec![FR, IT])
+            .expect("French and Italian for an English reader");
+        assert_eq!(state.backup_version(), 4);
+    }
+
+    #[test]
+    fn spec_scenario_italian_in_the_records_only() {
+        // Under the default profile, English studied with French native, any Italian record
+        // raises the backup to version 4: a card, a card's removal, a status, an exposure
+        // counter, a calibration.
+        let mut deck = LinguaState::default();
+        deck.deck.upsert(IT, uomo());
+        let mut removal = LinguaState::default();
+        assert!(removal.deck.apply_card_removal_lww(IT, "uomo", 1));
+        assert_eq!(removal.deck.len(), 0, "a removal alone, no card");
+        let mut statuses = LinguaState::default();
+        statuses.knowledge.set_status(IT, "uomo", Status::Learning);
+        let mut exposure = LinguaState::default();
+        exposure.exposure.record(IT, "mare", 1, "web", 1);
+        let mut calibration = LinguaState::default();
+        calibration.knowledge.set_calibration(IT, 100);
+        // And under a French reader's profile, whose backup was version 3.
+        let mut french = spanish_for_english();
+        french.knowledge.set_status(FR, "homme", Status::Learning);
+        assert_eq!(french.backup_version(), 3);
+        french.deck.upsert(IT, uomo());
+        for state in [deck, removal, statuses, exposure, calibration, french] {
+            assert_eq!(state.backup_version(), 4);
+            let backup = state.to_backup();
+            assert!(backup.starts_with("{\n  \"schema_version\": 4,"));
+            let restored = LinguaState::from_backup(&backup).expect("restore");
+            assert_eq!(restored, state, "a version 4 round trip is lossless");
+            assert_eq!(restored.backup_version(), 4);
+        }
+    }
+
+    #[test]
+    fn spec_scenario_a_french_reader_s_backup_does_not_move() {
+        // A reader of French, of Spanish or of English keeps the version they have, and its bytes:
+        // the trigger names Italian alone. `tests/backup_format.rs` pins the files themselves.
+        let mut french = LinguaState::default();
+        french
+            .profile
+            .set(NativeLanguage::English, vec![FR])
+            .expect("French for an English reader");
+        french.deck.upsert(FR, homme());
+        assert_eq!(french.backup_version(), 3);
+        assert!(
+            french
+                .to_backup()
+                .starts_with("{\n  \"schema_version\": 3,")
+        );
+        assert!(!french.to_backup().contains("Italian"));
+        assert_eq!(spanish_for_english().backup_version(), 2);
+        assert_eq!(populated_state().backup_version(), 1);
+    }
+
+    #[test]
+    fn spec_scenario_a_build_released_before_version_4() {
+        // lingua-decks-review: a build that reads versions 1 to 3 reads the version first, so a
+        // version 4 backup holding Italian records is refused as unsupported version 4, never as
+        // malformed — although `"Italian"` is a name it could not read. So is one a build reading
+        // versions 1 and 2 opens.
+        let mut state = LinguaState::default();
+        state.deck.upsert(IT, uomo());
+        state.knowledge.set_status(IT, "uomo", Status::Learning);
+        let backup = state.to_backup();
+        let err = read_backup(&backup, 3).unwrap_err();
+        assert!(matches!(
+            err,
+            RestoreError::UnsupportedVersion {
+                found: 4,
+                supported: 3
+            }
+        ));
+        assert_eq!(
+            err.to_string(),
+            "backup schema v4 is not supported (this build reads v1 to v3)"
+        );
+        assert!(matches!(
+            read_backup(&backup, 2),
+            Err(RestoreError::UnsupportedVersion {
+                found: 4,
+                supported: 2
+            })
+        ));
+        // This build reads it.
+        assert_eq!(LinguaState::from_backup(&backup).expect("restore"), state);
+    }
+
+    #[test]
+    fn a_committed_version_4_file_is_refused_by_a_build_reading_version_3() {
+        // The file this build writes for a reader with Italian records, pinned by
+        // tests/backup_format.rs: a build that reads versions 1 to 3 refuses it by its version,
+        // and this build restores it.
+        let file = include_str!("../../tests/fixtures/backup-v4-italian.json");
+        assert!(file.contains("\"Italian\": {"), "Italian records");
+        assert!(matches!(
+            read_backup(file, 3),
+            Err(RestoreError::UnsupportedVersion {
+                found: 4,
+                supported: 3
+            })
+        ));
+        let restored = LinguaState::from_backup(file).expect("restore");
+        assert_eq!(restored.backup_version(), 4);
+        assert_eq!(restored.to_backup(), file, "written back byte for byte");
     }
 
     #[test]

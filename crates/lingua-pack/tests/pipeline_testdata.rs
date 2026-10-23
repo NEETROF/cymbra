@@ -22,7 +22,7 @@ use std::path::PathBuf;
 
 use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::analysis::lexicon::Lexicon;
-use lingua_core::analysis::{ANALYZER_VERSION, FRENCH_ANALYZER_VERSION};
+use lingua_core::analysis::{ANALYZER_VERSION, FRENCH_ANALYZER_VERSION, ITALIAN_ANALYZER_VERSION};
 use lingua_core::knowledge::state::FrequencyRanks;
 use lingua_core::packs::Pack;
 use lingua_core::packs::format::read_container;
@@ -71,9 +71,10 @@ fn pipeline_output_round_trips_through_the_reader() {
 #[test]
 fn every_testdata_fixture_builds_and_names_its_pair() {
     // The tiny fixtures, one folder per pair (`build.sh --testdata`): es-fr's, and es-en's
-    // (add-lingua-pack-es-en D6), which `gen:pack` builds once the pair ships, and fr-en's, the
-    // French baseline's (add-lingua-french-baseline D5). Each builds under budget and names its
-    // pair; each studies with its own language's analyser.
+    // (add-lingua-pack-es-en D6), which `gen:pack` builds once the pair ships, fr-en's, the
+    // French baseline's (add-lingua-french-baseline D5), and it-fr's, the Italian baseline's
+    // (add-lingua-italian-baseline D5). Each builds under budget and names its pair; each studies
+    // with its own language's analyser.
     let root = testdata_dir().parent().unwrap().to_path_buf();
     let mut pairs: Vec<String> = std::fs::read_dir(&root)
         .unwrap()
@@ -132,6 +133,43 @@ fn the_french_fixture_studies_french_at_its_analyser_version() {
     }
     assert_eq!(pack.lexicon().lemma_of("est"), Some("être"));
     assert_eq!(pack.gloss("maison"), Some("house, home"));
+    assert!(pack.notice().contains("hand-written"));
+}
+
+#[test]
+fn the_italian_fixture_studies_italian_at_its_analyser_version() {
+    // add-lingua-italian-baseline D5: hand-written tables, stamped with Italian's analyser version
+    // as committed (not re-stamped here), glossed in French, no grammar and no senses, its pool
+    // pinned to one tag (`NOUN`, ship-lingua-pack-bases-once's convention for a fixture without
+    // grammar). An Italian rule that bumps the version bumps the committed manifest with it.
+    let dir = testdata_dir().parent().unwrap().join("it-fr");
+    let inputs = inputs_from_dir(&dir).expect("read the it-fr fixture");
+    assert!(inputs.readings.is_empty() && inputs.senses.is_empty());
+    assert!(
+        !inputs.meta.levels_estimated,
+        "a fixture's levels decide nothing"
+    );
+    assert!(inputs.meta.pack_version.contains("fixture"));
+    assert_eq!(inputs.tag_pool.as_deref(), Some(&["NOUN".to_owned()][..]));
+    let bytes = build_pack(&inputs).expect("build");
+    assert!(bytes.len() < MAX_PACK_BYTES);
+    let pack = Pack::load(&bytes).expect("the core loads it at Italian's version");
+    assert_eq!(pack.studied(), StudiedLanguage::Italian);
+    assert_eq!(pack.meta().analyzer_version, ITALIAN_ANALYZER_VERSION);
+    assert_eq!(pack.meta().pair_key(), "it-fr");
+    // The single-letter words the tokeniser keeps only when the lexicon lists them.
+    for single in ["a", "e", "è", "o", "i"] {
+        assert!(pack.lexicon().contains(single), "{single:?}");
+    }
+    assert_eq!(pack.lexicon().lemma_of("è"), Some("essere"));
+    assert_eq!(pack.gloss("città"), Some("ville"));
+    // Its expressions are keyed by their words' lemmas, as Italian is read today.
+    assert_eq!(pack.expression("ad alto voce"), Some("à voix haute"));
+    assert_eq!(pack.expression("a causa di"), Some("à cause de"));
+    // No word the baseline keeps whole is listed: it shows as the baseline reads it.
+    for whole in ["l'uomo", "dell'acqua", "del", "nel", "dirmelo"] {
+        assert!(!pack.lexicon().contains(whole), "{whole:?}");
+    }
     assert!(pack.notice().contains("hand-written"));
 }
 
@@ -374,7 +412,8 @@ fn the_fixtures_build_whole_as_recorded_and_split_by_their_pin() {
     // fixture without `tags.tsv` is refused, naming it; one with a pin splits into parts that
     // assemble into its whole pack. ship-lingua-pack-bases-once D6 pins the six fixtures: the four
     // English and Spanish ones keep their bytes, the two French ones gain the `tags` section of
-    // their one-tag pin (`NOUN`), 13 bytes each.
+    // their one-tag pin (`NOUN`), 13 bytes each. add-lingua-italian-baseline D5 adds it-fr's, born
+    // with its one-tag pin.
     let root = testdata_dir().parent().unwrap().to_path_buf();
     for (pair, size, sha256) in [
         (
@@ -406,6 +445,11 @@ fn the_fixtures_build_whole_as_recorded_and_split_by_their_pin() {
             "fr-es",
             5744,
             "e3595d5cc8329db208210446d57a6a49e750b778d2da7a8c75079ea20f8a53f4",
+        ),
+        (
+            "it-fr",
+            4956,
+            "303fd2c0ba106e7dfd6e352ee2e84ea1d9581c39fc9908e70560b23b463d5ca0",
         ),
     ] {
         let inputs = inputs_from_dir(&root.join(pair)).unwrap_or_else(|e| panic!("{pair}: {e}"));

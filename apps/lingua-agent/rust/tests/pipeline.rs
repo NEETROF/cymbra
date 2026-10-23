@@ -571,9 +571,10 @@ fn spec_scenario_a_card_created_on_an_engine_glossed_in_english() {
 
 #[test]
 fn every_studied_language_has_a_name_in_the_plugin_s_copy() {
-    // add-lingua-french-baseline D8: French is named, though no French pack is published.
+    // add-lingua-french-baseline D8: French is named, though no French pack is published;
+    // add-lingua-italian-baseline D8: Italian too, though no Italian pack exists.
     assert_eq!(
         StudiedLanguage::ALL.map(language_name),
-        ["Anglais", "Espagnol", "Français"]
+        ["Anglais", "Espagnol", "Français", "Italien"]
     );
 }

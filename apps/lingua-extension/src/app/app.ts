@@ -1,5 +1,5 @@
 import { type GlueLoader, WasmAnalyzerPort, type WasmModule } from "../analyzer/engine.ts";
-import { pairOf, SHIPPED_PAIRS } from "../analyzer/pairs.ts";
+import { SHIPPED_PAIRS } from "../analyzer/pairs.ts";
 import { fillPage, setDocumentLanguage } from "../i18n/index.ts";
 import { type Clients, createClients, createTransport, setTokenRefresher } from "../net/transport.ts";
 import { mountReview, type ReviewPage } from "../review/review-page.ts";
@@ -23,7 +23,7 @@ import { webkitSend } from "./bridge.ts";
 import { type EmailPanel, emailPanel, reloadsOnForeground } from "./email-panel.ts";
 import { type AppDeckSync, appDeckSync } from "./deck-sync.ts";
 import { openAppSession } from "./session.ts";
-import { type AppTranslation, openAppTranslation } from "./translation.ts";
+import { type AppTranslation, appPairs, openAppTranslation } from "./translation.ts";
 import {
   appCopy,
   renderAccountLine,
@@ -117,10 +117,9 @@ async function main(): Promise<void> {
   const offerActions = { accept: () => translation?.accept(), decline: () => translation?.decline() };
   translation = await openAppTranslation({
     enabled: parseHost(chosen[TRANSLATION_HOST_KEY]) === "local",
-    pairs: async () => {
-      const native = await port.nativeLanguage();
-      return (await port.studiedLanguages()).map((studied) => pairOf(studied, native));
-    },
+    // The listed pairs of the reader's native language, never studied × native: an Italian pair is
+    // routed before any ships, and its models must not be fetched (add-lingua-italian-baseline 7.1).
+    pairs: () => appPairs(port),
     native: () => port.nativeLanguage(),
     catalogue: () => loadBundledCatalogue(),
     db: modelDb(),

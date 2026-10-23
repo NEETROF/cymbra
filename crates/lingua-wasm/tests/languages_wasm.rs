@@ -342,3 +342,24 @@ fn spec_scenario_an_assembly_error_reaches_javascript_by_name() {
     assert!(engine.add_parts(&base, &layer).is_err());
     assert_eq!(engine.languages(), r#"["en"]"#);
 }
+
+#[wasm_bindgen_test]
+fn spec_scenario_an_italian_pack_of_another_native_language_is_refused() {
+    // add-lingua-italian-baseline D3: an `it` pack glossed in English is refused by an engine
+    // glossed in French, as any other native language's; glossed in French, it is added.
+    let mut engine = LinguaEngine::new(PACK).unwrap();
+    let Err(refused) = engine.add_pack(&rewritten(StudiedLanguage::Italian, "en")) else {
+        panic!("an Italian pack glossed in English was added to an engine serving French");
+    };
+    let said = message(refused);
+    assert!(said.contains("\"fr\"") && said.contains("\"en\""), "{said}");
+    assert_eq!(engine.languages(), r#"["en"]"#, "the packs held stay");
+    assert_eq!(
+        engine
+            .add_pack(&rewritten(StudiedLanguage::Italian, "fr"))
+            .unwrap(),
+        "it"
+    );
+    // Glossed in Italian, which the core does not know as a native language, it never loads.
+    assert!(LinguaEngine::new(&rewritten(StudiedLanguage::Italian, "it")).is_err());
+}

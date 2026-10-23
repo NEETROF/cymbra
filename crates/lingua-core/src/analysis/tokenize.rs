@@ -134,9 +134,11 @@ const IRREGULAR_CONTRACTIONS: &[(&str, &str)] = &[
 /// French takes an arm of its own (add-lingua-french-tokenisation): its words
 /// are cut at U+202F, then read in NFC (add-lingua-french-analysis) by
 /// `push_french_word` and `push_french_run` — elisions, `au`/`aux`, hyphenated
-/// inversions. All share the rules that belong to no language: segmentation,
-/// the hyphen run, the compound rule, the digit drop, the edge-apostrophe trim
-/// and the single-letter rule.
+/// inversions. Italian has no pre-pass of its own while the baseline serves it
+/// (add-lingua-italian-baseline D2): its text is read as it came, `l'uomo`,
+/// `dell'acqua`, `del` and `dirmelo` whole. All share the rules that belong to
+/// no language: segmentation, the hyphen run, the compound rule, the digit drop,
+/// the edge-apostrophe trim and the single-letter rule.
 pub fn tokenize(
     text: &str,
     language: StudiedLanguage,
@@ -144,7 +146,7 @@ pub fn tokenize(
 ) -> Vec<Token> {
     let words: Vec<(usize, &str)> = match language {
         StudiedLanguage::French => french_words(text),
-        StudiedLanguage::English | StudiedLanguage::Spanish => {
+        StudiedLanguage::English | StudiedLanguage::Spanish | StudiedLanguage::Italian => {
             text.unicode_word_indices().collect()
         }
     };
@@ -261,10 +263,11 @@ fn push_word(
 /// The word in NFC for Spanish and French, so a decomposed accent reads as the
 /// pack's precomposed one (add-lingua-spanish-analysis D1,
 /// add-lingua-french-analysis D1); English text as it came — its output must not
-/// move.
+/// move —, and Italian's while the baseline serves it (add-lingua-italian-baseline
+/// D2): NFC is a rule of its own analysis.
 fn nfc_for(word: &str, language: StudiedLanguage) -> String {
     match language {
-        StudiedLanguage::English => word.to_owned(),
+        StudiedLanguage::English | StudiedLanguage::Italian => word.to_owned(),
         StudiedLanguage::Spanish | StudiedLanguage::French => word.nfc().collect(),
     }
 }
@@ -316,7 +319,10 @@ fn push_compound(
 /// `al`/`del` (add-lingua-spanish-analysis D1). French has none here: its
 /// `au`/`aux` and its elisions are read by its own pre-pass
 /// ([`push_french_word`], add-lingua-french-tokenisation D3–D4), whose casing
-/// takes a two-byte `à`; `du` and `des` stay whole (M21).
+/// takes a two-byte `à`; `du` and `des` stay whole (M21). Italian has none while
+/// the baseline serves it (add-lingua-italian-baseline D2): `del`, `nel`, `al`
+/// and `col` stay whole, and neither English's `n't` nor Spanish's `al`/`del`
+/// ever runs on it.
 fn split_contraction(lower: &str, language: StudiedLanguage) -> Option<(&str, &'static str)> {
     match language {
         StudiedLanguage::English => split_english_contraction(lower),
@@ -325,7 +331,7 @@ fn split_contraction(lower: &str, language: StudiedLanguage) -> Option<(&str, &'
             "del" => Some(("de", "el")),
             _ => None,
         },
-        StudiedLanguage::French => None,
+        StudiedLanguage::French | StudiedLanguage::Italian => None,
     }
 }
 
@@ -755,6 +761,74 @@ mod tests {
         assert_eq!(
             texts(&tokenize("al del", StudiedLanguage::English, &lex)),
             ["al", "del"]
+        );
+    }
+
+    const IT: StudiedLanguage = StudiedLanguage::Italian;
+
+    #[test]
+    fn spec_scenario_italian_is_read_as_it_came() {
+        // add-lingua-italian-baseline D2: no elision, articulated preposition or enclitic split,
+        // no contraction of another language. Each word is one token, its text the written word
+        // (the typographic apostrophe read as the straight one, as in every language).
+        let lex = lexicon();
+        let text = "l'uomo un'amica dell'acqua c'è dirmelo del nel al dal sul col";
+        let tokens = tokenize(text, IT, &lex);
+        assert_eq!(
+            texts(&tokens),
+            [
+                "l'uomo",
+                "un'amica",
+                "dell'acqua",
+                "c'è",
+                "dirmelo",
+                "del",
+                "nel",
+                "al",
+                "dal",
+                "sul",
+                "col"
+            ]
+        );
+        assert!(tokens.iter().all(|t| t.parts.is_empty()));
+        assert_eq!((tokens[0].start, tokens[0].end), (0, 6));
+        assert_eq!(
+            texts(&tokenize("L’uomo dell’acqua", IT, &lex)),
+            ["L'uomo", "dell'acqua"]
+        );
+        // English's contractions and French's elisions are read as they came too.
+        assert_eq!(
+            texts(&tokenize("don't l'homme", IT, &lex)),
+            ["don't", "l'homme"]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_truncation_loses_its_edge_apostrophe() {
+        // The edge-apostrophe trim belongs to no language: `po'` is `po`, as `sailors'` is
+        // `sailors`; the inner apostrophe of `c'è` is kept.
+        let lex = lexicon();
+        let tokens = tokenize("un po' di pane, fa' presto", IT, &lex);
+        assert_eq!(texts(&tokens), ["un", "po", "di", "pane", "fa", "presto"]);
+        assert_eq!(
+            texts(&tokenize("sailors' po’", StudiedLanguage::English, &lex)),
+            texts(&tokenize("sailors' po’", IT, &lex))
+        );
+    }
+
+    #[test]
+    fn italian_is_not_normalised_and_shares_the_rules_of_no_language() {
+        let lex = lexicon();
+        // `città` written as `citta` + U+0300 COMBINING GRAVE ACCENT stays decomposed.
+        let text = "citta\u{0300} perche\u{0301}";
+        assert_eq!(
+            texts(&tokenize(text, IT, &lex)),
+            ["citta\u{0300}", "perche\u{0301}"]
+        );
+        let text = "x-ray abc123 'team' a b well-being-2 code";
+        assert_eq!(
+            texts(&tokenize(text, IT, &lex)),
+            texts(&tokenize(text, StudiedLanguage::English, &lex))
         );
     }
 

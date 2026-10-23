@@ -139,6 +139,10 @@ fn fresh_state(packs: &PackSet) -> LinguaState {
 /// named by, the key's own where none is (D5): the card `hace tiempo` shows `hace tiempo`'s gloss,
 /// not that of `hacer tiempo`, which wins the key. A card whose lemma is itself a key — the
 /// winner's name (`hacer tiempo`), a lemma chain (`bueno día`) — is read there, as before.
+///
+/// An Italian expression card is read at its lemma, as an English one is, while the baseline
+/// serves Italian (add-lingua-italian-baseline D2): its key is its words' lemmas, and its pack
+/// carries no expression names.
 fn readable_gloss(pack: Option<&Pack>, card: &Card) -> Option<String> {
     pack.and_then(|pack| pack_gloss(pack, &card.lemma))
         .or_else(|| card.gloss.clone())
@@ -165,7 +169,7 @@ fn pack_gloss(pack: &Pack, lemma: &str) -> Option<String> {
                 reading_expression_key(lemma, StudiedLanguage::Spanish, pack.lexicon())
                     .and_then(|key| pack.expression_gloss_named(&key, lemma))
             }),
-            StudiedLanguage::English => pack.expression(lemma),
+            StudiedLanguage::English | StudiedLanguage::Italian => pack.expression(lemma),
         }
     };
     gloss.map(str::to_owned)

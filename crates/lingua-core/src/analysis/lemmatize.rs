@@ -154,7 +154,8 @@ const IRREGULARS: &[(&str, &str)] = &[
 /// rule, which would read `has` (of *haber*) as `have`. French runs its own
 /// (add-lingua-french-analysis, [`super::french`]): the pack's forms, an
 /// unlisted lowercase plural whose singular the pack does not hold either, the
-/// form — never an English or a Spanish rule.
+/// form — never an English or a Spanish rule. Italian, until its own cascade
+/// lands, is the baseline ([`lemmatize_baseline`], add-lingua-italian-baseline D2).
 pub fn lemmatize(
     form: &str,
     studied: StudiedLanguage,
@@ -164,6 +165,28 @@ pub fn lemmatize(
         StudiedLanguage::English => lemmatize_english(form, lexicon),
         StudiedLanguage::Spanish => super::spanish::lemmatize(form, lexicon),
         StudiedLanguage::French => super::french::lemmatize(form, lexicon),
+        StudiedLanguage::Italian => lemmatize_baseline(form, lexicon),
+    }
+}
+
+/// The baseline lemmatisation of a language whose rules are not written: the
+/// pack's lemma for the lowercased form, else the lowercased form itself
+/// (add-lingua-italian-baseline D2, as add-lingua-french-baseline D3 wrote it for
+/// French before French's cascade replaced it).
+///
+/// What it lacks, on purpose (spec `lingua-analysis`, *Italian is a studied
+/// language served by the baseline analysis*): no exception table (`as`, `has`
+/// stay themselves where English's irregulars would read `be` or `have`), no
+/// morphological rule (no plural fallback, so `mes` is never `me`), no accent
+/// retry (a form with an acute accent is never looked up without it, as Spanish's
+/// old spellings are: `dió` stays `dió`), no enclitic split (`dirmelo` stays
+/// `dirmelo`), no Unicode normalisation. Each is a rule of a language's own, which
+/// its analyser version bumps when it lands.
+fn lemmatize_baseline(form: &str, lexicon: &(impl Lexicon + ?Sized)) -> String {
+    let lower = form.replace('\u{2019}', "'").to_lowercase();
+    match lexicon.lemma_of(&lower) {
+        Some(lemma) => lemma.to_owned(),
+        None => lower,
     }
 }
 
@@ -384,6 +407,50 @@ mod tests {
         assert_eq!(lemmatize("L\u{2019}homme", FR, &lex), "l'homme");
         // Unlisted in lowercase, a plural reaches its singular (add-lingua-french-analysis D2).
         assert_eq!(lemmatize("maisons", FR, &lex), "maison");
+    }
+
+    #[test]
+    fn spec_scenario_no_rule_of_another_language_runs_on_italian() {
+        // add-lingua-italian-baseline D2: English's cascade reads `has` as `have`; Spanish's
+        // reads `dió` as `dio` (its old spellings: no acute accent retried here); French's reads
+        // an unlisted lowercase plural as its singular. The baseline gives each back as itself
+        // when the pack does not list it.
+        const IT: StudiedLanguage = StudiedLanguage::Italian;
+        let (bytes, pool) = build_lexicon_blobs(
+            &[],
+            &["a", "be", "have", "dio", "dar", "être", "dire", "me"],
+        )
+        .expect("build");
+        let lex = FstLexicon::from_slices(bytes, &pool).expect("load");
+        for form in [
+            "as", "has", "dió", "été", "dámelo", "dirmelo", "maisons", "mes",
+        ] {
+            assert_eq!(lemmatize(form, IT, &lex), form, "{form:?}");
+        }
+        assert_eq!(lemmatize("has", StudiedLanguage::English, &lex), "have");
+        assert_eq!(lemmatize("dió", StudiedLanguage::Spanish, &lex), "dio");
+        assert_eq!(
+            lemmatize("maisons", StudiedLanguage::French, &lex),
+            "maison"
+        );
+    }
+
+    #[test]
+    fn italian_takes_the_lemma_its_pack_lists_else_the_lowercased_form() {
+        const IT: StudiedLanguage = StudiedLanguage::Italian;
+        let (bytes, pool) = build_lexicon_blobs(
+            &[("è", "essere"), ("uomini", "uomo"), ("l'uomo", "uomo")],
+            &["essere", "uomo"],
+        )
+        .expect("build");
+        let lex = FstLexicon::from_slices(bytes, &pool).expect("load");
+        assert_eq!(lemmatize("È", IT, &lex), "essere");
+        assert_eq!(lemmatize("Uomini", IT, &lex), "uomo");
+        // The typographic apostrophe reads as the straight one, as the tokeniser gives it.
+        assert_eq!(lemmatize("L\u{2019}uomo", IT, &lex), "uomo");
+        // Unlisted, the form itself, lowercased: no plural rule reads `donne` as `donna`.
+        assert_eq!(lemmatize("Donne", IT, &lex), "donne");
+        assert_eq!(lemmatize("dell\u{2019}acqua", IT, &lex), "dell'acqua");
     }
 
     #[test]

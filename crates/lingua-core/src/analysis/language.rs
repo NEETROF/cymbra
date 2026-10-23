@@ -47,23 +47,30 @@ pub enum StudiedLanguage {
     /// add-lingua-french-analysis: its tokenisation pre-pass, NFC, its cascade,
     /// its closed classes and its names rule — nothing of English's or Spanish's.
     French,
+    /// Italian (add-lingua-italian-baseline), served by the baseline analysis until
+    /// its own rules are written: the rules that belong to no language and the
+    /// pack's forms, nothing of English's, Spanish's or French's
+    /// ([`crate::analysis::ITALIAN_ANALYZER_VERSION`]).
+    Italian,
 }
 
 impl StudiedLanguage {
     /// Every language the core can analyse, in declaration order.
-    pub const ALL: [StudiedLanguage; 3] = [
+    pub const ALL: [StudiedLanguage; 4] = [
         StudiedLanguage::English,
         StudiedLanguage::Spanish,
         StudiedLanguage::French,
+        StudiedLanguage::Italian,
     ];
 
-    /// ISO 639-1 tag: `en`, `es`, `fr`. The form packs (`meta.studied`), the
-    /// wire and the extension use.
+    /// ISO 639-1 tag: `en`, `es`, `fr`, `it`. The form packs (`meta.studied`),
+    /// the wire and the extension use.
     pub fn tag(self) -> &'static str {
         match self {
             StudiedLanguage::English => "en",
             StudiedLanguage::Spanish => "es",
             StudiedLanguage::French => "fr",
+            StudiedLanguage::Italian => "it",
         }
     }
 
@@ -82,6 +89,7 @@ impl StudiedLanguage {
             StudiedLanguage::English => crate::analysis::ANALYZER_VERSION,
             StudiedLanguage::Spanish => crate::analysis::SPANISH_ANALYZER_VERSION,
             StudiedLanguage::French => crate::analysis::FRENCH_ANALYZER_VERSION,
+            StudiedLanguage::Italian => crate::analysis::ITALIAN_ANALYZER_VERSION,
         }
     }
 
@@ -90,6 +98,7 @@ impl StudiedLanguage {
             StudiedLanguage::English => whichlang::Lang::Eng,
             StudiedLanguage::Spanish => whichlang::Lang::Spa,
             StudiedLanguage::French => whichlang::Lang::Fra,
+            StudiedLanguage::Italian => whichlang::Lang::Ita,
         }
     }
 }
@@ -123,9 +132,11 @@ pub fn block_is_studied(text: &str, studied: StudiedLanguage) -> bool {
 /// no class for Catalan, Galician, Occitan or Romanian and reads many of their blocks as Spanish
 /// or French: Spanish's guard refuses Catalan and Galician (add-lingua-spanish-detection-guard)
 /// and Occitan (add-lingua-spanish-occitan-guard), French's Catalan, Occitan and Romanian;
-/// English has none. A guard runs only for the language it protects, and only when that
-/// language is asked about: a reader of English pays for neither, a reader of Spanish for
-/// Spanish's alone. `None` when whichlang finds none of
+/// English has none, and neither has Italian while the baseline serves it
+/// (add-lingua-italian-baseline D2): whichlang reads Catalan and Galician blocks as Italian, and a
+/// learner of Italian counts them until Italian's guard is written. A guard runs only for the
+/// language it protects, and only when that language is asked about: a reader of English pays
+/// for neither, a reader of Spanish for Spanish's alone. `None` when whichlang finds none of
 /// `languages`, or the guard refuses the block, which is then excluded as any other language's
 /// is. The gate and the vote both ask here, so they never disagree. Both hand it the block
 /// without its soft hyphens (ignore-lingua-soft-hyphens D3): the guards' own word readings
@@ -137,7 +148,7 @@ fn detect(trimmed: &str, languages: &[StudiedLanguage]) -> Option<StudiedLanguag
         .copied()
         .find(|language| language.whichlang_target() == detected)?;
     let neighbour = match language {
-        StudiedLanguage::English => false,
+        StudiedLanguage::English | StudiedLanguage::Italian => false,
         StudiedLanguage::Spanish => iberian_neighbour(trimmed),
         StudiedLanguage::French => romance_neighbour(trimmed),
     };
@@ -722,6 +733,7 @@ mod tests {
     const EN: StudiedLanguage = StudiedLanguage::English;
     const ES: StudiedLanguage = StudiedLanguage::Spanish;
     const FR: StudiedLanguage = StudiedLanguage::French;
+    const IT: StudiedLanguage = StudiedLanguage::Italian;
     const SPANISH: &str =
         "Los equipos nunca entregan el viernes por la noche, es una regla antigua.";
     const ENGLISH: &str =
@@ -814,9 +826,10 @@ mod tests {
         }
         assert_eq!(
             StudiedLanguage::ALL.map(StudiedLanguage::tag),
-            ["en", "es", "fr"]
+            ["en", "es", "fr", "it"]
         );
         assert_eq!(StudiedLanguage::from_tag("fr"), Some(FR));
+        assert_eq!(StudiedLanguage::from_tag("it"), Some(IT));
         assert_eq!(StudiedLanguage::from_tag("pt"), None);
         assert_eq!(
             StudiedLanguage::from_tag("EN"),
@@ -865,9 +878,91 @@ mod tests {
         // serde writes the variants' names, so a state of English or Spanish does not move.
         assert!(EN < ES && ES < FR);
         assert_eq!(
-            StudiedLanguage::ALL.map(|language| serde_json::to_value(language).unwrap()),
+            [EN, ES, FR].map(|language| serde_json::to_value(language).unwrap()),
             ["English", "Spanish", "French"].map(serde_json::Value::from)
         );
+    }
+
+    #[test]
+    fn appending_italian_keeps_the_order_and_every_serialised_name() {
+        // add-lingua-italian-baseline D1: Italian comes after French, so a state of English,
+        // Spanish or French keeps its bytes, and Italian is written under its own name.
+        assert!(EN < ES && ES < FR && FR < IT);
+        assert_eq!(
+            StudiedLanguage::ALL.map(|language| serde_json::to_value(language).unwrap()),
+            ["English", "Spanish", "French", "Italian"].map(serde_json::Value::from)
+        );
+        assert_eq!(
+            serde_json::from_str::<StudiedLanguage>("\"Italian\"").unwrap(),
+            IT
+        );
+    }
+
+    #[test]
+    fn spec_scenario_each_language_reports_its_own_version() {
+        // add-lingua-italian-baseline D1: Italian reads its own constant, a `0.x` version while
+        // the baseline serves it, and the three others keep theirs.
+        assert_eq!(
+            IT.analyzer_version(),
+            crate::analysis::ITALIAN_ANALYZER_VERSION
+        );
+        assert_eq!(IT.analyzer_version(), "0.1.0");
+        assert!(IT.analyzer_version().starts_with("0."));
+        for language in [EN, ES, FR] {
+            assert_ne!(
+                language.analyzer_version(),
+                IT.analyzer_version(),
+                "{language:?}"
+            );
+        }
+    }
+
+    const ITALIAN: &str =
+        "Le squadre non consegnano mai il venerdì sera, perché è una regola molto antica.";
+
+    #[test]
+    fn spec_scenario_an_italian_block_for_a_learner_of_italian_only() {
+        assert_eq!(whichlang::detect_language(ITALIAN), whichlang::Lang::Ita);
+        assert!(block_is_studied(ITALIAN, IT));
+        for other in [EN, ES, FR] {
+            assert!(!block_is_studied(ITALIAN, other), "{other:?}");
+        }
+        // An English, Spanish or French block is excluded for a learner of Italian.
+        for block in [ENGLISH, SPANISH, FRENCH] {
+            assert!(!block_is_studied(block, IT), "{block}");
+        }
+        // The vote names Italian among the candidates a reader of Italian asks for.
+        assert_eq!(
+            detect_document_language(&[ITALIAN, ITALIAN], &[EN, IT], None),
+            Some(IT)
+        );
+        assert_eq!(
+            detect_document_language(&[ITALIAN, SPANISH], &[ES, FR, IT], None),
+            Some(IT)
+        );
+        assert_eq!(
+            detect_document_language(&[SPANISH], &[IT, ES], None),
+            Some(ES)
+        );
+    }
+
+    #[test]
+    fn italian_has_no_guard_while_the_baseline_serves_it() {
+        // add-lingua-italian-baseline D2: whichlang files Catalan and Galician under Italian, and
+        // no guard refuses them for a learner of Italian until change 8 writes Italian's; a
+        // learner of Spanish or French keeps their own guard.
+        let catalan = "El far s'alçava a la vora del penya-segat, i ningú no recordava qui l'havia construït.";
+        for block in [catalan, GALICIAN] {
+            assert_eq!(
+                whichlang::detect_language(block),
+                whichlang::Lang::Ita,
+                "{block}"
+            );
+            assert_eq!(detect(block, &[IT]), Some(IT), "{block}");
+            assert!(block_is_studied(block, IT), "{block}");
+            assert!(!block_is_studied(block, ES), "{block}");
+            assert!(!block_is_studied(block, FR), "{block}");
+        }
     }
 
     const FRENCH: &str =

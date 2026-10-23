@@ -1,7 +1,18 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
-import { APP_MODELS_KEY, type AppModelView, type AppTranslationDeps, openAppTranslation } from "@/app/translation.ts";
+import { SHIPPED_PAIRS, studiedOf } from "@/analyzer/pairs.ts";
+import type { StudiedLanguage } from "@/analyzer/types.ts";
+import {
+  APP_MODELS_KEY,
+  type AppModelView,
+  type AppTranslationDeps,
+  appPairs,
+  openAppTranslation,
+} from "@/app/translation.ts";
 import type { DownloadEvent } from "@/translate/host/downloads.ts";
-import type { ModelCatalogue, ModelManifest } from "@/translate/host/model-manifest.ts";
+import { type ModelCatalogue, type ModelManifest, modelsFor, parseCatalogue } from "@/translate/host/model-manifest.ts";
 
 // « Traduction étendue » in the Cymbra Lingua app (add-lingua-review-translation-fallback D7): the
 // app's own copy of the models, offered once with its size, nothing downloaded before the reader
@@ -208,5 +219,52 @@ describe("the review's hint in the app (add-lingua-review-translation-fallback D
     t.reoffer();
     expect(t.view()).toEqual({ phase: "none" });
     expect(s.downloads).toEqual([]);
+  });
+});
+
+describe("the app's pairs (add-lingua-italian-baseline, task 7.1)", () => {
+  const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+  const committed = parseCatalogue(JSON.parse(readFileSync(join(root, "model-manifest.json"), "utf8")));
+  const IT_EN = "it-en/base-memory/2.0";
+  const EN_IT = "en-it/base-memory/2.1";
+  // A profile as the engine reports it: once the core knows Italian, a backup may name it, whatever
+  // the extension's own type says.
+  const port = (studied: string[], native: string) => ({
+    studiedLanguages: async () => studied as StudiedLanguage[],
+    nativeLanguage: async () => native as "fr" | "en" | "es",
+  });
+
+  it("are the listed pairs of the reader's native language, so over today's shipped list no Italian model is needed", async () => {
+    // The catalogue routes Italian's pairs (italian-translation-models); no listed pair studies Italian.
+    expect(Object.keys(committed.routes)).toEqual(expect.arrayContaining(["it-fr", "it-en", "it-es"]));
+    expect(SHIPPED_PAIRS.some((pair) => studiedOf(pair) === "it")).toBe(false);
+    // Studied × native would have named it-fr, whose route fetches the it-en model.
+    expect(modelsFor(committed, ["it-fr"]).map((m) => m.version)).toContain(IT_EN);
+    for (const native of ["fr", "en", "es"]) {
+      for (const studied of [["it"], ["it", "en"], ["es", "it"], ["en", "es", "fr", "it"]]) {
+        const pairs = await appPairs(port(studied, native));
+        const where = `${native}: ${studied.join(",")}`;
+        expect(
+          pairs.every((pair) => SHIPPED_PAIRS.includes(pair)),
+          where,
+        ).toBe(true);
+        expect(
+          pairs.some((pair) => studiedOf(pair) === "it"),
+          where,
+        ).toBe(false);
+        const needed = modelsFor(committed, pairs).map((m) => m.version);
+        expect(needed, where).not.toContain(IT_EN);
+        expect(needed, where).not.toContain(EN_IT);
+      }
+    }
+    // A reader of English and Spanish keeps the pairs of before; one of Italian alone has none.
+    expect(await appPairs(port(["en", "es"], "fr"))).toEqual(["en-fr", "es-fr"]);
+    expect(await appPairs(port(["it"], "fr"))).toEqual([]);
+  });
+
+  it("offer a reader of Italian and English the English pair's models alone", async () => {
+    const s = setup({ pairs: () => appPairs(port(["it", "en"], "fr")), catalogue: async () => committed });
+    const view = (await openAppTranslation(s.deps)).view();
+    expect(view).toMatchObject({ phase: "offer", pairs: ["en-fr"] });
   });
 });
