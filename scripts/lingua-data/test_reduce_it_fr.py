@@ -20,6 +20,7 @@ import re
 import tarfile
 import tempfile
 import unittest
+from unittest import mock
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _spec = importlib.util.spec_from_file_location("reduce_it_fr", os.path.join(_HERE, "reduce-it-fr.py"))
@@ -760,16 +761,327 @@ class Treebank(unittest.TestCase):
         self.assertEqual(red.MARKIT, ("it_markit-ud-train.conllu", "it_markit-ud-dev.conllu"))
 
 
+def misspelt(word, *targets, pos="adv", tags=("alt-of", "misspelling")):
+    """An entry each sense of which spells one of `targets` (`perchè`: « misspelling of perché »)."""
+    return entry(
+        word,
+        pos=pos,
+        senses=[{"glosses": [f"misspelling of {t}"], "tags": list(tags), "alt_of": [{"word": t}]} for t in targets],
+    )
+
+
+# The dictionary's spellings (read-lingua-italian-unmarked-spellings D2): one entry or more per case.
+SPELLING_ENTRIES = [
+    entry("perché", pos="conj", senses=[{"glosses": ["because, why"]}]),
+    misspelt("perchè", "perché", pos="conj"),
+    misspelt("perchè", "perché", pos="adv"),
+    form_of("perchèe", "perchè", pos="conj"),
+    entry("caffè", senses=[{"glosses": ["coffee"]}]),
+    misspelt("caffé", "caffè", pos="noun"),
+    entry("soprattutto", pos="adv", senses=[{"glosses": ["above all"]}]),
+    misspelt("sopratutto", "soprattutto", tags=("alt-of", "alternative", "proscribed")),
+    # A pointer at one of change 6's pieces is no word of the spelling's: `fà` spells `fa`.
+    entry("fare", pos="verb", forms=[*TABLE_HEAD, ("fà", ["misspelling"]), ("fa", PRESENT_3S)]),
+    form_of("fa", "fare"),
+    misspelt("fà", "fa", "fa'", pos="verb"),
+    # Two words: kept apart.
+    entry("né", pos="conj"),
+    entry("neh", pos="intj"),
+    misspelt("nè", "né", pos="conj"),
+    misspelt("nè", "neh", pos="intj"),
+    # A sense of its own beside the spelling: `e'`, also the apocope of *ei*.
+    entry("è", pos="verb", senses=[{"tags": ["form-of"], "form_of": [{"word": "essere"}]}]),
+    entry("ei", pos="pron"),
+    misspelt("e'", "è", pos="verb"),
+    alt_of("e'", "ei", pos="pron", tags=("abbreviation", "alt-of", "apocopic")),
+    entry("fico", pos="noun", senses=[{"glosses": ["fig"]}]),
+    misspelt("figo", "fico", pos="adj", tags=("alt-of", "alternative")),
+    # The word rarer than the spelling: kept apart.
+    entry("ubbidire", pos="verb"),
+    misspelt("obbedire", "ubbidire", pos="verb", tags=("alt-of", "alternative")),
+    # A form of the spelling as common as its word: kept apart (change 43d's forms guard).
+    entry("altero", pos="adj"),
+    entry("altiero", pos="adj", forms=[("altiera", ["feminine"])], senses=[{"glosses": ["x"], "tags": ["alt-of", "alternative"], "alt_of": [{"word": "altero"}]}]),
+    # A pointer at several words spells no word: a meaning of its own.
+    entry("vabbè", pos="intj", senses=[{"glosses": ["alternative form of va bene"], "tags": ["alt-of", "alternative"], "alt_of": [{"word": "va bene"}]}]),
+    # A spelling whose word is no form: kept apart.
+    misspelt("daccordo", "d'accordo", pos="intj", tags=("alt-of", "alternative")),
+    # A spelling's forms follow it where no other word claims them: `sguardi` stays sguardo's.
+    entry("guardare", pos="verb", forms=[*TABLE_HEAD, ("guàrdi", ["indicative", "present", "second-person", "singular"])]),
+    entry("sguardo", forms=[("sguardi", ["plural"])], senses=[{"glosses": ["look, glance"]}]),
+    entry(
+        "sguardare",
+        pos="verb",
+        forms=[*TABLE_HEAD, ("sguàrdi", ["indicative", "present", "second-person", "singular"]), ("sguardàvo", ["first-person", "imperfect", "indicative", "singular"])],
+        senses=[{"glosses": ["alternative form of guardare"], "tags": ["alt-of", "alternative", "obsolete"], "alt_of": [{"word": "guardare"}]}],
+    ),
+    # A row of a reviewed table is that table's: an apocope, a row of the web's list.
+    misspelt("giu", "giu.", pos="noun", tags=("alt-of", "alternative")),
+    misspelt("bel", "bello", pos="adj", tags=("alt-of", "alternative")),
+]
+SPELLING_FREQUENCY = {
+    "perché": 6.18, "perchè": 5.65, "perchèe": 1.0, "caffè": 4.83, "caffé": 3.40, "soprattutto": 5.43,
+    "sopratutto": 4.21, "fa": 6.09, "fà": 3.72, "fare": 6.15, "né": 5.21, "neh": 3.0, "nè": 4.55, "è": 7.10,
+    "e'": 7.46, "fico": 4.0, "figo": 4.5, "ubbidire": 3.0, "obbedire": 3.2, "altero": 3.0, "altiero": 2.0,
+    "altiera": 3.5, "vabbè": 4.4, "giu": 4.08, "daccordo": 3.5, "bel": 5.15, "bello": 5.3, "guardare": 5.2,
+    "sguardo": 4.4, "sguardi": 3.89, "sguardare": 1.0, "sguardavo": 1.0,
+}
+
+
+def _section_file(folder, entries):
+    path = os.path.join(folder, red.KAIKKI)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("not json\n")
+        for e in entries:
+            f.write(json.dumps(e, ensure_ascii=False) + "\n")
+    return path
+
+
+def _spellings(entries=SPELLING_ENTRIES):
+    kept = {}
+    with tempfile.TemporaryDirectory() as folder:
+        table = red.dictionary_spellings(_section_file(folder, entries), lambda w: SPELLING_FREQUENCY.get(w, 0.0), kept)
+    return table, kept
+
+
+class DictionarySpellings(unittest.TestCase):
+    """read-lingua-italian-unmarked-spellings D2: a spelling the section gives only as a marked word's is
+    a form of it when the word is the commoner."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.table, cls.kept = _spellings()
+
+    def test_spec_scenario_a_dictionary_spelling(self):
+        # Another accent, a letter, no marks condition.
+        self.assertEqual(self.table["perchè"], "perché")
+        self.assertEqual(self.table["caffé"], "caffè")
+        self.assertEqual(self.table["sopratutto"], "soprattutto")
+        # A pointer at a piece is the piece's: `fà` spells `fa`.
+        self.assertEqual(self.table["fà"], "fa")
+        self.assertEqual(
+            self.table,
+            {"perchè": "perché", "caffé": "caffè", "sopratutto": "soprattutto", "fà": "fa", "sguardare": "guardare"},
+        )
+        # Read as a form of its word, nothing of its own; an entry pointing at it follows it.
+        survey = red.Survey()
+        for e in SPELLING_ENTRIES:
+            survey.read(e)
+        lexicon = red.Lexicon(survey, self.table)
+        for e in SPELLING_ENTRIES:
+            lexicon.read(e)
+        self.assertEqual(lexicon.candidates["perchè"], {"perché"})
+        self.assertNotIn("perchè", lexicon.lemmas)
+        self.assertEqual(lexicon.candidates["perchèe"], {"perchè"})
+        step = lambda word, pos: red.follow(word, pos, lexicon.links, lexicon.poses, lambda w, o: min(o))  # noqa: E731
+        self.assertEqual(red.reach("perchèe", lexicon.candidates["perchèe"], lexicon.links, step), {"perché"})
+        # Without the table, the section makes `perchè` a word of its own.
+        alone = red.Lexicon(survey)
+        for e in SPELLING_ENTRIES:
+            alone.read(e)
+        self.assertIn("perchè", alone.lemmas)
+
+    def test_spec_scenario_a_spelling_with_a_sense_of_its_own(self):
+        # `e'` is also the apocope of *ei*: no spelling, and not refused either — a word.
+        self.assertNotIn("e'", self.table)
+        self.assertNotIn("e'", self.kept)
+        self.assertNotIn("vabbè", self.table)
+        self.assertNotIn("vabbè", self.kept)
+        self.assertIsNone(red.spelling_target({"tags": ["alt-of"], "alt_of": [{"word": "va bene"}]}))
+        self.assertIsNone(red.spelling_target({"tags": ["alt-of", "apocopic"], "alt_of": [{"word": "ei"}]}))
+        self.assertEqual(red.spelling_target({"tags": ["alt-of"], "alt_of": [{"word": "Perché"}]}), "perché")
+
+    def test_spec_scenario_the_marked_word_is_not_the_commoner(self):
+        self.assertEqual(self.kept["figo"], red.KEPT_COMMONER)
+        self.assertEqual(self.kept["obbedire"], red.KEPT_COMMONER)
+        self.assertEqual(self.kept["altiero"], red.KEPT_FORM)
+        self.assertEqual(self.kept["nè"], red.KEPT_TWO_WORDS)
+        self.assertEqual(self.kept["daccordo"], red.KEPT_NO_FORM)
+        self.assertEqual(self.kept["bel"], red.KEPT_TABLE)
+        self.assertEqual(self.kept["giu"], red.KEPT_TABLE)
+        # The report names each one read and each one kept apart, by its reason.
+        lines = red.spellings_report(self.table, self.kept)
+        self.assertTrue(lines[0].startswith("dictionary spellings read as their word=5: caffé → caffè, fà → fa"))
+        self.assertIn(f"{red.KEPT_COMMONER}=2: figo, obbedire", "\n".join(lines))
+        self.assertIn(f"{red.KEPT_TWO_WORDS}=1: nè", "\n".join(lines))
+
+    def test_a_spelling_s_forms_another_word_claims_stay_its(self):
+        # `sguardi` is sguardo's plural and a row of the archaic `sguardare`: it stays sguardo's — the
+        # choice among its words would give it to guardare, the commoner; `sguardavo` follows.
+        with tempfile.TemporaryDirectory() as folder:
+            path = _section_file(folder, SPELLING_ENTRIES)
+            lexicon = red.read_kaikki(path, red.survey_kaikki(path), self.table)
+        self.assertEqual(lexicon.candidates["sguardi"], {"sguardo"})
+        self.assertEqual(lexicon.candidates["sguardavo"], {"sguardare"})
+        self.assertEqual(lexicon.candidates["sguardare"], {"guardare"})
+        self.assertEqual(lexicon.stats["forms of a dictionary spelling another word claims"], 1)
+        # A form two spellings claim follows them: another spelling is no other word.
+        lexicon = red.Lexicon(red.Survey(), {"x": "y", "z": "y"})
+        lexicon.link("w", "x", "verb")
+        lexicon.link("w", "z", "verb")
+        lexicon._spelling_rows.update({("w", "x"), ("w", "z")})
+        lexicon.drop_spelling_rows()
+        self.assertEqual(lexicon.candidates["w"], {"x", "z"})
+
+    def test_a_spelling_in_the_tables(self):
+        # End to end, as the reduction reads it: a form of its word, no rank.
+        with tempfile.TemporaryDirectory() as folder:
+            path = _section_file(folder, SPELLING_ENTRIES)
+            lexicon = red.read_kaikki(path, red.survey_kaikki(path), self.table)
+        top = ["perché", "fare", "caffè", "soprattutto", "fa", "né"]
+        freq = lambda w: SPELLING_FREQUENCY.get(w, 0.0)  # noqa: E731
+        forms, ranks, _ = red.reduce_forms(lexicon, collections.Counter(), {}, freq, lambda n: top[:n], 20)
+        self.assertEqual(forms["perchè"], "perché")
+        self.assertEqual(forms["caffé"], "caffè")
+        self.assertEqual(forms["fà"], "fare")
+        for spelling in ("perchè", "caffé", "fà", "sopratutto"):
+            self.assertNotIn(spelling, ranks)
+
+
+# The web's spellings (read-lingua-italian-unmarked-spellings D3): the words a row reads as, the four
+# exceptions' homographs, and what the boundary reads.
+WEB_ENTRIES = [
+    entry("più", pos="adv", senses=[{"glosses": ["more"]}]),
+    entry("potere", pos="verb", forms=[*TABLE_HEAD, ("può", PRESENT_3S)]),
+    form_of("può", "potere"),
+    entry("già", pos="adv", senses=[{"glosses": ["already"]}]),
+    entry("perché", pos="conj", senses=[{"glosses": ["because"]}], forms=[("perche", ["alternative", "obsolete"])]),
+    entry("perca", forms=[("perche", ["plural"])], senses=[{"glosses": ["perch"], "tags": ["feminine"]}]),
+    form_of("perche", "perca", pos="noun", tags=("form-of", "plural")),
+    # An entry pointing at a row follows the row.
+    form_of("puoo", "puo", pos="verb"),
+]
+WEB_FREQUENCY = {"più": 6.63, "piu": 5.22, "potere": 5.5, "può": 6.01, "puo": 4.61, "già": 5.95, "gia": 4.59,
+                 "perché": 6.18, "perche": 4.95, "perca": 2.5, "puoo": 1.0}
+
+
+def web_section(entries):
+    with tempfile.TemporaryDirectory() as folder:
+        path = _section_file(folder, entries)
+        return red.read_kaikki(path, red.survey_kaikki(path), {})
+
+
+class WebSpellings(unittest.TestCase):
+    """read-lingua-italian-unmarked-spellings D3: the web's spellings without their accent, by a reviewed
+    list and the owner's exceptions; a boundary at each reduction."""
+
+    ROWS = {"piu": "più", "puo": "potere", "gia": "già"}
+    EXCEPTIONS = {"perche": ("perché", "the owner's")}
+
+    def reduced(self):
+        with mock.patch.dict(red.WEB_SPELLINGS, self.ROWS, clear=True), mock.patch.dict(
+            red.OWNER_EXCEPTIONS, self.EXCEPTIONS, clear=True
+        ):
+            lexicon = web_section(WEB_ENTRIES)
+            crossed = lexicon.web_boundary()
+            red.read_web_spellings(lexicon)
+            freq = lambda w: WEB_FREQUENCY.get(w, 0.0)  # noqa: E731
+            top = ["più", "perché", "già", "potere", "perca", "piu", "gia", "perche"]
+            forms, ranks, _ = red.reduce_forms(lexicon, collections.Counter(), {}, freq, lambda n: top[:n], 20)
+            unread = red.unread_web_spellings(forms)
+        return lexicon, crossed, forms, ranks, unread
+
+    def test_spec_scenario_a_web_spelling(self):
+        lexicon, crossed, forms, ranks, unread = self.reduced()
+        self.assertEqual(crossed, [])
+        self.assertEqual(unread, [])
+        self.assertEqual((forms["piu"], forms["puo"], forms["gia"]), ("più", "potere", "già"))
+        # Nothing of its own: no rank — wordfreq ranks `piu` and `gia` as words of their own without
+        # the list.
+        for spelling in ("piu", "puo", "gia", "perche"):
+            self.assertNotIn(spelling, ranks)
+        self.assertEqual(forms["più"], "più")
+        # An entry pointing at a row follows it.
+        self.assertEqual(lexicon.candidates["puoo"], {"potere"})
+
+    def test_spec_scenario_the_owner_s_exceptions(self):
+        # `perche`, perca's plural in the section, reads as perché; perca keeps its own form.
+        _, crossed, forms, _, _ = self.reduced()
+        self.assertEqual(forms["perche"], "perché")
+        self.assertEqual(forms["perca"], "perca")
+        self.assertIsNone(red.web_spelling("perca"))
+        self.assertEqual(
+            {s: w for s, (w, _) in red.OWNER_EXCEPTIONS.items()},
+            {"perche": "perché", "cosi": "così", "citta": "città", "caffe": "caffè"},
+        )
+        for spelling, (word, reason) in red.OWNER_EXCEPTIONS.items():
+            self.assertNotIn(spelling, red.WEB_SPELLINGS)
+            self.assertIn("wordfreq", reason, spelling)
+            self.assertIn(word, reason, spelling)
+            self.assertEqual(red.web_spelling(spelling), word)
+
+    def test_spec_scenario_a_word_of_its_own_is_never_a_row(self):
+        # The owner's list (tasks 2.2 and 4.1), sorted, one shared reason; never a word of its own, a
+        # spelling commoner than its word, or one another language writes more.
+        self.assertEqual(len(red.WEB_SPELLINGS), 100)
+        self.assertEqual(list(red.WEB_SPELLINGS), sorted(red.WEB_SPELLINGS))
+        for spelling, word in red.WEB_SPELLINGS.items():
+            self.assertTrue(red.is_form(spelling) and "-" not in spelling, spelling)
+            self.assertNotIn(spelling, red.OWNER_EXCEPTIONS)
+            self.assertEqual(red.web_spelling(spelling), word)
+            self.assertFalse(red._reviewed(spelling) and spelling not in red.WEB_SPELLINGS, spelling)
+        for spelling in ("e", "da", "si", "se", "ne", "la", "li", "di", "fa", "va", "su", "po", "papa", "eta", "pero"):
+            self.assertNotIn(spelling, red.WEB_SPELLINGS, spelling)
+        # Spanish, French or English write it more (`cafe` 4.09 in English against 3.33; `verra`, French's).
+        for spelling in ("cafe", "verra", "ando", "tribu", "dara", "potro", "carita", "arrivera", "finira", "agora"):
+            self.assertNotIn(spelling, red.WEB_SPELLINGS, spelling)
+        # The section's own homographs are no rows of the method: the owner's exceptions, and the ones
+        # the method leaves (`gìa`, gire's imperfect; `liberta`, liberto's feminine).
+        for spelling in ("perche", "cosi", "citta", "caffe", "gia", "liberta", "umidita"):
+            self.assertNotIn(spelling, red.WEB_SPELLINGS, spelling)
+
+    def test_spec_scenario_a_dictionary_update_names_a_row(self):
+        rows = {"cosi": "così", "gia": "già", "perche": "perché", "sara": "essere", "giu": "giù", "piu": "più", "puo": "potere"}
+        entries = [
+            # A form of a word with a meaning: a word of its own.
+            entry("coso", forms=[("cosi", ["plural"])], senses=[{"glosses": ["thingy"]}]),
+            form_of("cosi", "coso", pos="noun", tags=("form-of", "plural")),
+            # An inflection a word's entry lists, its stress mark read as the tables read it.
+            entry("gire", pos="verb", forms=[*TABLE_HEAD, ("gìa", ["imperfect", "indicative"])]),
+            # Its word's spelling (D2's kind).
+            misspelt("perche", "perché", pos="conj"),
+            # A name's entry says nothing; a spelling of another word passes; a doubtful row is no row.
+            entry("Sara", pos="name", senses=[{"glosses": ["a female given name"]}]),
+            misspelt("giu", "giu.", pos="noun", tags=("alt-of", "alternative")),
+            entry("più", pos="adv", forms=[("piu", ["misspelling"])]),
+            # A form of a word without a meaning of its own passes.
+            entry("potè", pos="verb", senses=[{"tags": ["form-of"], "form_of": [{"word": "potere"}]}]),
+            form_of("puo", "potè"),
+        ]
+        with mock.patch.dict(red.WEB_SPELLINGS, rows, clear=True):
+            self.assertEqual(web_section(entries).web_boundary(), ["cosi", "gia", "perche"])
+            # A row D2 reads as a word crosses it too.
+            survey = red.Survey()
+            lexicon = red.Lexicon(survey, {"giu": "giù"})
+            for e in entries:
+                lexicon.read(e)
+            self.assertIn("giu", lexicon.web_boundary())
+        self.assertEqual(red._sense_kind({"glosses": ["x"]}), ("meaning", None))
+        self.assertEqual(red._sense_kind({"tags": ["form-of"]}), ("form", ""))
+        self.assertEqual(red._sense_kind({"tags": ["alt-of"], "alt_of": [{"word": "Più"}]}), ("alt", "più"))
+        self.assertEqual(red._unmarked("perchè"), "perche")
+
+
 def _read(work, name):
     with open(os.path.join(work, name), encoding="utf-8") as f:
         return f.read()
 
 
 class Reduction(unittest.TestCase):
-    """The reduction end to end, over a work folder (D9)."""
+    """The reduction end to end, over a work folder (D9). The web's list and the owner's exceptions
+    are the reviewed tables' real words, which this small section does not rank: each test reads one
+    row this section ranks (read-lingua-italian-unmarked-spellings D3)."""
 
-    def write_work(self, work, morph_it=False):
-        entries = list(ENTRIES)
+    WEB = {"puo": "potere"}
+
+    def setUp(self):
+        for table, rows in ((red.WEB_SPELLINGS, self.WEB), (red.OWNER_EXCEPTIONS, {})):
+            patch = mock.patch.dict(table, rows, clear=True)
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def write_work(self, work, morph_it=False, extra=()):
+        entries = list(ENTRIES) + list(extra)
         # Every word the pre-pass writes a form, as the real section makes it.
         listed = {e["word"].lower() for e in entries}
         entries += [entry(word, pos="pron") for word in red.prepass_words() if word not in listed]
@@ -789,7 +1101,7 @@ class Reduction(unittest.TestCase):
 
     def run_reduction(self, work, morph_it, listed=True):
         words = red.prepass_words()
-        everything = {**{w: 3.0 for w in words}, **FREQUENCY, "credettero": 2.0}
+        everything = {**{w: 3.0 for w in words}, **FREQUENCY, "credettero": 2.0, "puo": 2.0}
         listed = TOP + [w for w in words if w not in TOP] if listed else TOP
         lines = []
         summary = red.reduce(
@@ -822,6 +1134,13 @@ class Reduction(unittest.TestCase):
             self.assertNotIn("PUD", notice)
             self.assertEqual(summary["morph-it added"], 1)
             self.assertTrue(any("Morph-it! added 1 form" in line for line in lines))
+            # The web's row, a form of its word with no rank (read-lingua-italian-unmarked-spellings D3);
+            # the report names the dictionary's spellings and the list.
+            self.assertEqual(forms["puo"], "potere")
+            self.assertNotIn("puo", dict(ranks))
+            self.assertEqual(summary["web spellings"], 1)
+            self.assertTrue(any("1 row(s) of the reviewed list" in line for line in lines))
+            self.assertTrue(any(line.startswith("reduced it-fr: dictionary spellings read") for line in lines))
             first = {name: read(name) for name in ("forms.tsv", "freq.tsv", "NOTICE", "manifest.json")}
             self.run_reduction(work, red.MORPH_IT)
             self.assertEqual({name: read(name) for name in first}, first, "the same inputs give the same tables")
@@ -847,6 +1166,28 @@ class Reduction(unittest.TestCase):
             with self.assertRaises(SystemExit) as raised:
                 self.run_reduction(work, None, listed=False)
             self.assertIn("pre-pass", str(raised.exception))
+
+    def test_spec_scenario_a_dictionary_update_names_a_row(self):
+        # read-lingua-italian-unmarked-spellings D3: a dump giving a row an entry of its own stops the
+        # reduction, naming the row, for a person to settle it.
+        with tempfile.TemporaryDirectory() as work:
+            self.write_work(work, extra=[entry("puo", senses=[{"glosses": ["a new meaning"]}])])
+            with self.assertRaises(SystemExit) as raised:
+                self.run_reduction(work, None)
+            self.assertIn("1 spelling(s) of WEB_SPELLINGS", str(raised.exception))
+            self.assertTrue(str(raised.exception).endswith(": puo"), raised.exception)
+
+    def test_a_row_whose_word_is_no_ranked_lemma_fails_the_reduction(self):
+        # A row follows the tables' choices: one whose word the tables do not rank reads as no form,
+        # and the reduction refuses it, naming it.
+        with mock.patch.dict(red.WEB_SPELLINGS, {"giu": "giù"}), tempfile.TemporaryDirectory() as work:
+            self.write_work(work)
+            with self.assertRaises(SystemExit) as raised:
+                self.run_reduction(work, None)
+            self.assertIn("1 row(s) of the web's list", str(raised.exception))
+            self.assertTrue(str(raised.exception).endswith(": giu"), raised.exception)
+        self.assertEqual(red.unread_web_spellings({"puo": "potere"}), [])
+        self.assertEqual(red.unread_web_spellings({"puo": "puo"}), ["puo"])
 
 
 if __name__ == "__main__":

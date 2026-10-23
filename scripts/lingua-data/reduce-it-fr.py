@@ -67,6 +67,15 @@ the elided pieces and truncations and its tokens beginning with a piece are no w
 the apocopes written without an apostrophe are forms of their words by a reviewed table, `APOCOPES`:
 `bel` → *bello*, `san` → *santo*), a hyphenated word is ranked on MarkIT's evidence, and no verb form
 carrying clitics is ranked.
+
+Italian written without its marks, or with others (read-lingua-italian-unmarked-spellings). A word the
+section gives only as a spelling of one word — a misspelling, an alternative, obsolete, archaic or
+nonstandard spelling or form — is a form of that word when wordfreq rates the word the commoner
+(`perchè` → *perché*, `fà` → *fare*; D2, `dictionary_spellings`), its own forms following it where no
+other word claims them; the report names each spelling read and each kept apart. The web's spellings
+without their accent read as their word by a reviewed list and the owner's exceptions (`piu` → *più*,
+`perche` → *perché*; D3, `WEB_SPELLINGS`, `OWNER_EXCEPTIONS`), the reduction stopping for a person when
+the section names a row (`Lexicon.web_boundary`) or a row's word is no ranked lemma.
 """
 
 import argparse
@@ -327,6 +336,89 @@ OVERRIDES = {
 # The rules that decide a form's one lemma (D5), as the reduction reports them.
 DECIDED_BY = ("override", "MarkIT's counts", "its own entry", "frequency", "alphabetical order")
 
+# — Italian written without its marks, or with others (read-lingua-italian-unmarked-spellings) —
+
+# The pointers of a sense's `alt_of` that are no spelling of another word (D2): an apocope, which D6
+# reads as a form (`_form_targets`), an abbreviation, a clipping, a contraction, an initialism or an
+# acronym, and a pronunciation spelling (`'n`).
+_NO_SPELLING = frozenset(
+    {"abbreviation", "apocopic", "clipping", "contraction", "initialism", "acronym", "pronunciation-spelling"}
+)
+
+# Why `dictionary_spellings` keeps a spelling apart (D2), as the reduction reports it.
+KEPT_COMMONER = "the spelling as common as its word or commoner"
+KEPT_FORM = "a form of the spelling as common as its word or commoner"
+KEPT_TWO_WORDS = "its senses spell more than one word"
+KEPT_NO_FORM = "no word form"
+KEPT_TABLE = "a word of a reviewed table"
+
+# The web's Italian written without its accents (D3): spelling → word, each row a decision by name —
+# the owner's review of the measured list (tasks 2.2 and 4.1) —, never a rule on marks: a rule would
+# read `e`, `da`, `si`, `se`, `ne`, `la` and `li` as *è*, *dà*, *sì*, *sé*, *né*, *là* and *lì*.
+# A row is a spelling wordfreq attests at Zipf 2.5 or more that the Italian section names nowhere —
+# neither a word, nor a form of a word, nor an inflection a word's entry lists, nor its accented
+# word's spelling (D2's) —, whose accented word's lemma has a sense of its own in the section that is
+# no name's (until Italian's dictionary words are written, change 16, which re-checks every row), at
+# least twice as common as the spelling (a Zipf gap of 0.30 or more), and that neither English,
+# French nor Spanish writes more often than Italian does. Its word is the lemma the tables give the
+# accented form (`puo` → *potere*, `sara` → *essere*): a row follows the tables' choices and never
+# makes one. The reduction fails, naming it, when the section names a row so (`Lexicon.web_boundary`).
+# `e`, `da`, `si`, `se`, `ne`, `la`, `li`, `papa`, `eta`, `pero` and `cafe` are never rows.
+# Merged into one table with the owner's exceptions below; editing it changes the rules' sha256, as for
+# any rule.
+WEB_SPELLINGS = {
+    "affinche": "affinché", "ahime": "ahimè", "altresi": "altresì", "andra": "andare", "andro": "andare",
+    "attivita": "attività", "attualita": "attualità", "autorita": "autorità", "avra": "avere", "avro": "avere",
+    "bensi": "bensì", "bonta": "bontà", "celebrita": "celebrità", "chissa": "chissà", "cio": "ciò",
+    "cioe": "cioè", "civilta": "civiltà", "comunita": "comunità", "contabilita": "contabilità",
+    "criminalita": "criminalità", "curiosita": "curiosità", "daro": "dare", "difficolta": "difficoltà",
+    "dignita": "dignità", "disponibilita": "disponibilità", "dovra": "dovere", "dovro": "dovere",
+    "entita": "entità", "facolta": "facoltà", "fara": "fare", "funzionalita": "funzionalità", "gesu": "gesù",
+    "giovedi": "giovedì", "giu": "giù", "granche": "granché", "identita": "identità", "indennita": "indennità",
+    "legalita": "legalità", "localita": "località", "lunedi": "lunedì", "martedi": "martedì",
+    "maturita": "maturità", "mentalita": "mentalità", "mercoledi": "mercoledì", "modalita": "modalità",
+    "nonche": "nonché", "novita": "novità", "nullita": "nullità", "opportunita": "opportunità",
+    "parita": "parità", "percio": "perciò", "personalita": "personalità", "piu": "più", "poiche": "poiché",
+    "popolarita": "popolarità", "possibilita": "possibilità", "potra": "potere", "poverta": "povertà",
+    "priorita": "priorità", "probabilita": "probabilità", "professionalita": "professionalità",
+    "proprieta": "proprietà", "provera": "provare", "pubblicita": "pubblicità", "puo": "potere",
+    "purche": "purché", "qualita": "qualità", "quantita": "quantità", "realta": "realtà",
+    "responsabilita": "responsabilità", "rimarra": "rimanere", "riusci": "riuscire", "sanita": "sanità",
+    "sara": "essere", "saro": "essere", "schiavitu": "schiavitù", "sensibilita": "sensibilità",
+    "serenita": "serenità", "serieta": "serietà", "societa": "società", "solidarieta": "solidarietà",
+    "sovranita": "sovranità", "specialita": "specialità", "succedera": "succedere", "tabu": "tabù",
+    "tranquillita": "tranquillità", "trinita": "trinità", "umanita": "umanità", "universita": "università",
+    "vabbe": "vabbè", "validita": "validità", "varieta": "varietà", "vedra": "vedere", "vedro": "vedere",
+    "velocita": "velocità", "venerdi": "venerdì", "verita": "verità", "virtu": "virtù",
+    "visibilita": "visibilità", "volonta": "volontà",
+}
+WEB_REASON = "written on the web without its accent; the owner's reviewed list"
+# The owner's exception rows (D3), outside the method and the boundary: spellings the section gives a
+# sense of their own — a rare homograph — that the web writes for a commoner word, each with its reason.
+OWNER_EXCEPTIONS = {
+    "perche": (
+        "perché",
+        "perché written without its accent: the section gives perche only as perca's plural (the perch, a fish), "
+        "which no page of the corpora writes; wordfreq 4.95 against perché's 6.18, the web's commonest "
+        "spelling of it",
+    ),
+    "cosi": (
+        "così",
+        "così written without its accent: the section gives cosi as coso's plural (thingy) and cosare's present; "
+        "wordfreq 5.12 against così's 6.14; the corpora's 3 lowercase « cosi » are così",
+    ),
+    "citta": (
+        "città",
+        "città written without its accent: the section's citta is citto's feminine (a Tuscan, archaic girl); "
+        "wordfreq 4.16 against città's 5.77; Tatoeba's 2 « citta » are città",
+    ),
+    "caffe": (
+        "caffè",
+        "caffè written without its accent: the section gives caffe as caffo's feminine plural and caffa's plural "
+        "(odd, of a number); wordfreq 3.75 against caffè's 4.83",
+    ),
+}
+
 
 def nfc_lower(text):
     """A word lowercased and in NFC, the typographic apostrophe read as `'`."""
@@ -491,10 +583,17 @@ class Lexicon:
     - `unranked`: the words no rank may go to: the verb forms carrying clitics (D4) and the
       infinitives carrying them (`lavarsi`, `andarsene`), whatever wordfreq says of them;
     - `stats`: what the reading counted, for the reduction's report.
+
+    `spellings` is `dictionary_spellings`' table: a spelling it names is a form of its word, its
+    inflections forms of it, nothing of its own (read-lingua-italian-unmarked-spellings D2). For the
+    boundary of `WEB_SPELLINGS` (D3) it records, for every headword it reads, whether the section gives
+    it a meaning of its own, and, for every row of the list, its entries' senses and the entries listing
+    it among their inflections (`web_boundary`).
     """
 
-    def __init__(self, survey):
+    def __init__(self, survey, spellings=None):
         self.survey = survey
+        self.spellings = dict(spellings or {})
         self.candidates = collections.defaultdict(set)
         self.links = collections.defaultdict(lambda: collections.defaultdict(set))
         self.lemmas = set()
@@ -504,19 +603,35 @@ class Lexicon:
         # (form, word): a clitic-bearing row of a reflexive or pronominal verb, whose link to the verb
         # is dropped once the section is read (`drop_clitic_rows`).
         self._clitic_rows = set()
+        # (form, spelling): a form a dictionary spelling's entry lists, or an entry pointing at one,
+        # whose link to the spelling is dropped where another word claims the form
+        # (`drop_spelling_rows`).
+        self._spelling_rows = set()
+        self._meaning = set()
+        self._web_entries = collections.defaultdict(list)
+        self._web_listed = collections.defaultdict(list)
 
     def link(self, form, word, pos):
         self.candidates[form].add(word)
         self.links[form][word].add(pos)
 
     def read(self, entry):
-        """One kaikki entry (D3, D4)."""
+        """One kaikki entry (D3, D4; read-lingua-italian-unmarked-spellings D2, D3)."""
         word = nfc_lower(entry.get("word"))
         pos = entry.get("pos")
+        self._record_boundary(entry, word)
         if word in PIECES or (word in CONTRACTIONS and word != DAI) or not is_form(word):
             # A piece is read by its table alone (`seed_pieces`); a split contraction is no form.
             return
         senses = entry.get("senses") or []
+        if word in self.spellings:
+            # A spelling the dictionary gives only as its word's (D2): a form of the word, its own
+            # inflections forms of it, nothing of its own.
+            self.link(word, self.spellings[word], pos)
+            for form in self._rows(entry, word, (word,)):
+                self.link(form, word, pos)
+                self._spelling_rows.add((form, word))
+            return
         if any(_is_compound(s) for s in senses) or (word in self.survey.compounds and pos in _CLITIC_POS):
             # A clitic compound's entries read the compound: the enclitic rule reads it (D4).
             if word not in self.survey.standing:
@@ -544,8 +659,62 @@ class Lexicon:
                         self.unranked.add(word)
                     continue
                 target = self.survey.plain_of(target)
-                if is_form(target) and target not in PIECES:
+                if target in WEB_SPELLINGS or target in OWNER_EXCEPTIONS:
+                    # An entry pointing at a row of the web's list follows the row
+                    # (read-lingua-italian-unmarked-spellings D3).
+                    self.link(word, web_spelling(target), pos)
+                elif is_form(target) and target not in PIECES:
                     self.link(word, target, pos)
+                    if target in self.spellings:
+                        self._spelling_rows.add((word, target))
+
+    def _record_boundary(self, entry, word):
+        """What `web_boundary` needs of one entry: each sense's kind (`_sense_kind`), whether the entry
+        gives its word a meaning, and, for a row of the web's list, its senses and the entries listing
+        it among their inflections — a row a source marks doubtful is no inflection (D3). A name's entry
+        says nothing of the word (`Gia`, `Sara`): a page writes a name with its capital, which the
+        analysis sets aside, as change 43e kept its rows that are also names (`noel`)."""
+        name = entry.get("pos") == "name"
+        kinds = [] if name else [_sense_kind(sense) for sense in entry.get("senses") or ()]
+        meaning = any(kind == "meaning" for kind, _ in kinds)
+        if meaning:
+            self._meaning.add(word)
+        if word in WEB_SPELLINGS:
+            self._web_entries[word].append(kinds)
+        targets = tuple(target for kind, target in kinds if kind == "form" and target)
+        for row in entry.get("forms") or ():
+            if set(row.get("tags") or ()) & (_BOOKKEEPING | _DOUBTFUL):
+                continue
+            form = without_stress(nfc_lower(row.get("form")))
+            if form != word and form in WEB_SPELLINGS:
+                self._web_listed[form].append((meaning, targets))
+
+    def web_boundary(self):
+        """The rows of `WEB_SPELLINGS` the section names (read-lingua-italian-unmarked-spellings D3),
+        sorted: a headword with a sense that is a meaning, a form of a word with a meaning, or a
+        spelling of a word written with the same letters (`_unmarked`: D2's kind, `perche` « misspelling
+        of perché »), or one D2 reads as a word (`spellings`); or an inflection an entry lists whose
+        word has a meaning or is a form of one. Read after the section: the reduction fails on any, for
+        a person to settle it. A spelling named only as a form of a word without a meaning of its own,
+        or as a spelling of another word D2 does not read (`giu`, « alternative form of giu. », the
+        abbreviation of *giugno*), passes, as change 43e's do, and so does one only a name's entry heads
+        (`gia`, `sara`: *Gia*, *Sara*); the owner's exceptions are not checked."""
+        crossed = []
+        for spelling in sorted(set(self._web_entries) | set(self._web_listed)):
+            headword = spelling in self.spellings or any(
+                kind == "meaning"
+                or (kind == "form" and target in self._meaning)
+                or (kind == "alt" and _unmarked(target) == _unmarked(spelling))
+                for kinds in self._web_entries.get(spelling, [])
+                for kind, target in kinds
+            )
+            listed = any(
+                meaning or any(target in self._meaning for target in targets)
+                for meaning, targets in self._web_listed.get(spelling, [])
+            )
+            if headword or listed:
+                crossed.append(spelling)
+        return crossed
 
     def _carries_clitics(self, word, target, sense):
         """Whether a form-of sense names a verb form carrying clitics (D4): its target an infinitive
@@ -622,6 +791,20 @@ class Lexicon:
         for form in [f for f, opts in self.candidates.items() if not opts]:
             del self.candidates[form]
 
+    def drop_spelling_rows(self):
+        """A form a dictionary spelling's entry lists, or an entry pointing at one, follows the spelling
+        to its word only where no other word claims it (read-lingua-italian-unmarked-spellings D2, as
+        implemented): `sguardi`, a row of the archaic `sguardare` (« alternative form of guardare »),
+        stays *sguardo*'s plural, and `annate` *annata*'s, rather than the commoner verb's — the
+        choice among a form's words (D5) would give it to the verb by its frequency. A form no other
+        word claims follows (`alcoolici` → *alcolico*); another spelling is no other word."""
+        for form, spelling in sorted(self._spelling_rows):
+            others = self.candidates.get(form, set()) - {spelling} - set(self.spellings)
+            if form != spelling and others and spelling in self.candidates[form]:
+                self.candidates[form].discard(spelling)
+                self.links[form].pop(spelling, None)
+                self.stats["forms of a dictionary spelling another word claims"] += 1
+
     def _written(self, text, owners):
         """A row as Italian writes it (D3): its stress marks dropped but the last letter's
         (`without_stress`), and that one too when the entry carrying the cell's form-of link to one of
@@ -658,14 +841,138 @@ class Lexicon:
             yield form
 
 
-def read_kaikki(path, survey=None):
-    """The Italian section, read entry by entry into a `Lexicon`, after its first pass (`Survey`)."""
+def read_kaikki(path, survey=None, spellings=None):
+    """The Italian section, read entry by entry into a `Lexicon`, after its first pass (`Survey`), the
+    dictionary's spellings `spellings` names read as their word (`dictionary_spellings`)."""
     survey = survey or survey_kaikki(path)
-    lexicon = Lexicon(survey)
+    lexicon = Lexicon(survey, spellings)
     for entry in _entries(path):
         lexicon.read(entry)
     lexicon.drop_clitic_rows()
+    lexicon.drop_spelling_rows()
     return lexicon
+
+
+def _alt_target(sense):
+    """What a sense's `alt_of` names first, lowercased and in NFC — a word, or several (`vabbè`,
+    « alternative form of va bene ») —, or an empty string."""
+    alt = sense.get("alt_of") or ()
+    return nfc_lower((alt[0].get("word") if alt and isinstance(alt[0], dict) else "") or "")
+
+
+def spelling_target(sense):
+    """The word a sense gives its entry only as a spelling of
+    (read-lingua-italian-unmarked-spellings D2) — an `alt_of` pointer at one word, whatever it says of
+    the spelling (a misspelling, an alternative, obsolete, archaic or nonstandard spelling or form) but
+    an apocope, an abbreviation, a clipping, a contraction, an initialism or a pronunciation spelling
+    (`_NO_SPELLING`) —, or None. A pointer at several words (`vabbè`, `menomale`, `daccapo`) spells
+    no word: the sense is a meaning of the entry's own."""
+    target = _alt_target(sense)
+    if set(sense.get("tags") or ()) & _NO_SPELLING or " " in target:
+        return None
+    return target or None
+
+
+def _reviewed(word):
+    """Whether a word is a row of a reviewed table, which that table alone reads: a piece, a split
+    contraction, an apocope, the `di` family, an override, a row of the web's list or an exception."""
+    return (
+        word in PIECES
+        or word in CONTRACTIONS
+        or word in APOCOPES
+        or word in DI_FAMILY
+        or word in OVERRIDES
+        or word in WEB_SPELLINGS
+        or word in OWNER_EXCEPTIONS
+    )
+
+
+def _row_forms(entry):
+    """The inflections an entry lists, as the forms guard reads them (D2): one word each, never the
+    bookkeeping, a doubtful or a derived word's row, its stress marks read as `Lexicon._written` reads
+    them before the bare spelling (`without_stress`)."""
+    for row in entry.get("forms") or ():
+        tags = set(row.get("tags") or ())
+        text = nfc_lower(row.get("form"))
+        if text and " " not in text and not tags & (_BOOKKEEPING | _DOUBTFUL | _DERIVED):
+            yield without_stress(text)
+
+
+def dictionary_spellings(path, frequency, kept=None):
+    """`spelling → word` (read-lingua-italian-unmarked-spellings D2): each word every sense of every
+    entry of which the section gives as a spelling of one word (`spelling_target`) — or as a form of
+    that word —, which wordfreq rates strictly commoner than the spelling and than each of the
+    spelling's forms. Change 43d's rule for French, without its condition that the spelling be the word
+    with its marks dropped, on purpose: Italian's dictionary spellings are mostly another accent
+    (`perchè` → *perché*, `caffé` → *caffè*, `fà` → *fa*) or a letter (`sopratutto` → *soprattutto*).
+
+    Read per word, in a pass of its own over the section before the forms, each word lowercased and in
+    NFC: a word with a sense of its own beside the spelling (`e'`, also the apocope of *ei*), or a form
+    of another word, is no spelling. A pointer at one of change 6's pieces is read by the piece's table
+    alone and is no word of the spelling's (`fà`, « misspelling of fa » and « misspelling of fa' »,
+    spells `fa`); a spelling whose senses spell two words is kept apart (`nè`: *né*, and *neh*). The
+    word must be strictly commoner than the spelling and than each of the spelling's forms — the
+    inflections its entries list (`_row_forms`) and the words a form-of sense of which points at it. A
+    row of a reviewed table is that table's (`_reviewed`), and a word that is no form has no form to
+    read. With `kept` (a dict), each spelling kept apart is recorded there with its reason
+    (`KEPT_*`)."""
+    spells = collections.defaultdict(set)
+    formed = collections.defaultdict(set)
+    own = set()
+    forms = collections.defaultdict(set)
+    for entry in _entries(path):
+        word = nfc_lower(entry.get("word"))
+        senses = entry.get("senses") or []
+        if not senses:
+            own.add(word)
+        for sense in senses:
+            target = spelling_target(sense)
+            targets = [nfc_lower(t) for t in _form_targets(sense)] if _is_form_of(sense) else []
+            if target:
+                spells[word].add(target)
+            elif targets:
+                formed[word].update(targets)
+            else:
+                own.add(word)
+            for t in targets:
+                forms[t].add(word)
+        forms[word].update(_row_forms(entry))
+    table = {}
+    for word in sorted(spells):
+        if word in own or formed[word] - spells[word]:
+            continue
+        targets = {t for t in spells[word] if t != word and t not in PIECES}
+        if _reviewed(word):
+            why = KEPT_TABLE
+        elif len(targets) > 1:
+            why = KEPT_TWO_WORDS
+        elif not targets or not is_form(word) or not is_form(next(iter(targets))):
+            why = KEPT_NO_FORM
+        else:
+            (target,) = targets
+            if not frequency(target) > frequency(word):
+                why = KEPT_COMMONER
+            elif any(frequency(form) >= frequency(target) for form in forms[word] - {word, target}):
+                why = KEPT_FORM
+            else:
+                table[word] = target
+                continue
+        if kept is not None:
+            kept[word] = why
+    return table
+
+
+def spellings_report(spellings, kept):
+    """The reduction's lines on the dictionary's spellings (D2): each one read, with its word, and each
+    one kept apart, by the test that kept it."""
+    lines = [
+        f"dictionary spellings read as their word={len(spellings)}: "
+        + ", ".join(f"{s} → {w}" for s, w in sorted(spellings.items()))
+    ]
+    for why in (KEPT_COMMONER, KEPT_FORM, KEPT_TWO_WORDS, KEPT_NO_FORM, KEPT_TABLE):
+        words = sorted(w for w, reason in kept.items() if reason == why)
+        lines.append(f"dictionary spellings kept apart, {why}={len(words)}: " + ", ".join(words))
+    return lines
 
 
 def name_or_word(candidates, poses, frequency):
@@ -685,6 +992,45 @@ def name_or_word(candidates, poses, frequency):
             opts.discard(form)
             moved["names read as another word"] += 1
     return moved
+
+
+def _sense_kind(sense):
+    """A sense's kind for `Lexicon.web_boundary`: (`alt`, the word it spells, `spelling_target`),
+    (`form`, the first word it is a form of — empty when only its tag says so —) or (`meaning`,
+    None)."""
+    target = spelling_target(sense)
+    if target:
+        return "alt", target
+    if _is_form_of(sense):
+        targets = _form_targets(sense)
+        return "form", nfc_lower(targets[0]) if targets else ""
+    return "meaning", None
+
+
+def _unmarked(word):
+    """A word with its combining marks dropped — Italian's accents, and a loan's marks —, in NFC:
+    `perché` → `perche`, `perchè` → `perche`."""
+    bare = "".join(c for c in unicodedata.normalize("NFD", word) if unicodedata.category(c) != "Mn")
+    return unicodedata.normalize("NFC", bare)
+
+
+def web_spelling(spelling):
+    """The word a row of the web's list or an owner's exception reads as (D3), or None."""
+    if spelling in WEB_SPELLINGS:
+        return WEB_SPELLINGS[spelling]
+    if spelling in OWNER_EXCEPTIONS:
+        return OWNER_EXCEPTIONS[spelling][0]
+    return None
+
+
+def read_web_spellings(lexicon):
+    """Each row of the web's list and each owner's exception a form of its word alone (D3), whether or
+    not an entry names it, as `read_apocopes` reads its table: the word its one candidate, the spelling
+    no lemma — the exceptions' own entries (`perche`, *perca*'s plural) leave the tables."""
+    for spelling in (*WEB_SPELLINGS, *OWNER_EXCEPTIONS):
+        lexicon.candidates[spelling] = {web_spelling(spelling)}
+        lexicon.links.pop(spelling, None)
+        lexicon.lemmas.discard(spelling)
 
 
 def read_apocopes(lexicon):
@@ -884,6 +1230,13 @@ def prepass_words():
     return sorted(words)
 
 
+def unread_web_spellings(forms):
+    """The rows of the web's list and the owner's exceptions the forms table does not read as their
+    word (D3) — their word no ranked lemma: the reduction refuses them, a row following the tables'
+    choices and never making one."""
+    return sorted(s for s in (*WEB_SPELLINGS, *OWNER_EXCEPTIONS) if forms.get(s) != web_spelling(s))
+
+
 def unwritten_words(forms):
     """The words the pre-pass writes that the forms table does not list: the reduction refuses them
     (D4) — every one must be a form."""
@@ -1042,12 +1395,29 @@ def reduce(work, max_lemmas, pack_version, frequency, top_n, morph_it=MORPH_IT, 
     prints, as a dict, for the measurement."""
     kaikki = os.path.join(work, KAIKKI)
     survey = survey_kaikki(kaikki)
-    lexicon = read_kaikki(kaikki, survey)
+    kept = {}
+    spellings = dictionary_spellings(kaikki, frequency, kept)
+    lexicon = read_kaikki(kaikki, survey, spellings)
+    # The web's list stops for a person when the section names a row (read-lingua-italian-unmarked-
+    # spellings D3), as on a word the pre-pass writes and no form.
+    crossed = lexicon.web_boundary()
+    if crossed:
+        raise SystemExit(
+            f"it-fr: {len(crossed)} spelling(s) of WEB_SPELLINGS the section gives a meaning of its own, "
+            f"or as a spelling of a word: {', '.join(crossed)}"
+        )
     counts = treebank.markit_counts([os.path.join(work, name) for name in MARKIT])
     named = name_or_word(lexicon.candidates, lexicon.poses, frequency)
     own_words(lexicon)
     read_apocopes(lexicon)
+    read_web_spellings(lexicon)
     forms, ranks, step = reduce_forms(lexicon, counts, treebank.markit_zipf(counts), frequency, top_n, max_lemmas)
+    unread = unread_web_spellings(forms)
+    if unread:
+        raise SystemExit(
+            f"it-fr: {len(unread)} row(s) of the web's list read as no form of their word, which the tables "
+            f"no longer rank: {', '.join(unread)}"
+        )
     decided = decisions(forms, lexicon, step, counts, frequency)
     added = {}
     if morph_it is not None:
@@ -1089,6 +1459,10 @@ def reduce(work, max_lemmas, pack_version, frequency, top_n, morph_it=MORPH_IT, 
         "morph-it top lemmas": by_lemma.most_common(10),
         "m8": {top: len(nouns) for top, nouns in m8_cost(forms, ranks, lexicon, top_n).items()},
         "read": dict(lexicon.stats),
+        "dictionary spellings": dict(spellings),
+        "dictionary spellings kept apart": dict(kept),
+        "web spellings": len(WEB_SPELLINGS),
+        "owner's exceptions": len(OWNER_EXCEPTIONS),
     }
     report(f"reduced it-fr: forms={summary['forms']} lemmas={summary['lemmas']} (the last, {last}, at Zipf {summary['last zipf']})")
     report(
@@ -1104,6 +1478,12 @@ def reduce(work, max_lemmas, pack_version, frequency, top_n, morph_it=MORPH_IT, 
     if morph_it is not None:
         report(f"reduced it-fr: Morph-it! added {len(added)} form(s) under {len(by_lemma)} lemma(s)")
     report("reduced it-fr: read " + ", ".join(f"{n} {what}" for what, n in sorted(lexicon.stats.items())))
+    for line in spellings_report(spellings, kept):
+        report(f"reduced it-fr: {line}")
+    report(
+        f"reduced it-fr: the web's spellings without their accent, {len(WEB_SPELLINGS)} row(s) of the reviewed "
+        f"list and {len(OWNER_EXCEPTIONS)} owner's exception(s), each read as its word"
+    )
     return summary
 
 
