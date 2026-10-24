@@ -1990,9 +1990,9 @@ fn spec_scenario_the_commonest_words_are_a1() {
 
 /// Every pack studying `language` built from the committed tables says its levels are estimated, in
 /// its manifest and its pack, its NOTICE saying so and citing none of `lists`; each gives every
-/// lemma of the language's `level.tsv` its level (*A level reaches the lemma it is written for*).
-/// Answers the pairs, which hold `reference`.
-fn assert_every_pack_says_so(language: &str, reference: &str, lists: &[&str]) -> Vec<String> {
+/// lemma of the language's `level.tsv` its level (*A level reaches the lemma it is written for*);
+/// `reference` is among them.
+fn assert_every_pack_says_so(language: &str, reference: &str, lists: &[&str]) {
     let pairs = check_committed_tables(&tables()).unwrap_or_else(|e| panic!("{e}"));
     let studying: Vec<String> = pairs
         .into_iter()
@@ -2023,7 +2023,6 @@ fn assert_every_pack_says_so(language: &str, reference: &str, lists: &[&str]) ->
             assert!(!notice.contains(list), "{pair}/NOTICE names {list}");
         }
     }
-    studying
 }
 
 #[test]

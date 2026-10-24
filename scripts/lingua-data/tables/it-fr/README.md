@@ -269,8 +269,10 @@ points of theirs, its A1 like Spanish's, and a declared level presumes known wit
 it does in French and Spanish (Spanish's PUD shares are within a tenth of change 46's; French's moved
 with its later tables). Two figures lag: skipping articles, Italian's within-one is 57.9 % against
 60.3 % and 61.1 % (the proposal's prototype measured the same gap, 59.4 % against 62.6 % and 62.8 %),
-and the plain proxy's mean English level does not rise from B1 to B2 (2.38, 2.37) — it rises when
-skipping (2.52, 2.57); in all three languages the proxy cannot tell B2, C1 and C2 apart, a rare word's
+missing by 0.4 point the floor written before the figures were read (the lower of French's and
+Spanish's less two points); and the plain proxy's mean English level does not rise from B1 to B2
+(2.38, 2.37), missing the second criterion written then (rising from A1 to B2) — it rises when skipping
+(2.52, 2.57); in all three languages the proxy cannot tell B2, C1 and C2 apart, a rare word's
 translation being often a common English word. The script does not reproduce the proposal's figures
 (its method was not recorded; of 72 variants tried on French and Spanish, the closest is up to 2.3
 points off), so its figures compare with each other only.
@@ -283,10 +285,16 @@ lemmas are left out instead of 2,466: 272 fewer names — exactly the 272 name-o
 none of them in the section; 9 spellings instead of 18, change 10 reading most as their word (`perchè`
 → *perché*); 16 letters instead of 18, wordfreq's elision stems (`l`, `d`) being no ranks.
 
-**Known weaknesses**, as French's and Spanish's: a name the section also gives a lowercase sense keeps
-a level until change 16 narrows the levels to dictionary words (D4) — `roma` (« a type of rice »),
-`marco` (the mark) and `maria` A1, `luigi` (the louis d'or), `svizzera` (a hamburger), `brasile`
-(brazilwood) and `matteo` (« alternative form of matto ») A2; a lemma is ranked by its own string, so a
+**Known weaknesses**, as French's and Spanish's: a name keeps a level through a sense of another
+part of speech, from a lowercase or a capitalised entry, until change 16 narrows the levels to
+dictionary words (D4). From a lowercase entry: `roma` (« a type of rice »), `marco` (the mark),
+`napoli` (« Neapolitan ») and `francesco` (« French ») A1, `luigi` (the louis d'or), `svizzera` (a
+hamburger), `brasile` (brazilwood) and `matteo` (« alternative form of matto ») A2. From a capitalised
+entry — 59 levelled lemmas take their only senses that are no name's from one, words written in
+capitals a list would hold among them (`tv`, `ok`, `dna`, `sms`) —: `maria` (« cannabis », from
+`Maria`) and `gesù` A1, `adam`, `assunta` and `tommy` B1, `palestina`, `cambogia` and `bellini` B2,
+`reich` and `alzheimer` C2, and initialisms, `mm`, `pc` and `cd` A2, `ps` and `ac` B1, `tar`, `pg` and
+`cup` B2. A lemma is ranked by its own string, so a
 word said mostly in other forms ranks low — `dovere` and `volere` A2, `alcuno` and `capello` B2; numbers
 written as words are levelled by frequency (`undici` B1, `quattordici` B2, `diciannove` C1), and `sei`
 reads as *essere* (M8), so six has none; rule 3 leaves out a word whose only sense of its own spells

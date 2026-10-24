@@ -7,7 +7,8 @@
 
 ## 2. The tables
 
-- [ ] 2.1 [owner-dispatched] `lingua-pack-update` in mode `reduce` for it-fr from its pinned sources: `tables/it/level.tsv` committed; `forms.tsv`, `freq.tsv`, `grammar.tsv`, `lexical.tsv`, `tags.tsv` and `studied.json` byte-identical; `tables/it-fr/{manifest.json, NOTICE, pin.json (base and layer), README.md}` recorded again; the base's growth recorded; the report line and the measurement of the proposal re-run on change 9's ranks (against the English level of each translation; on UD Italian-PUD, the share of words each declared level presumes known) recorded in the pull request and the README.
+- [x] 2.1 [owner-dispatched] `lingua-pack-update` in mode `reduce` for it-fr from its pinned sources: `tables/it/level.tsv` committed; `forms.tsv`, `freq.tsv`, `grammar.tsv`, `lexical.tsv`, `tags.tsv` and `studied.json` byte-identical; `tables/it-fr/{manifest.json, NOTICE, pin.json (base and layer), README.md}` recorded again; the base's growth recorded; the report line and the measurement of the proposal re-run on change 9's ranks (against the English level of each translation; on UD Italian-PUD, the share of words each declared level presumes known) recorded in the pull request and the README.
+  Done: `lingua-pack-update` run 40076411096 (mode `reduce`, it-fr, from the pinned 2026.10.23 sources), its commit `ef7dad22c` fast-forwarded onto this branch: `tables/it/level.tsv` 8,302 rows, sha256 `9627f42a…`; the pack `c336764b…`, 1,553,605 B; the base `e0d9cffa…`, 1,551,912 B; the layer `234bf726…`, 1,918 B — each equal to the local reduction's prediction, byte for byte.
 - [x] 2.2 `scripts/lingua-data/SOURCES.md`: Italian's levels are estimated, no list read.
 
 ## 3. Checks
@@ -19,8 +20,9 @@
 
 - [x] 4.1 Nothing else moves (D7): no table, pin or golden of the six pairs touched; the six baselines pass without re-blessing; the Italian golden does not move — unless change 16 landed first, then it is re-blessed once, naming the level probes (D6).
 - [x] 4.2 `python3 -m unittest discover -s scripts/lingua-data -p "test_*.py"`; `cargo fmt --all --check`; `cargo clippy --workspace --all-targets -- -D warnings`; `cargo test --workspace`; `cargo llvm-cov --workspace --fail-under-lines 80 --ignore-filename-regex "$(cat .github/coverage-ignore-regex.txt)"`.
-- [ ] 4.3 `openspec validate add-lingua-italian-levels --strict` passes; `python3 scripts/openspec_archive_order.py add-lingua-italian-levels` names its prerequisites; `docs/lingua/italian-programme.md` row 14's status names this change's pull requests.
+- [x] 4.3 `openspec validate add-lingua-italian-levels --strict` passes; `python3 scripts/openspec_archive_order.py add-lingua-italian-levels` names its prerequisites; `docs/lingua/italian-programme.md` row 14's status names this change's pull requests.
 
 ## 5. Owner
 
-- [ ] 5.1 [manual] The owner reads the levels' figures on change 9's ranks beside French's and Spanish's, and approves the reduction's pull request; a licence request for an Italian CEFR list stays the owner's, outside this change.
+- [x] 5.1 [manual] The owner reads the levels' figures on change 9's ranks beside French's and Spanish's, and approves the reduction's pull request; a licence request for an Italian CEFR list stays the owner's, outside this change.
+  Done 2026-10-24: the owner approved the levels on the figures in the PR (8,302 levels, PUD shares beside French's and Spanish's, the two criteria missed narrowly, the provisional weaknesses until change 16); a licence request for an Italian CEFR list stays his.
