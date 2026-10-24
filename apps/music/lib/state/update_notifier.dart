@@ -225,7 +225,9 @@ class Update extends _$Update {
       case UpdateDownloaded(:final file):
         state = UpdateState.ready(manifest: manifest);
         state = UpdateState.installing(manifest: manifest);
-        final result = await ref.read(updateInstallerProvider).install(file);
+        final result = await ref
+            .read(updateInstallerProvider)
+            .install(file, manifest);
         switch (result) {
           case InstallStarted():
             // The app is exiting; leave the state as `installing` so nothing
@@ -237,6 +239,13 @@ class Update extends _$Update {
               manifest: manifest,
               target: target,
               canSelfInstall: false,
+            );
+          case InstallCancelled():
+            // The password dialog was dismissed: nothing happened, offer again.
+            state = UpdateState.available(
+              manifest: manifest,
+              target: target,
+              canSelfInstall: true,
             );
           case InstallFailed(:final reason):
             debugPrint('desktop update: install failed ($reason)');

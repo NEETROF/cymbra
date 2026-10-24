@@ -448,7 +448,7 @@ void main() {
         onProgress?.call(512, 1024);
         return UpdateDownloaded(file);
       });
-      when(installer.install(any)).thenAnswer((_) async {
+      when(installer.install(any, any)).thenAnswer((_) async {
         return const InstallStarted();
       });
       c.listen(updateProvider, (_, next) {
@@ -457,7 +457,7 @@ void main() {
 
       await c.read(updateProvider.notifier).download();
       expect(seen, contains(512));
-      verify(installer.install(file)).called(1);
+      verify(installer.install(file, any)).called(1);
       // The app is exiting: nothing repaints into a misleading "done".
       expect(c.read(updateProvider), isA<UpdateInstalling>());
     });
@@ -474,7 +474,7 @@ void main() {
         (c.read(updateProvider) as UpdateFailed).cause,
         UpdateFailureCause.integrity,
       );
-      verifyNever(installer.install(any));
+      verifyNever(installer.install(any, any));
     });
 
     test('an installer that refuses falls back to notify-only', () async {
@@ -487,13 +487,34 @@ void main() {
         ),
       );
       when(
-        installer.install(any),
+        installer.install(any, any),
       ).thenAnswer((_) async => const InstallNotSelfInstallable('portable'));
       await c.read(updateProvider.notifier).download();
       final state = c.read(updateProvider);
       expect(state, isA<UpdateAvailableState>());
       expect((state as UpdateAvailableState).canSelfInstall, isFalse);
     });
+
+    test(
+      'a dismissed password dialog keeps the offer, with no error',
+      () async {
+        final c = await offered();
+        when(
+          service.download(any, onProgress: anyNamed('onProgress')),
+        ).thenAnswer(
+          (_) async => UpdateDownloaded(
+            File('${Directory.systemTemp.path}/cymbra-music.deb'),
+          ),
+        );
+        when(
+          installer.install(any, any),
+        ).thenAnswer((_) async => const InstallCancelled());
+        await c.read(updateProvider.notifier).download();
+        final state = c.read(updateProvider);
+        expect(state, isA<UpdateAvailableState>());
+        expect((state as UpdateAvailableState).canSelfInstall, isTrue);
+      },
+    );
 
     test('download does nothing when there is no offer on the table', () async {
       final c = build();

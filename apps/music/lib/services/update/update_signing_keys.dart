@@ -26,7 +26,8 @@
 /// out-of-band backup — deliberately not on the backend, so a compromised
 /// backend can withhold or stall an update but never fabricate one.
 ///
-/// Keep in sync with the backend's `CYMBRA_UPDATE_TRUSTED_KEYS` and with
+/// Keep in sync with the backend's `CYMBRA_UPDATE_TRUSTED_KEYS`, with the Linux
+/// helper's `crates/update-manifest/release-keys.json` (a test enforces it) and with
 /// `apps/music/config/desktop_release.json`'s `key_id`.
 library;
 
