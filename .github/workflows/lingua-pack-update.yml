@@ -15,7 +15,7 @@ name: lingua-pack-update
 # - dispatch, mode `update`: today's sources (CEFR-J, Octanove, ESDB, UD Spanish-GSD at their pinned
 #   commits, UD French-GSD too; kaikki live), kept as a new snapshot, reduced, and pushed to the branch
 #   lingua-pack/<pair>/<snapshot>. kaikki is read as its dumps of whole Wiktionary editions alone —
-#   the English, French and Spanish Wiktionaries', one address each (pack_sources.py EDITIONS,
+#   the English, French, Spanish and Italian Wiktionaries', one address each (pack_sources.py EDITIONS,
 #   migrate-lingua-pack-sources-to-raw-dumps D1): the files the pair reads are derived from them in
 #   one pass per edition and published as the release lingua-pack-sources-<pair>-<snapshot>, never
 #   replaced, whose notes name each dump by its address, regeneration date and decompressed sha256;
@@ -87,7 +87,7 @@ on:
         options: [any, identical]
         default: any
       keep:
-        description: "Editions whose recorded bytes the update keeps, comma-separated (en, fr, es): their dumps are not read, their pinned files are (mode update only). Empty = read every edition anew."
+        description: "Editions whose recorded bytes the update keeps, comma-separated (en, fr, es, it): their dumps are not read, their pinned files are (mode update only). Empty = read every edition anew."
         type: string
         default: ""
   schedule:

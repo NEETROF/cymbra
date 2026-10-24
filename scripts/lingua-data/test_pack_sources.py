@@ -433,11 +433,16 @@ class Editions(unittest.TestCase):
     FR = [
         {"word": "harbour", "lang_code": "en", "pos": "noun", "senses": [{"glosses": ["Port."]}]},
         {"word": "casa", "lang_code": "es", "pos": "noun", "senses": [{"glosses": ["Maison."]}]},
+        {"word": "casa", "lang_code": "it", "pos": "noun", "senses": [{"glosses": ["Maison."]}]},
         {
             "word": "maison",
             "lang_code": "fr",
             "pos": "noun",
-            "translations": [{"lang_code": "es", "word": "casa"}, {"lang_code": "en", "word": "house"}],
+            "translations": [
+                {"lang_code": "es", "word": "casa"},
+                {"lang_code": "en", "word": "house"},
+                {"lang_code": "it", "word": "casa"},
+            ],
         },
     ]
     ES = [
@@ -578,9 +583,11 @@ class Editions(unittest.TestCase):
         )
 
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
-    def test_spec_scenario_the_french_edition_s_catalogue_derives_four_files_in_one_pass(self):
+    def test_spec_scenario_the_french_edition_s_catalogue_derives_six_files_in_one_pass(self):
         # add-lingua-fr-en-translated-expressions D6: fr-en's English translations join the French
-        # edition's catalogue — four files, derived in the one pass any pair's first read makes.
+        # edition's catalogue; add-lingua-pack-it-fr D3: it-fr's Italian section and Italian
+        # translations too — six files, derived in the one pass any pair's first read makes, whichever
+        # pair reads it (the cost D3 records: every French-dump derivation writes the Italian section).
         import unittest.mock as mock
 
         self.assertEqual(
@@ -590,14 +597,24 @@ class Editions(unittest.TestCase):
                 "kaikki-fr-Espagnol.jsonl": ("entries", "es"),
                 "kaikki-fr-traductions.jsonl": ("translations", "fr", "es"),
                 "kaikki-fr-traductions-en.jsonl": ("translations", "fr", "en"),
+                "kaikki-fr-Italien.jsonl": ("entries", "it"),
+                "kaikki-fr-traductions-it.jsonl": ("translations", "fr", "it"),
             },
         )
         with mock.patch.object(ps, "derive", wraps=ps.derive) as derive:
             self.update("en-fr")
             self.notes_en_fr = self.notes
         self.assertEqual(derive.call_count, 1)
-        self.assertIn("its catalogue (4 files) derived in ", self.notes)
+        self.assertIn("its catalogue (6 files) derived in ", self.notes)
         folder = self.editions / "fr-2026.10.08"
+        self.assertEqual(
+            (folder / "kaikki-fr-traductions-it.jsonl").read_text(encoding="utf-8"),
+            '{"pos": "noun", "translations": [{"word": "casa"}], "word": "maison"}\n',
+        )
+        self.assertEqual(
+            json.loads((folder / "kaikki-fr-Italien.jsonl").read_text(encoding="utf-8")),
+            {"word": "casa", "lang_code": "it", "pos": "noun", "senses": [{"glosses": ["Maison."]}]},
+        )
         self.assertEqual(
             (folder / "kaikki-fr-traductions-en.jsonl").read_text(encoding="utf-8"),
             '{"pos": "noun", "translations": [{"word": "house"}], "word": "maison"}\n',
@@ -1329,8 +1346,10 @@ class DumpsOnly(unittest.TestCase):
                 "en": "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz",
                 "fr": "https://kaikki.org/frwiktionary/raw-wiktextract-data.jsonl.gz",
                 "es": "https://kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz",
+                # The Italian Wiktionary, it-fr's direct fallback (add-lingua-pack-it-fr D3).
+                "it": "https://kaikki.org/itwiktionary/raw-wiktextract-data.jsonl.gz",
             },
-            "three addresses, one dump per edition",
+            "four addresses, one dump per edition",
         )
         self.assertEqual(
             ps.DUMPS["en-es"],
@@ -1375,10 +1394,27 @@ class DumpsOnly(unittest.TestCase):
         # it-fr (add-lingua-italian-forms-tables D2): the English Wiktionary's Italian section, a file
         # of the English edition's catalogue; MarkIT's training and development sections at a commit
         # and Morph-it! at the owner's one-off release, pinned; never UD Italian-PUD nor MarkIT's test
-        # section, which the measurement holds out.
-        self.assertEqual(ps.DUMPS["it-fr"], {"en": ("kaikki-Italian.jsonl",)})
+        # section, which the measurement holds out. Its glosses (add-lingua-pack-it-fr D2, D3): the
+        # French Wiktionary's Italian section and its French entries' Italian translations, then the
+        # Italian Wiktionary's French translations — es-fr's three kinds of file, in es-fr's order.
+        self.assertEqual(
+            ps.DUMPS["it-fr"],
+            {
+                "en": ("kaikki-Italian.jsonl",),
+                "fr": ("kaikki-fr-Italien.jsonl", "kaikki-fr-traductions-it.jsonl"),
+                "it": ("kaikki-it-traductions-fr.jsonl",),
+            },
+        )
         ps.check_registered("it-fr")
         self.assertEqual(ps.EDITIONS["en"]["files"]["kaikki-Italian.jsonl"], ("entries", "it"))
+        self.assertEqual(catalogue("it-fr", "fr"), {
+            "kaikki-fr-Italien.jsonl": ("entries", "it"),
+            "kaikki-fr-traductions-it.jsonl": ("translations", "fr", "it"),
+        })
+        self.assertEqual(catalogue("it-fr", "it"), {"kaikki-it-traductions-fr.jsonl": ("translations", "it", "fr")})
+        # The Italian Wiktionary's catalogue holds it-fr's file alone: en-it's and fr-it's sections
+        # join it with the pairs that read them.
+        self.assertEqual(ps.EDITIONS["it"]["files"], {"kaikki-it-traductions-fr.jsonl": ("translations", "it", "fr")})
         pinned = ps.PINNED["it-fr"]
         self.assertEqual(list(pinned), ["markit-train", "markit-dev", "morph-it"])
         commit = "e210079df0aea331ec1dcaa90648d815ce94c3ce"
@@ -1402,9 +1438,15 @@ class DumpsOnly(unittest.TestCase):
         self.assertIn('MARKIT = ("it_markit-ud-train.conllu", "it_markit-ud-dev.conllu")', reducer)
         self.assertEqual(
             [p.name for p in ps.rule_files(HERE / "reduce-it-fr.py")],
-            ["reduce-it-fr.py", "reduce_common.py", "reduce_italian_acronyms.py", "reduce_italian_treebank.py"],
-            "it-fr loads the shared rules, Italian's acronym table (keep-lingua-italian-acronyms-and-names) and "
-            "MarkIT's, no edition's: its glosses are change 16's",
+            [
+                "reduce-it-fr.py",
+                "reduce_common.py",
+                "reduce_edition_fr.py",
+                "reduce_italian_acronyms.py",
+                "reduce_italian_treebank.py",
+            ],
+            "it-fr loads the shared rules, the French Wiktionary's (its glosses are French, add-lingua-pack-it-fr "
+            "D1), Italian's acronym table (keep-lingua-italian-acronyms-and-names) and MarkIT's",
         )
 
     def test_a_source_pinned_at_a_release_carries_the_sha256_its_bytes_must_have(self):

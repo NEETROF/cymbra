@@ -64,7 +64,7 @@ the dictionary words `lexical.tsv`) and `studied.json`, which names the language
 writes both sides into its work folder; `split` files them, and only the reference pair's reduction
 writes the studied folder. The reference's `pin.json` is the studied tables' provenance.
 
-kaikki is read at three addresses, one dump per Wiktionary edition (`EDITIONS`,
+kaikki is read at four addresses, one dump per Wiktionary edition (`EDITIONS`,
 migrate-lingua-pack-sources-to-raw-dumps D1): every file a pair reads of kaikki — a language's
 entries, or the translations an edition's entries list into one language — is derived from the
 dump of the edition that writes it, and `DUMPS[pair]` names the files the pair reads, by edition.
@@ -253,6 +253,11 @@ EDITIONS = {
             # (add-lingua-fr-en-translated-expressions D1, D6): registered again, for expressions
             # alone — change 48 had removed it, no pair reading it then.
             "kaikki-fr-traductions-en.jsonl": ("translations", "fr", "en"),
+            # it-fr's glosses and expressions: the French Wiktionary's Italian section, its definitions
+            # read first (add-lingua-pack-it-fr D2, D3) — 769,483,152 B derived, 1,199,070 entries.
+            "kaikki-fr-Italien.jsonl": ("entries", "it"),
+            # it-fr's inverted fallback: the French entries' Italian translations, read backwards (D2).
+            "kaikki-fr-traductions-it.jsonl": ("translations", "fr", "it"),
         },
     },
     # The Spanish Wiktionary: 103,226,106 B gzipped (regenerated 2026-10-02 12:12).
@@ -267,6 +272,17 @@ EDITIONS = {
             "kaikki-es-traductions.jsonl": ("translations", "es", "fr"),
             # es-en's direct fallback, en-es's inverted one (add-lingua-pack-es-en D1).
             "kaikki-es-traductions-en.jsonl": ("translations", "es", "en"),
+        },
+    },
+    # The Italian Wiktionary: 43,849,715 B gzipped (regenerated 2026-10-21) (add-lingua-pack-it-fr D3).
+    # Its dump writes an entry's translations on the entry, each with its `lang_code` and `word`, the
+    # shape `derive` reads. Its English section (en-it, stage 3) and its French section (fr-it, stage 4)
+    # will join this catalogue with the pairs that read them.
+    "it": {
+        "url": "https://kaikki.org/itwiktionary/raw-wiktextract-data.jsonl.gz",
+        "files": {
+            # it-fr's direct fallback: the French translations its Italian entries list (D2).
+            "kaikki-it-traductions-fr.jsonl": ("translations", "it", "fr"),
         },
     },
 }
@@ -313,8 +329,15 @@ DUMPS = {
     },
     # The English Wiktionary's Italian section, Italian's studied side: its forms and their lemmas
     # (add-lingua-italian-forms-tables D2) — a file of the English edition's catalogue. it-fr's
-    # glosses, from the Italian edition's French section, are change 16's.
-    "it-fr": {"en": ("kaikki-Italian.jsonl",)},
+    # glosses (add-lingua-pack-it-fr D2, D3), in es-fr's order: the French Wiktionary's Italian
+    # section, whose definitions gloss first, and its French entries' translation tables, read
+    # backwards; the French translations the Italian Wiktionary's Italian entries list, the direct
+    # fallback, read before them.
+    "it-fr": {
+        "en": ("kaikki-Italian.jsonl",),
+        "fr": ("kaikki-fr-Italien.jsonl", "kaikki-fr-traductions-it.jsonl"),
+        "it": ("kaikki-it-traductions-fr.jsonl",),
+    },
 }
 # The source record of a pin written before the dumps: kaikki's per-language extract, kept whole as
 # a release asset (D5). Read as recorded, never written again.
