@@ -27,6 +27,15 @@ See proposal.md — Why. Where things stand:
   "imperfect indicative", "past historic", "future", "conditional", "present subjunctive", "imperfect
   subjunctive", "imperative", "gerund", "present participle", "past participle" (counted over its
   verb entries: 35,120 "future", 29,535 "past historic", 6,300 "gerund"…).
+- **Measured again on the committed tables** (the implementation, on change 16's `tables/it/`, which
+  keeps 2,865 verbs where the prototype read the section's every one): `grammar.tsv` holds 1,348
+  form–lemma pairs read `Mood=Ind` and `Mood=Sub` in the first person plural of the present, 247 in
+  the second person plural (`mangiate`), 1,782 read the indicative's second person singular beside
+  the subjunctive's first (`parli`), and 2,673 gerund pairs. Opened on the dictionary form
+  `forms.tsv` gives each of its 129,610 forms, the card says the moods once on 1,535 of them (1,330
+  first persons plural, 205 second) and names them apart on 1,047 (`abbai`, `parli`), always the
+  same pattern: the indicative's second person singular, the subjunctive's three; 71,690 forms show a
+  grammar line, in each of the three interfaces, none of them a tag.
 
 ## Goals / Non-Goals
 
@@ -131,7 +140,8 @@ its own), a present participle the committed tables file under its verb, `case`,
 tables file no present participle under its verb, the present participle shows only as an « peut
 aussi être » line naming the verb), and lemmas with two
 sense runs or more, chosen from the committed tables; the golden is
-re-blessed once, the pull request listing the probes added. `test/word-card-it-fr.spec.ts` renders
+re-blessed once, the pull request listing the probes added (implemented: 24 card probes and 40
+lemmas, *Implementation* below). `test/word-card-it-fr.spec.ts` renders
 every grammar and phrase probe of `it-fr.golden` with the French renderer into
 `test/baseline/word-card-it-fr.txt`, as `word-card-fr-en.spec.ts` does for fr-en; the harness
 (`test/word-card-french.ts`, which hard-codes `"fr"`) takes the studied language's code; and the
@@ -145,6 +155,14 @@ shows wrong in the data goes to change 17's list, or to the refinement after it.
 Every form of the six other committed packs is rendered before and after the change and compared
 (about 688,728 forms over the six packs, fr-en's and fr-es's 124,096 each with 51's 440,534); the other snapshots (`word-card-fr-en.txt`, `-fr-es.txt`,
 `-es-en.txt`, `-en-es.txt`) and `selection-rows-fr.txt` pass without `-u`; `test/word-grammar.spec.ts` unchanged.
+Re-run on the implementation (task 1.3): the six packs built from the committed tables, every form
+of their studied language's `forms.tsv` opened on the dictionary form it gives, its readings, other
+dictionary forms, pieces and sense headings rendered through `main`'s renderers (`4eebb6dad`) and
+through this change's — 690,228 forms (en-fr's and en-es's 75,315 each, es-fr's and es-en's 144,952,
+fr-en's and fr-es's 124,847: French's `forms.tsv` has grown since change 51's count) — give byte
+for byte the same cards in their pair's interface language (35,033 en-fr, 87,705 es-fr, 87,705
+es-en, 35,033 en-es, 66,684 fr-en and 66,684 fr-es forms showing a grammar line), and in all three
+interface languages (2,070,684 cards, none moved).
 
 ### D8 — Order, and what later changes take
 
@@ -153,6 +171,42 @@ baseline on the committed tables): before 16, every grammar probe answers no rea
 would pin nothing. Later changes take: change 22 (`add-lingua-pack-it-en`) and change 27
 (`add-lingua-pack-it-es`) — their baselines and the card snapshots in English and Spanish over their
 goldens; until then the English and Spanish rows are held by unit tests.
+
+### Implementation
+
+What the implementation decided where the decisions above left it open, and where it departs from
+them:
+
+- **The card's probes** (D6) are D6's seventeen — `parlo`, `parli`, `parla`, `parliamo`, `mangiate`,
+  `parlate`, `parlavo`, `parlò`, `parlerò`, `parlerei`, `parlassi`, `parlando`, the present
+  participle `parlanti` (filed under *parlare*), `case`, `rosse`, `grandi`, `città` — and seven more:
+  `creduta` (the spec's Spanish scenario), `parlerebbe` and `parlato` (examples for the owner's read,
+  task 4.1), `parlante` asked as itself (D6's « peut aussi être » line naming the verb), and, as
+  French's card probes did, a determiner's plural without a gender (`tali`), a comparative (`minore`
+  → *piccolo*) and a numeral (`mila` → *mille*): 24 in all, after the reference's 32. The lemmas with two sense runs or
+  more are French's rule: the 40 commonest lemmas of `tables/it/freq.tsv` whose it-fr gloss has two
+  runs or more (`tables/it-fr/senses.tsv`), in frequency order, none asked as itself already
+  (`support/italian.rs`, `CARD_PROBES`, `MORE_LEMMAS`; `italian_baseline.rs` holds the order). The
+  golden gains 64 probes and moves none: the review lines its reader shows hold no Italian card
+  named without a space.
+- **The renderers' unit tests** live in one spec, `test/word-grammar-italian.spec.ts`, which names an
+  Italian form in the three interfaces (the spec's scenarios, every tense in its order, the
+  participles, the infinitive, the unnamed forms) and reads change 13's committed tag pool
+  (`tables/it/tags.tsv`, 83 tags): each tag is named by the three renderers or by none — a
+  numeral's, `DET|Number=Plur`, a singular without a gender —, and no line shows a tag.
+  `test/word-grammar.spec.ts`, `word-grammar-en.spec.ts` and `-es.spec.ts` are unchanged;
+  `grammar-description.spec.ts` gains *what an Italian card names* and runs *What each renderer
+  names* for `it`; `i18n.spec.ts` checks each draft against the French over an Italian word.
+- **The harness** (`test/word-card-french.ts`) takes the studied language's code as an argument
+  every caller passes, so `word-card-fr-en.spec.ts` and `-fr-es.spec.ts` pass `fr`: their snapshots
+  do not move.
+- **Review's branch** (D5): `pack_gloss`'s no-space branch reads the key through
+  `reading_expression_key` for French and Italian alike — the function `french_expression_key`
+  wraps for French, so French's cards read as before. Its test is in `tests/languages.rs`, beside
+  change 12's, over the it-fr fixture re-stamped as it-en: `d'accordo` and `anch'io` show it-en's
+  glosses, `perché` its word's.
+- The committed it-fr table holds no `anch'io`: the golden's « anch'io » phrase shows its words'
+  rows (`anche`), for change 17's list.
 
 ## Open Questions
 

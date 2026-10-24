@@ -31,6 +31,8 @@ import { createCard } from "@/reading/wordpopup.ts";
 // "What each renderer names": the closed vocabulary enumerated, every renderer naming what the
 // French card names, no more. refine-lingua-card-invariable-plurals D1, D7: on that card, a plural
 // read beside a singular of its part of speech is left out too, in every studied language.
+// add-lingua-italian-word-card D1: Italian is a studied language the renderers name, and every
+// table keyed by studied language holds its row.
 
 const grammar = (over: Partial<WordGrammar> = {}): WordGrammar => ({
   gloss: null,
@@ -256,14 +258,16 @@ describe("the description of a form names no language", () => {
     }
   });
 
-  it("orders a studied language's tenses once, from the renderer's table: Spanish's and French's as listed, English's as the pack has them", () => {
+  it("orders a studied language's tenses once, from the renderer's table: Spanish's, French's and Italian's as listed, English's as the pack has them", () => {
     const tenses = {
       en: { "Ind/Past": "a", "Ind/Pres": "b" },
       es: { "Sub/Pres": "c", "Ind/Pres": "d", "Imp/": "e" },
       fr: { "Ind/Pres": "f", "Ind|Sub/Pres": "g", "Cnd/": "h", "Imp/": "i" },
+      it: { "Ind/Pres": "j", "Ind|Sub/Pres": "k", "Ind/Past": "l", "Imp/": "m" },
     };
     expect(tenseOrder(tenses, "es")).toEqual(["Sub/Pres", "Ind/Pres", "Imp/"]);
     expect(tenseOrder(tenses, "fr")).toEqual(["Ind/Pres", "Ind|Sub/Pres", "Cnd/", "Imp/"]);
+    expect(tenseOrder(tenses, "it")).toEqual(["Ind/Pres", "Ind|Sub/Pres", "Ind/Past", "Imp/"]);
     expect(tenseOrder(tenses, "en")).toEqual([]);
   });
 
@@ -278,14 +282,18 @@ describe("the description of a form names no language", () => {
     expect(formKind(r({ Mood: "Sub" }), "en")).toBeNull();
     // French keyed as Spanish (add-lingua-french-word-card D2): the conditional and the imperative
     // without a tense, as change 45 stores them; the passé simple is `Ind/Past`.
+    // Italian too (add-lingua-italian-word-card D2): the passato remoto `Ind/Past`, the imperfetto
+    // `Ind/Imp`, the conditional and the imperative without a tense, as change 13 stores them.
     for (const [features, key] of [
       [{ Mood: "Ind", Tense: "Past" }, "Ind/Past"],
+      [{ Mood: "Ind", Tense: "Imp" }, "Ind/Imp"],
       [{ Mood: "Cnd" }, "Cnd/"],
       [{ Mood: "Imp" }, "Imp/"],
       [{ Mood: "Sub", Tense: "Imp" }, "Sub/Imp"],
     ] as const) {
       expect(finiteKey(r(features), "fr")).toBe(key);
       expect(finiteKey(r(features), "es")).toBe(key);
+      expect(finiteKey(r(features), "it")).toBe(key);
     }
   });
 });
@@ -300,6 +308,7 @@ describe("what a French card names", () => {
       en: { infinitive: false, presentParticiple: false, gerund: true, moods: false },
       es: { infinitive: true, presentParticiple: false, gerund: true, moods: false },
       fr: { infinitive: true, presentParticiple: true, gerund: false, moods: true },
+      it: { infinitive: true, presentParticiple: true, gerund: true, moods: true },
     });
   });
 
@@ -332,6 +341,7 @@ describe("what a French card names", () => {
       en: {},
       es: {},
       fr: {},
+      it: {},
       [studied]: Object.fromEntries(keys.map((k) => [k, k])),
     } as ReadingWords["tenses"],
     name: (kind) => ({ article: "", name: kind.kind }),
@@ -466,6 +476,109 @@ describe("what a French card names", () => {
   });
 });
 
+// add-lingua-italian-word-card D1, D3, D4: what an Italian card names, decided in the description
+// once for every renderer, tested here without a word of any language. The readings are change 13's,
+// as `tables/it/grammar.tsv` writes them.
+describe("what an Italian card names", () => {
+  const r = (features: Record<string, string>) => readingOf({ pos: "VERB", features });
+
+  it("names Italian's infinitive, present participle and gerund, and its past participle's agreement", () => {
+    expect(formKind(r({ VerbForm: "Inf" }), "it")).toEqual({ kind: "infinitive" });
+    // The present participle's number (`parlanti`) goes unsaid (D4).
+    for (const Number of ["Sing", "Plur"]) {
+      expect(formKind(r({ Number, Tense: "Pres", VerbForm: "Part" }), "it")).toEqual({ kind: "presentParticiple" });
+    }
+    expect(formKind(r({ VerbForm: "Ger" }), "it")).toEqual({ kind: "gerund" });
+    expect(formKind(r({ Gender: "Fem", Number: "Sing", Tense: "Past", VerbForm: "Part" }), "it")).toEqual({
+      kind: "participle",
+      gender: "Fem",
+      number: "Sing",
+    });
+  });
+
+  /** Words that are the keys themselves: a group reads `<persons> <number> <key>`. */
+  const ITALIAN_KEYS = [
+    "Ind/Pres",
+    "Ind|Sub/Pres",
+    "Ind/Imp",
+    "Ind/Past",
+    "Ind/Fut",
+    "Cnd/",
+    "Sub/Pres",
+    "Sub/Imp",
+    "Imp/",
+  ];
+  const words: ReadingWords = {
+    tenses: { en: {}, es: {}, fr: {}, it: Object.fromEntries(ITALIAN_KEYS.map((k) => [k, k])) },
+    name: (kind) => ({ article: "", name: kind.kind }),
+    persons: (persons, number, tense) => ({ article: "", name: `${persons.join("+")} ${number} ${tense}` }),
+    numbers: ["Sing", "Plur"],
+    mergeBy: "key",
+  };
+  const names = (tags: GrammarTag[]) =>
+    nameReadings(describeForm(grammar({ readings: tags }), "lemma", "form", "form").own, "it", words).map(
+      (n) => n.name,
+    );
+
+  it("says the moods of « parliamo » once, its imperative after them", () => {
+    // `tables/it/grammar.tsv`'s order: the imperative, the indicative, the subjunctive.
+    const parliamo = [fin("Imp", "1", "Plur"), fin("Ind", "1", "Plur", "Pres"), fin("Sub", "1", "Plur", "Pres")];
+    expect(names(parliamo)).toEqual(["1 Plur Ind|Sub/Pres", "1 Plur Imp/"]);
+  });
+
+  it("keeps the moods of « parli » apart: its indicative and its subjunctive hold different persons (D3)", () => {
+    const parli = [
+      fin("Ind", "2", "Sing", "Pres"),
+      fin("Sub", "1", "Sing", "Pres"),
+      fin("Sub", "2", "Sing", "Pres"),
+      fin("Sub", "3", "Sing", "Pres"),
+    ];
+    expect(names(parli)).toEqual(["2 Sing Ind/Pres", "1+2+3 Sing Sub/Pres"]);
+  });
+
+  it("merges « mangiate »'s second person plural, beside its participle and its imperative", () => {
+    const mangiate = [
+      { pos: "VERB", features: { Gender: "Fem", Number: "Plur", Tense: "Past", VerbForm: "Part" } },
+      fin("Imp", "2", "Plur"),
+      fin("Ind", "2", "Plur", "Pres"),
+      fin("Sub", "2", "Plur", "Pres"),
+    ];
+    expect(names(mangiate)).toEqual(["participle", "2 Plur Ind|Sub/Pres", "2 Plur Imp/"]);
+  });
+
+  it("never merges the imperfect: Italian's imperfect subjunctive never spells its indicative, and its merge is not keyed (D2)", () => {
+    expect(names([fin("Ind", "1", "Sing", "Imp"), fin("Sub", "1", "Sing", "Imp")])).toEqual([
+      "1 Sing Ind/Imp",
+      "1 Sing Sub/Imp",
+    ]);
+    // Italian has no subjunctive of the past historic or of the future: such a key is unnamed.
+    expect(names([fin("Ind", "1", "Sing", "Past"), fin("Sub", "1", "Sing", "Past")])).toEqual(["1 Sing Ind/Past"]);
+  });
+
+  it("orders Italian's tenses as its table lists them: indicative, conditional, subjunctive, imperative", () => {
+    const all = [
+      fin("Imp", "2", "Sing"),
+      fin("Sub", "3", "Sing", "Imp"),
+      fin("Sub", "3", "Sing", "Pres"),
+      fin("Cnd", "1", "Sing"),
+      fin("Ind", "1", "Sing", "Fut"),
+      fin("Ind", "2", "Sing", "Past"),
+      fin("Ind", "1", "Sing", "Imp"),
+      fin("Ind", "1", "Sing", "Pres"),
+    ];
+    expect(names(all)).toEqual([
+      "1 Sing Ind/Pres",
+      "1 Sing Ind/Imp",
+      "2 Sing Ind/Past",
+      "1 Sing Ind/Fut",
+      "1 Sing Cnd/",
+      "3 Sing Sub/Pres",
+      "3 Sing Sub/Imp",
+      "2 Sing Imp/",
+    ]);
+  });
+});
+
 describe("the vocabulary is lingua-core's", () => {
   // The engine's closed vocabulary, read from its source (as test/packs.spec.ts reads the analyser's
   // version): a part of speech or a feature added there is added here, or this fails.
@@ -543,8 +656,9 @@ describe("What each renderer names", () => {
     expect(tags.length).toBeGreaterThan(2000);
   });
 
-  // French studied too (add-lingua-french-word-card D10): every renderer has its table.
-  for (const studied of ["en", "es", "fr"] as StudiedLanguageCode[]) {
+  // French studied too (add-lingua-french-word-card D10), and Italian (add-lingua-italian-word-card
+  // D1): every renderer has its table.
+  for (const studied of ["en", "es", "fr", "it"] as StudiedLanguageCode[]) {
     for (const [language, renderer] of renderers) {
       it(`${language}, of ${studied}: names what the French names, and leaves unnamed what it leaves unnamed`, () => {
         let named = 0;
@@ -577,7 +691,7 @@ describe("What each renderer names", () => {
 
   it("a plural read beside its singular gets no line in any language, a plural alone keeps the French card's", () => {
     let named = 0;
-    for (const studied of ["en", "es", "fr"] as StudiedLanguageCode[]) {
+    for (const studied of ["en", "es", "fr", "it"] as StudiedLanguageCode[]) {
       for (const pos of ["NOUN", "PROPN", "ADJ", "DET", "PRON"]) {
         for (const Gender of [undefined, ...FEATURES.Gender!]) {
           const plural: GrammarTag = { pos, features: Gender ? { Gender, Number: "Plur" } : { Number: "Plur" } };

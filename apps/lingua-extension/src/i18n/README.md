@@ -52,12 +52,16 @@ listed in the order the card names them, and the gerund's name); what is named a
 infinitive, the present participle and the gerund are, whether the indicative and the subjunctive of
 one tense are said once — is the description's, one table keyed by studied language (`CARD_NAMES`),
 beside `finiteKey`. The studied languages the renderers name are `StudiedLanguageCode`'s: English,
-Spanish and French (add-lingua-french-word-card D1), French ahead of the extension's `StudiedLanguage`,
-which change 52 (enable-lingua-french) widened when it listed the French pairs. Every renderer
+Spanish, French (add-lingua-french-word-card D1) and Italian (add-lingua-italian-word-card D1), French
+ahead of the extension's `StudiedLanguage`, which change 52 (enable-lingua-french) widened when it
+listed the French pairs, and Italian ahead of it until change 20 (enable-lingua-italian) widens it:
+until then no card is opened on an Italian word, and the renderers' Italian rows are held by their
+unit tests and the it-fr snapshot (`test/word-card-it-fr.spec.ts`). Every renderer
 has a table for every studied language: the French renderer's French, which no French-native reader
 is shown, serves the interface override M2 reserves and the enumeration of what each renderer names,
-as the English renderer's English and the Spanish renderer's Spanish do. The rule that a draft is typed after the
-French covers code here: `en/grammar.ts` and `es/grammar.ts` are `typeof fr`, so the compiler checks
+as the English renderer's English and the Spanish renderer's Spanish do; its Italian is the first
+table of a studied language whose moods merge that a French-native reader is shown. The rule that a
+draft is typed after the French covers code here: `en/grammar.ts` and `es/grammar.ts` are `typeof fr`, so the compiler checks
 the functions; `test/grammar-description.spec.ts` checks that every renderer names what the French
 names, no more, and `test/i18n.spec.ts` checks the drafts as renderers rather than as texts. The
 French renderer is the card's wording before the catalogue, byte for byte; `reading/grammar-labels.ts`

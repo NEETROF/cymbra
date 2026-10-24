@@ -44,6 +44,12 @@
 //! `di` retry, an elided piece against a word in full, a truncation, the headword written as the
 //! page and a word the pre-pass splits.
 //!
+//! The Italian word card (add-lingua-italian-word-card D6) is pinned on this scenario: 24 grammar
+//! probes over the committed tables (`CARD_PROBES`), one for each name the card says or leaves unsaid
+//! on purpose, and 40 lemmas asked as themselves (`MORE_LEMMAS`), after the reference's 32
+//! (`REFERENCE_GRAMMAR`). The extension's `test/word-card-it-fr.spec.ts` renders every grammar and
+//! phrase probe of `baseline/it-fr.golden` with the interface in French.
+//!
 //! The corpus, `baseline/pages-it.txt`, is authored for these tests, page by page, around what a
 //! later change of the Italian stage must show, with two exceptions, quoted from texts in the
 //! public domain:
@@ -218,12 +224,13 @@ const PHRASES: &[&str] = &[
     "Pharus in margine rupis",
 ];
 
-/// (word as written, dictionary form) pairs a word card asks the grammar of. The fixture has no
-/// grammar tables: each answers its gloss alone, and a written word Italian's pre-pass splits
-/// answers its pieces — `al`, `l'uomo` —, an elided piece handed alone none (`l’`), asked by its
-/// written reading (`lo`) or by its lemma (`il`); a verb carrying its clitics, by its verb
-/// (`dirmelo`, `vattene`).
-const GRAMMAR: &[(&str, &str)] = &[
+/// (word as written, dictionary form) pairs a word card asks the grammar of: each answers its
+/// readings (add-lingua-italian-grammar-tables, the committed tables since add-lingua-pack-it-fr)
+/// and its gloss, and a written word Italian's pre-pass splits answers its pieces — `al`,
+/// `l'uomo` —, an elided piece handed alone one (`l’`), asked by its written reading (`lo`) or by
+/// its lemma (`il`); a verb carrying its clitics, by its verb (`dirmelo`, `vattene`). The
+/// reference's probes, before the card's (`CARD_PROBES`) and the lemmas' (`MORE_LEMMAS`).
+pub const REFERENCE_GRAMMAR: &[(&str, &str)] = &[
     ("è", "essere"),
     ("sono", "essere"),
     ("era", "essere"),
@@ -263,6 +270,81 @@ const GRAMMAR: &[(&str, &str)] = &[
     ("mo'", "mò"),
 ];
 
+/// The Italian card's probes (add-lingua-italian-word-card D6), over the committed tables: one for
+/// each name the card says or leaves unsaid on purpose — every tense of *parlare*, in the order the
+/// card names them (the present's four readings of `parli` named apart, the indicative and the
+/// subjunctive of `parliamo` and `mangiate` said once, `mangiate`'s and `parlate`'s second person
+/// plural beside their feminine plural participle), its gerund, its present participle as the
+/// tables file it under the verb (`parlanti`) and as a word of its own whose « may also be » line
+/// names the verb (`parlante`), its masculine past participle, a feminine one (`creduta`), a noun's
+/// and an adjective's plural, an adjective read in two genders and without one (`grandi`), a
+/// determiner's plural without a gender, a comparative, a numeral, and a plural spelled like its
+/// dictionary form (`città`).
+pub const CARD_PROBES: &[(&str, &str)] = &[
+    ("parlo", "parlare"),
+    ("parli", "parlare"),
+    ("parla", "parlare"),
+    ("parliamo", "parlare"),
+    ("mangiate", "mangiare"),
+    ("parlate", "parlare"),
+    ("parlavo", "parlare"),
+    ("parlò", "parlare"),
+    ("parlerò", "parlare"),
+    ("parlerei", "parlare"),
+    ("parlerebbe", "parlare"),
+    ("parlassi", "parlare"),
+    ("parlando", "parlare"),
+    ("parlanti", "parlare"),
+    ("parlante", "parlante"),
+    ("parlato", "parlare"),
+    ("creduta", "credere"),
+    ("case", "casa"),
+    ("rosse", "rosso"),
+    ("grandi", "grande"),
+    ("tali", "tale"),
+    ("minore", "piccolo"),
+    ("mila", "mille"),
+    ("città", "città"),
+];
+
+/// 40 more dictionary forms asked as grammar probes, `word-grammar <lemma> <lemma>`, so that their
+/// glosses and sense runs are the engine's answer and not the table's line: the most frequent
+/// lemmas of `tables/it/freq.tsv` whose it-fr gloss has two sense runs or more
+/// (`tables/it-fr/senses.tsv`), taken in the frequency order, none of them a lemma the reference or
+/// the card asks as itself (`porta`, `legge`, `sale`, `del`, `NATO`, `parlante`, `città`: none ranks
+/// among them). Chosen once, on the tables of 2026-10-24 (it-fr after add-lingua-pack-it-fr): a
+/// re-reduction may give one of them a single run, which moves nothing but what the golden says of
+/// it.
+pub const MORE_LEMMAS: &[&str] = &[
+    "di", "che", "come", "lo", "o", "questo", "ci", "solo", "essere", "io", "tutto", "cosa",
+    "fatto", "prima", "loro", "dopo", "uno", "ne", "poi", "quello", "ancora", "molto", "mai",
+    "ora", "quanto", "dove", "quindi", "secondo", "proprio", "altro", "bene", "vi", "qui",
+    "stesso", "grande", "fine", "tuo", "avere", "fino", "meglio",
+];
+
+const GRAMMAR_LEN: usize = REFERENCE_GRAMMAR.len() + CARD_PROBES.len() + MORE_LEMMAS.len();
+
+/// The reference's grammar probes, then the card's, then the 40 lemmas as themselves.
+const GRAMMAR: [(&str, &str); GRAMMAR_LEN] = {
+    let mut out = [("", ""); GRAMMAR_LEN];
+    let mut i = 0;
+    while i < REFERENCE_GRAMMAR.len() {
+        out[i] = REFERENCE_GRAMMAR[i];
+        i += 1;
+    }
+    let mut j = 0;
+    while j < CARD_PROBES.len() {
+        out[i + j] = CARD_PROBES[j];
+        j += 1;
+    }
+    let mut k = 0;
+    while k < MORE_LEMMAS.len() {
+        out[i + j + k] = (MORE_LEMMAS[k], MORE_LEMMAS[k]);
+        k += 1;
+    }
+    out
+};
+
 /// The pages analysed again for the reader with a history.
 const READER_PAGES: &[&str] = &["notizie", "omografi", "elisioni", "misto"];
 
@@ -291,7 +373,7 @@ pub const ITALIAN: Scenario = Scenario {
     page_names: PAGE_NAMES,
     lemmas: LEMMAS,
     phrases: PHRASES,
-    grammar: GRAMMAR,
+    grammar: &GRAMMAR,
     reader_pages: READER_PAGES,
     statuses: &[
         ("faro", "known", 1.0),

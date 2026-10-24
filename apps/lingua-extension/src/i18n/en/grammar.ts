@@ -24,7 +24,9 @@ import type { GrammarLine, Named, StudiedLanguageCode } from "../index.ts";
 // Wiktionary's form-of wording: "third-person singular preterite indicative of venir", "past
 // participle of walk" — for French, its French section's: "past historic", "simple future",
 // "present participle", the passé simple named "past historic (passé simple)" as M10 settles it
-// (add-lingua-french-word-card D2). English has no gendered article and elides nothing: a line says
+// (add-lingua-french-word-card D2); for Italian, its Italian section's: "past historic", "future",
+// "gerund", the passato remoto named "past historic (passato remoto)" as M10 named French's
+// (add-lingua-italian-word-card D2). English has no gendered article and elides nothing: a line says
 // "the" once, before its list. Readings merge by tag; the tenses come in the order its table lists
 // them; the genders of one number are named once, "masculine and feminine singular"
 // (add-lingua-english-card-wording D3).
@@ -56,7 +58,9 @@ const NUMBERS: Record<string, string> = { Sing: "singular", Plur: "plural" };
  * order the card names them in (`tenseOrder`; English's two come in the pack's order). French's
  * indicative and subjunctive of one tense, said once, come after the indicative of that tense
  * (`Ind|Sub/…`, add-lingua-french-word-card D3), as the Wiktionary writes "present
- * indicative/subjunctive"; French has no future subjunctive.
+ * indicative/subjunctive"; French has no future subjunctive. Italian's in the English Wiktionary's
+ * Italian form-of wording, its table's order, its present read in both moods said once as French's
+ * (add-lingua-italian-word-card D2, D3).
  */
 const TENSES: Record<StudiedLanguageCode, TenseTable> = {
   en: { "Ind/Past": "simple past", "Ind/Pres": "simple present" },
@@ -83,10 +87,24 @@ const TENSES: Record<StudiedLanguageCode, TenseTable> = {
     "Sub/Imp": "imperfect subjunctive",
     "Imp/": "imperative",
   },
+  it: {
+    "Ind/Pres": "present indicative",
+    "Ind|Sub/Pres": "present indicative or subjunctive",
+    "Ind/Imp": "imperfect indicative",
+    "Ind/Past": "past historic (passato remoto)",
+    "Ind/Fut": "future",
+    "Cnd/": "conditional",
+    "Sub/Pres": "present subjunctive",
+    "Sub/Imp": "imperfect subjunctive",
+    "Imp/": "imperative",
+  },
 };
 
-/** The gerund's name: English's "-ing form", Spanish's "gerund"; French has none (`CARD_NAMES`). */
-const GERUNDS: Partial<Record<StudiedLanguageCode, string>> = { en: "-ing form", es: "gerund" };
+/**
+ * The gerund's name: English's "-ing form", Spanish's and Italian's "gerund"
+ * (add-lingua-italian-word-card D4); French has none (`CARD_NAMES`).
+ */
+const GERUNDS: Partial<Record<StudiedLanguageCode, string>> = { en: "-ing form", es: "gerund", it: "gerund" };
 
 /** "feminine plural", "masculine singular", "plural": a nominal form's agreement. */
 function agreement({ gender, number }: Agreement): string | undefined {

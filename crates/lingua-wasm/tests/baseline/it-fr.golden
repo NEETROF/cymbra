@@ -296,6 +296,134 @@ Quoique; De toute façon; Quand même
 {"gloss":"De, chez; (préposition de temps) depuis, à partir de","senses":[{"tag":{"pos":"ADP"},"text":"De, chez; (préposition de temps) depuis, à partir de"}],"readings":[],"others":[],"pieces":["da","i"]}
 ### word-grammar mo' mò
 {"gloss":null,"senses":[],"readings":[],"others":[],"pieces":[]}
+### word-grammar parlo parlare
+{"gloss":"Parler, langue; Parler","senses":[{"tag":{"pos":"NOUN"},"text":"Parler, langue"},{"tag":{"pos":"VERB"},"text":"Parler"}],"readings":[{"pos":"VERB","features":{"Mood":"Ind","Number":"Sing","Person":"1","Tense":"Pres","VerbForm":"Fin"}}],"others":[],"pieces":[]}
+### word-grammar parli parlare
+{"gloss":"Parler, langue; Parler","senses":[{"tag":{"pos":"NOUN"},"text":"Parler, langue"},{"tag":{"pos":"VERB"},"text":"Parler"}],"readings":[{"pos":"VERB","features":{"Mood":"Ind","Number":"Sing","Person":"2","Tense":"Pres","VerbForm":"Fin"}},{"pos":"VERB","features":{"Mood":"Sub","Number":"Sing","Person":"1","Tense":"Pres","VerbForm":"Fin"}},{"pos":"VERB","features":{"Mood":"Sub","Number":"Sing","Person":"2","Tense":"Pres","VerbForm":"Fin"}},{"pos":"VERB","features":{"Mood":"Sub","Number":"Sing","Person":"3","Tense":"Pres","VerbForm":"Fin"}}],"others":[],"pieces":[]}
+### word-grammar parla parlare
+{"gloss":"Parler, langue; Parler","senses":[{"tag":{"pos":"NOUN"},"text":"Parler, langue"},{"tag":{"pos":"VERB"},"text":"Parler"}],"readings":[{"pos":"VERB","features":{"Mood":"Imp","Number":"Sing","Person":"2","VerbForm":"Fin"}},{"pos":"VERB","features":{"Mood":"Ind","Number":"Sing","Person":"3","Tense":"Pres","VerbForm":"Fin"}}],"others":[],"pieces":[]}
+### word-grammar parliamo parlare
+{"gloss":"Parler, langue; Parler","senses":[{"tag":{"pos":"NOUN"},"text":"Parler, langue"},{"tag":{"pos":"VERB"},"text":"Parler"}],"readings":[{"pos":"VERB","features":{"Mood":"Imp","Number":"Plur","Person":"1","VerbForm":"Fin"}},{"pos":"VERB","features":{"Mood":"Ind","Number":"Plur","Person":"1","Tense":"Pres","VerbForm":"Fin"}},{"pos":"VERB","features":{"Mood":"Sub","Number":"Plur","Person":"1","Tense":"Pres","VerbForm":"Fin"}}],"others":[],"pieces":[]}
+### word-grammar mangiate mangiare
+{"gloss":"Déjeuner, manger","senses":[{"tag":{"pos":"VERB"},"text":"Déjeuner, manger"}],"readings":[{"pos":"VERB","features":{"Gender":"Fem","Number":"Plur","Tense":"Past","VerbForm":"Part"}},{"pos":"VERB","features":{"Mood":"Imp","Number":"Plur","Person":"2","VerbForm":"Fin"}},{"pos":"VERB","features":{"Mood":"Ind","Number":"Plur","Person":"2","Tense":"Pres","VerbForm":"Fin"}},{"pos":"VERB","features":{"Mood":"Sub","Number":"Plur","Person":"2","Tense":"Pres","VerbForm":"Fin"}}],"others":[{"lemma":"mangiata","readings":[{"pos":"NOUN","features":{"Gender":"Fem","Number":"Plur"}}]}],"pieces":[]}
+### word-grammar parlate parlare
+{"gloss":"Parler, langue; Parler","senses":[{"tag":{"pos":"NOUN"},"text":"Parler, langue"},{"tag":{"pos":"VERB"},"text":"Parler"}],"readings":[{"pos":"VERB","features":{"Gender":"Fem","Number":"Plur","Tense":"Past","VerbForm":"Part"}},{"pos":"VERB","features":{"Mood":"Imp","Number":"Plur","Person":"2","VerbForm":"Fin"}},{"pos":"VERB","features":{"Mood":"Ind","Number":"Plur","Person":"2","Tense":"Pres","VerbForm":"Fin"}}],"others":[{"lemma":"parlata","readings":[{"pos":"NOUN","features":{"Gender":"Fem","Number":"Plur"}}]}],"pieces":[]}
+### word-grammar parlavo parlare
+{"gloss":"Parler, langue; Parler","senses":[{"tag":{"pos":"NOUN"},"text":"Parler, langue"},{"tag":{"pos":"VERB"},"text":"Parler"}],"readings":[{"pos":"VERB","features":{"Mood":"Ind","Number":"Sing","Person":"1","Tense":"Imp","VerbForm":"Fin"}}],"others":[],"pieces":[]}
+### word-grammar parlò parlare
+{"gloss":"Parler, langue; Parler","senses":[{"tag":{"pos":"NOUN"},"text":"Parler, langue"},{"tag":{"pos":"VERB"},"text":"Parler"}],"readings":[{"pos":"VERB","features":{"Mood":"Ind","Number":"Sing","Person":"3","Tense":"Past","VerbForm":"Fin"}}],"others":[],"pieces":[]}
+### word-grammar parlerò parlare
+{"gloss":"Parler, langue; Parler","senses":[{"tag":{"pos":"NOUN"},"text":"Parler, langue"},{"tag":{"pos":"VERB"},"text":"Parler"}],"readings":[{"pos":"VERB","features":{"Mood":"Ind","Number":"Sing","Person":"1","Tense":"Fut","VerbForm":"Fin"}}],"others":[],"pieces":[]}
+### word-grammar parlerei parlare
+{"gloss":"Parler, langue; Parler","senses":[{"tag":{"pos":"NOUN"},"text":"Parler, langue"},{"tag":{"pos":"VERB"},"text":"Parler"}],"readings":[{"pos":"VERB","features":{"Mood":"Cnd","Number":"Sing","Person":"1","VerbForm":"Fin"}}],"others":[],"pieces":[]}
+### word-grammar parlerebbe parlare
+{"gloss":"Parler, langue; Parler","senses":[{"tag":{"pos":"NOUN"},"text":"Parler, langue"},{"tag":{"pos":"VERB"},"text":"Parler"}],"readings":[{"pos":"VERB","features":{"Mood":"Cnd","Number":"Sing","Person":"3","VerbForm":"Fin"}}],"others":[],"pieces":[]}
+### word-grammar parlassi parlare
+{"gloss":"Parler, langue; Parler","senses":[{"tag":{"pos":"NOUN"},"text":"Parler, langue"},{"tag":{"pos":"VERB"},"text":"Parler"}],"readings":[{"pos":"VERB","features":{"Mood":"Sub","Number":"Sing","Person":"1","Tense":"Imp","VerbForm":"Fin"}},{"pos":"VERB","features":{"Mood":"Sub","Number":"Sing","Person":"2","Tense":"Imp","VerbForm":"Fin"}}],"others":[],"pieces":[]}
+### word-grammar parlando parlare
+{"gloss":"Parler, langue; Parler","senses":[{"tag":{"pos":"NOUN"},"text":"Parler, langue"},{"tag":{"pos":"VERB"},"text":"Parler"}],"readings":[{"pos":"VERB","features":{"VerbForm":"Ger"}}],"others":[],"pieces":[]}
+### word-grammar parlanti parlare
+{"gloss":"Parler, langue; Parler","senses":[{"tag":{"pos":"NOUN"},"text":"Parler, langue"},{"tag":{"pos":"VERB"},"text":"Parler"}],"readings":[{"pos":"VERB","features":{"Number":"Plur","Tense":"Pres","VerbForm":"Part"}}],"others":[{"lemma":"parlante","readings":[{"pos":"ADJ","features":{"Number":"Plur"}},{"pos":"NOUN","features":{"Gender":"Masc","Number":"Plur"}}]}],"pieces":[]}
+### word-grammar parlante parlante
+{"gloss":"Parlant","senses":[{"tag":{"pos":"ADJ"},"text":"Parlant"}],"readings":[{"pos":"ADJ","features":{"Number":"Sing"}},{"pos":"NOUN","features":{"Gender":"Masc","Number":"Sing"}}],"others":[{"lemma":"parlare","readings":[{"pos":"VERB","features":{"Number":"Sing","Tense":"Pres","VerbForm":"Part"}}]}],"pieces":[]}
+### word-grammar parlato parlare
+{"gloss":"Parler, langue; Parler","senses":[{"tag":{"pos":"NOUN"},"text":"Parler, langue"},{"tag":{"pos":"VERB"},"text":"Parler"}],"readings":[{"pos":"VERB","features":{"Gender":"Masc","Number":"Sing","Tense":"Past","VerbForm":"Part"}}],"others":[],"pieces":[]}
+### word-grammar creduta credere
+{"gloss":"(Tenir pour véritable) Croire; Croire; (Tenir pour sincère, véridique) Croire; (Ajouter foi à quelqu’un, à quelque chose, s’y fier) Croire; (Penser, estimer, s’imaginer, présumer) Croire","senses":[{"tag":{"pos":"VERB"},"text":"(Tenir pour véritable) Croire; Croire; (Tenir pour sincère, véridique) Croire; (Ajouter foi à quelqu’un, à quelque chose, s’y fier) Croire; (Penser, estimer, s’imaginer, présumer) Croire"}],"readings":[{"pos":"VERB","features":{"Gender":"Fem","Number":"Sing","Tense":"Past","VerbForm":"Part"}}],"others":[],"pieces":[]}
+### word-grammar case casa
+{"gloss":"Maison; Domicile","senses":[{"tag":{"pos":"NOUN","features":{"Gender":"Fem"}},"text":"Maison; Domicile"}],"readings":[{"pos":"NOUN","features":{"Gender":"Fem","Number":"Plur"}}],"others":[],"pieces":[]}
+### word-grammar rosse rosso
+{"gloss":"Rouge; Communiste; Roux; Gueules; Rouge, feux rouge, feu tricolore, lorsqu’il est de couleur rouge pour ordonner l’arrêt du véhicule; Couleur rouge; Le jaune d’œuf","senses":[{"tag":{"pos":"ADJ"},"text":"Rouge; Communiste; Roux; Gueules; Rouge, feux rouge, feu tricolore, lorsqu’il est de couleur rouge pour ordonner l’arrêt du véhicule"},{"tag":{"pos":"NOUN","features":{"Gender":"Masc"}},"text":"Couleur rouge; Le jaune d’œuf"}],"readings":[{"pos":"ADJ","features":{"Gender":"Fem","Number":"Plur"}}],"others":[],"pieces":[]}
+### word-grammar grandi grande
+{"gloss":"Grand, de hauteur importante; Grand, de taille, longueur, volume, durée, etc., important, qui dépasse la mesure moyenne ou ordinaire; Grand, célèbre, doté d’une réputation positive, qui mérite l’admiration; Grand","senses":[{"tag":{"pos":"ADJ"},"text":"Grand, de hauteur importante; Grand, de taille, longueur, volume, durée, etc., important, qui dépasse la mesure moyenne ou ordinaire; Grand, célèbre, doté d’une réputation positive, qui mérite l’admiration"},{"tag":{"pos":"NOUN"},"text":"Grand"}],"readings":[{"pos":"ADJ","features":{"Number":"Plur"}},{"pos":"NOUN","features":{"Gender":"Fem","Number":"Plur"}},{"pos":"NOUN","features":{"Gender":"Masc","Number":"Plur"}}],"others":[],"pieces":[]}
+### word-grammar tali tale
+{"gloss":"Tel, pareil","senses":[{"tag":{"pos":"ADJ"},"text":"Tel, pareil"}],"readings":[{"pos":"DET","features":{"Number":"Plur"}}],"others":[{"lemma":"talo","readings":[{"pos":"ADJ","features":{"Gender":"Masc","Number":"Plur"}}]}],"pieces":[]}
+### word-grammar minore piccolo
+{"gloss":"Petit","senses":[{"tag":{"pos":"ADJ"},"text":"Petit"}],"readings":[{"pos":"ADJ","features":{"Degree":"Cmp","Number":"Sing"}}],"others":[],"pieces":[]}
+### word-grammar mila mille
+{"gloss":"Mille","senses":[{"tag":{"pos":"ADJ"},"text":"Mille"}],"readings":[{"pos":"NUM","features":{"Number":"Plur"}}],"others":[],"pieces":[]}
+### word-grammar città città
+{"gloss":"Cité, ville","senses":[{"tag":{"pos":"NOUN","features":{"Gender":"Fem"}},"text":"Cité, ville"}],"readings":[{"pos":"NOUN","features":{"Gender":"Fem","Number":"Plur"}},{"pos":"NOUN","features":{"Gender":"Fem","Number":"Sing"}}],"others":[],"pieces":[]}
+### word-grammar di di
+{"gloss":"De, pour indiquer une appartenance, une origine; À, pour indiquer une appartenance; De, à, au, pour indiquer une cause ou une finalité; De, en, à, aux pour indiquer une matière; De, pour indiquer un contenu; De, pour indiquer une mesure de quantité ou des valeurs de temps; A valeur de conjonction entre un verbe et un infinitif; Lettre latine D, d","senses":[{"tag":{"pos":"ADP"},"text":"De, pour indiquer une appartenance, une origine; À, pour indiquer une appartenance; De, à, au, pour indiquer une cause ou une finalité; De, en, à, aux pour indiquer une matière; De, pour indiquer un contenu; De, pour indiquer une mesure de quantité ou des valeurs de temps; A valeur de conjonction entre un verbe et un infinitif"},{"tag":{"pos":"NOUN","features":{"Gender":"Fem"}},"text":"Lettre latine D, d"}],"readings":[{"pos":"NOUN","features":{"Gender":"Fem","Number":"Plur"}},{"pos":"NOUN","features":{"Gender":"Fem","Number":"Sing"}}],"others":[],"pieces":[]}
+### word-grammar che che
+{"gloss":"Quoi; Quel","senses":[{"tag":{"pos":"PRON"},"text":"Quoi"},{"tag":{"pos":"ADJ"},"text":"Quel"}],"readings":[],"others":[],"pieces":[]}
+### word-grammar come come
+{"gloss":"Comme; Comment forme interrogative; Dès que; Que dans une comparaison","senses":[{"tag":{"pos":"ADV"},"text":"Comme; Comment forme interrogative"},{"tag":{"pos":"SCONJ"},"text":"Dès que; Que dans une comparaison"}],"readings":[],"others":[{"lemma":"coma","readings":[{"pos":"NOUN","features":{"Gender":"Fem","Number":"Plur"}}]}],"pieces":[]}
+### word-grammar lo lo
+{"gloss":"Le, utilisé devant i suivi d'une voyelle, y, les consonnes impures : s, gn, pn, ps, x, z; Le","senses":[{"tag":{"pos":"DET"},"text":"Le, utilisé devant i suivi d'une voyelle, y, les consonnes impures : s, gn, pn, ps, x, z"},{"tag":{"pos":"PRON"},"text":"Le"}],"readings":[],"others":[],"pieces":[]}
+### word-grammar o o
+{"gloss":"Ou. Disjonction exclusive; Ou. Disjonction inclusive; Ô. Il introduit facultativement le vocatif; Oh","senses":[{"tag":{"pos":"CCONJ"},"text":"Ou. Disjonction exclusive; Ou. Disjonction inclusive"},{"tag":{"pos":"ADP"},"text":"Ô. Il introduit facultativement le vocatif"},{"tag":{"pos":"INTJ"},"text":"Oh"}],"readings":[{"pos":"NOUN","features":{"Gender":"Fem","Number":"Plur"}},{"pos":"NOUN","features":{"Gender":"Fem","Number":"Sing"}}],"others":[],"pieces":[]}
+### word-grammar questo questo
+{"gloss":"Ceci; Celui-ci; Ce","senses":[{"tag":{"pos":"PRON"},"text":"Ceci; Celui-ci"},{"tag":{"pos":"ADJ"},"text":"Ce"}],"readings":[],"others":[],"pieces":[]}
+### word-grammar ci ci
+{"gloss":"Nous, pronom clitique objet de la première personne du pluriel; Y, pronom adverbial locatif; On, pronom indéfini sujet; Y, ici, là, à cet endroit","senses":[{"tag":{"pos":"PRON"},"text":"Nous, pronom clitique objet de la première personne du pluriel; Y, pronom adverbial locatif; On, pronom indéfini sujet"},{"tag":{"pos":"ADV"},"text":"Y, ici, là, à cet endroit"}],"readings":[{"pos":"NOUN","features":{"Gender":"Fem","Number":"Plur"}},{"pos":"NOUN","features":{"Gender":"Fem","Number":"Sing"}},{"pos":"NOUN","features":{"Gender":"Masc","Number":"Sing"}}],"others":[],"pieces":[]}
+### word-grammar solo solo
+{"gloss":"Unique; Seul; Seulement; Solo, morceau ou passage d’une composition musicale qui n’est joué que par un seul instrument ou qui n’est chanté que par un seul chanteur","senses":[{"tag":{"pos":"ADJ"},"text":"Unique; Seul"},{"tag":{"pos":"ADV"},"text":"Seulement"},{"tag":{"pos":"NOUN","features":{"Gender":"Masc"}},"text":"Solo, morceau ou passage d’une composition musicale qui n’est joué que par un seul instrument ou qui n’est chanté que par un seul chanteur"}],"readings":[{"pos":"ADJ","features":{"Gender":"Masc","Number":"Sing"}},{"pos":"NOUN","features":{"Gender":"Masc","Number":"Sing"}}],"others":[],"pieces":[]}
+### word-grammar essere essere
+{"gloss":"Être; Être, organisme, créature vivante","senses":[{"tag":{"pos":"VERB"},"text":"Être"},{"tag":{"pos":"NOUN","features":{"Gender":"Masc"}},"text":"Être, organisme, créature vivante"}],"readings":[{"pos":"NOUN","features":{"Gender":"Masc","Number":"Sing"}},{"pos":"VERB","features":{"VerbForm":"Inf"}}],"others":[],"pieces":[]}
+### word-grammar io io
+{"gloss":"Pronom de la première personne du singulier. Correspondant au « je » français, il est rarement utilisé, la déclinaison verbale intégrant un suffixe de personne. Utilisé seulement quand la forme verbale peut prêter à confusion (les trois personnes au singulier du subjonctif présent et les deux…; io sono in Francia. — moi, je suis en France; Pago io o paghi tu ? — je paie ou tu paies ?; io pago. — c’est moi qui paie; Io, fille d’Inachus, maîtresse de Zeus, qui la transforma en génisse; Io, satellite naturel de la planète Jupiter, une des quatre lunes galiléennes","senses":[{"tag":{"pos":"PRON"},"text":"Pronom de la première personne du singulier. Correspondant au « je » français, il est rarement utilisé, la déclinaison verbale intégrant un suffixe de personne. Utilisé seulement quand la forme verbale peut prêter à confusion (les trois personnes au singulier du subjonctif présent et les deux…; io sono in Francia. — moi, je suis en France; Pago io o paghi tu ? — je paie ou tu paies ?; io pago. — c’est moi qui paie"},{"tag":{"pos":"PROPN"},"text":"Io, fille d’Inachus, maîtresse de Zeus, qui la transforma en génisse; Io, satellite naturel de la planète Jupiter, une des quatre lunes galiléennes"}],"readings":[{"pos":"NOUN","features":{"Gender":"Masc","Number":"Plur"}},{"pos":"NOUN","features":{"Gender":"Masc","Number":"Sing"}}],"others":[],"pieces":[]}
+### word-grammar tutto tutto
+{"gloss":"Entier, total; Tout, l’ensemble","senses":[{"tag":{"pos":"ADJ"},"text":"Entier, total"},{"tag":{"pos":"ADV"},"text":"Tout, l’ensemble"}],"readings":[{"pos":"NOUN","features":{"Gender":"Masc","Number":"Sing"}}],"others":[],"pieces":[]}
+### word-grammar cosa cosa
+{"gloss":"Chose, produit; Chose, objet; Quoi, que, ce que, qu’est ce que","senses":[{"tag":{"pos":"NOUN","features":{"Gender":"Fem"}},"text":"Chose, produit; Chose, objet"},{"tag":{"pos":"PRON"},"text":"Quoi, que, ce que, qu’est ce que"}],"readings":[{"pos":"NOUN","features":{"Gender":"Fem","Number":"Sing"}}],"others":[],"pieces":[]}
+### word-grammar fatto fatto
+{"gloss":"Fait, toute chose qui arrive, qui a lieu, qui a eu lieu; Affaire; Fait, réalisé, construit, confectionné, fabriqué, exécuté","senses":[{"tag":{"pos":"NOUN","features":{"Gender":"Masc"}},"text":"Fait, toute chose qui arrive, qui a lieu, qui a eu lieu; Affaire"},{"tag":{"pos":"ADJ"},"text":"Fait, réalisé, construit, confectionné, fabriqué, exécuté"}],"readings":[{"pos":"ADJ","features":{"Gender":"Masc","Number":"Sing"}},{"pos":"NOUN","features":{"Gender":"Masc","Number":"Sing"}}],"others":[{"lemma":"fare","readings":[{"pos":"VERB","features":{"Gender":"Masc","Number":"Sing","Tense":"Past","VerbForm":"Part"}}]}],"pieces":[]}
+### word-grammar prima prima
+{"gloss":"Au commencement, d’abord, en premier lieu; Première","senses":[{"tag":{"pos":"ADV"},"text":"Au commencement, d’abord, en premier lieu"},{"tag":{"pos":"NOUN","features":{"Gender":"Fem"}},"text":"Première"}],"readings":[{"pos":"NOUN","features":{"Gender":"Fem","Number":"Sing"}}],"others":[{"lemma":"primo","readings":[{"pos":"ADJ","features":{"Gender":"Fem","Number":"Sing"}},{"pos":"NOUN","features":{"Gender":"Fem","Number":"Sing"}}]}],"pieces":[]}
+### word-grammar loro loro
+{"gloss":"Pronom de la troisième personne du pluriel, utilisé pour la politesse (équivalent au vouvoiement); Ils, elles, eux; Leur","senses":[{"tag":{"pos":"PRON"},"text":"Pronom de la troisième personne du pluriel, utilisé pour la politesse (équivalent au vouvoiement); Ils, elles, eux"},{"tag":{"pos":"ADJ"},"text":"Leur"}],"readings":[],"others":[],"pieces":[]}
+### word-grammar dopo dopo
+{"gloss":"Après, ensuite, puis; Après, derrière; Derrière; Après, ensuite","senses":[{"tag":{"pos":"ADV"},"text":"Après, ensuite, puis"},{"tag":{"pos":"ADP"},"text":"Après, derrière; Derrière"},{"tag":{"pos":"SCONJ"},"text":"Après, ensuite"}],"readings":[{"pos":"ADJ","features":{"Number":"Sing"}}],"others":[],"pieces":[]}
+### word-grammar uno uno
+{"gloss":"Un (1); Un","senses":[{"tag":{"pos":"ADJ"},"text":"Un (1)"},{"tag":{"pos":"DET"},"text":"Un"}],"readings":[],"others":[],"pieces":[]}
+### word-grammar ne ne
+{"gloss":"En, de là; En, de lui, d'elle; De ça; Personne, chose de cette espèce, d’entre eux, d’entre elles. Note d’usage : Utilisé tout seul ou avec une quantification","senses":[{"tag":{"pos":"ADV"},"text":"En, de là"},{"tag":{"pos":"PRON"},"text":"En, de lui, d'elle; De ça; Personne, chose de cette espèce, d’entre eux, d’entre elles. Note d’usage : Utilisé tout seul ou avec une quantification"}],"readings":[],"others":[],"pieces":[]}
+### word-grammar poi poi
+{"gloss":"Puis, alors; Puis, après, ensuite","senses":[{"tag":{"pos":"ADV"},"text":"Puis, alors"},{"tag":{"pos":"SCONJ"},"text":"Puis, après, ensuite"}],"readings":[{"pos":"NOUN","features":{"Gender":"Masc","Number":"Plur"}},{"pos":"NOUN","features":{"Gender":"Masc","Number":"Sing"}}],"others":[],"pieces":[]}
+### word-grammar quello quello
+{"gloss":"Pronom démonstratif : cela; Adjectif démonstratif de proximité: cela, celui-là","senses":[{"tag":{"pos":"PRON"},"text":"Pronom démonstratif : cela"},{"tag":{"pos":"ADJ"},"text":"Adjectif démonstratif de proximité: cela, celui-là"}],"readings":[],"others":[],"pieces":[]}
+### word-grammar ancora ancora
+{"gloss":"De nouveau, encore; Ancre","senses":[{"tag":{"pos":"ADV"},"text":"De nouveau, encore"},{"tag":{"pos":"NOUN","features":{"Gender":"Fem"}},"text":"Ancre"}],"readings":[{"pos":"NOUN","features":{"Gender":"Fem","Number":"Sing"}}],"others":[{"lemma":"ancorare","readings":[{"pos":"VERB","features":{"Mood":"Imp","Number":"Sing","Person":"2","VerbForm":"Fin"}},{"pos":"VERB","features":{"Mood":"Ind","Number":"Sing","Person":"3","Tense":"Pres","VerbForm":"Fin"}}]}],"pieces":[]}
+### word-grammar molto molto
+{"gloss":"Beaucoup, maint; Bien, fort, tout, très","senses":[{"tag":{"pos":"ADJ"},"text":"Beaucoup, maint"},{"tag":{"pos":"ADV"},"text":"Bien, fort, tout, très"}],"readings":[{"pos":"NOUN","features":{"Gender":"Masc","Number":"Sing"}}],"others":[],"pieces":[]}
+### word-grammar mai mai
+{"gloss":"Jamais, en nul temps. — Note d’usage : Se rencontre combiné avec la particule négative non; Jamais, indique un refus, une opposition catégorique","senses":[{"tag":{"pos":"ADV"},"text":"Jamais, en nul temps. — Note d’usage : Se rencontre combiné avec la particule négative non"},{"tag":{"pos":"INTJ"},"text":"Jamais, indique un refus, une opposition catégorique"}],"readings":[],"others":[],"pieces":[]}
+### word-grammar ora ora
+{"gloss":"Heure; Maintenant; Or","senses":[{"tag":{"pos":"NOUN","features":{"Gender":"Fem"}},"text":"Heure"},{"tag":{"pos":"ADV"},"text":"Maintenant"},{"tag":{"pos":"SCONJ"},"text":"Or"}],"readings":[{"pos":"NOUN","features":{"Gender":"Fem","Number":"Sing"}}],"others":[],"pieces":[]}
+### word-grammar quanto quanto
+{"gloss":"Combien grand; Comme, tant, pour une exclamative; Autant; Quantum","senses":[{"tag":{"pos":"ADJ"},"text":"Combien grand; Comme, tant, pour une exclamative"},{"tag":{"pos":"ADV"},"text":"Autant"},{"tag":{"pos":"NOUN","features":{"Gender":"Masc"}},"text":"Quantum"}],"readings":[{"pos":"NOUN","features":{"Gender":"Masc","Number":"Sing"}}],"others":[],"pieces":[]}
+### word-grammar dove dove
+{"gloss":"Où; Alors que","senses":[{"tag":{"pos":"ADV"},"text":"Où"},{"tag":{"pos":"SCONJ"},"text":"Alors que"}],"readings":[],"others":[],"pieces":[]}
+### word-grammar quindi quindi
+{"gloss":"Puis, ensuite; Donc, par conséquent","senses":[{"tag":{"pos":"ADV"},"text":"Puis, ensuite"},{"tag":{"pos":"SCONJ"},"text":"Donc, par conséquent"}],"readings":[],"others":[],"pieces":[]}
+### word-grammar secondo secondo
+{"gloss":"Second, deuxième; Seconde; Selon","senses":[{"tag":{"pos":"ADJ"},"text":"Second, deuxième"},{"tag":{"pos":"NOUN","features":{"Gender":"Masc"}},"text":"Seconde"},{"tag":{"pos":"ADP"},"text":"Selon"}],"readings":[{"pos":"ADJ","features":{"Gender":"Masc","Number":"Sing"}},{"pos":"NOUN","features":{"Gender":"Masc","Number":"Sing"}}],"others":[],"pieces":[]}
+### word-grammar proprio proprio
+{"gloss":"Personnel, propre; Vraiment; Précisément","senses":[{"tag":{"pos":"ADJ"},"text":"Personnel, propre"},{"tag":{"pos":"ADV"},"text":"Vraiment; Précisément"}],"readings":[{"pos":"ADJ","features":{"Gender":"Masc","Number":"Sing"}},{"pos":"NOUN","features":{"Gender":"Masc","Number":"Sing"}}],"others":[],"pieces":[]}
+### word-grammar altro altro
+{"gloss":"Autre; Autre, personne différente de la personne qui parle, autrui","senses":[{"tag":{"pos":"ADJ"},"text":"Autre"},{"tag":{"pos":"NOUN"},"text":"Autre, personne différente de la personne qui parle, autrui"}],"readings":[],"others":[],"pieces":[]}
+### word-grammar bene bene
+{"gloss":"Bien; Eh bien !; Bien, domaine, fonds, propriété, propriété foncière","senses":[{"tag":{"pos":"ADV"},"text":"Bien"},{"tag":{"pos":"INTJ"},"text":"Eh bien !"},{"tag":{"pos":"NOUN","features":{"Gender":"Masc"}},"text":"Bien, domaine, fonds, propriété, propriété foncière"}],"readings":[{"pos":"ADJ","features":{"Number":"Sing"}},{"pos":"NOUN","features":{"Gender":"Masc","Number":"Sing"}}],"others":[],"pieces":[]}
+### word-grammar vi vi
+{"gloss":"Vous; Y","senses":[{"tag":{"pos":"PRON"},"text":"Vous"},{"tag":{"pos":"ADV"},"text":"Y"}],"readings":[],"others":[],"pieces":[]}
+### word-grammar qui qui
+{"gloss":"Ici; Riri","senses":[{"tag":{"pos":"ADV"},"text":"Ici"},{"tag":{"pos":"PROPN"},"text":"Riri"}],"readings":[],"others":[],"pieces":[]}
+### word-grammar stesso stesso
+{"gloss":"Même; Le même","senses":[{"tag":{"pos":"ADJ"},"text":"Même"},{"tag":{"pos":"PRON"},"text":"Le même"}],"readings":[],"others":[],"pieces":[]}
+### word-grammar grande grande
+{"gloss":"Grand, de hauteur importante; Grand, de taille, longueur, volume, durée, etc., important, qui dépasse la mesure moyenne ou ordinaire; Grand, célèbre, doté d’une réputation positive, qui mérite l’admiration; Grand","senses":[{"tag":{"pos":"ADJ"},"text":"Grand, de hauteur importante; Grand, de taille, longueur, volume, durée, etc., important, qui dépasse la mesure moyenne ou ordinaire; Grand, célèbre, doté d’une réputation positive, qui mérite l’admiration"},{"tag":{"pos":"NOUN"},"text":"Grand"}],"readings":[{"pos":"ADJ","features":{"Number":"Sing"}},{"pos":"NOUN","features":{"Gender":"Fem","Number":"Sing"}},{"pos":"NOUN","features":{"Gender":"Masc","Number":"Sing"}}],"others":[],"pieces":[]}
+### word-grammar fine fine
+{"gloss":"Fin; Issue; Fin, raffiné","senses":[{"tag":{"pos":"NOUN"},"text":"Fin; Issue"},{"tag":{"pos":"ADJ"},"text":"Fin, raffiné"}],"readings":[{"pos":"ADJ","features":{"Number":"Sing"}},{"pos":"NOUN","features":{"Gender":"Fem","Number":"Sing"}},{"pos":"NOUN","features":{"Gender":"Masc","Number":"Sing"}}],"others":[{"lemma":"fino","readings":[{"pos":"ADJ","features":{"Gender":"Fem","Number":"Plur"}}]}],"pieces":[]}
+### word-grammar tuo tuo
+{"gloss":"Ta, ton; Ta, tien, ton","senses":[{"tag":{"pos":"PRON"},"text":"Ta, ton"},{"tag":{"pos":"ADJ"},"text":"Ta, tien, ton"}],"readings":[],"others":[],"pieces":[]}
+### word-grammar avere avere
+{"gloss":"Avoir, être en relation possessive; auxiliaire servant à former les temps composés des verbes transitifs ou de certains verbes intransitifs; Devoir; Avoir","senses":[{"tag":{"pos":"VERB"},"text":"Avoir, être en relation possessive; auxiliaire servant à former les temps composés des verbes transitifs ou de certains verbes intransitifs; Devoir"},{"tag":{"pos":"NOUN","features":{"Gender":"Masc"}},"text":"Avoir"}],"readings":[{"pos":"NOUN","features":{"Gender":"Masc","Number":"Sing"}},{"pos":"VERB","features":{"VerbForm":"Inf"}}],"others":[],"pieces":[]}
+### word-grammar fino fino
+{"gloss":"Fin; Jusque","senses":[{"tag":{"pos":"ADJ"},"text":"Fin"},{"tag":{"pos":"ADP"},"text":"Jusque"}],"readings":[{"pos":"ADJ","features":{"Gender":"Masc","Number":"Sing"}}],"others":[],"pieces":[]}
+### word-grammar meglio meglio
+{"gloss":"Meilleur; Mieux","senses":[{"tag":{"pos":"ADJ"},"text":"Meilleur"},{"tag":{"pos":"ADV"},"text":"Mieux"}],"readings":[{"pos":"ADJ","features":{"Number":"Sing"}},{"pos":"NOUN","features":{"Gender":"Fem","Number":"Sing"}},{"pos":"NOUN","features":{"Gender":"Masc","Number":"Sing"}}],"others":[],"pieces":[]}
 ### has-levels
 true
 ### level-ladder

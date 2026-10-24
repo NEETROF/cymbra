@@ -1009,7 +1009,8 @@ fn spec_scenario_an_italian_expression_is_glossed_through_the_engine() {
 }
 
 /// An it-en pack: the it-fr fixture's tables re-stamped as glossed in English, its expressions'
-/// glosses written in English.
+/// glosses written in English — two of them named without a space, `d'accordo` and `anch'io`
+/// (add-lingua-italian-word-card D5) — and `perché` glossed as a word.
 fn italian_pack_glossed_in_english() -> Vec<u8> {
     let mut inputs = testdata_of("it-fr");
     inputs.meta.native = "en".into();
@@ -1017,10 +1018,15 @@ fn italian_pack_glossed_in_english() -> Vec<u8> {
         ("al dente", "firm to the bite"),
         ("valere la pena", "to be worth it"),
         ("vale la pena", "it's worth it"),
+        ("d'accordo", "agreed"),
+        ("anch'io", "me too"),
     ]
     .iter()
     .map(|(headword, gloss)| ((*headword).to_owned(), (*gloss).to_owned()))
     .collect();
+    inputs
+        .glosses
+        .push(("perché".to_owned(), "why; because".to_owned()));
     lingua_pack::build_pack(&inputs).unwrap_or_else(|e| panic!("build the it-en pack: {e}"))
 }
 
@@ -1116,4 +1122,77 @@ fn spec_scenario_a_named_italian_expression_card_glossed_in_another_language() {
         .collect();
     made.sort();
     assert_eq!(kept, made);
+}
+
+/// Review finds an Italian expression card named without a space (add-lingua-italian-word-card
+/// D5): cards made by a French-native engine on the it-fr fixture — `d'accordo` and `anch'io`, as
+/// « + Deck » stores them from the whole-selection card their match answers, and the word
+/// `perché` —, glossed in French, reviewed by an English-native engine holding an it-en pack keying
+/// `d'accordo` as `di accordo`, show it-en's glosses: each expression read at the key its name
+/// reads as, `perché`, one token, as a word.
+#[test]
+fn spec_scenario_an_italian_expression_card_named_without_a_space() {
+    let it_en_bytes = italian_pack_glossed_in_english();
+    let it_en = Pack::load(&it_en_bytes).expect("an it-en pack loads");
+    // `d'accordo` is the card's name, no word of the gloss table; `di accordo` is its key.
+    assert_eq!(it_en.gloss("d'accordo"), None);
+    assert_eq!(it_en.expression("d'accordo"), None);
+    assert_eq!(it_en.expression_name("di accordo"), Some("d'accordo"));
+    assert_eq!(it_en.expression_name("anche io"), Some("anch'io"));
+    assert_eq!(it_en.gloss("perché"), Some("why; because"));
+
+    let mut french = italian_reader_engine();
+    let cards = [
+        ("d'accordo", "D\u{2019}accordo", "d'accord"),
+        ("anch'io", "anch'io", "moi aussi"),
+        ("perché", "perché", "pourquoi"),
+    ];
+    for (lemma, surface, gloss) in cards {
+        french
+            .add_card(
+                lemma,
+                surface,
+                "D'accordo, vengo anch'io: perché no?",
+                "",
+                Some(gloss.to_owned()),
+                T_SECS,
+                it(),
+            )
+            .unwrap();
+    }
+    let mut english = LinguaEngine::new(&it_en_bytes).unwrap();
+    assert_eq!(english.native_language(), "en");
+    assert_eq!(
+        english.apply_card_ops(&french.export_card_ops()).ok(),
+        Some(3)
+    );
+    assert_eq!(
+        english.start_review(
+            T_SECS + 86_400.0,
+            Some(vec!["it".to_owned()]),
+            None,
+            None,
+            None,
+            None
+        ),
+        3
+    );
+    let mut shown = Vec::new();
+    while let Some(current) = english.review_current() {
+        let current: serde_json::Value = serde_json::from_str(&current).unwrap();
+        shown.push((
+            current["headword"].as_str().unwrap().to_owned(),
+            current["gloss"].as_str().unwrap().to_owned(),
+        ));
+        english.review_mark_known(T_SECS + 86_400.0);
+    }
+    shown.sort();
+    assert_eq!(
+        shown,
+        [
+            ("anch'io".to_owned(), "me too".to_owned()),
+            ("d'accordo".to_owned(), "agreed".to_owned()),
+            ("perché".to_owned(), "why; because".to_owned()),
+        ]
+    );
 }

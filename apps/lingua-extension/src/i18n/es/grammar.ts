@@ -29,9 +29,10 @@ import type { GrammarLine, Named, StudiedLanguageCode } from "../index.ts";
 // en -ing », read on the en-es golden's real forms (add-lingua-spanish-card-wording D3); French forms
 // in the RAE's terms too, as the Spanish card names Spanish's (M10: « pretérito perfecto simple de
 // indicativo », « futuro simple de indicativo », « condicional simple »), its participles « participio
-// presente » and « participio pasado » (add-lingua-french-word-card D2, D4). Spanish has articles and
-// no elision: « de » before a tense contracts with its « el » (« del presente simple »), never before
-// a word of the page. Readings merge by tag; the tenses come in the order its table lists them; the
+// presente » and « participio pasado » (add-lingua-french-word-card D2, D4); Italian forms in the
+// RAE's terms as well, its gerundio « gerundio » (add-lingua-italian-word-card D2, D4). Spanish has
+// articles and no elision: « de » before a tense contracts with its « el » (« del presente simple »),
+// never before a word of the page. Readings merge by tag; the tenses come in the order its table lists them; the
 // genders of one number are named once, « el masculino y femenino plural » (D6), as the English card
 // names them.
 
@@ -63,7 +64,8 @@ const NUMBERS: Record<string, string> = { Sing: "singular", Plur: "plural" };
  * simple », not the RAE's « presente » (add-lingua-spanish-card-wording D3) — in the pack's order;
  * French's in the RAE's terms, as Spanish's, without the future subjunctive French has not, its
  * indicative and subjunctive of one tense said once after the indicative of that tense
- * (`Ind|Sub/…`, add-lingua-french-word-card D2, D3).
+ * (`Ind|Sub/…`, add-lingua-french-word-card D2, D3); Italian's in the RAE's terms too, French's
+ * without the imperfect read in both moods (add-lingua-italian-word-card D2, D3).
  */
 const TENSES: Record<StudiedLanguageCode, TenseTable> = {
   en: { "Ind/Past": "pasado simple", "Ind/Pres": "presente simple" },
@@ -90,23 +92,40 @@ const TENSES: Record<StudiedLanguageCode, TenseTable> = {
     "Sub/Imp": "pretérito imperfecto de subjuntivo",
     "Imp/": "imperativo",
   },
+  it: {
+    "Ind/Pres": "presente de indicativo",
+    "Ind|Sub/Pres": "presente de indicativo o de subjuntivo",
+    "Ind/Imp": "pretérito imperfecto de indicativo",
+    "Ind/Past": "pretérito perfecto simple de indicativo",
+    "Ind/Fut": "futuro simple de indicativo",
+    "Cnd/": "condicional simple",
+    "Sub/Pres": "presente de subjuntivo",
+    "Sub/Imp": "pretérito imperfecto de subjuntivo",
+    "Imp/": "imperativo",
+  },
 };
 
-/** The gerund's name: English's « forma en -ing », Spanish's « gerundio »; French has none (`CARD_NAMES`). */
+/**
+ * The gerund's name: English's « forma en -ing », Spanish's and Italian's « gerundio »
+ * (add-lingua-italian-word-card D4); French has none (`CARD_NAMES`).
+ */
 const GERUNDS: Partial<Record<StudiedLanguageCode, Named>> = {
   en: { article: "la", name: "forma en -ing" },
   es: { article: "el", name: "gerundio" },
+  it: { article: "el", name: "gerundio" },
 };
 
 /**
  * The past participle's name: English's « participio pasado », as Spanish-language teaching of English
  * names it (add-lingua-spanish-card-wording D3); Spanish's « participio », the RAE's; French's
- * « participio pasado », beside its « participio presente » (add-lingua-french-word-card D4).
+ * « participio pasado », beside its « participio presente » (add-lingua-french-word-card D4), and
+ * Italian's (add-lingua-italian-word-card D4).
  */
 const PARTICIPLES: Record<StudiedLanguageCode, string> = {
   en: "participio pasado",
   es: "participio",
   fr: "participio pasado",
+  it: "participio pasado",
 };
 
 /** « femenino plural », « masculino singular », « plural »: a nominal form's agreement. */

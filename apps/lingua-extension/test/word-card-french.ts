@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { expect } from "vitest";
 import type { PhraseGloss, WordGrammar } from "@/analyzer/types.ts";
 import type { card as frCard } from "@/i18n/fr/card.ts";
-import type { GrammarRenderer } from "@/i18n/index.ts";
+import type { GrammarRenderer, StudiedLanguageCode } from "@/i18n/index.ts";
 import { glossPages, pageText } from "@/reading/gloss-pages.ts";
 import { lineText } from "@/reading/grammar-description.ts";
 import { rowGloss, rowsFor, type SelectionCopy, wholeSelectionMatch } from "@/reading/selection-card.ts";
@@ -16,6 +16,10 @@ import { rowGloss, rowsFor, type SelectionCopy, wholeSelectionMatch } from "@/re
 // `word-card-es-en.spec.ts` renders es-en's; a word the pre-pass split, on its piece. Every
 // `phrase-gloss` probe is rendered as the whole-selection card shows it: headed by the expression's
 // name, with its gloss, when one covers the whole selection; else its word-by-word rows.
+//
+// add-lingua-italian-word-card D6: the harness takes the studied language's code, which it
+// hard-coded as `fr`, so `word-card-it-fr.spec.ts` renders the it-fr golden's probes with Italian
+// studied, as the French specs render theirs with French studied.
 
 /** The interface a snapshot renders in: the grammar renderer, the card's and the selection card's copy. */
 export interface Interface {
@@ -93,8 +97,8 @@ function pagesOf(gloss: string, senses: WordGrammar["senses"], ui: Interface): s
   ]);
 }
 
-/** What the card shows of one probe, as the reader reads it, one line each. */
-export function render(probe: Probe, ui: Interface): string[] {
+/** What the card shows of one probe, as the reader reads it, one line each, `studied` studied. */
+export function render(probe: Probe, ui: Interface, studied: StudiedLanguageCode): string[] {
   const out = [`### ${probe.name}`];
   if (probe.kind === "phrase-gloss") {
     const whole = wholeSelectionMatch(probe.answer);
@@ -109,7 +113,7 @@ export function render(probe: Probe, ui: Interface): string[] {
     return out;
   }
   const { written, lemma, grammar: wordGrammar } = probe;
-  for (const line of ui.grammar.grammarLines(wordGrammar, lemma, surfaceOf(probe), written, "fr")) {
+  for (const line of ui.grammar.grammarLines(wordGrammar, lemma, surfaceOf(probe), written, studied)) {
     out.push(`grammar: ${lineText(line)}`);
   }
   const { gloss } = wordGrammar;
@@ -123,8 +127,8 @@ export function render(probe: Probe, ui: Interface): string[] {
 }
 
 /** The text a snapshot pins: every probe's lines, in the golden's order. */
-export function pinned(all: readonly Probe[], ui: Interface): string {
-  return `${all.flatMap((probe) => render(probe, ui)).join("\n")}\n`;
+export function pinned(all: readonly Probe[], ui: Interface, studied: StudiedLanguageCode): string {
+  return `${all.flatMap((probe) => render(probe, ui, studied)).join("\n")}\n`;
 }
 
 /**
@@ -132,11 +136,16 @@ export function pinned(all: readonly Probe[], ui: Interface): string {
  * pins — whatever the pair's glosses are, the next reduction's included. Not read from the file,
  * which a re-bless run (`-u`) writes only once the spec's tests are done.
  */
-export function pinnedBlock(all: readonly Probe[], name: string, ui: Interface): string[] {
+export function pinnedBlock(
+  all: readonly Probe[],
+  name: string,
+  ui: Interface,
+  studied: StudiedLanguageCode,
+): string[] {
   const probe = all.find((p) => p.name === name);
   expect(probe, name).toBeDefined();
-  const lines = render(probe!, ui);
-  const blocks = pinned(all, ui)
+  const lines = render(probe!, ui, studied);
+  const blocks = pinned(all, ui, studied)
     .replace(/\n$/, "")
     .split(/\n(?=### )/);
   expect(blocks.filter((block) => block === lines.join("\n"))).toHaveLength(1);

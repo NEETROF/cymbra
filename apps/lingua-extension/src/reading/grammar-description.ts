@@ -247,7 +247,7 @@ export type FormKind =
   | { kind: "infinitive" }
   /** The past participle, with its agreement. */
   | ({ kind: "participle" } & Agreement)
-  /** The present participle, where the studied language's is named (`CARD_NAMES`: French's). */
+  /** The present participle, where the studied language's is named (`CARD_NAMES`: French's, Italian's). */
   | { kind: "presentParticiple" }
   | { kind: "gerund" }
   /** A finite form: its mood and tense as `finiteKey` gives them, its persons and number when known. */
@@ -277,14 +277,18 @@ export interface CardNames {
  * (add-lingua-french-word-card D1) — keyed by the renderers' `StudiedLanguageCode`, not by
  * `profile.ts`'s `NAMES` (the backup's language names, French among them since change 52 widened
  * `StudiedLanguage`). A renderer only words what is named:
- * - the infinitive: Spanish's and French's are named (« infinitif de hablar »; a French infinitive
- *   spelled otherwise than its dictionary form is mostly a 1990 spelling, `abimer`), English's never
- *   was — an English card already shows its verb as the infinitive;
- * - the present participle: French's (`parlant`, D4); English's and Spanish's tables write none;
- * - the gerund: English's -ing form and Spanish's gerundio; French has none — « en parlant » is the
- *   participle after « en » (D4);
+ * - the infinitive: Spanish's, French's and Italian's are named (« infinitif de hablar »; a French
+ *   infinitive spelled otherwise than its dictionary form is mostly a 1990 spelling, `abimer`; an
+ *   Italian one a reflexive verb's, `pentire` of *pentirsi*), English's never was — an English card
+ *   already shows its verb as the infinitive;
+ * - the present participle: French's (`parlant`, D4) and Italian's (`parlanti`,
+ *   add-lingua-italian-word-card D4, its number unsaid); English's and Spanish's tables write none;
+ * - the gerund: English's -ing form, Spanish's gerundio and Italian's (`parlando`, D4); French has
+ *   none — « en parlant » is the participle after « en » (D4);
  * - the moods' merge (D3): French's « parle » is said once in the present indicative or
- *   subjunctive; no English or Spanish form meets the rule, and theirs stay unmerged.
+ *   subjunctive, and Italian's « parliamo » (add-lingua-italian-word-card D3, the owner's question:
+ *   `parli`, whose two moods hold different persons, is not merged); no English or Spanish form meets
+ *   the rule, and theirs stay unmerged.
  * A plural spelled like the dictionary form is not keyed: `isInvariablePlural` leaves it out for
  * every studied language (refine-lingua-card-invariable-plurals D3).
  */
@@ -292,14 +296,17 @@ export const CARD_NAMES: Readonly<Record<StudiedLanguageCode, Readonly<CardNames
   en: { infinitive: false, presentParticiple: false, gerund: true, moods: false },
   es: { infinitive: true, presentParticiple: false, gerund: true, moods: false },
   fr: { infinitive: true, presentParticiple: true, gerund: false, moods: true },
+  it: { infinitive: true, presentParticiple: true, gerund: true, moods: true },
 };
 
 /**
- * A finite form's mood and tense, keyed `Mood/Tense` as the studied language has them: Spanish and
- * French name the conditional and the imperative without a tense (add-lingua-french-word-card D2:
- * French keyed as Spanish, as change 45 stores it); an English form without a mood is in the
- * indicative, and English has no other mood a card names. Undefined when there is nothing to key.
- * A renderer's tense tables are keyed by it, so they name the same tenses.
+ * A finite form's mood and tense, keyed `Mood/Tense` as the studied language has them: Spanish,
+ * French and Italian name the conditional and the imperative without a tense
+ * (add-lingua-french-word-card D2: French keyed as Spanish, as change 45 stores it; Italian too, as
+ * change 13 stores it, its passato remoto `Ind/Past`, add-lingua-italian-word-card D2); an English
+ * form without a mood is in the indicative, and English has no other mood a card names. Undefined
+ * when there is nothing to key. A renderer's tense tables are keyed by it, so they name the same
+ * tenses.
  */
 export function finiteKey(reading: Reading, studied: StudiedLanguageCode): string | undefined {
   if (studied !== "en") {
@@ -382,9 +389,9 @@ function tenseName(words: ReadingWords, key: string, studied: StudiedLanguageCod
 /**
  * The order a studied language's named tenses come in, derived once from the renderer's table:
  * every studied language's but English's as the table lists them — the grammars' order, indicative,
- * conditional, subjunctive, imperative, French's merged moods after the indicative of their tense
- * (add-lingua-french-word-card D2) — and English's two in the pack's order, as the French card
- * always gave them, which an empty order means.
+ * conditional, subjunctive, imperative, French's and Italian's merged moods after the indicative of
+ * their tense (add-lingua-french-word-card D2, add-lingua-italian-word-card D2) — and English's two
+ * in the pack's order, as the French card always gave them, which an empty order means.
  */
 export function tenseOrder(tenses: ReadingWords["tenses"], studied: StudiedLanguageCode): readonly string[] {
   return studied === "en" ? [] : Object.keys(tenses[studied]);

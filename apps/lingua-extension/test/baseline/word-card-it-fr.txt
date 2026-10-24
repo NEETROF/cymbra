@@ -1,0 +1,678 @@
+### phrase-gloss a poco a poco
+expression: a poco a poco
+page 1/1:
+  [—] De proche en proche, petit à petit, peu à peu
+### phrase-gloss ad alta voce
+expression: ad alta voce
+page 1/1:
+  [—] Fort, à haute voix ou à voix haute
+### phrase-gloss a causa dello sciopero
+row: a causa di — À cause de, en conséquence de
+row: sciopero — Grève (ouvrière, syndicale etc.)
+### phrase-gloss Non so se riuscirò a farcela da solo
+row: sapere — Savoir
+row: riuscire — Ressortir
+row: fare da — Faire office de
+row: solo — Unique
+### phrase-gloss fare colazione
+row: fare — Faire, fabriquer, construire, opérer
+row: colazione — Petit déjeuner, déjeuner, repas qui se prend en début de matinée
+### phrase-gloss per favore
+expression: per favore
+page 1/1:
+  [—] S’il vous plaît, s’il te plaît
+### phrase-gloss Quel ramo del lago di Como, che volge a mezzogiorno
+row: ramo — Branche
+row: lago — Lac, grande étendue d’eau complètement entourée de terres, généralement d’eau…
+row: como — Côme, Commune et ville de la région de la Lombardie en Italie
+row: volgere — Porter, lever, tourner
+row: mezzogiorno — (Moments de la journée) Midi, moment où le Soleil est le plus haut dans le…
+### phrase-gloss L'uomo che aspettavo
+row: uomo — Homme, être humain de sexe masculin
+row: aspettare — Attendre, ne pas bouger, rester là où l’on est pour la venue de quelque chose…
+### phrase-gloss la temperatura dell'acqua
+row: temperatura — Température, degré de chaleur ou de froideur d’un corps ou d’un environnement
+row: acqua — Eau, onde
+### phrase-gloss all'alba
+expression: all'alba
+page 1/1:
+  [—] Aux aurores
+### phrase-gloss un po' di pane
+row: un po' — Un peu
+row: pane — Pain
+### phrase-gloss C'è un po' di pane
+row: c'è — Il y a
+row: un po' — Un peu
+row: pane — Pain
+### phrase-gloss c'è stato un errore
+row: c'è — Il y a
+row: errore — Erreur, faute, méprise
+### phrase-gloss del pane e delle uova
+row: pane — Pain
+row: uovo — Œuf, corps pondu par les animaux ovipares tel que les oiseaux, les reptiles…
+### phrase-gloss nel cassetto
+row: cassetto — Tiroir
+### phrase-gloss Nel mezzo del cammin
+row: mezzo — Demi, demi-, mi-
+row: cammino — Chemin, route, voie
+### phrase-gloss col cane
+row: cane — Chien, mammifère carnivore de la famille des Canidés, apparenté au loup (dont…
+### phrase-gloss dirmelo subito
+row: dire — Dire
+row: subito — Immédiat, instantané
+### phrase-gloss vattene
+row: andare — Aller (Se déplacer jusqu’à un endroit), se déplacer
+### phrase-gloss eccolo di nuovo
+row: ecco — Voilà
+row: di nuovo — De nouveau, encore
+### phrase-gloss Non lo so, dimmelo tu
+row: sapere — Savoir
+row: dire — Dire
+### phrase-gloss Eccolo, è arrivato dall'Italia
+row: ecco — Voilà
+row: arrivato — Arrivé
+row: italia — Italie, pays d’Europe comprenant une longue péninsule et deux grandes îles, la…
+### phrase-gloss E' troppo tardi perche' la citta' e' piu' lontana
+row: tardi — Tard, après le moment voulu, après le temps ordinaire et accoutumé
+row: città — Cité, ville
+row: più — Plus
+row: lontano — Lointain
+### phrase-gloss I paesi della NATO
+row: paese — Contrée, pays
+### phrase-gloss Dai, andiamo!
+row: dare — Donner
+row: andare — Aller (Se déplacer jusqu’à un endroit), se déplacer
+### phrase-gloss mi dai una mano?
+row: dare una mano — Donner un coup de main
+### phrase-gloss a mo' di esempio
+row: a mo' di — En guise de
+row: esempio — Exemple
+### phrase-gloss Lorenzo de' Medici
+row: lorenzo — Laurent
+row: medico — Docteur, médecin
+### phrase-gloss ne' campi
+row: campo — Champ
+### phrase-gloss trent'anni fa
+row: trenta — Trente
+row: anno — Année, subdivision du temps, correspondant à la durée d’une révolution de la…
+row: fare — Faire, fabriquer, construire, opérer
+### phrase-gloss gliel'ho detto
+row: dire — Dire
+### phrase-gloss davanti alla porta
+row: portare — Avoir, porter
+### phrase-gloss ossia il primo
+row: primo — Premier
+### phrase-gloss non di il che
+row: il che — Ce qui
+### phrase-gloss cotto al dente
+row: cotto — Terre cuite
+row: al dente — Al dente utilisé essentiellement pour les pâtes
+### phrase-gloss vicino al mare
+row: vicino — Voisin, adjacent
+row: mare — Mer, vaste étendue d’eau salée qui baigne les diverses parties de la terre
+### phrase-gloss a causa del ritardo
+row: a causa di — À cause de, en conséquence de
+row: ritardo — Retard
+### phrase-gloss anch'io
+row: anche — Aussi
+### phrase-gloss anche io
+row: anche — Aussi
+### phrase-gloss un poco di pane
+row: un poco — Un petit peu
+row: pane — Pain
+### phrase-gloss vale la pena
+expression: valere la pena
+page 1/1:
+  [—] Valoir la peine, mériter que l’on fasse des efforts
+### phrase-gloss d'accordo
+expression: d'accordo
+page 1/1:
+  [—] D’accord
+### phrase-gloss The lighthouse stood
+row: the — Nom de famille
+### phrase-gloss El faro se alzaba
+row: el — El
+row: faro — Phare, tour construite à l’entrée d’un port ou à proximité d’une côte, et…
+### phrase-gloss Le phare se dressait
+rows: (none)
+### phrase-gloss El far s'alçava
+row: el — El
+row: fare — Faire, fabriquer, construire, opérer
+### phrase-gloss Non era unha noite tranquila
+rows: (none)
+### phrase-gloss Pharus in margine rupis
+rows: (none)
+### word-grammar è essere
+grammar: 3e personne du singulier du présent de l’indicatif d’essere
+page 1/1:
+  [verbe] Être
+  [nom masculin] Être, organisme, créature vivante
+row: Être
+### word-grammar sono essere
+grammar: 3e personne du pluriel du présent de l’indicatif et 1re personne du singulier du présent de l’indicatif d’essere
+page 1/1:
+  [verbe] Être
+  [nom masculin] Être, organisme, créature vivante
+row: Être
+### word-grammar era essere
+grammar: 3e personne du singulier de l’imparfait de l’indicatif d’essere
+page 1/1:
+  [verbe] Être
+  [nom masculin] Être, organisme, créature vivante
+row: Être
+### word-grammar fu essere
+grammar: 3e personne du singulier du passé simple d’essere
+page 1/1:
+  [verbe] Être
+  [nom masculin] Être, organisme, créature vivante
+row: Être
+### word-grammar sia essere
+grammar: 1re, 2e et 3e personnes du singulier du présent du subjonctif d’essere
+page 1/1:
+  [verbe] Être
+  [nom masculin] Être, organisme, créature vivante
+row: Être
+### word-grammar fosse essere
+grammar: 3e personne du singulier de l’imparfait du subjonctif d’essere
+grammar: peut aussi être le féminin pluriel de fossa
+page 1/1:
+  [verbe] Être
+  [nom masculin] Être, organisme, créature vivante
+row: Être
+### word-grammar sarebbe essere
+grammar: 3e personne du singulier du conditionnel d’essere
+page 1/1:
+  [verbe] Être
+  [nom masculin] Être, organisme, créature vivante
+row: Être
+### word-grammar ha avere
+grammar: 3e personne du singulier du présent de l’indicatif d’avere
+page 1/1:
+  [verbe] Avoir, être en relation possessive; auxiliaire servant à former les temps composés des verbes transitifs ou de certains verbes intransitifs; Devoir
+  [nom masculin] Avoir
+row: Avoir, être en relation possessive
+### word-grammar ebbe avere
+grammar: 3e personne du singulier du passé simple d’avere
+page 1/1:
+  [verbe] Avoir, être en relation possessive; auxiliaire servant à former les temps composés des verbes transitifs ou de certains verbes intransitifs; Devoir
+  [nom masculin] Avoir
+row: Avoir, être en relation possessive
+### word-grammar abbia avere
+grammar: 1re, 2e et 3e personnes du singulier du présent du subjonctif d’avere
+page 1/1:
+  [verbe] Avoir, être en relation possessive; auxiliaire servant à former les temps composés des verbes transitifs ou de certains verbes intransitifs; Devoir
+  [nom masculin] Avoir
+row: Avoir, être en relation possessive
+### word-grammar andò andare
+grammar: 3e personne du singulier du passé simple d’andare
+page 1/1:
+  [verbe] Aller (Se déplacer jusqu’à un endroit), se déplacer
+row: Aller (Se déplacer jusqu’à un endroit), se déplacer
+### word-grammar va andare
+grammar: 3e personne du singulier du présent de l’indicatif et 2e personne du singulier de l’impératif d’andare
+page 1/1:
+  [verbe] Aller (Se déplacer jusqu’à un endroit), se déplacer
+row: Aller (Se déplacer jusqu’à un endroit), se déplacer
+### word-grammar fa fare
+grammar: 3e personne du singulier du présent de l’indicatif et 2e personne du singulier de l’impératif de fare
+page 1/2:
+  [verbe] Faire, fabriquer, construire, opérer; Faire, se mouvoir, se déplacer; Faire, employer ses forces, ses talents, l’activité de son esprit à quelque chose
+page 2/2:
+  [verbe] Faire, être la cause de tel ou tel résultat ou en être l’occasion; Faire, le résultat d’une union; Faire, avec la valeur de permission; Célébrer un rite; Poser
+row: Faire, fabriquer, construire, opérer
+### word-grammar disse dire
+grammar: 3e personne du singulier du passé simple de dire
+page 1/1:
+  [verbe] Dire; Réciter; Vouloir dire, signifier; Penser
+row: Dire
+### word-grammar porta portare
+grammar: 3e personne du singulier du présent de l’indicatif et 2e personne du singulier de l’impératif de portare
+grammar: peut aussi être le participe passé féminin de porgere
+page 1/1:
+  [verbe] Avoir, porter; Porter; Amener, apporter
+row: Avoir, porter
+### word-grammar porta porta
+gloss: (none)
+### word-grammar legge leggere
+grammar: 3e personne du singulier du présent de l’indicatif de leggere
+page 1/1:
+  [verbe] Lire
+row: Lire
+### word-grammar legge legge
+grammar: peut aussi être la 3e personne du singulier du présent de l’indicatif de leggere
+page 1/1:
+  [nom féminin] Loi
+row: Loi
+### word-grammar sale salire
+grammar: 3e personne du singulier du présent de l’indicatif de salire
+page 1/1:
+  [verbe] Monter; Se soulever
+row: Monter
+### word-grammar sale sale
+grammar: peut aussi être le féminin pluriel de sala
+grammar: peut aussi être la 3e personne du singulier du présent de l’indicatif de salire
+page 1/1:
+  [nom masculin] Sel
+  [nom propre] Sali, île de Croatie
+row: Sel
+### word-grammar vite vita
+grammar: féminin pluriel de vita
+page 1/1:
+  [nom féminin] Vie
+row: Vie
+### word-grammar del del
+page 1/1:
+  [déterminant] Du. Note d’usage : il s’utilise devant un mot commençant par une consonne, à l’exception des mots commençant par « s + consonne », par « gn », « pn », « ps », « x », « y » et « z »
+row: Du. Note d’usage : il s’utilise devant un mot commençant par une consonne, à…
+### word-grammar al a
+grammar: « al » = a + il
+page 1/1:
+  [préposition] À (devant un complément circonstanciel de lieu, ou indiquant la provenance ou de temps, ou de manière, ou de moyen, ou d’agent, ou un complément d’attribution, ou un complément d’objet indirect, ou qui indique une action faite conjointement par plusieurs personnes (quand suivi d’un nombre), ou qui…
+row: À (devant un complément circonstanciel de lieu, ou indiquant la provenance ou…
+### word-grammar l'uomo uomo
+grammar: « l'uomo » = lo + uomo
+page 1/1:
+  [nom masculin] Homme, être humain de sexe masculin; Être humain, homme
+row: Homme, être humain de sexe masculin
+### word-grammar l’ lo
+page 1/1:
+  [déterminant] Le, utilisé devant i suivi d'une voyelle, y, les consonnes impures : s, gn, pn, ps, x, z
+  [pronom] Le
+row: Le, utilisé devant i suivi d'une voyelle, y, les consonnes impures : s, gn, pn…
+### word-grammar l’ il
+page 1/3:
+  [déterminant] Le, ce … dont on parle maintenant. Déterminant marquant un nom masculin singulier, référant à une seule entité possible dans un contexte
+page 2/3:
+  [déterminant] Le, le seul. Déterminant marquant un nom masculin singulier, référant à une seule entité possible par définition
+page 3/3:
+  [déterminant] (Le + nom commun + nom propre) Le, attribut du nom propre suivant
+row: Le, ce … dont on parle maintenant. Déterminant marquant un nom masculin…
+### word-grammar dirmelo dire
+page 1/1:
+  [verbe] Dire; Réciter; Vouloir dire, signifier; Penser
+row: Dire
+### word-grammar vattene andare
+page 1/1:
+  [verbe] Aller (Se déplacer jusqu’à un endroit), se déplacer
+row: Aller (Se déplacer jusqu’à un endroit), se déplacer
+### word-grammar NATO NATO
+gloss: (none)
+### word-grammar dai dare
+grammar: 2e personne du singulier du présent de l’indicatif et 2e personne du singulier de l’impératif de dare
+page 1/1:
+  [verbe] Donner; Donner sur, tendre vers; Attaquer quelqu’un
+row: Donner
+### word-grammar dai da
+grammar: « dai » = da + i
+page 1/1:
+  [préposition] De, chez; (préposition de temps) depuis, à partir de
+row: De, chez
+### word-grammar mo' mò
+gloss: (none)
+### word-grammar parlo parlare
+grammar: 1re personne du singulier du présent de l’indicatif de parlare
+page 1/1:
+  [nom] Parler, langue
+  [verbe] Parler
+row: Parler, langue
+### word-grammar parli parlare
+grammar: 2e personne du singulier du présent de l’indicatif et 1re, 2e et 3e personnes du singulier du présent du subjonctif de parlare
+page 1/1:
+  [nom] Parler, langue
+  [verbe] Parler
+row: Parler, langue
+### word-grammar parla parlare
+grammar: 3e personne du singulier du présent de l’indicatif et 2e personne du singulier de l’impératif de parlare
+page 1/1:
+  [nom] Parler, langue
+  [verbe] Parler
+row: Parler, langue
+### word-grammar parliamo parlare
+grammar: 1re personne du pluriel du présent de l’indicatif ou du subjonctif et 1re personne du pluriel de l’impératif de parlare
+page 1/1:
+  [nom] Parler, langue
+  [verbe] Parler
+row: Parler, langue
+### word-grammar mangiate mangiare
+grammar: participe passé féminin pluriel, 2e personne du pluriel du présent de l’indicatif ou du subjonctif et 2e personne du pluriel de l’impératif de mangiare
+grammar: peut aussi être le féminin pluriel de mangiata
+page 1/1:
+  [verbe] Déjeuner, manger
+row: Déjeuner, manger
+### word-grammar parlate parlare
+grammar: participe passé féminin pluriel, 2e personne du pluriel du présent de l’indicatif et 2e personne du pluriel de l’impératif de parlare
+grammar: peut aussi être le féminin pluriel de parlata
+page 1/1:
+  [nom] Parler, langue
+  [verbe] Parler
+row: Parler, langue
+### word-grammar parlavo parlare
+grammar: 1re personne du singulier de l’imparfait de l’indicatif de parlare
+page 1/1:
+  [nom] Parler, langue
+  [verbe] Parler
+row: Parler, langue
+### word-grammar parlò parlare
+grammar: 3e personne du singulier du passé simple de parlare
+page 1/1:
+  [nom] Parler, langue
+  [verbe] Parler
+row: Parler, langue
+### word-grammar parlerò parlare
+grammar: 1re personne du singulier du futur de parlare
+page 1/1:
+  [nom] Parler, langue
+  [verbe] Parler
+row: Parler, langue
+### word-grammar parlerei parlare
+grammar: 1re personne du singulier du conditionnel de parlare
+page 1/1:
+  [nom] Parler, langue
+  [verbe] Parler
+row: Parler, langue
+### word-grammar parlerebbe parlare
+grammar: 3e personne du singulier du conditionnel de parlare
+page 1/1:
+  [nom] Parler, langue
+  [verbe] Parler
+row: Parler, langue
+### word-grammar parlassi parlare
+grammar: 1re et 2e personnes du singulier de l’imparfait du subjonctif de parlare
+page 1/1:
+  [nom] Parler, langue
+  [verbe] Parler
+row: Parler, langue
+### word-grammar parlando parlare
+grammar: gérondif de parlare
+page 1/1:
+  [nom] Parler, langue
+  [verbe] Parler
+row: Parler, langue
+### word-grammar parlanti parlare
+grammar: participe présent de parlare
+grammar: peut aussi être le pluriel et le masculin pluriel de parlante
+page 1/1:
+  [nom] Parler, langue
+  [verbe] Parler
+row: Parler, langue
+### word-grammar parlante parlante
+grammar: peut aussi être le participe présent de parlare
+page 1/1:
+  [adjectif] Parlant
+row: Parlant
+### word-grammar parlato parlare
+grammar: participe passé de parlare
+page 1/1:
+  [nom] Parler, langue
+  [verbe] Parler
+row: Parler, langue
+### word-grammar creduta credere
+grammar: participe passé féminin de credere
+page 1/2:
+  [verbe] (Tenir pour véritable) Croire; Croire; (Tenir pour sincère, véridique) Croire; (Ajouter foi à quelqu’un, à quelque chose, s’y fier) Croire
+page 2/2:
+  [verbe] (Penser, estimer, s’imaginer, présumer) Croire
+row: (Tenir pour véritable) Croire
+### word-grammar case casa
+grammar: féminin pluriel de casa
+page 1/1:
+  [nom féminin] Maison; Domicile
+row: Maison
+### word-grammar rosse rosso
+grammar: féminin pluriel de rosso
+page 1/2:
+  [adjectif] Rouge; Communiste; Roux; Gueules; Rouge, feux rouge, feu tricolore, lorsqu’il est de couleur rouge pour ordonner l’arrêt du véhicule
+  [nom masculin] Couleur rouge
+page 2/2:
+  [nom masculin] Le jaune d’œuf
+row: Rouge
+### word-grammar grandi grande
+grammar: pluriel, féminin pluriel et masculin pluriel de grande
+page 1/2:
+  [adjectif] Grand, de hauteur importante; Grand, de taille, longueur, volume, durée, etc., important, qui dépasse la mesure moyenne ou ordinaire
+page 2/2:
+  [adjectif] Grand, célèbre, doté d’une réputation positive, qui mérite l’admiration
+  [nom] Grand
+row: Grand, de hauteur importante
+### word-grammar tali tale
+grammar: peut aussi être le masculin pluriel de talo
+page 1/1:
+  [adjectif] Tel, pareil
+row: Tel, pareil
+### word-grammar minore piccolo
+grammar: comparatif de piccolo
+page 1/1:
+  [adjectif] Petit
+row: Petit
+### word-grammar mila mille
+page 1/1:
+  [adjectif] Mille
+row: Mille
+### word-grammar città città
+page 1/1:
+  [nom féminin] Cité, ville
+row: Cité, ville
+### word-grammar di di
+page 1/3:
+  [préposition] De, pour indiquer une appartenance, une origine; À, pour indiquer une appartenance; De, à, au, pour indiquer une cause ou une finalité
+page 2/3:
+  [préposition] De, en, à, aux pour indiquer une matière; De, pour indiquer un contenu; De, pour indiquer une mesure de quantité ou des valeurs de temps
+page 3/3:
+  [préposition] A valeur de conjonction entre un verbe et un infinitif
+  [nom féminin] Lettre latine D, d
+row: De, pour indiquer une appartenance, une origine
+### word-grammar che che
+page 1/1:
+  [pronom] Quoi
+  [adjectif] Quel
+row: Quoi
+### word-grammar come come
+grammar: peut aussi être le féminin pluriel de coma
+page 1/1:
+  [adverbe] Comme; Comment forme interrogative
+  [conjonction] Dès que; Que dans une comparaison
+row: Comme
+### word-grammar lo lo
+page 1/1:
+  [déterminant] Le, utilisé devant i suivi d'une voyelle, y, les consonnes impures : s, gn, pn, ps, x, z
+  [pronom] Le
+row: Le, utilisé devant i suivi d'une voyelle, y, les consonnes impures : s, gn, pn…
+### word-grammar o o
+page 1/1:
+  [conjonction] Ou. Disjonction exclusive; Ou. Disjonction inclusive
+  [préposition] Ô. Il introduit facultativement le vocatif
+  [interjection] Oh
+row: Ou. Disjonction exclusive
+### word-grammar questo questo
+page 1/1:
+  [pronom] Ceci; Celui-ci
+  [adjectif] Ce
+row: Ceci
+### word-grammar ci ci
+page 1/1:
+  [pronom] Nous, pronom clitique objet de la première personne du pluriel; Y, pronom adverbial locatif; On, pronom indéfini sujet
+  [adverbe] Y, ici, là, à cet endroit
+row: Nous, pronom clitique objet de la première personne du pluriel
+### word-grammar solo solo
+page 1/2:
+  [adjectif] Unique; Seul
+  [adverbe] Seulement
+page 2/2:
+  [nom masculin] Solo, morceau ou passage d’une composition musicale qui n’est joué que par un seul instrument ou qui n’est chanté que par un seul chanteur
+row: Unique
+### word-grammar essere essere
+page 1/1:
+  [verbe] Être
+  [nom masculin] Être, organisme, créature vivante
+row: Être
+### word-grammar io io
+page 1/3:
+  [pronom] Pronom de la première personne du singulier. Correspondant au « je » français, il est rarement utilisé, la déclinaison verbale intégrant un suffixe de personne. Utilisé seulement quand la forme verbale peut prêter à confusion (les trois personnes au singulier du subjonctif présent et les deux…
+page 2/3:
+  [pronom] io sono in Francia. — moi, je suis en France; Pago io o paghi tu ? — je paie ou tu paies ?; io pago. — c’est moi qui paie
+page 3/3:
+  [nom propre] Io, fille d’Inachus, maîtresse de Zeus, qui la transforma en génisse; Io, satellite naturel de la planète Jupiter, une des quatre lunes galiléennes
+row: Pronom de la première personne du singulier. Correspondant au « je » français…
+### word-grammar tutto tutto
+page 1/1:
+  [adjectif] Entier, total
+  [adverbe] Tout, l’ensemble
+row: Entier, total
+### word-grammar cosa cosa
+page 1/1:
+  [nom féminin] Chose, produit; Chose, objet
+  [pronom] Quoi, que, ce que, qu’est ce que
+row: Chose, produit
+### word-grammar fatto fatto
+grammar: peut aussi être le participe passé de fare
+page 1/1:
+  [nom masculin] Fait, toute chose qui arrive, qui a lieu, qui a eu lieu; Affaire
+  [adjectif] Fait, réalisé, construit, confectionné, fabriqué, exécuté
+row: Fait, toute chose qui arrive, qui a lieu, qui a eu lieu
+### word-grammar prima prima
+grammar: peut aussi être le féminin singulier de primo
+page 1/1:
+  [adverbe] Au commencement, d’abord, en premier lieu
+  [nom féminin] Première
+row: Au commencement, d’abord, en premier lieu
+### word-grammar loro loro
+page 1/1:
+  [pronom] Pronom de la troisième personne du pluriel, utilisé pour la politesse (équivalent au vouvoiement); Ils, elles, eux
+  [adjectif] Leur
+row: Pronom de la troisième personne du pluriel, utilisé pour la politesse…
+### word-grammar dopo dopo
+page 1/1:
+  [adverbe] Après, ensuite, puis
+  [préposition] Après, derrière; Derrière
+  [conjonction] Après, ensuite
+row: Après, ensuite, puis
+### word-grammar uno uno
+page 1/1:
+  [adjectif] Un (1)
+  [déterminant] Un
+row: Un (1)
+### word-grammar ne ne
+page 1/1:
+  [adverbe] En, de là
+  [pronom] En, de lui, d'elle; De ça; Personne, chose de cette espèce, d’entre eux, d’entre elles. Note d’usage : Utilisé tout seul ou avec une quantification
+row: En, de là
+### word-grammar poi poi
+page 1/1:
+  [adverbe] Puis, alors
+  [conjonction] Puis, après, ensuite
+row: Puis, alors
+### word-grammar quello quello
+page 1/1:
+  [pronom] Pronom démonstratif : cela
+  [adjectif] Adjectif démonstratif de proximité: cela, celui-là
+row: Pronom démonstratif : cela
+### word-grammar ancora ancora
+grammar: peut aussi être la 3e personne du singulier du présent de l’indicatif et la 2e personne du singulier de l’impératif d’ancorare
+page 1/1:
+  [adverbe] De nouveau, encore
+  [nom féminin] Ancre
+row: De nouveau, encore
+### word-grammar molto molto
+page 1/1:
+  [adjectif] Beaucoup, maint
+  [adverbe] Bien, fort, tout, très
+row: Beaucoup, maint
+### word-grammar mai mai
+page 1/1:
+  [adverbe] Jamais, en nul temps. — Note d’usage : Se rencontre combiné avec la particule négative non
+  [interjection] Jamais, indique un refus, une opposition catégorique
+row: Jamais, en nul temps. — Note d’usage : Se rencontre combiné avec la particule…
+### word-grammar ora ora
+page 1/1:
+  [nom féminin] Heure
+  [adverbe] Maintenant
+  [conjonction] Or
+row: Heure
+### word-grammar quanto quanto
+page 1/1:
+  [adjectif] Combien grand; Comme, tant, pour une exclamative
+  [adverbe] Autant
+  [nom masculin] Quantum
+row: Combien grand
+### word-grammar dove dove
+page 1/1:
+  [adverbe] Où
+  [conjonction] Alors que
+row: Où
+### word-grammar quindi quindi
+page 1/1:
+  [adverbe] Puis, ensuite
+  [conjonction] Donc, par conséquent
+row: Puis, ensuite
+### word-grammar secondo secondo
+page 1/1:
+  [adjectif] Second, deuxième
+  [nom masculin] Seconde
+  [préposition] Selon
+row: Second, deuxième
+### word-grammar proprio proprio
+page 1/1:
+  [adjectif] Personnel, propre
+  [adverbe] Vraiment; Précisément
+row: Personnel, propre
+### word-grammar altro altro
+page 1/1:
+  [adjectif] Autre
+  [nom] Autre, personne différente de la personne qui parle, autrui
+row: Autre
+### word-grammar bene bene
+page 1/1:
+  [adverbe] Bien
+  [interjection] Eh bien !
+  [nom masculin] Bien, domaine, fonds, propriété, propriété foncière
+row: Bien
+### word-grammar vi vi
+page 1/1:
+  [pronom] Vous
+  [adverbe] Y
+row: Vous
+### word-grammar qui qui
+page 1/1:
+  [adverbe] Ici
+  [nom propre] Riri
+row: Ici
+### word-grammar stesso stesso
+page 1/1:
+  [adjectif] Même
+  [pronom] Le même
+row: Même
+### word-grammar grande grande
+page 1/2:
+  [adjectif] Grand, de hauteur importante; Grand, de taille, longueur, volume, durée, etc., important, qui dépasse la mesure moyenne ou ordinaire
+page 2/2:
+  [adjectif] Grand, célèbre, doté d’une réputation positive, qui mérite l’admiration
+  [nom] Grand
+row: Grand, de hauteur importante
+### word-grammar fine fine
+grammar: peut aussi être le féminin pluriel de fino
+page 1/1:
+  [nom] Fin; Issue
+  [adjectif] Fin, raffiné
+row: Fin
+### word-grammar tuo tuo
+page 1/1:
+  [pronom] Ta, ton
+  [adjectif] Ta, tien, ton
+row: Ta, ton
+### word-grammar avere avere
+page 1/1:
+  [verbe] Avoir, être en relation possessive; auxiliaire servant à former les temps composés des verbes transitifs ou de certains verbes intransitifs; Devoir
+  [nom masculin] Avoir
+row: Avoir, être en relation possessive
+### word-grammar fino fino
+page 1/1:
+  [adjectif] Fin
+  [préposition] Jusque
+row: Fin
+### word-grammar meglio meglio
+page 1/1:
+  [adjectif] Meilleur
+  [adverbe] Mieux
+row: Meilleur
+### phrase-gloss reader Il vecchio marinaio chiuse le finestre del faro
+row: marinaio — Marin

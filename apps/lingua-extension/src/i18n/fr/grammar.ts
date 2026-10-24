@@ -24,7 +24,10 @@ import type { GrammarLine, GrammarRenderer, Named, StudiedLanguageCode } from ".
 // Spanish — so the verb-form names are keyed by studied language, as French schools name them.
 // French's own table (add-lingua-french-word-card D1, D2) serves the override M2 reserves and the
 // enumeration of what each renderer names: a French-native reader does not study French, so no
-// card shows it.
+// card shows it. Italian's (add-lingua-italian-word-card D2) is the first studied language whose
+// moods merge that a French-native reader is shown: the terms French grammars of Italian use — the
+// passato remoto « passé simple », the imperfetto « imparfait de l’indicatif », the gerundio
+// « gérondif ».
 
 const PARTS_OF_SPEECH: Record<string, string> = {
   ADJ: "adjectif",
@@ -56,7 +59,9 @@ const NUMBERS: Record<string, string> = { Sing: "du singulier", Plur: "du plurie
  * the order French grammars give them, which is the order the card names them in (`tenseOrder`;
  * English's two come in the pack's order). French: Spanish's table without the future subjunctive,
  * with the indicative and the subjunctive of one tense said once (`Ind|Sub/…`,
- * add-lingua-french-word-card D2, D3).
+ * add-lingua-french-word-card D2, D3). Italian: French's without the imperfect read in both moods,
+ * which Italian never spells alike (`parlavo`, `parlassi`), in the English Wiktionary's Italian
+ * table's order (add-lingua-italian-word-card D2, D3).
  */
 const TENSES: Record<StudiedLanguageCode, TenseTable> = {
   en: { "Ind/Past": "prétérit", "Ind/Pres": "présent" },
@@ -83,12 +88,27 @@ const TENSES: Record<StudiedLanguageCode, TenseTable> = {
     "Sub/Imp": "imparfait du subjonctif",
     "Imp/": "impératif",
   },
+  it: {
+    "Ind/Pres": "présent de l’indicatif",
+    "Ind|Sub/Pres": "présent de l’indicatif ou du subjonctif",
+    "Ind/Imp": "imparfait de l’indicatif",
+    "Ind/Past": "passé simple",
+    "Ind/Fut": "futur",
+    "Cnd/": "conditionnel",
+    "Sub/Pres": "présent du subjonctif",
+    "Sub/Imp": "imparfait du subjonctif",
+    "Imp/": "impératif",
+  },
 };
 
-/** The gerund's name: English's « forme en -ing », Spanish's « gérondif »; French has none (`CARD_NAMES`). */
+/**
+ * The gerund's name: English's « forme en -ing », Spanish's and Italian's « gérondif »
+ * (add-lingua-italian-word-card D4); French has none (`CARD_NAMES`).
+ */
 const GERUNDS: Partial<Record<StudiedLanguageCode, Named>> = {
   en: { article: "la", name: "forme en -ing" },
   es: { article: "le", name: "gérondif" },
+  it: { article: "le", name: "gérondif" },
 };
 
 /** French elides before a vowel, accented or not — never before « h » or « y ». */
