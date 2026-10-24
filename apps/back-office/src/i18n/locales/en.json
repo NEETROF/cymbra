@@ -120,7 +120,8 @@
     "languages": {
       "en": "English",
       "es": "Spanish",
-      "fr": "French"
+      "fr": "French",
+      "it": "Italian"
     },
     "apply": "Apply",
     "loading": "Loading Lingua usage…",
