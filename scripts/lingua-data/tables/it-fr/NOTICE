@@ -19,6 +19,15 @@ Morph-it!, a free morphological lexicon for the Italian language, by Marco Baron
 (https://creativecommons.org/licenses/by-sa/2.0/), one of its two licences, the other being the
 LGPL — the forms it lists that the Wiktionary names nowhere, under the lemmas the tables rank.
 
+kaikki.org extract of the French Wiktionary (frwiktionary), Italian section: CC BY-SA 4.0
+(https://creativecommons.org/licenses/by-sa/4.0/) + GFDL (https://www.gnu.org/licenses/fdl-1.3.html)
+— the French glosses of Italian words and expressions, from its Italian entries, and from its French
+entries' translation tables where those say nothing.
+
+kaikki.org extract of the Italian Wiktionary (itwiktionary): CC BY-SA 4.0
+(https://creativecommons.org/licenses/by-sa/4.0/) + GFDL (https://www.gnu.org/licenses/fdl-1.3.html)
+— the French translations its Italian entries list, where the French Wiktionary has no gloss.
+
 The levels are estimated, not taken from a CEFR list: the commonest lemmas by wordfreq's ranks take
 the sizes of English's CEFR levels, the English Wiktionary's Italian section saying which lemmas take
 one, and every pack studying Italian reads them as committed.

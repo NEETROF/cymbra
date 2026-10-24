@@ -2,11 +2,11 @@
   "meta": {
     "studied": "it",
     "native": "fr",
-    "pack_version": "2026.10.23+52877fd",
+    "pack_version": "2026.10.24",
     "analyzer_version": "1.4.0",
     "levels_estimated": true,
     "licences": [
-      "kaikki / enwiktionary (CC BY-SA 4.0 + GFDL)",
+      "kaikki / enwiktionary, frwiktionary, itwiktionary (CC BY-SA 4.0 + GFDL)",
       "wordfreq (CC BY-SA 4.0)",
       "UD Italian-MarkIT (CC BY 4.0)",
       "Morph-it! (CC BY-SA 2.0)"
