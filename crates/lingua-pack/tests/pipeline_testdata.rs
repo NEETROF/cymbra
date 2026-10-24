@@ -170,9 +170,38 @@ fn the_italian_fixture_studies_italian_at_its_analyser_version() {
     // (keep-lingua-italian-acronyms-and-names D7).
     assert_eq!(pack.lexicon().lemma_of("NATO"), Some("NATO"));
     assert_eq!(pack.lexicon().lemma_of("nato"), Some("nascere"));
-    // Its expressions are keyed by their words' lemmas, as Italian is read today.
-    assert_eq!(pack.expression("ad alto voce"), Some("à voix haute"));
-    assert_eq!(pack.expression("a causa di"), Some("à cause de"));
+    // Its expressions are keyed as Italian is read and named by their headwords
+    // (add-lingua-italian-expression-keys D1, D2, D4): `alta` is `alto`, the article of « al »
+    // and of « alla » written, `l'` read `lo`, `d'accordo` two tokens.
+    for (key, name, gloss) in [
+        ("ad alto voce", Some("ad alta voce"), "à voix haute"),
+        ("a causa di", None, "à cause de"),
+        ("a il dente", Some("al dente"), "al dente"),
+        ("a la romano", Some("alla romana"), "à la romaine"),
+        ("fare lo amore", Some("fare l'amore"), "faire l'amour"),
+        ("anche io", Some("anch'io"), "moi aussi"),
+        ("di accordo", Some("d'accordo"), "d'accord"),
+        ("vicino a", None, "près de"),
+    ] {
+        assert_eq!(pack.expression(key), Some(gloss), "{key}");
+        assert_eq!(pack.expression_name(key), name, "{key}");
+    }
+    // Two headwords of one key are both kept, the one written as the key winning it.
+    for (key, headwords) in [
+        (
+            "valere la pena",
+            [
+                ("valere la pena", "valoir la peine"),
+                ("vale la pena", "ça vaut la peine"),
+            ],
+        ),
+        (
+            "un poco",
+            [("un poco", "un peu, quelque peu"), ("un po'", "un peu")],
+        ),
+    ] {
+        assert_eq!(pack.expression_headwords(key), headwords, "{key}");
+    }
     // No word the baseline kept whole and Italian's pre-pass splits is listed: it shows as Italian
     // reads it.
     for whole in ["l'uomo", "dell'acqua", "nel", "dirmelo"] {
@@ -444,7 +473,10 @@ fn the_fixtures_build_whole_as_recorded_and_split_by_their_pin() {
     // row `NATO` → `NATO` and `nato` → `nascere` and its manifest `1.3.0`;
     // refine-lingua-italian-reading D8 moves it, the fixture gaining the words the pre-pass now
     // writes (`trenta`, `quale`, `glielo`, `ultima` … `quei`, `mò`), `pò` → `poco`, `sarà` →
-    // `essere` (the `elisioni` page's, at review), ten glosses and its manifest `1.4.0`.
+    // `essere` (the `elisioni` page's, at review), ten glosses and its manifest `1.4.0`;
+    // add-lingua-italian-expression-keys D9 moves it, Italian's expressions named and every headword
+    // of a key kept, the fixture gaining ten expressions, the words they need and its
+    // `pack_version` `0.0.2-fixture`, at no new analyser version.
     let root = testdata_dir().parent().unwrap().to_path_buf();
     for (pair, size, sha256) in [
         (
@@ -479,8 +511,8 @@ fn the_fixtures_build_whole_as_recorded_and_split_by_their_pin() {
         ),
         (
             "it-fr",
-            6485,
-            "c90681b0decd62cb0c7d9959e696d09282e42a506e814c3ea079b0d090a1bcdf",
+            7051,
+            "5aa6bf770e4cb0332264fe810d1eab7a41fb553e35ae16273b9827c5a5de8799",
         ),
     ] {
         let inputs = inputs_from_dir(&root.join(pair)).unwrap_or_else(|e| panic!("{pair}: {e}"));

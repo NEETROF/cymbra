@@ -31,7 +31,7 @@ use lingua_core::analysis::tokenize::{
     ITALIAN_ELISIONS, ITALIAN_TRUNCATED_PREPOSITIONS, ITALIAN_TRUNCATIONS, is_elided, tokenize,
 };
 use lingua_core::engine::{
-    expression_piece, french_expression_key, holds_french_contraction, reading_expression_key,
+    expression_piece, french_expression_key, holds_contraction, reading_expression_key,
     shared_spans, word_grammar,
 };
 use lingua_core::knowledge::level::{CefrLevel, CefrLevels};
@@ -2227,7 +2227,7 @@ fn every_french_headword_holding_a_contraction_holds_au_or_aux_and_is_named() {
     // D3: a key no longer says two of its pieces were one written word (`au fait` is `à le
     // faire`), so the matcher reads them from the headword that won the key, which the pack names
     // wherever the two differ, and reads it only when it holds the word « au » or « aux »
-    // (`holds_french_contraction`). Every winning headword whose reading joins two pieces — the
+    // (`holds_contraction`). Every winning headword whose reading joins two pieces — the
     // halves of « au » or « aux », sharing a span — holds that word and is named; a key the pack
     // does not name is its own headword, every piece apart. Measured: fr-en 448 such headwords,
     // fr-es 157.
@@ -2263,7 +2263,7 @@ fn every_french_headword_holding_a_contraction_holds_au_or_aux_and_is_named() {
             let pieces: Vec<_> = reading.into_iter().map(|(token, _)| token).collect();
             if shared_spans(&pieces).contains(&true) {
                 assert!(
-                    holds_french_contraction(headword),
+                    holds_contraction(headword, StudiedLanguage::French),
                     "{pair}: {headword} joins two pieces without « au » or « aux »"
                 );
                 assert_eq!(name, Some(headword), "{pair}: {key} is not named");

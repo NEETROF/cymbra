@@ -212,3 +212,101 @@ revert with the fixture's and the golden's.
 Italian's reading in `meets_as_written`, the `as_written()` gate for Italian, 44f's G2 gate 1–1.5; the
 builder's arms and order 0.25–0.5; review 0.25; their tests 0.5–0.75; the fixture, the probes and
 the re-bless 0.25; spec and programme 0.25.
+
+## Implementation — what ships, what departs, and the figures (2026-10-24)
+
+Implemented on `main` after changes 5 to 11, 11a (analyser `1.4.0`), 13 and 14. Italian's analyser
+version does not move (D9): no token and no lemma changes — the golden's `analyse`, `gloss` and
+`word-grammar` probes are byte for byte, and a test holds an Italian selection's tokens equal with
+and without the expression table.
+
+### What departs from D1–D9
+
+- **D6, an apostrophe that stands for an accent.** `read-lingua-italian-unmarked-spellings` (change
+  10, its D1) reads `perche'`, `piu'`, `E'` as `perché`, `più`, `È`, their span ending on the
+  apostrophe, and named for this change the cost that the as-written rule would then read them as
+  elided pieces: `più o meno` would never meet « piu' o meno ». The implementation reads what the
+  apostrophe stands for, on the page and in a name, by the token's text
+  (`tokenize::italian_apostrophe`): a **truncation** when the written word, without its
+  apostrophe, is one of change 6's truncations or 11a's truncated articulated prepositions — told by
+  the span, so `da'` is one whether its context reads the verb `dai` or `da` + `i`, and `mo'`
+  whether it reads `modo` or `mò` —; an **accent** when the read word is the written word with its
+  last vowel accented, which is a word written in full; an **elision** otherwise. The
+  `lingua-analysis` requirement says so, with a scenario (« piu' o meno »).
+- **D6, an elision and a truncation told apart on both sides.** A piece the headword writes elided
+  meets only an elision and one it writes truncated only a truncation, where the design reads both
+  as « elided ». The requirement's « only an elided token » holds, narrowed. No elided form and
+  truncation of change 6's and 11a's tables read as the same word, so the narrowing decides nothing
+  today; it keeps the two apart as « never a truncation » already does for the last piece.
+- **D9, the fixture.** `mwe.tsv` gains `vicino a` beside D9's rows: the probe « vicino al mare »,
+  which D9 adds, needs it. Ten rows (`a causa di` was there), and in `forms.tsv` the ten words they
+  need: `dente`, `romana`, `romano`, `amore`, `accordo`, `pena`, `valere`, `vale`, `valeva`,
+  `vicino`; `pack_version` `0.0.2-fixture`.
+- **D9, the golden.** Beyond the probes D9 names, two more phrase probes move: « ad alta voce »,
+  which now reports its name `ad alta voce` where it reported its key `ad alto voce` (D4), and
+  « a causa dello sciopero », which now meets `a causa di` by the `di` family read once more as
+  `di` (D5). « all'alba » does not move: the fixture keys no expression on it.
+- **D6's pointer.** Change 11a was on `main` first: `holds_contraction` holds `coll'` and the
+  truncated articulated prepositions `a'`, `co'`, `da'`, `ne'`, `su'`, and a `da'` the pre-pass
+  reads as the verb `dai` sends its headword through the reading, which says it is one token (a
+  truncation's, not a contraction's two). The Italian test lives beside change 6's tables
+  (`tokenize::holds_italian_contraction`); `engine::holds_contraction(name, studied)` is the
+  per-language entry, French's « au »/« aux » unchanged.
+
+### The figures over the fixture (task 4.2)
+
+The real builder over `scripts/lingua-data/testdata/it-fr/`, read back by the core; the full figures
+are change 16's, on its `mwe.tsv`.
+
+| D | Figure |
+|---|---|
+| D1 | 16 headwords, 16 kept; the pack 7,051 bytes (6,485 before) |
+| D2 | 7 headwords hold a determiner the key writes (`al dente`, `alla romana`, `fare l'amore`, `un po'`, `un poco`, `vale la pena`, `valere la pena`); 6 keys differ from the every-token-lemmatised key (`a la romano` for `a il romano`, `fare lo amore` for `fare il amore`, `un poco` for `uno poco` twice, `valere la pena` for `valere il pena` twice) |
+| D3 | by tokens: 2 → 8, 3 → 7, 4 → 1; none beyond seven, none left out; two single words split, `d'accordo` and `anch'io` |
+| D4 | 8 headwords named (`ad alta voce`, `al dente`, `alla romana`, `anch'io`, `d'accordo`, `fare l'amore`, `un po'`, `vale la pena`); 2 keys several headwords reach, `un poco` (`un poco`, `un po'`) and `valere la pena` (`valere la pena`, `vale la pena`), the one written as the key winning each; `expr.names.zst` 122 bytes, `expr.others` 20 bytes |
+| D5 | 1 key ends on `di` (`a causa di`); « a causa del ritardo » and « a causa dello sciopero » meet it by the retry, covering « del », « dello » |
+| D6 | 3 headwords hold an elision (`anch'io`, `d'accordo`, `fare l'amore`), 1 a truncation (`un po'`), 2 an articulated preposition (`al dente`, `alla romana`); every one named |
+
+### The `di` retry, measured (D5, task 6.1)
+
+**Keys.** The headwords change 16's reducer would offer, as change 12's proposal counted them
+(`reduce_common.reduce_expressions` over the English Wiktionary's Italian section of 2026-10-23,
+an Italian token pattern): 8,535 candidates, keyed by the real builder with the committed it-fr
+tables — 7,461 keyed, 102 of them ending on `di`. An approximation of change 16's `mwe.tsv`, not
+it.
+
+**Corpus.** Change 11a's blocks (its D5: MarkIT train and dev, `pages-it`, *I promessi sposi*,
+*Pinocchio*, change 8's Wikipedia sample, the whole Tatoeba export; never UD Italian-PUD nor MarkIT's
+test section): 1,011,235 blocks, each glossed as a selection by this branch's core — 183,279
+matches, **3,217 of them by the retry** (a match whose last token is of the `di` family and whose
+run, as written, is no key), on 80 expressions.
+
+**Read.** Every occurrence of 71 of the 80 expressions (1,156 occurrences); the other nine — `avere
+bisogno di` 571, `a causa di` 561, `nel corso di` 270, `da parte di` 220, `all'interno di` 207,
+`nei confronti di` 111, `al di fuori di` 50, `al di là di` 42, `al di sotto di` 29 — through a
+seeded sample of 100 of the 3,217 (`random.Random(20261024).sample`, in corpus order), which holds
+one misreading (« riflettere sulla bellezza della tua vita »), and a search of `da parte di` after a
+verb of setting aside and of `nel corso di` before a river.
+
+**Misreadings: 130 of 3,217 (4.0 %), in 17 expressions**, of three kinds:
+- *the next phrase's `di`* — 87: the expression is a noun phrase whose `di` the page gives to the
+  noun that follows: `la bellezza di` (*the whole sum of*) 71 of 71, « la bellezza della natura »;
+  `merito di` 12 of 13, « si sono presi il merito del taglio delle tasse », « Te lo meriti del
+  relax » (the verb's `meriti` filed under `merito`); `cazzo di` 3 of 3; `a fine di` 1 of 1,
+  « venire a fine della sua bella impresa »;
+- *the literal phrase* — 29: the words read for what they say: `in via di` 8 of 8, street names
+  (« in via dei Fori Imperiali »); `alla luce di` 5 of 13, « alla luce della luna », « alla luce del
+  giorno »; `alle spalle di` 4 of 4, « al secondo posto alle spalle del Real Madrid »;
+  `sull'orlo di` 3 of 17, « sull'orlo della strada »; `alla faccia di` 2 of 12, « alzato
+  lo sguardo alla faccia del padre »; `a fronte di` 2 of 3, « Sopra il ponte a fronte del fonte »;
+  `sul filo di` 2 of 2; `sulla pelle di` 2 of 3; `all'insegna di` 1 of 4, « All'insegna del pesce
+  d'oro » (a publisher);
+- *a partitive* — 14: `del`, `dei`, `delle` is *some*: `da parte di` 2 of 220, « Sta mettendo da parte
+  dei soldi », « Ho tenuto da parte del cibo »; `fuori di` 3 of 35, « Tom versò fuori dell'acqua »;
+  `pur di` 7 of 7, « Prenditi pure della frutta » (the tables file `pur` under `pure`); `a prova di`
+  2 of 2, « disposto a provare delle cose nuove » (they file `prova` under `provare`).
+
+D5's own example, « la prima del film », is not met: the candidates hold no `prima di`. Every other
+occurrence read is the expression the page means (« a causa della pioggia », « nel corso dei
+secoli », « per amor del cielo », « in balia della tempesta »). The retry ships as designed; which
+of the 17 change 16 offers, and how, is change 16's and change 17's.

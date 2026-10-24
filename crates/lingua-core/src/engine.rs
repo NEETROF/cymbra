@@ -43,7 +43,8 @@ use crate::analysis::pipeline::{
     resolve_lemmas,
 };
 use crate::analysis::tokenize::{
-    Token, is_elided, is_hyphen_join, tokenize, tokenize_readings, without_soft_hyphens,
+    ItalianApostrophe, Token, holds_italian_contraction, is_elided, is_hyphen_join,
+    italian_apostrophe, tokenize, tokenize_readings, without_soft_hyphens,
 };
 use crate::knowledge::level::CefrLevels;
 use crate::knowledge::state::KnowledgeState;
@@ -410,6 +411,13 @@ pub const FRENCH_EXPRESSION_WINDOW: usize = 7;
 /// longer key out.
 pub const SPANISH_EXPRESSION_WINDOW: usize = 7;
 
+/// How many tokens an Italian expression may span: « al », « nel », « sul » read as two
+/// tokens each lengthen a key (`alla fin fine` is three words and four tokens), and seven
+/// tokens hold 99.5 % of the English Wiktionary's 8,852 Italian candidates, as French's hold
+/// 98.8 % and es-fr's 99.3 % (add-lingua-italian-expression-keys D3); the 41 longer are
+/// proverbs. The builder leaves a longer key out.
+pub const ITALIAN_EXPRESSION_WINDOW: usize = 7;
+
 /// The words a French expression key writes as the pre-pass gives them, in
 /// lowercase, rather than as their dictionary form: the articles, the possessive
 /// and demonstrative determiners and the pronouns that share their forms, sorted
@@ -456,6 +464,36 @@ pub const SPANISH_KEY_WRITTEN: &[&str] = &[
     "vuestras", "vuestro", "vuestros",
 ];
 
+/// The words an Italian expression key writes as the pre-pass gives them, in lowercase,
+/// rather than as their dictionary form: the articles, and the possessive and demonstrative
+/// determiners, sorted (add-lingua-italian-expression-keys D2) — French's
+/// [`FRENCH_KEY_WRITTEN`] and Spanish's [`SPANISH_KEY_WRITTEN`], transposed. The pre-pass writes
+/// `lo` for `l'`, `una` for `un'`, `questo` and `quello` for `quest'` and `quell'`, and the
+/// article of a split preposition in full, so `al dente` is `a il dente`, `alla romana`
+/// `a la romano` and `fare l'amore` `fare lo amore`.
+///
+/// M8 may file `la`, `i`, `gli`, `le` under `il`, `una` under `uno`, `mia` under `mio`,
+/// `questa` under `questo`…: right for a word, wrong for an expression. Measured on the
+/// English Wiktionary's 8,852 Italian candidates, 744 headwords hold an article, 17 a
+/// possessive and 19 a demonstrative; with every token lemmatised, `alla romana` and a
+/// headword `al romano` would share a key, and `a la` would answer every « al ». The list holds
+/// those and, for completeness, the forms that are their own dictionary form. The `di`
+/// family are lemmas of their own, and the clitic pronouns are left out, as Spanish's list
+/// leaves them out; `codesto` and its forms, archaic and Tuscan, none among the candidates,
+/// too.
+pub const ITALIAN_KEY_WRITTEN: &[&str] = &[
+    "gli", "i", "il", "la", "le", "lo", "loro", "mia", "mie", "miei", "mio", "nostra", "nostre",
+    "nostri", "nostro", "quegli", "quei", "quel", "quella", "quelle", "quelli", "quello", "questa",
+    "queste", "questi", "questo", "sua", "sue", "suo", "suoi", "tua", "tue", "tuo", "tuoi", "un",
+    "una", "uno", "vostra", "vostre", "vostri", "vostro",
+];
+
+/// The `di` family — Italian's articulated prepositions of `di`, which the pre-pass keeps
+/// whole (I7) —, sorted: an Italian run no key matches whose last piece is one of them is
+/// tried once more with it read as `di` (add-lingua-italian-expression-keys D5), as a French
+/// run ending on `du` or `des` is with it read as `de`.
+const ITALIAN_DI_FAMILY: &[&str] = &["degli", "dei", "del", "della", "delle", "dello"];
+
 /// The clitic pronouns a Spanish page may write just before an expression's run
 /// (pick-lingua-spanish-expression-written-as-the-page D3): where the page's word
 /// before the run is one of them, lowercased — « No te hagas ilusiones », « Los tenía
@@ -467,18 +505,18 @@ pub const SPANISH_CLITIC_PRONOUNS: &[&str] = &[
 ];
 
 /// A token's piece of an expression key (add-lingua-french-expression-keys D2,
-/// add-lingua-spanish-expression-keys D2): its dictionary form, except a word of
-/// the studied language's written list — [`FRENCH_KEY_WRITTEN`],
-/// [`SPANISH_KEY_WRITTEN`] — written as the pre-pass gives it, lowercased, the
-/// typographic apostrophe read as the straight one: so `à la` is never `au`
-/// (`à le`), nor `a la` « al » (`a el`). English keys are their lemmas, as
-/// before, and so are Italian's until add-lingua-italian-expression-keys writes
-/// its own (add-lingua-italian-baseline D2).
+/// add-lingua-spanish-expression-keys D2, add-lingua-italian-expression-keys D2): its
+/// dictionary form, except a word of the studied language's written list —
+/// [`FRENCH_KEY_WRITTEN`], [`SPANISH_KEY_WRITTEN`], [`ITALIAN_KEY_WRITTEN`] — written as the
+/// pre-pass gives it, lowercased, the typographic apostrophe read as the straight one: so
+/// `à la` is never `au` (`à le`), nor `a la` « al » (`a el`), nor `alla` `a il`. English
+/// keys are their lemmas, as before.
 pub fn expression_piece(surface: &str, lemma: &str, studied: StudiedLanguage) -> String {
     let listed = match studied {
         StudiedLanguage::French => FRENCH_KEY_WRITTEN,
         StudiedLanguage::Spanish => SPANISH_KEY_WRITTEN,
-        StudiedLanguage::English | StudiedLanguage::Italian => return lemma.to_owned(),
+        StudiedLanguage::Italian => ITALIAN_KEY_WRITTEN,
+        StudiedLanguage::English => return lemma.to_owned(),
     };
     let written = surface.replace('\u{2019}', "'").to_lowercase();
     if listed.binary_search(&written.as_str()).is_ok() {
@@ -488,18 +526,21 @@ pub fn expression_piece(surface: &str, lemma: &str, studied: StudiedLanguage) ->
 }
 
 /// The key an expression's headword — or its name, which is the same thing — is
-/// filed under in a language read through its reading, French or Spanish
+/// filed under in a language read through its reading, French, Spanish or Italian
 /// (add-lingua-french-expression-keys D1, D4, D6; add-lingua-spanish-expression-keys
-/// D1, D2, D4): what the studied language's analysis reads in it
-/// ([`headword_reading`]), each token written by [`expression_piece`], joined by
-/// single spaces: `au revoir` → `à le revoir`, `coup d'œil` → `coup de œil`,
-/// `il y a` → `il y avoir`, `à la` → `à la`; `al menos` → `a el menos`,
-/// `tener en cuenta` → `tener en contar`, `a la vez` → `a la vez`.
+/// D1, D2, D4; add-lingua-italian-expression-keys D1, D2, D3): what the studied
+/// language's analysis reads in it ([`headword_reading`]), each token written by
+/// [`expression_piece`], joined by single spaces: `au revoir` → `à le revoir`,
+/// `coup d'œil` → `coup de œil`, `il y a` → `il y avoir`, `à la` → `à la`; `al menos` →
+/// `a el menos`, `tener en cuenta` → `tener en contar`, `a la vez` → `a la vez`;
+/// `al dente` → `a il dente`, `fare l'amore` → `fare lo amore`, `d'accordo` →
+/// `di accordo`, `amico del cuore` → `amico del cuore`.
 ///
 /// `None` for English, which keys its expressions at their spaces, and unless the
 /// headword reads as two to the language's window of tokens
-/// ([`FRENCH_EXPRESSION_WINDOW`], [`SPANISH_EXPRESSION_WINDOW`]), every word of it
-/// giving one, and every token's dictionary form is a lemma of the lexicon: a key
+/// ([`FRENCH_EXPRESSION_WINDOW`], [`SPANISH_EXPRESSION_WINDOW`],
+/// [`ITALIAN_EXPRESSION_WINDOW`]), every word of it giving one, and every token's
+/// dictionary form is a lemma of the lexicon: a key
 /// no reading of a page can produce would sit in the pack unreachable. The one
 /// implementation the pack builder keys a French, Spanish or Italian pack with and review
 /// finds such an expression card's gloss through, so the two cannot drift; it
@@ -537,14 +578,15 @@ pub fn french_expression_key(headword: &str, lexicon: &(impl Lexicon + ?Sized)) 
     reading_expression_key(headword, StudiedLanguage::French, lexicon)
 }
 
-/// How many tokens an expression may span in the studied language: Italian's is
-/// the window every language had before one had its own, until
-/// add-lingua-italian-expression-keys gives it one (add-lingua-italian-baseline D2).
+/// How many tokens an expression may span in the studied language: English's
+/// [`EXPRESSION_WINDOW`], the others' seven ([`FRENCH_EXPRESSION_WINDOW`],
+/// [`SPANISH_EXPRESSION_WINDOW`], [`ITALIAN_EXPRESSION_WINDOW`]).
 fn expression_window(studied: StudiedLanguage) -> usize {
     match studied {
         StudiedLanguage::French => FRENCH_EXPRESSION_WINDOW,
         StudiedLanguage::Spanish => SPANISH_EXPRESSION_WINDOW,
-        StudiedLanguage::English | StudiedLanguage::Italian => EXPRESSION_WINDOW,
+        StudiedLanguage::Italian => ITALIAN_EXPRESSION_WINDOW,
+        StudiedLanguage::English => EXPRESSION_WINDOW,
     }
 }
 
@@ -554,6 +596,13 @@ fn expression_window(studied: StudiedLanguage) -> usize {
 /// more with it read as `de`: M21 keeps `du` and `des` whole, and after a word
 /// that governs `de` they are its contraction with the article that follows, so
 /// « à cause des » answers `à cause de` (add-lingua-french-expression-keys D5).
+/// An Italian run whose last piece is of the `di` family ([`ITALIAN_DI_FAMILY`]:
+/// `del`, `dello`, `della`, `dei`, `degli`, `delle`, which I7 keeps whole) is tried
+/// once more with it read as `di`, so « a causa del ritardo » answers `a causa di`
+/// and « al posto dell'altro » `al posto di` (add-lingua-italian-expression-keys D5).
+/// The token keeps its lemma: the retry is the phrase gloss's. Its known misreading
+/// is a `del` that belongs to the next phrase — « la prima del film » answers
+/// `prima di` (*before*) where `prima` is the noun —, measured at implementation.
 fn expression_for_run(
     pieces: &[String],
     studied: StudiedLanguage,
@@ -564,13 +613,15 @@ fn expression_for_run(
         return Some((key, gloss.to_owned()));
     }
     let (last, before) = pieces.split_last()?;
-    if studied != StudiedLanguage::French || !matches!(last.as_str(), "du" | "des") {
-        return None;
-    }
+    let retried = match studied {
+        StudiedLanguage::French if matches!(last.as_str(), "du" | "des") => "de",
+        StudiedLanguage::Italian if ITALIAN_DI_FAMILY.binary_search(&last.as_str()).is_ok() => "di",
+        _ => return None,
+    };
     let key = before
         .iter()
         .map(String::as_str)
-        .chain(std::iter::once("de"))
+        .chain(std::iter::once(retried))
         .collect::<Vec<_>>()
         .join(" ");
     let gloss = pack.expression(&key)?.to_owned();
@@ -584,22 +635,31 @@ fn expression_for_run(
 /// match. Runs start at two tokens because every key holds a space — a single
 /// lemma is a word, not an expression, and could never be one — and stop at the
 /// language's window. A match reports the expression's name where the pack
-/// carries one (French, Spanish), else its key, and the reader's status is read
+/// carries one (French, Spanish, Italian), else its key, and the reader's status is read
 /// on what it reports (add-lingua-french-expression-keys D3,
-/// add-lingua-spanish-expression-keys D3).
+/// add-lingua-spanish-expression-keys D3, add-lingua-italian-expression-keys D4).
 ///
 /// `joins.shares_span[i]` ([`PageJoins`]) says whether token `i` shares its
 /// predecessor's source span — the second half of a written word the pre-pass
-/// split. A Spanish or French match
+/// split. A Spanish, French or Italian match
 /// never ends inside a written word: one whose last token is followed by such a
-/// token, the article of « al » or « del », of « au » or « aux », covers it too, so
-/// « después del » and « jusqu'au » are answered whole
-/// (add-lingua-spanish-expression-keys D5, add-lingua-french-word-card D12). English's
+/// token, the article of « al » or « del », of « au » or « aux », of « al », « nel »,
+/// « sul » or « all' », covers it too, so « después del », « jusqu'au » and « vicino al »
+/// are answered whole (add-lingua-spanish-expression-keys D5, add-lingua-french-word-card
+/// D12, add-lingua-italian-expression-keys D5). English's
 /// split words (`don't`) stay as they were. And a Spanish expression the reader
 /// settled under the run's lemma chain, and not under its name, keeps that chain
 /// ([`settled_chain`], D6).
 ///
-/// `joins.elided[i]` says whether token `i` is an elided piece ([`is_elided`]). A
+/// An Italian run is matched as a French one is below — its pieces held to the headword's
+/// writing, its key several headwords reach named by the one written most like the page
+/// —, read by Italian's pre-pass, an Italian truncation (`po'`) being a piece of its own
+/// that the headword's last piece written in full never meets (add-lingua-italian-expression-
+/// keys D4, D6). Its `di` family is read once more as `di` where no key matches
+/// ([`expression_for_run`], D5).
+///
+/// `joins.endings[i]` says whether token `i` is an elided piece, an Italian truncation or a
+/// word written in full ([`ending`]). A
 /// French run that is a key is kept only where its pieces meet the words as the
 /// expression's headword writes them ([`meets_as_written`],
 /// match-lingua-french-elided-pieces D1, match-lingua-french-contracted-pieces D1):
@@ -635,9 +695,11 @@ fn expression_for_run(
 /// matches, or stops matching, for it. The lemma chain a reader settled before is then
 /// reported only where it is no headword's name ([`settled_chain`], D4).
 ///
-/// And in the three languages, a run that is a key and meets its headword gives
+/// And in every language, a run that is a key and meets its headword gives
 /// its last token to a longer expression when it is built on a verb
-/// (choose-lingua-overlapping-expressions D1, D2): [`ExpressionScan::gives_last_word`].
+/// (choose-lingua-overlapping-expressions D1, D2): [`ExpressionScan::gives_last_word`] —
+/// Italian's as Spanish's, its G2 word « che », once its pack's grammar says what a verb is
+/// (add-lingua-italian-expression-keys D7).
 /// It then does not match at that length, exactly as a run that does not meet its
 /// headword: the shorter runs are tried, else the next token, where the scan finds
 /// the expression as it finds any — « Elles sont au nombre de sept » answers
@@ -700,19 +762,53 @@ fn match_expressions(
 struct PageJoins {
     /// [`shared_spans`]: the second half of a written word the pre-pass split.
     shares_span: Vec<bool>,
-    /// [`is_elided`]: an elided piece, an Italian truncation (add-lingua-italian-tokenisation D6)
-    /// or an Italian word whose apostrophe stands for its accent (`perche'` read as `perché`,
-    /// read-lingua-italian-unmarked-spellings D1); [`meets_as_written`], which reads it, runs for
-    /// French alone.
-    elided: Vec<bool>,
+    /// [`ending`]: an elided piece, an Italian truncation (add-lingua-italian-tokenisation D6) or
+    /// a word written in full — an Italian word whose apostrophe stands for its accent
+    /// (`perche'` read as `perché`, read-lingua-italian-unmarked-spellings D1) among them;
+    /// [`meets_as_written`], which reads it, runs for French and Italian.
+    endings: Vec<Ending>,
     /// [`is_hyphen_join`] over the text between the two tokens' spans
     /// (choose-lingua-overlapping-expressions D3, G1); never the first token.
     hyphened: Vec<bool>,
 }
 
+/// How a token's source span ends, as the as-written rules read it
+/// (match-lingua-french-elided-pieces D2, add-lingua-italian-expression-keys D6).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Ending {
+    /// A word written in full: no apostrophe ends its span, or an Italian word's stands for
+    /// its accent ([`ItalianApostrophe::Accent`]).
+    Full,
+    /// An elided piece: its span ends on an apostrophe ([`is_elided`]) — French's `l'`,
+    /// Italian's `l'`, `dell'`, both halves of `all'` ([`ItalianApostrophe::Elision`]).
+    Elision,
+    /// An Italian truncation ([`ItalianApostrophe::Truncation`]): `po'`, `mo'`, both halves of
+    /// `ne'`, a `da'` read as the verb. French has none.
+    Truncation,
+}
+
+/// How `token`'s source span in `text` ends ([`Ending`]): for French — and English and
+/// Spanish, whose spans never end on an apostrophe — an elided piece exactly where
+/// [`is_elided`] says so, as before; for Italian, what the apostrophe stands for
+/// ([`italian_apostrophe`]).
+fn ending(text: &str, token: &Token, studied: StudiedLanguage) -> Ending {
+    if studied != StudiedLanguage::Italian {
+        return if is_elided(text, token) {
+            Ending::Elision
+        } else {
+            Ending::Full
+        };
+    }
+    match italian_apostrophe(text, token) {
+        None | Some(ItalianApostrophe::Accent) => Ending::Full,
+        Some(ItalianApostrophe::Elision) => Ending::Elision,
+        Some(ItalianApostrophe::Truncation) => Ending::Truncation,
+    }
+}
+
 impl PageJoins {
-    /// The joins of `read`, the selection `text`'s tokens.
-    fn of(text: &str, read: &[Token]) -> Self {
+    /// The joins of `read`, the selection `text`'s tokens read as `studied`.
+    fn of(text: &str, read: &[Token], studied: StudiedLanguage) -> Self {
         let hyphened = (0..read.len())
             .map(|i| {
                 i.checked_sub(1).is_some_and(|before| {
@@ -723,7 +819,10 @@ impl PageJoins {
             .collect();
         Self {
             shares_span: shared_spans(read),
-            elided: read.iter().map(|token| is_elided(text, token)).collect(),
+            endings: read
+                .iter()
+                .map(|token| ending(text, token, studied))
+                .collect(),
             hyphened,
         }
     }
@@ -764,34 +863,56 @@ impl<'a> ExpressionScan<'a> {
         self.studied == StudiedLanguage::French
     }
 
-    /// French and Spanish, whose matches never end inside a written word. English's split
-    /// words stay as they were, and so do Italian's (`al` → `a` + `il`, `all'` → `a` + `lo`,
-    /// add-lingua-italian-tokenisation D4) until add-lingua-italian-expression-keys reads them
-    /// whole (its D5): the keys that read the pieces are that change's (D1).
+    /// French, Spanish and Italian, whose matches never end inside a written word
+    /// (add-lingua-spanish-expression-keys D5, add-lingua-french-word-card D12,
+    /// add-lingua-italian-expression-keys D5): the article of « al », « au », « nel » a match
+    /// ends on is covered. English's split words stay as they were.
     fn whole_words(&self) -> bool {
         match self.studied {
-            StudiedLanguage::Spanish | StudiedLanguage::French => true,
-            StudiedLanguage::English | StudiedLanguage::Italian => false,
+            StudiedLanguage::Spanish | StudiedLanguage::French | StudiedLanguage::Italian => true,
+            StudiedLanguage::English => false,
+        }
+    }
+
+    /// French and Italian, whose runs meet their headword as it is written
+    /// ([`meets_as_written`]: match-lingua-french-elided-pieces D1,
+    /// match-lingua-french-contracted-pieces D1, add-lingua-italian-expression-keys D6), and
+    /// whose keys several headwords reach weigh only the headwords that meet the run
+    /// ([`written_as_the_page`]); Spanish weighs its own way ([`spanish_weighed`]).
+    fn as_written(&self) -> bool {
+        match self.studied {
+            StudiedLanguage::French | StudiedLanguage::Italian => true,
+            StudiedLanguage::English | StudiedLanguage::Spanish => false,
+        }
+    }
+
+    /// The word whose lemma, as the selection's next token, keeps a preposition with the
+    /// expression it ends (choose-lingua-overlapping-expressions D3, G2): « que », Italian's
+    /// « che » (add-lingua-italian-expression-keys D7).
+    fn subordinator(&self) -> &'static str {
+        match self.studied {
+            StudiedLanguage::Italian => "che",
+            StudiedLanguage::English | StudiedLanguage::Spanish | StudiedLanguage::French => "que",
         }
     }
 
     /// The run of `len` tokens from `start` as an expression — its name (the pack's,
-    /// else its key) and its gloss — when it is a key and, in French, meets its
-    /// headword as written ([`meets_as_written`]); a French or Spanish key several
-    /// headwords reach is named by the one written most like the page
+    /// else its key) and its gloss — when it is a key and, in French and Italian, meets
+    /// its headword as written ([`meets_as_written`]); a French, Spanish or Italian key
+    /// several headwords reach is named by the one written most like the page
     /// ([`written_as_the_page`]), and every headword's name comes with it, which the
     /// settled chain reads ([`settled_chain`]).
     fn run(&self, start: usize, len: usize) -> Option<(String, String, Vec<String>)> {
         let (key, gloss) =
             expression_for_run(&self.pieces[start..start + len], self.studied, self.pack)?;
-        let (tokens, elided, shares_span) =
-            (self.tokens, &self.joins.elided, &self.joins.shares_span);
+        let (tokens, endings, shares_span) =
+            (self.tokens, &self.joins.endings, &self.joins.shares_span);
         if self.whole_words() {
             let headwords = self.pack.expression_headwords(&key);
             if headwords.len() > 1 {
                 let run = start..start + len;
                 let lexicon = self.pack.lexicon();
-                let (name, gloss) = if self.french() {
+                let (name, gloss) = if self.as_written() {
                     written_as_the_page(
                         &headwords,
                         &tokens[run.clone()],
@@ -799,9 +920,10 @@ impl<'a> ExpressionScan<'a> {
                         lexicon,
                         |name| {
                             meets_as_written(
-                                &elided[run.clone()],
+                                &endings[run.clone()],
                                 &shares_span[run.clone()],
                                 name,
+                                self.studied,
                                 lexicon,
                             )
                         },
@@ -821,11 +943,12 @@ impl<'a> ExpressionScan<'a> {
             Some(name) => name.to_owned(),
             None => key,
         };
-        (!self.french()
+        (!self.as_written()
             || meets_as_written(
-                &elided[start..start + len],
+                &endings[start..start + len],
                 &shares_span[start..start + len],
                 &name,
+                self.studied,
                 self.pack.lexicon(),
             ))
         .then(|| (name.clone(), gloss, vec![name]))
@@ -842,8 +965,8 @@ impl<'a> ExpressionScan<'a> {
     }
 
     /// Where a match of `len` tokens from `start` ends: past its last token, and in
-    /// French and Spanish past the article of a written « au », « aux », « al » or
-    /// « del » it would otherwise end inside.
+    /// French, Spanish and Italian past the article of a written « au », « aux », « al »,
+    /// « del », « nel », « sul », « col » or « all' » it would otherwise end inside.
     fn covered_end(&self, start: usize, len: usize) -> usize {
         let mut end = start + len;
         if self.whole_words() {
@@ -858,12 +981,13 @@ impl<'a> ExpressionScan<'a> {
     /// the expression starting on it (choose-lingua-overlapping-expressions D1):
     /// that expression, the longest run that is a key and meets its headword there
     /// ([`ExpressionScan::longest_at`]), holds more tokens than the run, or (French,
-    /// Spanish) starts on the `à` of « au »/« aux » or the `a`/`de` of « al »/« del »
-    /// the run ends on; the run is built on a verb ([`built_on_verb`]); and no guard
-    /// of D3 holds — G1 (French): the expression taking the word meets its
-    /// headword's hyphens on the page ([`meets_hyphens`]); G2 (French, Spanish): the
-    /// last token is a preposition the selection's next token, `que`, follows
-    /// (« pese a que »); G3: the run the scan would take next after this one ends
+    /// Spanish, Italian) starts on the `à` of « au »/« aux », the `a`/`de` of « al »/« del »
+    /// or the `a` of « al » the run ends on; the run is built on a verb ([`built_on_verb`]);
+    /// and no guard of D3 holds — G1 (French): the expression taking the word meets its
+    /// headword's hyphens on the page ([`meets_hyphens`]); G2 (French, Spanish, Italian):
+    /// the last token is a preposition the selection's next token, `que` — Italian's
+    /// `che` ([`ExpressionScan::subordinator`], add-lingua-italian-expression-keys D7) —,
+    /// follows (« pese a que »); G3: the run the scan would take next after this one ends
     /// past the expression taking the word and holds a word that is not a function
     /// word (« iba al día siguiente » keeps `ir a` and `día siguiente`). The
     /// checks run cheapest first.
@@ -878,9 +1002,12 @@ impl<'a> ExpressionScan<'a> {
         if !(on_contraction || taker_len > len) {
             return false;
         }
-        // G2: a preposition the page follows with « que » stays.
+        // G2: a preposition the page follows with « que » (Italian's « che ») stays.
         if self.whole_words()
-            && self.tokens.get(end).is_some_and(|next| next.lemma == "que")
+            && self
+                .tokens
+                .get(end)
+                .is_some_and(|next| next.lemma == self.subordinator())
             && is_preposition(&self.tokens[last].lemma, self.studied)
         {
             return false;
@@ -963,19 +1090,21 @@ fn meets_hyphens(hyphened: &[bool], headword: &str, lexicon: &(impl Lexicon + ?S
         })
 }
 
-/// Whether a French run's tokens meet, piece by piece, its expression's headword as
-/// the headword writes them (match-lingua-french-elided-pieces D1, D3;
-/// match-lingua-french-contracted-pieces D1, D3): `elided` holds the run's tokens'
-/// [`is_elided`], `joined` their [`shared_spans`] as the selection's tokens give them
-/// (entry 0 says whether the run's first token shares its span with the token before
-/// the run), `headword` the expression's name — the pack's, or its key where it carries
-/// none.
+/// Whether a French or Italian run's tokens meet, piece by piece, its expression's headword
+/// as the headword writes them (match-lingua-french-elided-pieces D1, D3;
+/// match-lingua-french-contracted-pieces D1, D3; add-lingua-italian-expression-keys D6):
+/// `endings` holds the run's tokens' [`ending`]s, `joined` their [`shared_spans`] as the
+/// selection's tokens give them (entry 0 says whether the run's first token shares its span
+/// with the token before the run), `headword` the expression's name — the pack's, or its key
+/// where it carries none —, `studied` the run's language, French or Italian.
 ///
-/// A piece the headword writes elided (`l'` of `de l'`, `qu'` of `qu'est-ce que`) meets
-/// only an elided token; a piece it writes in full meets only a token written in full,
-/// except its last, which meets either: French elides a word by the word that follows
-/// it, and after the expression's last piece that word is the page's (« parce qu’il »
-/// answers `parce que`).
+/// A piece the headword writes elided (`l'` of `de l'`, `qu'` of `qu'est-ce que`, `anch'` of
+/// `anch'io`) meets only an elided token, and one it writes truncated (Italian's `po'` of
+/// `un po'`) only a truncated one; a piece it writes in full meets only a token written in
+/// full, except its last, which meets an elided token too: French and Italian elide a word
+/// by the word that follows it, and after the expression's last piece that word is the
+/// page's (« parce qu’il » answers `parce que`). Never a truncation: Italian truncates a word
+/// on its own, so `un poco` does not meet « un po' », which `un po'` does.
 ///
 /// Between two adjacent tokens of the run, the tokens are one written word exactly where
 /// the headword writes its two pieces at that place as one: two pieces it writes « au »
@@ -989,57 +1118,73 @@ fn meets_hyphens(hyphened: &[bool], headword: &str, lexicon: &(impl Lexicon + ?S
 /// the slice — `match_expressions` then covers it (add-lingua-french-word-card D12:
 /// `grâce à` on « grâce au soleil », `jusqu'à` on « jusqu'au soir »).
 ///
-/// The headword is read by French's pre-pass ([`headword_reading`], the reading its key
-/// was made from, so its pieces line up with the run's one for one), each piece's
-/// elision taken from its span and its contractions from the reading's
+/// Italian's are its articulated prepositions: two pieces the headword writes as one
+/// (`a` + `il` of `al dente`, `a` + `lo` of `all'improvviso`) meet only two tokens sharing a
+/// span, two it writes apart only tokens with spans of their own (« andare a il mare »
+/// does not answer `andare al mare`), the run's edges the page's as French's are (its last
+/// token the `a` of « al » in « vicino al mare », whose article is then covered).
+///
+/// The headword is read by its language's pre-pass ([`headword_reading`], the reading its
+/// key was made from, so its pieces line up with the run's one for one), each piece's
+/// ending taken from its span ([`ending`]) and its contractions from the reading's
 /// [`shared_spans`] — one reading for both, made only when the headword holds an
-/// apostrophe or the word « au » or « aux » ([`holds_french_contraction`]): a name
-/// holding neither is written in full, every piece apart, and a key the pack does not
-/// name is its own headword, written so. A headword whose reading does not line up with
-/// the run, or that reads as none, is matched as match-lingua-french-elided-pieces matched
-/// it, its contractions unchecked.
+/// apostrophe or a word the pre-pass splits ([`holds_contraction`]: French's « au » or
+/// « aux », Italian's `al`, `nella`, `col`…): a name holding neither is written in full,
+/// every piece apart, and a key the pack does not name is its own headword, written so. A
+/// headword whose reading does not line up with the run, or that reads as none, is matched
+/// as match-lingua-french-elided-pieces matched it, its contractions unchecked.
 fn meets_as_written(
-    elided: &[bool],
+    endings: &[Ending],
     joined: &[bool],
     headword: &str,
+    studied: StudiedLanguage,
     lexicon: &(impl Lexicon + ?Sized),
 ) -> bool {
-    let last = elided.len().saturating_sub(1);
+    let last = endings.len().saturating_sub(1);
+    // Every piece but the last written in full, and the last no truncation.
+    let in_full = || {
+        endings[..last]
+            .iter()
+            .all(|&on_page| on_page == Ending::Full)
+            && endings.get(last) != Some(&Ending::Truncation)
+    };
     let apostrophe = headword.contains(['\'', '\u{2019}']);
-    if !apostrophe && !holds_french_contraction(headword) {
-        return !elided[..last].contains(&true) && !joined.iter().skip(1).any(|&on_page| on_page);
+    if !apostrophe && !holds_contraction(headword, studied) {
+        return in_full() && !joined.iter().skip(1).any(|&on_page| on_page);
     }
-    let Some(reading) = headword_reading(headword, StudiedLanguage::French, lexicon)
-        .filter(|reading| reading.len() == elided.len())
+    let Some(reading) = headword_reading(headword, studied, lexicon)
+        .filter(|reading| reading.len() == endings.len())
     else {
-        return apostrophe || !elided[..last].contains(&true);
+        return apostrophe || in_full();
     };
     let pieces: Vec<Token> = reading.into_iter().map(|(token, _)| token).collect();
-    let elisions_meet = pieces
+    let endings_meet = pieces
         .iter()
-        .zip(elided)
+        .zip(endings)
         .enumerate()
         .all(|(i, (piece, &on_page))| {
-            let written = is_elided(headword, piece);
-            on_page == written || (i == last && !written)
+            let written = ending(headword, piece, studied);
+            on_page == written
+                || (i == last && written == Ending::Full && on_page == Ending::Elision)
         });
-    elisions_meet
+    endings_meet
         && joined
             .iter()
             .skip(1)
             .eq(shared_spans(&pieces).iter().skip(1))
 }
 
-/// The headword a French or Spanish run is named by where several headwords reach the key
-/// it matches (pick-lingua-expression-written-as-the-page D2, D3;
-/// pick-lingua-spanish-expression-written-as-the-page D2). `headwords` are the key's, as
-/// the pack lists them ([`Pack::expression_headwords`]: the one that wins the key first,
-/// then the others in the builder's order) — for Spanish, those [`spanish_weighed`] keeps
-/// —; `run` is the run's tokens, `studied` its language.
+/// The headword a French, Spanish or Italian run is named by where several headwords reach
+/// the key it matches (pick-lingua-expression-written-as-the-page D2, D3;
+/// pick-lingua-spanish-expression-written-as-the-page D2; add-lingua-italian-expression-keys
+/// D4). `headwords` are the key's, as the pack lists them ([`Pack::expression_headwords`]:
+/// the one that wins the key first, then the others in the builder's order) — for Spanish,
+/// those [`spanish_weighed`] keeps —; `run` is the run's tokens, `studied` its language.
 ///
-/// Only the headwords `weighed` accepts are weighed — in French those whose pieces meet the
-/// run as written ([`meets_as_written`]): `ce qui` does not meet « c'qui », whose `c'` is
-/// elided, and `c'qui` does; in Spanish every one. Each is read by
+/// Only the headwords `weighed` accepts are weighed — in French and Italian those whose
+/// pieces meet the run as written ([`meets_as_written`]): `ce qui` does not meet « c'qui »,
+/// whose `c'` is elided, and `c'qui` does; `un poco` does not meet « un po' », and `un po'`
+/// does; in Spanish every one. Each is read by
 /// [`headword_reading`], the reading its key was made from, so its pieces line up with the
 /// run's tokens one for one, and a place counts where a piece's text is its token's, both
 /// lowercased and the typographic apostrophe read as the straight one, as
@@ -1048,7 +1193,8 @@ fn meets_as_written(
 /// between equals: « Ça va ? » answers `ça va` (two places, `ça ira` one), « Ça ira. »
 /// `ça ira`, « quelle que soit » `quel que soit` (`que` and `soit`, `quel que fût` `que`
 /// alone), « ça allait » `ça ira`, which wins the key (`ça` in both); « hace tiempo »
-/// `hace tiempo`, « dando vueltas » `dar vueltas` (`vueltas`). `None` when no headword is
+/// `hace tiempo`, « dando vueltas » `dar vueltas` (`vueltas`); « vale la pena » `vale la
+/// pena`, « valeva la pena » `valere la pena`, which wins the key. `None` when no headword is
 /// weighed: it does not match at that length.
 fn written_as_the_page<'a, L: Lexicon + ?Sized>(
     headwords: &[(&'a str, &'a str)],
@@ -1130,26 +1276,42 @@ fn spanish_weighed<'a>(
     }
 }
 
-/// Whether a French expression's headword holds the word « au » or « aux », in any case
-/// and after an elision too (`jusqu'aux`), read without its soft hyphens: the words French's
-/// pre-pass splits into two tokens sharing a span, and the only ones
-/// (match-lingua-french-contracted-pieces D2, D3). [`meets_as_written`] reads a headword's
-/// contractions only where it holds one; `committed_tables.rs` checks that every committed
-/// French headword whose reading joins two pieces does.
-pub fn holds_french_contraction(headword: &str) -> bool {
-    without_soft_hyphens(headword)
-        .split(|c: char| !c.is_alphanumeric())
-        .any(|word| word.eq_ignore_ascii_case("au") || word.eq_ignore_ascii_case("aux"))
+/// Whether an expression's headword holds a word its language's pre-pass splits into two
+/// tokens sharing a span, which [`meets_as_written`] then reads the headword for
+/// (match-lingua-french-contracted-pieces D2, D3; add-lingua-italian-expression-keys D6):
+///
+/// - **French**: the word « au » or « aux », in any case and after an elision too
+///   (`jusqu'aux`), read without its soft hyphens — the only words French's pre-pass splits
+///   so; `committed_tables.rs` checks that every committed French headword whose reading
+///   joins two pieces holds one;
+/// - **Italian**: an articulated preposition of the `a`, `da`, `in`, `su` and `con` families
+///   (`al`, `alla`, `dai`, `nel`, `sul`, `col`…), or, written with its apostrophe, an elided
+///   one (`all'`, `coll'`, `dall'`, `nell'`, `sull'`) or a truncated one (`a'`, `co'`,
+///   `da'`, `ne'`, `su'`) — change 6's tables as refine-lingua-italian-reading leaves them;
+///   the `di` family stays whole. The apostrophe ones send the headword through its reading
+///   anyway, and a `da'` the pre-pass reads as the verb `dai` is one token, which its reading
+///   says (a truncation's one token, not a contraction's two);
+/// - English and Spanish, whose runs are not held to their headword's writing: none.
+pub fn holds_contraction(headword: &str, studied: StudiedLanguage) -> bool {
+    match studied {
+        StudiedLanguage::French => without_soft_hyphens(headword)
+            .split(|c: char| !c.is_alphanumeric())
+            .any(|word| word.eq_ignore_ascii_case("au") || word.eq_ignore_ascii_case("aux")),
+        StudiedLanguage::Italian => holds_italian_contraction(headword),
+        StudiedLanguage::English | StudiedLanguage::Spanish => false,
+    }
 }
 
 /// Which of `tokens` share their predecessor's source span: entry `i` says whether token
 /// `i` is the second half of a written word the pre-pass split (`del` → `de` + `el`,
-/// `au` → `à` + `le`, `don't` → `do` + `not`); entry 0 never does. The phrase gloss reads
-/// it on a selection's tokens — a Spanish or French match never leaves such a half outside
-/// (add-lingua-spanish-expression-keys D5, add-lingua-french-word-card D12) — and on a
-/// French expression's headword, whose contractions a French run meets as written
+/// `au` → `à` + `le`, `al` → `a` + `il`, `don't` → `do` + `not`); entry 0 never does. The
+/// phrase gloss reads it on a selection's tokens — a Spanish, French or Italian match never
+/// leaves such a half outside (add-lingua-spanish-expression-keys D5,
+/// add-lingua-french-word-card D12, add-lingua-italian-expression-keys D5) — and on a French
+/// or Italian expression's headword, whose contractions a run meets as written
 /// ([`meets_as_written`], match-lingua-french-contracted-pieces D2, D3). In French only
-/// the halves of « au » and « aux » share a span.
+/// the halves of « au » and « aux » share a span; in Italian, those of its articulated
+/// prepositions but the `di` family's.
 pub fn shared_spans(tokens: &[Token]) -> Vec<bool> {
     tokens
         .iter()
@@ -1214,15 +1376,17 @@ pub fn gloss_phrase(
     let lexicon = pack.lexicon();
     let read = tokenize(text, studied, lexicon);
     // Which tokens share their predecessor's source span: the second half of a word
-    // the pre-pass split (`del` → `de` + `el`, `au` → `à` + `le`), which a Spanish or
-    // French match never leaves outside (add-lingua-spanish-expression-keys D5,
-    // add-lingua-french-word-card D12), and a French match meets only where its
-    // headword writes the contraction (match-lingua-french-contracted-pieces D2).
-    // Which tokens are elided pieces, read from their spans, which a French match holds
-    // to its headword's (match-lingua-french-elided-pieces D2). And which are joined to
-    // the token before by a hyphen, which a French expression taking a word from another
-    // meets as its headword writes it (choose-lingua-overlapping-expressions D3, G1).
-    let joins = PageJoins::of(text, &read);
+    // the pre-pass split (`del` → `de` + `el`, `au` → `à` + `le`, `al` → `a` + `il`),
+    // which a Spanish, French or Italian match never leaves outside
+    // (add-lingua-spanish-expression-keys D5, add-lingua-french-word-card D12,
+    // add-lingua-italian-expression-keys D5), and a French or Italian match meets only
+    // where its headword writes the contraction (match-lingua-french-contracted-pieces D2,
+    // add-lingua-italian-expression-keys D6). Which tokens are elided pieces or Italian
+    // truncations, read from their spans, which a French or Italian match holds to its
+    // headword's (match-lingua-french-elided-pieces D2). And which are joined to the token
+    // before by a hyphen, which a French expression taking a word from another meets as
+    // its headword writes it (choose-lingua-overlapping-expressions D3, G1).
+    let joins = PageJoins::of(text, &read, studied);
     // Which tokens stand alone in capitals, read in the selection as a page reads its block
     // (keep-lingua-french-acronyms-in-capitals D1).
     let alone = alone_in_capitals(text, &read, studied);
@@ -2347,10 +2511,10 @@ mod tests {
     #[test]
     fn spec_scenario_an_italian_page_is_read_by_its_own_analysis() {
         // add-lingua-italian-analysis: Italian sets its names aside, flags its function words,
-        // names its own version, and still matches an expression of its pack by its lemmas, as
-        // English keys one, until add-lingua-italian-expression-keys. Its pre-pass splits its
-        // elisions and the articulated prepositions but those of `di`, each piece lemmatised by
-        // its cascade.
+        // names its own version, and matches an expression of its pack on its reading, each
+        // piece its dictionary form but the determiners, written as the pre-pass gives them
+        // (add-lingua-italian-expression-keys D2). Its pre-pass splits its elisions and the
+        // articulated prepositions but those of `di`, each piece lemmatised by its cascade.
         const IT: StudiedLanguage = StudiedLanguage::Italian;
         let blocks = [
             "Ieri sera Augusto ha guardato Eugenia a lungo, poi ha pregato Dio nella casa dell'uomo.",
@@ -2453,8 +2617,8 @@ mod tests {
             ),
             ("faccio", "colazione")
         );
-        assert_eq!(expression_piece("La", "il", IT), "il");
-        assert_eq!(expression_window(IT), EXPRESSION_WINDOW);
+        assert_eq!(expression_piece("La", "il", IT), "la");
+        assert_eq!(expression_window(IT), ITALIAN_EXPRESSION_WINDOW);
     }
 
     /// The classes of every token written `surface` on an Italian page.
@@ -3582,24 +3746,45 @@ mod tests {
         );
     }
 
+    /// [`meets_as_written`] for a French run whose tokens' `elided` flags are [`is_elided`]'s:
+    /// French has no truncation, so each flag is an elision or a word in full.
+    fn french_meets(
+        elided: &[bool],
+        joined: &[bool],
+        headword: &str,
+        lexicon: &(impl Lexicon + ?Sized),
+    ) -> bool {
+        let endings: Vec<Ending> = elided
+            .iter()
+            .map(|&elided| {
+                if elided {
+                    Ending::Elision
+                } else {
+                    Ending::Full
+                }
+            })
+            .collect();
+        meets_as_written(&endings, joined, headword, FR, lexicon)
+    }
+
     #[test]
     fn a_french_headword_is_read_only_when_it_holds_an_apostrophe() {
         let lexicon = elided_lexicon();
         // `de un`, unnamed: its own headword, written in full. Its pieces but the last meet only
         // tokens written in full; its last meets either.
-        assert!(!meets_as_written(
+        assert!(!french_meets(
             &[true, false],
             &[false, false],
             "de un",
             &lexicon
         ));
-        assert!(meets_as_written(
+        assert!(french_meets(
             &[false, false],
             &[false, false],
             "de un",
             &lexicon
         ));
-        assert!(meets_as_written(
+        assert!(french_meets(
             &[false, true],
             &[false, false],
             "de un",
@@ -3609,27 +3794,27 @@ mod tests {
         // piece meets only an elided token.
         for name in ["de l'", "de l\u{2019}"] {
             assert!(
-                meets_as_written(&[false, true], &[false, false], name, &lexicon),
+                french_meets(&[false, true], &[false, false], name, &lexicon),
                 "{name}"
             );
             assert!(
-                !meets_as_written(&[false, false], &[false, false], name, &lexicon),
+                !french_meets(&[false, false], &[false, false], name, &lexicon),
                 "{name}"
             );
             assert!(
-                !meets_as_written(&[true, true], &[false, false], name, &lexicon),
+                !french_meets(&[true, true], &[false, false], name, &lexicon),
                 "{name}"
             );
         }
         // A reading that does not line up with the run, or none at all — a word the analysis
         // drops (`t`) —, leaves the run matched as before.
-        assert!(meets_as_written(
+        assert!(french_meets(
             &[false, false],
             &[false, false],
             "de l'eau",
             &lexicon
         ));
-        assert!(meets_as_written(
+        assert!(french_meets(
             &[true, true],
             &[false, false],
             "qu'il t",
@@ -3872,7 +4057,7 @@ mod tests {
             "tirer au sort",
             "a\u{ad}u fait",
         ] {
-            assert!(holds_french_contraction(headword), "{headword}");
+            assert!(holds_contraction(headword, FR), "{headword}");
         }
         for headword in [
             "à le revoir",
@@ -3883,7 +4068,7 @@ mod tests {
             "eaux",
             "",
         ] {
-            assert!(!holds_french_contraction(headword), "{headword}");
+            assert!(!holds_contraction(headword, FR), "{headword}");
         }
     }
 
@@ -3892,19 +4077,19 @@ mod tests {
         let lexicon = contracted_lexicon();
         // `grâce à`, unnamed: its own headword, every piece apart. It is not read: a run of three
         // that a reading would not line up with still meets only tokens written apart.
-        assert!(meets_as_written(
+        assert!(french_meets(
             &[false; 2],
             &[false, false],
             "grâce à",
             &lexicon
         ));
-        assert!(!meets_as_written(
+        assert!(!french_meets(
             &[false; 2],
             &[false, true],
             "grâce à",
             &lexicon
         ));
-        assert!(!meets_as_written(
+        assert!(!french_meets(
             &[false; 3],
             &[false, false, true],
             "grâce à",
@@ -3912,7 +4097,7 @@ mod tests {
         ));
         // The run's first place is the page's: its first token may share the span of the token
         // before the run.
-        assert!(meets_as_written(
+        assert!(french_meets(
             &[false; 2],
             &[true, false],
             "les miennes",
@@ -3921,29 +4106,29 @@ mod tests {
         // A headword holding « au », in any case, is read: its two pieces meet only a contraction.
         for name in ["au fait", "Au fait", "AU FAIT"] {
             assert!(
-                meets_as_written(&[false; 3], &[false, true, false], name, &lexicon),
+                french_meets(&[false; 3], &[false, true, false], name, &lexicon),
                 "{name}"
             );
             assert!(
-                !meets_as_written(&[false; 3], &[false; 3], name, &lexicon),
+                !french_meets(&[false; 3], &[false; 3], name, &lexicon),
                 "{name}"
             );
             assert!(
-                !meets_as_written(&[false; 3], &[false, true, true], name, &lexicon),
+                !french_meets(&[false; 3], &[false, true, true], name, &lexicon),
                 "{name}"
             );
         }
         // One reading holds both rules: an elided piece and a contraction.
         let name = "armé jusqu'aux dents";
         let elided = [false, true, false, false, false];
-        assert!(meets_as_written(
+        assert!(french_meets(
             &elided,
             &[false, false, false, true, false],
             name,
             &lexicon
         ));
-        assert!(!meets_as_written(&elided, &[false; 5], name, &lexicon));
-        assert!(!meets_as_written(
+        assert!(!french_meets(&elided, &[false; 5], name, &lexicon));
+        assert!(!french_meets(
             &[false; 5],
             &[false, false, false, true, false],
             name,
@@ -3952,19 +4137,14 @@ mod tests {
         // A reading that does not line up with the run is matched as before, its contractions
         // unchecked; one holding no apostrophe still holds its pieces but the last written in
         // full.
-        assert!(meets_as_written(
-            &[false; 2],
-            &[false, false],
-            name,
-            &lexicon
-        ));
-        assert!(meets_as_written(
+        assert!(french_meets(&[false; 2], &[false, false], name, &lexicon));
+        assert!(french_meets(
             &[false; 2],
             &[false, false],
             "au fait",
             &lexicon
         ));
-        assert!(!meets_as_written(
+        assert!(!french_meets(
             &[true, false],
             &[false, false],
             "au fait",
@@ -6895,5 +7075,692 @@ mod tests {
                 "{text}"
             );
         }
+    }
+
+    // --- Italian expression keys (add-lingua-italian-expression-keys) ---
+
+    #[test]
+    fn the_words_an_italian_key_writes_are_sorted_and_forty_one() {
+        assert_eq!(ITALIAN_KEY_WRITTEN.len(), 41);
+        assert!(ITALIAN_KEY_WRITTEN.windows(2).all(|pair| pair[0] < pair[1]));
+        assert!(ITALIAN_DI_FAMILY.windows(2).all(|pair| pair[0] < pair[1]));
+    }
+
+    #[test]
+    fn an_italian_key_writes_its_determiners_and_lemmatises_the_rest() {
+        // D2: the articles and the possessive and demonstrative determiners as the pre-pass gives
+        // them, lowercased; every other token its dictionary form.
+        assert_eq!(expression_piece("La", "il", IT), "la");
+        assert_eq!(expression_piece("gli", "il", IT), "gli");
+        assert_eq!(expression_piece("Una", "uno", IT), "una");
+        assert_eq!(expression_piece("mia", "mio", IT), "mia");
+        assert_eq!(expression_piece("Quella", "quello", IT), "quella");
+        assert_eq!(expression_piece("romana", "romano", IT), "romano");
+        // The `di` family is a lemma of its own, and a clitic pronoun no determiner.
+        assert_eq!(expression_piece("del", "del", IT), "del");
+        assert_eq!(expression_piece("mi", "io", IT), "io");
+        // The elided article the pre-pass writes `lo` is written `lo`.
+        let elided = crate::analysis::tokenize::tokenize("l'amore", IT, &italian_lexicon());
+        assert_eq!(elided[0].text, "lo");
+        assert_eq!(expression_piece(&elided[0].text, "il", IT), "lo");
+        // The other languages write their own determiners, never Italian's.
+        assert_eq!(expression_piece("gli", "il", FR), "il");
+        assert_eq!(expression_piece("Questa", "questo", ES), "questo");
+        assert_eq!(expression_piece("La", "il", EN), "il");
+    }
+
+    /// An Italian lexicon for the keys and matches below: M8 files `la`, `lo` and `le` under
+    /// `il`, `un` and `una` under `uno`, `romana` under `romano`, `vale` and `valeva` under
+    /// `valere`.
+    fn italian_lexicon() -> FstLexicon<Vec<u8>> {
+        let (bytes, pool) = build_lexicon_blobs(ITALIAN_FORMS, ITALIAN_LEMMAS).expect("build");
+        FstLexicon::from_slices(bytes, &pool).expect("load")
+    }
+
+    const ITALIAN_FORMS: &[(&str, &str)] = &[
+        ("ha", "avere"),
+        ("la", "il"),
+        ("le", "il"),
+        ("lo", "il"),
+        ("pensa", "pensare"),
+        ("romana", "romano"),
+        ("un", "uno"),
+        ("una", "uno"),
+        ("vale", "valere"),
+        ("valeva", "valere"),
+    ];
+
+    const ITALIAN_LEMMAS: &[&str] = &[
+        "a", "accordo", "altro", "amico", "amore", "anche", "andare", "avere", "bisogno", "causa",
+        "che", "come", "così", "cotto", "cuore", "del", "dello", "dente", "di", "fare", "fin",
+        "fine", "il", "in", "io", "mare", "meno", "nuovo", "o", "ora", "pane", "pena", "pensare",
+        "perché", "più", "poco", "posto", "ritardo", "romano", "tempo", "tratto", "uno", "valere",
+        "vicino",
+    ];
+
+    #[test]
+    fn an_italian_expression_is_keyed_as_italian_is_read() {
+        let lexicon = italian_lexicon();
+        let key = |headword: &str| reading_expression_key(headword, IT, &lexicon);
+        // An articulated preposition is read as the preposition and the article, the article
+        // written: `alla romana` is not `a il romano`.
+        assert_eq!(key("al dente").as_deref(), Some("a il dente"));
+        assert_eq!(key("alla romana").as_deref(), Some("a la romano"));
+        // An elided article is read as the word it stands for, written as the pre-pass gives it.
+        assert_eq!(key("fare l'amore").as_deref(), Some("fare lo amore"));
+        assert_eq!(key("fare l\u{2019}amore").as_deref(), Some("fare lo amore"));
+        // The `di` family stays whole: the key is the headword.
+        assert_eq!(key("amico del cuore").as_deref(), Some("amico del cuore"));
+        // A word without a space the pre-pass splits is an expression.
+        assert_eq!(key("d'accordo").as_deref(), Some("di accordo"));
+        // Four tokens, and a name read as its headword is, so review finds the key from it.
+        assert_eq!(key("alla fin fine").as_deref(), Some("a la fin fine"));
+        assert_eq!(key("Al dente").as_deref(), Some("a il dente"));
+        // English has no reading key, and French's function is French's alone.
+        assert_eq!(reading_expression_key("al dente", EN, &lexicon), None);
+        assert_eq!(french_expression_key("al dente", &lexicon), None);
+    }
+
+    #[test]
+    fn an_italian_headword_outside_the_rules_has_no_key() {
+        let lexicon = italian_lexicon();
+        let key = |headword: &str| reading_expression_key(headword, IT, &lexicon);
+        // Seven tokens are Italian's window; eight and nine are beyond it (D3).
+        assert_eq!(
+            key(&["pane"; 7].join(" ")).as_deref(),
+            Some(["pane"; 7].join(" ").as_str())
+        );
+        assert_eq!(key(&["pane"; 8].join(" ")), None);
+        assert_eq!(key(&["pane"; 9].join(" ")), None);
+        assert_eq!(
+            key("al mare al mare al mare"),
+            None,
+            "six words, nine tokens"
+        );
+        // One token is a word, not an expression: `perché`; a dictionary form the lexicon does
+        // not hold could never be met.
+        assert_eq!(key("perché"), None);
+        assert_eq!(key("fare la spesa"), None);
+        assert_eq!(key(""), None);
+    }
+
+    /// An Italian pack holding `expressions` (headword, gloss), listed in the builder's order and
+    /// keyed as the builder keys them, each key won by its first headword, named by its headword
+    /// where the two differ, and every other headword of a key kept as one of its own (D1, D4).
+    fn italian_expression_pack(expressions: &[(&str, &str)]) -> Pack {
+        let lexicon = italian_lexicon();
+        let keys: Vec<String> = expressions
+            .iter()
+            .map(|(headword, _)| reading_expression_key(headword, IT, &lexicon).expect(headword))
+            .collect();
+        let entries: Vec<(&str, &str, &str)> = keys
+            .iter()
+            .zip(expressions)
+            .map(|(key, (headword, gloss))| (key.as_str(), *headword, *gloss))
+            .collect();
+        pack_with_others(IT, ITALIAN_FORMS, ITALIAN_LEMMAS, &entries)
+    }
+
+    /// The fixture's expressions and the delta's: an articulated preposition inside an expression
+    /// and after one, the `di` family's, elided pieces, a truncation and its word in full, and two
+    /// headwords of one key, in the builder's order (`un poco` and `valere la pena` written as
+    /// their key, first).
+    const ITALIAN_EXPRESSIONS: &[(&str, &str)] = &[
+        ("al dente", "al dente"),
+        ("alla romana", "à la romaine"),
+        ("fare l'amore", "faire l'amour"),
+        ("a causa di", "à cause de"),
+        ("al posto di", "à la place de"),
+        ("di nuovo", "de nouveau"),
+        ("vicino a", "près de"),
+        ("d'un tratto", "tout à coup"),
+        ("andare al mare", "aller à la mer"),
+        ("anch'io", "moi aussi"),
+        ("così come", "ainsi que"),
+        ("un poco", "un peu, quelque peu"),
+        ("un po'", "un peu"),
+        ("valere la pena", "valoir la peine"),
+        ("vale la pena", "ça vaut la peine"),
+        ("d'accordo", "d'accord"),
+    ];
+
+    /// Each match of `text` read as Italian on `pack`: the surfaces it covers, its key and its
+    /// gloss.
+    fn italian_matches_on(pack: &Pack, text: &str) -> Vec<(Vec<String>, String, String)> {
+        let phrase = gloss_phrase(text, IT, pack, &KnowledgeState::new());
+        phrase
+            .expressions
+            .iter()
+            .map(|m| {
+                let covered = phrase.tokens[m.start..m.end]
+                    .iter()
+                    .map(|token| token.surface.clone())
+                    .collect();
+                (covered, m.key.clone(), m.gloss.clone())
+            })
+            .collect()
+    }
+
+    fn italian_matches(text: &str) -> Vec<(Vec<String>, String, String)> {
+        italian_matches_on(&italian_expression_pack(ITALIAN_EXPRESSIONS), text)
+    }
+
+    #[test]
+    fn the_italian_expressions_are_keyed_and_named_as_italian_is_read() {
+        let pack = italian_expression_pack(ITALIAN_EXPRESSIONS);
+        for (key, name) in [
+            ("a il dente", Some("al dente")),
+            ("a la romano", Some("alla romana")),
+            ("fare lo amore", Some("fare l'amore")),
+            ("a causa di", None),
+            ("a il posto di", Some("al posto di")),
+            ("vicino a", None),
+            ("di un tratto", Some("d'un tratto")),
+            ("andare a il mare", Some("andare al mare")),
+            ("anche io", Some("anch'io")),
+            ("di accordo", Some("d'accordo")),
+        ] {
+            assert!(pack.expression(key).is_some(), "{key}");
+            assert_eq!(pack.expression_name(key), name, "{key}");
+        }
+        // Two headwords of one key, both kept: the one written as the key first.
+        let names = |key: &str| -> Vec<String> {
+            pack.expression_headwords(key)
+                .iter()
+                .map(|(name, _)| (*name).to_owned())
+                .collect()
+        };
+        assert_eq!(names("un poco"), ["un poco", "un po'"]);
+        assert_eq!(names("valere la pena"), ["valere la pena", "vale la pena"]);
+    }
+
+    #[test]
+    fn spec_scenario_an_articulated_preposition_read_as_two_words() {
+        let mut knowledge = KnowledgeState::new();
+        knowledge.set_status(IT, "al dente", Status::Known(KnownSource::Manual));
+        let phrase = gloss_phrase(
+            "cotto al dente",
+            IT,
+            &italian_expression_pack(ITALIAN_EXPRESSIONS),
+            &knowledge,
+        );
+        let surfaces: Vec<&str> = phrase.tokens.iter().map(|t| t.surface.as_str()).collect();
+        assert_eq!(surfaces, ["cotto", "a", "il", "dente"]);
+        assert_eq!(
+            phrase.expressions,
+            [PhraseMatch {
+                start: 1,
+                end: 4,
+                key: "al dente".into(),
+                class: TokenClass::Known,
+                gloss: "al dente".into(),
+            }]
+        );
+        // A status set on the key is not the name's.
+        let mut on_key = KnowledgeState::new();
+        on_key.set_status(IT, "a il dente", Status::Known(KnownSource::Manual));
+        let phrase = gloss_phrase(
+            "cotto al dente",
+            IT,
+            &italian_expression_pack(ITALIAN_EXPRESSIONS),
+            &on_key,
+        );
+        assert_eq!(phrase.expressions[0].class, TokenClass::Unknown);
+        // The article is written: `alla romana` does not answer « al romano ».
+        assert_eq!(
+            italian_matches("pollo alla romana"),
+            [written(
+                &["a", "la", "romana"],
+                "alla romana",
+                "à la romaine"
+            )]
+        );
+        assert_eq!(italian_matches("al romano"), []);
+    }
+
+    #[test]
+    fn spec_scenario_the_article_of_an_italian_contraction_is_covered() {
+        let pack = italian_expression_pack(ITALIAN_EXPRESSIONS);
+        let phrase = gloss_phrase("vicino al mare", IT, &pack, &KnowledgeState::new());
+        let surfaces: Vec<&str> = phrase.tokens.iter().map(|t| t.surface.as_str()).collect();
+        assert_eq!(surfaces, ["vicino", "a", "il", "mare"]);
+        assert_eq!(spans(&phrase), [(0, 3, "vicino a")]);
+        // The selection of the written words is answered whole, and an elided one too.
+        assert_eq!(
+            italian_matches("vicino al"),
+            [written(&["vicino", "a", "il"], "vicino a", "près de")]
+        );
+        assert_eq!(
+            italian_matches("vicino all'albero"),
+            [written(&["vicino", "a", "lo"], "vicino a", "près de")]
+        );
+        // A match ending on a word of its own is not extended over the next word.
+        assert_eq!(
+            italian_matches("vicino a il mare"),
+            [written(&["vicino", "a"], "vicino a", "près de")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_di_family_read_as_di() {
+        let pack = italian_expression_pack(ITALIAN_EXPRESSIONS);
+        let phrase = gloss_phrase("a causa del ritardo", IT, &pack, &KnowledgeState::new());
+        assert_eq!(spans(&phrase), [(0, 3, "a causa di")]);
+        assert_eq!(phrase.expressions[0].gloss, "à cause de");
+        // The token keeps its own lemma: the retry is the phrase gloss's.
+        assert_eq!(phrase.tokens[2].lemma, "del");
+        // `dell'` is read `dello`, one elided piece, which the headword's last piece written in
+        // full meets; the article of « al » at the run's head is the headword's.
+        assert_eq!(
+            italian_matches("al posto dell'altro"),
+            [written(
+                &["a", "il", "posto", "dello"],
+                "al posto di",
+                "à la place de"
+            )]
+        );
+        // Only the run's last token is read as `di`.
+        assert_eq!(italian_matches("del nuovo"), []);
+        assert_eq!(
+            italian_matches("di nuovo"),
+            [written(&["di", "nuovo"], "di nuovo", "de nouveau")]
+        );
+    }
+
+    #[test]
+    fn a_run_ending_on_del_is_retried_in_italian_alone() {
+        // D5 is Italian's (and `du`/`des` French's): another language's key ending on `di` is
+        // never met through `del`, nor an Italian one through `du`.
+        for studied in [EN, ES, FR] {
+            let pack = build_pack_for(
+                studied,
+                &[],
+                &["por", "di", "del"],
+                &[],
+                &[],
+                &[("por di", "x")],
+            );
+            let phrase = gloss_phrase("por del", studied, &pack, &KnowledgeState::new());
+            assert!(phrase.expressions.is_empty(), "{studied:?}");
+        }
+        let pack = build_pack_for(IT, &[], &["per", "de", "du"], &[], &[], &[("per de", "x")]);
+        let phrase = gloss_phrase("per du", IT, &pack, &KnowledgeState::new());
+        assert!(phrase.expressions.is_empty());
+    }
+
+    #[test]
+    fn spec_scenario_an_italian_elided_piece_is_not_a_word_in_full() {
+        assert_eq!(
+            italian_matches("anch'io"),
+            [written(&["anche", "io"], "anch'io", "moi aussi")]
+        );
+        assert_eq!(
+            italian_matches("Anch\u{2019}io"),
+            [written(&["Anche", "io"], "anch'io", "moi aussi")]
+        );
+        assert_eq!(italian_matches("anche io"), []);
+        assert_eq!(
+            italian_matches("fare l'amore"),
+            [written(
+                &["fare", "lo", "amore"],
+                "fare l'amore",
+                "faire l'amour"
+            )]
+        );
+        assert_eq!(italian_matches("fare lo amore"), []);
+    }
+
+    #[test]
+    fn spec_scenario_an_italian_word_in_full_is_not_an_elided_piece() {
+        assert_eq!(
+            italian_matches("d'un tratto"),
+            [written(
+                &["di", "un", "tratto"],
+                "d'un tratto",
+                "tout à coup"
+            )]
+        );
+        assert_eq!(italian_matches("di un tratto"), []);
+    }
+
+    #[test]
+    fn spec_scenario_an_italian_contraction_is_not_two_words_apart() {
+        assert_eq!(
+            italian_matches("andare al mare"),
+            [written(
+                &["andare", "a", "il", "mare"],
+                "andare al mare",
+                "aller à la mer"
+            )]
+        );
+        // Written apart, the four tokens do not meet it, and the shorter run takes the place.
+        assert_eq!(italian_matches("andare a il mare"), []);
+    }
+
+    #[test]
+    fn spec_scenario_the_last_italian_piece_follows_the_page() {
+        // Italian elides `come` by the word that follows it: the headword's last piece written in
+        // full meets « com' » as « come ».
+        assert_eq!(
+            italian_matches("così com'è"),
+            [written(&["così", "come"], "così come", "ainsi que")]
+        );
+        assert_eq!(
+            italian_matches("così come"),
+            [written(&["così", "come"], "così come", "ainsi que")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_an_italian_truncation() {
+        // Both reach `un poco`: the truncation reads as an elided piece by its span, and the
+        // last piece written in full never meets a truncation.
+        assert_eq!(
+            italian_matches("un po' di pane"),
+            [written(&["un", "poco"], "un po'", "un peu")]
+        );
+        assert_eq!(
+            italian_matches("un poco di pane"),
+            [written(&["un", "poco"], "un poco", "un peu, quelque peu")]
+        );
+        // A pack holding `un po'` alone meets « un po' » and not « un poco ».
+        let alone = italian_expression_pack(&[("un po'", "un peu")]);
+        assert_eq!(
+            italian_matches_on(&alone, "un po' di pane"),
+            [written(&["un", "poco"], "un po'", "un peu")]
+        );
+        assert_eq!(italian_matches_on(&alone, "un poco di pane"), []);
+        // And a pack holding `un poco` alone meets « un poco » and not « un po' ».
+        let in_full = italian_expression_pack(&[("un poco", "un peu")]);
+        assert_eq!(italian_matches_on(&in_full, "un po' di pane"), []);
+    }
+
+    #[test]
+    fn spec_scenario_the_italian_headword_written_as_the_page() {
+        assert_eq!(
+            italian_matches("vale la pena"),
+            [written(
+                &["vale", "la", "pena"],
+                "vale la pena",
+                "ça vaut la peine"
+            )]
+        );
+        // Written as the page at two places each, the key's winner is named.
+        assert_eq!(
+            italian_matches("valeva la pena"),
+            [written(
+                &["valeva", "la", "pena"],
+                "valere la pena",
+                "valoir la peine"
+            )]
+        );
+        // The status follows the headword.
+        let mut knowledge = KnowledgeState::new();
+        knowledge.set_status(IT, "vale la pena", Status::Known(KnownSource::Manual));
+        let phrase = gloss_phrase(
+            "vale la pena",
+            IT,
+            &italian_expression_pack(ITALIAN_EXPRESSIONS),
+            &knowledge,
+        );
+        assert_eq!(phrase.expressions[0].class, TokenClass::Known);
+        let phrase = gloss_phrase(
+            "valeva la pena",
+            IT,
+            &italian_expression_pack(ITALIAN_EXPRESSIONS),
+            &knowledge,
+        );
+        assert_eq!(phrase.expressions[0].class, TokenClass::Unknown);
+    }
+
+    #[test]
+    fn an_accent_typed_as_an_apostrophe_is_a_word_in_full() {
+        // read-lingua-italian-unmarked-spellings D1 reads « piu' » as `più`, its span ending on
+        // the apostrophe: no elided piece, so `più o meno` meets it as the word in full it is.
+        let pack = italian_expression_pack(&[("più o meno", "plus ou moins")]);
+        for text in ["più o meno", "piu' o meno", "Piu\u{2019} o meno"] {
+            let phrase = gloss_phrase(text, IT, &pack, &KnowledgeState::new());
+            assert_eq!(spans(&phrase), [(0, 3, "più o meno")], "{text}");
+        }
+    }
+
+    #[test]
+    fn spec_scenario_a_word_the_italian_pre_pass_splits() {
+        assert_eq!(
+            italian_matches("d'accordo"),
+            [written(&["di", "accordo"], "d'accordo", "d'accord")]
+        );
+        assert_eq!(
+            italian_matches("Sono d\u{2019}accordo"),
+            [written(&["di", "accordo"], "d'accordo", "d'accord")]
+        );
+        assert_eq!(italian_matches("di accordo"), []);
+    }
+
+    #[test]
+    fn an_italian_selection_s_tokens_do_not_move_with_the_table() {
+        // The tokens are what they are without the table; the matches sit beside them.
+        let bare = build_pack_for(IT, ITALIAN_FORMS, ITALIAN_LEMMAS, &[], &[], &[]);
+        let pack = italian_expression_pack(ITALIAN_EXPRESSIONS);
+        let knowledge = KnowledgeState::new();
+        for text in [
+            "cotto al dente",
+            "vicino al mare",
+            "a causa del ritardo",
+            "al posto dell'altro",
+            "anch'io",
+            "un po' di pane",
+            "vale la pena",
+            "d'accordo",
+        ] {
+            let with_table = gloss_phrase(text, IT, &pack, &knowledge);
+            let without = gloss_phrase(text, IT, &bare, &knowledge);
+            assert_eq!(with_table.tokens, without.tokens, "{text}");
+            assert!(without.expressions.is_empty());
+            assert!(!with_table.expressions.is_empty(), "{text}");
+        }
+    }
+
+    #[test]
+    fn an_italian_headword_holds_an_articulated_preposition_as_a_word() {
+        for headword in [
+            "al dente",
+            "Alla romana",
+            "andare al mare",
+            "dai e dai",
+            "col tempo",
+            "NEL BLU",
+            "all'improvviso",
+            "nell\u{2019}insieme",
+            "coll'aiuto",
+            "ne' campi",
+            "a' piedi",
+            "co' suoi",
+            "da' retta",
+            "su' colli",
+            "a\u{ad}l dente",
+        ] {
+            assert!(holds_contraction(headword, IT), "{headword}");
+        }
+        for headword in [
+            "a il dente",
+            "amico del cuore",
+            "della casa",
+            "dell'acqua",
+            "de' Medici",
+            "d'accordo",
+            "un po'",
+            "alto mare",
+            "palla",
+            "ai'",
+            "",
+        ] {
+            assert!(!holds_contraction(headword, IT), "{headword}");
+        }
+        // Each language's own words: « au » is French's, `al` Italian's, and the languages whose
+        // runs are not held to their headword's writing hold none.
+        assert!(!holds_contraction("au fait", IT));
+        assert!(!holds_contraction("al dente", FR));
+        assert!(holds_contraction("au fait", FR));
+        for studied in [EN, ES] {
+            assert!(!holds_contraction("al menos", studied), "{studied:?}");
+            assert!(!holds_contraction("au fait", studied), "{studied:?}");
+        }
+    }
+
+    /// [`meets_as_written`] for an Italian run on [`italian_lexicon`].
+    fn italian_meets(endings: &[Ending], joined: &[bool], headword: &str) -> bool {
+        meets_as_written(endings, joined, headword, IT, &italian_lexicon())
+    }
+
+    #[test]
+    fn an_italian_headword_is_read_where_it_holds_an_apostrophe_or_a_contraction() {
+        use Ending::{Elision as E, Full as F, Truncation as T};
+        // `a causa di`, unnamed, read as written in full and apart: its pieces but the last meet
+        // only tokens in full, its last an elision too, never a truncation.
+        assert!(italian_meets(&[F, F, F], &[false; 3], "a causa di"));
+        assert!(italian_meets(&[F, F, E], &[false; 3], "a causa di"));
+        assert!(!italian_meets(&[F, F, T], &[false; 3], "a causa di"));
+        assert!(!italian_meets(&[F, E, F], &[false; 3], "a causa di"));
+        assert!(!italian_meets(
+            &[F, F, F],
+            &[false, false, true],
+            "a causa di"
+        ));
+        // The run's first token may share its span with the token before the run.
+        assert!(italian_meets(
+            &[F, F, F],
+            &[true, false, false],
+            "a causa di"
+        ));
+        // `al dente`, read: its two first pieces meet only a contraction.
+        assert!(italian_meets(&[F, F, F], &[false, true, false], "al dente"));
+        assert!(!italian_meets(&[F, F, F], &[false; 3], "al dente"));
+        // `un po'`: a truncated piece meets only a truncation.
+        assert!(italian_meets(&[F, T], &[false; 2], "un po'"));
+        assert!(!italian_meets(&[F, E], &[false; 2], "un po'"));
+        assert!(!italian_meets(&[F, F], &[false; 2], "un po'"));
+        // `anch'io`: an elided piece meets only an elision.
+        assert!(italian_meets(&[E, F], &[false; 2], "anch'io"));
+        assert!(!italian_meets(&[F, F], &[false; 2], "anch'io"));
+        assert!(!italian_meets(&[T, F], &[false; 2], "anch'io"));
+        // A reading that does not line up with the run is matched as written in full, but for a
+        // name holding an apostrophe.
+        assert!(italian_meets(&[F, F], &[false; 2], "al dente"));
+        assert!(!italian_meets(&[F, T], &[false; 2], "al dente"));
+        assert!(italian_meets(&[E, E, E], &[false; 3], "anch'io"));
+    }
+
+    #[test]
+    fn an_italian_page_s_endings() {
+        let lexicon = italian_lexicon();
+        let endings = |text: &str| -> Vec<(String, Ending)> {
+            crate::analysis::tokenize::tokenize(text, IT, &lexicon)
+                .iter()
+                .map(|token| (token.text.to_lowercase(), ending(text, token, IT)))
+                .collect()
+        };
+        let pair = |text: &str, ending: Ending| (text.to_owned(), ending);
+        assert_eq!(
+            endings("anch'io un po' perche' all'alba"),
+            [
+                pair("anche", Ending::Elision),
+                pair("io", Ending::Full),
+                pair("un", Ending::Full),
+                pair("poco", Ending::Truncation),
+                pair("perché", Ending::Full),
+                pair("a", Ending::Elision),
+                pair("lo", Ending::Elision),
+                pair("alba", Ending::Full),
+            ]
+        );
+        // `da'` is a truncation whether read as the verb, one token, or as `da` + `i`, two.
+        assert_eq!(
+            endings("mi da' una mano"),
+            [
+                pair("mi", Ending::Full),
+                pair("dai", Ending::Truncation),
+                pair("una", Ending::Full),
+                pair("mano", Ending::Full),
+            ]
+        );
+        assert_eq!(
+            endings("da' primi"),
+            [
+                pair("da", Ending::Truncation),
+                pair("i", Ending::Truncation),
+                pair("primi", Ending::Full),
+            ]
+        );
+        // French reads an elision where its span ends on an apostrophe, as before.
+        let french = crate::analysis::tokenize::tokenize("l'eau", FR, &lexicon);
+        assert_eq!(ending("l'eau", &french[0], FR), Ending::Elision);
+        assert_eq!(ending("l'eau", &french[1], FR), Ending::Full);
+    }
+
+    /// The Italian verbs of the overlap scenarios, each read by the grammar as a verb.
+    const OVERLAP_IT_READINGS: &[Reading] = &[
+        ("ha", "avere", "VERB"),
+        ("pensa", "pensare", "VERB"),
+        ("va", "andare", "VERB"),
+    ];
+
+    fn italian_overlap(expressions: &[(&str, &str)], text: &str) -> Vec<(Vec<String>, String)> {
+        let pack = overlap_pack(
+            IT,
+            &[("ha", "avere"), ("pensa", "pensare"), ("va", "andare")],
+            ITALIAN_LEMMAS,
+            expressions,
+            OVERLAP_IT_READINGS,
+        );
+        overlap_matches(&pack, IT, text)
+    }
+
+    #[test]
+    fn spec_scenario_the_overlap_rule_reads_italian() {
+        // D7: the rule decides for Italian as for Spanish once the grammar reads a verb. `avere
+        // bisogno` keeps its last word from `bisogno di`, no longer than it…
+        let expressions = [
+            ("avere bisogno", "avoir besoin"),
+            ("bisogno di", "besoin de"),
+        ];
+        assert_eq!(
+            italian_overlap(&expressions, "ha bisogno di tempo"),
+            [covering(&["ha", "bisogno"], "avere bisogno")]
+        );
+        // … and gives it to `bisogno di tempo`, longer.
+        let expressions = [
+            ("avere bisogno", "avoir besoin"),
+            ("bisogno di tempo", "besoin de temps"),
+        ];
+        assert_eq!(
+            italian_overlap(&expressions, "ha bisogno di tempo"),
+            [covering(&["bisogno", "di", "tempo"], "bisogno di tempo")]
+        );
+        // A verb's `a` ending on « al » goes to the expression starting on it, as Spanish's `ir a`
+        // gives « al » to `al día`.
+        let expressions = [("andare a", "aller à"), ("al mare", "à la mer")];
+        assert_eq!(
+            italian_overlap(&expressions, "va al mare"),
+            [covering(&["a", "il", "mare"], "al mare")]
+        );
+        // G2: a preposition the page follows with « che » stays.
+        let expressions = [("pensare a", "penser à"), ("a che ora", "à quelle heure")];
+        assert_eq!(
+            italian_overlap(&expressions, "pensa a che ora"),
+            [covering(&["pensa", "a"], "pensare a")]
+        );
+    }
+
+    #[test]
+    fn an_italian_run_without_grammar_never_gives_its_last_word() {
+        // Before change 13's grammar no Italian token is a verb: the longer expression starting
+        // on the last word does not take it.
+        let pack = italian_expression_pack(&[
+            ("avere bisogno", "avoir besoin"),
+            ("bisogno di tempo", "besoin de temps"),
+        ]);
+        let phrase = gloss_phrase("ha bisogno di tempo", IT, &pack, &KnowledgeState::new());
+        assert_eq!(spans(&phrase), [(0, 2, "avere bisogno")]);
     }
 }
