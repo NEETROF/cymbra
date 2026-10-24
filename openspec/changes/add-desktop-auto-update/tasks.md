@@ -44,8 +44,8 @@
 *Revised 2026-10-24: a `.deb` upgraded through `pkexec` and a root helper was implemented, tested (CI dry-run, Docker end to end) and then dropped by the owner for the AppImage implemented in August; the `.deb` recipe, the helper and their CI steps are removed.*
 
 - [x] 5.1 Move the `linux` job of `music-release.yml` — and only it — to `ubuntu-22.04`, with a comment on why and on what retiring that image will mean. Verified 2026-10-24, run 40114401284: highest required symbol `GLIBC_2.34`.
-- [ ] 5.2 Restore `apps/music/linux/appimage/` (`AppRun`, `.desktop`, icon, `build_appdir.sh`) and the `appimagetool --appimage-extract-and-run` packaging in the `linux` job, keeping the tarball. Verify: the dry-run builds the AppImage.
-- [ ] 5.3 Smoke-check in CI: the AppImage is executable, unpacks to the expected layout, and the bundled binary's glibc floor is reported. Verify: in the dry-run log.
+- [x] 5.2 Restore `apps/music/linux/appimage/` (`AppRun`, `.desktop`, icon, `build_appdir.sh`) and the `appimagetool --appimage-extract-and-run` packaging in the `linux` job, keeping the tarball. Verify: the dry-run builds the AppImage. Verified 2026-10-24, run 40124046116: AppImage built.
+- [x] 5.3 Smoke-check in CI: the AppImage is executable, unpacks to the expected layout, and the bundled binary's glibc floor is reported. Verify: in the dry-run log. Verified 2026-10-24, run 40124046116: layout intact, `GLIBC_2.34`, version 1.37.0+51.
 - [ ] 5.4 Attach the AppImage to the release (tag-gated) and hand it to the manifest job as the `linux-x64` target of kind `appimage`.
 - [x] 5.5 Remove the `.deb` recipe, the privileged helper (`cymbra-update-helper`, `release-keys.json`) and their tests and CI steps.
 
