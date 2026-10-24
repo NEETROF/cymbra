@@ -18,3 +18,7 @@ Morph-it!, a free morphological lexicon for the Italian language, by Marco Baron
 (https://docs.sslmit.unibo.it/doku.php?id=resources:morph-it), version 0.4.8: CC BY-SA 2.0
 (https://creativecommons.org/licenses/by-sa/2.0/), one of its two licences, the other being the
 LGPL — the forms it lists that the Wiktionary names nowhere, under the lemmas the tables rank.
+
+The levels are estimated, not taken from a CEFR list: the commonest lemmas by wordfreq's ranks take
+the sizes of English's CEFR levels, the English Wiktionary's Italian section saying which lemmas take
+one, and every pack studying Italian reads them as committed.
