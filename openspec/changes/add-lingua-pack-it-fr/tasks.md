@@ -28,8 +28,8 @@
 
 - [x] 5.1 The six pairs do not move: their baselines pass without re-blessing; `git diff --stat` shows no pin of the six touched.
 - [x] 5.2 `cargo fmt --all --check`; `cargo clippy --workspace --all-targets -- -D warnings`; `cargo test --workspace`; `cargo llvm-cov --workspace --fail-under-lines 80 --ignore-filename-regex "$(cat .github/coverage-ignore-regex.txt)"`; in `apps/lingua-extension`: `yarn test`, `yarn build`, `yarn check:variants` (no package change).
-- [ ] 5.3 `openspec validate add-lingua-pack-it-fr --strict` passes; `python3 scripts/openspec_archive_order.py add-lingua-pack-it-fr` names its prerequisites, and changes 11 and 12 name it among theirs; `docs/lingua/italian-programme.md` row 16's status names this change's pull requests. *Validation and archive order pass in the implementation's pull request (changes 11 and 12 already name this change); row 16's status is the programme's, updated outside it.*
+- [x] 5.3 `openspec validate add-lingua-pack-it-fr --strict` passes; `python3 scripts/openspec_archive_order.py add-lingua-pack-it-fr` names its prerequisites, and changes 11 and 12 name it among theirs; `docs/lingua/italian-programme.md` row 16's status names this change's pull requests. *Validation and archive order pass in the implementation's pull request (changes 11 and 12 already name this change); row 16's status is the programme's, updated outside it.*
 
 ## 6. Owner
 
-- [ ] 6.1 [manual] The owner reads the coverage, the sample by source and the golden's diff, and approves the reduction's pull request.
+- [x] 6.1 [manual] The owner reads the coverage, the sample by source and the golden's diff, and approves the reduction's pull request. Done 2026-10-24: the owner approved the glosses on the coverage and the sample in the PR (« J'approuve »); the known defects (`che`, `della`, `dirotto` « Écanguer », 458 unglossed lemmas…) are change 17's.
