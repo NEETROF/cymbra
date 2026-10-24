@@ -221,6 +221,35 @@ to the GitHub Release, the iOS **IPA** is both attached and delivered to
 **TestFlight**, and the macOS **`.pkg`** is delivered to App Store Connect *without*
 being attached. Details below.
 
+### Windows and Linux desktop releases
+
+The `windows` job builds a per-user Inno Setup installer next to the portable zip;
+the `linux` job builds a `.deb` next to the tarball, on **ubuntu-22.04** so the
+binary also runs on Ubuntu 22.04 and Debian 12 (a binary needs a glibc at least as
+new as the one it was linked against). Both installers update themselves from the
+signed feed (change `add-desktop-auto-update`); the Linux one through `pkexec` and
+the root-owned `cymbra-update-helper` the package installs.
+
+**Windows signing (Artifact Signing).** Unsigned executables are blocked outright by
+Windows 11's Smart App Control, so a `music-v*` tag refuses to publish unsigned
+Windows binaries. One-time setup:
+
+1. A **paid** Azure subscription (free/trial ones are refused), the
+   `Microsoft.CodeSigning` resource provider registered, an Artifact Signing
+   account in an EU region (e.g. West Europe).
+2. A **Public Trust organization identity validation** for the company — legal
+   name, SIREN, website and an e-mail on a domain the company owns. 1 to 20
+   business days. The certificate shows the legal name as the publisher, which is
+   why the installer's `AppPublisher` and the runner's `CompanyName` say the same.
+3. A Public Trust certificate profile, and a service principal with the
+   *Artifact Signing Certificate Profile Signer* role on it.
+4. The three secrets and three variables listed in the header of
+   [`music-release.yml`](../../.github/workflows/music-release.yml).
+
+The job signs every unsigned `.exe`/`.dll` of the build, then lets Inno sign the
+setup **and** its uninstaller, and verifies with `signtool verify /pa` — all before
+the manifest job hashes the installer.
+
 ### Config via `--dart-define-from-file`
 
 All build-time config (OIDC client IDs + gRPC endpoint) lives in per-environment

@@ -14,8 +14,11 @@
 ; Per-user by design. `PrivilegesRequired=lowest` + an install root under
 ; %LocalAppData% is the entire reason an update can be applied SILENTLY WITH NO
 ; UAC PROMPT — a Program Files install would elevate on every update, which in
-; practice means nobody updates. It also means no code-signing certificate is
-; required to install (SmartScreen still warns on first download; accepted).
+; practice means nobody updates.
+;
+; Signed in CI (design D9): when the workflow passes /DSignToolName=<name> and the
+; matching /S<name>=<signtool command>, Inno signs the setup AND the uninstaller
+; it embeds — an unsigned uninstaller is an executable Smart App Control blocks.
 ;
 ; Built in CI by the `windows` job:
 ;   iscc /DAppVersion=1.25.0 /DBuildDir=... /DOutputDir=... /DOutputBaseFilename=...
@@ -68,6 +71,12 @@ RestartApplications=yes
 ; The uninstaller and its Add/Remove Programs entry.
 UninstallDisplayName=Cymbra Music
 UninstallDisplayIcon={app}\music.exe
+
+#ifdef SignToolName
+; Authenticode signing (design D9), defined by the workflow on the command line.
+SignTool={#SignToolName}
+SignedUninstaller=yes
+#endif
 SetupIconFile=..\runner\resources\app_icon.ico
 
 OutputDir={#OutputDir}

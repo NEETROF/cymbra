@@ -43,6 +43,16 @@ name: music-release
 #   Repository VARIABLE (not a secret):
 #     DESKTOP_UPDATE_INGEST_URL     the ingest endpoint; defaults to
 #                                   https://api.cymbra.app/updates/desktop
+#   Windows code signing (Microsoft Artifact Signing, design D9) — all six or none:
+#     ARTIFACT_SIGNING_TENANT_ID    secrets: the Entra tenant, and the service
+#     ARTIFACT_SIGNING_CLIENT_ID    principal holding the "Artifact Signing
+#     ARTIFACT_SIGNING_CLIENT_SECRET Certificate Profile Signer" role.
+#     ARTIFACT_SIGNING_ENDPOINT     variables: the account's REGIONAL endpoint
+#     ARTIFACT_SIGNING_ACCOUNT      (e.g. https://weu.codesigning.azure.net — a
+#     ARTIFACT_SIGNING_PROFILE      region mismatch answers 403), the account
+#                                   name and the Public Trust certificate profile.
+#                                   Absent ⇒ unsigned dry-run; a music-v* tag FAILS
+#                                   rather than publish unsigned binaries.
 #   Android (Play upload key + store upload):
 #     PLAY_SERVICE_ACCOUNT_JSON    raw JSON key of a Google Cloud service account
 #                                  (project `cymbra`) that has been INVITED as a
@@ -454,6 +464,18 @@ jobs:
 
   windows:
     runs-on: windows-latest
+    # Authenticode signing (change: add-desktop-auto-update, design D9) through
+    # Microsoft Artifact Signing. The service principal authenticates the signing
+    # library through DefaultAzureCredential's environment credential. All six
+    # values set ⇒ signed; any missing ⇒ an unsigned dry-run, and a tag refuses
+    # to publish (Smart App Control blocks unsigned executables outright).
+    env:
+      AZURE_TENANT_ID: ${{ secrets.ARTIFACT_SIGNING_TENANT_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.ARTIFACT_SIGNING_CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.ARTIFACT_SIGNING_CLIENT_SECRET }}
+      ARTIFACT_SIGNING_ENDPOINT: ${{ vars.ARTIFACT_SIGNING_ENDPOINT }}
+      ARTIFACT_SIGNING_ACCOUNT: ${{ vars.ARTIFACT_SIGNING_ACCOUNT }}
+      ARTIFACT_SIGNING_PROFILE: ${{ vars.ARTIFACT_SIGNING_PROFILE }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -492,6 +514,64 @@ jobs:
           --dart-define-from-file=config/prod.json
           --dart-define=DESKTOP_GOOGLE_CLIENT_ID=${{ secrets.DESKTOP_GOOGLE_CLIENT_ID }}
           --dart-define=DESKTOP_GOOGLE_CLIENT_SECRET=${{ secrets.DESKTOP_GOOGLE_CLIENT_SECRET }}
+      - name: Set up Artifact Signing
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $vars = 'AZURE_TENANT_ID','AZURE_CLIENT_ID','AZURE_CLIENT_SECRET',
+                  'ARTIFACT_SIGNING_ENDPOINT','ARTIFACT_SIGNING_ACCOUNT','ARTIFACT_SIGNING_PROFILE'
+          $missing = $vars | Where-Object { -not [Environment]::GetEnvironmentVariable($_) }
+          if ($missing) {
+            if ($env:TAG -like 'music-v*') {
+              Write-Host "::error::Artifact Signing not configured (missing: $($missing -join ', ')) — refusing to publish unsigned Windows binaries."
+              exit 1
+            }
+            Write-Host "::notice::Artifact Signing not configured — this dry-run builds UNSIGNED Windows binaries."
+            exit 0
+          }
+          # SignTool from the Windows SDK build tools + the Artifact Signing dlib,
+          # both from NuGet, so the job does not depend on the runner image's SDK.
+          $tools = Join-Path $env:RUNNER_TEMP 'signing'
+          New-Item -ItemType Directory -Force $tools | Out-Null
+          Invoke-WebRequest https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile "$tools\nuget.exe"
+          & "$tools\nuget.exe" install Microsoft.Windows.SDK.BuildTools -x -OutputDirectory $tools | Out-Null
+          & "$tools\nuget.exe" install Microsoft.ArtifactSigning.Client -x -OutputDirectory $tools | Out-Null
+          $signtool = Get-ChildItem $tools -Recurse -Filter signtool.exe |
+            Where-Object { $_.FullName -match '\\x64\\' } | Select-Object -First 1
+          $dlib = Get-ChildItem $tools -Recurse -Filter Azure.CodeSigning.Dlib.dll |
+            Where-Object { $_.FullName -match '\\x64\\' } | Select-Object -First 1
+          if (-not $signtool -or -not $dlib) { throw "signtool or the Artifact Signing dlib not found" }
+          # Only the environment credential: the others are slow to fail on a runner.
+          @{
+            Endpoint = $env:ARTIFACT_SIGNING_ENDPOINT
+            CodeSigningAccountName = $env:ARTIFACT_SIGNING_ACCOUNT
+            CertificateProfileName = $env:ARTIFACT_SIGNING_PROFILE
+            CorrelationId = "music-$env:TAG-$env:GITHUB_RUN_ID"
+            ExcludeCredentials = @('ManagedIdentityCredential','WorkloadIdentityCredential',
+              'SharedTokenCacheCredential','VisualStudioCredential','VisualStudioCodeCredential',
+              'AzureCliCredential','AzurePowerShellCredential','AzureDeveloperCliCredential',
+              'InteractiveBrowserCredential')
+          } | ConvertTo-Json | Set-Content "$tools\metadata.json"
+          "SIGNTOOL=$($signtool.FullName)" >> $env:GITHUB_ENV
+          "SIGN_DLIB=$($dlib.FullName)" >> $env:GITHUB_ENV
+          "SIGN_METADATA=$tools\metadata.json" >> $env:GITHUB_ENV
+      # Sign every PE file of ours before anything is packaged, so the zip and the
+      # installer both carry signed binaries. Files already validly signed (a
+      # vendor's redistributable) are left alone rather than re-signed under our name.
+      - name: Sign the application binaries
+        if: env.SIGNTOOL != ''
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $files = Get-ChildItem apps/music/build/windows/x64/runner/Release -Recurse -Include *.exe,*.dll |
+            Where-Object { (Get-AuthenticodeSignature $_.FullName).Status -ne 'Valid' }
+          foreach ($f in $files) {
+            & $env:SIGNTOOL sign /fd SHA256 /tr http://timestamp.acs.microsoft.com /td SHA256 `
+              /dlib $env:SIGN_DLIB /dmdf $env:SIGN_METADATA $f.FullName
+            if ($LASTEXITCODE -ne 0) { throw "signing $($f.Name) failed" }
+          }
+          & $env:SIGNTOOL verify /pa /v apps/music/build/windows/x64/runner/Release/music.exe
+          if ($LASTEXITCODE -ne 0) { throw "music.exe does not verify" }
       - name: Package (portable zip)
         shell: pwsh
         run: Compress-Archive -Path apps/music/build/windows/x64/runner/Release/* -DestinationPath "cymbra-$env:TAG-windows-x64.zip"
@@ -514,14 +594,29 @@ jobs:
           $full = $pubspec.Matches[0].Groups[1].Value.Trim()
           $numeric = $full.Split('+')[0]
           Write-Host "installer version: $numeric (pubspec $full)"
-          & $iscc `
-            "/DAppVersion=$numeric" `
-            "/DBuildDir=$PWD\apps\music\build\windows\x64\runner\Release" `
-            "/DOutputDir=$PWD" `
-            "/DOutputBaseFilename=cymbra-$env:TAG-windows-x64-setup" `
-            apps\music\windows\installer\cymbra.iss
+          $isccArgs = @(
+            "/DAppVersion=$numeric",
+            "/DBuildDir=$PWD\apps\music\build\windows\x64\runner\Release",
+            "/DOutputDir=$PWD",
+            "/DOutputBaseFilename=cymbra-$env:TAG-windows-x64-setup"
+          )
+          if ($env:SIGNTOOL) {
+            # Inno signs the setup AND the uninstaller it embeds (design D9). The
+            # command line compiler takes no quotes: `$q` stands for one, `$f` for
+            # the file Inno is signing.
+            $cmd = "`$q$env:SIGNTOOL`$q sign /fd SHA256 /tr http://timestamp.acs.microsoft.com /td SHA256 /dlib `$q$env:SIGN_DLIB`$q /dmdf `$q$env:SIGN_METADATA`$q `$f"
+            $isccArgs += @('/DSignToolName=artifact', "/Sartifact=$cmd")
+          }
+          & $iscc @isccArgs apps\music\windows\installer\cymbra.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
           if (-not (Test-Path "cymbra-$env:TAG-windows-x64-setup.exe")) {
             throw "the installer was not produced"
+          }
+          if ($env:SIGNTOOL) {
+            # Signed BEFORE the manifest job hashes it: a file signed after hashing
+            # would no longer match its manifest and every client would refuse it.
+            & $env:SIGNTOOL verify /pa /v "cymbra-$env:TAG-windows-x64-setup.exe"
+            if ($LASTEXITCODE -ne 0) { throw "the installer does not verify" }
           }
       - name: Upload the desktop artifact for the manifest job
         uses: actions/upload-artifact@v4
