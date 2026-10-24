@@ -155,10 +155,17 @@ const QUALITY = /com\.apple\.voice\.(super-compact|compact|enhanced|premium)\./;
 /**
  * Within a tier, the regions tried first, per studied language: for Spanish, a voice of Spain
  * (the programme's decision D5, add-lingua-spanish-read-aloud); for French, a voice of France
- * (add-lingua-french-read-aloud D1) — macOS lists `Amélie` (fr-CA) before `Thomas` (fr-FR). The
+ * (add-lingua-french-read-aloud D1) — macOS lists `Amélie` (fr-CA) before `Thomas` (fr-FR); for
+ * Italian, a voice of Italy (add-lingua-italian-read-aloud D1) — every captured list already gives
+ * one first, the entry holds it against a device that lists a Swiss voice (`it-CH`) first. The
  * other accents come after it in the browser's order.
  */
-const PREFERRED_REGIONS: Record<string, readonly string[]> = { en: ["us", "gb"], es: ["es"], fr: ["fr"] };
+const PREFERRED_REGIONS: Record<string, readonly string[]> = {
+  en: ["us", "gb"],
+  es: ["es"],
+  fr: ["fr"],
+  it: ["it"],
+};
 /** Android's engine as Firefox for Android exposes it: one voice per locale, place unknown. */
 const ANDROID_VOICE = /^moz-tts:android:/;
 /** Firefox for Android writes ISO 639-2 languages and ISO 3166 alpha-3 regions (`eng-GBR`). */
@@ -180,8 +187,9 @@ const THREE_LETTER_LANGUAGES: Record<string, string> = {
   chi: "zh",
 };
 /**
- * The English-, Spanish- and French-speaking regions (add-lingua-french-read-aloud D3: France,
- * Belgium and Switzerland beside Canada), so that such a voice is placed and named.
+ * The English-, Spanish-, French- and Italian-speaking regions (add-lingua-french-read-aloud D3:
+ * France, Belgium and Switzerland beside Canada; add-lingua-italian-read-aloud D2: Italy, so that
+ * `ita-ITA-default` is not named « ITA »), so that such a voice is placed and named.
  */
 const THREE_LETTER_REGIONS: Record<string, string> = {
   usa: "us",
@@ -201,6 +209,7 @@ const THREE_LETTER_REGIONS: Record<string, string> = {
   fra: "fr",
   bel: "be",
   che: "ch",
+  ita: "it",
 };
 
 function subtags(lang: string): string[] {

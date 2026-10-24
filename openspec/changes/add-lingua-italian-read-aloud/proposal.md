@@ -60,12 +60,13 @@ Nothing of this is visible before `enable-lingua-italian` (change 20) lists an I
   name Italian from then.
 - **An Italian piece is heard as the page writes it** (D4): when the speaker reads Italian, a card
   opened on an elided piece reads it with the rest of the word the page writes it against (`l'` →
-  « l'uomo », `dell'` → « dell'acqua »), and with the next token's accented text where change 10 read
+  « l'uomo », `dell'` → « dell'acqua ») or with the number after it (« l'8 »), and with the next token's accented text where change 10 read
   it (« c'e' » → « c'è », the page hit carrying that text to the card); a piece of a split
   articulated preposition reads the written word (« al »); a truncation reads as written (« po' »,
   « da' »); any other card reads as a French card does, so « perche' » reads `perché`; then a word of
-  one vowel, accented or a capital, is spoken with a full stop (« è. », « E. ») — except « é », which a
-  stop silences. The button is labelled with the form seen, without the stop.
+  one vowel, accented or a capital, its trailing apostrophe aside, is spoken with a full stop
+  (« è. », « E. », « A'. ») — except « é » and its capital « É », which a stop silences. The button is
+  labelled with the form seen, without the stop.
 - **English, Spanish and French do not move** (D5): their voice rankings over every captured list
   and every setting are pinned and pass unchanged; the card's rule reads Italian only.
 
@@ -82,7 +83,8 @@ None.
   interface language* and *An Italian piece is heard as the page writes it*. Every delta is ADDED:
   `add-lingua-read-aloud`, `localise-lingua-settings`, `add-lingua-native-language-labels` and
   `add-lingua-french-read-aloud` (open) hold the requirements this builds on; this change archives
-  after them and after changes 6 and 10, whose pieces and spellings it reads.
+  after them and after changes 6, 10 and 11a (`refine-lingua-italian-reading`), whose pieces and
+  spellings it reads.
 
 ## Impact
 

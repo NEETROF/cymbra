@@ -41,9 +41,11 @@ export const EXCEPTIONS: Readonly<Record<string, readonly string[]>> = {
 /**
  * Every name of a studied or native language in every interface language, with its inflections —
  * « anglaise », « espagnoles », « ingleses », « francesas » — as a whole word, whatever the case.
+ * Italian's too, whose voices Réglages names before it is studied (add-lingua-italian-read-aloud
+ * D3): « italien », « italienne » (its doubled n), "Italian", « italiano », « italiana ».
  */
 export const NAMES =
-  /(?<!\p{L})(?:anglais|espagnol|français|english|spanish|french|ingl[eé]s|español|franc[eé]s)(?:e|es|a|as|s)?(?!\p{L})/iu;
+  /(?<!\p{L})(?:anglais|espagnol|français|italienn?|english|spanish|french|italian|ingl[eé]s|español|franc[eé]s|italiano)(?:e|es|a|as|s)?(?!\p{L})/iu;
 
 /** The literals of a file that name a language, the file's exceptions left out. */
 export function nameLiterals(path: string, rel: string, exceptions = EXCEPTIONS): Hit[] {
@@ -115,10 +117,34 @@ describe("languages are named in one place per interface language", () => {
       "españolas",
       "francés",
       "francesas",
+      "italien",
+      "Italienne",
+      "italiennes",
+      "Italian",
+      "ITALIANS",
+      "italiano",
+      "Italiana",
+      "italianos",
     ]) {
       expect(NAMES.test(`un mot ${word} ici`), word).toBe(true);
     }
-    for (const text of ["en", "es", "fr", "en-US", "Englishman", "Spanishness", "frenchify", "angla", "espa"]) {
+    for (const text of [
+      "en",
+      "es",
+      "fr",
+      "en-US",
+      "Englishman",
+      "Spanishness",
+      "frenchify",
+      "angla",
+      "espa",
+      "it",
+      "it-IT",
+      "italic",
+      "Italy",
+      "Italie",
+      "Italia",
+    ]) {
       expect(NAMES.test(text), text).toBe(false);
     }
   });

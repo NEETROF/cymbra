@@ -477,6 +477,8 @@ const SAME_EVERYWHERE = new Set([
   "Así sonarán tus páginas cuando Lingua las lea en voz alta.",
   // The French voices' preview, in French whatever the interface (add-lingua-french-read-aloud D4).
   "Voici comment sonneront tes pages quand Lingua les lira à voix haute.",
+  // The Italian voices' preview, in Italian whatever the interface (add-lingua-italian-read-aloud D3).
+  "Ecco come suoneranno le tue pagine quando Lingua le leggerà ad alta voce.",
   // The native languages, each named in its own language (add-lingua-native-language-choice D4).
   "Français",
   "English",
@@ -738,4 +740,24 @@ describe("the grammar modules are renderers (generalise-lingua-card-wording D2)"
       expect(said[0]).not.toBe(french[0]);
     });
   }
+});
+
+describe("Italian in the catalogue, for its voices (add-lingua-italian-read-aloud D3)", () => {
+  const PREVIEW = "Ecco come suoneranno le tue pagine quando Lingua le leggerà ad alta voce.";
+  const FORMS = ["feminine", "masculine", "name", "of", "preview", "the", "windowsVoice"];
+
+  it("the three languages modules hold italian, every form filled, the preview the same Italian sentence", () => {
+    for (const language of ["fr", "en", "es"] as const) {
+      const { italian } = catalogue(language, "languages") as { italian: Record<string, string> };
+      expect(Object.keys(italian).sort(), language).toEqual(FORMS);
+      for (const [form, text] of Object.entries(italian)) {
+        expect(text.trim(), `${language}: italian.${form}`).not.toBe("");
+      }
+      expect(italian.preview, language).toBe(PREVIEW);
+    }
+  });
+
+  it("the preview is spoken whatever the interface, so it is listed as the same everywhere", () => {
+    expect(SAME_EVERYWHERE.has(PREVIEW)).toBe(true);
+  });
 });

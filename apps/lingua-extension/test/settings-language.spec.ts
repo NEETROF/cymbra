@@ -388,6 +388,55 @@ describe("Réglages for a speaker reading French (add-lingua-french-read-aloud)"
   });
 });
 
+describe("Réglages for a speaker reading Italian (add-lingua-italian-read-aloud)", () => {
+  const PREVIEW = "Ecco come suoneranno le tue pagine quando Lingua le leggerà ad alta voce.";
+
+  /** Réglages whose speaker reads Italian over `voices`; the read-aloud block and its parts. */
+  async function mountItalian(interfaceLanguage: InterfaceLanguage | undefined, voices: VoiceInfo[]) {
+    const fake = makeFakeSpeech(voices);
+    const r = await mountReglages(interfaceLanguage, { speaker: createSpeaker(fake.engine, "it", fake.preference) });
+    const block = r.block(settingsCopy(interfaceLanguage ?? "fr").settings.readAloud);
+    const note = [...block.querySelectorAll<HTMLElement>(".set-note")].find((n) => n.querySelector(".set-info"))!;
+    const options = (): (string | null)[] => [...block.querySelectorAll("option")].map((o) => o.textContent);
+    return { fake, block, note, options, listen: [...block.querySelectorAll("button")][0] as HTMLButtonElement };
+  }
+
+  it("A French-native reader, no Italian voice on the device: the sentence, the tooltip, Google's voice once allowed", async () => {
+    const v = await mountItalian(undefined, voiceFixture("chrome-windows"));
+    expect(v.note.hidden).toBe(false);
+    expect(v.note.querySelector("span")?.textContent).toBe("Aucune voix italienne n'est installée sur cet appareil. ");
+    const help = v.note.querySelector<HTMLElement>(".set-info")!.title;
+    expect(help).toContain("Ajouter une langue › Italien (Italie), sans la définir comme langue d'affichage");
+    expect(help).toContain("Gérer les voix › Italien. Relance ensuite le navigateur.");
+    v.listen.click();
+    expect(v.fake.spoken).toEqual([]);
+    v.fake.prefer({ remoteVoices: true });
+    expect(v.options()).toEqual(["Automatique (Google italiano)", "Google italiano — Italie"]);
+    v.listen.click();
+    expect(v.fake.spoken.map((u) => [u.text, u.voice.name])).toEqual([[PREVIEW, "Google italiano"]]);
+  });
+
+  it("An English-native reader on Safari for macOS: Alice automatic, Italy in English, the preview in Italian", async () => {
+    const v = await mountItalian("en", voiceFixture("safari-macos"));
+    expect(v.options()).toEqual(["Automatic (Alice)", "Alice — Italy"]);
+    expect(v.note.hidden).toBe(true);
+    v.listen.click();
+    expect(v.fake.spoken.map((u) => [u.text, u.voice.name])).toEqual([[PREVIEW, "Alice"]]);
+  });
+
+  it("A Spanish-native reader on Firefox for Android: the voices of Italy, « — Italia », never « — ITA »", async () => {
+    const v = await mountItalian("es", voiceFixture("firefox-android"));
+    v.fake.prefer({ androidVoices: true });
+    expect(v.options()).toEqual([
+      "Automática (italien (ITA,DEFAULT))",
+      "italien (ITA,DEFAULT) — Italia",
+      "italien (ITA,f00) — Italia",
+    ]);
+    v.listen.click();
+    expect(v.fake.spoken.map((u) => u.text)).toEqual([PREVIEW]);
+  });
+});
+
 describe("the drawer's Réglages", () => {
   beforeEach(() => {
     vi.stubGlobal("chrome", {

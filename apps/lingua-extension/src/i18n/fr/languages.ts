@@ -8,6 +8,11 @@
 // names a speaker's language before French is a studied language. A French-native reader cannot
 // study French, so no French interface shows these words today; this module carries them because
 // the English and Spanish ones are typed after it.
+//
+// `italian` is there for Italian's voices (add-lingua-italian-read-aloud D3): the read-aloud block
+// names a speaker reading Italian before Italian is a studied language (enable-lingua-italian,
+// change 20), and the level titles take its `of` and `the` from then. Its preview is in Italian
+// whatever the interface, as each preview is in its own language.
 
 /** One studied language, in the forms the sentences take. */
 export interface LanguageWords {
@@ -57,6 +62,15 @@ export const languages = {
     feminine: "française",
     windowsVoice: "Français (France)",
     preview: "Voici comment sonneront tes pages quand Lingua les lira à voix haute.",
+  } satisfies LanguageWords,
+  italian: {
+    name: "Italien",
+    of: "d'italien",
+    the: "l'italien",
+    masculine: "italien",
+    feminine: "italienne",
+    windowsVoice: "Italien (Italie)",
+    preview: "Ecco come suoneranno le tue pagine quando Lingua le leggerà ad alta voce.",
   } satisfies LanguageWords,
   levelScale,
   /**
