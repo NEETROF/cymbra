@@ -43,8 +43,13 @@
 //! A pull request that changes `baseline/it-fr.golden` re-blesses it with
 //! `LINGUA_BLESS=1 cargo test -p lingua-wasm --test italian_baseline` and says why: an Italian
 //! rule that bumps Italian's analyser version (and the fixture's manifest with it), the fixture
-//! replaced by the committed tables, or an en-fr update, which moves the `beside en-fr` line
-//! alone. `lingua-pack-update` re-blesses on its own branch.
+//! replaced by the committed tables, an en-fr update, which moves the `beside en-fr` line
+//! alone, or a rule of the pack builder and the phrase gloss that reads the fixture's expressions,
+//! with the probes it adds, at no new analyser version (add-lingua-italian-expression-keys D9: the
+//! `pack` line; four phrase probes — « ad alta voce » named as the dictionary writes it, « a causa
+//! dello sciopero » meeting `a causa di` by the `di` family read once more as `di`, « un po' di
+//! pane » and « C'è un po' di pane » meeting `un po'` —; eight phrase probes added).
+//! `lingua-pack-update` re-blesses on its own branch.
 //!
 //! Host only: the pack builder is native (C zstd), and the wasm surface is the same methods.
 

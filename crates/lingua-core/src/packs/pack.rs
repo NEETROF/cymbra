@@ -45,9 +45,10 @@ pub mod section {
     /// core that simply ignores the section.
     pub const LEVELS: &str = "levels";
     /// Multi-word expressions: an FST mapping a key — the words' dictionary
-    /// forms, lowercase, joined by single spaces; for French, the pieces French's
-    /// analysis reads in the headword, its determiners as written
-    /// (add-lingua-french-expression-keys) — to an expression id.
+    /// forms, lowercase, joined by single spaces; for French, Spanish and Italian, the
+    /// pieces the language's analysis reads in the headword, its determiners as written
+    /// (add-lingua-french-expression-keys, add-lingua-spanish-expression-keys,
+    /// add-lingua-italian-expression-keys) — to an expression id.
     /// Optional and additive, like [`LEVELS`]: written only when the pair's
     /// sources hold expressions, ignored by a core that does not read it.
     pub const EXPR: &str = "expr";
@@ -59,19 +60,23 @@ pub mod section {
     /// dictionary writes it (`au revoir`), for the expressions whose key differs
     /// from it (`à le revoir`) — a key that is its own headword has none
     /// (add-lingua-french-expression-keys D3), or `al menos` for `a el menos`
-    /// (add-lingua-spanish-expression-keys D3). Written for a pack studying French
-    /// or Spanish only, when one name differs. Optional and additive, like
+    /// (add-lingua-spanish-expression-keys D3), or `al dente` for `a il dente`
+    /// (add-lingua-italian-expression-keys D4). Written for a pack studying French,
+    /// Spanish or Italian only, when one name differs. Optional and additive, like
     /// [`EXPR`]: a core that predates it ignores it and reports keys, as English
     /// does.
     pub const EXPR_NAMES_ZST: &str = "expr.names.zst";
-    /// The other headwords of the keys several reach, for a pack studying French
-    /// (pick-lingua-expression-written-as-the-page D1): `count u32 | count × (key id
+    /// The other headwords of the keys several reach, for a pack studying French, Spanish
+    /// or Italian (pick-lingua-expression-written-as-the-page D1,
+    /// pick-lingua-spanish-expression-written-as-the-page D1,
+    /// add-lingua-italian-expression-keys D4): `count u32 | count × (key id
     /// u32, other id u32)`, little-endian, sorted by key id and then in the order the
     /// builder ranks a key's headwords (add-lingua-french-expression-keys D6). A key id
     /// is one [`EXPR`] maps to, whose gloss and name are the headword that wins the key;
     /// an other id is one no key maps to, filed in [`EXPR_ZST`] and [`EXPR_NAMES_ZST`]
     /// like any expression — a headword of its own, with its gloss and its name.
-    /// Written only for a pack studying French in which a key has other headwords.
+    /// Written only for a pack studying French, Spanish or Italian in which a key has other
+    /// headwords.
     /// Optional and additive, like [`EXPR_NAMES_ZST`]: a core that predates it ignores
     /// it, and answers every key with the headword it answered before.
     pub const EXPR_OTHERS: &str = "expr.others";
@@ -456,8 +461,9 @@ impl Pack {
     /// The native-language gloss of a multi-word expression, keyed by its
     /// dictionary form: the words' lemmas, lowercase, joined by single spaces
     /// (`starting point` is looked up as `start point`); for a pack studying
-    /// French, the key [`french_expression_key`](crate::engine::french_expression_key)
-    /// makes of its headword (`au revoir` is looked up as `à le revoir`). `None`
+    /// French, Spanish or Italian, the key
+    /// [`reading_expression_key`](crate::engine::reading_expression_key) makes of its
+    /// headword (`au revoir` is looked up as `à le revoir`, `al dente` as `a il dente`). `None`
     /// when the pack carries no expression table, or holds no such key.
     pub fn expression(&self, key: &str) -> Option<&str> {
         let id = self.expressions.as_ref()?.get(key.as_bytes())?;

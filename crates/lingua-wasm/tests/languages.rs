@@ -942,9 +942,11 @@ fn an_italian_pack_glossed_in_english_is_another_native_s() {
     assert!(Pack::load(&glossed_in(&italian_pack(), "it")).is_err());
 }
 
-/// pack_gloss's Italian arm (add-lingua-italian-baseline D2): a phrase of the it-fr fixture's
-/// expressions is matched by its lemmas, and a card under an expression's key shows the pack's
-/// gloss in review, read at its lemma as an English card is.
+/// pack_gloss's Italian arm (add-lingua-italian-expression-keys D4, D8): a phrase of the it-fr
+/// fixture's expressions is matched on Italian's reading and reports the expression's name, and a
+/// card shows the pack's gloss in review — a card under an expression's key (`ad alto voce`, made
+/// before Italian expressions were named) read at its lemma, one under its name (`ad alta voce`)
+/// at the key the name reads as.
 #[test]
 fn spec_scenario_an_italian_expression_is_glossed_through_the_engine() {
     let mut engine = italian_reader_engine();
@@ -963,14 +965,16 @@ fn spec_scenario_an_italian_expression_is_glossed_through_the_engine() {
     assert_eq!(
         found,
         [
-            ("ad alto voce", "à voix haute"),
+            ("ad alta voce", "à voix haute"),
             ("per favore", "s'il vous plaît")
         ]
     );
     for (key, gloss) in [
         ("ad alto voce", "à voix haute"),
+        ("ad alta voce", "à voix haute"),
         ("per favore", "s'il vous plaît"),
         ("a poco a poco", "peu à peu"),
+        ("al dente", "al dente"),
     ] {
         engine
             .add_card(
@@ -1002,4 +1006,114 @@ fn spec_scenario_an_italian_expression_is_glossed_through_the_engine() {
         );
         engine.review_mark_known(T_SECS + 86_400.0);
     }
+}
+
+/// An it-en pack: the it-fr fixture's tables re-stamped as glossed in English, its expressions'
+/// glosses written in English.
+fn italian_pack_glossed_in_english() -> Vec<u8> {
+    let mut inputs = testdata_of("it-fr");
+    inputs.meta.native = "en".into();
+    inputs.expressions = [
+        ("al dente", "firm to the bite"),
+        ("valere la pena", "to be worth it"),
+        ("vale la pena", "it's worth it"),
+    ]
+    .iter()
+    .map(|(headword, gloss)| ((*headword).to_owned(), (*gloss).to_owned()))
+    .collect();
+    lingua_pack::build_pack(&inputs).unwrap_or_else(|e| panic!("build the it-en pack: {e}"))
+}
+
+/// Review finds an Italian expression card by its name (add-lingua-italian-expression-keys D8):
+/// cards made by a French-native engine on the it-fr fixture, under the matches' names and glossed
+/// in French, reviewed by an English-native engine holding an it-en pack keyed `a il dente`, show
+/// it-en's glosses — `al dente` read at its key, `vale la pena`, which does not win
+/// `valere la pena`, under its own headword —, and keep their French text and label.
+#[test]
+fn spec_scenario_a_named_italian_expression_card_glossed_in_another_language() {
+    let it_en_bytes = italian_pack_glossed_in_english();
+    let it_en = Pack::load(&it_en_bytes).expect("an it-en pack loads");
+    assert_eq!(it_en.pair().key(), "it-en");
+    // `al dente` is the card's name, no key of the table; `a il dente` is its key.
+    assert_eq!(it_en.expression("al dente"), None);
+    assert_eq!(it_en.expression_name("a il dente"), Some("al dente"));
+    assert_eq!(it_en.expression("vale la pena"), None);
+    assert_eq!(it_en.expression("valere la pena"), Some("to be worth it"));
+
+    let mut french = italian_reader_engine();
+    let cards = [
+        ("al dente", "à point"),
+        ("vale la pena", "ça vaut la peine"),
+        ("valere la pena", "valoir la peine"),
+    ];
+    for (lemma, gloss) in cards {
+        french
+            .add_card(
+                lemma,
+                lemma,
+                "La pasta è al dente: vale la pena.",
+                "",
+                Some(gloss.to_owned()),
+                T_SECS,
+                it(),
+            )
+            .unwrap();
+    }
+    let mut english = LinguaEngine::new(&it_en_bytes).unwrap();
+    assert_eq!(english.native_language(), "en");
+    assert_eq!(
+        english.apply_card_ops(&french.export_card_ops()).ok(),
+        Some(3)
+    );
+    assert_eq!(
+        english.start_review(
+            T_SECS + 86_400.0,
+            Some(vec!["it".to_owned()]),
+            None,
+            None,
+            None,
+            None
+        ),
+        3
+    );
+    let mut shown = Vec::new();
+    while let Some(current) = english.review_current() {
+        let current: serde_json::Value = serde_json::from_str(&current).unwrap();
+        shown.push((
+            current["headword"].as_str().unwrap().to_owned(),
+            current["gloss"].as_str().unwrap().to_owned(),
+        ));
+        english.review_mark_known(T_SECS + 86_400.0);
+    }
+    shown.sort();
+    assert_eq!(
+        shown,
+        [
+            ("al dente".to_owned(), "firm to the bite".to_owned()),
+            ("vale la pena".to_owned(), "it's worth it".to_owned()),
+            ("valere la pena".to_owned(), "to be worth it".to_owned()),
+        ]
+    );
+    // The cards keep their French text and label (an export leaves `fr`, the backup's default,
+    // out).
+    let ops: serde_json::Value = serde_json::from_str(&english.export_card_ops()).unwrap();
+    let mut kept: Vec<(String, String, String)> = ops
+        .as_array()
+        .expect("card ops")
+        .iter()
+        .map(|op| {
+            (
+                op["lemma"].as_str().unwrap().to_owned(),
+                op["gloss"].as_str().unwrap().to_owned(),
+                op["gloss_language"].as_str().unwrap_or("fr").to_owned(),
+            )
+        })
+        .collect();
+    kept.sort();
+    let mut made: Vec<(String, String, String)> = cards
+        .iter()
+        .map(|(lemma, gloss)| ((*lemma).to_owned(), (*gloss).to_owned(), "fr".to_owned()))
+        .collect();
+    made.sort();
+    assert_eq!(kept, made);
 }

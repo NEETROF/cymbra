@@ -36,6 +36,13 @@
 //! `quei`, `mò` …) and `pò` → `poco`; the probes gain a phrase per rule — « Dai, andiamo! », « a
 //! mo' di esempio », « ne' campi » … —, « davanti alla porta » and « ossia il primo » for the closed
 //! words, whose flags a phrase gloss shows (a page's tokens carry none), and three grammar pairs.
+//! With add-lingua-italian-expression-keys (D9), Italian's expressions are keyed and matched as
+//! Italian is read, at no new analyser version: the fixture gains ten expressions — `al dente`,
+//! `alla romana`, `fare l'amore`, `un po'` and `un poco`, `d'accordo`, `anch'io`, `valere la
+//! pena` and `vale la pena`, `vicino a` — and the words they need, its `pack_version` moving, and
+//! the probes a phrase per rule: the article of « al » inside an expression and after one, the
+//! `di` retry, an elided piece against a word in full, a truncation, the headword written as the
+//! page and a word the pre-pass splits.
 //!
 //! The corpus, `baseline/pages-it.txt`, is authored for these tests, page by page, around what a
 //! later change of the Italian stage must show, with two exceptions, quoted from texts in the
@@ -155,8 +162,9 @@ const LEMMAS: &[&str] = &[
 
 /// Selections a reader glosses: the fixture's expressions, the Manzoni sentence, elided,
 /// articulated and enclitic selections, the web's apostrophe for an accent, an acronym standing
-/// alone in capitals (keep-lingua-italian-acronyms-and-names D7), and the blocks that are not
-/// Italian (English, Spanish, French, Catalan, Galician, Latin).
+/// alone in capitals (keep-lingua-italian-acronyms-and-names D7), the expressions as Italian
+/// reads them (add-lingua-italian-expression-keys D9), and the blocks that are not Italian
+/// (English, Spanish, French, Catalan, Galician, Latin).
 const PHRASES: &[&str] = &[
     "a poco a poco",
     "ad alta voce",
@@ -193,6 +201,15 @@ const PHRASES: &[&str] = &[
     "davanti alla porta",
     "ossia il primo",
     "non di il che",
+    // add-lingua-italian-expression-keys D9: a phrase per rule.
+    "cotto al dente",
+    "vicino al mare",
+    "a causa del ritardo",
+    "anch'io",
+    "anche io",
+    "un poco di pane",
+    "vale la pena",
+    "d'accordo",
     "The lighthouse stood",
     "El faro se alzaba",
     "Le phare se dressait",

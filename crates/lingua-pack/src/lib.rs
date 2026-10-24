@@ -1001,15 +1001,12 @@ fn build_sections(inputs: &PackInputs) -> Result<Built, BuildError> {
     // ids, and the zstd-compressed glosses those ids index. Emitted ONLY when
     // an entry survives, so a pack for a pair without expressions — or one whose
     // entries the lexicon cannot reach — stays byte-for-byte what it was.
-    // French and Spanish are keyed through their reading and named by their
-    // headwords (add-lingua-french-expression-keys, add-lingua-spanish-expression-keys);
-    // English at its spaces, with no names; Italian through its reading — its pre-pass
-    // (add-lingua-italian-tokenisation) and the baseline's lemmas (add-lingua-italian-baseline
-    // D2) —, with no names until add-lingua-italian-expression-keys writes them (its D1): the
-    // keys that read Italian's pieces are that change's (add-lingua-italian-tokenisation D1).
+    // French, Spanish and Italian are keyed through their reading and named by their
+    // headwords (add-lingua-french-expression-keys, add-lingua-spanish-expression-keys,
+    // add-lingua-italian-expression-keys D1, D4); English at its spaces, with no names.
     let read = match studied {
-        StudiedLanguage::French | StudiedLanguage::Spanish => true,
-        StudiedLanguage::English | StudiedLanguage::Italian => false,
+        StudiedLanguage::French | StudiedLanguage::Spanish | StudiedLanguage::Italian => true,
+        StudiedLanguage::English => false,
     };
     let mut keyed: Vec<(String, &str, &str, usize)> = inputs
         .expressions
@@ -1026,33 +1023,33 @@ fn build_sections(inputs: &PackInputs) -> Result<Built, BuildError> {
         .collect();
     // Sorted by key for the FST, and within a key by "is the key itself" first:
     // `break point` keeps the key `breaking point` also reaches, so the gloss
-    // that survives is the dictionary spelling's (design D2). For French and
-    // Spanish, the headword with the most tokens written as their key piece comes
+    // that survives is the dictionary spelling's (design D2). For French, Spanish
+    // and Italian, the headword with the most tokens written as their key piece comes
     // next — `boîte à gants` over `boite à gants`, whose `boite` is read `boîte`
     // (add-lingua-french-expression-keys D6), `soy inglés` over `soy inglesa`
-    // (add-lingua-spanish-expression-keys D3); English counts none, so its order
-    // is as before. Alphabetical order settles the rest, so the winner never
-    // depends on the input's order.
+    // (add-lingua-spanish-expression-keys D3), French's order for Italian
+    // (add-lingua-italian-expression-keys D4: `valere la pena` keeps its key over
+    // `vale la pena`); English counts none, so its order is as before. Alphabetical
+    // order settles the rest, so the winner never depends on the input's order.
     keyed.sort_unstable_by(|a, b| {
         a.0.cmp(&b.0)
             .then_with(|| (a.1 != a.0).cmp(&(b.1 != b.0)))
             .then_with(|| b.3.cmp(&a.3))
             .then_with(|| a.1.cmp(b.1))
     });
-    // A pack studying French or Spanish keeps every headword of a key, not only the one that
-    // wins it (pick-lingua-expression-written-as-the-page D1, opened to Spanish by
-    // pick-lingua-spanish-expression-written-as-the-page D1): each headword after a key's first
+    // A pack studying French, Spanish or Italian keeps every headword of a key, not only the
+    // one that wins it (pick-lingua-expression-written-as-the-page D1, opened to Spanish by
+    // pick-lingua-spanish-expression-written-as-the-page D1 and to Italian by
+    // add-lingua-italian-expression-keys D4): each headword after a key's first
     // is an expression of its own, its gloss and its name filed under an id after the keys' —
     // in key order, and in the order above within a key — which no key maps to, so a core that
     // does not read `expr.others` answers every key as before. `ça va` and `ça ira` both read
-    // `ça aller`, `hacer tiempo` and `hace tiempo` both `hacer tiempo`: the key answers its
-    // winner, and the other is kept beside it. English keeps the first alone, byte for byte.
-    // Italian keeps the first alone, as English does (add-lingua-italian-baseline D2), until
-    // add-lingua-italian-expression-keys keeps every headword (its D4); its pre-pass does not
-    // change it (add-lingua-italian-tokenisation D1).
+    // `ça aller`, `hacer tiempo` and `hace tiempo` both `hacer tiempo`, `valere la pena` and
+    // `vale la pena` both `valere la pena`: the key answers its winner, and the other is kept
+    // beside it. English keeps the first alone, byte for byte.
     let keeps_every_headword = match studied {
-        StudiedLanguage::French | StudiedLanguage::Spanish => true,
-        StudiedLanguage::English | StudiedLanguage::Italian => false,
+        StudiedLanguage::French | StudiedLanguage::Spanish | StudiedLanguage::Italian => true,
+        StudiedLanguage::English => false,
     };
     let mut others: Vec<(u32, &str, &str)> = Vec::new();
     let mut firsts: Vec<(String, &str, &str, usize)> = Vec::with_capacity(keyed.len());
@@ -1067,12 +1064,12 @@ fn build_sections(inputs: &PackInputs) -> Result<Built, BuildError> {
     }
     let keyed = firsts;
     let other_id = |at: usize| (keyed.len() + at) as u32;
-    // A French or Spanish expression is named by the headword that won its key,
+    // A French, Spanish or Italian expression is named by the headword that won its key,
     // wherever the two differ (add-lingua-french-expression-keys D3,
-    // add-lingua-spanish-expression-keys D3): `au revoir` for `à le revoir`,
-    // `al menos` for `a el menos`. Same layout as the glosses, by the same ids;
-    // written only for a pack studying French or Spanish that names one, so an
-    // English pack gains no byte.
+    // add-lingua-spanish-expression-keys D3, add-lingua-italian-expression-keys D4): `au
+    // revoir` for `à le revoir`, `al menos` for `a el menos`, `al dente` for `a il dente`.
+    // Same layout as the glosses, by the same ids; written only for a pack studying French,
+    // Spanish or Italian that names one, so an English pack gains no byte.
     let names: Vec<(u32, &str)> = if read {
         keyed
             .iter()
@@ -1125,9 +1122,10 @@ fn build_sections(inputs: &PackInputs) -> Result<Built, BuildError> {
 
     // `expr.others`: each key's other headwords, `count u32 | count × (key id u32, other id
     // u32)`, little-endian, sorted by key id and then in the order above — written only where a
-    // key has others, so a French or Spanish pack without any, and every English pack, gains
-    // no byte (pick-lingua-expression-written-as-the-page D1,
-    // pick-lingua-spanish-expression-written-as-the-page D1).
+    // key has others, so a French, Spanish or Italian pack without any, and every English pack,
+    // gains no byte (pick-lingua-expression-written-as-the-page D1,
+    // pick-lingua-spanish-expression-written-as-the-page D1, add-lingua-italian-expression-keys
+    // D4).
     let expr_others: Vec<u8> = if others.is_empty() {
         Vec::new()
     } else {
@@ -1368,10 +1366,11 @@ fn grammar_sections(
 /// `tener en cuenta` → `tener en contar`, add-lingua-spanish-expression-keys D1,
 /// D2, D4) —, the function review finds such an expression card's gloss through.
 /// English keeps the split at spaces. An Italian headword is keyed through the
-/// same reading (add-lingua-italian-baseline D2): its words as Italian's pre-pass
-/// reads them (add-lingua-italian-tokenisation: `all'alba` → `a` + `lo` + `alba`),
-/// each piece its dictionary form by Italian's cascade (add-lingua-italian-analysis),
-/// as an English key's are, and no name.
+/// same reading (add-lingua-italian-baseline D2, add-lingua-italian-expression-keys D1,
+/// D2, D3): its words as Italian's pre-pass reads them (add-lingua-italian-tokenisation:
+/// `all'alba` → `a` + `lo` + `alba`), each piece its dictionary form by Italian's cascade
+/// (add-lingua-italian-analysis) but its determiners, written as the pre-pass gives them
+/// (`alla romana` → `a la romano`), two to seven tokens, and named by its headword.
 fn expression_key(headword: &str, studied: StudiedLanguage, lex: &impl Lexicon) -> Option<String> {
     if studied != StudiedLanguage::English {
         return reading_expression_key(headword, studied, lex);
@@ -1387,12 +1386,12 @@ fn expression_key(headword: &str, studied: StudiedLanguage, lex: &impl Lexicon) 
     (!words.is_empty()).then(|| words.join(" "))
 }
 
-/// How many of a French or Spanish headword's tokens its key writes as the
+/// How many of a French, Spanish or Italian headword's tokens its key writes as the
 /// headword does — each token's lowercased text equal to its key piece — which
 /// decides between two headwords of one key (add-lingua-french-expression-keys
-/// D6, add-lingua-spanish-expression-keys D3): `boîte à gants` writes more than
-/// `boite à gants`, its `boite` keyed `boîte`; `soy inglés` more than
-/// `soy inglesa`, its `inglesa` keyed `inglés`.
+/// D6, add-lingua-spanish-expression-keys D3, add-lingua-italian-expression-keys D4):
+/// `boîte à gants` writes more than `boite à gants`, its `boite` keyed `boîte`;
+/// `soy inglés` more than `soy inglesa`, its `inglesa` keyed `inglés`.
 fn written_pieces(headword: &str, studied: StudiedLanguage, lex: &impl Lexicon) -> usize {
     headword_reading(headword, studied, lex)
         .unwrap_or_default()
@@ -1406,7 +1405,7 @@ fn written_pieces(headword: &str, studied: StudiedLanguage, lex: &impl Lexicon) 
 
 /// Encodes a gloss index + payload and zstd-compresses it. Layout matches the
 /// reader: `count u32 | count*(id u32, off u32, len u32) | utf8`. Shared by the
-/// per-lemma glosses, the expression table and a French or Spanish pack's expression names,
+/// per-lemma glosses, the expression table and a French, Spanish or Italian pack's expression names,
 /// which are the same shape keyed by expression id.
 fn compress_glosses(entries: &[(u32, &str)]) -> Vec<u8> {
     let mut payload = Vec::new();
@@ -2380,6 +2379,139 @@ mod tests {
             lingua_core::packs::format::read_container(&spanish_pack(&["a la vez"]))
                 .expect("decode");
         assert!(sections.iter().all(|s| s.name != section::EXPR_NAMES_ZST));
+    }
+
+    // — Italian expression keys (add-lingua-italian-expression-keys) —
+
+    /// An it-fr pack's inputs: the words the Italian headwords below are made of, M8 filing the
+    /// articles under `il`, `un` and `una` under `uno`, `romana` under `romano`, `vale` under
+    /// `valere`; no expression yet.
+    fn italian_expression_inputs() -> PackInputs {
+        let mut inp = italian_inputs();
+        inp.form_lemma = pairs(&[
+            ("la", "il"),
+            ("le", "il"),
+            ("lo", "il"),
+            ("un", "uno"),
+            ("una", "uno"),
+            ("romana", "romano"),
+            ("vale", "valere"),
+        ]);
+        inp.ranks = [
+            "a", "il", "uno", "dente", "romano", "fare", "amore", "amico", "del", "cuore", "di",
+            "accordo", "perché", "fin", "fine", "valere", "pena", "poco", "anche", "io", "pane",
+        ]
+        .iter()
+        .zip(1..)
+        .map(|(lemma, rank)| ((*lemma).into(), rank))
+        .collect();
+        inp.glosses = vec![("pane".into(), "pain".into())];
+        inp
+    }
+
+    /// `italian_expression_inputs` holding `expressions`, each glossed by its own headword.
+    fn italian_pack(expressions: &[&str]) -> Vec<u8> {
+        let mut inp = italian_expression_inputs();
+        inp.expressions = expressions
+            .iter()
+            .map(|headword| ((*headword).into(), format!("gloss of {headword}")))
+            .collect();
+        build_pack(&inp).expect("an Italian pack builds")
+    }
+
+    #[test]
+    fn spec_scenario_an_italian_articulated_preposition() {
+        // D2: the article of a split preposition is written, so neither answers the other's.
+        let bytes = italian_pack(&["al dente", "alla romana"]);
+        assert_eq!(
+            named_expressions_of(&bytes),
+            [
+                named("a il dente", Some("al dente"), "al dente"),
+                named("a la romano", Some("alla romana"), "alla romana"),
+            ]
+        );
+        // The key is what review finds a named card's gloss through.
+        let pack = Pack::load(&bytes).unwrap();
+        let key = reading_expression_key("alla romana", StudiedLanguage::Italian, pack.lexicon())
+            .expect("a key");
+        assert_eq!(pack.expression(&key), Some("gloss of alla romana"));
+        assert_eq!(pack.expression("a il romano"), None);
+    }
+
+    #[test]
+    fn spec_scenario_an_italian_elision() {
+        assert_eq!(
+            named_expressions_of(&italian_pack(&["fare l'amore"])),
+            [named("fare lo amore", Some("fare l'amore"), "fare l'amore")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_di_family_stays_whole() {
+        // `amico del cuore` is its own key: no name, and no names section.
+        let bytes = italian_pack(&["amico del cuore"]);
+        assert_eq!(
+            named_expressions_of(&bytes),
+            [named("amico del cuore", None, "amico del cuore")]
+        );
+        let (_, sections) = lingua_core::packs::format::read_container(&bytes).expect("decode");
+        assert!(sections.iter().all(|s| s.name != section::EXPR_NAMES_ZST));
+    }
+
+    #[test]
+    fn spec_scenario_a_word_the_italian_pre_pass_splits() {
+        // D3: a word without a space read as two tokens is an expression; one read as one token
+        // is not.
+        assert_eq!(
+            named_expressions_of(&italian_pack(&["d'accordo", "perché"])),
+            [named("di accordo", Some("d'accordo"), "d'accordo")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_seven_italian_tokens() {
+        // `alla fin fine` reads as four tokens: kept. Nine tokens are beyond Italian's window.
+        let nine = ["pane"; 9].join(" ");
+        let seven = ["pane"; 7].join(" ");
+        let bytes = italian_pack(&["alla fin fine", &nine, &seven]);
+        assert_eq!(
+            named_expressions_of(&bytes),
+            [
+                named("a la fin fine", Some("alla fin fine"), "alla fin fine"),
+                named(&seven, None, &seven),
+            ]
+        );
+        assert_eq!(
+            italian_pack(&[&nine, "perché"]),
+            build_pack(&italian_expression_inputs()).unwrap(),
+            "an entry nothing can reach leaves no trace in the pack"
+        );
+    }
+
+    #[test]
+    fn spec_scenario_two_headwords_on_one_italian_key() {
+        // D4: `vale` is filed under `valere`, so both headwords read `valere la pena`; the one
+        // written as the key keeps it, whichever order the source lists them in, and the other is
+        // kept beside it, named.
+        let bytes = italian_pack(&["vale la pena", "valere la pena"]);
+        assert_eq!(
+            named_expressions_of(&bytes),
+            [named("valere la pena", None, "valere la pena")]
+        );
+        assert_eq!(
+            headwords_of(&bytes, "valere la pena"),
+            [headword("valere la pena"), headword("vale la pena")]
+        );
+        assert_eq!(italian_pack(&["valere la pena", "vale la pena"]), bytes);
+        let it = StudiedLanguage::Italian;
+        assert_eq!(written_pieces("valere la pena", it, &lex_of(&bytes)), 3);
+        assert_eq!(written_pieces("vale la pena", it, &lex_of(&bytes)), 2);
+        // A truncation and its word in full: `un poco`, written as the key, keeps it.
+        let bytes = italian_pack(&["un po'", "un poco"]);
+        assert_eq!(
+            headwords_of(&bytes, "un poco"),
+            [headword("un poco"), headword("un po'")]
+        );
     }
 
     #[test]

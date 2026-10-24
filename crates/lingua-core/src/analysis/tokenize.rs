@@ -617,15 +617,143 @@ fn apostrophe_ending_a_word(text: &str, end: usize) -> Option<usize> {
 /// The token's text cannot say it: an elided piece reads as the word it stands for
 /// (`le`), a truncation as its word (`poco`), an accent spelling as its accented word
 /// (`perché`). So the flag says yes for an accent spelling too, which is no elided
-/// piece: an expression written with `perché` is not met where the page writes
-/// `perche'` — named for Italian's phrase gloss (change 12), which may read the flag
-/// by the token's text. English and Spanish tokens are never elided.
+/// piece: Italian's phrase gloss reads what the apostrophe stands for by the token's text
+/// ([`italian_apostrophe`], add-lingua-italian-expression-keys D6), so an expression
+/// written with `perché` is met where the page writes `perche'`, and a truncation is told
+/// from an elision. English and Spanish tokens are never elided.
 ///
 /// The phrase gloss reads it on a selection's tokens and on an expression's headword
 /// (`engine::match_expressions`), so the two say it the same way.
 pub fn is_elided(text: &str, token: &Token) -> bool {
     text.get(token.start..token.end)
         .is_some_and(|written| written.ends_with(is_apostrophe))
+}
+
+/// What the apostrophe an Italian token's source span ends on stands for
+/// ([`italian_apostrophe`], add-lingua-italian-expression-keys D6).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ItalianApostrophe {
+    /// An elided piece — `l'` read `lo`, `dell'` read `dello`, both halves of `all'`,
+    /// `coll'`, `dall'`, `nell'` and `sull'`, an elided form written alone: Italian elides a
+    /// word by the word that follows it.
+    Elision,
+    /// A truncation, and the word it stands for — `po'` read `poco`, `mo'` read `modo` or
+    /// `mò`, `de'` read `dei`, `fa'` read `fai`, a `da'` read as the verb `dai` —: the written
+    /// word, without its apostrophe, one of [`ITALIAN_TRUNCATIONS`], or a `da'` the pre-pass
+    /// reads as one word. Italian truncates a word on its own, whatever follows it.
+    Truncation(&'static str),
+    /// The preposition of a truncated articulated preposition (`in` of `ne'`, `a` of `a'`,
+    /// [`ITALIAN_TRUNCATED_PREPOSITIONS`]): written in full, the apostrophe being its
+    /// article's.
+    Preposition,
+    /// The article of a truncated articulated preposition (`i` of `ne'`): truncated, the
+    /// written word standing for the articulated preposition (`nei`), never for its article
+    /// alone.
+    Article,
+    /// A word whose apostrophe stands for its accent (`perche'` read `perché`, `E'` read `È`,
+    /// read-lingua-italian-unmarked-spellings D1): the word written in full, its accent typed
+    /// as an apostrophe.
+    Accent,
+}
+
+/// What the apostrophe `token`'s source span in `text` ends on stands for, or `None` where
+/// it ends on none ([`is_elided`]), told by the written word without the apostrophe,
+/// lowercase and in NFC: a truncation when it is one of Italian's truncations, standing for
+/// the word the pre-pass read (`po'` → `poco`, `mo'` → `modo` or `mò`); a half of a truncated
+/// articulated preposition when it is one of those — its preposition written in full, its
+/// article truncated —, a `da'` the pre-pass reads as the verb `dai` being a truncation of
+/// its own, one token; an accent where the token's text is the written word with its last
+/// vowel accented (`perche'` → `perché`); an elided piece otherwise. The phrase gloss reads
+/// it on an Italian selection's tokens and on an Italian expression's headword
+/// (add-lingua-italian-expression-keys D6), as [`is_elided`].
+pub fn italian_apostrophe(text: &str, token: &Token) -> Option<ItalianApostrophe> {
+    let written = text.get(token.start..token.end)?;
+    let bare = french_lowercase(written.strip_suffix(is_apostrophe)?);
+    let read: String = french_lowercase(&token.text);
+    if let Some(word) = italian_truncation(&bare) {
+        let word = if bare == ITALIAN_MO.0 && read == ITALIAN_MO.1 {
+            ITALIAN_MO.1
+        } else {
+            word
+        };
+        return Some(ItalianApostrophe::Truncation(word));
+    }
+    if let Some((preposition, _)) = italian_truncated_preposition(&bare) {
+        return Some(if read == ITALIAN_DAI {
+            ItalianApostrophe::Truncation(ITALIAN_DAI)
+        } else if read == preposition {
+            ItalianApostrophe::Preposition
+        } else {
+            ItalianApostrophe::Article
+        });
+    }
+    Some(if unaccented(&read).as_deref() == Some(bare.as_str()) {
+        ItalianApostrophe::Accent
+    } else {
+        ItalianApostrophe::Elision
+    })
+}
+
+/// `word` with its last vowel's accent taken off (`perché` → `perche`, `pò` → `po`), or
+/// `None` where it does not end on an accented vowel.
+fn unaccented(word: &str) -> Option<String> {
+    let mut chars = word.chars();
+    let vowel = match chars.next_back()? {
+        'à' => 'a',
+        'è' | 'é' => 'e',
+        'ì' => 'i',
+        'ò' => 'o',
+        'ù' => 'u',
+        _ => return None,
+    };
+    Some(chars.as_str().chars().chain([vowel]).collect())
+}
+
+/// The word an Italian truncation written with an accent where its apostrophe goes stands
+/// for — `pò` for `po'`, read `poco` —, the mirror of [`ItalianApostrophe::Accent`]
+/// (add-lingua-italian-expression-keys D6): `written`, lowercase and in NFC, ends on an
+/// accented vowel, without its accent it is one of [`ITALIAN_TRUNCATIONS`], and `lemma`, its
+/// dictionary form, is the word that truncation stands for. A word written so that is a word
+/// of its own — `mò`, `dì` (*day*), the indicative `fà` written for `fa` — is no truncation:
+/// its dictionary form is another word. `None` otherwise.
+pub fn italian_accent_truncation(written: &str, lemma: &str) -> Option<&'static str> {
+    let bare = unaccented(&french_lowercase(written))?;
+    italian_truncation(&bare).filter(|&word| word == lemma)
+}
+
+/// Whether an Italian headword holds a word Italian's pre-pass splits into a preposition and
+/// an article sharing its span (add-lingua-italian-expression-keys D6): one of
+/// [`ITALIAN_CONTRACTIONS`] (`al`, `allo`, `alla`, `ai`, `agli`, `alle`, `dal`…, `nel`…,
+/// `sul`…, `col`, `coi`), or, an apostrophe right after it, an elided articulated preposition
+/// read as two words (`all'`, `coll'`, `dall'`, `nell'`, `sull'`; [`ITALIAN_ELIDED_PREPOSITIONS`])
+/// or a truncated one (`a'`, `co'`, `da'`, `ne'`, `su'`; [`ITALIAN_TRUNCATED_PREPOSITIONS`]) —
+/// in any case, read without its soft hyphens. The `di` family is whole, and no such word.
+/// A word followed by an apostrophe holds one, whatever its reading: a `da'` the pre-pass reads
+/// as the verb `dai`, one token, is read too, and its reading says it joins nothing.
+pub(crate) fn holds_italian_contraction(headword: &str) -> bool {
+    let headword = without_soft_hyphens(headword);
+    let mut rest = headword.as_ref();
+    while let Some(start) = rest.find(char::is_alphanumeric) {
+        let word_and_after = &rest[start..];
+        let end = word_and_after
+            .find(|c: char| !c.is_alphanumeric())
+            .unwrap_or(word_and_after.len());
+        let word = french_lowercase(&word_and_after[..end]);
+        let after = &word_and_after[end..];
+        let held = if after.starts_with(is_apostrophe) {
+            ITALIAN_ELIDED_PREPOSITIONS
+                .iter()
+                .any(|&(form, _, article)| article.is_some() && form == word)
+                || italian_truncated_preposition(&word).is_some()
+        } else {
+            italian_contraction(&word).is_some()
+        };
+        if held {
+            return true;
+        }
+        rest = after;
+    }
+    false
 }
 
 /// One French word written at `start` of `text` — outside a hyphenated run, a
@@ -3480,6 +3608,150 @@ mod tests {
             flags("c'e' perche' "),
             pieces(&[("ci", true), ("è", true), ("perche", false)])
         );
+    }
+
+    #[test]
+    fn what_an_italian_apostrophe_stands_for() {
+        // add-lingua-italian-expression-keys D6: an elision, a truncation and the word it stands
+        // for — told by the span, so whatever the pre-pass read the word as —, the halves of a
+        // truncated articulated preposition, or an accent.
+        use ItalianApostrophe::{Accent, Article, Elision, Preposition, Truncation};
+        let read = |text: &str| -> Vec<(String, Option<ItalianApostrophe>)> {
+            italian(text)
+                .iter()
+                .map(|token| (token.text.clone(), italian_apostrophe(text, token)))
+                .collect()
+        };
+        let read_as = |pairs: &[(&str, Option<ItalianApostrophe>)]| -> Vec<_> {
+            pairs
+                .iter()
+                .map(|&(text, apostrophe)| (text.to_owned(), apostrophe))
+                .collect()
+        };
+        assert_eq!(
+            read("L’uomo dell'acqua all’alba un po' c'e'"),
+            read_as(&[
+                ("Lo", Some(Elision)),
+                ("uomo", None),
+                ("dello", Some(Elision)),
+                ("acqua", None),
+                ("a", Some(Elision)),
+                ("lo", Some(Elision)),
+                ("alba", None),
+                ("un", None),
+                ("poco", Some(Truncation("poco"))),
+                ("ci", Some(Elision)),
+                ("è", Some(Accent)),
+            ])
+        );
+        // `mo'` by the word after it, `da'` the verb — one token, a truncation — or the
+        // preposition, whose preposition is written in full and whose article is truncated, as
+        // `ne'`'s and `a'`'s are; `de'` stands for `dei`, `fa'` for `fai`.
+        assert_eq!(
+            read("a mo' di mo' mi da' da' monti Ne' campi a' piedi de' Medici fa' presto"),
+            read_as(&[
+                ("a", None),
+                ("modo", Some(Truncation("modo"))),
+                ("di", None),
+                ("mò", Some(Truncation("mò"))),
+                ("mi", None),
+                ("dai", Some(Truncation("dai"))),
+                ("da", Some(Preposition)),
+                ("i", Some(Article)),
+                ("monti", None),
+                ("In", Some(Preposition)),
+                ("i", Some(Article)),
+                ("campi", None),
+                ("a", Some(Preposition)),
+                ("i", Some(Article)),
+                ("piedi", None),
+                ("dei", Some(Truncation("dei"))),
+                ("Medici", None),
+                ("fai", Some(Truncation("fai"))),
+                ("presto", None),
+            ])
+        );
+        // An accent typed as an apostrophe on a capital, read through the lexicon.
+        let lexicon = italian_lexicon();
+        let text = "E' qui";
+        let tokens = tokenize(text, IT, &lexicon);
+        assert_eq!(tokens[0].text, "È");
+        assert_eq!(italian_apostrophe(text, &tokens[0]), Some(Accent));
+        // Each accented vowel: the word read with it is the written word, its accent typed as the
+        // apostrophe; a read word ending otherwise, or on another vowel, is an elided piece.
+        let token = |text: &str, read: &str| Token {
+            text: read.to_owned(),
+            start: 0,
+            end: text.len(),
+            parts: Vec::new(),
+        };
+        for (apostrophe, text, read) in [
+            (Some(Accent), "citta'", "città"),
+            (Some(Accent), "perche’", "perché"),
+            (Some(Accent), "cosi'", "così"),
+            (Some(Accent), "pero'", "però"),
+            (Some(Accent), "virtu'", "virtù"),
+            (Some(Elision), "citta'", "cittù"),
+            (Some(Elision), "quest'", "questo"),
+            (None, "pero", "però"),
+        ] {
+            assert_eq!(
+                italian_apostrophe(text, &token(text, read)),
+                apostrophe,
+                "{text} read {read}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_truncation_written_with_an_accent_for_its_apostrophe() {
+        // add-lingua-italian-expression-keys D6, the mirror of the accent typed as an apostrophe:
+        // `pò` is `po'` where its dictionary form is the word `po'` stands for.
+        assert_eq!(italian_accent_truncation("pò", "poco"), Some("poco"));
+        assert_eq!(italian_accent_truncation("Pò", "poco"), Some("poco"));
+        assert_eq!(italian_accent_truncation("bè", "bene"), Some("bene"));
+        // A word of its own, written so: its dictionary form is another word.
+        assert_eq!(italian_accent_truncation("mò", "mò"), None);
+        assert_eq!(italian_accent_truncation("dì", "dì"), None);
+        assert_eq!(italian_accent_truncation("fà", "fare"), None);
+        // No accent, or no truncation under it.
+        assert_eq!(italian_accent_truncation("po", "poco"), None);
+        assert_eq!(italian_accent_truncation("però", "però"), None);
+        assert_eq!(italian_accent_truncation("", "poco"), None);
+    }
+
+    #[test]
+    fn an_italian_headword_holds_a_word_the_pre_pass_splits_in_two() {
+        // add-lingua-italian-expression-keys D6: the articulated prepositions but the `di`
+        // family's, the elided ones read as two words and the truncated ones, any case.
+        for headword in [
+            "al dente",
+            "SUGLI scaffali",
+            "coi bambini",
+            "all'alba",
+            "Coll’aiuto",
+            "ne' campi",
+            "co' suoi",
+            "da' retta",
+        ] {
+            assert!(holds_italian_contraction(headword), "{headword}");
+        }
+        for headword in [
+            "del pane",
+            "dell'acqua",
+            "degl'inni",
+            "de' Medici",
+            "l'alba",
+            "un po'",
+            "alba",
+            "al",
+        ] {
+            assert_eq!(
+                holds_italian_contraction(headword),
+                headword == "al",
+                "{headword}"
+            );
+        }
     }
 
     #[test]

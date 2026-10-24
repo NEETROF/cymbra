@@ -14,3 +14,5 @@ archiveAfter:
   - add-lingua-italian-tokenisation
   - add-lingua-italian-analysis
   - add-lingua-pack-it-fr
+  - read-lingua-italian-unmarked-spellings
+  - refine-lingua-italian-reading

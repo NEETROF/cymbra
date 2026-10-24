@@ -140,9 +140,13 @@ fn fresh_state(packs: &PackSet) -> LinguaState {
 /// not that of `hacer tiempo`, which wins the key. A card whose lemma is itself a key — the
 /// winner's name (`hacer tiempo`), a lemma chain (`bueno día`) — is read there, as before.
 ///
-/// An Italian expression card is read at its lemma, as an English one is, until
-/// add-lingua-italian-expression-keys gives Italian keys of its own (add-lingua-italian-baseline
-/// D2): its key is its words' lemmas, and its pack carries no expression names.
+/// An Italian expression card is read as a Spanish one is (add-lingua-italian-expression-keys
+/// D8): at its lemma first — a card made before Italian expressions were named holds the key it
+/// was shown under (`ad alto voce`) — then at the key its lemma, a name (`al dente`), reads as
+/// (`a il dente`), the gloss of the headword the card is named by, the key's own where none is
+/// (`vale la pena` shows its own gloss, not that of `valere la pena`, which wins the key). An
+/// Italian lemma without a space is a word, as before: a one-word selection over several
+/// pieces (`d'accordo`) is add-lingua-italian-word-card's.
 fn readable_gloss(pack: Option<&Pack>, card: &Card) -> Option<String> {
     pack.and_then(|pack| pack_gloss(pack, &card.lemma))
         .or_else(|| card.gloss.clone())
@@ -165,11 +169,13 @@ fn pack_gloss(pack: &Pack, lemma: &str) -> Option<String> {
         match pack.studied() {
             StudiedLanguage::French => french_expression_key(lemma, pack.lexicon())
                 .and_then(|key| pack.expression_gloss_named(&key, lemma)),
-            StudiedLanguage::Spanish => pack.expression(lemma).or_else(|| {
-                reading_expression_key(lemma, StudiedLanguage::Spanish, pack.lexicon())
-                    .and_then(|key| pack.expression_gloss_named(&key, lemma))
-            }),
-            StudiedLanguage::English | StudiedLanguage::Italian => pack.expression(lemma),
+            studied @ (StudiedLanguage::Spanish | StudiedLanguage::Italian) => {
+                pack.expression(lemma).or_else(|| {
+                    reading_expression_key(lemma, studied, pack.lexicon())
+                        .and_then(|key| pack.expression_gloss_named(&key, lemma))
+                })
+            }
+            StudiedLanguage::English => pack.expression(lemma),
         }
     };
     gloss.map(str::to_owned)

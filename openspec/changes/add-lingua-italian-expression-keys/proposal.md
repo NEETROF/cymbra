@@ -55,15 +55,17 @@ contare`-like lemma chains as the expression's dictionary form, which the reader
   « nel », « sul », « col » a match ends on is covered, as Spanish's (44b's D5) and French's (51's
   D12); « a causa del » answers `a causa di` by the `di` family read once more as `di` when no key
   matches the run — French's `du`/`des` retry (44's D5) for `del`, `dello`, `della`, `dei`, `degli`,
-  `delle`.
+  `delle` —, where that `di` closes a governing frame: the key's first piece a preposition, or the
+  run built on a verb (the owner's decision at implementation, D5).
 - **Italian pieces meet the page as the headword writes them** (D6): an elided piece meets only an
   elided word and a piece written in full only a word in full, the last piece in full meeting either
   (44c); two pieces the headword writes as one articulated preposition meet only a written one, and
   two it writes apart only words apart, the run's edges the page's (44d); the headword is read by
   Italian's pre-pass from its name, which the pack carries wherever it differs from the key. A
-  truncation (`po'`) reads as an elided piece by its span, and a last piece written in full meets an
-  elision but never a truncation, so « un po' » is `un po'` and « un poco » is `un poco`, each named
-  as written — measured, the dictionary writing both.
+  truncation (`po'`) reads as an elided piece by its span, and a piece written in full meets a
+  truncation that stands for another word (`fare` « fa' ») but never the one that stands for the
+  piece itself, so « un po' » is `un po'` and « un poco » is `un poco`, each named as written —
+  measured, the dictionary writing both (amended at review, D6).
 - **The overlap rule reads Italian too** (D7): change 44f's rule — an expression built on a verb
   gives its last word to a longer one — runs for Italian as for Spanish once change 13's grammar
   says what a verb is, its guard on « que » reading « che ».

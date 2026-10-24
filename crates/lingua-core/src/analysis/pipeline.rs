@@ -149,10 +149,10 @@ pub(crate) fn resolve_lemmas(
 /// digit. The reading would then be shorter than the headword and match words
 /// it does not hold (add-lingua-french-expression-keys D6).
 ///
-/// The pack builder keys a French or Spanish expression on it, through
+/// The pack builder keys a French, Spanish or Italian expression on it, through
 /// [`reading_expression_key`](crate::engine::reading_expression_key), and so does
 /// review, finding such an expression card by its name (D1, D3;
-/// add-lingua-spanish-expression-keys D1, D7).
+/// add-lingua-spanish-expression-keys D1, D7; add-lingua-italian-expression-keys D1, D8).
 pub fn headword_reading(
     headword: &str,
     studied: StudiedLanguage,
