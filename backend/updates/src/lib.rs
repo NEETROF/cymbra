@@ -27,9 +27,11 @@
 //! the update check cannot be used to count or track installs (design D3).
 
 pub mod core;
+pub mod http;
 pub mod repo;
 
 pub use core::{is_servable, select_servable, version_order};
+pub use http::{UpdatesState, updates_router};
 #[cfg(any(test, feature = "mock"))]
 pub use repo::MockReleaseRepo;
 pub use repo::{PgReleaseRepo, ReleaseRepo};

@@ -13,7 +13,8 @@
 // limitations under the License.
 
 //! The desktop update feed HTTP surface (change: add-desktop-auto-update,
-//! tasks 2.3–2.5, design D1/D3).
+//! tasks 2.3–2.5, design D1/D3). It lives in the module that owns the
+//! `app_updates` data; the server only mounts it (platform-module-boundaries).
 //!
 //! - `GET  /updates/desktop?product=&channel=` — **public and anonymous**. The
 //!   same bytes for every caller: no current-version parameter, no install id,
@@ -42,7 +43,7 @@ use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use cymbra_update_manifest::{Envelope, TrustedKeys, VerifyError};
-use cymbra_updates::{Release, ReleaseRepo, version_order};
+use crate::{Release, ReleaseRepo, version_order};
 use serde::Deserialize;
 
 /// How long a feed response may be cached. The kill-switch (`rollout_percent = 0`)
@@ -219,7 +220,7 @@ mod tests {
     use base64::Engine as _;
     use base64::engine::general_purpose::STANDARD as B64;
     use cymbra_update_manifest::{Manifest, SCHEMA_VERSION, Target, sign};
-    use cymbra_updates::MockReleaseRepo;
+    use crate::MockReleaseRepo;
     use ed25519_dalek::SigningKey;
     use std::collections::BTreeMap;
     use tower::ServiceExt as _;

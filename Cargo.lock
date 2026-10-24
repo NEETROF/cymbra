@@ -1282,7 +1282,6 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
- "base64 0.22.1",
  "chrono",
  "cymbra-analytics",
  "cymbra-auth",
@@ -1301,7 +1300,6 @@ dependencies = [
  "cymbra-user",
  "cymbra-user-port",
  "dotenvy",
- "ed25519-dalek",
  "http",
  "jsonwebtoken",
  "mockall",
@@ -1357,13 +1355,17 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "axum",
+ "base64 0.22.1",
  "chrono",
  "cymbra-update-manifest",
+ "ed25519-dalek",
  "mockall",
  "serde",
  "serde_json",
  "sqlx",
  "tokio",
+ "tower 0.5.3",
  "tracing",
 ]
 

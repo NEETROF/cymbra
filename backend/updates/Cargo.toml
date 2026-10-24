@@ -14,6 +14,8 @@ anyhow.workspace = true
 tracing.workspace = true
 serde = { workspace = true }
 serde_json.workspace = true
+# The module owns its HTTP surface (the feed + CI ingest); the server mounts it.
+axum.workspace = true
 # The shared manifest contract: ingest re-verifies the signature before storing.
 cymbra-update-manifest = { path = "../../crates/update-manifest" }
 # Doubles for the release repository in the server's handler tests
@@ -26,3 +28,7 @@ mock = ["dep:mockall"]
 [dev-dependencies]
 mockall = { workspace = true }
 tokio = { workspace = true }
+tower.workspace = true
+# Sign fixture envelopes in the handler tests.
+ed25519-dalek = { workspace = true }
+base64.workspace = true
