@@ -1199,6 +1199,290 @@ describe("an elided French word, heard with the word it leans on (add-lingua-fre
   });
 });
 
+describe("an Italian piece, heard as the page writes it (add-lingua-italian-read-aloud D4)", () => {
+  const alice: VoiceInfo = { name: "Alice", lang: "it-IT", localService: true, default: false, voiceURI: "Alice" };
+  const thomas: VoiceInfo = { name: "Thomas", lang: "fr-FR", localService: true, default: false, voiceURI: "Thomas" };
+  const samantha: VoiceInfo = { name: "Samantha", lang: "en-US", localService: true, default: false, voiceURI: "S" };
+  const monica: VoiceInfo = { name: "Mónica", lang: "es-ES", localService: true, default: false, voiceURI: "M" };
+
+  /** Where `piece` sits in `sentence` — its `nth` occurrence — as the card's place in the sentence. */
+  const placeOf = (sentence: string, piece: string, nth = 0): { start: number; end: number } => {
+    let start = -1;
+    for (let i = 0; i <= nth; i++) start = sentence.indexOf(piece, start + 1);
+    if (start < 0) throw new Error(`no « ${piece} » in « ${sentence} »`);
+    return { start, end: start + piece.length };
+  };
+
+  /** A card whose speaker reads `lang`, in the interface language `language` (French by default). */
+  function speaking(lang = "it", language: "fr" | "en" | "es" = "fr") {
+    const fake = makeFakeSpeech([alice, thomas, samantha, monica]);
+    const speaker = createSpeaker(fake.engine, lang, fake.preference);
+    const card = createCard(speaker, language);
+    document.body.append(card.el);
+    return { fake, speaker, card };
+  }
+
+  /** What each listen button says and what it speaks, in order. */
+  function row(card: { el: HTMLElement }, fake: ReturnType<typeof makeFakeSpeech>): [string, string][] {
+    const buttons = [...card.el.querySelectorAll<HTMLButtonElement>(".listen button")];
+    return buttons.map((b) => {
+      const label = b.textContent ?? "";
+      b.click();
+      const text = fake.spoken.at(-1)!.text;
+      // Pressing it again stops it, so the next button reads under its own label.
+      [...card.el.querySelectorAll<HTMLButtonElement>(".listen button")]
+        .find((x) => x.textContent?.startsWith("■"))
+        ?.click();
+      return [label, text];
+    });
+  }
+
+  /** The card of a piece in `sentence`, at its `nth` occurrence of `piece`. */
+  const piece = (
+    sentence: string,
+    piece: string,
+    over: Partial<WordPopupContent> & { headword: string; surface: string },
+    nth = 0,
+  ): WordPopupContent =>
+    content({
+      gloss: null,
+      sentence,
+      selection: placeOf(sentence, piece, nth),
+      ...(piece === over.surface ? {} : { written: piece }),
+      ...over,
+    });
+
+  describe("an elided piece, with the word it leans on", () => {
+    it("An elided article: « ▶ L'uomo », which speaks « L'uomo », then the dictionary form, then « ▶ Phrase »", () => {
+      const { fake, card } = speaking();
+      const sentence = "L'uomo è arrivato.";
+      card.show(piece(sentence, "L'", { headword: "lo", surface: "Lo", nextText: "uomo" }), () => {});
+      expect(row(card, fake)).toEqual([
+        ["▶ L'uomo", "L'uomo"],
+        ["▶ lo", "lo"],
+        ["▶ Phrase", "L'uomo è arrivato."],
+      ]);
+    });
+
+    it("« dell'acqua », « un'amica », « Quest'anno », « trent'anni », « qual'è », a typographic « l’alba »", () => {
+      const { fake, card } = speaking();
+      for (const [sentence, written, headword, surface, heard] of [
+        ["Un bicchiere dell'acqua fresca.", "dell'", "dello", "dello", "dell'acqua"],
+        ["Ho visto un'amica.", "un'", "una", "una", "un'amica"],
+        ["Quest'anno vado al mare.", "Quest'", "questo", "Questo", "Quest'anno"],
+        ["Ha trent'anni.", "trent'", "trenta", "trenta", "trent'anni"],
+        ["Qual'è il tuo nome?", "Qual'", "quale", "Quale", "Qual'è"],
+        ["Partiamo all’alba.", "all’", "a", "a", "all’alba"],
+      ]) {
+        card.show(piece(sentence, written, { headword, surface }), () => {});
+        expect(row(card, fake)[0], written).toEqual([`▶ ${heard}`, heard]);
+      }
+    });
+
+    it("« c'e' »: the word it leans on as the analysis reads it, « c'è », not « c'e »", () => {
+      const { fake, card } = speaking();
+      const sentence = "Non c'e' problema.";
+      const c = (over: Partial<WordPopupContent> = {}) =>
+        piece(sentence, "c'", { headword: "ci", surface: "ci", nextText: "è", ...over });
+      card.show(c(), () => {});
+      expect(row(card, fake)).toEqual([
+        ["▶ c'è", "c'è"],
+        ["▶ ci", "ci"],
+        ["▶ Phrase", "Non c'e' problema."],
+      ]);
+      // Without the next token's text, the page's letters: « c'e », which a voice reads « ce ».
+      card.show(c({ nextText: undefined }), () => {});
+      expect(row(card, fake)[0]).toEqual(["▶ c'e", "c'e"]);
+      // Typographic apostrophes (the core reads « C’e’ » as `Ci` + `è`), « Dov'e' », and a capital
+      // the analysis keeps on the word it reads for an accent (« C'E' » as `Ci` + `È`).
+      card.show(piece("C’e’ tempo.", "C’", { headword: "ci", surface: "Ci", nextText: "è" }), () => {});
+      expect(row(card, fake)[0]).toEqual(["▶ C’è", "C’è"]);
+      card.show(piece("C'E' TEMPO.", "C'", { headword: "ci", surface: "Ci", nextText: "È" }), () => {});
+      expect(row(card, fake)[0]).toEqual(["▶ C'È", "C'È"]);
+      card.show(piece("Dov'e' Roma?", "Dov'", { headword: "dove", surface: "Dove", nextText: "è" }), () => {});
+      expect(row(card, fake)[0]).toEqual(["▶ Dov'è", "Dov'è"]);
+    });
+
+    it("leaves the page's letters when the next token is another word: « l'ultim'ora », « l'uomo »", () => {
+      const { fake, card } = speaking();
+      const sentence = "È l'ultim'ora del giorno.";
+      card.show(piece(sentence, "l'", { headword: "lo", surface: "lo", nextText: "ultima" }), () => {});
+      expect(row(card, fake)[0]).toEqual(["▶ l'ultim'ora", "l'ultim'ora"]);
+      card.show(piece("Vedo l'uomo.", "l'", { headword: "lo", surface: "lo", nextText: "uomo" }), () => {});
+      expect(row(card, fake)[0]).toEqual(["▶ l'uomo", "l'uomo"]);
+    });
+
+    it("an elided piece typed alone reads the word it stands for, as French's does", () => {
+      const { fake, card } = speaking();
+      const sentence = "Vedo l' uomo.";
+      card.show(piece(sentence, "l'", { headword: "lo", surface: "lo" }), () => {});
+      expect(row(card, fake)[0]).toEqual(["▶ Mot", "lo"]);
+    });
+  });
+
+  describe("a word the analysis split or truncated, as written", () => {
+    it("An articulated preposition: each piece of « al » speaks « al »; « Nel » speaks « Nel »", () => {
+      const { fake, card } = speaking();
+      const sentence = "Vado al mare.";
+      card.show(piece(sentence, "al", { headword: "a", surface: "a" }), () => {});
+      expect(row(card, fake)).toEqual([
+        ["▶ Mot", "al"],
+        ["▶ Phrase", "Vado al mare."],
+      ]);
+      card.show(piece(sentence, "al", { headword: "il", surface: "il" }), () => {});
+      expect(row(card, fake)[0]).toEqual(["▶ Mot", "al"]);
+      card.show(piece("Nel mezzo del cammin.", "Nel", { headword: "in", surface: "In" }), () => {});
+      expect(row(card, fake)[0]).toEqual(["▶ Mot", "Nel"]);
+    });
+
+    it("A truncation: « po' », read as `poco`, speaks « po' »", () => {
+      const { fake, card } = speaking();
+      card.show(piece("un po' di pane", "po'", { headword: "poco", surface: "poco" }), () => {});
+      expect(row(card, fake)).toEqual([
+        ["▶ Mot", "po'"],
+        ["▶ Phrase", "un po' di pane"],
+      ]);
+      card.show(piece("un po’ di pane", "po’", { headword: "poco", surface: "poco" }), () => {});
+      expect(row(card, fake)[0]).toEqual(["▶ Mot", "po’"]);
+    });
+
+    it("every truncation and truncated articulated preposition, as the pre-pass reads them now", () => {
+      const { fake, card } = speaking();
+      for (const [sentence, written, headword, surface] of [
+        // Change 6's truncations.
+        ["a mo' di esempio", "mo'", "modo", "modo"],
+        ["e mo' arrivo", "mo'", "mò", "mò"],
+        ["fa' presto", "fa'", "fare", "fai"],
+        ["va' via", "va'", "andare", "vai"],
+        ["sta' zitto", "sta'", "stare", "stai"],
+        ["di' la verità", "di'", "dire", "dici"],
+        ["be', vediamo", "be'", "bene", "bene"],
+        // refine-lingua-italian-reading's: `ca'`, `de'`, `que'`, read wherever they stand.
+        ["Ca' Foscari", "Ca'", "casa", "Casa"],
+        ["Lorenzo de' Medici", "de'", "di", "dei"],
+        ["que' due", "que'", "quello", "quei"],
+        // The truncated articulated prepositions, a preposition and `i` sharing the span.
+        ["a' piedi", "a'", "a", "a"],
+        ["co' suoi", "co'", "con", "con"],
+        ["ne' campi", "ne'", "in", "in"],
+        ["ne' campi", "ne'", "il", "i"],
+        ["su' colli", "su'", "su", "su"],
+        ["da' primi suoi anni", "da'", "da", "da"],
+        // `da'`, the verb `dai` by its context: « da' » is measured « dà ».
+        ["mi da' una mano", "da'", "dare", "dai"],
+      ]) {
+        card.show(piece(sentence, written, { headword, surface }), () => {});
+        const [first] = row(card, fake);
+        expect(first[1], `${written} (${surface})`).toBe(written);
+      }
+    });
+
+    it("an apocope the pre-pass reads without its apostrophe reads its form seen", () => {
+      const { fake, card } = speaking();
+      // « e su' » at the end: `su`, its apostrophe outside the word.
+      card.show(piece("Vieni su'.", "su", { headword: "su", surface: "su" }), () => {});
+      expect(row(card, fake)[0]).toEqual(["▶ Mot", "su"]);
+    });
+  });
+
+  describe("an apostrophe for an accent, and a vowel alone", () => {
+    it("« perche' » speaks « perché », « E' » in « E' vero » « È. », `c'` of « non c'e' problema » « c'è »", () => {
+      const { fake, card } = speaking();
+      card.show(piece("Dimmi perche' no.", "perche'", { headword: "perché", surface: "perché" }), () => {});
+      expect(row(card, fake)[0]).toEqual(["▶ Mot", "perché"]);
+      card.show(piece("E' vero.", "E'", { headword: "essere", surface: "È" }), () => {});
+      expect(row(card, fake)).toEqual([
+        ["▶ È", "È."],
+        ["▶ essere", "essere"],
+        ["▶ Phrase", "E' vero."],
+      ]);
+      card.show(piece("Una citta' grande.", "citta'", { headword: "città", surface: "città" }), () => {});
+      expect(row(card, fake)[0]).toEqual(["▶ Mot", "città"]);
+    });
+
+    it("A vowel alone: « è » labelled « è », speaking « è. »; « E » speaking « E. »", () => {
+      const { fake, card } = speaking();
+      card.show(piece("Roma è grande.", "è", { headword: "essere", surface: "è" }), () => {});
+      expect(row(card, fake)).toEqual([
+        ["▶ è", "è."],
+        ["▶ essere", "essere"],
+        ["▶ Phrase", "Roma è grande."],
+      ]);
+      card.show(piece("Roma è grande.", "è", { headword: "essere", surface: "è" }), () => {});
+      expect(button(card.el, "▶ è").getAttribute("aria-label")).toBe("Écouter la forme vue « è »");
+      card.show(piece("E poi è partito.", "E", { headword: "e", surface: "E" }), () => {});
+      expect(row(card, fake)[0]).toEqual(["▶ Mot", "E."]);
+    });
+
+    it("a capital or an accented vowel takes the stop, a lowercase one and « é » do not", () => {
+      const { fake, card } = speaking();
+      for (const [sentence, surface, headword, spoken] of [
+        ["A Roma.", "A", "a", "A."],
+        ["I ragazzi.", "I", "il", "I."],
+        ["O tu o io.", "O", "o", "O."],
+        ["È vero.", "È", "essere", "È."],
+        ["Lui va là e io qua.", "e", "e", "e"],
+        ["a Roma, dico.", "a", "a", "a"],
+        ["Ce n'é uno.", "é", "é", "é"],
+        ["É vero.", "É", "é", "É"],
+        // Decomposed, the same vowel.
+        ["Roma è grande.", "è", "essere", "è."],
+      ]) {
+        card.show(piece(sentence, surface, { headword, surface }), () => {});
+        expect(row(card, fake)[0]?.[1], surface).toBe(spoken);
+      }
+    });
+
+    it("keeps reading the vowel when a pending card completes, and stops it for another word", () => {
+      const { speaker, card } = speaking();
+      const e = (over: Partial<WordPopupContent> = {}) =>
+        piece("Roma è grande.", "è", { headword: "essere", surface: "è", ...over });
+      card.show(e({ pending: true }), () => {});
+      button(card.el, "▶ è").click();
+      card.show(e(), () => {});
+      expect(speaker.speaking()).toEqual({ key: "selection", text: "è." });
+      card.show(piece("Roma è grande.", "Roma", { headword: "Roma", surface: "Roma" }), () => {});
+      expect(speaker.speaking()).toBeNull();
+    });
+  });
+
+  describe("English, Spanish and French, as before", () => {
+    /** Italian cards, the next token's text and the place in the sentence given — which only an Italian speaker reads. */
+    const cards = (): WordPopupContent[] => [
+      piece("Non c'e' problema.", "c'", { headword: "ci", surface: "ci", nextText: "è" }),
+      piece("L'uomo è arrivato.", "L'", { headword: "lo", surface: "Lo", nextText: "uomo" }),
+      piece("un po' di pane", "po'", { headword: "poco", surface: "poco" }),
+      piece("ne' campi", "ne'", { headword: "in", surface: "in" }),
+      piece("Roma è grande.", "è", { headword: "essere", surface: "è" }),
+      piece("E poi è partito.", "E", { headword: "e", surface: "E" }),
+    ];
+
+    for (const lang of ["en", "es", "fr"]) {
+      it(`a speaker reading ${lang}: the next token's text changes nothing, and no vowel takes a stop`, () => {
+        const withNext = speaking(lang, "en");
+        const without = speaking(lang, "en");
+        for (const card of cards()) {
+          withNext.card.show(card, () => {});
+          without.card.show({ ...card, nextText: undefined }, () => {});
+          expect(row(withNext.card, withNext.fake)).toEqual(row(without.card, without.fake));
+        }
+        withNext.card.show(cards()[4], () => {});
+        expect(row(withNext.card, withNext.fake)[0]).toEqual(["▶ è", "è"]);
+        withNext.card.show(cards()[5], () => {});
+        expect(row(withNext.card, withNext.fake)[0]).toEqual(["▶ Word", "E"]);
+        withNext.card.show(cards()[2], () => {});
+        expect(row(withNext.card, withNext.fake)[0]).toEqual(["▶ Word", "poco"]);
+      });
+    }
+
+    it("a French speaker still reads an elided piece glued to the page's letters, the next token aside", () => {
+      const { fake, card } = speaking("fr", "en");
+      card.show(cards()[0], () => {});
+      expect(row(card, fake)[0]).toEqual(["▶ c'e", "c'e"]);
+    });
+  });
+});
+
 describe("gestureKey (keep-lingua-french-acronyms-in-capitals D6)", () => {
   const g = (over: Partial<Gesture>): Gesture => ({
     lemma: "CA",
