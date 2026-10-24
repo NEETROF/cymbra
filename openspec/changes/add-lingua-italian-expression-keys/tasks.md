@@ -26,7 +26,7 @@
 
 - [x] 5.1 The six pairs do not move: the six baselines pass without re-blessing; `git diff --stat` shows no pin touched.
 - [x] 5.2 `cargo fmt --all --check`; `cargo clippy --workspace --all-targets -- -D warnings`; `cargo test --workspace`; `cargo llvm-cov --workspace --fail-under-lines 80 --ignore-filename-regex "$(cat .github/coverage-ignore-regex.txt)"`; in `apps/lingua-extension`: `yarn test`, `yarn build`, `yarn check:variants` (no package change).
-- [ ] 5.3 `openspec validate add-lingua-italian-expression-keys --strict` passes; `python3 scripts/openspec_archive_order.py add-lingua-italian-expression-keys` names its prerequisites (change 16 added to `archiveAfter` once proposed); `docs/lingua/italian-programme.md` row 12's status names this change's pull requests.
+- [x] 5.3 `openspec validate add-lingua-italian-expression-keys --strict` passes; `python3 scripts/openspec_archive_order.py add-lingua-italian-expression-keys` names its prerequisites (change 16 added to `archiveAfter` once proposed); `docs/lingua/italian-programme.md` row 12's status names this change's pull requests.
 
 ## 6. Owner
 
