@@ -28,9 +28,11 @@ Inputs, in `--work`:
   attested at all (D6).
 
 Outputs, in `--work`: Italian's `forms.tsv` and `freq.tsv`, its readings `grammar.tsv`
-(add-lingua-italian-grammar-tables, the section's `Italian's word grammar`), its dictionary words
-`lexical.tsv` (the acronym rows alone until change 16's glosses write the rest), it-fr's `gloss.tsv`
-(empty until change 16), `NOTICE` and `manifest.json`. Italian's pinned tag pool, `tables/it/tags.tsv`,
+(add-lingua-italian-grammar-tables, the section's `Italian's word grammar`), its estimated levels
+`level.tsv` (add-lingua-italian-levels, the section's `Italian's estimated levels`), its dictionary
+words `lexical.tsv` (the acronym rows alone until change 16's glosses write the rest), it-fr's
+`gloss.tsv` (empty until change 16), `NOTICE` and `manifest.json`, which says the levels are
+estimated. Italian's pinned tag pool, `tables/it/tags.tsv`,
 is a person's: no reduction writes it.
 
 Italian's acronyms (keep-lingua-italian-acronyms-and-names D2, D6): Italian's analysis reads a word
@@ -2203,6 +2205,170 @@ def decisions(forms, lexicon, step, counts, frequency, overrides=OVERRIDES):
     return decided
 
 
+# — Italian's estimated levels (add-lingua-italian-levels, the programme's change 14, I8) —
+#
+# No Italian CEFR word list can be shipped (the *Profilo della lingua italiana* is not free, and no
+# openly licensed list was found): Italian's levels are estimated from frequency, as Spanish's and
+# French's are, and the pack says so (`levels_estimated`). The commonest lemmas, in rank order, take
+# the sizes of English's CEFR levels (design D1). The sizes are fr-en's and es-fr's
+# (`reduce-fr-en.py`, `reduce-es-fr.py`, measured on en-fr's 2026-09-26 tables), kept here, equal to
+# fr-en's by a test: an English update must not move Italian's levels unannounced, and moving them
+# into reduce_common.py would move every pair's rule digest.
+ENGLISH_BANDS = (("A1", 1020), ("A2", 1158), ("B1", 2015), ("B2", 2347), ("C1", 886), ("C2", 876))
+
+# Which lemmas a CEFR list would hold is read from the English Wiktionary's Italian section, the
+# source of the forms, never from a pair's glosses until change 16 commits it-fr's and passes
+# Italian's dictionary words (`words`, D4): a lemma they do not list takes no level then, as French's
+# since refine-lingua-fr-en-glosses.
+#
+# A single character takes a level only as a word (D2, rule 2): a sense of another part of speech
+# than a letter's, a symbol's or a name's that is no abbreviation, names no letter by its gloss and
+# spells no other word — `a`, a preposition, `e` and `o`, conjunctions; not `b` or `k` (a letter),
+# `u` (« the name of the Latin script letter U/u », filed as a noun), `r` (« alternative spelling of
+# er ») or `à` (« obsolete spelling of ha »).
+_LETTER_POS = frozenset({"character", "symbol", "name"})
+_NOT_A_WORD_TAGS = frozenset({"abbreviation", "initialism", "acronym", "letter"})
+# A letter's name, as its gloss writes it (French's `_LETTER_GLOSS`): « The name of the Latin script
+# letter U/u. »
+_LETTER_GLOSS = re.compile(r"(?:the )?name of the (?:[\w-]+ )?(?:script )?(?:letter|digraph)\b", re.IGNORECASE)
+# A sense that only spells another word (D2, rule 3), as the section's glosses open — French's
+# prefixes, not kaikki's `alt_of` pointer, so that a contraction (`del`, « contraction of di + il »)
+# or an apocope stays a word: a reader learns the word it spells (`the` « misspelling of tè »,
+# `perchè` « misspelling of perché »).
+_SPELLING_OF = (
+    "alternative spelling of",
+    "obsolete spelling of",
+    "archaic spelling of",
+    "dated spelling of",
+    "misspelling of",
+    "alternative letter-case form of",
+    "pronunciation spelling of",
+    "nonstandard spelling of",
+    "eye dialect spelling of",
+    "obsolete form of",
+    "archaic form of",
+    "dated form of",
+    "rare spelling of",
+    "uncommon spelling of",
+    "informal spelling of",
+)
+# Why a ranked lemma takes no level, in the order the rules are read (D2): the section does not know
+# it as a word, or knows it only as a name; its own form reads as another lemma (a guard); it is a
+# single character that is no word; it only spells another word; Italian's dictionary words do not
+# list it (read last, and only once change 16 passes them).
+LEVEL_RULES = ("unknown", "name", "elsewhere", "letter", "spelling", "unlisted")
+
+
+def word_senses(entry):
+    """`(word, [(part of speech, first gloss, tags)])`: the senses of a kaikki entry that are not a
+    form of another word (`_is_form_of`, the forms' own test), its word as the tables write it."""
+    pos = entry.get("pos")
+    return nfc_lower(entry.get("word")), [
+        (pos, (sense.get("glosses") or [""])[0] or "", frozenset(sense.get("tags") or ()))
+        for sense in entry.get("senses") or ()
+        if not _is_form_of(sense)
+    ]
+
+
+def read_level_senses(path):
+    """`word → senses`, over the Italian section: each word the section gives a sense that is not a
+    form of another word, with those senses (`word_senses`). Its own pass, so the forms' reading is
+    not edited for it."""
+    senses = collections.defaultdict(list)
+    for entry in _entries(path):
+        word, own = word_senses(entry)
+        if own:
+            senses[word].extend(own)
+    return senses
+
+
+def _spells_another(gloss, tags):
+    """Whether a sense only spells another word (rule 3): its gloss opens as `_SPELLING_OF` says, or
+    kaikki tags it a misspelling."""
+    return gloss.lower().startswith(_SPELLING_OF) or "misspelling" in tags
+
+
+def _a_word(word, senses):
+    """Whether a single character is a word (rule 2); a longer word always is."""
+    if len(word) != 1:
+        return True
+    return any(
+        pos not in _LETTER_POS
+        and not tags & _NOT_A_WORD_TAGS
+        and not gloss.lower().startswith("abbreviation of")
+        and not _LETTER_GLOSS.search(gloss)
+        and not _spells_another(gloss, tags)
+        for pos, gloss, tags in senses
+    )
+
+
+def _only_spells_another(senses):
+    """Whether every sense but a name's only spells another word (rule 3)."""
+    own = [(gloss, tags) for pos, gloss, tags in senses if pos != "name"]
+    return bool(own) and all(_spells_another(gloss, tags) for gloss, tags in own)
+
+
+def no_level(lemma, forms, senses, words=None):
+    """Why a ranked lemma takes no level (`LEVEL_RULES`), or None when a CEFR list would hold it
+    (design D2):
+    1. the section gives it no sense that is not a form of another word (`km`), or only a name's
+       (`milano`, `giovanni`, written there only with a capital);
+    4. its own form reads as another lemma in the forms table (`porta`, read as *portare*): a guard —
+       the builder files a level by the lemma's id and refuses such a ranked lemma, and the ranks
+       keep none (change 9's D6);
+    2. it is a single character the section gives no word's sense (`b`, `k`, `u`, `r`, `à`), while
+       `a`, `e` and `o` are words;
+    3. every sense it is given, a name's aside, only spells another word (`the`, `perchè`), while a
+       contraction (`del`) or an apocope stays a word;
+    5. Italian's dictionary words (`words`) do not list it, read last: a level is given only to a
+       word a card can gloss. Without `words` — until change 16 commits it-fr's glosses (D4) — the
+       rule is not read."""
+    own = senses.get(lemma, ())
+    if not own:
+        return "unknown"
+    if {pos for pos, _, _ in own} == {"name"}:
+        return "name"
+    if forms.get(lemma, lemma) != lemma:
+        return "elsewhere"
+    if not _a_word(lemma, own):
+        return "letter"
+    if _only_spells_another(own):
+        return "spelling"
+    if words is not None and lemma not in words:
+        return "unlisted"
+    return None
+
+
+def estimated_levels(ranks, forms, senses, words=None, bands=ENGLISH_BANDS):
+    """`(lemma → level, rule → lemmas)`: in rank order then lemma, each band's size to the ranked
+    lemmas a CEFR list would hold (`no_level`) — among Italian's dictionary words (`words`), when
+    given —, and the lemmas each rule left out before the last level was given. A lemma left out
+    gives its slot to the next one, so the bands keep their sizes (D1)."""
+    slots = [level for level, size in bands for _ in range(size)]
+    levels, left_out = {}, {rule: [] for rule in LEVEL_RULES}
+    for lemma in sorted(ranks, key=lambda lemma: (ranks[lemma], lemma)):
+        if len(levels) == len(slots):
+            break
+        why = no_level(lemma, forms, senses, words)
+        if why:
+            left_out[why].append(lemma)
+        else:
+            levels[lemma] = slots[len(levels)]
+    return levels, left_out
+
+
+def levels_report(levels, left_out, ranks, bands=ENGLISH_BANDS):
+    """The reduction's line on the levels: each level's rank span, and how many lemmas each rule
+    left out."""
+    spans = []
+    for level, _ in bands:
+        at = [ranks[lemma] for lemma, lvl in levels.items() if lvl == level]
+        if at:
+            spans.append(f"{level} {len(at)} ({min(at)}–{max(at)})")
+    out = ", ".join(f"{rule} {len(lemmas)}" for rule, lemmas in left_out.items())
+    return f"levels={len(levels)} estimated: {'; '.join(spans)}; left out: {out}"
+
+
 def analyser_version(path=_ANALYSIS_RS):
     """Italian's analyser version, read from lingua-core so a bump cannot leave the manifest behind
     (the pack would be refused at load, `Pack::load`)."""
@@ -2215,8 +2381,9 @@ def analyser_version(path=_ANALYSIS_RS):
 
 def notice(morph_it=True):
     """it-fr's attribution stack (D9): the section, wordfreq, MarkIT — and Morph-it!, under its
-    CC BY-SA 2.0 option, while it is pinned —, each with its licence's address. UD Italian-PUD is
-    measured against, never shipped."""
+    CC BY-SA 2.0 option, while it is pinned —, each with its licence's address, then the levels'
+    sentence: estimated, no CEFR list read (add-lingua-italian-levels D3). UD Italian-PUD is measured
+    against, never shipped."""
     text = """Cymbra Lingua data pack — IT->FR attributions.
 
 kaikki.org extract of the English Wiktionary (enwiktionary), Italian section: CC BY-SA 4.0
@@ -2240,12 +2407,18 @@ Morph-it!, a free morphological lexicon for the Italian language, by Marco Baron
 (https://creativecommons.org/licenses/by-sa/2.0/), one of its two licences, the other being the
 LGPL — the forms it lists that the Wiktionary names nowhere, under the lemmas the tables rank.
 """
+    text += """
+The levels are estimated, not taken from a CEFR list: the commonest lemmas by wordfreq's ranks take
+the sizes of English's CEFR levels, the English Wiktionary's Italian section saying which lemmas take
+one, and every pack studying Italian reads them as committed.
+"""
     return text
 
 
 def manifest(pack_version, morph_it=True):
-    """it-fr's manifest (D9): Italian glossed in French, Italian's analyser version; no levels yet
-    (change 14), so `levels_estimated` is absent."""
+    """it-fr's manifest (D9): Italian glossed in French, Italian's analyser version, and
+    `levels_estimated`: Italian's levels are derived from frequency, not taken from a CEFR list, and
+    the extension says so (add-lingua-italian-levels D3)."""
     licences = ["kaikki / enwiktionary (CC BY-SA 4.0 + GFDL)", "wordfreq (CC BY-SA 4.0)", "UD Italian-MarkIT (CC BY 4.0)"]
     sources = [
         {"name": "kaikki", "licence": "CcBySa"},
@@ -2261,6 +2434,8 @@ def manifest(pack_version, morph_it=True):
             "native": "fr",
             "pack_version": pack_version,
             "analyzer_version": analyser_version(),
+            # Derived from frequency, not taken from a CEFR list: the extension says so.
+            "levels_estimated": True,
             "licences": licences,
         },
         "sources": sources,
@@ -2339,6 +2514,11 @@ def reduce(work, max_lemmas, pack_version, frequency, top_n, morph_it=MORPH_IT, 
     grammar = spelling_rows(grammar_rows(readings, forms, ranks), forms, spellings)
     common.write(work, "grammar.tsv", "".join(grammar))
     common.write(work, "freq.tsv", "".join(f"{l}\t{r}\n" for l, r in sorted(ranks.items(), key=lambda kv: (kv[1], kv[0]))))
+    # Italian's estimated levels (add-lingua-italian-levels D1, D2): from the ranks, the forms just
+    # chosen and the section's senses — no pair's glosses: change 16 passes Italian's dictionary words
+    # once it commits it-fr's (D4). The acronym rows have no rank, so the rank order never reaches them.
+    levels, left_out = estimated_levels(ranks, forms, read_level_senses(kaikki))
+    common.write(work, "level.tsv", "".join(f"{l}\t{lvl}\n" for l, lvl in sorted(levels.items())))
     # Italian's dictionary words (lexical.tsv): the acronym rows alone, glossed or not, until change 16's
     # glosses write the rest — its dictionary words less its names, plus the rows (D5, D6). it-fr's
     # glosses: none yet, change 16's (D9).
@@ -2370,6 +2550,8 @@ def reduce(work, max_lemmas, pack_version, frequency, top_n, morph_it=MORPH_IT, 
         "web spellings": len(WEB_SPELLINGS),
         "owner's exceptions": len(OWNER_EXCEPTIONS),
         "grammar": readings_figures(grammar, forms),
+        "levels": dict(collections.Counter(levels.values())),
+        "levels left out": {rule: len(lemmas) for rule, lemmas in left_out.items()},
     }
     report(f"reduced it-fr: forms={summary['forms']} lemmas={summary['lemmas']} (the last, {last}, at Zipf {summary['last zipf']})")
     report(
@@ -2382,6 +2564,7 @@ def reduce(work, max_lemmas, pack_version, frequency, top_n, morph_it=MORPH_IT, 
         + "; the names rule: "
         + ", ".join(f"{n} {what}" for what, n in sorted(named.items()))
     )
+    report(f"reduced it-fr: {levels_report(levels, left_out, ranks)}")
     report(
         f"reduced it-fr: M8's cost, dictionary nouns read as a verb among wordfreq's 1,000 / 2,000 / 5,000: "
         f"{summary['m8'][1000]} / {summary['m8'][2000]} / {summary['m8'][5000]}"
