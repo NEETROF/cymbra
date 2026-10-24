@@ -60,14 +60,18 @@ has one (`lavo` → *lavare*; `lavarsi` is no lemma) and under the reflexive lem
 `pentendosi` → `pentendo`) so that change 7's enclitic rule has its bases; a row carrying any other
 clitic, a multi-word lemma's cell and a row listing alternatives give no form.
 
-The tables serve Italian's tokenisation as change 6 writes it (D4): every word its pre-pass writes is
-a form — the elided pieces' words, the split articulated prepositions' pieces, the truncations'
-words —, and so is each elided piece and truncation, as the word it stands for (`l'` → *lo*, `un'`
-→ *uno*, `po'` → *poco*), for the treebanks that write them; the `di` family (`del`, `dello`,
-`della`, `dei`, `degli`, `delle`) are lemmas of their own, `dell'` a form of `dello`; the other
-articulated prepositions are neither forms nor ranks, `dai` excepted — a form of *dare* and no rank,
-the truncation `da'`'s word. No plain word beginning with an elided piece is a form (the pre-pass
-splits it), nor any verb form carrying clitics (`dirmelo`, `vattene`: the enclitic rule reads them).
+The tables serve Italian's tokenisation as change 6 writes it (D4), with refine-lingua-italian-reading's
+corrections (its D2–D4, D7): every word its pre-pass writes is a form — the elided pieces' words, the
+split articulated prepositions' pieces, the truncations' words, the truncated articulated
+prepositions' pieces (`ne'` → `in` + `i`), `dissi`, `mò` and `dai` —, and so is each elided piece and
+truncation, as the word it stands for (`l'` → *lo*, `un'` → *uno*, `po'` → *poco*, `trent'` →
+*trenta*, `que'` → *quello*), for the treebanks that write them; the `di` family (`del`, `dello`,
+`della`, `dei`, `degli`, `delle`) are lemmas of their own, `dell'` a form of `dello` and `degl'` of
+`degli`; the other articulated prepositions, the elided ones (`all'`, `coll'`) and the truncated ones
+(`a'`, `co'`, `da'`, `ne'`, `su'`) are neither forms nor ranks, `dai` excepted — a form of *dare* and
+no rank, the verb the pre-pass reads `dai` and `da'` as by their context. No plain word beginning
+with an elided piece is a form (the pre-pass splits it: `trent'anni`, `qual'è`), nor any verb form
+carrying clitics (`dirmelo`, `vattene`: the enclitic rule reads them).
 
 One lemma per form (D5, M8): a form whose own lemma entries are names alone reads as the other word
 (`bambini`, a surname, → *bambino*; `roma`, which no other word reads, stays the city); then the
@@ -170,8 +174,9 @@ _MARKERS = frozenset({"m", "f", "n", "c", "p", "s", "mf", "pl", "sg", "mpl", "fp
 _CLITIC_POS = frozenset({"verb", "adv", "intj"})
 
 # Change 6's closed tables (add-lingua-italian-tokenisation D3–D5; lingua-core's
-# `ITALIAN_ELISIONS`, `ITALIAN_ELIDED_PREPOSITIONS`, `ITALIAN_CONTRACTIONS`, `ITALIAN_TRUNCATIONS`),
-# kept here as reviewed tables: test_reduce_it_fr.py holds them to tokenize.rs. Each elided piece is a
+# `ITALIAN_ELISIONS`, `ITALIAN_ELIDED_PREPOSITIONS`, `ITALIAN_CONTRACTIONS`, `ITALIAN_TRUNCATIONS`,
+# and `ITALIAN_TRUNCATED_PREPOSITIONS` since refine-lingua-italian-reading D3), kept here as reviewed
+# tables: test_reduce_it_fr.py holds them to tokenize.rs. Each elided piece is a
 # form of the word the pre-pass reads it as (D4) — the pre-pass never looks a piece up, but a treebank
 # writes it (UD: `l'`) and a card can be opened on one alone.
 ELISIONS = {
@@ -183,42 +188,71 @@ ELISIONS = {
     "cent'": "cento",
     "ch'": "che",
     "ciascun'": "ciascuna",
+    "cinquant'": "cinquanta",
     "com'": "come",
     "cos'": "cosa",
     "d'": "di",
     "dev'": "deve",
+    "diciott'": "diciotto",
     "diss'": "disse",
     "dov'": "dove",
+    "fin'": "fino",
     "gl'": "gli",
+    "gliel'": "glielo",
     "grand'": "grande",
     "l'": "lo",
     "m'": "mi",
     "mezz'": "mezzo",
     "n'": "ne",
+    "neanch'": "neanche",
     "nessun'": "nessuna",
     "nient'": "niente",
+    "novant'": "novanta",
+    "null'": "nulla",
+    "ogn'": "ogni",
+    "ottant'": "ottanta",
     "pover'": "povero",
+    "prim'": "primo",
+    "qual'": "quale",
     "qualcos'": "qualcosa",
     "qualcun'": "qualcuna",
     "quand'": "quando",
     "quant'": "quanto",
+    "quarant'": "quaranta",
     "quell'": "quello",
     "quest'": "questo",
     "s'": "si",
     "sant'": "santo",
     "senz'": "senza",
+    "sessant'": "sessanta",
+    "settant'": "settanta",
     "sott'": "sotto",
     "t'": "ti",
+    "tant'": "tanto",
+    "trent'": "trenta",
     "tutt'": "tutto",
+    "ultim'": "ultima",
     "un'": "una",
     "v'": "vi",
     "vent'": "venti",
+    "ventiquattr'": "ventiquattro",
 }
-# `diss'` is read `dissi` before `io` (change 6's one reading in context): a word the pre-pass writes.
-CONTEXT_WORDS = ("dissi",)
-# The elided articulated prepositions (D4): `dell'` reads whole as `dello`, a form of it; the others
-# are split into the preposition and `lo`, neither of them a form with its apostrophe.
-ELIDED_PREPOSITIONS = {"all'": ("a", "lo"), "dall'": ("da", "lo"), "dell'": ("dello",), "nell'": ("in", "lo"), "sull'": ("su", "lo")}
+# The words the pre-pass writes by their context: `diss'` is read `dissi` before `io` (change 6);
+# `mo'` is `mò` but before `di`, and `dai` and `da'` are the verb `dai` after a clitic or before
+# punctuation (refine-lingua-italian-reading D4). Each a word the pre-pass writes.
+CONTEXT_WORDS = ("dissi", "mò", "dai")
+# The elided articulated prepositions (D4): `dell'` and `degl'` read whole as `dello` and `degli`,
+# forms of them; the others are split into the preposition and `lo`, neither of them a form with its
+# apostrophe (`coll'` since refine-lingua-italian-reading D2).
+ELIDED_PREPOSITIONS = {
+    "all'": ("a", "lo"),
+    "coll'": ("con", "lo"),
+    "dall'": ("da", "lo"),
+    "degl'": ("degli",),
+    "dell'": ("dello",),
+    "nell'": ("in", "lo"),
+    "sull'": ("su", "lo"),
+}
 # The articulated prepositions the pre-pass splits into the preposition and the article (I7): never
 # handed to the lookup, so neither forms nor ranks — `dai` excepted (`DAI`).
 CONTRACTIONS = {
@@ -249,26 +283,41 @@ CONTRACTIONS = {
     "sulle": ("su", "le"),
     "sullo": ("su", "lo"),
 }
-# The truncation `da'` reads as `dai` (change 6 D5), handed to the lookup whole; a written `dai` is
-# split by the pre-pass and never reaches it, so listing it hides nothing (I7's cost): a form of
-# *dare*, and no rank.
+# `dai` is the verb the pre-pass reads `dai` and `da'` as by their context (refine-lingua-italian-reading
+# D4), handed to the lookup whole; the preposition `da` + `i` is split before it: a form of *dare*, and
+# no rank (I7's cost).
 DAI = "dai"
-# The truncations (D5 of change 6): each a form of the word it stands for, read as that word's lemma.
+# The truncations (D5 of change 6, and the books' `ca'`, `de'`, `que'` since refine-lingua-italian-reading
+# D3): each a form of the word it stands for, read as that word's lemma (`de'` → `dei`, the `di`
+# family's; `que'` → `quei` → *quello*).
 TRUNCATIONS = {
     "be'": "bene",
-    "da'": "dai",
+    "ca'": "casa",
+    "de'": "dei",
     "di'": "dici",
     "fa'": "fai",
     "mo'": "modo",
     "po'": "poco",
+    "que'": "quei",
     "sta'": "stai",
     "va'": "vai",
+}
+# The truncated articulated prepositions (refine-lingua-italian-reading D3): read as the preposition
+# and `i` sharing the span — `a'`, `co'`, `ne'`, `su'` before a word only, `da'` by its context —,
+# neither forms nor ranks, as the elided `all'` is: the section's `da'` (« dà, dai ») is read no more.
+TRUNCATED_PREPOSITIONS = {
+    "a'": ("a", "i"),
+    "co'": ("con", "i"),
+    "da'": ("da", "i"),
+    "ne'": ("in", "i"),
+    "su'": ("su", "i"),
 }
 # M21's partitives, kept whole by the pre-pass (I7): each a lemma of its own whatever its entries
 # point at, as French's `du` and `des`.
 DI_FAMILY = ("del", "dello", "della", "dei", "degli", "delle")
-# Every piece the pre-pass reads before an apostrophe, with it.
-PIECES = frozenset(ELISIONS) | frozenset(ELIDED_PREPOSITIONS) | frozenset(TRUNCATIONS)
+# Every piece the pre-pass reads before an apostrophe, with it: the truncated prepositions too, so that
+# the section's entry of one is not read again as a form.
+PIECES = frozenset(ELISIONS) | frozenset(ELIDED_PREPOSITIONS) | frozenset(TRUNCATIONS) | frozenset(TRUNCATED_PREPOSITIONS)
 # The apocopes written without an apostrophe (D6), a reviewed table: form → (lemma, reason). Each is
 # a form of its word alone, whatever the section's entries make of it — `bel`'s entry is a meaning
 # (« preconsonantal masculine singular form of bello »), so it would be a lemma of its own, and
@@ -281,6 +330,7 @@ APOCOPES = {
     "bel": ("bello", "bello before a consonant (« un bel giorno »); its entry is a meaning, no link"),
     "buon": ("buono", "buono before a noun (« buon giorno »); also the elided piece buon'"),
     "ciascun": ("ciascuno", "ciascuno before a noun; also the elided piece ciascun'"),
+    "fin": ("fino", "fino before a word (« fin qui », « fin da »); also the elided piece fin'"),
     "gran": ("grande", "grande before a consonant (« un gran numero »)"),
     "nessun": ("nessuno", "nessuno before a noun (« nessun dubbio »); also the elided piece nessun'"),
     "qual": ("quale", "quale before a vowel or a consonant (« qual è »)"),
@@ -293,8 +343,9 @@ APOCOPES = {
 # wordfreq's tokeniser splits a short piece off before a vowel (`l'uomo` → `l` + `uomo`) and strips a
 # token's edge apostrophes (`po'` → `po`): its list counts a piece's stem at the piece's frequency.
 # The stems are no words (D6) — every piece's, the elided prepositions' too, but the apocopes'
-# (`APOCOPES`) and `cent`, the euro cent, a word of its own — and nor are the truncations' stems that
-# are no word of their own (`po`, `mo`, `be`; `da`, `di`, `fa`, `va` and `sta` are words).
+# (`APOCOPES`: `qual`, `fin`) and `cent`, the euro cent, a word of its own — and nor are the
+# truncations' stems that are no word of their own (`po`, `mo`, `be`; `da`, `di`, `fa`, `va` and `sta`
+# are words, and so are `ca`, `de` and `que`, and the truncated prepositions' `a`, `co`, `ne`, `su`).
 STEM_WORDS = frozenset(APOCOPES) | {"cent"}
 WORDFREQ_STEMS = frozenset(
     {piece[:-1] for piece in ELISIONS} | {piece[:-1] for piece in ELIDED_PREPOSITIONS} | {"po", "mo", "be"}
@@ -1287,10 +1338,12 @@ def reduce_forms(lexicon, counts, compounds_zipf, frequency, top_n, max_lemmas, 
 
 def seed_pieces(forms):
     """Each elided piece and truncation a form of the word it stands for, read as that word's lemma
-    (D4): `l'` → *lo*, `un'` → *uno* (`una`'s), `dell'` → *dello*, `po'` → *poco*, `va'` → *andare*
-    (`vai`'s). Answers the pieces whose word is no form, which the reduction refuses."""
+    (D4): `l'` → *lo*, `un'` → *uno* (`una`'s), `dell'` → *dello*, `degl'` → *degli*, `po'` →
+    *poco*, `va'` → *andare* (`vai`'s), `prim'` → *primo*, `que'` → *quello* (`quei`'s). Answers the
+    pieces whose word is no form, which the reduction refuses."""
     missing = []
-    stands_for = {**ELISIONS, "dell'": "dello", **TRUNCATIONS}
+    read_whole = {piece: read[0] for piece, read in ELIDED_PREPOSITIONS.items() if len(read) == 1}
+    stands_for = {**ELISIONS, **read_whole, **TRUNCATIONS}
     for piece, word in sorted(stands_for.items()):
         if word in forms:
             forms[piece] = forms[word]
@@ -1300,11 +1353,11 @@ def seed_pieces(forms):
 
 
 def prepass_words():
-    """Every word Italian's pre-pass writes (D4): the elided pieces' words, `dissi`, the split
-    articulated prepositions' and elided prepositions' pieces, the `di` family and the truncations'
-    words."""
+    """Every word Italian's pre-pass writes (D4): the elided pieces' words, the words it writes by
+    their context (`dissi`, `mò`, `dai`), the split articulated prepositions', elided prepositions'
+    and truncated prepositions' pieces, the `di` family and the truncations' words."""
     words = set(ELISIONS.values()) | set(CONTEXT_WORDS) | set(TRUNCATIONS.values()) | set(DI_FAMILY)
-    for pieces in (*CONTRACTIONS.values(), *ELIDED_PREPOSITIONS.values()):
+    for pieces in (*CONTRACTIONS.values(), *ELIDED_PREPOSITIONS.values(), *TRUNCATED_PREPOSITIONS.values()):
         words.update(pieces)
     return sorted(words)
 

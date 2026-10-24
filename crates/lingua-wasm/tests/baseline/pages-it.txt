@@ -1,6 +1,6 @@
 === notizie
 Il governo ha presentato ieri un nuovo piano per ridurre i consumi energetici degli edifici pubblici entro il 2030.
-Secondo l'ISTAT, il PIL è cresciuto dello 0,3 % nel terzo trimestre, mentre la disoccupazione è scesa al 3,5 % nel Nord.
+Secondo l'ISTAT, il PIL è cresciuto dello 0,3% nel terzo trimestre, mentre la disoccupazione è scesa al 3,5% nel Nord.
 Oltre 20.000 persone hanno manifestato sabato 14 marzo davanti alla sede della RAI, nel centro di Roma.
 L'ONU e l'UE hanno chiesto un cessate il fuoco immediato; il vertice si terrà a Bruxelles il 3 aprile.
 La sindaca ha spiegato che i lavori del porto saranno terminati prima dell'inizio dell'estate.
@@ -25,10 +25,10 @@ Io canto ogni sera in giardino, e il canto degli uccelli mi risponde.
 Quella era un'epoca felice: era davvero un'altra era.
 === elisioni
 L'uomo che aspettavo non è mai arrivato, e un'amica mi ha detto che c'è stato un errore.
-Dov'è la chiave dell'auto? Com'è possibile che sia sparita nell'armadio?
+Dov'è la chiave dell'auto? Com'è possibile che non sia più nell'armadio?
 All'alba siamo partiti dall'albergo, abbiamo camminato sull'argine e misurato la temperatura dell'acqua.
 Quest'anno anch'io andrò al mare con quell'amico di cui ti ho parlato.
-Verrai alla festa? Senz'altro! E la serata è stata tutt'altro che noiosa.
+Verrai alla festa? Senz'altro! E sarà tutt'altro che noiosa.
 Aspetta un po', fa' presto e va' a prendere il pane, poi di' alla nonna che arriviamo.
 === preposizioni
 Ho comprato del pane, dello zucchero, della farina, dei biscotti, degli spinaci e delle uova.
@@ -54,16 +54,17 @@ xké nn mi hai risposto?? cmq ci vediamo domani ke dici
 E' troppo tardi perche' la citta' e' piu' lontana di quanto pensassi
 boh nn lo so, perche ti interessa cosi tanto??
 grazie mille x ieri sera, e' stato bellissimo!!
+aspetta un pò, qual'è il problema?
 === ricetta
 Sbucciate le patate e tagliatele a rondelle sottili.
 Fate soffriggere una cipolla in due cucchiai d'olio in una padella larga.
-Aggiungete 200 g di farina, 1 l di latte e sale q.b., poi mescolate per 10 minuti a fuoco basso.
+Sbattete 6 uova con 50 g di parmigiano e sale q.b., poi cuocete per 10 minuti a fuoco basso.
 Lasciate riposare la frittata cinque minuti prima di servirla con un'insalata verde.
 === tecnico
 Il server restituisce un errore 404 quando l'API non trova la risorsa richiesta.
 Bisogna aggiornare il file config.yaml prima di rilanciare la build sulla CI.
 Lo sviluppatore ha fatto un commit, poi ha fatto il push del branch per la code review.
-La velocità della rete è aumentata in ogni città, e l'attività del servizio è più stabile di prima.
+La velocità della rete è aumentata in ogni città, e l'affidabilità del servizio è più stabile di prima.
 === misto
 La riunione è cominciata alle nove ed è finita molto tardi in serata.
 The lighthouse stood at the edge of the cliff, and nobody remembered who had built it.
@@ -79,6 +80,7 @@ Quando ero bambino, andavo ogni estate dai nonni e giocavo nei campi fino a sera
 Benché sia stanca, vuole che tu abbia tutto pronto per domani mattina.
 Se fosse qui, sarebbe contento di vederci tutti insieme.
 Camminando lungo il fiume, abbiamo incontrato le ragazze arrivate ieri da Bologna.
-Le lettere che ho scritto sono arrivate ieri; le ho lette subito.
+Le lettere che mi hai scritto sono arrivate ieri; le ho lette subito.
 Non sono mai stato a Venezia, non fumo più e non ho ancora deciso dove andare.
 Quando arrivammo, il treno era già partito e i nostri amici erano tornati a casa.
+La ringraziamo, Le risponderemo al più presto.

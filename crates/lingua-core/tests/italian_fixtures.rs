@@ -36,6 +36,12 @@
 //! piece, on a capital, with two accents listed, beside change 6's truncations, the apocopes the
 //! rule never reads, a word the pack does not accent and the quotes.
 //!
+//! An Italian-specialist review's corrections (refine-lingua-italian-reading, task 1.6): each new
+//! elided form, `coll'` and `degl'`, the truncations `ca'`, `de'`, `que'`, each truncated
+//! articulated preposition before a word and before anything else, `mo'` and `dai`/`da'` by each
+//! trigger D5 kept and each it measured out, a word card on each reading, and the closed words the
+//! review added; the cases that flip on purpose say so, naming the change.
+//!
 //! A word standing alone in capitals (keep-lingua-italian-acronyms-and-names, task 1.2,
 //! `ACRONYM_CASES` through the phrase gloss over a stand-in listing `NATO` and `USA` as their own
 //! lemmas): in a line of lowercase words, in a headline, beside an articulated preposition or an
@@ -186,7 +192,13 @@ const CASES: &[Case] = &[
     ("dal", &[("da", "dal"), ("il", "dal")]),
     ("dallo", &[("da", "dallo"), ("lo", "dallo")]),
     ("dalla", &[("da", "dalla"), ("la", "dalla")]),
-    ("dai", &[("da", "dai"), ("i", "dai")]),
+    // refine-lingua-italian-reading D4: written alone, `dai` ends the text and is the verb; before
+    // a word with no sign, the preposition, as before.
+    ("dai", &[("dai", "dai")]),
+    (
+        "dai nonni",
+        &[("da", "dai"), ("i", "dai"), ("nonni", "nonni")],
+    ),
     ("dagli", &[("da", "dagli"), ("gli", "dagli")]),
     ("dalle", &[("da", "dalle"), ("le", "dalle")]),
     ("nel", &[("in", "nel"), ("il", "nel")]),
@@ -240,7 +252,8 @@ const CASES: &[Case] = &[
     // --- truncations, one token spanning the apostrophe (D5) ---
     ("po'", &[("poco", "po'")]),
     ("po’", &[("poco", "po’")]),
-    ("mo'", &[("modo", "mo'")]),
+    // refine-lingua-italian-reading D4: `mo'` is `modo` before `di` only — alone, `mò`.
+    ("mo'", &[("mò", "mo'")]),
     ("fa'", &[("fai", "fa'")]),
     ("Fa'", &[("Fai", "Fa'")]),
     ("va'", &[("vai", "va'")]),
@@ -304,6 +317,209 @@ const CASES: &[Case] = &[
     (
         "anni ‘80, un po'",
         &[("anni", "anni"), ("un", "un"), ("poco", "po'")],
+    ),
+    // --- refine-lingua-italian-reading: the eighteen elided forms (D2) ---
+    ("trent'anni", &[("trenta", "trent'"), ("anni", "anni")]),
+    ("Qual'è", &[("Quale", "Qual'"), ("è", "è")]),
+    ("qual’era", &[("quale", "qual’"), ("era", "era")]),
+    (
+        "quarant'anni",
+        &[("quaranta", "quarant'"), ("anni", "anni")],
+    ),
+    (
+        "cinquant'anni",
+        &[("cinquanta", "cinquant'"), ("anni", "anni")],
+    ),
+    ("tant'è", &[("tanto", "tant'"), ("è", "è")]),
+    ("fin'ora", &[("fino", "fin'"), ("ora", "ora")]),
+    ("gliel'ho", &[("glielo", "gliel'"), ("ho", "ho")]),
+    (
+        "sessant'anni",
+        &[("sessanta", "sessant'"), ("anni", "anni")],
+    ),
+    (
+        "l'ultim'ora",
+        &[("lo", "l'"), ("ultima", "ultim'"), ("ora", "ora")],
+    ),
+    ("null'altro", &[("nulla", "null'"), ("altro", "altro")]),
+    ("ottant'anni", &[("ottanta", "ottant'"), ("anni", "anni")]),
+    (
+        "settant'anni",
+        &[("settanta", "settant'"), ("anni", "anni")],
+    ),
+    ("Neanch'io", &[("Neanche", "Neanch'"), ("io", "io")]),
+    ("prim'ordine", &[("primo", "prim'"), ("ordine", "ordine")]),
+    (
+        "ventiquattr'ore",
+        &[("ventiquattro", "ventiquattr'"), ("ore", "ore")],
+    ),
+    (
+        "diciott'anni",
+        &[("diciotto", "diciott'"), ("anni", "anni")],
+    ),
+    ("novant'anni", &[("novanta", "novant'"), ("anni", "anni")]),
+    ("ogn'uno", &[("ogni", "ogn'"), ("uno", "uno")]),
+    ("oltr'alpe", &[("oltr'alpe", "oltr'alpe")]),
+    ("trent' ", &[("trenta", "trent'")]),
+    // --- `coll'` and `degl'` (D2) ---
+    (
+        "coll'aiuto",
+        &[("con", "coll'"), ("lo", "coll'"), ("aiuto", "aiuto")],
+    ),
+    (
+        "degl'Italiani",
+        &[("degli", "degl'"), ("Italiani", "Italiani")],
+    ),
+    // --- the truncations a book writes, wherever they stand (D3) ---
+    ("Ca' Foscari", &[("Casa", "Ca'"), ("Foscari", "Foscari")]),
+    (
+        "Lorenzo de' Medici",
+        &[("Lorenzo", "Lorenzo"), ("dei", "de'"), ("Medici", "Medici")],
+    ),
+    ("que' due", &[("quei", "que'"), ("due", "due")]),
+    ("de',", &[("dei", "de'")]),
+    // --- a truncated articulated preposition before a word, two words (D3) ---
+    ("a' piedi", &[("a", "a'"), ("i", "a'"), ("piedi", "piedi")]),
+    (
+        "Co' suoi",
+        &[("Con", "Co'"), ("i", "Co'"), ("suoi", "suoi")],
+    ),
+    (
+        "ne' campi",
+        &[("in", "ne'"), ("i", "ne'"), ("campi", "campi")],
+    ),
+    (
+        "su’ colli",
+        &[("su", "su’"), ("i", "su’"), ("colli", "colli")],
+    ),
+    (
+        "da' primi anni",
+        &[
+            ("da", "da'"),
+            ("i", "da'"),
+            ("primi", "primi"),
+            ("anni", "anni"),
+        ],
+    ),
+    // … and before anything else, an apocope as before: the quote closes after `su`.
+    ("Vieni su'.", &[("Vieni", "Vieni"), ("su", "su")]),
+    (
+        "'Vieni su', disse, e un po'",
+        &[
+            ("Vieni", "Vieni"),
+            ("su", "su"),
+            ("disse", "disse"),
+            ("e", "e"),
+            ("un", "un"),
+            ("poco", "po'"),
+        ],
+    ),
+    // … and quoted alone, the whole quoted span: its apostrophe closes the quote (at review).
+    (
+        "la particella 'ne' indica, un po'",
+        &[
+            ("la", "la"),
+            ("particella", "particella"),
+            ("ne", "ne"),
+            ("indica", "indica"),
+            ("un", "un"),
+            ("poco", "po'"),
+        ],
+    ),
+    (
+        "'Vieni su' gli disse, un po'",
+        &[
+            ("Vieni", "Vieni"),
+            ("su", "su"),
+            ("gli", "gli"),
+            ("disse", "disse"),
+            ("un", "un"),
+            ("poco", "po'"),
+        ],
+    ),
+    // --- `mo'` by the word after it (D4) ---
+    (
+        "a mo' di esempio",
+        &[
+            ("a", "a"),
+            ("modo", "mo'"),
+            ("di", "di"),
+            ("esempio", "esempio"),
+        ],
+    ),
+    (
+        "a mo' d'esempio",
+        &[
+            ("a", "a"),
+            ("modo", "mo'"),
+            ("di", "d'"),
+            ("esempio", "esempio"),
+        ],
+    ),
+    ("mo' arrivo", &[("mò", "mo'"), ("arrivo", "arrivo")]),
+    // --- `dai` and `da'` by the triggers D5 kept: a clitic before, punctuation after (D4) ---
+    ("Dai, andiamo!", &[("Dai", "Dai"), ("andiamo", "andiamo")]),
+    (
+        "mi dai una mano?",
+        &[
+            ("mi", "mi"),
+            ("dai", "dai"),
+            ("una", "una"),
+            ("mano", "mano"),
+        ],
+    ),
+    ("Me lo dai?", &[("Me", "Me"), ("lo", "lo"), ("dai", "dai")]),
+    ("Ma dai!", &[("Ma", "Ma"), ("dai", "dai")]),
+    (
+        "\u{201C}Ma dai\u{201D} disse",
+        &[("Ma", "Ma"), ("dai", "dai"), ("disse", "disse")],
+    ),
+    (
+        "gliene dai troppi",
+        &[("gliene", "gliene"), ("dai", "dai"), ("troppi", "troppi")],
+    ),
+    (
+        "mi da' una",
+        &[("mi", "mi"), ("dai", "da'"), ("una", "una")],
+    ),
+    // … and the preposition anywhere else — `non`, `me`, `te` measured out by D5 —
+    (
+        "non dai retta",
+        &[
+            ("non", "non"),
+            ("da", "dai"),
+            ("i", "dai"),
+            ("retta", "retta"),
+        ],
+    ),
+    (
+        "con me dai nonni",
+        &[
+            ("con", "con"),
+            ("me", "me"),
+            ("da", "dai"),
+            ("i", "dai"),
+            ("nonni", "nonni"),
+        ],
+    ),
+    (
+        "gli, dai nonni",
+        &[
+            ("gli", "gli"),
+            ("da", "dai"),
+            ("i", "dai"),
+            ("nonni", "nonni"),
+        ],
+    ),
+    (
+        "dai e dai, ce",
+        &[
+            ("da", "dai"),
+            ("i", "dai"),
+            ("e", "e"),
+            ("dai", "dai"),
+            ("ce", "ce"),
+        ],
     ),
     // --- hyphenated runs: the compound rule, an elision on the first piece split off ---
     (
@@ -411,12 +627,36 @@ const ACCENT_CASES: &[Case] = &[
     // --- the apocopes, never: the apostrophe outside the word ---
     ("ne'", &[("ne", "ne")]),
     ("su'", &[("su", "su")]),
-    ("de'", &[("de", "de")]),
+    // refine-lingua-italian-reading D3: `de'`, `que'` and `ca'` are read wherever they stand.
+    ("de'", &[("dei", "de'")]),
     ("co'", &[("co", "co")]),
     ("pe'", &[("pe", "pe")]),
     ("a'", &[("a", "a")]),
-    ("que' due", &[("que", "que"), ("due", "due")]),
-    ("Ca' Foscari", &[("Ca", "Ca"), ("Foscari", "Foscari")]),
+    ("que' due", &[("quei", "que'"), ("due", "due")]),
+    ("Ca' Foscari", &[("Casa", "Ca'"), ("Foscari", "Foscari")]),
+    // refine-lingua-italian-reading D3: before a word, the four are two words, never an accent;
+    // `da'` by its context, never `dà`.
+    (
+        "ne' campi",
+        &[("in", "ne'"), ("i", "ne'"), ("campi", "campi")],
+    ),
+    (
+        "su' colli",
+        &[("su", "su'"), ("i", "su'"), ("colli", "colli")],
+    ),
+    (
+        "da' primi anni",
+        &[
+            ("da", "da'"),
+            ("i", "da'"),
+            ("primi", "primi"),
+            ("anni", "anni"),
+        ],
+    ),
+    (
+        "mi da' una",
+        &[("mi", "mi"), ("dai", "da'"), ("una", "una")],
+    ),
     // --- a word the tables do not accent, or no word to accent ---
     ("ciao'", &[("ciao", "ciao")]),
     ("uomo'", &[("uomo", "uomo")]),
@@ -638,6 +878,25 @@ fn a_word_card_reads_the_written_word_through_the_pre_pass() {
     assert!(pieces("po'", "poco").is_empty());
     assert!(pieces("del", "del").is_empty());
     assert!(pieces("dirmelo", "dirmelo").is_empty());
+    // refine-lingua-italian-reading D4: a word read by its context is read the way that gives the
+    // card's dictionary form, else as it reads alone — `dai` the verb.
+    assert_eq!(pieces("dai", "da"), ["da", "i"]);
+    assert!(pieces("dai", "dare").is_empty());
+    assert!(pieces("dai", "uomo").is_empty());
+    assert_eq!(pieces("Da'", "da"), ["Da", "i"]);
+    assert!(pieces("mo'", "modo").is_empty() && pieces("mo'", "mò").is_empty());
+    // At review: written with its apostrophe, as a page's split reading spans it, a truncated
+    // articulated preposition answers the preposition and `i`, the apocope only where the card asks
+    // it.
+    assert_eq!(pieces("ne'", "in"), ["in", "i"]);
+    assert_eq!(pieces("a'", "a"), ["a", "i"]);
+    assert_eq!(pieces("co'", "con"), ["con", "i"]);
+    assert_eq!(pieces("su'", "su"), ["su", "i"]);
+    assert!(pieces("ne'", "ne").is_empty());
+    // A truncated articulated preposition before a word, and the new elided forms, give their
+    // pieces.
+    assert_eq!(pieces("ne' campi", "campo"), ["in", "i", "campi"]);
+    assert_eq!(pieces("trent'anni", "anno"), ["trenta", "anni"]);
 }
 
 // --- add-lingua-italian-analysis (task 6.1) ---
@@ -667,6 +926,12 @@ const ANALYSIS_FORMS: &[(&str, &str)] = &[
     ("sviluppata", "sviluppato"),
     ("sa", "sapere"),
     ("fa", "fare"),
+    // refine-lingua-italian-reading: the verb `dai`, as the forms tables file it; the closed words'
+    // inflected forms as a pack files them under their lemma (D6).
+    ("dai", "dare"),
+    ("entrambe", "entrambi"),
+    ("parecchie", "parecchio"),
+    ("venisse", "venire"),
 ];
 
 /// The analysis's lemmas, each its own form.
@@ -746,6 +1011,15 @@ const ANALYSIS_LEMMAS: &[&str] = &[
     "subito",
     "risultare",
     "vestire",
+    "entrambi",
+    "parecchio",
+    "venire",
+    "davanti",
+    "dietro",
+    "ossia",
+    "primo",
+    "anche",
+    "bene",
 ];
 
 /// (text glossed as Italian, each token as (surface, lemma, function word)).
@@ -945,6 +1219,99 @@ const ANALYSIS_CASES: &[AnalysisCase] = &[
             ("salvo", "salvo", false),
             ("qualunque", "qualunque", true),
             ("cosa", "cosa", false),
+        ],
+    ),
+    // --- the closed words an Italian reader's review added (refine-lingua-italian-reading D6) ---
+    (
+        "davanti alla porta",
+        &[
+            ("davanti", "davanti", true),
+            ("a", "a", true),
+            ("la", "la", true),
+            ("porta", "porta", false),
+        ],
+    ),
+    (
+        "dietro la porta",
+        &[
+            ("dietro", "dietro", true),
+            ("la", "la", true),
+            ("porta", "porta", false),
+        ],
+    ),
+    (
+        "entrambe le vite",
+        &[
+            ("entrambe", "entrambi", true),
+            ("le", "le", true),
+            ("vite", "vita", false),
+        ],
+    ),
+    (
+        "ambedue i giorni",
+        &[
+            ("ambedue", "ambedue", true),
+            ("i", "i", true),
+            ("giorni", "giorni", false),
+        ],
+    ),
+    (
+        "parecchie porte",
+        &[("parecchie", "parecchio", true), ("porte", "porta", false)],
+    ),
+    (
+        "anziché parlare",
+        &[("anziché", "anziché", true), ("parlare", "parlare", false)],
+    ),
+    (
+        "non oggi, bensì",
+        &[
+            ("non", "non", true),
+            ("oggi", "oggi", false),
+            ("bensì", "bensì", true),
+        ],
+    ),
+    (
+        "il pane nonché",
+        &[
+            ("il", "il", true),
+            ("pane", "pane", false),
+            ("nonché", "nonché", true),
+        ],
+    ),
+    (
+        "ossia il primo",
+        &[
+            ("ossia", "ossia", true),
+            ("il", "il", true),
+            ("primo", "primo", false),
+        ],
+    ),
+    (
+        "pertanto, qualora venisse",
+        &[
+            ("pertanto", "pertanto", true),
+            ("qualora", "qualora", true),
+            ("venisse", "venire", false),
+        ],
+    ),
+    // … and the words the review confirmed out: `anche`, `stare` (« sto bene »).
+    ("anche", &[("anche", "anche", false)]),
+    (
+        "sto bene",
+        &[("sto", "stare", false), ("bene", "bene", false)],
+    ),
+    // `dai` read by its context, through the phrase gloss: the verb *dare*, or `da` + `i`.
+    (
+        "Dai, andiamo",
+        &[("Dai", "dare", false), ("andiamo", "andare", false)],
+    ),
+    (
+        "dai giorni",
+        &[
+            ("da", "da", true),
+            ("i", "i", true),
+            ("giorni", "giorni", false),
         ],
     ),
     (

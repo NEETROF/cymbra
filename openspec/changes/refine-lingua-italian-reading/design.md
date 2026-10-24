@@ -427,3 +427,198 @@ requirement its predecessor left.
 Nothing deploys and nothing is released: no listed pair studies Italian before change 20. The
 implementation's pull request carries the code, the fixture, the golden and the owner's `reduce`
 dispatch's commit; rollback is a revert of that pull request, tables included.
+
+## Implementation — D5's measurement, what ships, and what departs (2026-10-24)
+
+### The measurement (tasks 2.1–2.3)
+
+The criteria were written down, as D5 fixes them, before any figure was read; the only choices they
+add are how each is operated, listed below with what they decided. **UD Italian-PUD and MarkIT's test
+section were read by nothing**: the corpus script refuses both file names.
+
+**Corpus.** Change 8's local, sha256-checked copies, read by `it_guard`'s readers (blocks cleaned of
+soft hyphens and whitespace runs, no minimum length, so that a Tatoeba « Dai! » counts):
+
+| Source | Blocks | Words |
+|---|---|---|
+| MarkIT train + dev — the gold | 952 | 28,574 |
+| `pages-it.txt` as on main | 65 | 1,072 |
+| *I promessi sposi* (PG #45334) | 3,163 | 230,144 |
+| *Pinocchio* (PG #52484) | 1,955 | 43,407 |
+| Change 8's Italian Wikipedia sample | 15,981 | 567,890 |
+| Tatoeba, the whole Italian export of 2026-10-17 (the 20,000-id sample read once, inside it) | 989,119 | 5,927,154 |
+
+Each block was tokenised by this branch's lingua-core with the committed it-fr tables; the triggers
+were emulated beside it, and the two agreed on every occurrence.
+
+**`dai` and `da'`.** 2,234 occurrences: 2,161 `dai`, 73 `da'`. MarkIT writes 5, each the multiword
+token `da` + `i` — the gold is 5 prepositions and no verb, all 5 read as the preposition. In the other
+texts, the design's rule read 331 as the verb, each read by hand, and 1,898 as the preposition, of
+which a seeded sample of 100 was read (`random.Random(20261024).sample`, in corpus order); every `da'`
+was read too. Each judgement is recorded per occurrence: I read every occurrence, and the file was
+written « default unless listed » (`write_judgements.py`) — each verb reading the verb, each sampled
+preposition reading and each `da'` the preposition, but the ones listed with the reason they are
+not — rather than as 496 labels typed one by one.
+
+*Criterion 2, per trigger* (a trigger's readings are the occurrences it fires on, alone or with
+another; MarkIT and the hand-read texts pooled):
+
+| Trigger | Read as the verb | The verb | Precision | Verdict |
+|---|---|---|---|---|
+| `non` right before | 8 | 7 | 87.5 % | **dropped** — « fatte dagli uomini e non dai computer » (Tatoeba #848938) is the preposition |
+| a clitic right before | 79 | 79 | 100 % | kept — `mi` 50, `gli` 8, `la` 5, `lo` 4, `ci` 3, `le` 3, `ti` 3, `glielo` 2, `gliela` 1; `ce`, `ne`, `glieli`, `gliele`, `gliene` written before none |
+| `me`/`te` right before | 0 | — | no figure | **dropped** — the corpus writes neither before `dai` or `da'`, and D4 keeps them « only on their own figures » |
+| punctuation, a closing quote or the end right after | 253 | 252 | 99.6 % | kept — the other is a name, « dell'etnia Dai » (Tatoeba #700803) |
+
+*Criterion 3, on the rule that ships* (the clitic and punctuation triggers): no preposition among its
+323 verb readings, none of MarkIT's 5 read as the verb — **0 / (5 + 1,906) = 0.00 %**, within 1 %:
+the rule ships. (The design's full rule: 1 / 1,903 = 0.05 %.)
+
+*Criterion 4, reported.* The verbs the rule misses: in the sample of 100 preposition readings, 82
+are the preposition, 17 the verb and 1 other (a Friulian title, « Associazion dai Longobarts ») —
+about 17 % of the 1,906 preposition readings left, some 320 verbs, nearly all Tatoeba's imperatives
+with no sign (« Dai una possibilità alla pace! », « Dai che veniamo! », « Ma dai che ti diverti »,
+« quelli a cui dai da bere »), read as the preposition as before; beside them, the 7 `non dai` verbs
+the dropped trigger leaves. MarkIT has no gold verb.
+
+*`da'`*, 73 (*I promessi sposi* 64, *Pinocchio* 2, Tatoeba 5, Wikipedia 2): 67 are the preposition,
+each now `da` + `i` (change 6 read all of them as the verb); 6 are the verb — « Chi ti da' il
+diritto » read `dai` (the clitic), and 5 imperatives with no sign now read `da` + `i` where change 6
+read them right (*Pinocchio* « — Da' retta a me », Tatoeba « Da' un'occhiata… », « Da' un fazzoletto
+a Tom », « Da' il massimo », « Da' questo libro »). A `da'` inside an open quote is read `da` as
+written, as before.
+
+**`mo'`** (task 2.2). The corpus writes no `mo'` and no `mò` at all. Neither branch is measured: the
+rule ships unmeasured, on the specialist's word, as D5 allows for the `mò` branch; its `modo` branch
+is change 6's reading before `di`.
+
+**Each new piece and truncation** (task 2.3), from the implementation's tokens:
+
+| Piece | Read | Words it was joined to |
+|---|---|---|
+| `trent'` | 339 | `trent'anni` 338, written alone 1 (MarkIT « i trent' anni ») |
+| `gliel'` | 194 | `gliel'ho` 101, `gliel'ha` 48, `gliel'hai` 25, `gliel'avevo` 6, `gliel'avete` 3, 7 others |
+| `quarant'` | 77 | `quarant'anni` 77 |
+| `tant'` | 52 | `tant'è` 15, `tant'altri` 6, `tant'anni` 5, `tant'altre` 5, `tant'avanti` 2, `tant'incomodi` 2, 6 others |
+| `sessant'`, `cinquant'`, `ottant'`, `settant'`, `diciott'`, `novant'` | 28, 27, 24, 20, 19, 15 | `…'anni` (and `cinquant'` alone once) |
+| `null'` | 13 | `null'altro` 13 |
+| `ventiquattr'` | 11 | `ventiquattr'ore` 11 (the 24 hours, never the bag *ventiquattrore*) |
+| `qual'` | 8 | `qual'è` 6, `qual'era` 1, Manzoni's quoted 17th-century « qual'erranti » 1 |
+| `neanch'` | 7 | `neanch'io` 7 |
+| `ogn'` | 5 | `ogn'altro` 2, `ogn'anno`, `ogn'arte`, `ogn'ombra` (all literary) |
+| `fin'` | 3 | **`fin'ora` 2** (Tatoeba #1518371, #1561420), **`fin'amor` 1** (Wikipedia) |
+| `prim'`, `ultim'` | 2, 2 | `prim'ordine`, Manzoni's « alla prim'aria »; `ultim'ora`, Manzoni's « ne' suoi ultim'anni » |
+| `coll'` | 25 | `coll'indice` 2, `coll'ultimo` 2, 21 others, all literary |
+| `degl'` | 12 | `degl'inni` 2, `degl'imbrogli` 2, 8 others |
+| `de'` | 623 | *I promessi sposi* 562, Wikipedia 46 (« Lorenzo de' Medici », « Campo de' Fiori »), Tatoeba 10, *Pinocchio* 5 |
+| `que'` | 267 | *I promessi sposi* 263, *Pinocchio* 2, Wikipedia 2 |
+| `ca'` | 17 | Wikipedia, Venice's palaces (« Ca' Foscari », « Ca' Rezzonico ») |
+| `a'` | 99 before a word / 1 before anything else | the other a quoted « ‘su, a’ » |
+| `co'` | 81 / 0 | |
+| `ne'` | 108 / 0 | *I promessi sposi* 106 (each *nei*), Tatoeba 2 |
+| `su'` | 13 / 1 | the other a quoted « ‘su’ » |
+
+Read by hand where a piece could read a word wrongly: the only splits of a word Italian writes whole
+are `fin'ora` (*finora*, read `fino` + `ora`) and the Occitan loan *fin'amor* (read `fino` +
+`amor`); two readings are not the book's word — *Pinocchio*'s Tuscan « per il su' verso » (*suo*,
+read `su` + `i`) and a Venetian quotation's « a' ghe son mi » (read `a` + `i`) —; and Manzoni's
+« prim'aria » and « ultim'anni » get the right lemma in the wrong gender or number (`primo`,
+`ultima`). Every other occurrence reads as the book means it. These are the owner's to weigh (task
+3.1).
+
+### What ships, and the decisions the measurement made
+
+- **`dai` and `da'`** are the verb after a clitic pronoun (`mi`, `ti`, `ci`, `gli`, `le`, `lo`,
+  `la`, `ne`, `ce`, `glielo`, `gliela`, `glieli`, `gliele`, `gliene`) or before punctuation, a
+  closing quote or the end of the text, the preposition otherwise. `non`, `me` and `te` are no
+  trigger (D5's fallback for a trigger dropped by criterion 2); the spec's block lists the clitics
+  without `me` and `te`, its scenario *dai, the verb* loses « non dai retta », which *dai, the
+  preposition* now holds with « vieni con me dai nonni? ». « Me lo dai? » keeps the verb: `lo`
+  before, `?` after.
+- **`me` and `te`, decided after the counts.** The criteria written down for this measurement kept a
+  trigger that fires on no occurrence, as unmeasured. The counts then showed that `me` and `te` fire
+  on none, and only after reading them I dropped the two, conservatively, under D4's own words
+  (« D5 keeps them only on their own figures »), which the generic line of the criteria contradicts
+  for them; no precision of any trigger had been read. The owner approved it (task 3.1).
+- **`mo'`** ships, unmeasured (above).
+- **How the rules read their context**, decided before the figures and not tuned after them: « the
+  word just before it, nothing but a space between » is one or more whitespace characters after the
+  word's letters, so a comma between (« gli, dai nonni ») is no clitic before; punctuation must be
+  right after the word, so « Ma dai ! » is the preposition; a closing quotation mark is `"`, `”`,
+  `»`, `'`, `’` or `›` right after it; the end of the text is nothing, or nothing but spaces, after
+  it. `mo'`'s next word is the one after a space, read through the elided `d'` (« a mo' d'esempio »).
+
+### Departures from the decisions, as implemented
+
+- **The pre-pass exposes both readings** through `tokenize::tokenize_readings`, which `word_grammar`
+  reads: the tokens as the word reads alone first, then each word read by its context the other way.
+  Every other text has one reading, so no other card moves.
+- **The quote scan** reads a truncated articulated preposition's apostrophe as its own when a word
+  follows it — `da'` always —, as a truncation's is: inside an open straight quote, « 'Mi siedo su'
+  gradini, un po' » leaves `po'` as written, as « 'un po' di lavoro' » already does.
+- **The fixture's glosses.** The ten glosses the fixture gains (`quale`, `tanto`, `fino`, `primo`,
+  `ultimo`, `nulla`, `neanche`, `trenta`, `glielo`, `mò`) also show where a page already wrote the
+  word: `primo` on `manzoni`, `fino` on `omografi` and `grammatica`, `tanto` on `informale`.
+- **Where D1's two new lines go**: each at the end of its page, so that no other block's index
+  moves.
+- **Task 1.7** does not apply: change 12 is not on main; its implementation covers this change's
+  tables by the pointer in its D6, and its task 1.3 names them.
+- **At review (2026-10-24), two fixes.** A word card on « ne' », « a' », « co' » or « su' » — the
+  written word a page hands it when it read the word before another as the preposition and `i`, the
+  only reading whose span holds the apostrophe — answers that reading first (`tokenize_readings`),
+  the apocope where the card asks it: the spec's word-card sentence names the four, and a scenario
+  holds them. And a quoted short word no longer leaves its quote open: the apostrophe after a word
+  a quote mark opened right before (« la particella 'ne' », « 'a' », « 'de' », « 'po' ») closes the
+  quote, and `a'`, `co'`, `ne'`, `su'` never keep one open — the pre-pass reads them with their
+  apostrophe only where no quote is open, so « 'Vieni su' gli disse, un po' » reads `poco` again, as
+  on main; the accent requirement's sentence and a scenario say so. Neither fix touches the reducer:
+  the rule digest and the predicted pack stand.
+
+### The golden (task 5.4)
+
+`it-fr.golden`, re-blessed once and passing unblessed after (and once more at review, for the
+fixture's `sarà`), moves in: the pack line (6,010 → 6,485
+bytes, `analyzer_version` 1.4.0) and the `analyzer_version` field of every `analyse` probe; D1's
+lines on `elisioni` (`non`, `più`; `sarà`, read *essere* through a fixture row added at review), `ricetta` (`Sbattete`, `uova`, `con`, `parmigiano`,
+`cuocete`), `tecnico` (`affidabilità`), `grammatica` (`mi`, `hai`, and the courtesy line, its `La`
+and `Le` read as the article's word *il*, not set aside as names — a known limit: the courtesy
+pronoun, *Lei*'s `La` and `Le`, is not told from the article, as no rule of the analysis tells
+them) and `informale` (the new line: `pò` →
+*poco*, `quale` + `è`), the reader's `elisioni` probe with them; the fixture's new glosses (above); the
+level ladder's typical vocabularies and the vocabulary estimates' universe (111 → 121), which count
+the fixture's ranked, glossed lemmas; and the probes D8 adds — nine phrases and three grammar pairs,
+each reading as this change says. `notizie` moves in its version and in the spans of the 14 words after « 0,3% » and « 3,5% », one
+or two bytes earlier: the percentages are digits, dropped as before. The pages' `dai` — « dai molti suoi cocuzzoli », « dai nonni », « dai
+cugini » — stay `da` + `i`.
+
+### What the owner's dispatch will write (task 4.3, reduced locally)
+
+Reduced as `lingua-pack-update` reduces — Python 3.12 with `requirements-reduce.txt` (wordfreq
+3.1.1), `build.sh --reduce it-fr`, the release assets `lingua-pack-sources-it-fr-2026.10.23` and
+`lingua-pack-sources-morph-it-0.4.8`, MarkIT at `e210079d` —, on a scratch checkout. Main's own rules
+first: they give main's committed tables byte for byte (pack `c336764b…`, base `e0d9cffa…`, layer
+`234bf726…`). This change's rules then write, against D7's list:
+
+- `tables/it/forms.tsv`, 129,601 → 129,610 rows: out, D7's 24 ranked words beginning with a new
+  piece, its 7 stems and `da'`; in, `degl'`, `fin'`, `ogn'`, `ottant'`, `que'`, `ultim'` and
+  `ventiquattr'`, and 34 forms of the 31 lemmas the closed-up ranks admit at the bottom of the cut
+  (`lir` … `marullo`); `prim'` moves from *prima* to *primo*, and `mandarina`, now ranked, reads as
+  itself.
+- `tables/it/freq.tsv`: the 31 entries of D7 leave, the ranks close up, 31 lemmas enter at 59,970–
+  60,000.
+- `tables/it/grammar.tsv` (change 13's), 132,849 → 132,860: `da'`'s imperative reading leaves, the
+  entering lemmas' readings join; `tables/it/level.tsv` (change 14's), 8,302 levels as before:
+  `trent'anni`, `quarant'anni`, `cinquant'anni` and `tant'è` leave, four lemmas enter at C2, and nine
+  move up a level as the ranks close up (`bunker`, `cacao` C1 → B2; `ricercatore` B2 → B1; `vile` C2
+  → C1 …). `lexical.tsv`, `NOTICE` and `gloss.tsv` do not move.
+- `tables/it-fr/manifest.json`: `analyzer_version` 1.4.0, `pack_version` `2026.10.23+52877fd`;
+  `pin.json`: the pack `1efa61eb2a39b1b437fd08531176b731039522fc49e803182ab3da44e8321c33` (1,553,227
+  B), the base `a0a5fe0655f1e4ce918f7b9a161927aae1d287e77c1dea8897e372339c4632f3` (1,551,534 B), the
+  layer `92f34860f8c2e0bacd208d2a1a608b9713881b863e62661f25109978df27e8cb` (1,918 B), the rule digest
+  `52877fdb0ab611c4839086be892878e11c948271fd530e1c62e1b5e3c25f5914`.
+
+On those tables, in the scratch checkout: `committed_tables` passes (62 of 62), `cross_native` and
+`italian_baseline` pass unblessed, and `measure/it-ud.sh` reads UD Italian-PUD **99.26 % resolved,
+91.31 % of content words, 99.90 % of auxiliaries** (gates 98.5 / 90.5 / 97) and MarkIT's test section
+99.43 / 94.65 / 98.87 — each as on main. The tables were left there, never committed: the dispatch
+writes them.

@@ -32952,7 +32952,6 @@ cyberbullismo	cyberbullismo	NOUN|Gender=Masc|Number=Sing	-
 cyborg	cyborg	NOUN|Gender=Masc|Number=Sing	-
 cyclette	cyclette	NOUN|Gender=Fem|Number=Plur	-
 cyclette	cyclette	NOUN|Gender=Fem|Number=Sing	-
-da'	dare	VERB|Mood=Imp|Number=Sing|Person=2|VerbForm=Fin	-
 dabbenaggine	dabbenaggine	NOUN|Gender=Masc|Number=Sing	-
 dacia	dacia	NOUN|Gender=Fem|Number=Sing	-
 dacie	dacia	NOUN|Gender=Fem|Number=Plur	-
@@ -67326,6 +67325,8 @@ liscie	liscio	ADJ|Gender=Fem|Number=Plur	-
 liscio	lisciare	VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	other
 liscio	liscio	ADJ|Gender=Masc|Number=Sing	-
 liscio	liscio	NOUN|Gender=Masc|Number=Sing	-
+lisergica	lisergico	ADJ|Gender=Fem|Number=Sing	-
+lisergico	lisergico	ADJ|Gender=Masc|Number=Sing	-
 lisi	lisi	NOUN|Gender=Fem|Number=Plur	-
 lisi	lisi	NOUN|Gender=Fem|Number=Sing	-
 lisina	lisina	NOUN|Gender=Fem|Number=Sing	-
@@ -67687,6 +67688,8 @@ lolita	lolita	NOUN|Gender=Fem|Number=Sing	-
 lolite	lolita	NOUN|Gender=Fem|Number=Plur	-
 lolla	lolla	NOUN|Gender=Fem|Number=Sing	-
 lolle	lolla	NOUN|Gender=Fem|Number=Plur	-
+lombalgia	lombalgia	NOUN|Gender=Fem|Number=Sing	-
+lombalgie	lombalgia	NOUN|Gender=Fem|Number=Plur	-
 lombarda	lombardo	ADJ|Gender=Fem|Number=Sing	-
 lombarda	lombardo	NOUN|Gender=Fem|Number=Sing	-
 lombarde	lombardo	ADJ|Gender=Fem|Number=Plur	-
@@ -67984,6 +67987,8 @@ lumina	luminare	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
 luminare	luminare	NOUN|Gender=Masc|Number=Sing	-
 luminare	luminare	VERB|VerbForm=Inf	-
 luminari	luminare	NOUN|Gender=Masc|Number=Plur	-
+luminescente	luminescente	ADJ|Number=Sing	-
+luminescenti	luminescente	ADJ|Number=Plur	-
 luminescenza	luminescenza	NOUN|Gender=Fem|Number=Sing	-
 luminescenze	luminescenza	NOUN|Gender=Fem|Number=Plur	-
 lumini	luminare	VERB|Mood=Ind|Number=Sing|Person=2|Tense=Pres|VerbForm=Fin	-
@@ -68648,6 +68653,7 @@ malanno	malanno	NOUN|Gender=Masc|Number=Sing	-
 malaria	malaria	NOUN|Gender=Fem|Number=Sing	-
 malasanità	malasanità	NOUN|Gender=Fem|Number=Plur	-
 malasanità	malasanità	NOUN|Gender=Fem|Number=Sing	-
+malasorte	malasorte	NOUN|Gender=Fem|Number=Sing	-
 malassorbimento	malassorbimento	NOUN|Gender=Masc|Number=Sing	-
 malata	malato	ADJ|Gender=Fem|Number=Sing	-
 malate	malato	ADJ|Gender=Fem|Number=Plur	-
@@ -69082,7 +69088,9 @@ mandanti	mandante	NOUN|Gender=Fem|Number=Plur	other
 mandanti	mandante	NOUN|Gender=Masc|Number=Plur	other
 mandanti	mandare	VERB|Number=Plur|Tense=Pres|VerbForm=Part	-
 mandare	mandare	VERB|VerbForm=Inf	-
-mandarina	mandarino	ADJ|Gender=Fem|Number=Sing	-
+mandarina	mandarina	NOUN|Gender=Fem|Number=Sing	-
+mandarina	mandarino	ADJ|Gender=Fem|Number=Sing	other
+mandarine	mandarina	NOUN|Gender=Fem|Number=Plur	other
 mandarine	mandarino	ADJ|Gender=Fem|Number=Plur	-
 mandarini	mandarino	ADJ|Gender=Masc|Number=Plur	-
 mandarini	mandarino	NOUN|Gender=Masc|Number=Plur	-
@@ -69507,6 +69515,7 @@ mansueta	mansueto	ADJ|Gender=Fem|Number=Sing	-
 mansuete	mansueto	ADJ|Gender=Fem|Number=Plur	-
 mansueti	mansueto	ADJ|Gender=Masc|Number=Plur	-
 mansueto	mansueto	ADJ|Gender=Masc|Number=Sing	-
+mansuetudine	mansuetudine	NOUN|Gender=Fem|Number=Sing	-
 manta	manto	ADJ|Gender=Fem|Number=Sing	-
 mante	manto	ADJ|Gender=Fem|Number=Plur	-
 mantella	mantella	NOUN|Gender=Fem|Number=Sing	-
@@ -69580,6 +69589,8 @@ mantovano	mantovano	ADJ|Gender=Masc|Number=Sing	-
 mantovano	mantovano	NOUN|Gender=Masc|Number=Sing	-
 manuale	manuale	ADJ|Number=Sing	-
 manuale	manuale	NOUN|Gender=Masc|Number=Sing	-
+manualetti	manualetto	NOUN|Gender=Masc|Number=Plur	-
+manualetto	manualetto	NOUN|Gender=Masc|Number=Sing	-
 manuali	manuale	ADJ|Number=Plur	-
 manuali	manuale	NOUN|Gender=Masc|Number=Plur	-
 manualistica	manualistica	NOUN|Gender=Fem|Number=Sing	-

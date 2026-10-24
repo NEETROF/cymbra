@@ -217,6 +217,33 @@ pub fn tokenize(
     tokens
 }
 
+/// The readings of `text`, the one a page gives the written word first: the tokens
+/// [`tokenize`] gives, then — where Italian's pre-pass reads a word of it by its context, `dai`,
+/// `da'` or `mo'` (refine-lingua-italian-reading D4) — the same tokens with each such word read
+/// the other way: `dai` as the verb or as `da` + `i`, `mo'` as `modo` or `mò`. A word card is
+/// handed the written word alone, which ends the text — `dai` reads the verb there, `mo'` `mò`
+/// —, and answers the reading that holds its dictionary form (`engine::word_grammar`): a card
+/// keyed by `da` asks for the preposition. `a'`, `co'`, `ne'` and `su'` written with their
+/// apostrophe (D3, at review) read first as the preposition and `i`, the only reading whose span
+/// holds the apostrophe — the one a page that read them so hands the card —, then as the
+/// apocope [`tokenize`] gives them alone. Every other text has one reading, [`tokenize`]'s.
+pub fn tokenize_readings(
+    text: &str,
+    language: StudiedLanguage,
+    lexicon: &(impl Lexicon + ?Sized),
+) -> Vec<Vec<Token>> {
+    let tokens = tokenize(text, language, lexicon);
+    let other = match language {
+        StudiedLanguage::Italian => italian_other_reading(text, &tokens),
+        StudiedLanguage::English | StudiedLanguage::Spanish | StudiedLanguage::French => None,
+    };
+    match other {
+        Some((other, true)) => vec![other, tokens],
+        Some((other, false)) => vec![tokens, other],
+        None => vec![tokens],
+    }
+}
+
 /// Emits an ordinary single-word token, applying the pre-pass: apostrophe
 /// normalisation/trimming, NFC (Spanish, French, Italian), the language's contraction split
 /// (English `n't`, Spanish `al`/`del`), the digit drop and the
@@ -736,10 +763,13 @@ fn push_french_run(
 const ITALIAN: StudiedLanguage = StudiedLanguage::Italian;
 
 /// Italian's elided words — what is written before the apostrophe, lowercase —
-/// and the word each stands for (D3), sorted byte-wise by the written form. One
+/// and the word each stands for (D3), sorted byte-wise by the written form; the
+/// eighteen an Italian-specialist review found read as one unknown word — `trent'`,
+/// `qual'`, `tant'`, `gliel'`, `ultim'` … — since refine-lingua-italian-reading (D2). One
 /// reading depends on the context ([`italian_elided`]): `diss'` is `dissi` before
-/// `io`. A form the list leaves out is read as written (`altr'ora` stays whole).
-/// Public for the checks that a pack holds every word Italian's pre-pass reads.
+/// `io`. A form the list leaves out is read as written (`altr'ora` stays whole, and so
+/// does `oltr'alpe`, which Italian writes `oltralpe`). Public for the checks that a pack
+/// holds every word Italian's pre-pass reads.
 pub const ITALIAN_ELISIONS: &[(&str, &str)] = &[
     // `alcun'altra` → `alcuna` + `altra` (the masculine elides without an apostrophe)
     ("alcun", "alcuna"),
@@ -757,6 +787,8 @@ pub const ITALIAN_ELISIONS: &[(&str, &str)] = &[
     ("ch", "che"),
     // `ciascun'altra` → `ciascuna` + `altra`
     ("ciascun", "ciascuna"),
+    // `cinquant'anni` → `cinquanta` + `anni` (refine-lingua-italian-reading D2)
+    ("cinquant", "cinquanta"),
     // `com'è` → `come` + `è`
     ("com", "come"),
     // `cos'è` → `cosa` + `è`
@@ -765,12 +797,18 @@ pub const ITALIAN_ELISIONS: &[(&str, &str)] = &[
     ("d", "di"),
     // `dev'essere` → `deve` + `essere`
     ("dev", "deve"),
+    // `diciott'anni` → `diciotto` + `anni`
+    ("diciott", "diciotto"),
     // `diss'egli` → `disse` + `egli`; `diss'io` → `dissi` + `io`
     ("diss", "disse"),
     // `dov'è` → `dove` + `è`
     ("dov", "dove"),
+    // `fin'ora` → `fino` + `ora` (the plain `fin` is an apocope, a word of its own)
+    ("fin", "fino"),
     // `gl'italiani` → `gli` + `italiani`
     ("gl", "gli"),
+    // `gliel'ho` → `glielo` + `ho`
+    ("gliel", "glielo"),
     // `grand'uomo` → `grande` + `uomo`
     ("grand", "grande"),
     // `l'uomo` → `lo` + `uomo` (`la` would need the next word's gender; `il` never elides)
@@ -781,12 +819,26 @@ pub const ITALIAN_ELISIONS: &[(&str, &str)] = &[
     ("mezz", "mezzo"),
     // `n'è` → `ne` + `è`
     ("n", "ne"),
+    // `neanch'io` → `neanche` + `io`
+    ("neanch", "neanche"),
     // `nessun'altra` → `nessuna` + `altra` (the masculine elides without an apostrophe)
     ("nessun", "nessuna"),
     // `nient'altro` → `niente` + `altro`
     ("nient", "niente"),
+    // `novant'anni` → `novanta` + `anni`
+    ("novant", "novanta"),
+    // `null'altro` → `nulla` + `altro`
+    ("null", "nulla"),
+    // `ogn'uno` → `ogni` + `uno` (literary)
+    ("ogn", "ogni"),
+    // `ottant'anni` → `ottanta` + `anni`
+    ("ottant", "ottanta"),
     // `pover'uomo` → `povero` + `uomo` (also `povera`; the masculine, as `l'`)
     ("pover", "povero"),
+    // `prim'ordine` → `primo` + `ordine` (the masculine, as `l'`)
+    ("prim", "primo"),
+    // `qual'è` → `quale` + `è` (a misspelling of « qual è », the web's commonest)
+    ("qual", "quale"),
     // `qualcos'altro` → `qualcosa` + `altro`
     ("qualcos", "qualcosa"),
     // `qualcun'altra` → `qualcuna` + `altra`
@@ -795,6 +847,8 @@ pub const ITALIAN_ELISIONS: &[(&str, &str)] = &[
     ("quand", "quando"),
     // `quant'è` → `quanto` + `è`
     ("quant", "quanto"),
+    // `quarant'anni` → `quaranta` + `anni`
+    ("quarant", "quaranta"),
     // `quell'amico` → `quello` + `amico`
     ("quell", "quello"),
     // `quest'anno` → `questo` + `anno`
@@ -805,18 +859,30 @@ pub const ITALIAN_ELISIONS: &[(&str, &str)] = &[
     ("sant", "santo"),
     // `senz'altro` → `senza` + `altro`
     ("senz", "senza"),
+    // `sessant'anni` → `sessanta` + `anni`
+    ("sessant", "sessanta"),
+    // `settant'anni` → `settanta` + `anni`
+    ("settant", "settanta"),
     // `sott'acqua` → `sotto` + `acqua`
     ("sott", "sotto"),
     // `t'amo` → `ti` + `amo`
     ("t", "ti"),
+    // `tant'è` → `tanto` + `è`
+    ("tant", "tanto"),
+    // `trent'anni` → `trenta` + `anni`
+    ("trent", "trenta"),
     // `tutt'altro` → `tutto` + `altro`
     ("tutt", "tutto"),
+    // `l'ultim'ora` → `lo` + `ultima` + `ora` (its one common use, feminine)
+    ("ultim", "ultima"),
     // `un'amica` → `una` + `amica`
     ("un", "una"),
     // `v'è` → `vi` + `è`
     ("v", "vi"),
     // `vent'anni` → `venti` + `anni`
     ("vent", "venti"),
+    // `ventiquattr'ore` → `ventiquattro` + `ore`
+    ("ventiquattr", "ventiquattro"),
 ];
 
 /// Italian's articulated prepositions read as two words (D4, I7) — written
@@ -857,12 +923,16 @@ pub const ITALIAN_CONTRACTIONS: &[(&str, &str, &str)] = &[
 
 /// Italian's elided articulated prepositions — what is written before the
 /// apostrophe, lowercase — and the words each is read as (D4), sorted byte-wise:
-/// `dell'` is the `di` family's and reads whole as `dello`, no article after it;
-/// the others are the preposition and `lo`, sharing the span, apostrophe included.
-/// Public for the same checks as [`ITALIAN_ELISIONS`].
+/// `dell'` and `degl'` are the `di` family's and read whole as `dello` and `degli`, no
+/// article after them (« degl'Italiani »); the others are the preposition and `lo`,
+/// sharing the span, apostrophe included — the literary `coll'` too (« coll'aiuto »;
+/// both since refine-lingua-italian-reading D2). Public for the same checks as
+/// [`ITALIAN_ELISIONS`].
 pub const ITALIAN_ELIDED_PREPOSITIONS: &[(&str, &str, Option<&str>)] = &[
     ("all", "a", Some("lo")),
+    ("coll", "con", Some("lo")),
     ("dall", "da", Some("lo")),
+    ("degl", "degli", None),
     ("dell", "dello", None),
     ("nell", "in", Some("lo")),
     ("sull", "su", Some("lo")),
@@ -872,18 +942,48 @@ pub const ITALIAN_ELIDED_PREPOSITIONS: &[(&str, &str, Option<&str>)] = &[
 /// lowercase — and the word each stands for (D5), sorted byte-wise. The truncated
 /// imperatives are read as their verb's present second person (`fa'` → `fai`,
 /// `di'` → `dici`, of `dire`), a form the page could have written, which the forms
-/// table files under the verb; none of the eight is a word with its apostrophe.
-/// A truncation's read word is final: `da'` is `dai`, never `da` + `i`. Public for
-/// the same checks as [`ITALIAN_ELISIONS`].
+/// table files under the verb; none of them is a word with its apostrophe. The
+/// books' `ca'`, `de'` and `que'` (« Ca' Foscari », « Lorenzo de' Medici », « que'
+/// due ») are read as `casa`, `dei` — the `di` family's, whole — and `quei` since
+/// refine-lingua-italian-reading (D3), and `da'` has left for
+/// [`ITALIAN_TRUNCATED_PREPOSITIONS`]. A truncation's read word is final, and one
+/// reading depends on the context ([`italian_truncation_read`]): `mo'` is `modo`
+/// before `di` and `mò` otherwise (D4). Public for the same checks as
+/// [`ITALIAN_ELISIONS`].
 pub const ITALIAN_TRUNCATIONS: &[(&str, &str)] = &[
     ("be", "bene"),
-    ("da", "dai"),
+    ("ca", "casa"),
+    ("de", "dei"),
     ("di", "dici"),
     ("fa", "fai"),
     ("mo", "modo"),
     ("po", "poco"),
+    ("que", "quei"),
     ("sta", "stai"),
     ("va", "vai"),
+];
+
+/// Italian's truncated articulated prepositions (refine-lingua-italian-reading D3) — the
+/// word written before its trailing apostrophe, lowercase — and the preposition and the
+/// article each is read as, the two sharing the written word's span, apostrophe included,
+/// the first keeping the written capital, as an articulated preposition is read (I7): the
+/// books write `ai`, `coi`, `dai`, `nei` and `sui` truncated before a consonant. Sorted
+/// byte-wise. `a'`, `co'`, `ne'` and `su'` are read so only when a word follows them with
+/// nothing but a space between — the preposition always has its noun phrase after it —,
+/// and as apocopes otherwise, their apostrophe outside the word ([`ITALIAN_APOCOPES`]);
+/// `da'` wherever it stands, the verb `dai` where its context says so
+/// ([`italian_dai_is_the_verb`], D4). Public for the same checks as [`ITALIAN_ELISIONS`].
+pub const ITALIAN_TRUNCATED_PREPOSITIONS: &[(&str, &str, &str)] = &[
+    // `a' piedi` → `a` + `i` + `piedi`
+    ("a", "a", "i"),
+    // `co' suoi` → `con` + `i` + `suoi`
+    ("co", "con", "i"),
+    // `da' primi suoi anni` → `da` + `i` (Manzoni); `mi da' una mano` → the verb `dai`
+    ("da", "da", "i"),
+    // `ne' campi` → `in` + `i` + `campi`
+    ("ne", "in", "i"),
+    // `su' colli` → `su` + `i` + `colli`
+    ("su", "su", "i"),
 ];
 
 /// The words an Italian elided form or articulated preposition is read as: one,
@@ -922,7 +1022,8 @@ fn italian_contraction(lower: &str) -> Option<ItalianReading> {
     Some(ItalianReading::Contraction(preposition, article))
 }
 
-/// The word a truncation stands for, if `lower` (without its apostrophe) is one (D5).
+/// The word a truncation stands for, if `lower` (without its apostrophe) is one (D5), as
+/// its table writes it.
 fn italian_truncation(lower: &str) -> Option<&'static str> {
     let index = ITALIAN_TRUNCATIONS
         .binary_search_by_key(&lower, |&(form, _)| form)
@@ -930,20 +1031,195 @@ fn italian_truncation(lower: &str) -> Option<&'static str> {
     Some(ITALIAN_TRUNCATIONS[index].1)
 }
 
+/// `mo'`, the one truncation read by the word after it (refine-lingua-italian-reading D4):
+/// its table's `modo` before `di` (« a mo' di esempio »), and this, the Roman and southern
+/// *now* (« mo' arrivo », « e mo'? »), otherwise.
+const ITALIAN_MO: (&str, &str) = ("mo", "mò");
+
+/// The word a truncation ending at byte `end` of `text` is read as (D5): its table's, and
+/// for `mo'` its context's — `modo` when the next word, as read and with nothing but a space
+/// between, is `di` (`di`, or the elided `d'` of « a mo' d'esempio »), `mò` otherwise
+/// (refine-lingua-italian-reading D4).
+fn italian_truncation_read(lower: &str, text: &str, end: usize) -> Option<&'static str> {
+    let read = italian_truncation(lower)?;
+    Some(
+        if lower == ITALIAN_MO.0 && !italian_next_word_reads_di(text, end) {
+            ITALIAN_MO.1
+        } else {
+            read
+        },
+    )
+}
+
+/// Whether the word after byte `end` of `text`, nothing but a space between, reads `di`: the
+/// word `di`, or the elided `d'` before a letter (D4).
+fn italian_next_word_reads_di(text: &str, end: usize) -> bool {
+    let rest = &text[end..];
+    let after = rest.trim_start_matches(char::is_whitespace);
+    if after.len() == rest.len() {
+        return false;
+    }
+    let letters = after
+        .char_indices()
+        .find(|&(_, c)| !c.is_alphabetic())
+        .map_or(after.len(), |(at, _)| at);
+    let word = french_lowercase(&after[..letters]);
+    let mut tail = after[letters..].chars();
+    if tail.next().is_some_and(is_apostrophe) && tail.next().is_some_and(char::is_alphabetic) {
+        italian_elided(&word, "") == Some(ItalianReading::Word("di"))
+    } else {
+        word == "di"
+    }
+}
+
+/// The preposition and the article a truncated articulated preposition is read as, if
+/// `lower` (without its apostrophe) is one of the table's (refine-lingua-italian-reading D3),
+/// whatever follows it.
+fn italian_truncated_preposition(lower: &str) -> Option<(&'static str, &'static str)> {
+    let index = ITALIAN_TRUNCATED_PREPOSITIONS
+        .binary_search_by_key(&lower, |&(form, _, _)| form)
+        .ok()?;
+    let (_, preposition, article) = ITALIAN_TRUNCATED_PREPOSITIONS[index];
+    Some((preposition, article))
+}
+
+/// `da'`, the truncated articulated preposition read wherever it stands, by its context
+/// (D4); the other four only before a word (D3).
+const ITALIAN_DA: &str = "da";
+
+/// Whether Italian's pre-pass reads `lower` (without its apostrophe) as a truncated
+/// articulated preposition with the apostrophe that ends at byte `end` of `text` (D3): `da'`
+/// wherever it stands; `a'`, `co'`, `ne'` and `su'` only when a word follows them with nothing
+/// but a space between ([`italian_word_follows`]).
+fn italian_reads_truncated_preposition(lower: &str, text: &str, end: usize) -> bool {
+    italian_truncated_preposition(lower).is_some()
+        && (lower == ITALIAN_DA || italian_word_follows(text, end))
+}
+
+/// Whether a word follows byte `end` of `text` with nothing but a space between: one or more
+/// whitespace characters, then a letter.
+fn italian_word_follows(text: &str, end: usize) -> bool {
+    let rest = &text[end..];
+    let after = rest.trim_start_matches(char::is_whitespace);
+    after.len() < rest.len() && after.starts_with(char::is_alphabetic)
+}
+
+/// What a word the seam kept its trailing apostrophe for — a truncation, a truncated
+/// articulated preposition — reads as, written from `start` to `end` of `text`, the apostrophe
+/// included: a truncation's word (`mo'` by the word after it, [`italian_truncation_read`]); a
+/// truncated articulated preposition's preposition and `i` — but `da'`, the verb `dai`, one
+/// word, where [`italian_dai_is_the_verb`] says so (refine-lingua-italian-reading D3, D4).
+fn italian_truncated_reading(
+    lower: &str,
+    text: &str,
+    start: usize,
+    end: usize,
+) -> Option<ItalianReading> {
+    if let Some(read) = italian_truncation_read(lower, text, end) {
+        return Some(ItalianReading::Word(read));
+    }
+    let (preposition, article) = italian_truncated_preposition(lower)?;
+    Some(
+        if lower == ITALIAN_DA && italian_dai_is_the_verb(text, start, end) {
+            ItalianReading::Word(ITALIAN_DAI)
+        } else {
+            ItalianReading::Contraction(preposition, article)
+        },
+    )
+}
+
+/// `dai`, the articulated preposition `da` + `i` (I7) and the verb *dare*'s present second
+/// person, and the word the truncated `da'` is read as where it is the verb
+/// (refine-lingua-italian-reading D4).
+const ITALIAN_DAI: &str = "dai";
+
+/// The clitic pronouns after which `dai` and `da'` are the verb (D4): a clitic is never
+/// followed by a preposition (« mi dai una mano? », « me lo dai? », « gliene dai »). Sorted
+/// for the search. Measured (D5): the verb in each of the 79 occurrences it read as the verb
+/// on the corpus — `mi` 50, `gli` 8, `la` 5, `lo` 4, `ci`, `le`, `ti` 3 each, `glielo` 2,
+/// `gliela` 1. `me` and `te`, clitics only before another pronoun and stressed pronouns
+/// elsewhere (« vieni con me dai nonni? »), were a trigger of their own, kept only on their own
+/// figures: the corpus wrote neither before `dai` or `da'`, and they were left out.
+const ITALIAN_DAI_CLITICS: &[&str] = &[
+    "ce", "ci", "gli", "gliela", "gliele", "glieli", "glielo", "gliene", "la", "le", "lo", "mi",
+    "ne", "ti",
+];
+
+/// The word right before byte `start` of `text` when nothing but a space separates the two —
+/// one or more whitespace characters after its letters —, lowercase and in NFC; `None` at the
+/// start of the text or after punctuation.
+fn italian_word_before(text: &str, start: usize) -> Option<String> {
+    let before = &text[..start];
+    let word = before.trim_end_matches(char::is_whitespace);
+    if word.len() == before.len() {
+        return None;
+    }
+    let from = word
+        .char_indices()
+        .rev()
+        .take_while(|&(_, c)| {
+            c.is_alphabetic()
+                || c == SOFT_HYPHEN
+                || unicode_normalization::char::is_combining_mark(c)
+        })
+        .last()?
+        .0;
+    Some(french_lowercase(&word[from..]))
+}
+
+/// D4's clitic trigger: a clitic pronoun right before ([`ITALIAN_DAI_CLITICS`]).
+fn italian_dai_after_a_clitic(before: Option<&str>) -> bool {
+    before.is_some_and(|word| ITALIAN_DAI_CLITICS.binary_search(&word).is_ok())
+}
+
+/// D4's punctuation trigger: right after the word, `,`, `!`, `?`, `.`, `…` or a closing
+/// quotation mark (`"`, `”`, `»`, `'`, `’`, `›`), or the end of the text — nothing, or nothing
+/// but spaces, after it: the preposition is never followed by punctuation (« Dai, andiamo! »,
+/// « Ma dai! », « “Ma dai” disse »). Measured (D5): the verb in 252 of the 253 occurrences it
+/// read as the verb on the corpus (99.6 %), the other a name (« dell'etnia Dai »).
+fn italian_dai_before_punctuation(text: &str, end: usize) -> bool {
+    let rest = &text[end..];
+    match rest.chars().next() {
+        None => true,
+        Some(c) if c.is_whitespace() => rest.trim_start_matches(char::is_whitespace).is_empty(),
+        Some(c) => matches!(
+            c,
+            ',' | '!' | '?' | '.' | '…' | '"' | '\u{201D}' | '»' | '\'' | '\u{2019}' | '›'
+        ),
+    }
+}
+
+/// Whether `dai` or `da'`, written from `start` to `end` of `text`, is the verb *dare*
+/// rather than the preposition `da` + `i` (refine-lingua-italian-reading D4, each trigger
+/// measured on its own by D5): a clitic pronoun right before it
+/// ([`italian_dai_after_a_clitic`]), or punctuation, a closing quotation mark or the end of the
+/// text right after it ([`italian_dai_before_punctuation`]). The design's third trigger, `non`
+/// right before, was measured out (D5: the verb in 7 of its 8 readings, short of 95 % — « fatte
+/// dagli uomini e non dai computer » is the preposition), and so were `me` and `te`
+/// ([`ITALIAN_DAI_CLITICS`]). The verb with no sign — « tu dai il libro a Maria », « non dai
+/// retta », « Dai una mano a Tom » — reads as the preposition, as before.
+fn italian_dai_is_the_verb(text: &str, start: usize, end: usize) -> bool {
+    let before = italian_word_before(text, start);
+    italian_dai_after_a_clitic(before.as_deref()) || italian_dai_before_punctuation(text, end)
+}
+
 /// The literary apocopes and truncations the apostrophe for an accent is never read on
 /// (read-lingua-italian-unmarked-spellings D1), written lowercase without their apostrophe,
-/// sorted byte-wise for the search. The design's six — `ne'` (*nei*), `de'` (*dei*), `co'`
-/// (*coi*), `pe'` (*pei*), `a'` (*ai*), `su'` (*sui*): `ne'` would read `né` and `su'` `sù`,
-/// wrong every time in a book —, and the ten the measurement of its task 2.2 found read as no
-/// word of theirs in the public-domain books and the Wikipedia sample, each a word the tables
-/// list with the accent and Italian does not write so: `que'` (*quei*, 267 times in *I promessi
-/// sposi*, read `qué`), `ca'` (*casa*, « Ca' Foscari », read `cà`), `ve'` (*vedi*, `vè`), `mi'`
-/// (*mio*, `mì`), `fra'` (*frate*, `frà`), `to'` (*togli*, `tò`), `i'` (*io*, `ì`), `me'`
-/// (*meglio*, `mè`), `vo'` (*voglio*, `vò`) and `fe'` (*fece*, `fè`). Each stays as an unlisted
-/// trailing apostrophe is read, its apostrophe outside the word. Private: the rule's own list, which
-/// no table holds.
+/// sorted byte-wise for the search: those Italian's pre-pass does not read. The truncated
+/// articulated prepositions `a'` (*ai*), `co'` (*coi*), `ne'` (*nei*) and `su'` (*sui*) with no
+/// word after them, which the pre-pass reads as two words only before one
+/// ([`ITALIAN_TRUNCATED_PREPOSITIONS`], refine-lingua-italian-reading D3) — with nothing after
+/// them `ne'` would read `né` and `su'` `sù`, wrong every time in a book —; `pe'` (*pei*); and the
+/// eight the measurement of change 10's task 2.2 found read as no word of theirs in the
+/// public-domain books and the Wikipedia sample, each a word the tables list with the accent and
+/// Italian does not write so: `ve'` (*vedi*, `vè`), `mi'` (*mio*, `mì`), `fra'` (*frate*,
+/// `frà`), `to'` (*togli*, `tò`, the interjection « tiens ! »), `i'` (*io*, `ì`), `me'`
+/// (*meglio*, `mè`), `vo'` (*voglio*, `vò`) and `fe'` (*fece*, `fè`). `de'`, `que'` and `ca'`
+/// have left the list: the pre-pass reads them wherever they stand (`dei`, `quei`, `casa`;
+/// [`ITALIAN_TRUNCATIONS`]). Each stays as an unlisted trailing apostrophe is read, its
+/// apostrophe outside the word. Private: the rule's own list, which no table holds.
 const ITALIAN_APOCOPES: &[&str] = &[
-    "a", "ca", "co", "de", "fe", "fra", "i", "me", "mi", "ne", "pe", "que", "su", "to", "ve", "vo",
+    "a", "co", "fe", "fra", "i", "me", "mi", "ne", "pe", "su", "to", "ve", "vo",
 ];
 
 /// The accented form an Italian word reads as when its apostrophe stands for its accent
@@ -958,10 +1234,15 @@ const ITALIAN_APOCOPES: &[&str] = &[
 /// filed under the other, the one whose word the pack ranks higher (`sé` 655 before `sè` 2,911;
 /// `è`, a form of *essere*, before the misspelling `é`), and `è` before `é` where the pack ranks
 /// neither: the tables decide, never a frequency read at run time. Change 6's truncations are
-/// never tried — `po'` is `poco`, `da'` `dai`, never `pò`, `dà` — nor the apocopes
-/// ([`ITALIAN_APOCOPES`]). A lexicon without ranks (a test's stand-in) passes every listed form.
+/// never tried — `po'` is `poco`, never `pò` —, nor the truncated articulated prepositions
+/// (`da'` is `da` + `i` or the verb `dai`, never `dà`; refine-lingua-italian-reading D3), nor the
+/// apocopes ([`ITALIAN_APOCOPES`]). A lexicon without ranks (a test's stand-in) passes every
+/// listed form.
 fn italian_accented(lower: &str, lexicon: &(impl Lexicon + ?Sized)) -> Option<String> {
-    if italian_truncation(lower).is_some() || ITALIAN_APOCOPES.binary_search(&lower).is_ok() {
+    if italian_truncation(lower).is_some()
+        || italian_truncated_preposition(lower).is_some()
+        || ITALIAN_APOCOPES.binary_search(&lower).is_ok()
+    {
         return None;
     }
     let vowel = lower.chars().next_back()?;
@@ -1010,13 +1291,16 @@ fn italian_accented(lower: &str, lexicon: &(impl Lexicon + ?Sized)) -> Option<St
 const ITALIAN_ACCENT_RANK: u32 = 23_000;
 
 /// Whether an Italian word is an elided form (D3's, or D4's `dell'`, `all'`,
-/// `dall'`, `nell'`, `sull'`) or a truncation, read lowercase, in NFC and without
-/// its soft hyphens: `(elided, truncation)`.
-fn italian_listed_before_apostrophe(word: &str) -> (bool, bool) {
+/// `dall'`, `nell'`, `sull'` …), and whether it is a truncation or a truncated articulated
+/// preposition the pre-pass reads with the apostrophe ending at byte `end` of `text`
+/// ([`italian_reads_truncated_preposition`], refine-lingua-italian-reading D3), read
+/// lowercase, in NFC and without its soft hyphens: `(elided, truncation)`.
+fn italian_listed_before_apostrophe(word: &str, text: &str, end: usize) -> (bool, bool) {
     let lower = french_lowercase(word);
     (
         italian_elided(&lower, "").is_some(),
-        italian_truncation(&lower).is_some(),
+        italian_truncation(&lower).is_some()
+            || italian_reads_truncated_preposition(&lower, text, end),
     )
 }
 
@@ -1034,8 +1318,9 @@ fn italian_char_before(text: &str, at: usize) -> Option<char> {
 /// (`‘80`, two digits and no letter or digit after them); a mark with no letter after
 /// it and something other than a space before it closes one (`fa’`, `qui!’`, `Sì.'`),
 /// unless the word before it is one Italian's pre-pass reads with its apostrophe — a
-/// truncation (`po'`) or a word whose apostrophe stands for an accent (`e'`,
-/// [`italian_accented`]; read-lingua-italian-unmarked-spellings, at review) —, whose
+/// truncation (`po'`), the truncated `da'` (refine-lingua-italian-reading D3) or a word whose
+/// apostrophe stands for an accent (`e'`, [`italian_accented`]; read-lingua-italian-unmarked-spellings,
+/// at review) — and no quote mark opened right before it ([`reads_its_apostrophe`]), whose
 /// apostrophe is its own. A mark between two letters is inside a word (`c'è`, a
 /// mistyped `l‘uomo`), and one between a space and anything else opens nothing: the
 /// scan goes on past them, and the start of the text is outside any quote. So
@@ -1087,10 +1372,16 @@ fn opens_before(next: Option<char>, mut after: impl Iterator<Item = char>) -> bo
 }
 
 /// Whether the word ending at byte `at` of `text`, right before an apostrophe, is one
-/// Italian's pre-pass reads with its apostrophe: a truncation, or a word whose
-/// apostrophe stands for an accent ([`italian_accented`]). The word is the letters
-/// right before the apostrophe (an elided piece's rest: `e` of `c'e'`), soft hyphens
-/// read as nowhere.
+/// Italian's pre-pass reads with its apostrophe, so that the apostrophe closes no quote: a
+/// truncation, the truncated `da'` (refine-lingua-italian-reading D3), or a word whose
+/// apostrophe stands for an accent ([`italian_accented`]). The word is the letters right
+/// before the apostrophe (an elided piece's rest: `e` of `c'e'`), soft hyphens read as
+/// nowhere. Two cases close the quote all the same (at review): a word a quote mark opens right
+/// before — the whole quoted span ([`italian_quoted_alone`]: « la particella 'ne' », « si dice
+/// 'po' ») —; and `a'`, `co'`, `ne'` and `su'`, which the pre-pass reads with their apostrophe
+/// only before a word and with no quote open before them — where it does, no quote was open
+/// for the apostrophe to close, so closing it changes nothing, and where a quote is open, the
+/// apostrophe is that quote's (« 'Vieni su' gli disse »).
 fn reads_its_apostrophe(text: &str, at: usize, lexicon: &(impl Lexicon + ?Sized)) -> bool {
     let from = text[..at]
         .char_indices()
@@ -1103,8 +1394,24 @@ fn reads_its_apostrophe(text: &str, at: usize, lexicon: &(impl Lexicon + ?Sized)
         .last()
         .map_or(at, |(i, _)| i);
     let lower = french_lowercase(&text[from..at]);
-    !lower.is_empty()
-        && (italian_truncation(&lower).is_some() || italian_accented(&lower, lexicon).is_some())
+    if lower.is_empty() || italian_quoted_alone(text, from) {
+        return false;
+    }
+    italian_truncation(&lower).is_some()
+        || lower == ITALIAN_DA
+        || italian_accented(&lower, lexicon).is_some()
+}
+
+/// Whether a quote mark opens right before byte `from` of `text`: `'`, `’` or `‘` right before
+/// it, after no letter or digit — so that the word starting there is a whole quoted span (`'ne'`,
+/// `‘po’`), and the apostrophe after it that quote's closing mark. The apostrophe of `c'` in
+/// `c'e'` follows a letter and opens nothing. Soft hyphens are read as nowhere.
+fn italian_quoted_alone(text: &str, from: usize) -> bool {
+    let mut before = text[..from].chars().rev().filter(|&c| c != SOFT_HYPHEN);
+    before
+        .next()
+        .is_some_and(|c| is_apostrophe(c) || c == '\u{2018}')
+        && !before.next().is_some_and(char::is_alphanumeric)
 }
 
 /// The words of Italian text with their byte offsets (D5, D2's counterpart of
@@ -1112,8 +1419,10 @@ fn reads_its_apostrophe(text: &str, at: usize, lexicon: &(impl Lexicon + ?Sized)
 /// taking that apostrophe into its own when it is listed
 /// ([`italian_listed_before_apostrophe`]) — an elided form written alone (`l’`, as a
 /// word card is handed it) or before a number (`l'11`, `nell'800`, whose digits
-/// the digit rule then drops), a truncation (`po'`) before neither a letter nor a
-/// digit —, and, unless a digit follows, no quote opened before it is left open
+/// the digit rule then drops), a truncation (`po'`) or a truncated articulated preposition
+/// the pre-pass reads there (`da'`; `ne'` before a word, refine-lingua-italian-reading D3)
+/// before neither a letter nor a digit —, and, unless a digit follows, no quote opened
+/// before it is left open
 /// ([`inside_a_quote`]). Any other trailing apostrophe stays outside the word here,
 /// as the rule of no language leaves it — `‘ciao’` is `ciao` —; [`push_italian_word`]
 /// then reads one that stands for an accent, taking it into the token's span
@@ -1127,7 +1436,8 @@ fn italian_words<'t>(text: &'t str, lexicon: &(impl Lexicon + ?Sized)) -> Vec<(u
             let Some(apostrophe) = after.next().filter(|&c| is_apostrophe(c)) else {
                 return (start, word);
             };
-            let (elided, truncation) = italian_listed_before_apostrophe(word);
+            let (elided, truncation) =
+                italian_listed_before_apostrophe(word, text, end + apostrophe.len_utf8());
             let keeps = match after.next() {
                 Some(c) if c.is_alphabetic() => false,
                 Some(c) if c.is_alphanumeric() => elided,
@@ -1210,16 +1520,20 @@ fn push_italian_elisions<'a>(
 
 /// One Italian word written at `start` of `text` — outside a hyphenated run, or a
 /// piece of a run holding a digit: its elisions (D3); then a word the seam kept its
-/// apostrophe for, a truncation read as its word or an elided form written alone
-/// read as the word it stands for, one token spanning the apostrophe (D5); then a
+/// apostrophe for, a truncation read as its word (`mo'` by the word after it), a truncated
+/// articulated preposition read as its preposition and `i` sharing the span (`da'` the verb
+/// `dai` by its context; [`italian_truncated_reading`], refine-lingua-italian-reading D3, D4)
+/// or an elided form written alone read as the word it stands for, spanning the apostrophe
+/// (D5); then a
 /// word, or the rest of one after its elisions, whose apostrophe — neither a letter
 /// nor a digit after it, no quote open before the written word ([`inside_a_quote`])
 /// — stands for the accent of a form the pack lists, read as that form, its written
 /// capital kept, one token spanning the apostrophe ([`italian_accented`],
 /// read-lingua-italian-unmarked-spellings D1: `perche'` → `perché`, `E'` → `È`, `c'e'`
-/// → `ci` + `è`); then an articulated preposition split into the preposition and the
-/// article sharing the span, the `di` family whole (D4); or the rules every language
-/// shares ([`push_word`]). Each check reads the word composed and each token's text
+/// → `ci` + `è`); then `dai` read as the verb where its context says so
+/// ([`italian_dai_is_the_verb`], refine-lingua-italian-reading D4), else an articulated
+/// preposition split into the preposition and the article sharing the span, the `di` family
+/// whole (D4); or the rules every language shares ([`push_word`]). Each check reads the word composed and each token's text
 /// is composed (add-lingua-italian-analysis D1); the spans are the source's.
 fn push_italian_word(
     tokens: &mut Vec<Token>,
@@ -1233,9 +1547,8 @@ fn push_italian_word(
     let lower = french_lowercase(rest);
     // The seam kept the apostrophe of a listed word only: a truncation, or an elided form alone.
     if let Some(bare) = lower.strip_suffix(is_apostrophe) {
-        let reading = italian_truncation(bare)
-            .map(ItalianReading::Word)
-            .or_else(|| italian_elided(bare, ""));
+        let reading =
+            italian_truncated_reading(bare, text, at, end).or_else(|| italian_elided(bare, ""));
         if let Some(reading) = reading {
             push_italian_reading(tokens, reading, rest, at, end);
             return;
@@ -1252,10 +1565,79 @@ fn push_italian_word(
         });
         return;
     }
+    if lower == ITALIAN_DAI && italian_dai_is_the_verb(text, at, end) {
+        push_italian_reading(tokens, ItalianReading::Word(ITALIAN_DAI), rest, at, end);
+        return;
+    }
     match italian_contraction(&lower) {
         Some(reading) => push_italian_reading(tokens, reading, rest, at, end),
         None => push_word(tokens, rest, at, end, ITALIAN, lexicon),
     }
+}
+
+/// `tokens`, read from `text`, with each word Italian's pre-pass reads by its context read the
+/// other way (D4): the verb `dai` as `da` + `i` sharing its span and back, `modo` of `mo'` as
+/// `mò` and back, and the apocope `a`, `co`, `ne` or `su` with an apostrophe right after it as
+/// the preposition and `i`, the two spanning the word and its apostrophe (D3, at review); each
+/// first word keeping the written capital. `None` when `text` holds no such word — `da'` inside a
+/// quote, read `da` as written, is none —; else the other reading, and whether it goes first: it
+/// does where it reads a truncated articulated preposition, whose apostrophe only it spans.
+fn italian_other_reading(text: &str, tokens: &[Token]) -> Option<(Vec<Token>, bool)> {
+    let mut other = Vec::with_capacity(tokens.len() + 1);
+    let mut flipped = false;
+    let mut first = false;
+    let mut i = 0;
+    while i < tokens.len() {
+        let span = (tokens[i].start, tokens[i].end);
+        let group = tokens[i..]
+            .iter()
+            .take_while(|t| (t.start, t.end) == span)
+            .count();
+        let written = &text[span.0..span.1];
+        let lower = french_lowercase(written).replace('\u{2019}', "'");
+        let read: Vec<String> = tokens[i..i + group]
+            .iter()
+            .map(|t| t.text.to_lowercase())
+            .collect();
+        let read: Vec<&str> = read.iter().map(String::as_str).collect();
+        // An apocope with its apostrophe right after it: the truncated articulated preposition
+        // a page reads before a word, spanning the apostrophe too.
+        let apostrophe = text[span.1..]
+            .chars()
+            .next()
+            .filter(|&c| is_apostrophe(c))
+            .map_or(0, char::len_utf8);
+        if apostrophe > 0
+            && let [apocope] = read.as_slice()
+            && *apocope == lower
+            && *apocope != ITALIAN_DA
+            && let Some((preposition, article)) = italian_truncated_preposition(apocope)
+        {
+            let end = span.1 + apostrophe;
+            let reading = ItalianReading::Contraction(preposition, article);
+            push_italian_reading(&mut other, reading, &text[span.0..end], span.0, end);
+            flipped = true;
+            first = true;
+            i += group;
+            continue;
+        }
+        let flip = match (lower.as_str(), read.as_slice()) {
+            ("dai" | "da'", [ITALIAN_DAI]) => Some(ItalianReading::Contraction(ITALIAN_DA, "i")),
+            ("dai" | "da'", [ITALIAN_DA, "i"]) => Some(ItalianReading::Word(ITALIAN_DAI)),
+            ("mo'", ["modo"]) => Some(ItalianReading::Word(ITALIAN_MO.1)),
+            ("mo'", [mo]) if *mo == ITALIAN_MO.1 => Some(ItalianReading::Word("modo")),
+            _ => None,
+        };
+        match flip {
+            Some(reading) => {
+                push_italian_reading(&mut other, reading, written, span.0, span.1);
+                flipped = true;
+            }
+            None => other.extend_from_slice(&tokens[i..i + group]),
+        }
+        i += group;
+    }
+    flipped.then_some((other, first))
 }
 
 /// An Italian hyphenated run — pieces joined by single hyphens — read in order
@@ -1657,7 +2039,8 @@ mod tests {
                 }
             }
         }
-        assert_eq!(ITALIAN_ELISIONS.len(), 38);
+        // Change 6's 38 and the 18 of refine-lingua-italian-reading D2.
+        assert_eq!(ITALIAN_ELISIONS.len(), 56);
     }
 
     #[test]
@@ -1670,13 +2053,28 @@ mod tests {
                 .all(|w| w[0].0 < w[1].0)
         );
         assert!(ITALIAN_TRUNCATIONS.windows(2).all(|w| w[0].0 < w[1].0));
+        assert!(
+            ITALIAN_TRUNCATED_PREPOSITIONS
+                .windows(2)
+                .all(|w| w[0].0 < w[1].0)
+        );
+        assert!(ITALIAN_DAI_CLITICS.windows(2).all(|w| w[0] < w[1]));
         assert_eq!(ITALIAN_CONTRACTIONS.len(), 26);
-        assert_eq!(ITALIAN_TRUNCATIONS.len(), 8);
+        // refine-lingua-italian-reading: `coll'` and `degl'` join the five (D2); `ca'`, `de'` and
+        // `que'` join the truncations, `da'` leaves them for the five truncated articulated
+        // prepositions (D3).
+        assert_eq!(ITALIAN_ELIDED_PREPOSITIONS.len(), 7);
+        assert_eq!(ITALIAN_TRUNCATIONS.len(), 10);
+        assert_eq!(ITALIAN_TRUNCATED_PREPOSITIONS.len(), 5);
         // No written form is in two tables: each word has one reading.
         for &(form, _, _) in ITALIAN_CONTRACTIONS {
             assert!(italian_elided(form, "").is_none(), "{form}");
         }
         for &(form, _) in ITALIAN_TRUNCATIONS {
+            assert!(italian_elided(form, "").is_none(), "{form}");
+            assert!(italian_truncated_preposition(form).is_none(), "{form}");
+        }
+        for &(form, _, _) in ITALIAN_TRUNCATED_PREPOSITIONS {
             assert!(italian_elided(form, "").is_none(), "{form}");
         }
     }
@@ -1773,12 +2171,14 @@ mod tests {
             (tokens[0].start, tokens[0].end),
             (tokens[1].start, tokens[1].end)
         );
-        // Every written form of the table.
+        // Every written form of the table, before a word: written alone, `dai` ends the text and
+        // is the verb (refine-lingua-italian-reading D4).
         for &(written, preposition, article) in ITALIAN_CONTRACTIONS {
+            let text = format!("{written} casa");
             assert_eq!(
-                texts(&italian(written)),
-                [preposition, article],
-                "{written}"
+                texts(&italian(&text)),
+                [preposition, article, "casa"],
+                "{text}"
             );
         }
         // The archaic forms, and nouns, stay whole.
@@ -1849,19 +2249,499 @@ mod tests {
             ("Fa'", "Fai", "Fa'"),
             ("po’", "poco", "po’"),
             ("be', ", "bene", "be'"),
-            ("mo'.", "modo", "mo'"),
+            // refine-lingua-italian-reading D4: `mo'` is `modo` before `di` only.
+            ("mo'.", "mò", "mo'"),
             ("sta' zitto", "stai", "sta'"),
         ] {
             let tokens = italian(text);
             assert_eq!(read(text, &tokens)[0], (read_as, written), "{text}");
         }
-        // A truncation's read word is final; a written `dai` is `da` + `i` (I7).
+        // A truncation's read word is final. `da'` and `dai` written alone end the text, and are
+        // the verb `dai` there; before a word with no sign, the preposition `da` + `i` (I7;
+        // refine-lingua-italian-reading D4).
         assert_eq!(read("da'", &italian("da'")), [("dai", "da'")]);
-        assert_eq!(texts(&italian("dai")), ["da", "i"]);
-        // Every entry of the table, alone.
+        assert_eq!(texts(&italian("dai")), ["dai"]);
+        assert_eq!(texts(&italian("dai nonni")), ["da", "i", "nonni"]);
+        // Every entry of the table, alone: `mo'`, with no `di` after it, is `mò`.
         for &(written, read_as) in ITALIAN_TRUNCATIONS {
             let text = format!("{written}'");
+            let read_as = if written == "mo" { "mò" } else { read_as };
             assert_eq!(read(&text, &italian(&text)), [(read_as, text.as_str())]);
+        }
+    }
+
+    // --- refine-lingua-italian-reading: the elided forms, the truncations, the context rules ---
+
+    #[test]
+    fn spec_scenario_elided_numbers_and_quantities() {
+        // D2: each elided piece spans its letters and its apostrophe.
+        for (text, expected) in [
+            ("trent'anni", [("trenta", "trent'"), ("anni", "anni")]),
+            (
+                "cinquant'anni",
+                [("cinquanta", "cinquant'"), ("anni", "anni")],
+            ),
+            (
+                "ventiquattr'ore",
+                [("ventiquattro", "ventiquattr'"), ("ore", "ore")],
+            ),
+            ("tant'è", [("tanto", "tant'"), ("è", "è")]),
+            ("null'altro", [("nulla", "null'"), ("altro", "altro")]),
+            ("ogn'uno", [("ogni", "ogn'"), ("uno", "uno")]),
+        ] {
+            assert_eq!(read(text, &italian(text)), expected, "{text}");
+        }
+    }
+
+    #[test]
+    fn spec_scenario_more_elided_words() {
+        for (text, expected) in [
+            ("Qual'è", vec!["Quale", "è"]),
+            ("qual’è", vec!["quale", "è"]),
+            ("gliel'ho", vec!["glielo", "ho"]),
+            ("neanch'io", vec!["neanche", "io"]),
+            ("fin'ora", vec!["fino", "ora"]),
+            ("prim'ordine", vec!["primo", "ordine"]),
+            ("quarant'anni", vec!["quaranta", "anni"]),
+            ("sessant'anni", vec!["sessanta", "anni"]),
+            ("settant'anni", vec!["settanta", "anni"]),
+            ("ottant'anni", vec!["ottanta", "anni"]),
+            ("novant'anni", vec!["novanta", "anni"]),
+            ("diciott'anni", vec!["diciotto", "anni"]),
+        ] {
+            assert_eq!(texts(&italian(text)), expected, "{text}");
+        }
+        // The rule runs again on what follows: « l'ultim'ora » is three words, each its own span.
+        let text = "l'ultim'ora";
+        assert_eq!(
+            read(text, &italian(text)),
+            [("lo", "l'"), ("ultima", "ultim'"), ("ora", "ora")]
+        );
+        // `oltr'` is left out: Italian writes « oltralpe » whole.
+        assert_eq!(texts(&italian("oltr'alpe")), ["oltr'alpe"]);
+        // The plain `fin` and `qual` are apocopes, words of their own, read as written.
+        assert_eq!(
+            texts(&italian("fin qui, qual è")),
+            ["fin", "qui", "qual", "è"]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_two_more_elided_prepositions() {
+        // D2: `coll'` is `con` + `lo` sharing its span, as `all'` is; `degl'` the `di` family's,
+        // whole, as `dell'` is.
+        let text = "coll'aiuto e degl'Italiani";
+        let tokens = italian(text);
+        assert_eq!(
+            read(text, &tokens),
+            [
+                ("con", "coll'"),
+                ("lo", "coll'"),
+                ("aiuto", "aiuto"),
+                ("e", "e"),
+                ("degli", "degl'"),
+                ("Italiani", "Italiani"),
+            ]
+        );
+        assert_eq!(texts(&italian("Coll’ago")), ["Con", "lo", "ago"]);
+        assert_eq!(texts(&italian("DEGL'INNI")), ["Degli", "INNI"]);
+        // Written alone, as a word card hands them.
+        assert_eq!(read("degl'", &italian("degl'")), [("degli", "degl'")]);
+        assert_eq!(texts(&italian("coll'")), ["con", "lo"]);
+    }
+
+    #[test]
+    fn spec_scenario_truncations_a_book_writes() {
+        // D3: `ca'`, `de'` and `que'` are one word each, spanning the apostrophe, wherever they
+        // stand.
+        for (text, expected) in [
+            ("Ca' Foscari", vec![("Casa", "Ca'"), ("Foscari", "Foscari")]),
+            (
+                "Lorenzo de' Medici",
+                vec![("Lorenzo", "Lorenzo"), ("dei", "de'"), ("Medici", "Medici")],
+            ),
+            ("que' due", vec![("quei", "que'"), ("due", "due")]),
+            ("de’ suoi", vec![("dei", "de’"), ("suoi", "suoi")]),
+            ("Ca'.", vec![("Casa", "Ca'")]),
+        ] {
+            assert_eq!(read(text, &italian(text)), expected, "{text}");
+        }
+    }
+
+    #[test]
+    fn spec_scenario_a_truncated_articulated_preposition() {
+        // D3: before a word, the preposition and `i`, sharing the written word's span, apostrophe
+        // included; the first keeps the written capital.
+        for (text, expected) in [
+            ("a' piedi", [("a", "a'"), ("i", "a'"), ("piedi", "piedi")]),
+            ("co' suoi", [("con", "co'"), ("i", "co'"), ("suoi", "suoi")]),
+            (
+                "ne' campi",
+                [("in", "ne'"), ("i", "ne'"), ("campi", "campi")],
+            ),
+            (
+                "su' colli",
+                [("su", "su'"), ("i", "su'"), ("colli", "colli")],
+            ),
+            ("Co' suoi", [("Con", "Co'"), ("i", "Co'"), ("suoi", "suoi")]),
+            ("A’ tuoi", [("A", "A’"), ("i", "A’"), ("tuoi", "tuoi")]),
+        ] {
+            let tokens = italian(text);
+            assert_eq!(read(text, &tokens), expected, "{text}");
+            assert_eq!(
+                (tokens[0].start, tokens[0].end),
+                (tokens[1].start, tokens[1].end)
+            );
+        }
+        // Every entry of the table, before a word: `da'` before one with no sign is `da` + `i` too.
+        for &(written, preposition, article) in ITALIAN_TRUNCATED_PREPOSITIONS {
+            let text = format!("{written}' monti");
+            assert_eq!(
+                texts(&italian(&text)),
+                [preposition, article, "monti"],
+                "{text}"
+            );
+        }
+    }
+
+    #[test]
+    fn spec_scenario_a_truncated_preposition_with_no_word_after_it() {
+        // D3: `a'`, `co'`, `ne'` and `su'` with no word after them are apocopes, their apostrophe
+        // outside the word.
+        assert_eq!(read("ne'", &italian("ne'")), [("ne", "ne")]);
+        let text = "Vieni su'. ";
+        assert_eq!(
+            read(text, &italian(text)),
+            [("Vieni", "Vieni"), ("su", "su")]
+        );
+        for written in ["a", "co", "ne", "su"] {
+            for after in ["", ".", ", e", "!", " 3"] {
+                let text = format!("{written}'{after}");
+                assert_eq!(
+                    read(&text, &italian(&text))[0],
+                    (written, written),
+                    "{text}"
+                );
+            }
+        }
+        // The quote opened before `Vieni` closes at the apostrophe after `su`: `po'` after it is
+        // read as `poco`.
+        assert_eq!(
+            texts(&italian("'Vieni su', disse, e un po'")),
+            ["Vieni", "su", "disse", "e", "un", "poco"]
+        );
+        // A quoted `a` keeps its quotes outside.
+        let text = "si dice 'a', non 'e'";
+        assert_eq!(
+            read(text, &italian(text)),
+            [
+                ("si", "si"),
+                ("dice", "dice"),
+                ("a", "a"),
+                ("non", "non"),
+                ("e", "e")
+            ]
+        );
+        // Inside a quote, before a word, they are read as written, as change 6's truncations are.
+        assert_eq!(texts(&italian("'ne' campi'")), ["ne", "campi"]);
+    }
+
+    #[test]
+    fn a_truncated_preposition_s_apostrophe_and_the_quotes() {
+        // D3, at review: inside an open quote the pre-pass reads `su'` as written, and its
+        // apostrophe closes the quote, as the apocope's did: `po'` after it is read as `poco`.
+        assert_eq!(
+            texts(&italian("'Vieni su' gli disse, un po'")),
+            ["Vieni", "su", "gli", "disse", "un", "poco"]
+        );
+        assert_eq!(
+            texts(&italian("'Mi siedo su' gradini, un po'")),
+            ["Mi", "siedo", "su", "gradini", "un", "poco"]
+        );
+        // With no quote open, the four are read before a word, and nothing is left open.
+        assert_eq!(
+            texts(&italian("Andò ne' campi, un po' stanco")),
+            ["Andò", "in", "i", "campi", "un", "poco", "stanco"]
+        );
+        // `da'`, read wherever it stands, closes none, as a truncation's apostrophe.
+        assert_eq!(
+            texts(&italian("'Vengo da' monti, un po'")),
+            ["Vengo", "da", "monti", "un", "po"]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_quoted_short_word() {
+        // At review: a word a quote mark opens right before is the whole quoted span, and the
+        // apostrophe after it closes that quote — a truncated preposition's, a truncation's or an
+        // accent spelling's alike —, so the words after it read their own apostrophes.
+        for (text, last) in [
+            (
+                "la particella 'ne' indica il partitivo, un po' di pane",
+                "poco",
+            ),
+            ("la preposizione 'a' regge, un po'", "poco"),
+            ("la forma 'de' è antica, un po'", "poco"),
+            ("si scriveva 'que' allora, un po'", "poco"),
+            ("si dice ‘po’ e basta, un po'", "poco"),
+            ("la congiunzione 'e' unisce, un po'", "poco"),
+        ] {
+            let tokens = italian(text);
+            let po = tokens
+                .iter()
+                .rfind(|t| text[t.start..].starts_with("po"))
+                .unwrap_or_else(|| panic!("{text}: {tokens:?}"));
+            assert_eq!(
+                (po.text.as_str(), &text[po.start..po.end]),
+                (last, "po'"),
+                "{text}"
+            );
+        }
+        // The quoted word itself is read as written, its quotes outside it.
+        assert_eq!(
+            read(
+                "la particella 'ne' indica",
+                &italian("la particella 'ne' indica")
+            )[2],
+            ("ne", "ne")
+        );
+        // An apostrophe after an elided piece opens nothing: « 'c'e' lavoro' » keeps its quote.
+        assert_eq!(
+            texts(&accented("Disse: 'c'e' lavoro'", &[])),
+            ["Disse", "ci", "e", "lavoro"]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_mo_by_the_word_after_it() {
+        // D4: `modo` when the next word, as read, is `di` — the elided `d'` too —, `mò` otherwise;
+        // each read word spans « mo' ».
+        assert_eq!(
+            read("a mo' di esempio", &italian("a mo' di esempio")),
+            [
+                ("a", "a"),
+                ("modo", "mo'"),
+                ("di", "di"),
+                ("esempio", "esempio")
+            ]
+        );
+        assert_eq!(
+            read("a mo' d'esempio", &italian("a mo' d'esempio")),
+            [
+                ("a", "a"),
+                ("modo", "mo'"),
+                ("di", "d'"),
+                ("esempio", "esempio")
+            ]
+        );
+        assert_eq!(
+            read("mo' arrivo", &italian("mo' arrivo")),
+            [("mò", "mo'"), ("arrivo", "arrivo")]
+        );
+        assert_eq!(
+            texts(&italian("Mo’ basta, e mo'?")),
+            ["Mò", "basta", "e", "mò"]
+        );
+        assert_eq!(
+            texts(&italian("a mo' DI esempio")),
+            ["a", "modo", "DI", "esempio"]
+        );
+        // Only a space between: `di` after a comma, or joined to another word, is no next word.
+        assert_eq!(texts(&italian("a mo', di")), ["a", "mò", "di"]);
+        assert_eq!(texts(&italian("mo' dire")), ["mò", "dire"]);
+        // `d'` is the elided `di` only before a letter.
+        assert_eq!(texts(&italian("mo' d' ")), ["mò", "di"]);
+    }
+
+    #[test]
+    fn spec_scenario_dai_the_verb() {
+        // D4, as D5 measured it: after a clitic pronoun, or before punctuation, a closing quote or
+        // the end of the text, `dai` is the verb, one token spanning the written word.
+        for text in [
+            "Dai, andiamo!",
+            "mi dai una mano?",
+            "Me lo dai?",
+            "Ma dai!",
+            "\u{201C}Ma dai\u{201D} disse",
+            "«Ma dai» disse",
+            "'Ma dai' disse",
+            "Ma dai.",
+            "Ma dai…",
+            "Proviamoci, dai",
+            "Ma dai  ",
+        ] {
+            let tokens = italian(text);
+            let written: Vec<&str> = tokens
+                .iter()
+                .filter(|t| t.text.eq_ignore_ascii_case("dai"))
+                .map(|t| &text[t.start..t.end])
+                .collect();
+            assert_eq!(written.len(), 1, "{text}: {tokens:?}");
+            assert!(written[0].eq_ignore_ascii_case("dai"), "{text}");
+            assert!(
+                !tokens
+                    .iter()
+                    .any(|t| t.text.eq_ignore_ascii_case("da") || t.text == "i"),
+                "{text}: {tokens:?}"
+            );
+        }
+        assert_eq!(texts(&italian("Dai, andiamo!")), ["Dai", "andiamo"]);
+        // One clitic at a time.
+        for clitic in ITALIAN_DAI_CLITICS {
+            let text = format!("{clitic} dai una mano");
+            assert_eq!(texts(&italian(&text))[1], "dai", "{text}");
+            let text = format!("Tu {clitic} dai il libro");
+            assert_eq!(texts(&italian(&text))[2], "dai", "{text}");
+        }
+    }
+
+    #[test]
+    fn spec_scenario_dai_the_preposition() {
+        // D4: anywhere else, the preposition `da` + `i` sharing the span, as I7 reads it.
+        for text in [
+            "Torno dai nonni",
+            "dai molti suoi cocuzzoli",
+            "Dai nonni si mangia bene",
+            // D5 measured `non`, `me` and `te` out: the verb with no sign reads as before.
+            "non dai retta",
+            "vieni con me dai nonni?",
+            "e te dai cugini",
+            // A comma between a clitic and `dai` is no clitic right before it.
+            "gli, dai nonni",
+            // `!` after a space is not right after the word.
+            "dai !",
+        ] {
+            let tokens = italian(text);
+            let at = tokens
+                .iter()
+                .position(|t| t.text.eq_ignore_ascii_case("da"))
+                .unwrap_or_else(|| panic!("{text}: {tokens:?}"));
+            assert_eq!(tokens[at + 1].text, "i", "{text}");
+            assert_eq!(
+                (tokens[at].start, tokens[at].end),
+                (tokens[at + 1].start, tokens[at + 1].end),
+                "{text}"
+            );
+            assert!(
+                !tokens.iter().any(|t| t.text.eq_ignore_ascii_case("dai")),
+                "{text}"
+            );
+        }
+        // « dai e dai, … »: the preposition, then the verb before the comma.
+        assert_eq!(
+            texts(&italian("dai e dai, ce l'ha fatta")),
+            ["da", "i", "e", "dai", "ce", "lo", "ha", "fatta"]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_da_by_its_context() {
+        // D4: « da' primi suoi anni » is `da` + `i`, apostrophe included; « mi da' una mano? » the
+        // verb `dai`, one token spanning « da' ».
+        let text = "da' primi suoi anni";
+        let tokens = italian(text);
+        assert_eq!(read(text, &tokens)[..2], [("da", "da'"), ("i", "da'")]);
+        assert_eq!((tokens[0].start, tokens[0].end), (0, 3));
+        let text = "mi da' una mano?";
+        assert_eq!(read(text, &italian(text))[1], ("dai", "da'"));
+        assert_eq!(read("Da' ", &italian("Da' ")), [("Dai", "Da'")]);
+        assert_eq!(
+            texts(&italian("Da’ suoi monti")),
+            ["Da", "i", "suoi", "monti"]
+        );
+    }
+
+    #[test]
+    fn each_trigger_is_its_own_check() {
+        // D5 measures each trigger on its own: the word before, with nothing but a space between.
+        assert_eq!(italian_word_before("mi dai", 3).as_deref(), Some("mi"));
+        assert_eq!(italian_word_before("Mi  dai", 4).as_deref(), Some("mi"));
+        assert_eq!(italian_word_before("mi, dai", 4), None);
+        assert_eq!(italian_word_before("dai", 0), None);
+        assert_eq!(italian_word_before("po' dai", 4), None);
+        assert!(italian_dai_after_a_clitic(Some("gliene")));
+        assert!(!italian_dai_after_a_clitic(Some("me")));
+        assert!(!italian_dai_after_a_clitic(Some("non")));
+        assert!(!italian_dai_after_a_clitic(None));
+        // What follows: punctuation, a closing quote, the end of the text, or only spaces to it.
+        for (text, verb) in [
+            ("dai", true),
+            ("dai ", true),
+            ("dai,", true),
+            ("dai!", true),
+            ("dai?", true),
+            ("dai.", true),
+            ("dai…", true),
+            ("dai\"", true),
+            ("dai\u{201D}", true),
+            ("dai»", true),
+            ("dai'", true),
+            ("dai\u{2019}", true),
+            ("dai›", true),
+            ("dai x", false),
+            ("dai ,", false),
+            ("dai;", false),
+            ("dai:", false),
+            ("dai)", false),
+        ] {
+            assert_eq!(italian_dai_before_punctuation(text, 3), verb, "{text:?}");
+        }
+    }
+
+    #[test]
+    fn the_readings_of_a_word_read_by_its_context() {
+        // D4: a word card asks for both readings of a word the pre-pass reads by its context, the
+        // one as it reads alone first.
+        let readings = |text: &str| -> Vec<Vec<String>> {
+            tokenize_readings(text, IT, &italian_lexicon())
+                .into_iter()
+                .map(|tokens| tokens.into_iter().map(|t| t.text).collect())
+                .collect()
+        };
+        assert_eq!(readings("dai"), [vec!["dai"], vec!["da", "i"]]);
+        assert_eq!(readings("Dai"), [vec!["Dai"], vec!["Da", "i"]]);
+        assert_eq!(readings("da’"), [vec!["dai"], vec!["da", "i"]]);
+        assert_eq!(readings("mo'"), [vec!["mò"], vec!["modo"]]);
+        assert_eq!(
+            readings("a mo' di"),
+            [vec!["a", "modo", "di"], vec!["a", "mò", "di"]]
+        );
+        assert_eq!(
+            readings("dai nonni"),
+            [vec!["da", "i", "nonni"], vec!["dai", "nonni"]]
+        );
+        // The other reading keeps the written word's span.
+        let tokens = &tokenize_readings("Torno dai", IT, &italian_lexicon())[1];
+        assert_eq!(
+            tokens.iter().map(|t| (t.start, t.end)).collect::<Vec<_>>(),
+            [(0, 5), (6, 9), (6, 9)]
+        );
+        // At review: `a'`, `co'`, `ne'` and `su'` written with their apostrophe read first as the
+        // preposition and `i`, spanning the apostrophe, then as the apocope.
+        assert_eq!(readings("ne'"), [vec!["in", "i"], vec!["ne"]]);
+        assert_eq!(readings("Su’"), [vec!["Su", "i"], vec!["Su"]]);
+        assert_eq!(readings("a'"), [vec!["a", "i"], vec!["a"]]);
+        assert_eq!(readings("co'"), [vec!["con", "i"], vec!["co"]]);
+        let tokens = &tokenize_readings("ne'", IT, &italian_lexicon())[0];
+        assert_eq!(
+            tokens.iter().map(|t| (t.start, t.end)).collect::<Vec<_>>(),
+            [(0, 3), (0, 3)]
+        );
+        // Without an apostrophe, or already split before a word, they have one reading.
+        assert_eq!(readings("ne"), [vec!["ne"]]);
+        assert_eq!(readings("ne' campi"), [vec!["in", "i", "campi"]]);
+        // Every other word has one reading, and so has every other language.
+        assert_eq!(readings("al mare"), [vec!["a", "il", "mare"]]);
+        assert_eq!(readings("'da' "), [vec!["da"]]);
+        for language in [
+            StudiedLanguage::English,
+            StudiedLanguage::Spanish,
+            StudiedLanguage::French,
+        ] {
+            assert_eq!(
+                tokenize_readings("dai mo'", language, &italian_lexicon()).len(),
+                1
+            );
         }
     }
 
@@ -2078,7 +2958,9 @@ mod tests {
 
     #[test]
     fn spec_scenario_a_listed_word_with_its_apostrophe() {
-        // D1: change 6's truncations keep their reading, though the pack lists `pò` and `dà`.
+        // D1: change 6's truncations keep their reading, though the pack lists `pò` and `dà`; since
+        // refine-lingua-italian-reading D3–D4 `da'` is a truncated articulated preposition, `da` + `i`
+        // before « qua », and the verb `dai` after a clitic, never `dà`.
         let text = "un po' e da' qua";
         assert_eq!(
             read(text, &accented(text, &[])),
@@ -2086,12 +2968,23 @@ mod tests {
                 ("un", "un"),
                 ("poco", "po'"),
                 ("e", "e"),
-                ("dai", "da'"),
+                ("da", "da'"),
+                ("i", "da'"),
                 ("qua", "qua")
             ]
         );
+        // The spec's scenario: « un po' », « da' primi anni » and « mi da' una mano ».
+        assert_eq!(read("un po'", &accented("un po'", &[]))[1], ("poco", "po'"));
+        let text = "da' primi anni";
+        assert_eq!(
+            read(text, &accented(text, &[]))[..2],
+            [("da", "da'"), ("i", "da'")]
+        );
+        let text = "mi da' una mano";
+        assert_eq!(read(text, &accented(text, &[]))[1], ("dai", "da'"));
         for &(written, read_as) in ITALIAN_TRUNCATIONS {
             let text = format!("{written}'");
+            let read_as = if written == "mo" { "mò" } else { read_as };
             assert_eq!(texts(&accented(&text, &[])), [read_as], "{text}");
         }
         // Quoted, a truncation is read as written, never for an accent.
@@ -2115,21 +3008,46 @@ mod tests {
                 "{text}: {tokens:?}"
             );
         }
+        // refine-lingua-italian-reading D3: before a word, `ne'` and `su'` are two words each, and
+        // `que'` and `ca'` read wherever they stand; `ve'` is still an apocope.
         assert_eq!(
             texts(&accented("ne' campi, su' monti", &[])),
-            ["ne", "campi", "su", "monti"]
+            ["in", "i", "campi", "su", "i", "monti"]
         );
         assert_eq!(texts(&accented("Ne'", &[])), ["Ne"]);
-        // The measured ones (task 2.2): Manzoni's « que' due », « Ca' Foscari », « ve' ».
         assert_eq!(
             texts(&accented("que' due, Ca' Foscari, ve' ve'", &[])),
-            ["que", "due", "Ca", "Foscari", "ve", "ve"]
+            ["quei", "due", "Casa", "Foscari", "ve", "ve"]
         );
+        // The spec's scenario: « to' », « ve' », « mi' » and « ne' », with `tò`, `vè`, `mì` and `né`
+        // listed.
+        for (text, word) in [("to'", "to"), ("ve'", "ve"), ("mi'", "mi"), ("ne'", "ne")] {
+            assert_eq!(read(text, &accented(text, &[])), [(word, word)], "{text}");
+        }
         assert_eq!(
             ITALIAN_APOCOPES.windows(2).find(|pair| pair[0] >= pair[1]),
             None,
             "sorted for the search"
         );
+    }
+
+    #[test]
+    fn spec_scenario_a_book_s_truncations_are_not_accents() {
+        // refine-lingua-italian-reading D3: before a word, `ne'` and `su'` are two words and `que'`
+        // is `quei`, each spanning its apostrophe, though the pack lists `né`, `sù` and `qué`.
+        for (text, expected) in [
+            (
+                "ne' campi",
+                vec![("in", "ne'"), ("i", "ne'"), ("campi", "campi")],
+            ),
+            (
+                "su' colli",
+                vec![("su", "su'"), ("i", "su'"), ("colli", "colli")],
+            ),
+            ("que' due", vec![("quei", "que'"), ("due", "due")]),
+        ] {
+            assert_eq!(read(text, &accented(text, &[])), expected, "{text}");
+        }
     }
 
     #[test]
@@ -2174,6 +3092,11 @@ mod tests {
         assert_eq!(
             texts(&accented("‘ciao’ perche' no", &[])),
             ["ciao", "perché", "no"]
+        );
+        // At review: so does a quoted short word, the whole quoted span, before an accent spelling.
+        assert_eq!(
+            texts(&accented("la preposizione 'a' regge, perche' no", &[])),
+            ["la", "preposizione", "a", "regge", "perché", "no"]
         );
         // The spec's scenario: « perche' », « c'e' », « ‘ciao’ » and « ‘due anni fa’ ».
         assert_eq!(
@@ -2539,6 +3462,18 @@ mod tests {
             ])
         );
         assert_eq!(flags("perche' "), pieces(&[("perche", false)]));
+        // refine-lingua-italian-reading D3: a truncated articulated preposition's two tokens span
+        // its apostrophe, and so does `da'` read as the verb.
+        assert_eq!(
+            flags("ne' campi mi da' "),
+            pieces(&[
+                ("in", true),
+                ("i", true),
+                ("campi", false),
+                ("mi", false),
+                ("dai", true)
+            ])
+        );
         // read-lingua-italian-unmarked-spellings D1 widens it to a word whose apostrophe stands for
         // its accent: the stand-in lists `è`, not `perché`.
         assert_eq!(

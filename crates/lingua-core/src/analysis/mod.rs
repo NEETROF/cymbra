@@ -116,6 +116,18 @@ pub const FRENCH_ANALYZER_VERSION: &str = "1.3.0";
 /// accent spelling's apostrophe (`tokenize::italian_accented`, `tokenize::inside_a_quote`).
 /// `1.3.0` since keep-lingua-italian-acronyms-and-names reads a word standing alone in capitals
 /// as the acronym its pack lists, French's rule opened to Italian (`NATO` in « della NATO », not
-/// *nascere*; `pipeline::alone_in_capitals`). What it still lacks, a rule of Italian's own that
-/// bumps this version when it lands: no expression keys of its own.
-pub const ITALIAN_ANALYZER_VERSION: &str = "1.3.0";
+/// *nascere*; `pipeline::alone_in_capitals`). `1.4.0` since refine-lingua-italian-reading, an
+/// Italian-specialist review's corrections: eighteen more elided forms (`trent'anni` → `trenta` +
+/// `anni`, `qual'è` → `quale` + `è`, `gliel'ho`, `l'ultim'ora`), `coll'` read `con` + `lo` and
+/// `degl'` `degli`; the books' truncations `ca'`, `de'` and `que'` (`casa`, `dei`, `quei`); the
+/// truncated articulated prepositions `a'`, `co'`, `ne'` and `su'` before a word and `da'` read
+/// as the preposition and `i` sharing the span (`ne' campi` → `in` + `i` + `campi`), the four left
+/// as apocopes before anything else; `mo'` by the word after it (`a mo' di` → `modo`, `mo'
+/// arrivo` → `mò`); `dai` and `da'` the verb *dare* after a clitic pronoun or before punctuation,
+/// a closing quote or the end of the text (« mi dai una mano? », « Ma dai! »), the preposition
+/// otherwise (`tokenize::italian_dai_is_the_verb`, its triggers as measured); a word card's word
+/// read by its context answered the way of its dictionary form (`tokenize::tokenize_readings`);
+/// and fifteen closed-class words (`davanti`, `dietro`, `entrambi`, `parecchio`, `ossia`,
+/// `pertanto` …). What it still lacks, a rule of Italian's own that bumps this version when it
+/// lands: no expression keys of its own.
+pub const ITALIAN_ANALYZER_VERSION: &str = "1.4.0";

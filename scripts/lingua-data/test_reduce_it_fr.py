@@ -250,6 +250,16 @@ ENTRIES = [
     entry("donato", pos="verb", forms=[("donati", ["masculine", "plural"])], senses=[{"tags": ["form-of", "participle", "past"], "form_of": [{"word": "donare"}]}]),
     # D6 — hyphenated words, ranked by MarkIT's evidence.
     entry("pellerossa", senses=[{"glosses": ["redskin"]}]),
+    # refine-lingua-italian-reading D7: `prim'`, which the section files under *prima*, is read as
+    # *primo*; `trent'anni`, a plain word beginning with a new piece, and the stem `trent` are none;
+    # the section's `da'` entry is no form once `da'` is a truncated articulated preposition.
+    entry("primo", pos="adj", forms=[("prima", ["feminine"])]),
+    entry("prima", pos="adv"),
+    alt_of("prim'", "prima", pos="adj", tags=("alt-of", "apocopic")),
+    entry("trenta", pos="num"),
+    entry("trent'anni", pos="phrase"),
+    form_of("da'", "dare", tags=("form-of", "imperative", "second-person", "singular")),
+    entry("degli", pos="article"),
     entry("anglo-americano", pos="adj"),
     entry("nord-est", pos="noun"),
 ]
@@ -264,6 +274,7 @@ TOP = [
     "bello", "pentirsi", "andare", "potere", "do", "andarsene", "pellerossa", "dello", "buono",
     "essere", "stato", "ti", "tu", "firmare", "firmato", "bel", "san", "santo", "cent", "importare", "importi",
     "recare", "stammi", "donati", "donare", "nepalese", "nepal", "pentirmi", "recatevi",
+    "primo", "prima", "trent'anni", "trent", "trenta", "degli",
 ]
 # Zipf frequencies: the list's order, and the forms wordfreq attests.
 FREQUENCY = {word: 7.0 - i * 0.05 for i, word in enumerate(TOP)}
@@ -408,8 +419,11 @@ class Forms(unittest.TestCase):
     def test_spec_scenario_a_doubtful_inflection(self):
         self.assertNotIn("bello'", self.forms)
         self.assertEqual(self.forms["belli"], "bello")
-        self.assertNotIn("ca'", self.forms)
         self.assertNotIn("dettero", self.forms)
+        # `casa`'s row `ca'` is doubtful (« alternative, apocopic »), and gives no form; `ca'` is a
+        # form of *casa* since refine-lingua-italian-reading D3 by the truncations' table alone.
+        self.assertNotIn("ca'", self.lexicon.candidates)
+        self.assertEqual(self.forms["ca'"], "casa")
 
     def test_bookkeeping_the_auxiliary_and_a_gender_marker_are_no_forms(self):
         self.assertNotIn("irregular", self.forms)
@@ -457,8 +471,34 @@ class Tokenisation(unittest.TestCase):
 
     def test_truncations_read_as_their_word_s_lemma(self):
         self.assertEqual(self.forms["po'"], "poco")
-        self.assertEqual(self.forms["da'"], "dare")
         self.assertEqual(self.forms["va'"], "andare")
+        # refine-lingua-italian-reading D3: the books' `ca'` reads as *casa*; `da'` is a truncated
+        # articulated preposition, `da` + `i` or the verb by its context: no form with its
+        # apostrophe, whatever the section's entry says.
+        self.assertEqual(self.forms["ca'"], "casa")
+        self.assertNotIn("da'", self.forms)
+        for piece in red.TRUNCATED_PREPOSITIONS:
+            self.assertNotIn(piece, self.forms, piece)
+            self.assertNotIn(piece, self.ranks, piece)
+
+    def test_the_review_s_pieces(self):
+        # refine-lingua-italian-reading D7: `prim'` is a form of *primo*, as the pre-pass reads it,
+        # not of *prima*, where the section files it; `degl'` a form of `degli`; `trent'` of *trenta*.
+        self.assertEqual(self.forms["prim'"], "primo")
+        self.assertEqual(self.forms["degl'"], "degli")
+        self.assertEqual(self.forms["trent'"], "trenta")
+        # A plain word beginning with a new piece is no form, and the piece's stem no rank.
+        for word in ("trent'anni", "trent"):
+            self.assertNotIn(word, self.forms, word)
+            self.assertNotIn(word, self.ranks, word)
+        self.assertIn("trenta", self.ranks)
+        # The stems: the new pieces' are wordfreq's stems, no words; the apocopes' `fin` and `qual`,
+        # and the truncations' and truncated prepositions' stems, are words.
+        for stem in ("trent", "tant", "coll", "degl", "null", "prim", "ogn", "gliel", "ultim", "ventiquattr"):
+            self.assertIn(stem, red.WORDFREQ_STEMS, stem)
+        for word in ("fin", "qual", "ca", "de", "que", "a", "co", "ne", "su", "da"):
+            self.assertNotIn(word, red.WORDFREQ_STEMS, word)
+        self.assertEqual(red.APOCOPES["fin"][0], "fino")
 
     def test_spec_scenario_a_form_carrying_clitics(self):
         for word in ("dirmelo", "vattene", "farlo"):
@@ -471,12 +511,19 @@ class Tokenisation(unittest.TestCase):
         for word in ("c'è", "dell'anno", "dell'acqua", "l'ho", "dov'è", "l'anglo-americano"):
             self.assertFalse(red.is_form(word), word)
             self.assertNotIn(word, self.forms)
-        for word in ("po'", "l'", "coll'ago"):
+        for word in ("po'", "l'", "altr'ora", "oltr'alpe", "ne'"):
             self.assertTrue(red.is_form(word), word)
+        # refine-lingua-italian-reading D2: the new pieces start a plain word too.
+        for word in ("trent'anni", "qual'è", "coll'ago", "degl'occhi", "gliel'ho", "l'ultim'ora"):
+            self.assertFalse(red.is_form(word), word)
 
     def test_every_word_the_pre_pass_writes(self):
         words = red.prepass_words()
         for word in ("lo", "una", "dissi", "dello", "del", "a", "il", "i", "gli", "poco", "dai", "dici", "vai"):
+            self.assertIn(word, words)
+        # refine-lingua-italian-reading: the new pieces' words, `mò` and `dai` by their context, the
+        # truncated prepositions' pieces.
+        for word in ("trenta", "quale", "glielo", "primo", "ultima", "degli", "casa", "dei", "quei", "mò", "con", "in", "su"):
             self.assertIn(word, words)
         self.assertNotIn("nel", words)
         self.assertEqual(red.unwritten_words({w: w for w in words}), [])
@@ -503,7 +550,13 @@ class Tokenisation(unittest.TestCase):
             elided[f"{row[0]}'"] = tuple(x for x in row[1:] if x)
         self.assertEqual(elided, red.ELIDED_PREPOSITIONS)
         self.assertIn('"disse" if next == "io" => "dissi"', source)
-        self.assertEqual(red.CONTEXT_WORDS, ("dissi",))
+        # refine-lingua-italian-reading D3–D4: the truncated articulated prepositions, `mo'` read `mò`
+        # but before `di`, and `dai` and `da'` read as the verb by their context.
+        truncated = {f"{w}'": (p, a) for w, p, a in table("ITALIAN_TRUNCATED_PREPOSITIONS")}
+        self.assertEqual(truncated, red.TRUNCATED_PREPOSITIONS)
+        self.assertIn('const ITALIAN_MO: (&str, &str) = ("mo", "mò");', source)
+        self.assertIn('const ITALIAN_DAI: &str = "dai";', source)
+        self.assertEqual(red.CONTEXT_WORDS, ("dissi", "mò", "dai"))
 
 
 class Ranks(unittest.TestCase):

@@ -23222,7 +23222,6 @@ cinofilo	cinofilo
 cinq	cinq
 cinquant	cinquanta
 cinquant'	cinquanta
-cinquant'anni	cinquant'anni
 cinquanta	cinquanta
 cinquantacinque	cinquantacinque
 cinquantadue	cinquantadue
@@ -24460,7 +24459,6 @@ colini	colino
 colino	colino
 colite	colite
 coliti	colite
-coll	coll
 colla	colla
 collab	collab
 collabora	collaborare
@@ -31812,7 +31810,6 @@ córdoba	córdoba
 côte	côte
 d'	di
 da	da
-da'	dare
 daa	daa
 dab	dab
 dabbenaggine	dabbenaggine
@@ -32978,7 +32975,7 @@ degenerò	degenerare
 degenza	degenza
 degenze	degenza
 deggio	dovere
-degl	degl
+degl'	degli
 degli	degli
 deglutendo	deglutire
 deglutire	deglutire
@@ -34692,7 +34689,6 @@ diciassettesima	diciassettesimo
 diciassettesimo	diciassettesimo
 diciate	dire
 diciott'	diciotto
-diciott'anni	diciott'anni
 diciottenne	diciottenne
 diciottenni	diciottenne
 diciottesima	diciottesimo
@@ -45556,7 +45552,7 @@ fimi	fimo
 fimo	fimo
 fimosi	fimosi
 fin	fino
-fin'ora	fin'ora
+fin'	fino
 fina	fino
 final	finale
 finalborgo	finalborgo
@@ -51174,11 +51170,6 @@ glide	glide
 glie	glie
 gliel	glielo
 gliel'	glielo
-gliel'aveva	gliel'aveva
-gliel'ha	gliel'ha
-gliel'hai	gliel'hai
-gliel'hanno	gliel'hanno
-gliel'ho	gliel'ho
 gliela	gliela
 gliele	gliele
 glieli	glieli
@@ -66475,6 +66466,7 @@ liquori	liquori
 liquorosa	liquoroso
 liquorosi	liquoroso
 liquoroso	liquoroso
+lir	lir
 lira	lira
 lire	lira
 liri	liri
@@ -66504,6 +66496,8 @@ lisciati	lisciare
 lisciato	lisciare
 liscie	liscio
 liscio	liscio
+lisergica	lisergico
+lisergico	lisergico
 lisetta	lisetta
 lisette	lisette
 lisi	lisi
@@ -66655,6 +66649,7 @@ livide	livido
 lividi	livido
 livido	livido
 livigno	livigno
+livin	livin
 living	living
 livingston	livingston
 livingstone	livingstone
@@ -66929,6 +66924,8 @@ lom	lom
 lomax	lomax
 lomazzo	lomazzo
 lomb	lomb
+lombalgia	lombalgia
+lombalgie	lombalgia
 lombard	lombard
 lombarda	lombardo
 lombarde	lombardo
@@ -66992,6 +66989,7 @@ longoni	longoni
 longue	longue
 lonigo	lonigo
 lonnie	lonnie
+lonsdale	lonsdale
 lontan	lontan
 lontana	lontano
 lontanamente	lontanamente
@@ -67083,6 +67081,7 @@ loser	loser
 losers	losers
 losi	losi
 losing	losing
+losito	losito
 loss	loss
 lossless	lossless
 lost	lost
@@ -67264,6 +67263,7 @@ lucetta	lucetta
 lucette	lucetta
 lucha	lucha
 luchi	luco
+luchini	luchini
 luchino	luchino
 luci	luce
 lucia	lucio
@@ -67332,6 +67332,7 @@ lucri	lucro
 lucrino	lucrare
 lucro	lucro
 lucullo	lucullo
+lucus	lucus
 lucy	lucy
 lucía	lucía
 lud	lud
@@ -67413,6 +67414,8 @@ lumie	lumia
 lumina	luminare
 luminare	luminare
 luminari	luminare
+luminescente	luminescente
+luminescenti	luminescente
 luminescenza	luminescenza
 luminescenze	luminescenza
 lumini	luminare
@@ -67615,6 +67618,7 @@ lyra	lyra
 lyric	lyric
 lyrics	lyrics
 lys	lys
+lz	lz
 là	là
 länder	länder
 lè	lè
@@ -67628,6 +67632,7 @@ lévy	lévy
 lì	lì
 lí	lí
 lópez	lópez
+lù	lù
 m'	mi
 ma	ma
 maa	maa
@@ -68179,6 +68184,7 @@ mainardo	mainardo
 maine	maine
 mainframe	mainframe
 mainland	mainland
+mains	mains
 mainstream	mainstream
 maintenance	maintenance
 mainz	mainz
@@ -68193,6 +68199,7 @@ maior	maior
 maiora	maiora
 maiorano	maiorano
 maiorca	maiorca
+maipiù	maipiù
 mair	mair
 maira	maira
 maire	maire
@@ -68251,6 +68258,7 @@ malaffari	malaffare
 malaga	malaga
 malagestione	malagestione
 malagodi	malagodi
+malagoli	malagoli
 malagrotta	malagrotta
 malaguti	malaguti
 malaguzzi	malaguzzi
@@ -68272,11 +68280,13 @@ malaparte	malaparte
 malapena	malapena
 malaria	malaria
 malasanità	malasanità
+malasorte	malasorte
 malaspina	malaspina
 malassorbimento	malassorbimento
 malata	malato
 malate	malato
 malatesta	malatesta
+malatesti	malatesti
 malatestiana	malatestiano
 malatestiane	malatestiano
 malatestiani	malatestiano
@@ -68463,6 +68473,7 @@ maliziosi	malizioso
 malizioso	malizioso
 malkovich	malkovich
 mall	mall
+mallard	mallard
 mallarmé	mallarmé
 malleabile	malleabile
 malleabili	malleabile
@@ -68693,11 +68704,12 @@ mandante	mandante
 mandanti	mandare
 mandar	mandare
 mandare	mandare
-mandarina	mandarino
+mandarina	mandarina
 mandarine	mandarino
 mandarini	mandarino
 mandarino	mandarino
 mandarono	mandare
+mandas	mandas
 mandasse	mandare
 mandassero	mandare
 mandassi	mandare
@@ -68813,6 +68825,7 @@ manfrina	manfrina
 manfrine	manfrina
 mang	mang
 manga	manga
+mangaka	mangaka
 manganella	manganellare
 manganellano	manganellare
 manganellare	manganellare
@@ -68848,6 +68861,7 @@ mangiagalli	mangiagalli
 mangiai	mangiare
 mangiammo	mangiare
 mangiamo	mangiare
+mangiamorte	mangiamorte
 mangian	mangiare
 mangiando	mangiare
 mangiano	mangiare
@@ -69097,6 +69111,7 @@ mansueta	mansueto
 mansuete	mansueto
 mansueti	mansueto
 mansueto	mansueto
+mansuetudine	mansuetudine
 mansur	mansur
 manta	manto
 mante	manto
@@ -69164,6 +69179,8 @@ mantua	mantua
 manu	manu
 manual	manual
 manuale	manuale
+manualetti	manualetto
+manualetto	manualetto
 manuali	manuale
 manualistica	manualistica
 manualità	manualità
@@ -69339,6 +69356,7 @@ marchigiane	marchigiano
 marchigiani	marchigiano
 marchigiano	marchigiano
 marchin	marcare
+marching	marching
 marchingegni	marchingegno
 marchingegno	marchingegno
 marchini	marchini
@@ -69350,6 +69368,7 @@ marchioni	marchioni
 marchionne	marchionne
 marchionni	marchionni
 marchiori	marchiori
+marchis	marchis
 marchisio	marchisio
 marchiò	marchiare
 marché	marché
@@ -69364,6 +69383,7 @@ marcianise	marcianise
 marciano	marciano
 marciante	marciare
 marcianti	marciare
+marcianò	marcianò
 marciapiede	marciapiede
 marciapiedi	marciapiede
 marciare	marciare
@@ -69380,6 +69400,7 @@ marcin	marciare
 marcinelle	marcinelle
 marcino	marciare
 marcio	marcio
+marcione	marcione
 marciranno	marcire
 marcire	marcire
 marcirà	marcire
@@ -69417,6 +69438,7 @@ marduk	marduk
 mare	mare
 marea	marea
 marecchia	marecchia
+marechiaro	marechiaro
 maree	marea
 mareggiata	mareggiata
 mareggiate	mareggiata
@@ -69528,6 +69550,7 @@ marinatura	marinatura
 marine	marine
 marinella	marinella
 marinelli	marinelli
+marineo	marineo
 mariner	mariner
 marineria	marineria
 marinerie	marineria
@@ -69598,6 +69621,7 @@ marlboro	marlboro
 marlborough	marlborough
 marlene	marlene
 marley	marley
+marliani	marliani
 marlin	marlin
 marlo	marlo
 marlon	marlon
@@ -69772,6 +69796,7 @@ martí	martí
 martín	martín
 martínez	martínez
 maru	maru
+marullo	marullo
 marv	marv
 marvel	marvel
 marvel's	marvel's
@@ -75571,7 +75596,6 @@ nea	nea
 neal	neal
 neanch	neanche
 neanch'	neanche
-neanch'io	neanch'io
 neanche	neanche
 neandertal	neandertal
 neanderthal	neanderthal
@@ -76932,7 +76956,6 @@ novak	novak
 novalesa	novalesa
 novalis	novalis
 novant'	novanta
-novant'anni	novant'anni
 novanta	novanta
 novantacinque	novantacinque
 novantadue	novantadue
@@ -77081,9 +77104,7 @@ nui	nui
 nuit	nuit
 nuke	nuke
 nul	nul
-null	null
 null'	nulla
-null'altro	null'altro
 nulla	nulla
 nullafacente	nullafacente
 nullafacenti	nullafacente
@@ -77959,7 +77980,7 @@ ogive	ogiva
 ogliastra	ogliastra
 oglio	oglio
 ogm	ogm
-ogn	ogn
+ogn'	ogni
 ogne	ogni
 ogni	ogni
 ogniqualvolta	ogniqualvolta
@@ -79752,7 +79773,7 @@ ottagonale	ottagonale
 ottagonali	ottagonale
 ottagoni	ottagono
 ottagono	ottagono
-ottant'anni	ottant'anni
+ottant'	ottanta
 ottanta	ottanta
 ottantacinque	ottantacinque
 ottantadue	ottantadue
@@ -88501,9 +88522,7 @@ prigioniera	prigioniero
 prigioniere	prigioniero
 prigionieri	prigioniero
 prigioniero	prigioniero
-prim	prim
-prim'	prima
-prim'ordine	prim'ordine
+prim'	primo
 prima	prima
 primadonna	primadonna
 primae	primae
@@ -91113,10 +91132,6 @@ quaid	quaid
 quake	quake
 qual	quale
 qual'	quale
-qual'e	qual'e
-qual'era	qual'era
-qual'è	qual'è
-qual'é	qual'é
 qualch	qualch
 qualche	qualche
 qualcheduno	qualcuno
@@ -91224,7 +91239,6 @@ quantunque	quantunque
 quar	quar
 quarant	quaranta
 quarant'	quaranta
-quarant'anni	quarant'anni
 quaranta	quaranta
 quarantacinque	quarantacinque
 quarantadue	quarantadue
@@ -91321,6 +91335,7 @@ quattroruote	quattroruote
 quatuor	quatuor
 quay	quay
 que	que
+que'	quello
 quebec	quebec
 quechua	quechua
 queda	queda
@@ -107559,7 +107574,6 @@ sesia	sesia
 sess	sess
 sessa	sessa
 sessant'	sessanta
-sessant'anni	sessant'anni
 sessanta	sessanta
 sessantacinque	sessantacinque
 sessantadue	sessantadue
@@ -107651,7 +107665,6 @@ settala	settala
 settando	settare
 settano	settare
 settant'	settanta
-settant'anni	settant'anni
 settanta	settanta
 settantacinque	settantacinque
 settantadue	settantadue
@@ -118179,9 +118192,7 @@ tannico	tannico
 tannini	tannino
 tannino	tannino
 tano	tano
-tant	tant
 tant'	tanto
-tant'è	tant'è
 tanta	tanto
 tantalo	tantalo
 tante	tanto
@@ -122386,9 +122397,7 @@ trenino	trenino
 trenitalia	trenitalia
 treno	treno
 trenord	trenord
-trent	trent
 trent'	trenta
-trent'anni	trent'anni
 trenta	trenta
 trentacinque	trentacinque
 trentacinquenne	trentacinquenne
@@ -123776,7 +123785,7 @@ ulteriore	ulteriore
 ulteriori	ulteriore
 ulteriormente	ulteriormente
 ulti	ulti
-ultim'ora	ultim'ora
+ultim'	ultimo
 ultima	ultimo
 ultimamente	ultimamente
 ultimando	ultimare
@@ -125969,7 +125978,7 @@ ventina	ventina
 ventine	ventina
 ventinove	ventinove
 ventinovenne	ventinovenne
-ventiquattr'ore	ventiquattr'ore
+ventiquattr'	ventiquattro
 ventiquattrenne	ventiquattrenne
 ventiquattro	ventiquattro
 ventiquattrore	ventiquattrore

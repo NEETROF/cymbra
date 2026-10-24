@@ -27,7 +27,15 @@
 //! `1.3.0` (keep-lingua-italian-acronyms-and-names) a word standing alone in capitals reads as the
 //! acronym the pack lists: the fixture lists `NATO` beside `nato` (*nascere*), a phrase probe and a
 //! grammar probe show it, and no page moves — the `notizie` page writes `ONU`, `RAI`, `PIL`, `UE`
-//! and `ISTAT`, none a row.
+//! and `ISTAT`, none a row. At `1.4.0` (refine-lingua-italian-reading, an Italian-specialist review
+//! the owner commissioned and approved on 2026-10-24) four sentences are rewritten as Italian writes
+//! them and four optional ones taken (its D1, below); the pre-pass reads eighteen more elided forms,
+//! `coll'` and `degl'`, the books' truncations `ca'`, `de'`, `que'`, the truncated articulated
+//! prepositions (`ne' campi` → `in` + `i`), and `mo'` and `dai` by their context; fifteen closed-class
+//! words join the tables. The fixture gains the words the pre-pass now writes (`trenta`, `quale`,
+//! `quei`, `mò` …) and `pò` → `poco`; the probes gain a phrase per rule — « Dai, andiamo! », « a
+//! mo' di esempio », « ne' campi » … —, « davanti alla porta » and « ossia il primo » for the closed
+//! words, whose flags a phrase gloss shows (a page's tokens carry none), and three grammar pairs.
 //!
 //! The corpus, `baseline/pages-it.txt`, is authored for these tests, page by page, around what a
 //! later change of the Italian stage must show, with two exceptions, quoted from texts in the
@@ -49,7 +57,16 @@
 //!   States.
 //!
 //! Checked on 2026-10-23: the Manzoni against it.wikisource's proofread transcription of the 1840
-//! edition, the Collodi against its transcription of the Bemporad edition.
+//! edition, the Collodi against its transcription of the Bemporad edition. Read again on 2026-10-24
+//! by the Italian-specialist review (refine-lingua-italian-reading D1): the sources and the licences
+//! are right.
+//!
+//! The authored pages as the review rewrote them (D1): `grammatica`'s letters are the ones « mi hai
+//! scritto », and it gains the courtesy form, « La ringraziamo, Le risponderemo al più presto. »;
+//! `ricetta`'s *frittata* is eggs beaten with parmesan; `tecnico`'s NFD block speaks of the service's
+//! `affidabilità`; `elisioni` asks « Com'è possibile che non sia più nell'armadio? » and answers « E
+//! sarà tutt'altro che noiosa. »; `notizie` sets its percentages with no space (« 0,3% »); and
+//! `informale` gains « aspetta un pò, qual'è il problema? ».
 //!
 //! One phrase probe is quoted too: « Nel mezzo del cammin », the opening words of Dante
 //! Alighieri's *Commedia* (Inferno I, 1; Dante died in 1321), in the public domain everywhere.
@@ -165,6 +182,16 @@ const PHRASES: &[&str] = &[
     "Eccolo, è arrivato dall'Italia",
     "E' troppo tardi perche' la citta' e' piu' lontana",
     "I paesi della NATO",
+    // refine-lingua-italian-reading: a phrase per rule, and the closed words D6 adds.
+    "Dai, andiamo!",
+    "mi dai una mano?",
+    "a mo' di esempio",
+    "Lorenzo de' Medici",
+    "ne' campi",
+    "trent'anni fa",
+    "gliel'ho detto",
+    "davanti alla porta",
+    "ossia il primo",
     "non di il che",
     "The lighthouse stood",
     "El faro se alzaba",
@@ -212,6 +239,11 @@ const GRAMMAR: &[(&str, &str)] = &[
     // The acronym the fixture lists as written, apart from `nato` (keep-lingua-italian-acronyms-and-
     // names D7).
     ("NATO", "NATO"),
+    // A word the pre-pass reads by its context, asked by each reading's dictionary form
+    // (refine-lingua-italian-reading D4, D8).
+    ("dai", "dare"),
+    ("dai", "da"),
+    ("mo'", "mò"),
 ];
 
 /// The pages analysed again for the reader with a history.

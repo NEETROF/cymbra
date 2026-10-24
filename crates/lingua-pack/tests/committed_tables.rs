@@ -28,7 +28,7 @@ use lingua_core::analysis::lexicon::Lexicon;
 use lingua_core::analysis::pipeline::headword_reading;
 use lingua_core::analysis::tokenize::{
     FRENCH_ELISIONS, FRENCH_INVERSION_PRONOUNS, ITALIAN_CONTRACTIONS, ITALIAN_ELIDED_PREPOSITIONS,
-    ITALIAN_ELISIONS, ITALIAN_TRUNCATIONS, is_elided, tokenize,
+    ITALIAN_ELISIONS, ITALIAN_TRUNCATED_PREPOSITIONS, ITALIAN_TRUNCATIONS, is_elided, tokenize,
 };
 use lingua_core::engine::{
     expression_piece, french_expression_key, holds_french_contraction, reading_expression_key,
@@ -2896,12 +2896,20 @@ fn spec_scenario_every_word_italian_s_pre_pass_writes_is_a_form() {
     // Change 6's pre-pass (I7): every word it hands the lookup is a form of a ranked lemma, each
     // elided piece and truncation a form of the word it stands for, the `di` family lemmas of their
     // own, and the articulated prepositions it splits neither forms nor ranks — `dai` excepted, a
-    // form of dare and no rank, the truncation `da'`'s word (add-lingua-italian-forms-tables D4).
+    // form of dare and no rank, the verb the pre-pass reads `dai` and `da'` as by their context
+    // (add-lingua-italian-forms-tables D4, as refine-lingua-italian-reading amends it). Since
+    // refine-lingua-italian-reading: the eighteen elided forms, `coll'` and `degl'`, the truncations
+    // `ca'`, `de'` and `que'`, the truncated articulated prepositions' pieces, and `mò`.
     let forms = tsv(&tables().join("it/forms.tsv"));
     let ranks = tsv(&tables().join("it/freq.tsv"));
     let mut written: BTreeSet<&str> = BTreeSet::new();
     written.extend(ITALIAN_ELISIONS.iter().map(|(_, read)| *read));
-    written.insert("dissi");
+    // The words it writes by their context: `dissi` before `io`, `mò` but before `di`, the verb
+    // `dai`.
+    written.extend(["dissi", "mò", "dai"]);
+    for (_, preposition, article) in ITALIAN_TRUNCATED_PREPOSITIONS {
+        written.extend([*preposition, *article]);
+    }
     for (_, preposition, article) in ITALIAN_CONTRACTIONS {
         written.extend([*preposition, *article]);
     }
@@ -2927,6 +2935,13 @@ fn spec_scenario_every_word_italian_s_pre_pass_writes_is_a_form() {
         );
     }
     assert_eq!(forms.get("dell'").map(String::as_str), Some("dello"));
+    assert_eq!(forms.get("degl'").map(String::as_str), Some("degli"));
+    // A truncated articulated preposition is neither a form nor a rank with its apostrophe, as the
+    // elided `all'` is: the section's `da'` is read no more (refine-lingua-italian-reading D7).
+    for (written, _, _) in ITALIAN_TRUNCATED_PREPOSITIONS {
+        assert!(!forms.contains_key(&format!("{written}'")), "{written}'");
+        assert!(!ranks.contains_key(&format!("{written}'")), "{written}'");
+    }
     for word in ["del", "dello", "della", "dei", "degli", "delle"] {
         assert_eq!(forms.get(word).map(String::as_str), Some(word));
         assert!(ranks.contains_key(word), "{word} is no ranked lemma");
