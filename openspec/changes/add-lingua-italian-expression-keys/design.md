@@ -135,6 +135,8 @@ which compares the tokens' text (`poco` for « po' »), would tie and name `un p
 po' » meets `un po'` alone and « un poco » meets `un poco` alone, each named as written; a pack
 holding `un po'` alone meets « un po' » and not « un poco ». 4 of the candidates hold a truncation.
 
+*Pointer (2026-10-24):* `refine-lingua-italian-reading` (change 11a) adds `coll'` and the truncated articulated prepositions `a'`, `co'`, `da'`, `ne'`, `su'` to the split families and reads `da'` as the verb `dai` by its context; if 11a is on main first, this change's `holds_contraction` and truncation test take them (11a's D4, its task 1.7 the other way round).
+
 ### D7 — The overlap rule reads Italian
 
 44f's rule runs « in French, Spanish or English » on `built_on_verb` (the pack's grammar reads a

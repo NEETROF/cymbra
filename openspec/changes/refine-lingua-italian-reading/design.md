@@ -4,8 +4,9 @@
 
 See proposal.md — Why. What constrains the shape:
 
-- **Who decided.** No one on the team reads Italian (I2). An Italian specialist read, on the
-  owner's behalf, what changes 5, 6 and 7 left the owner to read: `pages-it.txt` and the two
+- **Who decided.** No one on the team reads Italian (I2). An Italian-specialist review commissioned
+  by the owner on 2026-10-24 — not I2's reviewer agent — read, on his behalf, what changes 5, 6 and
+  7 left the owner to read: `pages-it.txt` and the two
   excerpts' attributions (change 5's task 5.1), D3's elided forms, D4's articulated prepositions
   and D5's truncations (change 6's 4.1), D3's closed classes and their left-out words, D4's names
   rule and D2's cascade (change 7's 9.1). The owner, Guillaume Fortin, approved every
@@ -54,7 +55,9 @@ See proposal.md — Why. What constrains the shape:
 
 - Other context rules (`s'` read `se`, `d'` read `da`, `pover'` read `povera`): the review raised
   none; change 6's readings stand.
-- `pe'` (*pei*, 3 in change 10's corpus): the review did not name it; it stays one of the apocopes.
+- `pe'` (*pei*, 3 in change 10's corpus): it stays one of the apocopes. The review did not name it,
+  and change 6 keeps `pel` and `pei` out of `ITALIAN_CONTRACTIONS` — archaic, read whole —: reading
+  `pe'` as `per` + `i` would split the truncation of a word whose full form the pre-pass keeps whole.
 - The noun homographs the closed classes hide (D6, *Cost*): unchanged, as in Spanish and French.
 - The gloss of the new pieces' words: it-fr's glosses are change 16's.
 
@@ -134,7 +137,8 @@ whole, and a piece would read `oltre` + `alpe` for a word the dictionary has.
 **A new case: a truncation read as two words**, as an articulated preposition is read (I7). The
 books write `ai`, `coi`, `nei`, `sui` and `dai` truncated before a consonant; each is read as its
 preposition and `i`, the two tokens sharing the span, apostrophe included, the first keeping the
-written capital — the shape of change 6's `all'` (`a` + `lo`):
+written capital — the shape of change 6's `all'` (`a` + `lo`). `a'`, `co'`, `ne'` and `su'` are read
+so **only when a word follows them**, nothing but a space between; `da'` by D4's context:
 
 | Written | Read as | In change 10's corpus | Today |
 |---|---|---|---|
@@ -145,15 +149,24 @@ written capital — the shape of change 6's `all'` (`a` + `lo`):
 | `su'` | `su` + `i` | 13 | `su` |
 
 They take a table of their own beside `ITALIAN_ELIDED_PREPOSITIONS` (written, preposition,
-article), read as a truncation is — the seam keeps the apostrophe when neither a letter nor a digit
-follows it and no quote opened before the word is still open — and their read words are final.
-`da'` moves there from `ITALIAN_TRUNCATIONS`.
+article), read as a truncation is — the seam keeps the apostrophe when no quote opened before the
+word is still open — and their read words are final. `da'` moves there from `ITALIAN_TRUNCATIONS`.
+
+**Only before a word** (decided at review, 2026-10-24). D4's own argument: the preposition always
+has its noun phrase after it, and is never followed by punctuation. So `a'`, `co'`, `ne'` and `su'`
+before a comma, a stop, a closing quote or the end of the text stay what they are today — apocopes,
+read `a`, `co`, `ne`, `su`, the apostrophe outside the word — and that apostrophe closes a quote as
+any does: « 'Vieni su', disse, e un po' » still closes after `su`, and `po'` still reads `poco`. A
+quoted phrase ending on one of them is not read as a preposition with no noun. D5 counts the
+occurrences of each before a word and before anything else.
 
 **Change 10's apocopes, reconciled.** `ITALIAN_APOCOPES` listed `ne`, `de`, `co`, `a`, `su`, `que`
 and `ca` only to keep its accent rule off them (« ne' » would read `né`, « su' » `sù`, « que' »
-`qué`). The pre-pass now reads them, and the accent rule never tries a word the pre-pass lists, so
-they leave it; it keeps the nine the pre-pass still does not read: `fe'`, `fra'`, `i'`, `me'`,
-`mi'`, `pe'`, `to'`, `ve'`, `vo'`. The accent requirement's list and its scenarios follow.
+`qué`). The pre-pass now reads `de'`, `que'` and `ca'` wherever they stand, and the accent rule
+never tries a word the pre-pass lists, so those three leave it. `a`, `co`, `ne` and `su` stay — the
+pre-pass reads them only before a word, and with nothing after them they must still never read
+`né` or `sù` —, beside the nine it never reads: `fe'`, `fra'`, `i'`, `me'`, `mi'`, `pe'`, `to'`,
+`ve'`, `vo'` — thirteen in all. The accent requirement's list and its scenarios follow.
 
 *Cost, accepted — `ne'` for *né*.* The web sometimes writes `ne'` for *né* (« ne' l'uno ne'
 l'altro »): read `in` + `i`. Today it reads `ne`, the pronoun, which is wrong in both cases; the
@@ -176,11 +189,14 @@ listed truncation's word is.
 where books write the preposition. The specialist's rule, for both: the verb, one token `dai`
 spanning the written word, when the word just before it — nothing but a space between — is `non`
 or a clitic pronoun (`mi`, `ti`, `ci`, `gli`, `le`, `lo`, `la`, `ne`, `me`, `te`, `ce`, and
-`glielo`, `gliela`, `glieli`, `gliele`, `gliene`), or when it is followed, closing quotes aside, by
-`,`, `!`, `?`, `.`, `…` or the end of the text; the preposition otherwise. Why it holds: the
+`glielo`, `gliela`, `glieli`, `gliele`, `gliene`), or when it is followed by `,`, `!`, `?`, `.`,
+`…`, a closing quotation mark (« “Ma dai” disse ») or the end of the text; the preposition otherwise. Why it holds: the
 preposition always has its noun phrase after it — it is never followed by punctuation —, and a
 clitic or `non` is never followed by a preposition. `dai` keeps Zipf 5.90 across both readings;
-wordfreq cannot tell them apart, hence the measurement (D5).
+wordfreq cannot tell them apart, hence the measurement (D5). `me` and `te` are the doubtful
+triggers: they are clitics only before another pronoun (« me lo dai », where the word before `dai`
+is `lo`), and stressed pronouns elsewhere (« vieni con me dai nonni? »); D5 keeps them only on their
+own figures.
 
 *Cost — the verb with no sign.* « tu dai il libro a Maria », « dai retta a me » read as the
 preposition, as today. The reverse error needs a clitic-shaped word right before a preposition or
@@ -189,17 +205,26 @@ punctuation right after one; the measurement looks for it.
 *Cost, unchanged — `da'` for *dà*.* « me lo da' » reads `dai`, change 10's named cost: the lemma
 *dare* is right, the token text is not.
 
+*Cost, accepted — a selection is read alone.* The phrase gloss reads a selection as a text of its
+own, so its end is the end of the text: a selection ending « … torno dai » reads the verb, and one
+ending « a mo' » reads `mò`, where the page around them reads the preposition and `modo`. The rule
+is not restricted for it: a selection cut inside a phrase is the reader's, and the word card, which
+is keyed by its dictionary form, is unaffected.
+
 **A word card has no context.** The extension hands the card the written word alone (« dai », «
 mo' »), and `word_grammar` already answers the piece whose dictionary form the card asks. For a
 word this rule reads two ways it asks the pre-pass for both readings and answers the one holding
 the card's dictionary form: (« dai », `da`) the pieces `da` and `i`, (« dai », `dare`) the verb,
-(« mo' », `modo`) `modo`, (« mo' », `mò`) `mò`. Without it, a click on the preposition `dai`
-would answer the verb, since a word alone ends the text.
+(« mo' », `modo`) `modo`, (« mo' », `mò`) `mò`. Where neither reading holds the card's form, the
+word is answered as it reads alone — `dai` and `da'` the verb (the end of the text follows them),
+`mo'` as `mò` —, as `word_grammar` already falls back to the written word's first token. Without
+it, a click on the preposition `dai` would answer the verb, since a word alone ends the text.
 
 **The expression keys.** Change 12 reads a headword through the same pre-pass, so « a mo' di »
 keeps its key `a modo di` and « dai e dai » reads as a page does. Its split families and its
 truncation list (its D6) read change 6's tables as they are when it is implemented: whichever of
-the two is implemented second covers the other's tables. Nothing of change 12's spec moves.
+the two is implemented second covers the other's tables — task 1.7 here if change 12 is on main
+first; a one-line pointer in change 12's D6 the other way. Nothing of change 12's spec moves.
 
 ### D5 — The measurement the implementation runs first, by criteria written here
 
@@ -209,7 +234,9 @@ training and development sections (990,502 words) — and the whole Tatoeba expo
 Italian-PUD and MarkIT's test section are read by nothing this change decides**; they stay `it-ud.sh`'s
 gates after the dispatch, as before.
 
-**`dai` and `da'`** (the criteria are fixed now, before any figure is read):
+**`dai` and `da'`.** These criteria were fixed in this proposal before any figure was read; the
+review of 2026-10-24 only clarified them — the denominator of 3, the fallback, `me` and `te`, the
+closing quote —, still before any measurement:
 
 1. *Gold.* In MarkIT's training and development sections, UD writes the preposition as a
    multiword token (`da` + `i`) and the verb as one `VERB` token: that is the answer. In the other
@@ -217,20 +244,33 @@ gates after the dispatch, as before.
    random sample of 100 it reads as the preposition (the seed in the pull request).
 2. *Each trigger kept on its precision.* `non` before, a clitic before, punctuation after: each is
    kept only if at least 95 % of the words it reads as the verb are the verb. A trigger under 95 %
-   is dropped before the rule ships, and the pull request says so.
-3. *The prepositions kept.* The rule ships only if no more than 1 % of the prepositions — MarkIT's
-   gold and the hand-read sample together — are read as the verb.
+   is dropped before the rule ships, and the pull request says so. The clitic trigger's precision
+   is reported per clitic, not gated per clitic — but for `me` and `te`, which stay triggers only if
+   their own precision, the two counted together, reaches the same 95 %.
+3. *The prepositions kept.* The rule ships only if no more than 1 % of the prepositions are read as
+   the verb, the share being: the prepositions found among the hand-read verb readings, plus
+   MarkIT's gold prepositions read as the verb, over MarkIT's gold prepositions plus the other
+   texts' preposition readings.
 4. *Not tuned.* No trigger is added, no clitic list widened and no threshold moved after the figures
    are read. The verbs the rule finds and the ones it misses (`tu dai`, `li dai`, `vi dai`) are
    reported, not gated.
+5. *The fallback.* If the rule fails 3, it does not ship: `dai` stays `da` + `i` everywhere, and
+   `da'` keeps change 6's reading, the one token `dai`. If a trigger is dropped by 2, the rule ships
+   without it. Either way, task 2.1 makes the spec's block and its scenarios follow before the
+   implementation merges — « Me lo dai? » and « Ma dai! » each rely on two triggers, and a scenario
+   whose triggers are all gone is rewritten to the preposition —, as task 2.2 does for `mo'`.
 
 **`mo'`.** Every `mo'` of the corpus is read by hand (they are few). The rule ships if at least 9 in
 10 of its readings are right; otherwise `mo'` stays `modo` everywhere, as today, and the pull request
-says so.
+says so. The corpus is mostly written, literary and encyclopaedic Italian: if it holds no `mò`
+reading at all, the criterion measures the `modo` branch alone, and the `mò` branch ships unmeasured
+— said so in the pull request, on the specialist's word.
 
 **The new pieces and truncations** are counted, per piece, on the same corpus and listed in the pull
 request with a sample of each, not gated: any occurrence where a piece splits a word Italian writes
-whole is listed for the owner, who may drop the piece before the dispatch.
+whole is listed for the owner, who may drop the piece before the dispatch. `a'`, `co'`, `ne'` and
+`su'` are counted twice: before a word (read as two words) and before anything else (left as
+apocopes).
 
 ### D6 — The closed classes
 
@@ -284,7 +324,18 @@ it to them, the new table and the context words included:
 - `WORDFREQ_STEMS` follows from the tables: the new pieces' stems are no ranked words, as change 9's
   rule has it. The truncations' stems `ca`, `de`, `que`, `co` keep their reading: each is a lemma of
   the section with a rank (`de` 94, `co` 991, `ca` 1,932, `que` 2,729), and change 9's rule leaves
-  such a stem a word, as it leaves `da`, `di` and `fa`.
+  such a stem a word, as it leaves `da`, `di` and `fa`. Accepted: wordfreq counts
+  `de'` and `que'` as `de` and `que`, so `de` (94) and `que` (2,729) stay ranked on counts that the
+  pre-pass now reads as `dei` and `quei`.
+
+**Change 9's requirement, amended in place.** *Italian's forms and frequencies* — change 9's, and
+change 20's copy under MODIFIED — said `dai` is « the truncation `da'`'s word » and made wordfreq's
+stems of the elided pieces and truncations « no words », `cent` and the apocopes excepted, which
+read literally makes `ca`, `de` and `que` no words. Both changes are open, so both sentences are
+amended in place in this pull request, as change 56 (#1031) amended the two open YouTube changes:
+`dai` is « a form of *dare* with no rank, the verb the pre-pass reads `dai` and `da'` as by their
+context », and the stems are « the stems … that are no word of their own ». Nothing else of either
+requirement moves, and no MODIFIED block is needed here.
 
 Measured on the committed tables (2026-10-24), the dispatch moves:
 
@@ -298,8 +349,9 @@ Measured on the committed tables (2026-10-24), the dispatch moves:
 - **7 ranked stems** leave the ranks — `coll` 10,555, `trent` 14,193, `tant` 16,946, `null` 18,253,
   `prim` 23,164, `degl` 25,356, `ogn` 40,228; the ranks close up;
 - `prim'` moves from *prima* (the section's reading) to *primo*; `fin'`, `ultim'`, `ogn'`, `ottant'`,
-  `diciott'`, `sessant'`, `settant'`, `ventiquattr'`, `degl'` and `que'` become forms of their
-  words; `da'` stops being a form of *dare*;
+  `ventiquattr'`, `degl'` and `que'` become forms of their words (`cinquant'`, `diciott'`, `gliel'`,
+  `neanch'`, `novant'`, `null'`, `qual'`, `quarant'`, `sessant'`, `settant'`, `tant'` and `trent'`
+  are forms already); `da'` stops being a form of *dare*;
 - `tables/it-fr/manifest.json` records `1.4.0`, `pin.json` and the README follow.
 
 Until the dispatch, `committed_tables.rs` and `test_pack_sources.py`'s record of the pin fail on
@@ -318,18 +370,19 @@ the pre-pass now writes that it lacks — D2's read words, `quei`, `mò`, and `p
 `informale` line — so that `the_fixture_lists_every_word_the_pre_pass_writes` holds; the
 `italian_fixtures.rs` cases cover every new entry and each trigger. The probes gain « Dai,
 andiamo! », « mi dai una mano? », « a mo' di esempio », « Lorenzo de' Medici », « ne' campi »,
-« trent'anni fa » and « gliel'ho detto », and the grammar pairs (« dai », `dare`), (« dai », `da`)
-and (« mo' », `mò`).
+« trent'anni fa », « gliel'ho detto », and « davanti alla porta » and « ossia il primo » for D6's
+flags, and the grammar pairs (« dai », `dare`), (« dai », `da`) and (« mo' », `mò`).
 
-The golden moves once: the version line, D1's lines, the probes, `davanti` flagged where the pages
-write it (`notizie`, `omografi`, `clitici`), and whatever D1's new lines read. The pages' `dai` —
+The golden moves once: the version line, D1's lines, the probes, and whatever D1's new lines read.
+A page's tokens carry no function-word flag — only a phrase gloss's do —, so D6's additions show in
+the two phrase probes above, not on the pages. The pages' `dai` —
 Manzoni's « dai molti suoi cocuzzoli », `grammatica`'s « dai nonni », `preposizioni`'s « dai cugini »
 — stay `da` + `i`. The six goldens, S0 and every pin of the six pairs are byte for byte.
 
 ### D9 — The owner tasks closed here, and what the archive does at merge
 
 This pull request ticks change 5's 5.1, change 6's 4.1 and change 7's 9.1, each with « Done
-2026-10-24: read by an Italian specialist on the owner's behalf; approved, corrections in
+2026-10-24: read in an Italian-specialist review commissioned by the owner on 2026-10-24; approved, corrections in
 refine-lingua-italian-reading ». Each was its change's last open task, so 5, 6 and 7 become complete,
 and the `openspec-archive` workflow runs on the merge.
 
@@ -355,8 +408,12 @@ requirement its predecessor left.
 - [The verb `dai` with no sign before or after it] → read as the preposition, as today; reported by
   D5, not chased by tuning.
 - [`ne'` written for *né*] → `in` + `i`, accepted (D3); today's `ne` is wrong as well.
-- [A word card on a word read by context] → answered by the card's dictionary form (D4); a test per
-  reading.
+- [A word card on a word read by context] → answered by the card's dictionary form (D4), else as the
+  word alone reads; a test per reading.
+- [A selection ending on `dai` or `mo'`] → read as at the end of a text, the verb and `mò`; accepted
+  (D4), the card unaffected.
+- [`a'`, `co'`, `ne'`, `su'` at the end of a quoted phrase] → read as two words only before a word
+  (D3), so the quote still closes.
 - [The re-reduction moves ranks] → 31 ranked entries leave (D7) and the ranks close up; listed in
   the dispatch's pull request; `it-ud.sh`'s gates are rerun on the new tables.
 - [A new piece splitting a word Italian writes whole] → D5 lists every new piece's occurrences for

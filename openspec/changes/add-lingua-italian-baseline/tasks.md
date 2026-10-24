@@ -31,7 +31,7 @@
 
 ## 5. Owner
 
-- [x] 5.1 [manual] The owner reads `pages-it.txt` and the two excerpts' attribution in `support/italian.rs`, and may swap a page's text or an excerpt before the golden is blessed (task 3.3); a page swapped after the bless re-blesses with a line saying so. *Done 2026-10-24: read by an Italian specialist on the owner's behalf; approved, corrections in `refine-lingua-italian-reading` — four sentences made natural and four optional edits taken (its D1), the golden re-blessed once at its implementation; the sources and licences approved: Manzoni's 1840 edition, Collodi's 1883 Pinocchio and Dante are in the public domain.*
+- [x] 5.1 [manual] The owner reads `pages-it.txt` and the two excerpts' attribution in `support/italian.rs`, and may swap a page's text or an excerpt before the golden is blessed (task 3.3); a page swapped after the bless re-blesses with a line saying so. *Done 2026-10-24: read in an Italian-specialist review commissioned by the owner on 2026-10-24; approved, corrections in `refine-lingua-italian-reading` — four sentences made natural and four optional edits taken (its D1), the golden re-blessed once at its implementation; the sources and licences approved: Manzoni's 1840 edition, Collodi's 1883 Pinocchio and Dante are in the public domain.*
 
 ## 6. Gates
 

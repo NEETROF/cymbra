@@ -40,7 +40,7 @@
 
 ## 9. Owner
 
-- [x] 9.1 [manual] The owner reads D3's tables and their left-out words (`volere`, `secondo`, `lungo`, `stare`, `mai`, `più`, `anche`), D4's two Italian readings of the names rule, and D2's candidate rules kept or dropped, and may move a word before the golden is blessed. *Done 2026-10-24: read by an Italian specialist on the owner's behalf; approved, corrections in `refine-lingua-italian-reading` — D3's tables and left-out words approved, `stare` staying out (« sto bene », never « sono bene »), with fifteen words added (its D6); D4's names rule and D2's choices approved as they stand.*
+- [x] 9.1 [manual] The owner reads D3's tables and their left-out words (`volere`, `secondo`, `lungo`, `stare`, `mai`, `più`, `anche`), D4's two Italian readings of the names rule, and D2's candidate rules kept or dropped, and may move a word before the golden is blessed. *Done 2026-10-24: read in an Italian-specialist review commissioned by the owner on 2026-10-24; approved, corrections in `refine-lingua-italian-reading` — D3's tables and left-out words approved, `stare` staying out (« sto bene », never « sono bene »), with fifteen words added (its D6); D4's names rule and D2's choices approved as they stand.*
 
 ## 10. Gates
 

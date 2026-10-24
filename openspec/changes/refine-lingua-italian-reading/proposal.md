@@ -1,4 +1,4 @@
-# refine-lingua-italian-reading — an Italian specialist's review of the test pages, the pre-pass and the closed classes
+# refine-lingua-italian-reading — an Italian-specialist review of the test pages, the pre-pass and the closed classes
 
 ## Why
 
@@ -6,8 +6,9 @@ Change 11a of the [Italian programme](../../../docs/lingua/italian-programme.md)
 5, 6 and 7 each left the owner a reading task — the test pages and their attributions (change 5's
 5.1), the elision, articulated-preposition and truncation tables (change 6's 4.1), the closed
 classes, the names rule and the cascade's choices (change 7's 9.1). No one on the team reads Italian
-(I2), so an Italian specialist read them on the owner's behalf; the owner, Guillaume Fortin,
-approved every recommendation on 2026-10-24 (« Tout appliquer »). This change gathers them:
+(I2), so an Italian-specialist review commissioned by the owner on 2026-10-24 read them on his
+behalf (not I2's reviewer agent); the owner, Guillaume Fortin, approved every recommendation the
+same day (« Tout appliquer »). This change gathers them:
 
 - **Four test sentences read as no Italian writes**: « Le lettere che ho scritto sono arrivate
   ieri » (one's own letters arriving), a *frittata* made with flour and milk, « l'attività del
@@ -44,14 +45,16 @@ approved every recommendation on 2026-10-24 (« Tout appliquer »). This change 
 - **Truncations** (D3): `ITALIAN_TRUNCATIONS` gains `ca'` → `casa`, `de'` → `dei`, `que'` → `quei`;
   a new table reads a truncated articulated preposition as two words sharing the span, as an
   articulated preposition is read: `a'` → `a` + `i`, `co'` → `con` + `i`, `ne'` → `in` + `i`, `su'`
-  → `su` + `i`, and `da'` → `da` + `i`. Change 10's apocope list (`ITALIAN_APOCOPES`), which held
-  seven of these only to keep its accent rule off them, keeps the nine the pre-pass still does not
-  read. `to'` stays out: the interjection « tiens ! », which `togli` would gloss « enlever ».
+  → `su` + `i` — these four only when a word follows them, apocopes as today otherwise, so a quote
+  they end still closes —, and `da'` → `da` + `i`. Change 10's apocope list (`ITALIAN_APOCOPES`)
+  loses `ca`, `de` and `que`, which the pre-pass now always reads, and keeps thirteen. `to'` stays
+  out: the interjection « tiens ! », which `togli` would gloss « enlever ».
 - **Two context rules** (D4): `mo'` is `modo` before `di` and `mò` otherwise; `dai` and `da'` are
-  the verb *dare* after `non` or a clitic pronoun, or before `,`, `!`, `?` or a sentence's end, and
-  the preposition otherwise. A word card, which has no context, reads the word the way its
-  dictionary form asks. Both rules are measured before they ship, by criteria written in this
-  design, on corpora that exclude UD Italian-PUD and MarkIT's test section (D5).
+  the verb *dare* after `non` or a clitic pronoun, or before `,`, `!`, `?`, a closing quote or a
+  sentence's end, and the preposition otherwise. A word card, which has no context, reads the word
+  the way its dictionary form asks. Both rules are measured before they ship, by criteria written
+  in this design, on corpora that exclude UD Italian-PUD and MarkIT's test section (D5); a rule that
+  fails them does not ship, and the spec's block follows.
 - **The closed classes** (`analysis/function_words.rs`, D6): the prepositions `davanti`, `dietro`;
   the determiners `ambedue`, `entrambe`, `entrambi`, `parecchi`, `parecchia`, `parecchie`,
   `parecchio`; the conjunctions `anziché`, `bensì`, `nonché`, `ossia`, `pertanto`, `qualora`.
@@ -64,6 +67,13 @@ approved every recommendation on 2026-10-24 (« Tout appliquer »). This change 
   new piece (`trent'anni` …) and 7 ranked stems (`trent`, `tant`, `coll` …) leave the ranks, `prim'`
   becomes a form of *primo* (the section files it under *prima*), `que'`, `degl'`, `fin'` and the
   other new pieces become forms, `da'` stops being one.
+- **Change 9's forms requirement, amended in place** (D7): *Italian's forms and frequencies*, in
+  change 9 (`add-lingua-italian-forms-tables`) and in change 20's MODIFIED copy
+  (`enable-lingua-italian`), called `dai` « the truncation `da'`'s word » and made every stem of the
+  pieces and truncations no word, which literally excludes `ca`, `de` and `que`. Both open changes
+  are amended in place, as change 56 (#1031) amended the YouTube changes: `dai` is the verb the
+  pre-pass reads `dai` and `da'` as by their context, and the stems are those that are no word of
+  their own. One pointer to this change is added to change 12's design (D4).
 - **Italian's analyser version** `1.3.0` → `1.4.0`; the fixture pack and `it-fr.golden` re-blessed
   once at implementation. **English, Spanish, French and the six goldens do not move.**
 - **The three owner tasks are closed in this pull request** (changes 5's 5.1, 6's 4.1, 7's 9.1),
@@ -80,20 +90,21 @@ None.
 - `lingua-analysis`:
   - MODIFIED — *Italian tokenisation pre-pass*, as change 10 (`read-lingua-italian-unmarked-spellings`)
     leaves it: the new elided forms, `coll'`, `degl'`, the truncations `ca'`, `de'`, `que'`, the
-    truncated articulated prepositions, `mo'` and `dai` by their context, a word card's reading of
-    them; every scenario kept, ten added.
+    truncated articulated prepositions (`a'`, `co'`, `ne'`, `su'` before a word only), `mo'` and
+    `dai` by their context, a word card's reading of them; every scenario kept, eleven added.
   - MODIFIED — *The apostrophe that stands for an accent reads as the accented word* (change 10's):
-    the apocopes it excludes are the nine the pre-pass does not read; the truncated articulated
-    prepositions close no quote; its scenarios *A listed word with its apostrophe* and *An apocope*
-    rewritten for what the pre-pass now reads, one added.
+    the apocopes it excludes are the ones the pre-pass does not read — the nine, and `a'`, `co'`,
+    `ne'`, `su'` with no word after them —; a truncated articulated preposition the pre-pass reads
+    closes no quote; its scenarios *A listed word with its apostrophe* and *An apocope* rewritten
+    for what the pre-pass now reads, one added.
   - MODIFIED — *Italian closed classes* (change 7's, `add-lingua-italian-analysis`): the fifteen
     words; `anche` named among the words left out, as change 7's design already left it; one
     scenario added, one widened.
   - This change archives after changes 6, 7 and 10, which hold those requirements.
-- `lingua-data-packs`: no requirement moves. Change 9's *Italian's forms and frequencies* (as change
-  20 leaves it) already says the tables serve the pre-pass as change 6 writes it — every word it
-  writes a form, each truncation a form of its word, the articulated prepositions it splits neither
-  forms nor ranks —; the reducer follows the tables it mirrors (D7).
+- `lingua-data-packs`: no delta in this change. Change 9's *Italian's forms and frequencies*, and
+  change 20's copy of it, are amended in place in their own open changes (two sentences each: what
+  `dai` is, and which stems are no words), since a MODIFIED block here would have to copy change
+  20's and archive after it; the reducer follows the tables it mirrors (D7).
 
 ## Impact
 
@@ -104,11 +115,14 @@ then.
 - `crates/lingua-core/src/analysis/tokenize.rs` (the tables, the truncated articulated prepositions,
   the two context rules, `ITALIAN_APOCOPES`), `analysis/function_words.rs`, `analysis/mod.rs`
   (`1.4.0`), `engine.rs` (`word_grammar` reads a context-dependent word by the card's dictionary
-  form), `tests/italian_fixtures.rs`.
+  form; `holds_contraction` if change 12 is on main first), `tests/italian_fixtures.rs`.
 - `crates/lingua-wasm/tests/{baseline/pages-it.txt, baseline/it-fr.golden, italian_baseline.rs,
   support/italian.rs}`; `scripts/lingua-data/testdata/it-fr/` (the manifest at `1.4.0`, the new
   read words); `crates/lingua-pack/tests/{pipeline_testdata.rs, committed_tables.rs}`.
 - `scripts/lingua-data/reduce-it-fr.py`, `test_reduce_it_fr.py`; `tables/it/{forms.tsv, freq.tsv}`
   and `tables/it-fr/{pin.json, manifest.json, README.md}` by the owner's dispatch.
+- In this proposal's pull request, beside this change: the two sentences of change 9's and change
+  20's *Italian's forms and frequencies* amended in place, a pointer in change 12's design, the
+  owner tasks of changes 5, 6 and 7 ticked, and the programme's row 11a.
 - Untouched: the six pairs' tables, pins and goldens; English's, Spanish's and French's arms; the
   extension's bundle; the agent; the server; the site.
