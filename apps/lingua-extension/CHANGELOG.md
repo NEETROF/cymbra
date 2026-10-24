@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.11.0](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.10.1...lingua-extension-v1.11.0) (2026-10-24)
+
+
+### Features
+
+* **lingua:** add Italian as a studied language, read as the baseline ([#1038](https://github.com/NEETROF/cymbra/issues/1038)) ([a516ebc](https://github.com/NEETROF/cymbra/commit/a516ebced8cca56fa3c4a2ff919940ac4974052f))
+* **lingua:** measure it-fr's translation marks on the Italian selections ([#1039](https://github.com/NEETROF/cymbra/issues/1039)) ([64c20af](https://github.com/NEETROF/cymbra/commit/64c20af85cd4c4e723afdfd293df8cf1eb179194))
+* **lingua:** pin the Italian translation models and route the six Italian pairs ([#1034](https://github.com/NEETROF/cymbra/issues/1034)) ([2405395](https://github.com/NEETROF/cymbra/commit/2405395b55c4997a4edc08ea98b0f3adebc96783))
+* **lingua:** read Italian — enclitic pronouns, closed classes, names, NFC ([#1041](https://github.com/NEETROF/cymbra/issues/1041)) ([8130ea2](https://github.com/NEETROF/cymbra/commit/8130ea28e21d41ed3baff2b15c047ecfca188a1f))
+* **lingua:** ship each studied language's base once and each pair's layer ([#1037](https://github.com/NEETROF/cymbra/issues/1037)) ([a39eb7d](https://github.com/NEETROF/cymbra/commit/a39eb7d8b3f6f4ecd59e4b53ea1c8d42fd3d6f1e))
+* **lingua:** tokenise Italian — elisions, articulated prepositions, truncations ([#1040](https://github.com/NEETROF/cymbra/issues/1040)) ([53da44c](https://github.com/NEETROF/cymbra/commit/53da44cf48838a45fc060d19f07a8ea015eb1943))
+
 ## [1.10.1](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.10.0...lingua-extension-v1.10.1) (2026-10-16)
 
 
