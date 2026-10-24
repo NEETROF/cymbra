@@ -44,7 +44,8 @@ use crate::analysis::pipeline::{
 };
 use crate::analysis::tokenize::{
     ItalianApostrophe, Token, holds_italian_contraction, is_elided, is_hyphen_join,
-    italian_apostrophe, tokenize, tokenize_readings, without_soft_hyphens,
+    italian_accent_truncation, italian_apostrophe, tokenize, tokenize_readings,
+    without_soft_hyphens,
 };
 use crate::knowledge::level::CefrLevels;
 use crate::knowledge::state::KnowledgeState;
@@ -361,12 +362,12 @@ pub struct PhraseMatch {
     pub end: usize,
     /// The expression's dictionary form, which is the card's. For English, the
     /// covered tokens' lemmas joined by single spaces, which is the pack's key.
-    /// For French and Spanish, the expression's name — its headword as the
-    /// dictionary writes it (`au revoir`, `il y a`, `tener en cuenta`) — which
+    /// For French, Spanish and Italian, the expression's name — its headword as the
+    /// dictionary writes it (`au revoir`, `il y a`, `tener en cuenta`, `al dente`) — which
     /// the pack carries wherever it differs from the key (`à le revoir`,
-    /// `il y avoir`, `tener en contar`), and the key itself where it carries none
-    /// (add-lingua-french-expression-keys D3, add-lingua-spanish-expression-keys
-    /// D3). Except that a Spanish expression the reader settled under its lemma
+    /// `il y avoir`, `tener en contar`, `a il dente`), and the key itself where it carries
+    /// none (add-lingua-french-expression-keys D3, add-lingua-spanish-expression-keys
+    /// D3, add-lingua-italian-expression-keys D4). Except that a Spanish expression the reader settled under its lemma
     /// chain — the covered tokens' lemmas joined, before the article of a
     /// contraction is covered, the key this field held before Spanish
     /// expressions were named — and not under its name keeps that chain, so its
@@ -598,13 +599,15 @@ fn expression_window(studied: StudiedLanguage) -> usize {
 /// « à cause des » answers `à cause de` (add-lingua-french-expression-keys D5).
 /// An Italian run whose last piece is of the `di` family ([`ITALIAN_DI_FAMILY`]:
 /// `del`, `dello`, `della`, `dei`, `degli`, `delle`, which I7 keeps whole) is tried
-/// once more with it read as `di`, so « a causa del ritardo » answers `a causa di`
-/// and « al posto dell'altro » `al posto di` (add-lingua-italian-expression-keys D5).
-/// The token keeps its lemma: the retry is the phrase gloss's. Its known misreading
-/// is a `del` that belongs to the next phrase — « la prima del film » answers
-/// `prima di` (*before*) where `prima` is the noun —, measured at implementation.
+/// once more with it read as `di` where that `di` closes a governing frame
+/// ([`closes_a_frame`]), so « a causa del ritardo » answers `a causa di`, « al posto
+/// dell'altro » `al posto di` and « ho bisogno del tuo aiuto » `avere bisogno di`, where
+/// « la bellezza della natura » does not answer `la bellezza di`
+/// (add-lingua-italian-expression-keys D5, the owner's decision of 2026-10-24). The token
+/// keeps its lemma: the retry is the phrase gloss's. `run` is the run's tokens.
 fn expression_for_run(
     pieces: &[String],
+    run: &[PhraseToken],
     studied: StudiedLanguage,
     pack: &Pack,
 ) -> Option<(String, String)> {
@@ -615,7 +618,12 @@ fn expression_for_run(
     let (last, before) = pieces.split_last()?;
     let retried = match studied {
         StudiedLanguage::French if matches!(last.as_str(), "du" | "des") => "de",
-        StudiedLanguage::Italian if ITALIAN_DI_FAMILY.binary_search(&last.as_str()).is_ok() => "di",
+        StudiedLanguage::Italian
+            if ITALIAN_DI_FAMILY.binary_search(&last.as_str()).is_ok()
+                && closes_a_frame(pieces, run, pack) =>
+        {
+            "di"
+        }
         _ => return None,
     };
     let key = before
@@ -626,6 +634,38 @@ fn expression_for_run(
         .join(" ");
     let gloss = pack.expression(&key)?.to_owned();
     Some((key, gloss))
+}
+
+/// Italian's auxiliaries, which a run is read as built on where the pack's grammar gives
+/// their word no reading — a pack without grammar, the truncated infinitive `aver` —
+/// ([`closes_a_frame`]).
+const ITALIAN_AUXILIARIES: &[&str] = &["avere", "essere"];
+
+/// Whether the `di` an Italian run of `pieces` ([`expression_piece`]) ends on — a piece of
+/// the `di` family read once more as `di` — closes a governing frame
+/// (add-lingua-italian-expression-keys D5, the owner's decision of 2026-10-24): the key's
+/// first piece is a preposition ([`is_preposition`]: `a causa di`, `nel corso di`, the `a` of
+/// « al » in `al posto di`, the `in` of « nei » in `nei confronti di`), or the run is built on
+/// a verb ([`built_on_verb`]: `avere bisogno di`) — a word before any preposition of the run
+/// being an auxiliary, `avere` or `essere`, where the pack's grammar gives it no reading: a
+/// pack without grammar, « aver bisogno del ». A noun phrase is no frame: the `di` of « la
+/// bellezza della natura » is the next noun's, and `la bellezza di` (*the whole sum of*) is
+/// not met. `run` is the run's tokens.
+fn closes_a_frame(pieces: &[String], run: &[PhraseToken], pack: &Pack) -> bool {
+    const IT: StudiedLanguage = StudiedLanguage::Italian;
+    pieces
+        .first()
+        .is_some_and(|first| is_preposition(first, IT))
+        || built_on_verb(run, IT, pack)
+        || run
+            .iter()
+            .take_while(|token| !is_preposition(&token.lemma, IT))
+            .any(|token| {
+                ITALIAN_AUXILIARIES.contains(&token.lemma.as_str())
+                    && pack
+                        .readings(&token.lemma, &token.surface.to_lowercase())
+                        .is_empty()
+            })
 }
 
 /// Finds the pack's expressions in an already-glossed selection: from each
@@ -764,8 +804,9 @@ struct PageJoins {
     shares_span: Vec<bool>,
     /// [`ending`]: an elided piece, an Italian truncation (add-lingua-italian-tokenisation D6) or
     /// a word written in full — an Italian word whose apostrophe stands for its accent
-    /// (`perche'` read as `perché`, read-lingua-italian-unmarked-spellings D1) among them;
-    /// [`meets_as_written`], which reads it, runs for French and Italian.
+    /// (`perche'` read as `perché`, read-lingua-italian-unmarked-spellings D1) and the
+    /// preposition of a truncated articulated preposition among them; [`meets_as_written`],
+    /// which reads it, runs for French and Italian.
     endings: Vec<Ending>,
     /// [`is_hyphen_join`] over the text between the two tokens' spans
     /// (choose-lingua-overlapping-expressions D3, G1); never the first token.
@@ -777,21 +818,26 @@ struct PageJoins {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Ending {
     /// A word written in full: no apostrophe ends its span, or an Italian word's stands for
-    /// its accent ([`ItalianApostrophe::Accent`]).
+    /// its accent ([`ItalianApostrophe::Accent`]) or for the article of the truncated
+    /// articulated preposition it is the preposition of ([`ItalianApostrophe::Preposition`]).
     Full,
     /// An elided piece: its span ends on an apostrophe ([`is_elided`]) — French's `l'`,
     /// Italian's `l'`, `dell'`, both halves of `all'` ([`ItalianApostrophe::Elision`]).
     Elision,
-    /// An Italian truncation ([`ItalianApostrophe::Truncation`]): `po'`, `mo'`, both halves of
-    /// `ne'`, a `da'` read as the verb. French has none.
-    Truncation,
+    /// An Italian truncation and the word it stands for: `po'` and `pò` `poco`, `mo'`, `fa'`
+    /// `fai`, `de'` `dei`, a `da'` read as the verb `dai` ([`ItalianApostrophe::Truncation`],
+    /// [`italian_accent_truncation`]); or, `None`, the article of a truncated articulated
+    /// preposition (`i` of `ne'`, [`ItalianApostrophe::Article`]), whose written word stands
+    /// for the articulated preposition, never for one piece. French has none.
+    Truncation(Option<&'static str>),
 }
 
-/// How `token`'s source span in `text` ends ([`Ending`]): for French — and English and
-/// Spanish, whose spans never end on an apostrophe — an elided piece exactly where
-/// [`is_elided`] says so, as before; for Italian, what the apostrophe stands for
-/// ([`italian_apostrophe`]).
-fn ending(text: &str, token: &Token, studied: StudiedLanguage) -> Ending {
+/// How `token`'s source span in `text` ends ([`Ending`]), `lemma` its dictionary form: for
+/// French — and English and Spanish, whose spans never end on an apostrophe — an elided piece
+/// exactly where [`is_elided`] says so, as before; for Italian, what the apostrophe stands for
+/// ([`italian_apostrophe`]), and a truncation written with an accent where its apostrophe goes
+/// ([`italian_accent_truncation`]: `pò` read as `poco`).
+fn ending(text: &str, token: &Token, lemma: &str, studied: StudiedLanguage) -> Ending {
     if studied != StudiedLanguage::Italian {
         return if is_elided(text, token) {
             Ending::Elision
@@ -800,15 +846,41 @@ fn ending(text: &str, token: &Token, studied: StudiedLanguage) -> Ending {
         };
     }
     match italian_apostrophe(text, token) {
-        None | Some(ItalianApostrophe::Accent) => Ending::Full,
+        None => text
+            .get(token.start..token.end)
+            .and_then(|written| italian_accent_truncation(written, lemma))
+            .map_or(Ending::Full, |word| Ending::Truncation(Some(word))),
+        Some(ItalianApostrophe::Accent | ItalianApostrophe::Preposition) => Ending::Full,
         Some(ItalianApostrophe::Elision) => Ending::Elision,
-        Some(ItalianApostrophe::Truncation) => Ending::Truncation,
+        Some(ItalianApostrophe::Truncation(word)) => Ending::Truncation(Some(word)),
+        Some(ItalianApostrophe::Article) => Ending::Truncation(None),
+    }
+}
+
+/// Whether a headword's piece, written `written` and read `piece` (lowercase), meets a run's
+/// token ending `on_page` at its place (match-lingua-french-elided-pieces D1,
+/// add-lingua-italian-expression-keys D6), `last` saying whether it is the headword's last
+/// piece: a piece meets a token ending as it does; a piece written in full meets an elided
+/// token too where it is the last — French and Italian elide a word by the word that follows
+/// it, which after the last piece is the page's —, and an Italian truncation wherever that
+/// truncation stands for another word than the piece — `fare` meets « fa' », read `fai`, and
+/// `di` « de' », read `dei`, where `poco` never meets « po' », which stands for `poco` and is
+/// another headword's to meet, nor « pò ».
+fn piece_meets(written: Ending, piece: &str, on_page: Ending, last: bool) -> bool {
+    match (written, on_page) {
+        (Ending::Full, Ending::Full)
+        | (Ending::Elision, Ending::Elision)
+        | (Ending::Truncation(_), Ending::Truncation(_)) => true,
+        (Ending::Full, Ending::Elision) => last,
+        (Ending::Full, Ending::Truncation(stands_for)) => stands_for != Some(piece),
+        _ => false,
     }
 }
 
 impl PageJoins {
-    /// The joins of `read`, the selection `text`'s tokens read as `studied`.
-    fn of(text: &str, read: &[Token], studied: StudiedLanguage) -> Self {
+    /// The joins of `read`, the selection `text`'s tokens read as `studied`, `lemmas` their
+    /// dictionary forms.
+    fn of(text: &str, read: &[Token], lemmas: &[&str], studied: StudiedLanguage) -> Self {
         let hyphened = (0..read.len())
             .map(|i| {
                 i.checked_sub(1).is_some_and(|before| {
@@ -821,7 +893,8 @@ impl PageJoins {
             shares_span: shared_spans(read),
             endings: read
                 .iter()
-                .map(|token| ending(text, token, studied))
+                .zip(lemmas)
+                .map(|(token, lemma)| ending(text, token, lemma, studied))
                 .collect(),
             hyphened,
         }
@@ -903,8 +976,12 @@ impl<'a> ExpressionScan<'a> {
     /// ([`written_as_the_page`]), and every headword's name comes with it, which the
     /// settled chain reads ([`settled_chain`]).
     fn run(&self, start: usize, len: usize) -> Option<(String, String, Vec<String>)> {
-        let (key, gloss) =
-            expression_for_run(&self.pieces[start..start + len], self.studied, self.pack)?;
+        let (key, gloss) = expression_for_run(
+            &self.pieces[start..start + len],
+            &self.tokens[start..start + len],
+            self.studied,
+            self.pack,
+        )?;
         let (tokens, endings, shares_span) =
             (self.tokens, &self.joins.endings, &self.joins.shares_span);
         if self.whole_words() {
@@ -1103,8 +1180,11 @@ fn meets_hyphens(hyphened: &[bool], headword: &str, lexicon: &(impl Lexicon + ?S
 /// `un po'`) only a truncated one; a piece it writes in full meets only a token written in
 /// full, except its last, which meets an elided token too: French and Italian elide a word
 /// by the word that follows it, and after the expression's last piece that word is the
-/// page's (« parce qu’il » answers `parce que`). Never a truncation: Italian truncates a word
-/// on its own, so `un poco` does not meet « un po' », which `un po'` does.
+/// page's (« parce qu’il » answers `parce que`). And a piece written in full meets an Italian
+/// truncation that stands for another word than the piece — `fare attenzione` meets « fa'
+/// attenzione », read `fai`, `nei pressi di` « ne' pressi di », whose article stands for
+/// `nei` —, never one that stands for the piece itself: Italian truncates a word on its own,
+/// so `un poco` does not meet « un po' » nor « un pò », which `un po'` does ([`piece_meets`]).
 ///
 /// Between two adjacent tokens of the run, the tokens are one written word exactly where
 /// the headword writes its two pieces at that place as one: two pieces it writes « au »
@@ -1129,10 +1209,12 @@ fn meets_hyphens(hyphened: &[bool], headword: &str, lexicon: &(impl Lexicon + ?S
 /// ending taken from its span ([`ending`]) and its contractions from the reading's
 /// [`shared_spans`] — one reading for both, made only when the headword holds an
 /// apostrophe or a word the pre-pass splits ([`holds_contraction`]: French's « au » or
-/// « aux », Italian's `al`, `nella`, `col`…): a name holding neither is written in full,
-/// every piece apart, and a key the pack does not name is its own headword, written so. A
-/// headword whose reading does not line up with the run, or that reads as none, is matched
-/// as match-lingua-french-elided-pieces matched it, its contractions unchecked.
+/// « aux », Italian's `al`, `nella`, `col`…), or the run an Italian truncation, which the
+/// piece at its place is compared with: a name holding neither, met by a run holding none,
+/// is written in full, every piece apart, and a key the pack does not name is its own
+/// headword, written so. A headword whose reading does not line up with the run, or that
+/// reads as none, is matched as match-lingua-french-elided-pieces matched it, its
+/// contractions unchecked and no truncation met but the last's elision.
 fn meets_as_written(
     endings: &[Ending],
     joined: &[bool],
@@ -1146,10 +1228,13 @@ fn meets_as_written(
         endings[..last]
             .iter()
             .all(|&on_page| on_page == Ending::Full)
-            && endings.get(last) != Some(&Ending::Truncation)
+            && !matches!(endings.get(last), Some(Ending::Truncation(_)))
     };
     let apostrophe = headword.contains(['\'', '\u{2019}']);
-    if !apostrophe && !holds_contraction(headword, studied) {
+    let truncated = endings
+        .iter()
+        .any(|on_page| matches!(on_page, Ending::Truncation(_)));
+    if !apostrophe && !truncated && !holds_contraction(headword, studied) {
         return in_full() && !joined.iter().skip(1).any(|&on_page| on_page);
     }
     let Some(reading) = headword_reading(headword, studied, lexicon)
@@ -1157,16 +1242,20 @@ fn meets_as_written(
     else {
         return apostrophe || in_full();
     };
+    let endings_meet =
+        reading
+            .iter()
+            .zip(endings)
+            .enumerate()
+            .all(|(i, ((piece, lemma), &on_page))| {
+                piece_meets(
+                    ending(headword, piece, lemma, studied),
+                    &piece.text.to_lowercase(),
+                    on_page,
+                    i == last,
+                )
+            });
     let pieces: Vec<Token> = reading.into_iter().map(|(token, _)| token).collect();
-    let endings_meet = pieces
-        .iter()
-        .zip(endings)
-        .enumerate()
-        .all(|(i, (piece, &on_page))| {
-            let written = ending(headword, piece, studied);
-            on_page == written
-                || (i == last && written == Ending::Full && on_page == Ending::Elision)
-        });
     endings_meet
         && joined
             .iter()
@@ -1382,19 +1471,25 @@ pub fn gloss_phrase(
     // add-lingua-italian-expression-keys D5), and a French or Italian match meets only
     // where its headword writes the contraction (match-lingua-french-contracted-pieces D2,
     // add-lingua-italian-expression-keys D6). Which tokens are elided pieces or Italian
-    // truncations, read from their spans, which a French or Italian match holds to its
-    // headword's (match-lingua-french-elided-pieces D2). And which are joined to the token
-    // before by a hyphen, which a French expression taking a word from another meets as
-    // its headword writes it (choose-lingua-overlapping-expressions D3, G1).
-    let joins = PageJoins::of(text, &read, studied);
-    // Which tokens stand alone in capitals, read in the selection as a page reads its block
-    // (keep-lingua-french-acronyms-in-capitals D1).
+    // truncations, read from their spans — and an Italian truncation written with an accent
+    // for its apostrophe, from its dictionary form —, which a French or Italian match holds
+    // to its headword's (match-lingua-french-elided-pieces D2). And which are joined to the
+    // token before by a hyphen, which a French expression taking a word from another meets
+    // as its headword writes it (choose-lingua-overlapping-expressions D3, G1). Which tokens
+    // stand alone in capitals, read in the selection as a page reads its block
+    // (keep-lingua-french-acronyms-in-capitals D1), and so each token's dictionary form.
     let alone = alone_in_capitals(text, &read, studied);
+    let resolved: Vec<(String, Vec<String>)> = read
+        .iter()
+        .zip(alone)
+        .map(|(token, alone)| resolve_lemmas(token, alone, studied, lexicon))
+        .collect();
+    let lemmas: Vec<&str> = resolved.iter().map(|(lemma, _)| lemma.as_str()).collect();
+    let joins = PageJoins::of(text, &read, &lemmas, studied);
     let tokens: Vec<PhraseToken> = read
         .into_iter()
-        .zip(alone)
-        .map(|(token, alone)| {
-            let (lemma, parts) = resolve_lemmas(&token, alone, studied, lexicon);
+        .zip(resolved)
+        .map(|(token, (lemma, parts))| {
             let class = classify_token(&token.text, &lemma, &parts, studied, pack, knowledge);
             let parts = parts
                 .into_iter()
@@ -7109,33 +7204,95 @@ mod tests {
         assert_eq!(expression_piece("La", "il", EN), "il");
     }
 
-    /// An Italian lexicon for the keys and matches below: M8 files `la`, `lo` and `le` under
-    /// `il`, `un` and `una` under `uno`, `romana` under `romano`, `vale` and `valeva` under
-    /// `valere`.
+    /// An Italian lexicon for the keys and matches below: M8 files `i`, `la`, `lo` and `le`
+    /// under `il`, `un` and `una` under `uno`, `romana` under `romano`, `vale` and `valeva`
+    /// under `valere`, the truncated imperatives' words under their verbs (`fai` under `fare`),
+    /// and `pò` under `poco`.
     fn italian_lexicon() -> FstLexicon<Vec<u8>> {
         let (bytes, pool) = build_lexicon_blobs(ITALIAN_FORMS, ITALIAN_LEMMAS).expect("build");
         FstLexicon::from_slices(bytes, &pool).expect("load")
     }
 
     const ITALIAN_FORMS: &[(&str, &str)] = &[
+        ("aver", "avere"),
+        ("dici", "dire"),
+        ("fai", "fare"),
         ("ha", "avere"),
+        ("ho", "avere"),
+        ("i", "il"),
         ("la", "il"),
         ("le", "il"),
         ("lo", "il"),
         ("pensa", "pensare"),
+        ("pò", "poco"),
         ("romana", "romano"),
+        ("stai", "stare"),
         ("un", "uno"),
         ("una", "uno"),
+        ("vai", "andare"),
         ("vale", "valere"),
         ("valeva", "valere"),
     ];
 
     const ITALIAN_LEMMAS: &[&str] = &[
-        "a", "accordo", "altro", "amico", "amore", "anche", "andare", "avere", "bisogno", "causa",
-        "che", "come", "così", "cotto", "cuore", "del", "dello", "dente", "di", "fare", "fin",
-        "fine", "il", "in", "io", "mare", "meno", "nuovo", "o", "ora", "pane", "pena", "pensare",
-        "perché", "più", "poco", "posto", "ritardo", "romano", "tempo", "tratto", "uno", "valere",
+        "a",
+        "accordo",
+        "aiuto",
+        "altro",
+        "amico",
+        "amore",
+        "anche",
+        "andare",
+        "attenzione",
+        "avere",
+        "bellezza",
+        "bisogno",
+        "causa",
+        "che",
+        "come",
+        "così",
+        "cotto",
+        "cuore",
+        "del",
+        "della",
+        "dello",
+        "dente",
+        "di",
+        "dire",
+        "fare",
+        "fin",
+        "fine",
+        "il",
+        "in",
+        "io",
+        "mare",
+        "meno",
+        "natura",
+        "nuovo",
+        "o",
+        "ora",
+        "pane",
+        "pena",
+        "pensare",
+        "per",
+        "perché",
+        "piedi",
+        "più",
+        "poco",
+        "posto",
+        "pressi",
+        "presto",
+        "ritardo",
+        "romano",
+        "stare",
+        "tempo",
+        "tratto",
+        "uno",
+        "valere",
+        "verità",
+        "via",
         "vicino",
+        "zitto",
     ];
 
     #[test]
@@ -7615,12 +7772,23 @@ mod tests {
 
     #[test]
     fn an_italian_headword_is_read_where_it_holds_an_apostrophe_or_a_contraction() {
-        use Ending::{Elision as E, Full as F, Truncation as T};
+        use Ending::{Elision as E, Full as F};
+        // A truncation standing for `poco`, `fai`, `dei` or `di`, and the article of a truncated
+        // articulated preposition, which stands for the articulated preposition.
+        let (poco, fai, dei, di) = (
+            Ending::Truncation(Some("poco")),
+            Ending::Truncation(Some("fai")),
+            Ending::Truncation(Some("dei")),
+            Ending::Truncation(Some("di")),
+        );
+        let article = Ending::Truncation(None);
         // `a causa di`, unnamed, read as written in full and apart: its pieces but the last meet
-        // only tokens in full, its last an elision too, never a truncation.
+        // only tokens in full, its last an elision too; a truncation, where it stands for
+        // another word than the piece (« a causa de' »), never where it stands for the piece.
         assert!(italian_meets(&[F, F, F], &[false; 3], "a causa di"));
         assert!(italian_meets(&[F, F, E], &[false; 3], "a causa di"));
-        assert!(!italian_meets(&[F, F, T], &[false; 3], "a causa di"));
+        assert!(italian_meets(&[F, F, dei], &[false; 3], "a causa di"));
+        assert!(!italian_meets(&[F, F, di], &[false; 3], "a causa di"));
         assert!(!italian_meets(&[F, E, F], &[false; 3], "a causa di"));
         assert!(!italian_meets(
             &[F, F, F],
@@ -7636,19 +7804,51 @@ mod tests {
         // `al dente`, read: its two first pieces meet only a contraction.
         assert!(italian_meets(&[F, F, F], &[false, true, false], "al dente"));
         assert!(!italian_meets(&[F, F, F], &[false; 3], "al dente"));
-        // `un po'`: a truncated piece meets only a truncation.
-        assert!(italian_meets(&[F, T], &[false; 2], "un po'"));
+        // `un po'`: a truncated piece meets only a truncation; `un poco`'s `poco` never meets
+        // the truncation that stands for it.
+        assert!(italian_meets(&[F, poco], &[false; 2], "un po'"));
         assert!(!italian_meets(&[F, E], &[false; 2], "un po'"));
         assert!(!italian_meets(&[F, F], &[false; 2], "un po'"));
+        assert!(!italian_meets(&[F, poco], &[false; 2], "un poco"));
+        // `fare presto`: a piece in full meets a truncation standing for another word, anywhere.
+        assert!(italian_meets(&[fai, F], &[false; 2], "fare presto"));
+        // `nei pressi di`: the article of « ne' » stands for `nei`, which its `i` meets.
+        assert!(italian_meets(
+            &[F, article, F, F],
+            &[false, true, false, false],
+            "nei pressi di"
+        ));
         // `anch'io`: an elided piece meets only an elision.
         assert!(italian_meets(&[E, F], &[false; 2], "anch'io"));
         assert!(!italian_meets(&[F, F], &[false; 2], "anch'io"));
-        assert!(!italian_meets(&[T, F], &[false; 2], "anch'io"));
+        assert!(!italian_meets(&[fai, F], &[false; 2], "anch'io"));
         // A reading that does not line up with the run is matched as written in full, but for a
-        // name holding an apostrophe.
+        // name holding an apostrophe; no truncation is met there.
         assert!(italian_meets(&[F, F], &[false; 2], "al dente"));
-        assert!(!italian_meets(&[F, T], &[false; 2], "al dente"));
+        assert!(!italian_meets(&[F, poco], &[false; 2], "al dente"));
+        assert!(!italian_meets(&[fai, F], &[false; 2], "al dente"));
         assert!(italian_meets(&[E, E, E], &[false; 3], "anch'io"));
+    }
+
+    #[test]
+    fn a_piece_meets_a_token_as_it_is_written() {
+        use Ending::{Elision as E, Full as F};
+        let (poco, article) = (Ending::Truncation(Some("poco")), Ending::Truncation(None));
+        for last in [false, true] {
+            assert!(piece_meets(F, "fare", F, last));
+            assert!(piece_meets(E, "anche", E, last));
+            assert!(piece_meets(poco, "poco", poco, last));
+            assert!(piece_meets(poco, "poco", article, last));
+            assert!(piece_meets(F, "i", article, last));
+            assert!(piece_meets(F, "fare", poco, last));
+            assert!(!piece_meets(F, "poco", poco, last));
+            assert!(!piece_meets(E, "anche", F, last));
+            assert!(!piece_meets(E, "anche", poco, last));
+            assert!(!piece_meets(poco, "poco", F, last));
+            assert!(!piece_meets(poco, "poco", E, last));
+        }
+        assert!(piece_meets(F, "che", E, true));
+        assert!(!piece_meets(F, "che", E, false));
     }
 
     #[test]
@@ -7657,7 +7857,11 @@ mod tests {
         let endings = |text: &str| -> Vec<(String, Ending)> {
             crate::analysis::tokenize::tokenize(text, IT, &lexicon)
                 .iter()
-                .map(|token| (token.text.to_lowercase(), ending(text, token, IT)))
+                .map(|token| {
+                    let lower = token.text.to_lowercase();
+                    let lemma = lexicon.lemma_of(&lower).unwrap_or(&lower).to_owned();
+                    (lower.clone(), ending(text, token, &lemma, IT))
+                })
                 .collect()
         };
         let pair = |text: &str, ending: Ending| (text.to_owned(), ending);
@@ -7667,35 +7871,53 @@ mod tests {
                 pair("anche", Ending::Elision),
                 pair("io", Ending::Full),
                 pair("un", Ending::Full),
-                pair("poco", Ending::Truncation),
+                pair("poco", Ending::Truncation(Some("poco"))),
                 pair("perché", Ending::Full),
                 pair("a", Ending::Elision),
                 pair("lo", Ending::Elision),
                 pair("alba", Ending::Full),
             ]
         );
-        // `da'` is a truncation whether read as the verb, one token, or as `da` + `i`, two.
+        // `da'` read as the verb is a truncation, one token; read as `da` + `i`, its preposition
+        // is written in full and its article truncated, as `ne'`'s are.
         assert_eq!(
             endings("mi da' una mano"),
             [
                 pair("mi", Ending::Full),
-                pair("dai", Ending::Truncation),
+                pair("dai", Ending::Truncation(Some("dai"))),
                 pair("una", Ending::Full),
                 pair("mano", Ending::Full),
             ]
         );
         assert_eq!(
-            endings("da' primi"),
+            endings("da' primi ne' pressi"),
             [
-                pair("da", Ending::Truncation),
-                pair("i", Ending::Truncation),
+                pair("da", Ending::Full),
+                pair("i", Ending::Truncation(None)),
                 pair("primi", Ending::Full),
+                pair("in", Ending::Full),
+                pair("i", Ending::Truncation(None)),
+                pair("pressi", Ending::Full),
+            ]
+        );
+        // A truncation written with an accent for its apostrophe, where its dictionary form is
+        // the word it stands for; `fa'` stands for `fai`.
+        assert_eq!(
+            endings("un pò fa' presto"),
+            [
+                pair("un", Ending::Full),
+                pair("pò", Ending::Truncation(Some("poco"))),
+                pair("fai", Ending::Truncation(Some("fai"))),
+                pair("presto", Ending::Full),
             ]
         );
         // French reads an elision where its span ends on an apostrophe, as before.
         let french = crate::analysis::tokenize::tokenize("l'eau", FR, &lexicon);
-        assert_eq!(ending("l'eau", &french[0], FR), Ending::Elision);
-        assert_eq!(ending("l'eau", &french[1], FR), Ending::Full);
+        assert_eq!(ending("l'eau", &french[0], "le", FR), Ending::Elision);
+        assert_eq!(ending("l'eau", &french[1], "eau", FR), Ending::Full);
+        // And no other language reads an accent as a truncation.
+        let french = crate::analysis::tokenize::tokenize("pò", FR, &lexicon);
+        assert_eq!(ending("pò", &french[0], "poco", FR), Ending::Full);
     }
 
     /// The Italian verbs of the overlap scenarios, each read by the grammar as a verb.
@@ -7708,7 +7930,12 @@ mod tests {
     fn italian_overlap(expressions: &[(&str, &str)], text: &str) -> Vec<(Vec<String>, String)> {
         let pack = overlap_pack(
             IT,
-            &[("ha", "avere"), ("pensa", "pensare"), ("va", "andare")],
+            &[
+                ("aver", "avere"),
+                ("ha", "avere"),
+                ("pensa", "pensare"),
+                ("va", "andare"),
+            ],
             ITALIAN_LEMMAS,
             expressions,
             OVERLAP_IT_READINGS,
@@ -7762,5 +7989,155 @@ mod tests {
         ]);
         let phrase = gloss_phrase("ha bisogno di tempo", IT, &pack, &KnowledgeState::new());
         assert_eq!(spans(&phrase), [(0, 2, "avere bisogno")]);
+    }
+
+    #[test]
+    fn spec_scenario_the_di_family_read_as_di_only_where_it_closes_a_frame() {
+        // D5, the owner's decision of 2026-10-24: the key's first piece a preposition — the `a`
+        // of « al » too —, or the run built on a verb; a noun phrase is no frame.
+        let pack = italian_expression_pack(&[
+            ("a causa di", "à cause de"),
+            ("al posto di", "à la place de"),
+            ("avere bisogno di", "avoir besoin de"),
+            ("la bellezza di", "la bagatelle de"),
+        ]);
+        let found = |text: &str| -> Vec<(usize, usize, String)> {
+            let phrase = gloss_phrase(text, IT, &pack, &KnowledgeState::new());
+            spans(&phrase)
+                .into_iter()
+                .map(|(start, end, key)| (start, end, key.to_owned()))
+                .collect()
+        };
+        assert_eq!(found("a causa del ritardo"), [(0, 3, "a causa di".into())]);
+        assert_eq!(found("al posto della pena"), [(0, 4, "al posto di".into())]);
+        // A pack without grammar reads `avere` as the verb its run is built on.
+        assert_eq!(
+            found("ho bisogno del tuo aiuto"),
+            [(0, 3, "avere bisogno di".into())]
+        );
+        assert!(!pack.has_grammar());
+        assert_eq!(
+            found("aver bisogno del pane"),
+            [(0, 3, "avere bisogno di".into())]
+        );
+        // The noun phrase's `di` is the next noun's.
+        assert_eq!(found("la bellezza della natura"), []);
+        assert_eq!(
+            found("la bellezza di tutto"),
+            [(0, 3, "la bellezza di".into())]
+        );
+        // An auxiliary after the run's first preposition builds nothing.
+        let pack = italian_expression_pack(&[("pane per avere di", "x")]);
+        let phrase = gloss_phrase("pane per avere del", IT, &pack, &KnowledgeState::new());
+        assert_eq!(spans(&phrase), []);
+        let phrase = gloss_phrase("pane per avere di", IT, &pack, &KnowledgeState::new());
+        assert_eq!(spans(&phrase), [(0, 4, "pane per avere di")]);
+    }
+
+    #[test]
+    fn the_italian_frame_reads_the_grammar_where_the_pack_has_one() {
+        // With grammar, the run is built on a verb where the grammar reads one ([`built_on_verb`]):
+        // `ha`, read as a verb, frames `avere bisogno di`; a noun phrase still does not.
+        let expressions = [
+            ("avere bisogno di", "avoir besoin de"),
+            ("pane di", "pain de"),
+        ];
+        assert_eq!(
+            italian_overlap(&expressions, "ha bisogno del pane"),
+            [covering(&["ha", "bisogno", "del"], "avere bisogno di")]
+        );
+        assert_eq!(italian_overlap(&expressions, "il pane della nonna"), []);
+        // An auxiliary the grammar gives no reading — the truncated infinitive `aver` — still
+        // builds the run.
+        assert_eq!(
+            italian_overlap(&expressions, "aver bisogno del pane"),
+            [covering(&["aver", "bisogno", "del"], "avere bisogno di")]
+        );
+        assert_eq!(
+            italian_overlap(&expressions, "il pane di casa"),
+            [covering(&["pane", "di"], "pane di")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_truncated_imperative_meets_its_verb() {
+        // A piece written in full meets a truncation that stands for another word: `fare` meets
+        // « fa' », read `fai`, as it did before the pieces were held to their writing.
+        let pack = italian_expression_pack(&[
+            ("fare attenzione", "faire attention"),
+            ("andare via", "s'en aller"),
+            ("stare zitto", "se taire"),
+            ("dire la verità", "dire la vérité"),
+            ("fare presto", "se dépêcher"),
+        ]);
+        for (text, covered, name) in [
+            (
+                "fa' attenzione",
+                &["fai", "attenzione"][..],
+                "fare attenzione",
+            ),
+            ("va' via", &["vai", "via"][..], "andare via"),
+            ("sta' zitto", &["stai", "zitto"][..], "stare zitto"),
+            (
+                "di' la verità",
+                &["dici", "la", "verità"][..],
+                "dire la verità",
+            ),
+            ("fa' presto", &["fai", "presto"][..], "fare presto"),
+        ] {
+            let found = italian_matches_on(&pack, text);
+            assert_eq!(found.len(), 1, "{text}");
+            assert_eq!(found[0].0, covered, "{text}");
+            assert_eq!(found[0].1, name, "{text}");
+        }
+    }
+
+    #[test]
+    fn spec_scenario_a_truncated_di_family_word_is_read_as_di() {
+        // « de' », read `dei`, stands for another word than the headword's `di`.
+        assert_eq!(
+            italian_matches("a causa de' ritardi"),
+            [written(&["a", "causa", "dei"], "a causa di", "à cause de")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_truncated_articulated_preposition() {
+        // Its preposition is written in full, its article truncated for the articulated
+        // preposition it stands for: `vicino a` meets « vicino a' piedi », its article covered,
+        // and `nei pressi di` « ne' pressi di ».
+        assert_eq!(
+            italian_matches("vicino a' piedi"),
+            [written(&["vicino", "a", "i"], "vicino a", "près de")]
+        );
+        let pack = italian_expression_pack(&[("nei pressi di", "aux environs de")]);
+        assert_eq!(
+            italian_matches_on(&pack, "ne' pressi di casa"),
+            [written(
+                &["in", "i", "pressi", "di"],
+                "nei pressi di",
+                "aux environs de"
+            )]
+        );
+        assert_eq!(
+            italian_matches_on(&pack, "nei pressi di casa"),
+            [written(
+                &["in", "i", "pressi", "di"],
+                "nei pressi di",
+                "aux environs de"
+            )]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_truncation_written_with_an_accent() {
+        // « un pò » is `po'` written with an accent for its apostrophe: `un po'` meets it, and
+        // `un poco`, whose `poco` it stands for, does not.
+        assert_eq!(
+            italian_matches("un pò di pane"),
+            [written(&["un", "pò"], "un po'", "un peu")]
+        );
+        let in_full = italian_expression_pack(&[("un poco", "un peu")]);
+        assert_eq!(italian_matches_on(&in_full, "un pò di pane"), []);
     }
 }

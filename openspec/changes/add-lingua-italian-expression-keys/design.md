@@ -102,6 +102,17 @@ Two rules, one from each sibling:
   del film », where `prima del` matches no key and the retry answers `prima di` (*before*) with
   `prima` the noun; measured on the corpus at implementation and named in the pull request.
 
+**The owner's decision (2026-10-24): the retry closes a governing frame.** Measured at
+implementation (below), the misreadings gathered on four noun-headed expressions — `la bellezza
+di`, `merito di`, `cazzo di`, `pur di` —, whose `di` the page gives to the noun that follows. The
+owner adopted the review's rule: the `di` family is read once more as `di` only where that `di`
+closes a governing frame — the key's first piece is a preposition (`is_preposition`, the
+preposition of an articulated preposition included: `a causa di`, the `a` of « al » in `al posto
+di`, the `in` of « nei » in `nei confronti di`), or the run is built on a verb (`built_on_verb`;
+where the pack's grammar gives an auxiliary's word no reading — a pack without grammar, the
+truncated infinitive « aver » —, `avere` or `essere` before the run's first preposition). « la
+bellezza della natura » no longer answers `la bellezza di`.
+
 ### D6 — Italian pieces meet the page as the headword writes them
 
 44c and 44d for Italian, on the same seams: `meets_as_written` reads the match's name through
@@ -134,6 +145,8 @@ met by `un poco` too — its last piece `poco` in full meeting either — and th
 which compares the tokens' text (`poco` for « po' »), would tie and name `un poco`. With it: « un
 po' » meets `un po'` alone and « un poco » meets `un poco` alone, each named as written; a pack
 holding `un po'` alone meets « un po' » and not « un poco ». 4 of the candidates hold a truncation.
+Amended at review (below, *What departs*): a piece written in full meets a truncation that stands
+for another word than the piece (`fare` « fa' »), never one that stands for the piece itself.
 
 *Pointer (2026-10-24):* `refine-lingua-italian-reading` (change 11a) adds `coll'` and the truncated articulated prepositions `a'`, `co'`, `da'`, `ne'`, `su'` to the split families and reads `da'` as the verb `dai` by its context; if 11a is on main first, this change's `holds_contraction` and truncation test take them (11a's D4, its task 1.7 the other way round).
 
@@ -215,43 +228,78 @@ the re-bless 0.25; spec and programme 0.25.
 
 ## Implementation — what ships, what departs, and the figures (2026-10-24)
 
-Implemented on `main` after changes 5 to 11, 11a (analyser `1.4.0`), 13 and 14. Italian's analyser
-version does not move (D9): no token and no lemma changes — the golden's `analyse`, `gloss` and
-`word-grammar` probes are byte for byte, and a test holds an Italian selection's tokens equal with
-and without the expression table.
+Implemented on `main` after changes 5 to 11, 11a (analyser `1.4.0`), 13, 14 and 15. Italian's
+analyser version does not move (D9): no token and no lemma changes — the golden's `analyse`,
+`gloss` and `word-grammar` probes are byte for byte, and a test holds an Italian selection's
+tokens equal with and without the expression table. The review's fixes below read no word
+differently either: `tokenize::italian_apostrophe` and `tokenize::italian_accent_truncation`
+classify, for the as-written rules alone, tokens the pre-pass and the pack have already read; the
+golden did not move with them.
 
 ### What departs from D1–D9
 
-- **D6, an apostrophe that stands for an accent.** `read-lingua-italian-unmarked-spellings` (change
-  10, its D1) reads `perche'`, `piu'`, `E'` as `perché`, `più`, `È`, their span ending on the
-  apostrophe, and named for this change the cost that the as-written rule would then read them as
-  elided pieces: `più o meno` would never meet « piu' o meno ». The implementation reads what the
-  apostrophe stands for, on the page and in a name, by the token's text
-  (`tokenize::italian_apostrophe`): a **truncation** when the written word, without its
-  apostrophe, is one of change 6's truncations or 11a's truncated articulated prepositions — told by
-  the span, so `da'` is one whether its context reads the verb `dai` or `da` + `i`, and `mo'`
-  whether it reads `modo` or `mò` —; an **accent** when the read word is the written word with its
-  last vowel accented, which is a word written in full; an **elision** otherwise. The
-  `lingua-analysis` requirement says so, with a scenario (« piu' o meno »).
-- **D6, an elision and a truncation told apart on both sides.** A piece the headword writes elided
-  meets only an elision and one it writes truncated only a truncation, where the design reads both
-  as « elided ». The requirement's « only an elided token » holds, narrowed. No elided form and
-  truncation of change 6's and 11a's tables read as the same word, so the narrowing decides nothing
-  today; it keeps the two apart as « never a truncation » already does for the last piece.
+- **D5, the owner's frame rule** (above): the retry reads the `di` family as `di` only where that
+  `di` closes a governing frame.
+- **D6, an apostrophe that stands for an accent.** `read-lingua-italian-unmarked-spellings`
+  (change 10, its D1) reads `perche'`, `piu'`, `E'` as `perché`, `più`, `È`, their span ending on
+  the apostrophe, and named for this change the cost that the as-written rule would then read them
+  as elided pieces: `più o meno` would never meet « piu' o meno ». The implementation reads what
+  the apostrophe stands for by the token's text (`italian_apostrophe`): an **accent** where the
+  read word is the written word with its last vowel accented, a word written in full.
+- **D6, a truncation is met by any word but the one it stands for** (review). The first
+  implementation let no piece written in full meet a truncation but at the headword's end, never:
+  « fa' attenzione », « va' via », « sta' zitto », « di' la verità », « fa' presto » met no
+  expression, where they had on `main`, which did not hold Italian runs to their headword's
+  writing — a regression, fixed before merge. A truncation now stands for a word — the one the
+  pre-pass reads it as (`po'` `poco`, `mo'` `modo` or `mò`, `fa'` `fai`, `de'` `dei`, a `da'`
+  read as the verb `dai`) — and a piece written in full meets it unless it stands for that same
+  word: `fare` meets « fa' », `di` meets « de' » (« a causa de' ritardi » answers `a causa di`),
+  and `poco` still never meets « po' », which stays `un po'`'s to meet.
+- **D6, a truncated articulated preposition** (review). Of `a'`, `co'`, `da'`, `ne'` and `su'`
+  read as two words, only the article is truncated: the preposition is written in full, and the
+  article stands for the articulated preposition (`ne'` for `nei`), never for itself — `vicino a`
+  meets « vicino a' piedi », its article covered, and `nei pressi di` « ne' pressi di ».
+- **D6, a truncation written with an accent** (review). `pò` written for `po'` is a truncation
+  where the pack files it under the word `po'` stands for (`italian_accent_truncation`, the
+  mirror of the accent typed as an apostrophe): « un pò di pane » is named `un po'`. `mò`, `dì`
+  (*day*) and the indicative `fà` written for `fa` are words of their own, their dictionary form
+  another word.
+- **D6, an elision and a truncation told apart on both sides.** A piece written elided meets only
+  an elision and one written truncated only a truncation, where the design reads both as
+  « elided ». The requirement's « only an elided token » holds, narrowed. No whole-word elision and
+  whole-word truncation of change 6's and 11a's tables read as the same word, and the halves of a
+  truncated articulated preposition, which share their words with an elided one's (the `a` of `a'`
+  and of `all'`), are told apart above; so the narrowing decides nothing today.
 - **D9, the fixture.** `mwe.tsv` gains `vicino a` beside D9's rows: the probe « vicino al mare »,
   which D9 adds, needs it. Ten rows (`a causa di` was there), and in `forms.tsv` the ten words they
   need: `dente`, `romana`, `romano`, `amore`, `accordo`, `pena`, `valere`, `vale`, `valeva`,
   `vicino`; `pack_version` `0.0.2-fixture`.
-- **D9, the golden.** Beyond the probes D9 names, two more phrase probes move: « ad alta voce »,
-  which now reports its name `ad alta voce` where it reported its key `ad alto voce` (D4), and
-  « a causa dello sciopero », which now meets `a causa di` by the `di` family read once more as
-  `di` (D5). « all'alba » does not move: the fixture keys no expression on it.
+- **D9, the golden.** Beyond the probes D9 names, three more phrase probes move: « ad alta
+  voce », which now reports its name `ad alta voce` where it reported its key `ad alto voce` (D4),
+  « a causa dello sciopero », which now meets `a causa di` by the retry (D5), and « un po' di
+  pane », which now meets `un po'` (D6). « all'alba » does not move: the fixture keys no
+  expression on it. The review's fixes move no probe.
 - **D6's pointer.** Change 11a was on `main` first: `holds_contraction` holds `coll'` and the
   truncated articulated prepositions `a'`, `co'`, `da'`, `ne'`, `su'`, and a `da'` the pre-pass
-  reads as the verb `dai` sends its headword through the reading, which says it is one token (a
-  truncation's, not a contraction's two). The Italian test lives beside change 6's tables
-  (`tokenize::holds_italian_contraction`); `engine::holds_contraction(name, studied)` is the
-  per-language entry, French's « au »/« aux » unchanged.
+  reads as the verb `dai` is one token, a truncation of its own. The Italian test lives beside
+  change 6's tables (`tokenize::holds_italian_contraction`); `engine::holds_contraction(name,
+  studied)` is the per-language entry, French's « au »/« aux » unchanged.
+
+### Known gaps, for later changes
+
+- **Change 16** (which headwords and senses it-fr offers): the 30 literal misreadings below — the
+  expression's words read for what they say (`in via di` before a street's name, `alla luce di`
+  before *la luna*, `alle spalle di` in a ranking). They are not the retry's doing: the same words
+  written with `di` read the same.
+- **Change 17** (the defects the dogfood finds): the 7 partitives left (`del`, `dei` meaning
+  *some* after `fuori`, `da parte`, `a provare`); the tables' lemma clashes that let another word
+  reach an expression (`pur` filed under `pure`, `prova` under `provare`, the verb's `meriti` under
+  `merito`); and « da' retta » or « dai retta », which 11a's context rule reads as `da` + `i`, so
+  `dare retta` never matches.
+- **Change 18** (the word card): a card named without a space (`anch'io`, `d'accordo`) is reachable
+  from a match, but review reads a card whose lemma holds no space as a word.
+- A selection's tokens leave punctuation out, so a run may span a comma (« Restò fuori, del resto
+  pioveva » would answer `fuori di`); every language's matching does so.
 
 ### The figures over the fixture (task 4.2)
 
@@ -264,49 +312,58 @@ are change 16's, on its `mwe.tsv`.
 | D2 | 7 headwords hold a determiner the key writes (`al dente`, `alla romana`, `fare l'amore`, `un po'`, `un poco`, `vale la pena`, `valere la pena`); 6 keys differ from the every-token-lemmatised key (`a la romano` for `a il romano`, `fare lo amore` for `fare il amore`, `un poco` for `uno poco` twice, `valere la pena` for `valere il pena` twice) |
 | D3 | by tokens: 2 → 8, 3 → 7, 4 → 1; none beyond seven, none left out; two single words split, `d'accordo` and `anch'io` |
 | D4 | 8 headwords named (`ad alta voce`, `al dente`, `alla romana`, `anch'io`, `d'accordo`, `fare l'amore`, `un po'`, `vale la pena`); 2 keys several headwords reach, `un poco` (`un poco`, `un po'`) and `valere la pena` (`valere la pena`, `vale la pena`), the one written as the key winning each; `expr.names.zst` 122 bytes, `expr.others` 20 bytes |
-| D5 | 1 key ends on `di` (`a causa di`); « a causa del ritardo » and « a causa dello sciopero » meet it by the retry, covering « del », « dello » |
+| D5 | 1 key ends on `di` (`a causa di`, its first piece a preposition); « a causa del ritardo » and « a causa dello sciopero » meet it by the retry, covering « del », « dello » |
 | D6 | 3 headwords hold an elision (`anch'io`, `d'accordo`, `fare l'amore`), 1 a truncation (`un po'`), 2 an articulated preposition (`al dente`, `alla romana`); every one named |
 
 ### The `di` retry, measured (D5, task 6.1)
 
-**Keys.** The headwords change 16's reducer would offer, as change 12's proposal counted them
-(`reduce_common.reduce_expressions` over the English Wiktionary's Italian section of 2026-10-23,
-an Italian token pattern): 8,535 candidates, keyed by the real builder with the committed it-fr
-tables — 7,461 keyed, 102 of them ending on `di`. An approximation of change 16's `mwe.tsv`, not
-it.
+**Keys.** The headwords change 16's reducer would offer: `reduce_common.reduce_expressions` over the
+English Wiktionary's Italian section as pinned on 2026-10-23 (`kaikki-Italian.jsonl`, sha256
+`ae7de484…`), with an Italian token pattern — 8,535 candidates, keyed by the real builder with the
+committed it-fr tables: 7,461 keyed, 102 of them ending on `di`. An approximation of change 16's
+`mwe.tsv`, not it. The proposal's 8,852 came from a scratch approximation of those filters (a
+sense with a gloss and no form-of tag) over an earlier download; on the pinned file the same
+approximation counts 8,868. The 333 more the real reducer leaves out are entries no sense of which
+survives its gloss-based tests (`_is_form_of` on the gloss text, the English edition's
+`mwe_form_of`, `clean_gloss`).
 
 **Corpus.** Change 11a's blocks (its D5: MarkIT train and dev, `pages-it`, *I promessi sposi*,
 *Pinocchio*, change 8's Wikipedia sample, the whole Tatoeba export; never UD Italian-PUD nor MarkIT's
-test section): 1,011,235 blocks, each glossed as a selection by this branch's core — 183,279
-matches, **3,217 of them by the retry** (a match whose last token is of the `di` family and whose
-run, as written, is no key), on 80 expressions.
+test section): 1,011,235 blocks, each glossed as a selection by the branch's core. A retry is a
+match whose last token is of the `di` family and whose run, as written, is no key.
 
-**Read.** Every occurrence of 71 of the 80 expressions (1,156 occurrences); the other nine — `avere
-bisogno di` 571, `a causa di` 561, `nel corso di` 270, `da parte di` 220, `all'interno di` 207,
-`nei confronti di` 111, `al di fuori di` 50, `al di là di` 42, `al di sotto di` 29 — through a
-seeded sample of 100 of the 3,217 (`random.Random(20261024).sample`, in corpus order), which holds
-one misreading (« riflettere sulla bellezza della tua vita »), and a search of `da parte di` after a
-verb of setting aside and of `nel corso di` before a river.
+**Judgements.** One label per retry row — `ok`, `misread` or `unread`; for a misreading its kind;
+and how the row was read — kept in a labels file beside the measurement, outside the repository,
+which the tally reads: every figure below is the tally's output, none typed by hand. The four
+kinds were named after reading, not before.
 
-**Misreadings: 130 of 3,217 (4.0 %), in 17 expressions**, of three kinds:
-- *the next phrase's `di`* — 87: the expression is a noun phrase whose `di` the page gives to the
-  noun that follows: `la bellezza di` (*the whole sum of*) 71 of 71, « la bellezza della natura »;
-  `merito di` 12 of 13, « si sono presi il merito del taglio delle tasse », « Te lo meriti del
-  relax » (the verb's `meriti` filed under `merito`); `cazzo di` 3 of 3; `a fine di` 1 of 1,
-  « venire a fine della sua bella impresa »;
-- *the literal phrase* — 29: the words read for what they say: `in via di` 8 of 8, street names
-  (« in via dei Fori Imperiali »); `alla luce di` 5 of 13, « alla luce della luna », « alla luce del
-  giorno »; `alle spalle di` 4 of 4, « al secondo posto alle spalle del Real Madrid »;
-  `sull'orlo di` 3 of 17, « sull'orlo della strada »; `alla faccia di` 2 of 12, « alzato
-  lo sguardo alla faccia del padre »; `a fronte di` 2 of 3, « Sopra il ponte a fronte del fonte »;
-  `sul filo di` 2 of 2; `sulla pelle di` 2 of 3; `all'insegna di` 1 of 4, « All'insegna del pesce
-  d'oro » (a publisher);
-- *a partitive* — 14: `del`, `dei`, `delle` is *some*: `da parte di` 2 of 220, « Sta mettendo da parte
-  dei soldi », « Ho tenuto da parte del cibo »; `fuori di` 3 of 35, « Tom versò fuori dell'acqua »;
-  `pur di` 7 of 7, « Prenditi pure della frutta » (the tables file `pur` under `pure`); `a prova di`
-  2 of 2, « disposto a provare delle cose nuove » (they file `prova` under `provare`).
+**Before the frame rule:** 3,217 retries on 80 expressions. Read: every row of 71 expressions
+(1,156), 70 rows of the nine others — `avere bisogno di` 571, `a causa di` 561, `nel corso di` 270,
+`da parte di` 220, `all'interno di` 207, `nei confronti di` 111, `al di fuori di` 50, `al di là di`
+42, `al di sotto di` 29 — through a seeded sample of 100 of the 3,217 (`random.Random(20261024)`,
+the other 30 falling in the 71), and 2 rows by a targeted search (`da parte di` after a verb of
+setting aside; `nel corso di` before a river found none); 1,989 rows unread. **130 misreadings, a
+floor**: 128 of the 1,156 read in full (11.1 %) and the 2 search hits. The sample's 70 rows of the
+nine held none; a 95 % bound (3 / 70 ≈ 4.3 %, the rule of three) allows up to about 88 more unseen
+among their 2,061 rows. By kind: a noun phrase whose noun takes the `di` 82 (`la bellezza di` 71
+of 71, `merito di` 8, `cazzo di` 3); another word's `di` 3 (`pur di`); the literal phrase 30;
+a partitive 15 (`merito di` 4 — the verb `meritare` read as the noun —, `pur di` 4, `fuori di` 3,
+`da parte di` 2, `a prova di` 2).
 
-D5's own example, « la prima del film », is not met: the candidates hold no `prima di`. Every other
-occurrence read is the expression the page means (« a causa della pioggia », « nel corso dei
-secoli », « per amor del cielo », « in balia della tempesta »). The retry ships as designed; which
-of the 17 change 16 offers, and how, is change 16's and change 17's.
+**After the frame rule, with the review's fixes (what ships):** 3,129 retries on 76 expressions.
+The rule drops 94 rows — those of `la bellezza di`, `merito di`, `pur di` and `cazzo di`: 93
+misreadings and 1 correct reading, `merito di` meaning *thanks to*. The truncation fix adds 6 rows
+where a `de'` ends the run, read one by one: 5 right (`in nome di`, `in favore di`, `per mezzo di`,
+`a seconda di`, `nelle mani di`) and 1 misread, across a comma (`fuori di`). **38 misreadings of
+3,129 (1.2 %)**, the same floor as above, the unread rows unchanged: the literal phrase 30 (`in via
+di` 8 of 8, `alla luce di` 5 of 13, `alle spalle di` 4 of 4, `sull'orlo di` 3 of 17, `alla faccia
+di` 2 of 12, `a fronte di` 2 of 3, `sul filo di` 2 of 2, `sulla pelle di` 2 of 3, `a fine di` 1
+of 1, `all'insegna di` 1 of 4); a partitive 7 (`fuori di` 3, `da parte di` 2, `a prova di` 2);
+another word's `di` 1 (`fuori di`).
+
+Examples, written for this record (not quoted from the corpus): a noun phrase, « Ammiro la
+bellezza del paesaggio » (`la bellezza di`, dropped by the rule); the literal phrase, « Abito in via
+del Corso » (`in via di`), « Passeggiavano alla luce della luna » (`alla luce di`); a partitive,
+« Ho messo da parte del denaro » (`da parte di`); and read right, « È arrivato tardi a causa del
+traffico », « Ho bisogno del tuo consiglio », « Nel corso della serata è piovuto ». D5's own example,
+« la prima del film », is not met: the candidates hold no `prima di`.

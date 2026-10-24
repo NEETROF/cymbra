@@ -30,4 +30,4 @@
 
 ## 6. Owner
 
-- [ ] 6.1 [manual] The owner reads the re-blessed golden's diff (the pack line and the phrase probes) and the `di` retry's measured misreadings, and approves the re-bless before the implementation merges.
+- [x] 6.1 [manual] The owner reads the re-blessed golden's diff (the pack line and the phrase probes) and the `di` retry's measured misreadings, and approves the re-bless before the implementation merges. Owner approved the retry rule; golden diff in the PR.
