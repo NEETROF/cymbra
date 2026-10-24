@@ -126,6 +126,26 @@ moves.
 *Rejected — reading every Italian card as written.* « perche' » and « citta' » lose their stress,
 « c'e' » becomes « ce », and a vowel alone is a letter's name.
 
+*At implementation — after `refine-lingua-italian-reading` (change 11a).* This design was written
+before change 11a moved what some pieces read as; the rules follow its intent, an Italian piece
+heard as the page writes it, and the cards for the forms it added are tested:
+
+- **Rule 3's list** is the truncations as the pre-pass reads them now — `po'`, `mo'` (`modo` or `mò`
+  by the word after it), `fa'`, `va'`, `sta'`, `di'`, `be'`, and 11a's `ca'` (`casa`), `de'`
+  (`dei`), `que'` (`quei`) — together with the truncated articulated prepositions 11a reads as a
+  preposition and `i` sharing the span apostrophe included: `a'`, `co'`, `ne'`, `su'` before a word,
+  and `da'` wherever it stands (`da` + `i`, or the verb `dai` by its context), which left the
+  truncations. Their pieces end on the apostrophe, so French's `ELIDED` test would send them back to
+  the token's text (`in` for the `ne'` of « ne' campi »): the list is read first, and each is heard
+  as written (« de' », « que' », « Ca' », « ne' », « da' »). An apocope 11a leaves without its
+  apostrophe (`su` of « Vieni su'. ») reads its form seen.
+- **Rule 1** reads 11a's new elisions (`trent'`, `qual'`, `gliel'`, `ultim'` …, `coll'`, `degl'`)
+  glued, as before (« trent'anni », « qual'è »); « l'ultim'ora » keeps the page's letters, its next
+  token (`ultima`) not being a spelling read for an accent. The page hit's field is `nextText`,
+  written only where a token starts where the hit ends.
+- **Rule 5's exception** covers « É » as « é »: neither is handed a full stop. Unmeasured — a capital
+  silenced would say nothing, one named says its letter —, it is on change 20's checklist.
+
 ### D5 — What cannot move
 
 `test/voice-ranking.spec.ts` pins English's and Spanish's rankings today (`LANGUAGES = ["en", "es"]`,
