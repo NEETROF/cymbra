@@ -193,6 +193,24 @@ and the noun *legge*, when the noun is ranked). Only toward an entry of the dict
 is not only regional. The mark changes no count: the form's status, exposures, level and review
 belong to its one lemma.
 
+**Where the dictionary marks the link, no mark** (added at review, decided from the dictionary's own
+tags): a word is named only when the link is the language's plain one —
+- **(a) poetry and letters**: a row or a form's own sense tagged poetic, Latinism or literary reads
+  under the form's own lemma and names no other word, directly or through a form of a form — `sono`
+  names no *suonare* (a poetic Latinism of its present), `fiero` no *essere*, `possente` no *potere*,
+  `vinci` no *vinco*, `paro` no *pari*; `veggo`, `vegga` and `morrò` keep their own readings;
+- **(b) a doubtful spelling of a cell**: where an entry of the form is a doubtful spelling of a cell of
+  a lemma's table, in that entry's part of speech, the form names that lemma with none of that cell's
+  readings — `anno`, whose verb entry is « misspelling of hanno », names no *avere*, whose table
+  lists the disused `ànno` with its qualifier dropped by kaikki; another cell's reading stands
+  (`puzza`, a noun spelling *puzzo*, names *puzzare*), and so does every reading of the form's own
+  lemma (`diè`, *dare*'s poetic passato remoto);
+- **(c) archaic and literary entries**: another word is named only in a part of speech an entry holds
+  it as with a meaning not marked archaic, poetic, Latinism or literary — `dire` names no *diro*,
+  `idea` no *ideo*, `cane` no *cano*, `conte` no *conto* (« known »), `serve` no adjective *servo*,
+  `armi` no *arme* —; a reflexive's meaning names the plain verb it is filed under (`arreso`, of
+  *arrendersi*, names *arrendere*). The word's own readings keep every part of speech.
+
 **M8's cost on the card**: a dictionary noun whose own form the forms table reads as another lemma
 (`porta` → *portare*, `pesca` → *pescare*) is no lemma of the tables, so no reading of it is kept;
 counted among the 1,000, 2,000 and 5,000 commonest lemmas at task 2.1, beside change 9's figures.
@@ -281,3 +299,115 @@ workflow's pull request; rollback is a revert.
 the closed classes, D5's sources and exclusions, `other`) 2–2.75; its tests 0.5–0.75; the pin, the
 reduction and the README 0.25; `it_fr_grammar.rs` and `committed_tables.rs` 0.5; the measurement
 and its switches 0.5–0.75.
+
+## As implemented
+
+Built on `main` at `594db7c7` (Italian's analyser `1.3.0`, changes 5–11 merged). The figures below come
+from a local reduction made as the update makes it (`build.sh --reduce it-fr`, Python 3.12 and
+`requirements-reduce.txt`, the release asset `lingua-pack-sources-it-fr-2026.10.23` and Morph-it!'s,
+each checked by sha256), which first reproduced every committed byte of `main`'s `tables/it/` and
+`tables/it-fr/`; with this change it leaves `forms.tsv`, `freq.tsv`, `lexical.tsv` and `studied.json`
+byte for byte and writes `grammar.tsv`. The tables themselves arrive by the owner's `reduce` dispatch
+(task 2.1); `tags.tsv` (task 2.2) is the pull request's, derived from that reduction and checked equal
+to its readings' tags. The criteria were written before any figure was read, and no rule was changed
+on UD Italian-PUD's or MarkIT's test section's figures.
+
+**Figures** (D2, D6, D7, after the review; `tables/it-fr/README.md`, *The readings*, has them in
+full): 132,849 readings in 83 tags — 66,229 verb, 40,707 noun, 25,737 adjective, 93 determiner, 75
+pronoun, 8 numeral —; 94,786 of the 129,599 forms carry a reading of their own lemma; 13,366 `other`
+marks on 8,562 forms. M8's cost is change 9's, unmoved: 32 / 47 / 69 among the 1,000 / 2,000 / 5,000.
+2,582 forms read the present indicative and the present subjunctive of one person and number; 1,047
+forms of 1,043 verbs carry exactly `parli`'s four readings (20 of the 1,000 commonest lemmas, 141 of
+the 5,000). The pack is 1,493,303 B (28.5 % of the budget), its base 1,491,875 B. The forms' gates do
+not move (PUD 99.26 / 91.31 / 99.90, as on `main`). The first update (run 40033640362) committed the
+rules before the review byte for byte as reduced locally: 133,066 readings, the pack 1,493,854 B.
+
+**D9, measured** (reported, not gated; « read » in the part of speech measured, since the review):
+PUD — finite verbs 99.76 % read, 98.70 % agree; participles 97.84 / 99.80; infinitives 88.41 / 100;
+gerunds 100 / 100; nouns 97.57 / 99.61; adjectives 90.13 / 99.45; determiners 86.58 / 99.96; pronouns
+17.41 / 100. MarkIT test — 99.68 / 99.47, 99.26 / 99.26, 84.62 / 99.60, 100 / 100, 97.77 / 99.03, 89.85 /
+100, 75.56 / 99.81, 4.41 / 96.88. Each rule switched off alone: the README's two tables.
+
+**Departures from the design**, each decided on the dictionary's entries:
+
+1. **The Roman dialect's tables (D3).** kaikki merges into an entry every conjugation table of its
+   page, the Classical Roman Dialect's among them, with no tag to say so: *avere*'s third table makes
+   `amo` a first person plural of *avere* (`àmo`, « Modern »), `ebbe` a first person, `avessi` a
+   passato remoto. When an entry has several tables, one listing a present indicative's first person
+   plural none of which ends in Italian's `-iamo` while another table does is set aside
+   (`_dialect_rows`): 26 tables of 25 verbs, 279 readings, none of a treebank's figures. The
+   requirement names it among what gives no reading, with a scenario.
+2. **A table first, per part of speech (D5).** French's rule lets a lemma's table replace a form's own
+   entry for the whole pair; here it does so for the parts of speech the table gives, so `grandi`,
+   which *grande*'s noun table lists, keeps its adjective entry's `ADJ|Number=Plur` (the scenario's
+   reading). The scenario now says `grandi` reads the noun's plurals beside it.
+3. **A present participle (D3).** Its plural's own entry names a participle with neither tense
+   (« plural of dormiente »: 1,517 senses, 169 forms of the tables): read as the present one when its
+   target ends in `-nte`, and a composed present participle takes the number alone — no
+   `VERB|Gender=…|Tense=Pres` tag is pinned.
+4. **Change 10's spellings (D5).** A dictionary spelling's own entry is a misspelling's, whose head
+   names no gender: the spelling carries its word's readings (`perchè` *perché*'s `NOUN|Gender=Masc`),
+   where nothing gives it its own — `dà`, which the section also gives as « alternative form of dare »,
+   keeps *dare*'s present. A row of the web's list or an owner's exception carries the readings of
+   its word's forms written with its letters and none of its own (`perche` no plural of *perca*), as
+   read-lingua-italian-unmarked-spellings D4 says.
+5. **Rows of a region or a register (D3).** D3 names the dialectal and hypercorrect rows; a row
+   tagged regional, Tuscan, colloquial, slang and the like reads nothing either, as a form's own sense
+   so marked (D5): 21 readings.
+6. **A head row repeating a cell (D4).** D4 says it of *il*'s `i`; it holds for every entry with a
+   table (a verb's principal parts repeat their cells, so nothing else moves). The article table's
+   rule is written from the forms (`Readings.shared`): a row an article's own head does not name is
+   kept only under the article the forms table files the form under — *il*, for every row.
+7. **`parlante` (scenario).** The forms table keeps `parlante` as a word of its own (the adjective and
+   the noun), so its card reads them and names *parlare* with `VERB|Number=Sing|Tense=Pres|VerbForm=Part`;
+   the scenario says so.
+8. **`porta` (task 3.1).** It names *porgere*, whose participle `porto` has the feminine `porta`: a
+   true reading under D5 and D6, so the test pins it and that no reading names the noun, rather than
+   « naming nothing ».
+9. **The measurement (D9).** UD Italian-PUD writes its verbs without `VerbForm` (the form by `XPOS`),
+   the imperfetto `Aspect=Imp|Tense=Past`, the imperfect subjunctive `Tense=Past`: `it_readings.py`
+   reads them as MarkIT writes them, and adds the gerunds' line.
+10. **The pin (task 2.2).** `tags.tsv` is on the branch before the dispatch, which records the pack:
+    until it does, the branch's `pin.json` is `main`'s.
+
+**At review** (the pull request's, decided from the dictionary's tags; each one's rows from the first
+update's 133,066 readings, −217 +0 in all):
+
+11. **No form of a form through a nominal plural (D5):** `compose` refuses an outer reading that is a
+    noun's, adjective's, determiner's, pronoun's or numeral's plural — `colli`, the plural of `colle`
+    (« hill »), read as *colla*'s through `colle`, *colla*'s plural, broke the requirement's « a
+    feminine noun's masculine SHALL NOT read as its inflection » (`signori` *signora*'s, `camerieri`
+    *cameriera*'s): −65. `viti` and `crochi`, which change 9 files under *vita* and *croce* by the
+    same chaining, keep no reading of them (Known data defects).
+12. **A spelling's table only where the word's gives nothing (D5):** *moglia*'s table made `moglie` a
+    plural, *terrestre*'s spelling its own plurals: −16.
+13. **D6 (a), poetry and letters:** −11.
+14. **D6 (b), a doubtful spelling of a cell:** −6. Read as « reads nothing of L », the rule cost own
+    readings (`era`, `pare`, `sta`, `diè`) and right marks (`puzza` names *puzzare*): it is held to
+    `other` marks and to the cell the spelling stands for, in its entry's part of speech.
+15. **D6 (c), archaic and literary entries:** −118, `other` marks alone; the words' own readings keep
+    their parts of speech (an own reading lost under the first reading of the rule, 231 of them, is
+    none now). Rare and dated meanings name their word (`arreso`, `alleato`), and a reflexive's
+    meaning names the plain verb it is filed under (*arrendere*, *ribellare*, *vergognare*). Right
+    marks it takes off, the words being only literary in the dictionary: `cela`, `celato` (*celare*),
+    `perito` and its forms (*perire*), `colei` (*colui*), `costei` (*costui*), `ella`, `esse`, `essi`
+    (*egli*), `spoglie` (*spoglia*), `madonne` (*madonna*).
+16. **A feminine noun's masculine plural (D4):** `signorini` reads no *signorina*: −1.
+17. **The superlative's masculine (D4):** a superlative named with no agreement, in `-o`, is the
+    masculine singular (`bellissimo`, `abilissimo`, `minimo`): 324 readings re-tagged; the pool's
+    `ADJ|Degree=Sup|Number=Sing` became `ADJ|Degree=Sup|Gender=Masc|Number=Sing`, rewritten in place
+    — no Italian pack has shipped, and the branch's first update is reduced again.
+18. **The pin test** holds the first reduction's 83 tags in byte order and lets later tags append, as
+    the requirement allows; French's is left as it is.
+19. **D9's « read »** counts a word read only in the part of speech measured: the clitics `si`, `ci`,
+    `mi`, `ti`, read only as the notes and letters their dictionary forms also are, are no pronouns
+    read.
+
+**Known data defects, as found** (beside the list above): the dialect's tables set aside still give
+change 9 its `avi`, `ava` and `ate` → *avere*; change 9's chaining through a plural files `viti` under
+*vita*, `crochi` under *croce* and `signorini` under *signorina*, which now read none of their lemma;
+an untagged old cell names a verb (`bei` → *bere*); `scalpitanti` is « plural of diffondente » (filed
+under *diffondere* by change 9) and `imperative`, a cell of *essere*'s usage notes, an *essere* form; truncated infinitives (`aver`,
+`far`, `esser`: 48 of PUD's 414 infinitives) read nothing, their senses being apocopes; the function
+words whose lemma the dictionary also holds as a noun read the noun (`e`, `a`, `o`, `mi`, `ti`, `si`,
+`ci`), as Spanish's `a` and French's `si`; `lui` and `lei` name each other.

@@ -2658,6 +2658,8 @@ fn spec_scenario_a_layer_and_its_base() {
 // Italian's studied side (add-lingua-italian-forms-tables, the Italian programme's change 9): it-fr,
 // Italian's reference pair (I5), writes tables/it/. `studied.json` and the pinned pool `tags.tsv` were
 // committed by hand first (D9); the update of 2026.10.23 wrote the rest, tables/it-fr/ included.
+// Italian's readings (add-lingua-italian-grammar-tables, change 13) are `tables/it/grammar.tsv`, and
+// `tags.tsv` is their pinned pool, written by hand once from the first reduction's readings (D8).
 // Italian's acronym rows (keep-lingua-italian-acronyms-and-names, change 11) are forms in capitals
 // that are their own lemmas, and its dictionary words until change 16 glosses it-fr.
 
@@ -2686,16 +2688,16 @@ fn it_fr() -> &'static (Vec<u8>, SplitPack) {
 
 #[test]
 fn spec_scenario_the_reference_and_the_pipeline() {
-    // tables/it/studied.json names it-fr; tags.tsv holds the one canonical tag until change 13's
-    // pool; lexical.tsv holds change 11's acronym rows alone until change 16's dictionary words
+    // tables/it/studied.json names it-fr; tags.tsv holds the readings' tags, change 13's pool
+    // (add-lingua-italian-grammar-tables D8), which replaced change 9's one canonical tag;
+    // lexical.tsv holds change 11's acronym rows alone until change 16's dictionary words
     // (keep-lingua-italian-acronyms-and-names D6); the pack builds whole and in parts to its pin; no
     // package lists it-fr.
     let it = tables().join("it");
     assert_eq!(json(&it.join(STUDIED_RECORD))["reference"], "it-fr");
-    assert_eq!(
-        std::fs::read_to_string(it.join("tags.tsv")).unwrap(),
-        "NOUN\n"
-    );
+    let pin = std::fs::read_to_string(it.join("tags.tsv")).unwrap();
+    let grammar = std::fs::read_to_string(it.join("grammar.tsv")).unwrap();
+    pin_against_readings(&pin, &grammar).unwrap_or_else(|e| panic!("it/{e}"));
     let packs = json(
         &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../apps/lingua-extension/packs.json"),
     );
@@ -2712,6 +2714,7 @@ fn spec_scenario_the_reference_and_the_pipeline() {
         [
             "forms.tsv",
             "freq.tsv",
+            "grammar.tsv",
             "lexical.tsv",
             "studied.json",
             "tags.tsv"
@@ -2928,6 +2931,54 @@ fn spec_scenario_every_word_italian_s_pre_pass_writes_is_a_form() {
         assert_eq!(forms.get(form).map(String::as_str), Some(lemma), "{form}");
         assert!(!ranks.contains_key(form), "{form} is ranked");
     }
+}
+
+#[test]
+fn spec_scenario_italian_s_pin_is_the_readings_tags() {
+    // add-lingua-italian-grammar-tables D8: every tag of tables/it/grammar.tsv is a line of
+    // tables/it/tags.tsv, every line a tag of the readings written in canonical form, each once: the
+    // first reduction's 83 tags in byte order, then any a later reduction adds, appended after them
+    // in the order they came — never sorted in, which would move a pinned tag's index.
+    const FIRST_REDUCTION: usize = 83;
+    let it = tables().join("it");
+    let pin = std::fs::read_to_string(it.join("tags.tsv")).unwrap();
+    let grammar = std::fs::read_to_string(it.join("grammar.tsv")).unwrap();
+    pin_against_readings(&pin, &grammar).unwrap_or_else(|e| panic!("it/{e}"));
+    let lines: Vec<&str> = pin.lines().collect();
+    assert!(
+        lines.len() >= FIRST_REDUCTION,
+        "it/tags.tsv lost pinned tags"
+    );
+    assert!(
+        lines[..FIRST_REDUCTION].is_sorted(),
+        "it/tags.tsv's first reduction is not in byte order"
+    );
+    // The change-9 placeholder is gone: no reading carries a bare `NOUN`.
+    assert!(!lines.contains(&"NOUN"));
+    // A pin that misses a reading's tag, or keeps one no reading carries, fails by name.
+    let missing = lines[1..].join("\n");
+    let err = pin_against_readings(&missing, &grammar).unwrap_err();
+    assert!(err.contains(lines[0]), "{err}");
+    let left = format!("{pin}VERB|VerbForm=Sup\n");
+    let err = pin_against_readings(&left, &grammar).unwrap_err();
+    assert!(err.contains("VERB|VerbForm=Sup"), "{err}");
+}
+
+#[test]
+fn spec_scenario_the_base_s_pool() {
+    // add-lingua-italian-grammar-tables D8: it-fr's base lays its tag pool out as the pin, then the
+    // readings' tags outside it — none —, and holds nothing of a pair's senses: the whole pack's pool
+    // and the base's are the pin, and the layer carries no sense tag (it-fr glosses nothing yet).
+    let pin = std::fs::read_to_string(tables().join("it/tags.tsv")).unwrap();
+    let pin: Vec<&str> = pin.lines().collect();
+    let (whole, split) = it_fr();
+    for (part, bytes) in [("whole", whole), ("base", &split.base)] {
+        let parts = sections(bytes);
+        let pool = section_of(&parts, section::TAGS).unwrap_or_else(|| panic!("{part}: a pool"));
+        let pool: Vec<&str> = std::str::from_utf8(pool).unwrap().split('\n').collect();
+        assert_eq!(pool, pin, "it-fr's {part} pool");
+    }
+    assert!(section_of(&sections(&split.layer), section::SENSES_TAGS).is_none());
 }
 
 #[test]

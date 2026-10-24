@@ -1242,7 +1242,22 @@ class Reduction(unittest.TestCase):
             self.assertEqual(summary["web spellings"], 1)
             self.assertTrue(any("1 row(s) of the reviewed list" in line for line in lines))
             self.assertTrue(any(line.startswith("reduced it-fr: dictionary spellings read") for line in lines))
-            first = {name: read(name) for name in ("forms.tsv", "freq.tsv", "NOTICE", "manifest.json")}
+            # The readings of the forms just chosen (add-lingua-italian-grammar-tables D1, D2): each
+            # row a form of forms.tsv under a ranked lemma, sorted, and counted in the report.
+            grammar = read("grammar.tsv").splitlines()
+            self.assertIn("creduta\tcredere\tVERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part\t-", grammar)
+            self.assertEqual(grammar, sorted(grammar))
+            ranked = dict(ranks)
+            for row in grammar:
+                form, lemma, _, mark = row.split("\t")
+                self.assertIn(lemma, ranked, row)
+                self.assertEqual(mark, "-" if forms[form] == lemma else "other", row)
+            self.assertEqual(summary["grammar"]["readings"], len(grammar))
+            self.assertTrue(any(line.startswith(f"reduced it-fr: readings={len(grammar)} in ") for line in lines), lines)
+            self.assertTrue(any(line.startswith("reduced it-fr: readings by part of speech") for line in lines), lines)
+            # Italian's pinned tag pool is a person's (D8): no reduction writes it.
+            self.assertFalse(os.path.exists(os.path.join(work, "tags.tsv")))
+            first = {name: read(name) for name in ("forms.tsv", "freq.tsv", "grammar.tsv", "NOTICE", "manifest.json")}
             self.run_reduction(work, red.MORPH_IT)
             self.assertEqual({name: read(name) for name in first}, first, "the same inputs give the same tables")
 
@@ -1341,6 +1356,663 @@ class Reduction(unittest.TestCase):
             self.assertTrue(str(raised.exception).endswith(": giu"), raised.exception)
         self.assertEqual(red.unread_web_spellings({"puo": "potere"}), [])
         self.assertEqual(red.unread_web_spellings({"puo": "puo"}), ["puo"])
+
+
+# — Italian's word grammar (add-lingua-italian-grammar-tables) —
+
+PRESENT_2S = ["indicative", "present", "second-person", "singular"]
+PRESENT_3S_TAG = "VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin"
+PRESENT_1P = ["first-person", "indicative", "plural", "present"]
+SUBJUNCTIVE = lambda person, number="singular": [person, number, "present", "subjunctive"]  # noqa: E731
+# What a verb's table opens with, the head's principal parts before it: its bookkeeping and auxiliary.
+TABLE = [("regular", ["table-tags"]), ("it-conj", ["inflection-template"]), ("avére", ["auxiliary"])]
+# kaikki's article table, which it writes identically under each of il, lo, la, gli and le.
+ARTICLE_TABLE = [
+    ("no-table-tags", ["table-tags"]),
+    ("l", ["inflection-template"]),
+    ("il", ["masculine", "singular"]),
+    ("lo (l')", ["masculine", "singular"]),
+    ("i", ["masculine", "plural"]),
+    ("gli", ["masculine", "plural"]),
+    ("la (l')", ["feminine", "singular"]),
+    ("le", ["feminine", "plural"]),
+]
+
+
+def noun(word, gender, plural=None, forms=(), senses=None, pos="noun"):
+    """A noun entry headed by `it-noun` (its gender, and its plural argument when given)."""
+    e = entry(word, pos=pos, forms=forms, senses=senses if senses is not None else [{"glosses": ["a meaning"]}])
+    e["head_templates"] = [{"name": "it-noun", "args": {"1": gender, **({"2": plural} if plural else {})}}]
+    return e
+
+
+def headed(e, **args):
+    """`e` headed by the generic `head` template with these arguments (a determiner's `g`)."""
+    e["head_templates"] = [{"name": "head", "args": {"1": "it", **args}}]
+    return e
+
+
+GRAMMAR_ENTRIES = [
+    # D3 — a verb's table: the head's principal parts, then the table; the negative and formal
+    # imperatives, which repeat other cells.
+    entry(
+        "parlare",
+        pos="verb",
+        forms=[
+            ("parlàre", ["canonical"]),
+            ("pàrlo", ["first-person", "present", "singular"]),
+            ("parlàto", PARTICIPLE),
+            *TABLE,
+            ("parlàre", ["infinitive"]),
+            ("parlàndo", ["gerund"]),
+            ("parlànte", ["participle", "present"]),
+            ("parlàto", PARTICIPLE),
+            ("pàrlo", PRESENT_1S),
+            ("pàrli", PRESENT_2S),
+            ("pàrla", PRESENT_3S),
+            ("parliàmo", PRESENT_1P),
+            ("parlàvo", ["first-person", "imperfect", "indicative", "singular"]),
+            ("parlò", ["historic", "indicative", "past", "singular", "third-person"]),
+            ("parlerèbbe", ["conditional", "singular", "third-person"]),
+            ("pàrli", SUBJUNCTIVE("first-person")),
+            ("pàrli", SUBJUNCTIVE("second-person")),
+            ("pàrli", SUBJUNCTIVE("third-person")),
+            ("parliàmo", SUBJUNCTIVE("first-person", "plural")),
+            ("pàrla", ["imperative", "second-person", "singular"]),
+            ("pàrli", ["formal", "imperative", "second-person-semantically", "singular", "third-person"]),
+            ("parliàmo", ["first-person", "imperative", "plural"]),
+            ("parlàre", ["imperative", "negative", "second-person", "singular"]),
+            ("pàrli", ["formal", "imperative", "negative", "second-person-semantically", "singular", "third-person"]),
+        ],
+        senses=[{"glosses": ["to speak"]}],
+    ),
+    # A form's own entry, its senses merging persons and moods: the table, which lists the pair, wins.
+    entry(
+        "parli",
+        pos="verb",
+        senses=[
+            {"tags": ["form-of", "indicative", "present", "second-person", "singular"], "form_of": [{"word": "parlare"}]},
+            {"tags": ["form-of", "imperative", "singular", "third-person"], "form_of": [{"word": "parlare"}]},
+        ],
+    ),
+    # D3 — the participles' own entries: the present one's plural, the past one's agreed forms.
+    entry(
+        "parlante",
+        pos="verb",
+        forms=[("parlanti", ["plural"])],
+        senses=[{"tags": ["by-personal-gender", "feminine", "form-of", "masculine", "participle", "present"], "form_of": [{"word": "parlare"}]}],
+    ),
+    entry("parlante", pos="adj", forms=[("parlanti", ["plural"])], senses=[{"glosses": ["talking"], "tags": ["feminine", "masculine"]}]),
+    noun("parlante", "m", forms=[("parlanti", ["plural"])]),
+    entry(
+        "parlato",
+        pos="verb",
+        forms=[("parlata", ["feminine"]), ("parlati", ["masculine", "plural"]), ("parlate", ["feminine", "plural"])],
+        senses=[{"tags": ["form-of", "participle", "past"], "form_of": [{"word": "parlare"}]}],
+    ),
+    # A participle change 9 files under a noun's spelling: the noun's reading, naming the verb.
+    noun("parlata", "f", forms=[("parlate", ["plural"])], senses=[{"glosses": ["parlance"], "tags": ["feminine"]}]),
+    form_of("parlata", "parlato", tags=("feminine", "form-of", "participle", "singular")),
+    # A present participle's plural whose own entry names neither tense (« plural of dormiente »).
+    entry("dormire", pos="verb", forms=[*TABLE, ("dormiènte", ["participle", "present"]), ("dormiàmo", PRESENT_1P)]),
+    form_of("dormienti", "dormiente", tags=("form-of", "participle", "plural")),
+    entry("dormiente", pos="verb", forms=[], senses=[{"tags": ["form-of", "participle", "present"], "form_of": [{"word": "dormire"}]}]),
+    # D5 — a form of a form along one part of speech.
+    entry("credere", pos="verb", forms=[*TABLE, ("credùto", PARTICIPLE), ("crediàmo", PRESENT_1P)]),
+    entry(
+        "creduto",
+        pos="verb",
+        forms=[("creduta", ["feminine"]), ("creduti", ["masculine", "plural"]), ("credute", ["feminine", "plural"])],
+        senses=[{"tags": ["form-of", "participle", "past"], "form_of": [{"word": "credere"}]}],
+    ),
+    form_of("creduta", "creduto", tags=("feminine", "form-of", "participle", "singular")),
+    # D3 — the table's stress marks; and the Roman dialect's table kaikki merges in, set aside.
+    entry(
+        "dare",
+        pos="verb",
+        forms=[
+            *TABLE,
+            ("dàre", ["infinitive"]),
+            ("diàmo", PRESENT_1P),
+            ("dièdi", ["first-person", "historic", "indicative", "past", "singular"]),
+            ("diède", ["historic", "indicative", "past", "singular", "third-person"]),
+            *TABLE,
+            ("dàmo", PRESENT_1P),
+            ("diéde", ["first-person", "historic", "indicative", "past", "singular"]),
+            ("dàssi", ["historic", "indicative", "past", "second-person", "singular"]),
+        ],
+    ),
+    # D3 — a reflexive verb whose plain verb the section has, and one that has none.
+    entry("lavare", pos="verb", forms=[*TABLE, ("làvo", PRESENT_1S), ("làva", PRESENT_3S), ("lavàto", PARTICIPLE)]),
+    entry(
+        "lavato",
+        pos="verb",
+        forms=[("lavati", ["masculine", "plural"])],
+        senses=[{"tags": ["form-of", "participle", "past"], "form_of": [{"word": "lavare"}]}],
+    ),
+    entry(
+        "lavarsi",
+        pos="verb",
+        forms=[
+            *TABLE,
+            ("lavàrsi", ["infinitive"]),
+            ("mi làvo", PRESENT_1S),
+            ("làvati", ["imperative", "second-person", "singular"]),
+        ],
+        senses=[
+            {"glosses": ["reflexive of lavare"], "tags": ["form-of", "reflexive"], "form_of": [{"word": "lavare"}]},
+            {"glosses": ["to wash (oneself)"]},
+        ],
+    ),
+    entry(
+        "pentirsi",
+        pos="verb",
+        forms=[
+            *TABLE,
+            ("pentìrsi", ["infinitive"]),
+            ("pentèndosi", ["gerund"]),
+            ("mi pènto", PRESENT_1S),
+            ("pèntiti", ["imperative", "second-person", "singular"]),
+            ("ti pentìre", ["imperative", "negative", "second-person", "singular"]),
+            ("si pènta", ["formal", "imperative", "second-person-semantically", "singular", "third-person"]),
+        ],
+        senses=[{"glosses": ["to repent"]}],
+    ),
+    # D3 — a clitic cluster's row, and a defective verb's empty cell.
+    entry("andarsene", pos="verb", forms=[*TABLE, ("me ne vàdo", PRESENT_1S)], senses=[{"glosses": ["to go away"]}]),
+    entry("andare", pos="verb", forms=[*TABLE, ("vàdo", PRESENT_1S), ("vàda", SUBJUNCTIVE("third-person"))]),
+    entry("solere", pos="verb", forms=[*TABLE, ("sòglio", PRESENT_1S), ("-", PARTICIPLE)]),
+    # D3 — a dialectal and a hypercorrect row, a Traditional one read.
+    entry(
+        "fare",
+        pos="verb",
+        forms=[
+            *TABLE,
+            ("fò", ["dialectal", "first-person", "indicative", "present", "singular"]),
+            ("fàccio", PRESENT_1S),
+            ("fàcciano", ["hypercorrect", "plural", "present", "subjunctive", "third-person"]),
+            ("fèi", ["Traditional", "first-person", "historic", "indicative", "past", "singular"]),
+        ],
+    ),
+    # D4 — nouns: a gender and a plural, one form for both numbers, an uncountable noun, a plural of
+    # another gender, a derived word's row.
+    noun("casa", "f", forms=[("case", ["plural"]), ("casétta", ["diminutive"])]),
+    noun(
+        "casetta",
+        "f",
+        forms=[("casette", ["plural"])],
+        senses=[{"glosses": ["diminutive of casa"], "tags": ["diminutive", "feminine", "form-of"], "form_of": [{"word": "casa"}]}],
+    ),
+    noun("città", "f", "#", senses=[{"glosses": ["city"], "tags": ["feminine", "invariable"]}]),
+    noun("gas", "m", "-", senses=[{"glosses": ["gas"], "tags": ["masculine", "uncountable"]}]),
+    noun("uovo", "m", "uova<g:f>", forms=[("uova", ["feminine", "plural"]), ("ovetto", ["diminutive"])]),
+    noun("eco", "f,m<l:colloquial,or,literary><ref:<<name:dop>>>", "+<g:m>,#<g:f>", forms=[("echi", ["masculine", "plural"])]),
+    # D4 — a feminine noun's masculine row; a masculine noun's feminine row, which names it.
+    noun("attore", "m", forms=[("attori", ["plural"]), ("attrice", ["feminine"])]),
+    noun("attrice", "f", forms=[("attrici", ["plural"]), ("attore", ["masculine"])]),
+    # D4 — adjectives of four and of two forms, a comparative, an adverb's row.
+    entry("rosso", pos="adj", forms=[("rossa", ["feminine"]), ("rossi", ["masculine", "plural"]), ("rosse", ["feminine", "plural"])]),
+    form_of("rosse", "rosso", pos="adj", tags=("feminine", "form-of", "plural")),
+    entry("grande", pos="adj", senses=[{"glosses": ["big"], "tags": ["feminine", "masculine"]}]),
+    noun("grande", "mfbysense", forms=[("grandi", ["plural"])]),
+    form_of("grandi", "grande", pos="adj", tags=("form-of", "plural")),
+    entry(
+        "piccolo",
+        pos="adj",
+        forms=[("piccola", ["feminine"]), ("più piccolo", ["comparative"]), ("minore", ["comparative"]), ("minimo", ["superlative"])],
+    ),
+    entry("minore", pos="adj", senses=[{"glosses": ["comparative degree of piccolo"]}]),
+    entry("vero", pos="adj", forms=[("vera", ["feminine"]), ("veramente", ["adverb"])]),
+    entry("veramente", pos="adv"),
+    # D4 — the article table under each article; a plural-headed article's table; a pronoun.
+    headed(entry("il", pos="article", forms=[("i", ["plural"]), ("la", ["feminine"]), *ARTICLE_TABLE]), g="m-s"),
+    headed(entry("lo", pos="article", forms=[("gli", ["plural"]), *ARTICLE_TABLE]), g="m-s"),
+    headed(entry("gli", pos="article", forms=[("lo", ["singular"]), *ARTICLE_TABLE]), g="m-p"),
+    headed(entry("le", pos="article", forms=[("la", ["singular"]), *ARTICLE_TABLE]), g="f-p"),
+    headed(entry("lo", pos="pron", forms=[("li", ["plural"]), ("la", ["feminine"])]), g="m-s"),
+    headed(entry("le", pos="pron", forms=[("li", ["masculine"]), ("la", ["singular"])]), g="f-p"),
+    # D5 — what never gives a reading: an archaic spelling with a table of its own, a capitalised
+    # headword, an apocope.
+    entry(
+        "dicere",
+        pos="verb",
+        forms=[*TABLE, ("dìco", PRESENT_1S)],
+        senses=[{"glosses": ["archaic form of dire"], "tags": ["alt-of", "archaic"], "alt_of": [{"word": "dire"}]}],
+    ),
+    entry("dire", pos="verb", forms=[*TABLE, ("dìre", ["infinitive"])]),
+    entry("Parli", pos="noun", senses=[{"glosses": ["a surname"], "tags": ["feminine"]}]),
+    entry("bel", pos="adj", senses=[{"glosses": ["apocopic form of bello"], "tags": ["alt-of", "apocopic"], "alt_of": [{"word": "bello"}]}]),
+    # D6 — a homograph's other dictionary form; a regional-only word is named on no card.
+    entry("portare", pos="verb", forms=[*TABLE, ("pòrta", PRESENT_3S), ("pòrti", PRESENT_2S)]),
+    noun("porta", "f", forms=[("porte", ["plural"])]),
+    noun("porto", "m", forms=[("porti", ["plural"])]),
+    noun("vada", "f", senses=[{"glosses": ["a ford"], "tags": ["feminine", "regional"]}]),
+    # Change 10's spellings: a dictionary spelling (its own head a misspelling's) and the web's row.
+    noun("perché", "m", "-", senses=[{"glosses": ["the reason"], "tags": ["masculine", "uncountable"]}]),
+    entry("perchè", pos="noun", senses=[{"glosses": ["misspelling of perché"], "tags": ["alt-of", "misspelling"], "alt_of": [{"word": "perché"}]}]),
+    entry("potere", pos="verb", forms=[*TABLE, ("può", PRESENT_3S), ("possiàmo", PRESENT_1P)]),
+    form_of("può", "potere"),
+    # A spelling change 10 reads as its word that is also one of its forms: its own reading stands.
+    entry(
+        "dà",
+        pos="verb",
+        senses=[
+            {"tags": ["form-of", "indicative", "present", "singular", "third-person"], "form_of": [{"word": "dare"}]},
+            {"glosses": ["alternative form of dare"], "tags": ["alt-of", "alternative", "colloquial"], "alt_of": [{"word": "dare"}]},
+        ],
+    ),
+]
+
+# The forms table and the ranks change 9 would give this section, written by hand: the readings
+# choose neither (D1, D2).
+GRAMMAR_FORMS = {
+    **{f: "parlare" for f in ("parlare", "parlo", "parli", "parla", "parliamo", "parlavo", "parlò", "parlerebbe", "parlando", "parlanti", "parlato", "parlate")},
+    "parlante": "parlante", "parlata": "parlata",
+    "dormire": "dormire", "dormienti": "dormire", "dormiente": "dormire",
+    "credere": "credere", "creduto": "credere", "creduta": "credere",
+    "dare": "dare", "dà": "dare", "diamo": "dare", "diedi": "dare", "diede": "dare", "damo": "dare", "dassi": "dare",
+    "lavare": "lavare", "lavo": "lavare", "lava": "lavare", "lavato": "lavare", "lavati": "lavare", "lavarsi": "lavare",
+    "pentirsi": "pentirsi", "pentire": "pentirsi", "pentendo": "pentirsi", "pento": "pentirsi", "penti": "pentirsi",
+    "pentiti": "pentito", "pentito": "pentito",
+    "andare": "andare", "vado": "andare", "vada": "andare", "solere": "solere", "soglio": "solere",
+    "fare": "fare", "fo": "fare", "faccio": "fare", "facciano": "fare", "fei": "fare",
+    "casa": "casa", "case": "casa", "casetta": "casetta", "casette": "casetta", "città": "città", "gas": "gas",
+    "uovo": "uovo", "uova": "uovo", "eco": "eco", "echi": "eco",
+    "attore": "attore", "attori": "attore", "attrice": "attrice", "attrici": "attrice",
+    "rosso": "rosso", "rossa": "rosso", "rossi": "rosso", "rosse": "rosso",
+    "grande": "grande", "grandi": "grande", "piccolo": "piccolo", "piccola": "piccolo", "minore": "minore", "minimo": "piccolo",
+    "vero": "vero", "vera": "vero", "veramente": "veramente",
+    "il": "il", "i": "il", "la": "il", "gli": "il", "le": "il", "lo": "lo", "li": "lo",
+    "dire": "dire", "dico": "dire", "dicere": "dire", "bel": "bello", "bello": "bello",
+    "portare": "portare", "porta": "portare", "porti": "portare", "porto": "porto",
+    "perché": "perché", "perchè": "perché", "potere": "potere", "può": "potere", "puo": "potere",
+}
+GRAMMAR_RANKS = {lemma: rank for rank, lemma in enumerate(sorted(set(GRAMMAR_FORMS.values())), 1)}
+
+
+def read_grammar(entries=GRAMMAR_ENTRIES, spellings=None):
+    """The readings of `entries`, as the reduction's pass reads them."""
+    survey = red.Survey()
+    for e in entries:
+        survey.read(e)
+    readings = red.Readings()
+    for e in entries:
+        red.read_readings(e, readings, survey, spellings)
+    return readings
+
+
+def grammar(entries=GRAMMAR_ENTRIES, forms=GRAMMAR_FORMS, ranks=GRAMMAR_RANKS, spellings=None):
+    """`grammar.tsv`'s rows of the section, as `(form, lemma, tag, mark)`."""
+    readings = read_grammar(entries, spellings)
+    rows = red.spelling_rows(red.grammar_rows(readings, forms, ranks), forms, spellings)
+    return [tuple(row.rstrip("\n").split("\t")) for row in rows]
+
+
+class Grammar(unittest.TestCase):
+    """Italian's readings (add-lingua-italian-grammar-tables D3–D7), on entries shaped as the English
+    dump writes them."""
+
+    @classmethod
+    def setUpClass(cls):
+        with mock.patch.dict(red.WEB_SPELLINGS, {"puo": "potere"}, clear=True), mock.patch.dict(red.OWNER_EXCEPTIONS, {}, clear=True):
+            cls.rows = grammar(spellings={"perchè": "perché", "dà": "dare"})
+
+    def card(self, form):
+        """`(own readings, {other lemma: readings})` of `form`, as the card reads them."""
+        own = sorted(tag for f, _, tag, mark in self.rows if f == form and mark == "-")
+        others = collections.defaultdict(list)
+        for f, lemma, tag, mark in self.rows:
+            if f == form and mark == "other":
+                others[lemma].append(tag)
+        return own, {lemma: sorted(tags) for lemma, tags in others.items()}
+
+    def alone(self, form):
+        own, others = self.card(form)
+        self.assertEqual(others, {}, form)
+        return own
+
+    def test_spec_scenario_a_verb_form_says_what_it_is(self):
+        self.assertEqual(self.alone("parlò"), ["VERB|Mood=Ind|Number=Sing|Person=3|Tense=Past|VerbForm=Fin"])
+        self.assertEqual(self.alone("parlavo"), ["VERB|Mood=Ind|Number=Sing|Person=1|Tense=Imp|VerbForm=Fin"])
+        # The head's principal part repeats a cell: one reading.
+        self.assertEqual(self.alone("parlo"), ["VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin"])
+
+    def test_spec_scenario_a_present_of_four_readings(self):
+        # Each its own tag; no imperative from the formal row nor from the own entry's third person.
+        self.assertEqual(
+            self.alone("parli"),
+            [
+                "VERB|Mood=Ind|Number=Sing|Person=2|Tense=Pres|VerbForm=Fin",
+                "VERB|Mood=Sub|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin",
+                "VERB|Mood=Sub|Number=Sing|Person=2|Tense=Pres|VerbForm=Fin",
+                "VERB|Mood=Sub|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin",
+            ],
+        )
+        self.assertEqual(
+            self.alone("parliamo"),
+            [
+                "VERB|Mood=Imp|Number=Plur|Person=1|VerbForm=Fin",
+                "VERB|Mood=Ind|Number=Plur|Person=1|Tense=Pres|VerbForm=Fin",
+                "VERB|Mood=Sub|Number=Plur|Person=1|Tense=Pres|VerbForm=Fin",
+            ],
+        )
+
+    def test_spec_scenario_the_conditional_the_imperative_the_gerund_and_the_participles(self):
+        self.assertEqual(self.alone("parlerebbe"), ["VERB|Mood=Cnd|Number=Sing|Person=3|VerbForm=Fin"])
+        self.assertEqual(
+            self.alone("parla"),
+            ["VERB|Mood=Imp|Number=Sing|Person=2|VerbForm=Fin", "VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin"],
+        )
+        self.assertEqual(self.alone("parlando"), ["VERB|VerbForm=Ger"])
+        # The table's bare past participle is the masculine singular.
+        self.assertEqual(self.alone("parlato"), ["VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part"])
+        # `parlante` is a lemma of its own: its readings, and parlare's present participle named.
+        self.assertEqual(
+            self.card("parlante"),
+            (
+                ["ADJ|Number=Sing", "NOUN|Gender=Masc|Number=Sing"],
+                {"parlare": ["VERB|Number=Sing|Tense=Pres|VerbForm=Part"]},
+            ),
+        )
+        # Its plural through the participle's own entry, with no gender.
+        self.assertEqual(
+            self.card("parlanti"),
+            (
+                ["VERB|Number=Plur|Tense=Pres|VerbForm=Part"],
+                {"parlante": ["ADJ|Number=Plur", "NOUN|Gender=Masc|Number=Plur"]},
+            ),
+        )
+        self.assertEqual(self.alone("creduta"), ["VERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part"])
+        # `parlate`, parlare's feminine plural participle — and its present, which the table here
+        # does not list —, names the noun parlata, whose plural it is.
+        self.assertEqual(
+            self.card("parlate"),
+            (["VERB|Gender=Fem|Number=Plur|Tense=Past|VerbForm=Part"], {"parlata": ["NOUN|Gender=Fem|Number=Plur"]}),
+        )
+
+    def test_a_present_participle_s_plural_naming_no_tense(self):
+        # « plural of dormiente », a participle sense naming neither tense: the present one.
+        self.assertEqual(self.alone("dormienti"), ["VERB|Number=Plur|Tense=Pres|VerbForm=Part"])
+
+    def test_spec_scenario_the_table_s_stress_marks_and_a_reflexive_row(self):
+        self.assertEqual(self.alone("diedi"), ["VERB|Mood=Ind|Number=Sing|Person=1|Tense=Past|VerbForm=Fin"])
+        self.assertEqual(self.alone("lavo"), ["VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin"])
+        # `làvati` is never read as `lavati`, lavare's participle: no imperative there.
+        self.assertEqual(self.alone("lavati"), ["VERB|Gender=Masc|Number=Plur|Tense=Past|VerbForm=Part"])
+        self.assertEqual(self.alone("lavarsi"), [])
+        # A reflexive-only verb: its rows carrying the pronoun read as their bare base.
+        self.assertEqual(self.alone("pentire"), ["VERB|VerbForm=Inf"])
+        self.assertEqual(self.alone("pentendo"), ["VERB|VerbForm=Ger"])
+        self.assertEqual(self.alone("penti"), ["VERB|Mood=Imp|Number=Sing|Person=2|VerbForm=Fin"])
+        self.assertEqual(self.alone("pento"), ["VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin"])
+        self.assertEqual(self.card("pentiti"), ([], {}))
+
+    def test_the_roman_dialect_s_table_gives_no_reading(self):
+        # dare's second table lists no first person plural in -iamo while its first does: the
+        # dialect's, whose `diéde` is a first person and `dàssi` a passato remoto.
+        self.assertEqual(self.alone("diede"), ["VERB|Mood=Ind|Number=Sing|Person=3|Tense=Past|VerbForm=Fin"])
+        self.assertEqual(self.card("dassi"), ([], {}))
+        self.assertEqual(self.card("damo"), ([], {}))
+        rows = [{"form": f, "tags": t} for f, t in [*TABLE, ("dàmo", PRESENT_1P), *TABLE, ("ìmo", PRESENT_1P)]]
+        self.assertEqual(red._dialect_rows(rows), set(), "no table in -iamo: nothing to tell apart")
+        self.assertEqual(red._dialect_rows(rows[:4]), set(), "one table")
+
+    def test_spec_scenario_rows_that_give_no_reading(self):
+        # The negative imperative (written as the infinitive) and the formal one.
+        self.assertEqual(self.alone("parlare"), ["VERB|VerbForm=Inf"])
+        self.assertNotIn("VERB|Mood=Imp|Number=Sing|Person=3|VerbForm=Fin", self.alone("parli"))
+        # A clitic cluster, a defective verb's `-`, a dialectal and a hypercorrect row; a Traditional one.
+        self.assertEqual(self.card("vado"), (["VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin"], {}))
+        self.assertFalse([row for row in self.rows if row[0] == "-"])
+        self.assertEqual(self.card("fo"), ([], {}))
+        self.assertEqual(self.card("facciano"), ([], {}))
+        self.assertEqual(self.alone("fei"), ["VERB|Mood=Ind|Number=Sing|Person=1|Tense=Past|VerbForm=Fin"])
+        # The reflexive's negative and formal rows read as nothing either.
+        self.assertNotIn("VERB|Mood=Imp|Number=Sing|Person=3|VerbForm=Fin", self.alone("penti"))
+
+    def test_spec_scenario_a_noun_says_its_gender(self):
+        self.assertEqual(self.alone("case"), ["NOUN|Gender=Fem|Number=Plur"])
+        self.assertEqual(self.alone("città"), ["NOUN|Gender=Fem|Number=Plur", "NOUN|Gender=Fem|Number=Sing"])
+        self.assertEqual(self.alone("gas"), ["NOUN|Gender=Masc|Number=Sing"])
+        self.assertEqual(self.alone("uova"), ["NOUN|Gender=Fem|Number=Plur"])
+        # A qualified gender argument reads each gender; `#` among the plurals reads both numbers.
+        self.assertEqual(
+            self.alone("eco"),
+            ["NOUN|Gender=Fem|Number=Plur", "NOUN|Gender=Fem|Number=Sing", "NOUN|Gender=Masc|Number=Plur", "NOUN|Gender=Masc|Number=Sing"],
+        )
+
+    def test_spec_scenario_adjectives_of_four_and_of_two_forms(self):
+        self.assertEqual(self.alone("rosse"), ["ADJ|Gender=Fem|Number=Plur"])
+        self.assertEqual(self.alone("rosso"), ["ADJ|Gender=Masc|Number=Sing"])
+        # `grande`'s noun table lists `grandi`; its adjective form's entry reads still (D5).
+        self.assertEqual(
+            self.alone("grandi"), ["ADJ|Number=Plur", "NOUN|Gender=Fem|Number=Plur", "NOUN|Gender=Masc|Number=Plur"]
+        )
+        self.assertEqual(self.card("minore"), (["ADJ|Number=Sing"], {"piccolo": ["ADJ|Degree=Cmp|Number=Sing"]}))
+        # A superlative the head names is its masculine singular.
+        self.assertEqual(self.alone("minimo"), ["ADJ|Degree=Sup|Gender=Masc|Number=Sing"])
+
+    def test_spec_scenario_the_shared_article_table(self):
+        self.assertEqual(self.alone("i"), ["DET|Gender=Masc|Number=Plur"])
+        self.assertEqual(self.alone("le"), ["DET|Gender=Fem|Number=Plur"])
+        self.assertEqual(self.alone("il"), ["DET|Gender=Masc|Number=Sing"])
+        self.assertEqual(self.card("gli"), (["DET|Gender=Masc|Number=Plur"], {"lo": ["DET|Gender=Masc|Number=Plur"]}))
+        # `la`: il's head names it; lo the pronoun's feminine.
+        self.assertEqual(self.card("la"), (["DET|Gender=Fem|Number=Sing"], {"lo": ["PRON|Gender=Fem|Number=Sing"]}))
+        # The plural-headed tables (gli, le) give nothing: `lo` reads no singular of them, nor of le.
+        self.assertEqual(self.card("lo"), ([], {}))
+        # A pronoun's row with no gender gives nothing (`li`, lo's plural).
+        self.assertEqual(self.card("li"), ([], {}))
+
+    def test_spec_scenario_a_homograph_names_its_other_dictionary_form(self):
+        self.assertEqual(
+            self.card("porti"),
+            (["VERB|Mood=Ind|Number=Sing|Person=2|Tense=Pres|VerbForm=Fin"], {"porto": ["NOUN|Gender=Masc|Number=Plur"]}),
+        )
+
+    def test_spec_scenario_a_participle_filed_under_a_noun_s_spelling(self):
+        self.assertEqual(
+            self.card("parlata"),
+            (["NOUN|Gender=Fem|Number=Sing"], {"parlare": ["VERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part"]}),
+        )
+
+    def test_spec_scenario_a_noun_the_forms_table_reads_as_a_verb(self):
+        # `porta` reads as portare; the noun, no lemma of its own form, is named nowhere (M8).
+        self.assertEqual(self.alone("porta"), ["VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin"])
+
+    def test_spec_scenario_what_gives_no_reading(self):
+        # The archaic spelling's table, the capitalised headword, the apocope, the derived words' rows.
+        self.assertEqual(self.card("dico"), ([], {}))
+        self.assertFalse([row for row in self.rows if row[0] == "parli" and row[2].startswith("NOUN")])
+        self.assertEqual(self.card("bel"), ([], {}))
+        self.assertEqual(self.alone("casetta"), ["NOUN|Gender=Fem|Number=Sing"])
+        self.assertEqual(self.card("veramente"), ([], {}))
+        # `attore` is no form of attrice; attrice, attore's feminine, names it.
+        self.assertEqual(self.alone("attore"), ["NOUN|Gender=Masc|Number=Sing"])
+        self.assertEqual(self.card("attrice"), (["NOUN|Gender=Fem|Number=Sing"], {"attore": ["NOUN|Gender=Fem|Number=Sing"]}))
+
+    def test_other_only_toward_a_word_not_only_regional(self):
+        # `vada` is andare's; the regional noun *vada* is named on no card.
+        self.assertEqual(self.card("vada"), (["VERB|Mood=Sub|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin"], {}))
+
+    def test_change_10_s_spellings_carry_their_word_s_readings(self):
+        # A dictionary spelling, its own head a misspelling's: its word's readings, gender included.
+        self.assertEqual(self.alone("perchè"), ["NOUN|Gender=Masc|Number=Sing"])
+        # A spelling that is also a form of its word keeps its own reading, not its word's infinitive.
+        self.assertEqual(self.alone("dà"), ["VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin"])
+        # The web's row without its accent: its word's form's.
+        self.assertEqual(self.alone("puo"), ["VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin"])
+
+    def test_the_rows_are_sorted_and_marked(self):
+        lines = ["\t".join(row) + "\n" for row in self.rows]
+        self.assertEqual(lines, sorted(lines))
+        for form, lemma, _, mark in self.rows:
+            self.assertIn(form, GRAMMAR_FORMS)
+            self.assertIn(lemma, GRAMMAR_RANKS)
+            self.assertEqual(mark, "-" if GRAMMAR_FORMS[form] == lemma else "other")
+        # Only ranked lemmas: an unranked word's reading is left out.
+        ranks = {lemma: rank for lemma, rank in GRAMMAR_RANKS.items() if lemma != "porto"}
+        self.assertNotIn("porto", {lemma for _, lemma, _, _ in grammar(ranks=ranks)})
+
+    def test_the_tags_as_ud_writes_them(self):
+        self.assertEqual(red.parse_tag("VERB|Mood=Ind|Tense=Pres"), ("VERB", {"Mood": "Ind", "Tense": "Pres"}))
+        self.assertEqual(red.ud_tag("NOUN", {"Number": "Sing", "Gender": "Fem"}), "NOUN|Gender=Fem|Number=Sing")
+        # The subjunctive has no future, the imperative no third person, a row no mood but a tense
+        # the indicative.
+        self.assertEqual(red.verb_features({"future", "subjunctive", "singular", "first-person"}), [])
+        self.assertEqual(red.verb_features({"imperative", "singular", "third-person"}), [])
+        self.assertEqual(
+            red.verb_features({"imperfect", "singular", "first-person"}),
+            [{"VerbForm": "Fin", "Mood": "Ind", "Person": "1", "Number": "Sing", "Tense": "Imp"}],
+        )
+        # A determiner's row naming another person or case reads nothing; a pronoun's needs a gender.
+        self.assertEqual(red.reading_tags("DET", {"possessive"}), [])
+        self.assertEqual(red.reading_tags("PRON", {"plural"}), [])
+        self.assertEqual(red.reading_tags("DET", {"superlative"}), [])
+        # A noun's gender from its senses when its head names none.
+        self.assertEqual(red.noun_genders(entry("x", senses=[{"tags": ["feminine"]}])), (("Fem",), False))
+        self.assertEqual(red.noun_genders(noun("x", "m-p")), (("Masc",), True))
+        self.assertEqual(red.noun_genders(noun("x", "?", senses=[{"tags": ["masculine"]}])), (("Masc",), False))
+        # A composed present participle takes the number alone.
+        self.assertEqual(
+            red.compose("VERB|Number=Sing|Tense=Pres|VerbForm=Part", "VERB|Gender=Masc|Number=Plur|Tense=Past|VerbForm=Part"),
+            "VERB|Number=Plur|Tense=Pres|VerbForm=Part",
+        )
+        self.assertIsNone(red.compose("VERB|VerbForm=Inf", "VERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part"))
+        self.assertIsNone(red.compose("ADJ|Number=Sing", "NOUN|Number=Plur"))
+
+    def test_a_link_an_override_row_sets_aside(self):
+        # `stato`, overridden to essere: its own entry's link toward a word no table lists reads nothing.
+        entries = [
+            entry("essere", pos="verb", forms=[*TABLE, ("stàto", PARTICIPLE)]),
+            form_of("stato", "ostare", tags=("form-of", "participle", "past")),
+            entry("ostare", pos="verb", forms=[*TABLE]),
+        ]
+        forms = {"stato": "essere", "essere": "essere", "ostare": "ostare"}
+        rows = grammar(entries, forms, {"essere": 1, "ostare": 2})
+        self.assertEqual([row[1] for row in rows if row[0] == "stato"], ["essere"])
+
+    def test_the_figures(self):
+        figures = red.readings_figures(["\t".join(row) + "\n" for row in self.rows], GRAMMAR_FORMS)
+        self.assertEqual(figures["readings"], len(self.rows))
+        self.assertGreaterEqual(figures["forms reading the present indicative and subjunctive alike"], 2)
+        self.assertEqual(sum(figures["by part of speech"].values()), len(self.rows))
+        self.assertEqual(
+            figures["forms with a reading of their own"] + figures["forms without"], len(GRAMMAR_FORMS)
+        )
+
+
+class GrammarAtReview(unittest.TestCase):
+    """The rules the review of change 13 added (add-lingua-italian-grammar-tables, design As
+    implemented), each on a small section of its own."""
+
+    @staticmethod
+    def rows(entries, forms, spellings=None):
+        ranks = {lemma: rank for rank, lemma in enumerate(sorted(set(forms.values())), 1)}
+        return grammar(entries, forms, ranks, spellings)
+
+    @staticmethod
+    def of(rows, form):
+        return sorted((lemma, tag, mark) for f, lemma, tag, mark in rows if f == form)
+
+    def test_no_form_of_a_form_through_a_plural(self):
+        # `colle` is the hill and *colla*'s plural: `colli`, the hill's plural, is no form of *colla*.
+        entries = [
+            noun("colla", "f", forms=[("colle", ["plural"])]),
+            noun("colle", "m", forms=[("colli", ["plural"])]),
+            form_of("colle", "colla", pos="noun", tags=("feminine", "form-of", "plural")),
+            form_of("colli", "colle", pos="noun", tags=("form-of", "masculine", "plural")),
+        ]
+        rows = self.rows(entries, {"colla": "colla", "colle": "colle", "colli": "colle"})
+        self.assertEqual(self.of(rows, "colli"), [("colle", "NOUN|Gender=Masc|Number=Plur", "-")])
+        self.assertEqual(
+            self.of(rows, "colle"),
+            [("colla", "NOUN|Gender=Fem|Number=Plur", "other"), ("colle", "NOUN|Gender=Masc|Number=Sing", "-")],
+        )
+        self.assertIsNone(red.compose("NOUN|Gender=Fem|Number=Plur", "NOUN|Gender=Masc|Number=Plur"))
+
+    def test_a_spelling_s_inflection_reads_only_where_the_word_s_table_gives_nothing(self):
+        # *moglia*, read as *moglie* (change 10's D2), lists `moglie` as its plural: `moglie` stays the
+        # singular its own entry gives.
+        entries = [
+            noun("moglie", "f", forms=[("mogli", ["plural"])]),
+            noun(
+                "moglia",
+                "f",
+                forms=[("moglie", ["plural"])],
+                senses=[{"glosses": ["alternative form of moglie"], "tags": ["alt-of", "alternative"], "alt_of": [{"word": "moglie"}]}],
+            ),
+        ]
+        forms = {"moglie": "moglie", "mogli": "moglie", "moglia": "moglie"}
+        rows = self.rows(entries, forms, spellings={"moglia": "moglie"})
+        self.assertEqual(self.of(rows, "moglie"), [("moglie", "NOUN|Gender=Fem|Number=Sing", "-")])
+        self.assertEqual(self.of(rows, "mogli"), [("moglie", "NOUN|Gender=Fem|Number=Plur", "-")])
+
+    def test_poetry_and_letters_name_no_other_word(self):
+        # `sono`'s poetic Latinism of *suonare* names nothing on essere's card; `veggo`, literary, stays
+        # vedere's own; a poetic cell of essere's table (`fièro`) names essere on no card of `fiero`.
+        entries = [
+            entry("essere", pos="verb", forms=[*TABLE, ("sóno", PRESENT_1S), ("fièro", ["future", "indicative", "plural", "poetic", "third-person"])]),
+            entry("suonare", pos="verb", forms=[*TABLE, ("suòno", PRESENT_1S)]),
+            form_of("sono", "suonare", tags=("Latinism", "first-person", "form-of", "indicative", "poetic", "present", "singular")),
+            entry("vedere", pos="verb", forms=[*TABLE, ("védo", PRESENT_1S)]),
+            form_of("veggo", "vedere", tags=("first-person", "form-of", "indicative", "literary", "present", "singular")),
+            entry("fiero", pos="adj", forms=[("fiera", ["feminine"])]),
+        ]
+        forms = {"essere": "essere", "sono": "essere", "suonare": "suonare", "suono": "suonare", "vedere": "vedere", "veggo": "vedere", "fiero": "fiero"}
+        rows = self.rows(entries, forms)
+        self.assertEqual(self.of(rows, "sono"), [("essere", "VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin", "-")])
+        self.assertEqual(self.of(rows, "veggo"), [("vedere", "VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin", "-")])
+        self.assertEqual(self.of(rows, "fiero"), [("fiero", "ADJ|Gender=Masc|Number=Sing", "-")])
+
+    def test_a_doubtful_spelling_of_a_cell_names_no_lemma_with_that_cell(self):
+        # `anno`'s verb entry is « misspelling of hanno », and avere's table lists the disused `ànno`
+        # untagged: the year names no avere; `puzza`, a noun spelling *puzzo*, still names puzzare.
+        entries = [
+            entry("avere", pos="verb", forms=[*TABLE, ("hànno", ["indicative", "plural", "present", "third-person"]), ("ànno", ["indicative", "plural", "present", "third-person"])]),
+            noun("anno", "m"),
+            entry("anno", pos="verb", senses=[{"glosses": ["misspelling of hanno"], "tags": ["alt-of", "misspelling"], "alt_of": [{"word": "hanno"}]}]),
+            entry("puzzare", pos="verb", forms=[*TABLE, ("pùzzo", PRESENT_1S), ("pùzza", PRESENT_3S)]),
+            noun("puzza", "f", senses=[{"glosses": ["alternative form of puzzo"], "tags": ["alt-of", "alternative", "feminine"], "alt_of": [{"word": "puzzo"}]}]),
+            noun("puzzo", "m"),
+        ]
+        forms = {"avere": "avere", "hanno": "avere", "anno": "anno", "puzzare": "puzzare", "puzza": "puzzo", "puzzo": "puzzo"}
+        rows = self.rows(entries, forms)
+        self.assertEqual(self.of(rows, "anno"), [("anno", "NOUN|Gender=Masc|Number=Sing", "-")])
+        self.assertIn(("puzzare", PRESENT_3S_TAG, "other"), self.of(rows, "puzza"))
+        self.assertEqual(
+            red.Readings().misspelt_readings(), {}, "nothing is a doubtful spelling of nothing"
+        )
+
+    def test_an_archaic_or_literary_entry_is_named_on_no_card(self):
+        # *diro* (« dire », literary) is named on no card of `dire`; *arrendere*, archaic, is named on
+        # `arreso` through *arrendersi*, filed under it.
+        entries = [
+            entry("dire", pos="verb", forms=[*TABLE, ("dìre", ["infinitive"])]),
+            entry("diro", pos="adj", forms=[("dira", ["feminine"]), ("dire", ["feminine", "plural"])], senses=[{"glosses": ["dire"], "tags": ["literary"]}]),
+            entry("arrendere", pos="verb", forms=[*TABLE, ("arréso", PARTICIPLE)], senses=[{"glosses": ["to give back"], "tags": ["archaic"]}]),
+            entry("arrendersi", pos="verb", forms=[*TABLE, ("mi arrèndo", PRESENT_1S)], senses=[{"glosses": ["to surrender"]}]),
+            entry("arreso", pos="adj", forms=[("arresa", ["feminine"])]),
+        ]
+        forms = {"dire": "dire", "diro": "diro", "arrendere": "arrendere", "arrendo": "arrendere", "arreso": "arreso"}
+        rows = self.rows(entries, forms)
+        self.assertEqual(self.of(rows, "dire"), [("dire", "VERB|VerbForm=Inf", "-")])
+        self.assertIn(("arrendere", "VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part", "other"), self.of(rows, "arreso"))
+        # The archaic adjective keeps its own readings: no part of speech filters them.
+        self.assertEqual(self.of(rows, "diro"), [("diro", "ADJ|Gender=Masc|Number=Sing", "-")])
+
+    def test_a_feminine_noun_s_masculine_plural_and_a_superlative_s_gender(self):
+        entries = [
+            noun("signorina", "f", forms=[("signorine", ["plural"]), ("signorino", ["masculine"]), ("signorini", ["masculine", "plural"])]),
+            entry("bello", pos="adj", forms=[("bella", ["feminine"]), ("bellissimo", ["superlative"])]),
+            entry("abile", pos="adj", forms=[("abili", ["plural"]), ("abilissimo", ["superlative"])]),
+        ]
+        forms = {"signorina": "signorina", "signorini": "signorina", "bello": "bello", "bellissimo": "bello", "abile": "abile", "abilissimo": "abile"}
+        rows = self.rows(entries, forms)
+        self.assertEqual(self.of(rows, "signorini"), [])
+        self.assertEqual(self.of(rows, "bellissimo"), [("bello", "ADJ|Degree=Sup|Gender=Masc|Number=Sing", "-")])
+        self.assertEqual(self.of(rows, "abilissimo"), [("abile", "ADJ|Degree=Sup|Gender=Masc|Number=Sing", "-")])
+        self.assertEqual(red._masculine_superlative({"superlative", "feminine"}, "bellissima"), {"superlative", "feminine"})
 
 
 if __name__ == "__main__":
