@@ -21,4 +21,4 @@
 
 - [ ] 4.1 [manual] The on-device checklist of D7 recorded in the programme's row 20, for change 20's dogfood; not run here.
 - [x] 4.2 In `apps/lingua-extension`: `yarn lint`, `yarn format:check`, `yarn typecheck`, `yarn test`, `yarn build`, `yarn check:variants`; no `-u` on any snapshot but the commits of task 1.0 and of Italian's ranking blocks (1.2).
-- [ ] 4.3 `openspec validate add-lingua-italian-read-aloud --strict` passes; `python3 scripts/openspec_archive_order.py add-lingua-italian-read-aloud` names its prerequisites; `docs/lingua/italian-programme.md` row 15's status names this change's pull requests.
+- [x] 4.3 `openspec validate add-lingua-italian-read-aloud --strict` passes; `python3 scripts/openspec_archive_order.py add-lingua-italian-read-aloud` names its prerequisites; `docs/lingua/italian-programme.md` row 15's status names this change's pull requests.
