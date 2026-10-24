@@ -25,15 +25,29 @@ Inputs, in `--work`:
   a lemma the tables rank, which the Wiktionary names nowhere, joins the table (D3). Read while the
   owner keeps it among the pinned sources (I11); `MORPH_IT = None` leaves it out.
 - wordfreq `it` (the installed, pinned package): the 60,000 commonest lemmas and which forms are
-  attested at all (D6).
+  attested at all (D6); wordfreq `fr`, which orders the French tables read backwards.
+- `kaikki-fr-Italien.jsonl`, `kaikki-it-traductions-fr.jsonl`, `kaikki-fr-traductions-it.jsonl`
+  (add-lingua-pack-it-fr): the French Wiktionary's Italian section, the French glosses of words and
+  expressions; the French translations the Italian Wiktionary's Italian entries list; the French
+  Wiktionary's translation tables, read backwards — derived from the French and the Italian editions'
+  dumps (pack_sources.py EDITIONS). A reduction without them stops, naming them.
 
 Outputs, in `--work`: Italian's `forms.tsv` and `freq.tsv`, its readings `grammar.tsv`
 (add-lingua-italian-grammar-tables, the section's `Italian's word grammar`), its estimated levels
 `level.tsv` (add-lingua-italian-levels, the section's `Italian's estimated levels`), its dictionary
-words `lexical.tsv` (the acronym rows alone until change 16's glosses write the rest), it-fr's
-`gloss.tsv` (empty until change 16), `NOTICE` and `manifest.json`, which says the levels are
-estimated. Italian's pinned tag pool, `tables/it/tags.tsv`,
-is a person's: no reduction writes it.
+words `lexical.tsv`, it-fr's `gloss.tsv`, `senses.tsv` and `mwe.tsv` (add-lingua-pack-it-fr, the
+section's *Italian is glossed in French from the French Wiktionary's Italian section and the translation
+tables*), `NOTICE` and `manifest.json`, which says the levels are estimated; and `measures.json`, what
+the reduction measures of its glosses for the update's report, which no table holds. Italian's pinned
+tag pool, `tables/it/tags.tsv`, is a person's: no reduction writes it.
+
+it-fr's native side (add-lingua-pack-it-fr D1–D6) is the native side every pair shares
+(`reduce_common`) read with the French Wiktionary's rules (`reduce_edition_fr.FR`), in es-fr's order —
+the section's definitions, the Italian Wiktionary's translations, the French tables read backwards —,
+over the section as it-fr reads it (`section_as_read`: its letters out, names and acronyms kept off
+common words, a gloss filed as a link read as a gloss); its expressions add the words Italian's
+pre-pass splits (`split_word`); Italian's dictionary words are its glossed lemmas less its names, plus
+the acronym rows, glossed through their synonyms (`acronym_glosses`), and the levels go to them.
 
 Italian's acronyms (keep-lingua-italian-acronyms-and-names D2, D6): Italian's analysis reads a word
 standing alone in capitals as written, and the reviewed table `ACRONYMS` of
@@ -41,7 +55,8 @@ standing alone in capitals as written, and the reviewed table `ACRONYMS` of
 `NATO` and `USA`. The section's entries headed exactly as a row are read for the table (`check_rows`),
 each row's lower case must be a form of the tables read as another word (`check_lowercase`), and each
 row is written into `forms.tsv` as its own lemma, capitals kept, and into `lexical.tsv`, with no rank;
-`nato` and `usa` keep their readings. The rows' gloss is change 16's (`acronym_gloss`).
+`nato` and `usa` keep their readings. The rows are glossed through their expansions or synonyms
+(`acronym_gloss`; `acronym_glosses`, add-lingua-pack-it-fr D5).
 
 What a form is (D3). An Italian word, lowercased and in NFC, the typographic apostrophe read as `'`,
 in the letters of the section's Italian entries (`_TOKEN`). A form's candidate lemmas come from the
@@ -108,6 +123,7 @@ import unicodedata
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import reduce_common as common  # noqa: E402 — the rules every pair shares
+import reduce_edition_fr as french  # noqa: E402 — the French Wiktionary's rules: it-fr's glosses are French
 import reduce_italian_acronyms as acronyms  # noqa: E402 — Italian's acronym table (keep-lingua-italian-acronyms-and-names)
 import reduce_italian_treebank as treebank  # noqa: E402 — UD Italian-MarkIT's counts (D2, D5, D6)
 
@@ -2422,6 +2438,631 @@ def levels_report(levels, left_out, ranks, bands=ENGLISH_BANDS):
     return f"levels={len(levels)} estimated: {'; '.join(spans)}; left out: {out}"
 
 
+# — it-fr's native side: Italian glossed in French (add-lingua-pack-it-fr) —
+#
+# The French Wiktionary's Italian section glosses a word or an expression first; where it says
+# nothing, the French translations the Italian Wiktionary's Italian entries list, in the table's
+# order; then the French entries whose translation tables list the Italian word, read backwards,
+# commonest French word first — at most three words per part of speech from a table (D2), es-fr's
+# order. Every gloss is French written by a person: never English, never a machine translation, never
+# a pivot through another language (M5). The rules are the native side every pair shares
+# (`reduce_common`), read with the French Wiktionary's (`reduce_edition_fr.FR`); neither module is
+# edited (D1). it-fr's own: the section read as it-fr reads it (`section_as_read`: its letters out,
+# D5's names and acronyms kept off common words, D4's links read as glosses), the typographic
+# apostrophe read as `'` in every Italian word (`straight`), the words Italian's pre-pass splits
+# offered as expressions (D6), and the acronym rows glossed through a synonym read whatever its part
+# of speech (D5).
+
+# The native side's sources, in `--work` (pack_sources.py DUMPS["it-fr"]): the French Wiktionary's
+# Italian section, the Italian Wiktionary's French translations (direct) and the French
+# Wiktionary's Italian translations (inverted, read backwards).
+SECTION = "kaikki-fr-Italien.jsonl"
+DIRECT = "kaikki-it-traductions-fr.jsonl"
+INVERTED = "kaikki-fr-traductions-it.jsonl"
+# What the native side writes beside its sources, as it reads them — no table: `pack_sources.py
+# split` files none of them.
+SECTION_READ = "kaikki-fr-Italien-lu.jsonl"
+DIRECT_READ = "kaikki-it-traductions-fr-lu.jsonl"
+INVERTED_READ = "kaikki-fr-traductions-it-lu.jsonl"
+
+EDITION = french.FR
+
+# Italian for the shared rules (`reduce_common.Studied`): change 9's token pattern, and the
+# coordinators — the conjunctions UD Italian-MarkIT's training and development sections tag CCONJ at
+# least twice, CCONJ the commonest of their tags (`cioè` 5 against ADV 4, `sia` 16 against AUX 14;
+# `quindi`, `però`, `anzi` are ADV there): a `conj` entry of the section is CCONJ when its word is one.
+IT = common.Studied(
+    code="it",
+    token=_TOKEN,
+    # Not read by the native side; kept for the shared rules' interface.
+    form_of_target=re.compile(rf"([{_LETTERS}]+)\s*\.?$"),
+    coordinators=frozenset(
+        {"e", "ed", "o", "ma", "sia", "oppure", "né", "cioè", "ovvero", "ossia", "nonché", "bensì"}
+    ),
+)
+
+# D5: what a proper noun's sense says when it only says the word is a surname, a first name, a hamlet
+# or a commune — « Nom de famille. », « Prénom masculin. », « Diminutif de Salvatore. », « Hameau de
+# Caldarola. », « Commune d’Italie de la province de… » —, after the headword repeated too (« Del,
+# hameau de Saint-Denis. », « Ora, commune d’Italie… »), or after « Commune, » (« Commune, commune
+# d’Italie… », `Bianco`). The communes since the review of the implementation: `ora`, `vita`, `lei`,
+# `paese`, `mese` held a town of Italy or Spain beside their own senses.
+_NAME_NOTE = re.compile(
+    r"(?:commune,\s*)?(?:nom de famille|prénom|diminutif de|hameau de|commune d(?:e\b|['’]))", re.IGNORECASE
+)
+# D5: an acronym's sense that its headword does not show in capitals alone (`A`, `PdC`, « Abréviation
+# de Azione, nom d'un parti politique italien »).
+_ACRONYM_NOTE = re.compile(r"(?:abréviation|sigle|acronyme)\b", re.IGNORECASE)
+
+
+def straight(text):
+    """An Italian word as it-fr reads it (D2): in NFC, the typographic apostrophe read as `'`, its
+    case kept."""
+    return unicodedata.normalize("NFC", (text or "").strip()).replace("’", "'")
+
+
+# What kaikki leaks into a sense of the section, read by it-fr's own pre-pass — never the shared
+# rules, so that no other pair moves (the review of the implementation):
+# - an example and its translation filed as a sense (« età glaciale.\n#*: ère glaciaire. », `stesso`,
+#   `età`), or the wiki's note that its translation is missing (`io`): the sense goes;
+_EXAMPLE = re.compile(r"#[*:]|la traduction en français de l[’']exemple manque", re.IGNORECASE)
+# - a link's address (kaikki's placeholder host `server.dummy`, in `io`'s example): the sense goes;
+_ADDRESS = re.compile(r"https?://|\bwww\.|\.dummy\b", re.IGNORECASE)
+# - a colour's hexadecimal codes, a swatch after a real meaning (`bianco` « Blanc, la couleur comme
+#   celle des os… #FFFFFF », `verde` « Vert, couleur verte. — #C2F732 #00FF00 … »): the codes go, with
+#   the dash before them, and the meaning stays;
+_HEX = re.compile(r"\s*(?:[—–]\s*)?#[0-9A-Fa-f]{6}\b(?:\s*#[0-9A-Fa-f]{6}\b)*")
+# - the entry's head line merged into a sense, its transcription between backslashes
+#   (« \se.ˈde.re\intransitif2ᵉ groupe (voir la conjugaison)* Asseoir. »): the meaning written after
+#   the leak's last « * » stays (`sedere` « Asseoir »), and a sense with none goes (`signore`
+#   « signore\si.ˈɲɔ.re\fémininpluriel:Pluriel de signora. »).
+_HEAD_LINE = re.compile(r"\\[^\\\n]{1,80}\\")
+
+# A letter's name in another alphabet that `FR.letter` does not read — the section writes it bare
+# (« Tsy. ») —, by the Italian word that is also that letter: a reviewed table, the noun senses whose
+# whole gloss is the name. Such a sense goes only from a word holding a common word's meaning in another
+# sense (`ci`, the pronoun; `ce`; `chi`, « Qui »), so a word that is only a letter keeps its name (`nu`,
+# beside the province `NU`; `rho`, beside the town). Never a French word that happens to name a letter:
+# `nudo` « Nu », `guado` « Gué ».
+LETTER_NAMES = {
+    "ce": "Tsé",
+    "cha": "Kha",
+    "chi": "Khi",
+    "ci": "Tsy",
+    "csi": "Ksi",
+    "dze": "Dzé",
+    "ef": "Ef",
+    "em": "Em",
+    "en": "En",
+    "epsilon": "Epsilon",
+    "eta": "Êta",
+    "fi": "Phi",
+    "gamma": "Gamma",
+    "iota": "Iota",
+    "jer": "Er",
+    "jery": "Ery",
+    "kappa": "Kappa",
+    "ksi": "Ksi",
+    "mu": "Mu",
+    "ni": "Nu",
+    "nu": "Nu",
+    "omega": "Oméga",
+    "omicron": "Omicron",
+    "phi": "Phi",
+    "pi": "Pi",
+    "psi": "Psi",
+    "rho": "Rhô",
+    "ro": "Rhô",
+    "sigma": "Sigma",
+    "teta": "Thêta",
+    "theta": "Thêta",
+    "tsi": "Tsy",
+    "tze": "Tsé",
+    "u": "Ou",
+    "upsilon": "Upsilon",
+    "xi": "Ksi",
+    "ypsilon": "Upsilon",
+    "zeta": "Zêta",
+}
+
+
+def _bare_text(text):
+    """A sense as written, up to case, composition and its closing period."""
+    return unicodedata.normalize("NFC", text).strip().rstrip(".").strip().casefold()
+
+
+def _letter_name(entry, sense):
+    """Whether a sense is only the name of the letter its word also is (`LETTER_NAMES`)."""
+    name = LETTER_NAMES.get(straight(entry.get("word")))
+    return entry.get("pos") == "noun" and name is not None and _bare_text(_gloss_text(sense)) == _bare_text(name)
+
+
+def _with_text(sense, text):
+    return {**sense, "glosses": [text, *sense["glosses"][1:]]}
+
+
+def read_sense(sense):
+    """A sense as it-fr reads it (the review's leaks): `(sense, what)` — the sense rewritten (its colour
+    codes out, a head line's meaning kept) or None when it goes, and what was read, None when nothing
+    was."""
+    text = _gloss_text(sense)
+    if not text:
+        return sense, None
+    if _EXAMPLE.search(text):
+        return None, "examples filed as a sense"
+    if _ADDRESS.search(text):
+        return None, "senses holding an address"
+    if _HEAD_LINE.search(text):
+        after = text.rsplit("* ", 1)
+        if len(after) == 2 and after[1].strip() and not _HEAD_LINE.search(after[1]):
+            return _with_text(sense, after[1].strip()), "head lines read for their meaning"
+        return None, "head lines with no meaning"
+    if _HEX.search(text):
+        cut = _HEX.sub("", text).strip()
+        return (_with_text(sense, cut), "colour codes taken out") if cut else (None, "colour codes taken out")
+    return sense, None
+
+
+def _gloss_text(sense):
+    glosses = sense.get("glosses") if isinstance(sense, dict) else None
+    return glosses[0].strip() if isinstance(glosses, list) and glosses and isinstance(glosses[0], str) else ""
+
+
+def _without_headword(text, headword):
+    """A sense without the headword it opens on, and its comma (« Del, hameau de Saint-Denis. »)."""
+    if headword and text.startswith(headword):
+        rest = text[len(headword) :].lstrip()
+        if rest.startswith(","):
+            return rest[1:].lstrip()
+    return text
+
+
+def _name_note(entry, sense):
+    """Whether a sense only says its proper noun is a surname, a first name, a hamlet or a commune (D5)."""
+    return entry.get("pos") == "name" and bool(_NAME_NOTE.match(_without_headword(_gloss_text(sense), straight(entry.get("word")))))
+
+
+def _acronym_sense(entry, sense):
+    """Whether a sense is an acronym's (D5): its entry's headword is written in capitals, as the
+    shared rules read an acronym (`TE` « Province de Térame »), or the sense says it is one."""
+    return common._acronym(straight(entry.get("word"))) or bool(_ACRONYM_NOTE.match(_gloss_text(sense)))
+
+
+def _link_targets(sense):
+    """The words a sense tagged form-of points at (`form_of`), as written; empty when it is no such
+    sense."""
+    if not isinstance(sense, dict) or "form-of" not in (sense.get("tags") or ()):
+        return []
+    return [straight(ref.get("word")) for ref in sense.get("form_of") or () if isinstance(ref, dict) and ref.get("word")]
+
+
+# The pointer wordings of the Italian section that the French edition's form-of pattern misses, read
+# as inflections by D4 too (the review of the implementation): a clitic compound (« Agglutination du
+# verbe abalienare avec le pronom gli »), a pronominal form, an old spelling, a person written
+# « seconde ». Never a gloss, whatever their target: `gli`, the target of 104,895 compounds' links,
+# heads only form-of entries.
+_POINTER_WORDING = re.compile(
+    r"(?:agglutination d[eu]\b|forme pronominale d|ancienne orthographe d|seconde personne\b)", re.IGNORECASE
+)
+
+
+def _link(sense):
+    """D4's candidate: a sense tagged form-of whose text neither the French edition's form-of pattern
+    (`FR.form_of`: « Pluriel de… », « Première personne… ») nor it-fr's `_POINTER_WORDING` reads as an
+    inflection, with its targets and whether one of them is written in lowercase; None otherwise."""
+    targets = _link_targets(sense)
+    text = _gloss_text(sense)
+    if not targets or not text or EDITION.form_of.match(text) or _POINTER_WORDING.match(text):
+        return None
+    return targets, any(t == t.lower() for t in targets)
+
+
+def _as_gloss(sense):
+    """A link read as a gloss (D4): the sense without its form-of tag and its target."""
+    out = {k: v for k, v in sense.items() if k != "form_of"}
+    out["tags"] = [t for t in sense.get("tags") or () if t != "form-of"]
+    if not out["tags"]:
+        del out["tags"]
+    return out
+
+
+class SectionReading:
+    """What the section says of itself, read in a first pass, for `section_as_read`: the headwords
+    whose entry holds a meaning, as written (D4's exact-spelling test), the words with a lowercase entry
+    of their own that is no proper noun's (D5), and, by word as the shared rules key it (lowercased),
+    whether it holds a glossed sense of its own, one D5 may set aside, a meaning that is no letter's
+    name (`LETTER_NAMES`), and D4's links. Each sense is read as the pre-pass reads it (`read_sense`)."""
+
+    def __init__(self):
+        self.headed = set()
+        self.lowercase = set()
+        self.own = set()
+        self.set_aside = set()
+        self.beyond_letters = set()
+        self.links = collections.defaultdict(list)
+
+    def read(self, entry):
+        word = straight(entry.get("word"))
+        if not word:
+            return
+        if word == word.lower() and entry.get("pos") != "name":
+            self.lowercase.add(word)
+        if entry.get("pos") == "character":
+            return
+        key = word.lower()
+        for sense in entry.get("senses") or ():
+            if not isinstance(sense, dict) or common._names_a_letter(sense, EDITION):
+                continue
+            sense, _ = read_sense(sense)
+            if sense is None:
+                continue
+            link = _link(sense)
+            if link is not None:
+                self.links[key].append(link)
+                continue
+            text = _gloss_text(sense)
+            if not text or common._is_form_of(sense, text, edition=EDITION):
+                continue
+            if not common.clean_gloss(text, common.WORD_GLOSS["per_sense"], edition=EDITION):
+                continue
+            # A headword heads a word of the section only by a meaning: an entry of form-of senses alone
+            # (`toi`, *togliere*'s) is no Italian word a link could name (the review).
+            self.headed.add(word)
+            # A common word's meaning beside a bare letter's name: a lowercase entry's, no proper
+            # noun's — never a province's acronym (`NU`) or a commune (`Ro`), which leave `nu` and `ro`
+            # their letter.
+            if word == key and entry.get("pos") != "name" and not _letter_name(entry, sense):
+                self.beyond_letters.add(key)
+            if word != key and (_name_note(entry, sense) or _acronym_sense(entry, sense)):
+                self.set_aside.add(key)
+            else:
+                self.own.add(key)
+
+    def drops_letter(self, entry, sense):
+        """Whether a sense that only names the letter its word also is goes: the word holds a common
+        word's meaning in another sense — a lowercase entry's, no proper noun's."""
+        return _letter_name(entry, sense) and straight(entry.get("word")).lower() in self.beyond_letters
+
+    def sets_aside(self, entry, sense):
+        """Whether D5 keeps a sense off its common word: an acronym's sense, or a proper noun's that
+        only says surname, first name or hamlet, of a capitalised headword whose word the section
+        gives a lowercase entry of its own — even one of form-of senses only."""
+        word = straight(entry.get("word"))
+        key = word.lower()
+        return word != key and key in self.lowercase and (_name_note(entry, sense) or _acronym_sense(entry, sense))
+
+    def unheaded(self, targets):
+        """Whether no Italian entry of the section holding a meaning heads any of `targets`, by its
+        exact spelling: `toi`, whose entry is *togliere*'s form alone, heads no word."""
+        return not any(t in self.headed for t in targets)
+
+    def glossed_otherwise(self, key):
+        """Whether a word holds a glossed sense besides its lowercase links, once D5 has set aside the
+        name notes and acronyms: a meaning of its own, a name's that stays, or a link to a
+        capitalised word D4 reads as a gloss."""
+        return (
+            key in self.own
+            or (key in self.set_aside and key not in self.lowercase)
+            or any(not lowercase and self.unheaded(targets) for targets, lowercase in self.links[key])
+        )
+
+    def reads_as_gloss(self, key, sense):
+        """D4: whether a link glosses its headword — every target headed by no Italian entry, its
+        text no inflection, and, where a target is written in lowercase, its word glossed by nothing
+        else."""
+        link = _link(sense)
+        if link is None:
+            return False
+        targets, lowercase = link
+        return self.unheaded(targets) and (not lowercase or not self.glossed_otherwise(key))
+
+
+def section_as_read(src, dst, stats=None):
+    """The French Wiktionary's Italian section as it-fr reads it, written to `dst` — a pre-pass the
+    shared rules then read, in two passes over `src` (`SectionReading`, then the rewrite):
+
+    - **Letters out** (es-fr's `without_letter_senses`): an entry of the `character` part of speech,
+      and a sense naming a letter (`FR.letter`): `te` « Te, vingtième lettre de l'alphabet
+      cyrillique ».
+    - **The headword's typographic apostrophe read as `'`** (D2): `c’è`, `essere d’accordo`.
+    - **Names and acronyms keep off common words** (D5): an acronym's sense, and a proper noun's
+      sense that only says surname, first name or hamlet, go when the word has a lowercase entry of
+      its own, even one of form-of senses only (`TE` « Province de Térame » off `te`, `Soldi` « Nom
+      de famille » off `soldi`, `Del` « Del, hameau de Saint-Denis » off `del`); any other proper
+      noun's sense stays (`Luna` « Lune, satellite de la Terre »), and a word that is only a name
+      keeps its notes.
+    - **A gloss read as a link is a gloss** (D4): a sense tagged form-of whose every target no
+      Italian entry heads, by its exact spelling, and whose text `FR.form_of` does not read as an
+      inflection, loses its tag and its target — `del` « Du. », `coloro` « Celles et ceux », `c’è`
+      « Il y a » —; where a target is written in lowercase, only when the word has no other glossed
+      sense (`degli`, `delle`, `te` « Toi : pronom disjoint… »; not `pelle`, `collo`, `colle`, nor
+      `dello`). An entry heads its word only by a meaning: `toi`, *togliere*'s form alone, heads none.
+      « Pluriel de storia » (target « Pluriel ») stays a form, and so does `della`, linked to the
+      Italian `la`.
+    - **What kaikki leaks into a sense** (the review, `read_sense`): an example filed as a sense and a
+      link's address go, a colour's codes are taken out, a head line merged into a sense gives the
+      meaning after it or goes; and a letter's name the section writes bare (`LETTER_NAMES`: `ci`
+      « Tsy », `ce` « Tsé », `chi` « Khi ») goes from a word holding another meaning.
+
+    An entry left with no sense goes; an entry it does not change is written as its line was, and a
+    line it cannot read is left out. `stats` (a Counter), when given, counts what each rule did."""
+    stats = stats if stats is not None else collections.Counter()
+    reading = SectionReading()
+    for entry in _entries(src):
+        reading.read(entry)
+    with open(src, encoding="utf-8") as f, open(dst, "w", encoding="utf-8") as out:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(entry, dict):
+                continue
+            if entry.get("pos") == "character":
+                stats["letter entries"] += 1
+                continue
+            word = straight(entry.get("word"))
+            key = word.lower()
+            senses = entry.get("senses")
+            changed = isinstance(entry.get("word"), str) and word != entry["word"]
+            if isinstance(senses, list):
+                kept = []
+                for sense in senses:
+                    if isinstance(sense, dict) and common._names_a_letter(sense, EDITION):
+                        stats["letter senses"] += 1
+                        continue
+                    if isinstance(sense, dict):
+                        sense, what = read_sense(sense)
+                        if what is not None:
+                            stats[what] += 1
+                        if sense is None:
+                            continue
+                        if reading.drops_letter(entry, sense):
+                            stats["letter names written bare"] += 1
+                            continue
+                    if isinstance(sense, dict) and reading.sets_aside(entry, sense):
+                        if _acronym_sense(entry, sense):
+                            stats["acronym senses"] += 1
+                        elif re.search(r"commune d", _gloss_text(sense), re.IGNORECASE):
+                            stats["name notes, communes"] += 1
+                        else:
+                            stats["name notes"] += 1
+                        continue
+                    if reading.reads_as_gloss(key, sense):
+                        lowercase = _link(sense)[1]
+                        stats["links read as a gloss, a lowercase target" if lowercase else "links read as a gloss"] += 1
+                        kept.append(_as_gloss(sense))
+                        continue
+                    link = _link(sense)
+                    if link is not None and reading.unheaded(link[0]) and link[1]:
+                        stats["lowercase links kept beside another gloss"] += 1
+                    kept.append(sense)
+                if not kept and senses:
+                    stats["entries left with no sense"] += 1
+                    continue
+                if kept != senses:
+                    changed = True
+                    entry = {**entry, "senses": kept}
+            if changed:
+                out.write(json.dumps({**entry, "word": word}, ensure_ascii=False) + "\n")
+            else:
+                out.write(line if line.endswith("\n") else line + "\n")
+    return dst
+
+
+def straight_translations(src, dst, *, inverted):
+    """A translation file (`pack_sources.derive`) with its Italian words read as Italian is written
+    (D2): the typographic apostrophe as `'`, in NFC — the entry's word in the Italian Wiktionary's own
+    entries (`inverted` false), each translation's word in the French entries' tables read backwards
+    (`d’accordo` listed under « d'accord »). An entry it does not change is written as its line was."""
+    with open(src, encoding="utf-8") as f, open(dst, "w", encoding="utf-8") as out:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(entry, dict):
+                continue
+            if inverted:
+                listed = entry.get("translations") if isinstance(entry.get("translations"), list) else []
+                read = [{**t, "word": straight(t["word"])} if isinstance(t, dict) and isinstance(t.get("word"), str) else t for t in listed]
+                changed = read != listed
+                entry = {**entry, "translations": read}
+            else:
+                word = entry.get("word")
+                changed = isinstance(word, str) and straight(word) != word
+                if changed:
+                    entry = {**entry, "word": straight(word)}
+            out.write(json.dumps(entry, ensure_ascii=False, sort_keys=True) + "\n" if changed else (line if line.endswith("\n") else line + "\n"))
+    return dst
+
+
+def native_side(section, ranks, sources):
+    """The native side step by step, so that the lemmas each source glosses are kept (D2, D8): the
+    section's definitions gloss first; then each `(source, order)` of `sources` in turn — the Italian
+    Wiktionary's French translations, then the French tables read backwards — glosses what the steps
+    before left out; the expressions the same way. The tables `reduce_common.native_tables` gives,
+    `(glosses, runs, expressions, steps)`, the steps `{"definitions": lemmas, "direct": lemmas,
+    "inverted": lemmas, "section expressions": headwords}`, each the set a step glossed."""
+    runs = {}
+    glosses = common.reduce_gloss(section, set(ranks), **common.WORD_GLOSS, runs=runs, studied=IT, edition=EDITION)
+    expressions = common.reduce_expressions(section, studied=IT, edition=EDITION)
+    steps = {"definitions": frozenset(glosses), "section expressions": frozenset(expressions)}
+    for name, source in zip(("direct", "inverted"), sources):
+        found = common.fallback_glosses(ranks, glosses, [source], edition=EDITION)
+        for lemma, (gloss, gloss_runs) in found.items():
+            glosses[lemma], runs[lemma] = gloss, gloss_runs
+        steps[name] = frozenset(found)
+    expressions.update(common.fallback_expressions(expressions, sources, edition=EDITION))
+    return glosses, runs, expressions, steps
+
+
+def without_repeated_senses(glosses, runs):
+    """A word's gloss without a sense that repeats an earlier one up to case, composition and its
+    closing period (the review: `italiano` « Italien; italien », `passato` « Passé; Passé », `beige`
+    « Beige; Beige », read across the section's or a table's parts of speech), its run shortened — it-fr's
+    tables only, so that no other pair moves. Edits `glosses` and `runs` in place; answers the lemmas
+    whose gloss moved, sorted."""
+    moved = []
+    for lemma, gloss in sorted(glosses.items()):
+        senses = gloss.split("; ")
+        word_runs = runs.get(lemma) or []
+        poses = [pos for pos, n in word_runs for _ in range(n)]
+        if len(poses) != len(senses):
+            continue
+        seen, kept = set(), []
+        for sense, pos in zip(senses, poses):
+            if _bare_text(sense) in seen:
+                continue
+            seen.add(_bare_text(sense))
+            kept.append((sense, pos))
+        if len(kept) == len(senses):
+            continue
+        new_runs = []
+        for _, pos in kept:
+            if new_runs and new_runs[-1][0] == pos:
+                new_runs[-1][1] += 1
+            else:
+                new_runs.append([pos, 1])
+        glosses[lemma] = "; ".join(sense for sense, _ in kept)
+        runs[lemma] = [tuple(run) for run in new_runs]
+        moved.append(lemma)
+    return moved
+
+
+def split_word(word, forms):
+    """Whether `word` is one word Italian's pre-pass splits into two tokens or more (D6): no space,
+    an Italian token beginning with an elided piece (`d'accordo`, `all'improvviso`, `c'è`,
+    `senz'altro`), which the pre-pass splits there (`_ELIDED_START`), and no form of the tables — a
+    form is looked up whole. An articulated preposition written whole (`alla`) is none: its pieces
+    are a preposition and an article, which a key writes as the page does (change 12's D2), and
+    offered alone it would answer every « alla » with « à la »."""
+    return " " not in word and bool(_TOKEN.fullmatch(word)) and bool(_ELIDED_START.match(word)) and word not in forms
+
+
+def section_words(path, forms, wanted):
+    """One pass over the section as read: `(split, entries)` — the words Italian's pre-pass splits
+    (`split_word`), glossed as expressions are (`reduce_common.reduce_expressions`' sense rules: a
+    proper noun's entry and a pointer left out, each sense whole but past `EXPRESSION_SENSE_LEN`, three
+    joined across the word's entries), and the `wanted` headwords (lowercased) glossed the same way
+    whatever their part of speech, a proper noun's included (D5: an acronym row's synonyms)."""
+    split, entries = {}, {}
+    for entry in _entries(path):
+        word = re.sub(r"\s+", " ", straight(entry.get("word")).lower())
+        named = (entry.get("pos") or "") == "name"
+        into = []
+        if word in wanted:
+            into.append(entries)
+        if not named and split_word(word, forms):
+            into.append(split)
+        if not into:
+            continue
+        senses = []
+        for sense in entry.get("senses") or ():
+            text = _gloss_text(sense)
+            if not text or common._is_form_of(sense, text, edition=EDITION):
+                continue
+            cleaned = common.clean_gloss(text, common.EXPRESSION_SENSE_LEN, edition=EDITION)
+            if cleaned:
+                senses.append(cleaned)
+        if senses:
+            for table in into:
+                table.setdefault(word, []).append(senses)
+    return tuple({w: common._join_senses(per_entry, 3) for w, per_entry in table.items()} for table in (split, entries))
+
+
+def table_split_words(sources, forms, taken):
+    """The words Italian's pre-pass splits that the translation tables gloss and the section does not
+    (`taken`), from each `(source, order)` in turn, as `reduce_common.fallback_expressions` glosses a
+    headword with a space — which it skips for having none (D6: `d'accordo` « D'accord »)."""
+    out = {}
+    for source, order in sources:
+        for headword, by_pos in source.items():
+            if headword in taken or headword in out or not split_word(headword, forms):
+                continue
+            words = []
+            for found in by_pos.values():
+                words.extend(w for w in found if w not in words)
+            gloss, _ = common.translation_gloss({"X": words}, order, edition=EDITION)
+            if gloss:
+                out[headword] = gloss
+    return out
+
+
+def acronym_glosses(glosses, expressions, entries):
+    """Each acronym row's gloss (keep-lingua-italian-acronyms-and-names D3, `acronym_gloss`; D5 here):
+    from it-fr's own glosses of the row's expansions, else of its synonyms — a word's from `glosses`,
+    a headword with a space from `expressions` —, a synonym the pair does not gloss read from its
+    entry in the section whatever its part of speech (`entries`, `section_words`): `Stati Uniti`, a
+    proper noun's entry, which `reduce_expressions` and the translation readers skip. `USA` « Amérique
+    (continent); États-Unis »; `NATO`, which names neither, none. `acronym → (gloss, runs)`."""
+    words = {w: g for w, g in entries.items() if " " not in w}
+    phrases = {w: g for w, g in entries.items() if " " in w}
+    out = {}
+    for acronym, row in sorted(acronyms.ACRONYMS.items()):
+        got = acronyms.acronym_gloss(row, {**words, **glosses}, {**phrases, **expressions})
+        if got:
+            out[acronym] = got
+    return out
+
+
+def row_words(rows=None):
+    """The expansions and synonyms of the acronym rows, lowercased as the pair keys them."""
+    rows = acronyms.ACRONYMS if rows is None else rows
+    return {straight(w).lower() for expansions, synonyms, _, _ in rows.values() for w in (*expansions, *synonyms)}
+
+
+# D8's sample: 100 glossed lemmas of the 20,000 commonest, drawn by this seed, each marked by source.
+SAMPLE_SIZE = 100
+SAMPLE_TOP = 20_000
+SAMPLE_SEED = 20261024
+# The tops coverage is measured at, as `gloss_coverage.py` counts them, and the top the translation
+# share is read at (`measures.json`, en-es's and fr-es's shape).
+COVERAGE_TOPS = (5_000, 10_000, 20_000)
+MEASURED_TOP = 10_000
+
+
+def source_of(lemma, steps):
+    """The source that glossed a lemma: `definitions`, `direct` or `inverted`, or None."""
+    return next((name for name in ("definitions", "direct", "inverted") if lemma in steps.get(name, ())), None)
+
+
+def coverage(ranks, glosses, tops=COVERAGE_TOPS):
+    """The share of each top's commonest ranked lemmas with a gloss, in percent to one decimal — as
+    `gloss_coverage.measure` reads the committed tables."""
+    ranked = sorted(ranks, key=lambda lemma: (ranks[lemma], lemma))
+    return [round(100 * sum(1 for lemma in ranked[:top] if lemma in glosses) / len(ranked[:top]), 1) for top in tops]
+
+
+def measures(ranks, glosses, steps, top=MEASURED_TOP):
+    """What the reduction measures of its glosses and stores in no pack (D8), for the update's report
+    (`pack_report.py --measures`): among the glossed lemmas of the `top` commonest, the share a
+    translation table glossed, with the lemmas each table glossed there; the coverage at each of
+    `COVERAGE_TOPS`; the glossed lemmas by source; and the sample, each lemma with its rank, its
+    source and its gloss."""
+    import random
+
+    ranked = sorted(ranks, key=lambda lemma: (ranks[lemma], lemma))
+    commonest = set(ranked[:top])
+    direct = sorted(steps["direct"] & commonest)
+    inverted = sorted(steps["inverted"] & commonest)
+    glossed = len(steps["definitions"] & commonest) + len(direct) + len(inverted)
+    share = round(100 * (len(direct) + len(inverted)) / glossed, 1) if glossed else 0.0
+    pool = [lemma for lemma in ranked[:SAMPLE_TOP] if lemma in glosses]
+    drawn = random.Random(SAMPLE_SEED).sample(pool, min(SAMPLE_SIZE, len(pool)))
+    sample = [[lemma, ranks[lemma], source_of(lemma, steps), glosses[lemma]] for lemma in sorted(drawn, key=ranks.get)]
+    return {
+        "top": top,
+        "glossed": glossed,
+        "share": share,
+        "direct": direct,
+        "inverted": inverted,
+        "coverage": dict(zip((str(t) for t in COVERAGE_TOPS), coverage(ranks, glosses))),
+        "by source": {name: len(steps[name]) for name in ("definitions", "direct", "inverted")},
+        "sample": sample,
+    }
+
+
 def analyser_version(path=_ANALYSIS_RS):
     """Italian's analyser version, read from lingua-core so a bump cannot leave the manifest behind
     (the pack would be refused at load, `Pack::load`)."""
@@ -2434,9 +3075,10 @@ def analyser_version(path=_ANALYSIS_RS):
 
 def notice(morph_it=True):
     """it-fr's attribution stack (D9): the section, wordfreq, MarkIT — and Morph-it!, under its
-    CC BY-SA 2.0 option, while it is pinned —, each with its licence's address, then the levels'
-    sentence: estimated, no CEFR list read (add-lingua-italian-levels D3). UD Italian-PUD is measured
-    against, never shipped."""
+    CC BY-SA 2.0 option, while it is pinned —, the French Wiktionary's Italian section and translation
+    tables and the Italian Wiktionary's French translations (add-lingua-pack-it-fr D8), each with its
+    licence's address, then the levels' sentence: estimated, no CEFR list read (add-lingua-italian-levels
+    D3). UD Italian-PUD is measured against, never shipped."""
     text = """Cymbra Lingua data pack — IT->FR attributions.
 
 kaikki.org extract of the English Wiktionary (enwiktionary), Italian section: CC BY-SA 4.0
@@ -2461,6 +3103,16 @@ Morph-it!, a free morphological lexicon for the Italian language, by Marco Baron
 LGPL — the forms it lists that the Wiktionary names nowhere, under the lemmas the tables rank.
 """
     text += """
+kaikki.org extract of the French Wiktionary (frwiktionary), Italian section: CC BY-SA 4.0
+(https://creativecommons.org/licenses/by-sa/4.0/) + GFDL (https://www.gnu.org/licenses/fdl-1.3.html)
+— the French glosses of Italian words and expressions, from its Italian entries, and from its French
+entries' translation tables where those say nothing.
+
+kaikki.org extract of the Italian Wiktionary (itwiktionary): CC BY-SA 4.0
+(https://creativecommons.org/licenses/by-sa/4.0/) + GFDL (https://www.gnu.org/licenses/fdl-1.3.html)
+— the French translations its Italian entries list, where the French Wiktionary has no gloss.
+"""
+    text += """
 The levels are estimated, not taken from a CEFR list: the commonest lemmas by wordfreq's ranks take
 the sizes of English's CEFR levels, the English Wiktionary's Italian section saying which lemmas take
 one, and every pack studying Italian reads them as committed.
@@ -2471,8 +3123,13 @@ one, and every pack studying Italian reads them as committed.
 def manifest(pack_version, morph_it=True):
     """it-fr's manifest (D9): Italian glossed in French, Italian's analyser version, and
     `levels_estimated`: Italian's levels are derived from frequency, not taken from a CEFR list, and
-    the extension says so (add-lingua-italian-levels D3)."""
-    licences = ["kaikki / enwiktionary (CC BY-SA 4.0 + GFDL)", "wordfreq (CC BY-SA 4.0)", "UD Italian-MarkIT (CC BY 4.0)"]
+    the extension says so (add-lingua-italian-levels D3). kaikki's licence names the three editions
+    it-fr reads (add-lingua-pack-it-fr D8)."""
+    licences = [
+        "kaikki / enwiktionary, frwiktionary, itwiktionary (CC BY-SA 4.0 + GFDL)",
+        "wordfreq (CC BY-SA 4.0)",
+        "UD Italian-MarkIT (CC BY 4.0)",
+    ]
     sources = [
         {"name": "kaikki", "licence": "CcBySa"},
         {"name": "wordfreq", "licence": "CcBySa"},
@@ -2495,12 +3152,25 @@ def manifest(pack_version, morph_it=True):
     }
 
 
-def reduce(work, max_lemmas, pack_version, frequency, top_n, morph_it=MORPH_IT, report=print, foreign=None):
+def reduce(
+    work, max_lemmas, pack_version, frequency, top_n, morph_it=MORPH_IT, report=print, foreign=None, native_frequency=None
+):
     """The reduction over the raw sources in `work`, its tables written there. `morph_it` is the
     archive's file name in `work`, or None to read the Wiktionary alone. `foreign(word)` is the highest
     Zipf frequency English, French and Spanish give a word (D3's test, read for D2's forms too), None
-    to skip that test. Answers what the report prints, as a dict, for the measurement."""
+    to skip that test. `native_frequency(word)` is a French word's Zipf frequency, which orders the
+    French tables read backwards (add-lingua-pack-it-fr D2); None reads their words alphabetically.
+    Answers what the report prints, as a dict, for the measurement."""
     kaikki = os.path.join(work, KAIKKI)
+    # it-fr's native side reads the French and the Italian Wiktionaries (add-lingua-pack-it-fr D2,
+    # D3): a reduction without them would write an it-fr that glosses nothing, so it stops first.
+    absent = [name for name in (SECTION, DIRECT, INVERTED) if not os.path.isfile(os.path.join(work, name))]
+    if absent:
+        raise SystemExit(
+            f"it-fr: {', '.join(os.path.join(work, name) for name in absent)} missing: it-fr's glosses read the "
+            "French Wiktionary's Italian section and translations and the Italian Wiktionary's French "
+            "translations (pack_sources.py DUMPS['it-fr'])"
+        )
     survey = survey_kaikki(kaikki)
     kept = {}
     spellings = dictionary_spellings(kaikki, frequency, kept)
@@ -2567,16 +3237,62 @@ def reduce(work, max_lemmas, pack_version, frequency, top_n, morph_it=MORPH_IT, 
     grammar = spelling_rows(grammar_rows(readings, forms, ranks), forms, spellings)
     common.write(work, "grammar.tsv", "".join(grammar))
     common.write(work, "freq.tsv", "".join(f"{l}\t{r}\n" for l, r in sorted(ranks.items(), key=lambda kv: (kv[1], kv[0]))))
-    # Italian's estimated levels (add-lingua-italian-levels D1, D2): from the ranks, the forms just
-    # chosen and the section's senses — no pair's glosses: change 16 passes Italian's dictionary words
-    # once it commits it-fr's (D4). The acronym rows have no rank, so the rank order never reaches them.
-    levels, left_out = estimated_levels(ranks, forms, read_level_senses(kaikki))
+    # it-fr's native side (add-lingua-pack-it-fr), after the studied side, keyed by the lemmas just
+    # ranked: the section as it-fr reads it (D4, D5), its definitions first, then the Italian
+    # Wiktionary's French translations in the table's order, then the French tables read backwards,
+    # commonest French word first (D2).
+    stats = collections.Counter()
+    section = section_as_read(os.path.join(work, SECTION), os.path.join(work, SECTION_READ), stats)
+    direct = common.read_translations(
+        straight_translations(os.path.join(work, DIRECT), os.path.join(work, DIRECT_READ), inverted=False),
+        inverted=False,
+        studied=IT,
+    )
+    inverted = common.read_translations(
+        straight_translations(os.path.join(work, INVERTED), os.path.join(work, INVERTED_READ), inverted=True),
+        inverted=True,
+        studied=IT,
+    )
+    by_french = common.by_native_frequency(native_frequency or (lambda word: 0.0))
+    sources = [(direct, list), (inverted, by_french)]
+    glosses, runs, expressions, steps = native_side(section, ranks, sources)
+    # A sense repeating an earlier one goes (the review), before the acronym rows read the glosses.
+    repeated = without_repeated_senses(glosses, runs)
+    stats["glosses repeating a sense"] = len(repeated)
+    # The words Italian's pre-pass splits, after the headwords with a space: the section's, then the
+    # tables' (D6); and the entries of the acronym rows' synonyms, whatever their part of speech (D5).
+    split, row_entries = section_words(section, forms, row_words())
+    split_tables = table_split_words(sources, forms, split)
+    with_space = len(expressions)
+    expressions.update(split)
+    expressions.update(split_tables)
+    # Each acronym row glossed from it-fr's own glosses of its expansions, else of its synonyms
+    # (keep-lingua-italian-acronyms-and-names D3), the only unranked lemmas it glosses.
+    glossed_acronyms = acronym_glosses(glosses, expressions, row_entries)
+    for acronym, (gloss, gloss_runs) in glossed_acronyms.items():
+        glosses[acronym], runs[acronym] = gloss, gloss_runs
+    common.write(work, "gloss.tsv", "".join(f"{l}\t{g}\n" for l, g in sorted(glosses.items())))
+    common.write(
+        work,
+        "senses.tsv",
+        "".join(
+            f"{w}\t" + "\t".join(f"{pos}:{n}" for pos, n in r) + "\n" for w, r in sorted(runs.items()) if w in glosses
+        ),
+    )
+    common.write(work, "mwe.tsv", "".join(f"{w}\t{g}\n" for w, g in sorted(expressions.items())))
+    # Italian's dictionary words (keep-lingua-italian-acronyms-and-names D5, the rule of
+    # leave-lingua-names-out-of-english-and-spanish-words): it-fr's glossed lemmas less those it glosses
+    # by a proper noun's senses alone, plus every acronym row, glossed or not. `pack_sources.py split`
+    # files them into tables/it/.
+    words = sorted(set(french.dictionary_words(glosses, runs)) | set(acronyms.ACRONYMS))
+    common.write(work, "lexical.tsv", "".join(f"{word}\n" for word in words))
+    # Italian's estimated levels (add-lingua-italian-levels D1, D2, D4): from the ranks, the forms just
+    # chosen and the section's senses, given only to Italian's dictionary words (add-lingua-pack-it-fr
+    # D5). The acronym rows have no rank, so the rank order never reaches them.
+    levels, left_out = estimated_levels(ranks, forms, read_level_senses(kaikki), set(words))
     common.write(work, "level.tsv", "".join(f"{l}\t{lvl}\n" for l, lvl in sorted(levels.items())))
-    # Italian's dictionary words (lexical.tsv): the acronym rows alone, glossed or not, until change 16's
-    # glosses write the rest — its dictionary words less its names, plus the rows (D5, D6). it-fr's
-    # glosses: none yet, change 16's (D9).
-    common.write(work, "lexical.tsv", "".join(f"{word}\n" for word in sorted(acronyms.ACRONYMS)))
-    common.write(work, "gloss.tsv", "")
+    measured = measures(ranks, glosses, steps)
+    common.write(work, "measures.json", json.dumps(measured, indent=2, ensure_ascii=False) + "\n")
     common.write(work, "NOTICE", notice(morph_it is not None))
     common.write(
         work, "manifest.json", json.dumps(manifest(pack_version, morph_it is not None), indent=2, ensure_ascii=False) + "\n"
@@ -2605,6 +3321,21 @@ def reduce(work, max_lemmas, pack_version, frequency, top_n, morph_it=MORPH_IT, 
         "grammar": readings_figures(grammar, forms),
         "levels": dict(collections.Counter(levels.values())),
         "levels left out": {rule: len(lemmas) for rule, lemmas in left_out.items()},
+        "glosses": len(glosses),
+        "glossed by source": measured["by source"],
+        "coverage": measured["coverage"],
+        "translation share": measured["share"],
+        "expressions": len(expressions),
+        "expressions by source": {
+            "the section, with a space": len(steps["section expressions"]),
+            "the tables, with a space": with_space - len(steps["section expressions"]),
+            "split words, the section": len(split),
+            "split words, the tables": len(split_tables),
+        },
+        "section as read": dict(stats),
+        "acronym glosses": {acronym: gloss for acronym, (gloss, _) in glossed_acronyms.items()},
+        "dictionary words": len(words),
+        "names": len(set(glosses) - set(words)),
     }
     report(f"reduced it-fr: forms={summary['forms']} lemmas={summary['lemmas']} (the last, {last}, at Zipf {summary['last zipf']})")
     report(
@@ -2618,6 +3349,31 @@ def reduce(work, max_lemmas, pack_version, frequency, top_n, morph_it=MORPH_IT, 
         + ", ".join(f"{n} {what}" for what, n in sorted(named.items()))
     )
     report(f"reduced it-fr: {levels_report(levels, left_out, ranks)}")
+    by_source = summary["glossed by source"]
+    report(
+        f"reduced it-fr: glosses={len(glosses)} (the French Wiktionary's Italian section {by_source['definitions']}, the "
+        f"Italian Wiktionary's French translations {by_source['direct']}, the French tables read backwards "
+        f"{by_source['inverted']}, the acronym rows {len(glossed_acronyms)}); of the 5,000 / 10,000 / 20,000 "
+        "commonest lemmas, " + " / ".join(f"{share} %" for share in summary["coverage"].values()) + " glossed; of the "
+        f"{measured['glossed']:,} glossed among the {measured['top']:,} commonest, {measured['share']} % from a "
+        f"translation table (direct {len(measured['direct'])}, inverted {len(measured['inverted'])})"
+    )
+    report(
+        f"reduced it-fr: expressions={len(expressions)} ("
+        + ", ".join(f"{what} {n}" for what, n in summary["expressions by source"].items())
+        + ")"
+    )
+    report(
+        "reduced it-fr: the section as read: "
+        + ", ".join(f"{n} {what}" for what, n in sorted(stats.items()))
+    )
+    report(
+        f"reduced it-fr: dictionary words={len(words)} ({summary['names']} glossed as names alone; the acronym rows "
+        + ", ".join(f"{a} « {g} »" for a, g in summary["acronym glosses"].items())
+        + ")"
+    )
+    for lemma, rank, source, gloss in measured["sample"]:
+        report(f"reduced it-fr: sample: {rank}\t{lemma}\t{source}\t{gloss}")
     report(
         f"reduced it-fr: M8's cost, dictionary nouns read as a verb among wordfreq's 1,000 / 2,000 / 5,000: "
         f"{summary['m8'][1000]} / {summary['m8'][2000]} / {summary['m8'][5000]}"
@@ -2673,6 +3429,15 @@ def main():
         """The highest Zipf frequency English, French and Spanish give `word` (D3's test)."""
         return max(zipf_frequency(word, lang) for lang in ("en", "fr", "es"))
 
+    french_zipf = {}
+
+    def native_frequency(word):
+        """A French word's Zipf frequency, which orders the French tables read backwards
+        (add-lingua-pack-it-fr D2)."""
+        if word not in french_zipf:
+            french_zipf[word] = zipf_frequency(word, "fr")
+        return french_zipf[word]
+
     reduce(
         a.work,
         a.max_lemmas,
@@ -2681,6 +3446,7 @@ def main():
         lambda n: top_n_list("it", n),
         report=lambda line: print(line, file=sys.stderr),
         foreign=foreign,
+        native_frequency=native_frequency,
     )
 
 

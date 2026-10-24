@@ -36,9 +36,11 @@
 //! the Italian stage shows its effect as the diff of a re-bless. It is not Italian support: no
 //! listed pair studies Italian.
 //!
-//! The pack is the hand-written it-fr fixture (`scripts/lingua-data/testdata/it-fr/`) until the
-//! Italian tables are committed (change 16); the engine starts on the real en-fr pack, built from
-//! the committed tables, as a French-native reader's engine does.
+//! The pack is built from the committed Italian tables, `tables/it/` and `tables/it-fr/`, since
+//! add-lingua-pack-it-fr (change 16) committed it-fr's glosses and re-blessed the golden once; it was
+//! the hand-written fixture (`scripts/lingua-data/testdata/it-fr/`) before, which the tests that build
+//! it still read. The engine starts on the real en-fr pack, built from the committed tables, as a
+//! French-native reader's engine does.
 //!
 //! A pull request that changes `baseline/it-fr.golden` re-blesses it with
 //! `LINGUA_BLESS=1 cargo test -p lingua-wasm --test italian_baseline` and says why: an Italian
@@ -225,11 +227,11 @@ fn what_the_baseline_shows_today() {
     }
 
     // An elided word is its pieces, each its own span and lemmatised by Italian's cascade: `Lo` is
-    // the fixture's article `il`, `c'è` hides `essere` no longer (add-lingua-italian-tokenisation
-    // D3).
+    // the article `lo` (the tables read `l'` as *lo*), `c'è` hides `essere` no longer
+    // (add-lingua-italian-tokenisation D3).
     let elisioni_json = analysed(&engine, "elisioni");
     let elisioni = tokens(&elisioni_json);
-    assert!(has(&elisioni, "Lo", "il"), "{elisioni:?}");
+    assert!(has(&elisioni, "Lo", "lo"), "{elisioni:?}");
     assert!(has(&elisioni, "uomo", "uomo"), "{elisioni:?}");
     assert!(has(&elisioni, "una", "uno"), "{elisioni:?}");
     assert!(has(&elisioni, "amica", "amica"), "{elisioni:?}");
@@ -379,7 +381,7 @@ fn what_the_baseline_shows_today() {
         .find(|t| t["surface"] == "città")
         .expect("the NFD block's `città`, composed");
     assert_eq!(citta["lemma"], "città");
-    assert_eq!(citta["gloss"], "ville");
+    assert_eq!(citta["gloss"], "Cité, ville");
     for (surface, lemma) in [("è", "essere"), ("più", "più")] {
         assert!(
             nfd.iter()
@@ -451,7 +453,11 @@ fn what_the_baseline_shows_today() {
         );
     }
 
-    // The nomi page's names are set aside, as any proper noun, and counted nowhere.
+    // The nomi page's names are set aside, as any proper noun, and counted nowhere — but six the
+    // committed tables read as words of the pack, a known defect (add-lingua-pack-it-fr, *Known data
+    // defects*, for change 17): `Rossi` as *rosso*, `Bianchi` as *bianco*, `Conti` as *conto*, `Bari`
+    // as *barare*, and `Esposito` and `Ferrari`, read as unknown words where the fixture set them
+    // aside.
     let nomi = analysed(&engine, "nomi");
     let class_of = |surface: &str| -> Vec<String> {
         nomi["tokens"]
@@ -462,9 +468,12 @@ fn what_the_baseline_shows_today() {
             .map(|t| t["class"].as_str().expect("a class").to_owned())
             .collect()
     };
+    for name in ["Rossi", "Bianchi", "Esposito", "Ferrari", "Conti", "Bari"] {
+        assert_eq!(class_of(name), ["Unknown"], "{name}");
+    }
     for name in [
-        "Rossi", "Bianchi", "Esposito", "Ferrari", "Milano", "Moretti", "Conti", "Napoli",
-        "Torino", "Firenze", "Pisa", "Venezia", "Bari", "Italia", "Europa", "Anna",
+        "Milano", "Moretti", "Napoli", "Torino", "Firenze", "Pisa", "Venezia", "Italia", "Europa",
+        "Anna",
     ] {
         let classes = class_of(name);
         assert!(
@@ -648,7 +657,7 @@ fn the_nfd_block_s_citta_is_glossed_once_italian_composes_it() {
         .find(|t| t["block"] == NFD_BLOCK && t["surface"] == "citt\u{e0}")
         .expect("the NFD block's `città`, composed");
     assert_eq!(token["lemma"], "citt\u{e0}");
-    assert_eq!(token["gloss"], "ville");
+    assert_eq!(token["gloss"], "Cité, ville");
     let (start, end) = (
         token["start"].as_u64().expect("a start") as usize,
         token["end"].as_u64().expect("an end") as usize,

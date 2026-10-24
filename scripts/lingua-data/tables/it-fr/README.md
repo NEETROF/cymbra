@@ -11,18 +11,21 @@ which every pair studying Italian reads as committed (it-en, it-es), and this fo
 records the sources of both. Change 9 writes Italian's forms and ranks, change 13 its readings
 (`../it/grammar.tsv`, add-lingua-italian-grammar-tables, *The readings* below) and their pinned tag
 pool (`../it/tags.tsv`), change 14 its estimated levels (`../it/level.tsv`, add-lingua-italian-levels,
-*The levels* below); its glosses and the rest of its dictionary words are change 16's, so `gloss.tsv`
-is empty and `../it/lexical.tsv` holds change 11's acronym rows alone. The Italian
-baseline (`crates/lingua-wasm/tests/italian_baseline.rs`) keeps its hand-written fixture
-(`scripts/lingua-data/testdata/it-fr/`) until change 16: a pack of forms and ranks alone would blind
-its gloss, expression and level probes; the readings are pinned by
-`crates/lingua-pack/tests/it_fr_grammar.rs` over the committed tables instead.
+*The levels* below), and change 16 (add-lingua-pack-it-fr) its French glosses, sense runs and
+expressions in this folder and Italian's dictionary words in `../it/lexical.tsv`, which the levels go
+to (*The glosses* below). The Italian baseline (`crates/lingua-wasm/tests/italian_baseline.rs`) runs
+over the pack these tables build since change 16 re-blessed it once — its hand-written fixture
+(`scripts/lingua-data/testdata/it-fr/`) before, a pack of forms and ranks alone blinding its gloss,
+expression and level probes —; the readings are pinned by `crates/lingua-pack/tests/it_fr_grammar.rs`
+over the committed tables too.
 
 In this folder:
 
 | File | What it maps | From |
 |---|---|---|
-| `gloss.tsv` | nothing yet: change 16 glosses Italian in French | — |
+| `gloss.tsv` | lemma → its French gloss, up to eight senses grouped by part of speech | kaikki.org: the French Wiktionary's Italian section, then the Italian Wiktionary's French translations, then the French Wiktionary's translation tables read backwards (CC BY-SA 4.0 + GFDL; change 16) |
+| `senses.tsv` | lemma → its gloss's sense runs, a part of speech and how many senses | the same |
+| `mwe.tsv` | expression → its French gloss, keyed at build as Italian is read (change 12) | the same: the section's headwords with a space, the tables', the words Italian's pre-pass splits |
 | `NOTICE` | the attribution stack, embedded in the pack, and the sentence saying the levels are estimated | — |
 | `manifest.json` | Italian glossed in French, Italian's analyser version (`ITALIAN_ANALYZER_VERSION`, read from lingua-core), `pack_version` (the snapshot), `levels_estimated` (change 14) | — |
 | `pin.json` | the raw sources these tables and `../it/` came from, and the pack, base and layer they build | — |
@@ -34,8 +37,8 @@ In `../it/`, Italian's tables, written by it-fr's reduction:
 | `forms.tsv` | form → lemma | kaikki.org, the English Wiktionary's Italian section (CC BY-SA 4.0 + GFDL), with UD Italian-MarkIT's counts to choose between lemmas (CC BY 4.0) and Morph-it!'s forms the Wiktionary names nowhere (CC BY-SA 2.0) |
 | `freq.tsv` | lemma → frequency rank, the 60,000 commonest | wordfreq 3.1.1 (CC BY-SA 4.0); a hyphenated word by MarkIT's own frequency too |
 | `grammar.tsv` | form → its readings, as Universal Dependencies tags (`form<TAB>lemma<TAB>tag<TAB>other\|-`) | kaikki.org, the same section (add-lingua-italian-grammar-tables, change 13) |
-| `level.tsv` | lemma → its estimated CEFR level, 8,302 lemmas of English's level sizes | none: derived from `freq.tsv` and the same section (add-lingua-italian-levels, change 14) |
-| `lexical.tsv` | Italian's dictionary words: the acronym rows alone, `NATO` and `USA`, until change 16 writes the rest | `reduce_italian_acronyms.ACRONYMS` (keep-lingua-italian-acronyms-and-names D6); change 16's glosses |
+| `level.tsv` | lemma → its estimated CEFR level, 8,302 lemmas of English's level sizes, Italian's dictionary words alone since change 16 | none: derived from `freq.tsv`, the same section and `lexical.tsv` (add-lingua-italian-levels, change 14) |
+| `lexical.tsv` | Italian's dictionary words: it-fr's glossed lemmas less those it glosses by a proper noun's senses alone, plus the acronym rows `NATO` and `USA` | it-fr's glosses and runs (change 16); `reduce_italian_acronyms.ACRONYMS` (keep-lingua-italian-acronyms-and-names D6) |
 | `tags.tsv` | Italian's pinned tag pool: the 83 tags its readings carry, in byte order; written by no reducer | committed by hand from the reduction's readings (change 13), replacing change 9's placeholder `NOUN` |
 | `studied.json` | the pair whose reduction writes `../it/`: it-fr | committed by hand |
 
@@ -59,7 +62,21 @@ In `../it/`, Italian's tables, written by it-fr's reduction:
   `b137343dc095e038ebfaef7c743185e85ec35f5322a1b8629b600e6e898c7024`), read for its lexicon
   `current_version/morph-it_048.txt` under its CC BY-SA 2.0 option, the sha256 checked at every
   fetch. Kept by the owner on 2026-10-23 (task 5.1).
-- **wordfreq `it` 3.1.1**, pinned by version and by `../../requirements-reduce.txt`'s hashes.
+- **kaikki.org, the French Wiktionary's Italian section** (`kaikki-fr-Italien.jsonl`, 769,483,152 B,
+  sha256 `eb79761b83400a816a0e70552204e6b3556ef561489cf003f0252862bc6542b5`) **and its French entries'
+  Italian translations** (`kaikki-fr-traductions-it.jsonl`, 7,469,549 B, sha256 `a39a2ad5…`), derived
+  from the French edition's dump regenerated on 2026-10-23 23:53 (Last-Modified), read on 2026-10-24,
+  decompressed sha256 `7ce93a41…` (6,865,138,291 B; 736,596,796 B gzipped), not kept; kept as the zstd
+  assets `kaikki-fr-Italien.jsonl.zst` (29,272,128 B) and `kaikki-fr-traductions-it.jsonl.zst`
+  (1,018,694 B) of the release `lingua-pack-sources-it-fr-2026.10.24`, published by
+  `lingua-pack-update` run 40130354122 (mode `update`, `keep: en`: the English section above stays the
+  2026.10.23 release's). The glosses and expressions, and their inverted fallback (change 16).
+- **kaikki.org, the Italian Wiktionary's French translations** (`kaikki-it-traductions-fr.jsonl`,
+  1,273,076 B, sha256 `424c527e…`), derived from the Italian edition's dump regenerated on 2026-10-21
+  00:21, decompressed sha256 `09f22a16…` (566,646,259 B; 43,849,715 B gzipped), kept as
+  `kaikki-it-traductions-fr.jsonl.zst` (156,241 B) in the same release: the glosses' direct fallback.
+- **wordfreq `it` 3.1.1**, pinned by version and by `../../requirements-reduce.txt`'s hashes; wordfreq
+  `fr`, the same package, orders the French tables read backwards.
 
 ## The rules (`reduce-it-fr.py`)
 
@@ -134,6 +151,183 @@ In `../it/`, Italian's tables, written by it-fr's reduction:
   `da`), which wordfreq counts with the truncations' own uses; a hyphenated word is ranked when
   MarkIT attests it, at the lower of wordfreq's estimate and MarkIT's frequency.
 
+## The glosses (`gloss.tsv`, `senses.tsv`, `mwe.tsv`): change 16
+
+Written by the same reduction as `../it/`, through the native side every pair shares
+(`reduce_common`) with the French Wiktionary's rules (`reduce_edition_fr.FR`), in es-fr's order
+(add-lingua-pack-it-fr D1, D2): **the French Wiktionary's Italian section**, its definitions first;
+then **the Italian Wiktionary's French translations**, in the table's order; then **the French
+Wiktionary's translation tables read backwards**, commonest French word first — at most three words
+per part of speech from a table, every gloss French written by a person. The section is read as it-fr
+reads it first (`section_as_read`, `../../SOURCES.md`, *IT → FR: Italian glossed in French*): letters
+out; an acronym's sense, and a proper noun's that only says surname, first name, hamlet or commune,
+kept off a word with a lowercase entry (D5: `TE` off `te`, `Ora` off `ora`; `luna` keeps « Lune,
+satellite de la Terre »); a gloss filed as a link read as a gloss when no entry holding a meaning heads
+its target (D4: `del` « Du. », `coloro` « Celles et ceux », `c'è` « Il y a », `te` « Toi : pronom
+disjoint… »); and kaikki's leaks read out — examples and addresses dropped, colour codes taken out, a
+head line merged into a sense read for its meaning, a letter's bare name dropped beside a common word,
+a repeated sense shown once (the review of the implementation).
+
+The update of **2026.10.24** (`lingua-pack-update` run 40130354122, mode `update`, `keep: en`, the
+release `lingua-pack-sources-it-fr-2026.10.24`) wrote these tables, byte for byte what the
+implementation predicted from local copies of the sources.
+
+**Coverage**, the share of the commonest lemmas of `../it/freq.tsv` with a gloss
+(`gloss_coverage.py --pair it-fr`), against the floor the owner settled before this measurement
+(2026-10-24, D7: the study's figures less two points; never lowered after it):
+
+| | 5,000 | 10,000 | 20,000 |
+|---|---|---|---|
+| it-fr, committed | **89.2 %** | **81.8 %** | **73.3 %** |
+| Floor (`FLOORS["it-fr"]`) | 87.2 % | 79.8 % | 71.3 % |
+| From the definitions alone | 87.6 % | 79.5 % | 70.5 % |
+
+**The glossed lemmas by source**: 32,691 rows — 31,006 from the section's definitions (94.8 %), 279
+from the Italian Wiktionary's translations, 1,405 from the French tables read backwards, and the
+acronym row `USA` (« Amérique (continent); États-Unis », through its synonyms; `NATO` has none). Of the
+8,183 glossed among the 10,000 commonest, 2.8 % come from a table (46 direct, 187 read backwards).
+**The section as read**: 3,884 name notes, 245 communes' notes and 83 acronym senses set aside; 33
+links to a capitalised word and 36 to a lowercase one read as glosses, 11 left forms beside another
+gloss; 35 letter senses, 7 letter entries and 5 letters' bare names out; 9 examples filed as senses
+and 16 head lines with no meaning dropped, 9 head lines read for their meaning, 226 colour codes taken
+out; 87 glosses repeating a sense shown once.
+
+**Expressions** (`mwe.tsv`, D6): 18,296 — 10,704 of the section's headwords with a space, 7,517 of the
+tables', 22 + 53 words the pre-pass splits (`all'improvviso`, `c'è`, `d'accordo`, `senz'altro`). Keyed
+at build by change 12's rules: 14,776 keyed, 3,520 left out (a word the pack does not hold, or past
+seven tokens; 61 longer than seven); 4,677 named headwords, 140 keys several headwords reach; 157 keys
+end on `di`, and over change 11a's corpus (1,011,235 blocks) 3,000 of 296,509 matches are the `di`
+family read once more as `di`, on 91 expressions.
+
+**Dictionary words** (`../it/lexical.tsv`): 24,216 — the glossed lemmas less the 8,476 glossed by a
+proper noun's senses alone (Italian's names count; English's is 3,046), plus `NATO` and `USA`. Of the
+1,425 commonest lemmas, 102 are no dictionary word: 49 unglossed (`facebook`, `ok`, `web`, `entro`,
+`supporto`) and 53 names (`italia`, `roma`, `milano`).
+
+**The pack** these tables build: 2,645,342 B, sha256 `0e6795d938bc0ca7307ff461e3175d1768f8edcf3b6ccae7efc4a2b3688793c5`
+(50.5 % of the 5 MiB budget); its base 1,551,534 B (`f8c78228…`), Italian's, its layer 1,094,048 B
+(`0927f745…`).
+
+**A sample of 100 glosses** of the 20,000 commonest, drawn by the reduction (`SAMPLE_SEED`, D8) and
+marked by source — `section` the French Wiktionary's Italian section, `it-wikt` the Italian
+Wiktionary's French translations, `fr tables` the French tables read backwards; a gloss past 100
+characters cut here:
+
+| Rank | Lemma | Source | Gloss |
+|---:|---|---|---|
+| 47 | `degli` | section | Article contracté souvent traduit par des. Note d’usage : il s’emploie alternativement à dei devan… |
+| 212 | `padre` | section | Père |
+| 312 | `sociale` | section | Social, relatif à une société, une communauté, une collectivité; Social, qui se préoccupe du fonct… |
+| 561 | `discorso` | section | Discours |
+| 616 | `conoscere` | section | Connaître; Connaître, avoir compétence pour juger |
+| 729 | `battaglia` | section | Bataille, combat général ordonné entre deux armées |
+| 812 | `otto` | section | Huit |
+| 956 | `specialmente` | section | Spécialement, tout particulièrement |
+| 967 | `caro` | section | Cher, coûteux; Carvi — Carum carvi ^(Linné - 1753) |
+| 1027 | `veloce` | section | Rapide; Rapidement, Vite |
+| 1045 | `sentenza` | section | Sentence, maxime |
+| 1260 | `senato` | section | Sénat |
+| 1300 | `cambiamento` | section | Changement, transformation |
+| 1305 | `estremamente` | section | Extrêmement, d’une manière extrême, au dernier degré, au dernier point, à la dernière limite; Extr… |
+| 1374 | `industriale` | section | Industriel, qui appartient à l’industrie; Industriel, qù l’industrie est développée; Industriel, q… |
+| 1474 | `uccidere` | section | Rectifier, tuer, abattre |
+| 1481 | `bambina` | section | Enfant |
+| 2020 | `dottore` | section | Docteur, titulaire d’un doctorat ou médecin |
+| 2311 | `austria` | section | Autriche |
+| 2461 | `idiota` | section | Idiot, idiote |
+| 2813 | `collegato` | section | Connecter, joindre ou attacher ensemble deux objets (machines, personne et macine ou serveur dista… |
+| 2858 | `televisivo` | section | Télévisé |
+| 3093 | `galera` | section | Galère; Prison |
+| 3099 | `invasione` | section | Invasion, irruption faite dans le dessein de piller un pays, ou de s’en emparer; Invasion, action… |
+| 3132 | `cerchio` | section | Cercle, dans un plan euclidien, lieu de tous les points équidistants d’un point donné appelé le ce… |
+| 3304 | `fumetto` | section | Bande dessinée, œuvre utilisant des images fixes non purement photographiques, généralement des de… |
+| 3408 | `contattare` | section | Contacter, entrer en contact, en relation avec |
+| 3467 | `chirurgia` | section | Chirurgie |
+| 4348 | `pago` | section | Satisfait, content; Paiement, paie; Pagus, subdivision territoriale médiévale; Pag, île croate en… |
+| 4437 | `siracusa` | section | Syracuse, commune et ville de la région de Sicile en Italie; Syracuse, province autour de cette vi… |
+| 4630 | `ferrovia` | section | Chemin de fer, mode de transport guidé dans lequel des convois, les trains, de véhicules, les wago… |
+| 4893 | `commettere` | section | Commettre, construire, fabriquer, faire, opérer, poser |
+| 4950 | `toscano` | section | Toscan |
+| 5264 | `attrezzi` | section | Outil; Agrès, appareil |
+| 5323 | `pci` | section | Abréviation de Partito Comunista Italiano, nom d’un parti politique italien; Abréviation de Partit… |
+| 5758 | `nicole` | section | Nicole |
+| 5807 | `evidenziare` | section | Mettre en évidence |
+| 5822 | `interfaccia` | section | Interface |
+| 5947 | `tigre` | section | Tigre |
+| 6319 | `ministeriale` | section | Ministériel, qui concerne un ministère (ou des ministères) |
+| 6392 | `ferroviario` | section | Ferroviaire, relatif aux chemins de fer |
+| 6585 | `controparte` | fr tables | Adversaire, partie adverse |
+| 6706 | `compressione` | section | Compression |
+| 7033 | `este` | section | Este, commune d’Italie de la province de Padoue dans la région de Vénétie |
+| 7060 | `mosaico` | section | Mosaïque, assemblage de morceaux de faïence représentant un motif artistique; Mosaïque, symptômes… |
+| 7675 | `camorra` | section | Camorra; Confusion, désordre |
+| 7774 | `strappare` | section | Arracher, détacher avec effort, ôter de force |
+| 7934 | `biodiversità` | section | Biodiversité, diversité des organismes vivants, qui s’apprécie en considérant la diversité des esp… |
+| 8145 | `riunito` | section | Ensemble composé d’un fauteuil spécialisé et de divers outils utilisés pour les soins dentaires ou… |
+| 8493 | `incomprensibile` | section | Incompréhensible |
+| 9004 | `delinquere` | section | Commettre un délit |
+| 9355 | `spargere` | section | Répandre, verser |
+| 9694 | `fisiologia` | section | Physiologie |
+| 9803 | `chiarimento` | section | Éclaircissement, action de rendre moins serré, moins épais; Éclaircissement, explication d’une cho… |
+| 9881 | `paranoia` | section | Paranoïa |
+| 9966 | `elba` | section | Elbe, île italienne; Elbe, fleuve |
+| 10071 | `celentano` | section | Nom de famille italien |
+| 10077 | `collisione` | section | Collision, choc de deux corps |
+| 10085 | `cosmico` | section | Cosmique, relatif à l’univers |
+| 10298 | `nanna` | section | Dodo, lit dans le langage enfantin; Sommeil en parlant des enfants |
+| 10545 | `caucaso` | section | Caucase, chaîne de montagnes |
+| 10591 | `kung` | section | Nom de famille |
+| 10616 | `nuoro` | section | Nuoro, ville de la région de Sardaigne en Italie; Nuoro, province autour de cette ville |
+| 10831 | `astronauta` | section | Astronaute |
+| 11288 | `transessuale` | section | Transsexuel |
+| 11373 | `innamorare` | section | Séduire, rendre amoureux |
+| 11423 | `primaverile` | section | Printanier, qui se rapporte au printemps |
+| 11847 | `conscio` | section | Conscient, qui a une connaissance claire de soi, de la réalité des choses, de se qu’il éprouve; Co… |
+| 11960 | `telo` | section | Toile, tissu d'armure simple, de fils de lin, de chanvre, de coton, etc; Flèche, trait qu’on lance… |
+| 12105 | `spacco` | section | Fente |
+| 12691 | `aloe` | fr tables | Aloès |
+| 13136 | `gelateria` | section | Crèmerie, endroit où on vend des glaces; Glacier, établissement qui vend des glaces |
+| 13617 | `tempistica` | fr tables | Timing |
+| 13671 | `cons` | section | Nom de famille |
+| 13747 | `ossidazione` | section | Oxydation, corrosion par l’oxygène de l’air ou celui dissous dans l’eau; Oxydation, réaction chimi… |
+| 13928 | `misteriosamente` | section | Mystérieusement, avec mystère |
+| 14306 | `longitudine` | section | Longitude |
+| 14838 | `demente` | fr tables | Fou; Aliéné |
+| 14916 | `notificato` | section | Notifier |
+| 15486 | `gradazione` | section | Gradation |
+| 15578 | `sopracciglio` | section | Sourcil |
+| 15582 | `stelvio` | section | Stelvio, commune d’Italie de la province de Bolzano dans la région du Trentin-Haut-Adige |
+| 15990 | `redistribuzione` | section | Redistribution |
+| 16398 | `ostruzione` | section | Obstruction |
+| 16660 | `rouen` | section | Rouen (ville de Normandie) |
+| 16802 | `indovino` | section | Devin |
+| 17061 | `incenso` | section | Encens |
+| 18276 | `remunerazione` | section | Rémunération |
+| 18291 | `setaccio` | section | Tamis, sorte de crible, de sas qui sert à passer des matières pulvérulentes, les liquides troubles… |
+| 18350 | `ammonizione` | section | Admonestation, avertissement |
+| 18595 | `archivista` | section | Archiviste, personne qui est préposée à la garde des archives |
+| 18860 | `baxter` | section | Nom de famille |
+| 18930 | `frittura` | section | Friture |
+| 19010 | `panoramico` | section | Panoramique |
+| 19104 | `zeppa` | section | Cale; Semelle compensée |
+| 19226 | `landini` | section | Nom de famille |
+| 19403 | `civic` | section | Nom de famille |
+| 19438 | `elusione` | section | Fait d'éluder |
+| 19527 | `olivieri` | section | Nom de famille |
+| 19829 | `situa` | section | Situer |
+
+**Known defects**, for change 17 (`refine-lingua-it-fr-glosses`; add-lingua-pack-it-fr's design,
+*Known data defects*): the wrong sense first by the entries' order (`gente`, `fino`, `fra`, `spesso`,
+`pure`, `spezie`, `loro`); participles borrowing their infinitive's gloss (`assicurato`, `avvolto`);
+pointers that are no `form_of` (`lettere`, `signor` « Variante de signore »: about 18 lemmas of the
+20,000 left unglossed); a name's sense blocking a common word (`rose`, `panni`, `gemelli`); `che`
+« Quoi; Quel », with no « Que »; `della` « De » read backwards; `del`'s gloss keeping its usage note;
+an example split into senses with no marker (`volere`); commune notes worded otherwise (`vittoria`
+« commune et ville », `ro`); words without a space that are no Italian (`d'n'b`, `c'hwerty`, `l'wha`);
+surnames glossed « Nom de famille » alone (`lexa`, `santangelo`); English loans and some Italian words
+the sources do not gloss (`web`, `ok`, `entro`, `supporto`, `verifica`), which therefore take no
+level.
+
 ## Measured
 
 `scripts/lingua-data/measure/it-ud.sh` builds the pack from these tables and runs the real analyser
@@ -157,6 +351,13 @@ The pack these tables build, sha256
 the pinned interpreter and wordfreq, the tables come out byte for byte. At implementation, on
 kaikki.org's per-language extract of 2026-10-21 (623,702 entries, against this file's 624,122), the
 same rules read PUD 99.26 / 91.39 / 99.90 and MarkIT's test section 99.43 / 94.65 / 98.87.
+
+**On the tables of 2026.10.24** (change 16's update; pack `0e6795d9…`, 2,645,342 B), measured on
+2026-10-24 with Italian at `1.4.0`: PUD **99.26 / 91.31 / 99.90** (19,155 words, 8,909 content words,
+985 auxiliaries; the gates hold), MarkIT's test section 99.43 / 94.65 / 98.87. These are the figures
+the tables of 2026.10.23 give on the same day too: change 16's glosses, dictionary words and levels
+move no lemma; the content figure moved from 91.38 with the analyser's later changes, not
+here.
 
 What misses, read on these tables by the lookup (the cascade's first step, which reproduces the
 binary's figures): one auxiliary of 985 (`voglia`, PUD's *volere*); 768 of PUD's 8,909 content words
@@ -223,17 +424,18 @@ CEFR list would leave out, a lemma left out giving its slot to the next. The siz
 so an English update cannot move Italian's levels unannounced.
 
 **Which lemmas take one** (D2) is read from the English Wiktionary's Italian section — the source of
-the forms, never a pair's glosses: change 16 passes Italian's dictionary words once it commits it-fr's
-(D4). Within the levelled span (ranks 1–10,690), 2,388 ranked lemmas take no level:
+the forms —, and since change 16 among Italian's dictionary words alone (D4; add-lingua-pack-it-fr
+D5). Within the levelled span (ranks 1–11,679, the tables of 2026.10.24), 3,377 ranked lemmas take no
+level:
 
 | Rule | Left out | For example |
 |---|---|---|
-| 1. the section gives it no sense that is not a form of another word… | 1,728 | `facebook`, `of`, `eh`, `ecc`, `km`, `http`: none has an entry in the section |
-| …or only a name's, written there with a capital | 635 | `italia`, `milano`, `europa`, `giovanni`, `google` |
+| 1. the section gives it no sense that is not a form of another word… | 1,997 | `facebook`, `of`, `eh`, `ecc`, `km`, `http`: none has an entry in the section |
+| …or only a name's, written there with a capital | 711 | `italia`, `milano`, `europa`, `giovanni`, `google` |
 | 2. a single character the section gives no word's sense — a letter's, its name read by its gloss, a symbol's, a name's, an abbreviation's, another word's spelling | 16 | `b`, `r` (« alternative spelling of er »), `x` (« abbreviation of per »), `é`, `u` (« the name of the Latin script letter U/u »), `k`, `à` (« obsolete spelling of ha »); `a` (the preposition), `e` and `o` (the conjunctions) keep their place |
 | 3. every sense it is given, a name's aside, only spells another word, read by French's prefixes, not kaikki's `alt_of` pointer — so a contraction or an apocope stays a word | 9 | `the` (« misspelling of tè »), `nè`, `can`, `are`, `contenente`, `zombie`, `buddha`, `ro`, `homo` |
 | 4. its own form reads as another lemma in `forms.tsv` | 0 | none: the ranks keep no such lemma (change 9's D6) and the builder refuses one; the rule stays as a guard |
-| 5. Italian's dictionary words do not list it | — | not read until change 16 passes them (D4) |
+| 5. Italian's dictionary words do not list it | 644 | since change 16: a name it-fr glosses by a proper noun alone (`roma`, `napoli`, `maria`, `francesco`, `gesù`, `luigi`, `bibbia`) or a word the sources do not gloss (`ok`, `web`, `club`, `entro`, `supporto`) |
 
 Every word the pre-pass writes has a level through its lemma: the `di` family (`del`, `della`, …),
 the articles (*il*, *lo*, *uno*), the elided pieces' and the truncations' words and the split
@@ -244,12 +446,15 @@ The acronym rows have no rank, so no level.
 
 | Level | Lemmas | Ranks | First words |
 |---|---|---|---|
-| A1 | 1,020 | 1–1,080 | di, e, che, il, a, in, non, per |
-| A2 | 1,158 | 1,081–2,380 | impegno, luigi, maestro, morale, nascita, piani, principe, professore |
-| B1 | 2,015 | 2,381–4,855 | sconto, soddisfazione, sospensione, stronzo, suonare, terrorismo, terzi, tuttora |
-| B2 | 2,347 | 4,857–8,052 | ricercatore, rimediare, ripartire, ritirato, rotonda, saldo, satana, sconfiggere |
-| C1 | 886 | 8,053–9,371 | bassano, bunker, cacao, camerino, cartina, cessazione, cestino, cognizione |
-| C2 | 876 | 9,377–10,690 | ventenne, veridicità, videocamera, vile, vitello, abisso, accensione, aderente |
+| A1 | 1,020 | 1–1,103 | di, e, che, il, a, in, non, per |
+| A2 | 1,158 | 1,104–2,474 | partecipare, principalmente, principio, quartiere, ridere, risolvere, sostegno, terreno |
+| B1 | 2,015 | 2,475–5,125 | organo, palco, parcheggio, pilota, pistola, profondità, quindici, rapida |
+| B2 | 2,347 | 5,126–8,686 | ebreo, economicamente, energetico, espressamente, fotocamera, gonna, igiene, illustrato |
+| C1 | 886 | 8,688–10,176 | sonoro, tassista, terminologia, urto, usura, utero, vaccinazione, vico |
+| C2 | 876 | 10,177–11,679 | riconquistare, rigenerazione, rinascimentale, rione, ristampa, risultante, ritornello, sbocco |
+
+The table's figures are the tables of 2026.10.24 (change 16): 578 lemmas left the levels — 458 that
+it-fr does not gloss, 120 it glosses by a proper noun alone — and 578 joined, 1,162 changed band.
 
 These are a local reduction's, made as the update makes it — Python 3.12 and
 `requirements-reduce.txt`, `build.sh --reduce it-fr` from the pinned 2026.10.23 sources (the release
@@ -295,9 +500,12 @@ lemmas are left out instead of 2,466: 272 fewer names — exactly the 272 name-o
 none of them in the section; 9 spellings instead of 18, change 10 reading most as their word (`perchè`
 → *perché*); 16 letters instead of 18, wordfreq's elision stems (`l`, `d`) being no ranks.
 
-**Known weaknesses**, as French's and Spanish's: a name keeps a level through a sense of another
-part of speech, from a lowercase or a capitalised entry, until change 16 narrows the levels to
-dictionary words (D4). From a lowercase entry: `roma` (« a type of rice »), `marco` (the mark),
+**Known weaknesses**, as French's and Spanish's: until change 16 narrowed the levels to dictionary
+words (D4), a name kept a level through a sense of another part of speech, from a lowercase or a
+capitalised entry. Since the tables of 2026.10.24, `roma`, `marco`, `napoli`, `francesco`, `maria`,
+`gesù`, `luigi`, `adam`, `assunta`, `palestina`, `bellini`, `reich` and the initialisms `mm`, `cd`,
+`ps`, `ac`, `tar`, `cup` take none; `svizzera` (A2), `alzheimer` (C1), `pc` (A2) and `pg` (B2) keep one,
+glossed as nouns by it-fr. Before it, from a lowercase entry: `roma` (« a type of rice »), `marco` (the mark),
 `napoli` (« Neapolitan ») and `francesco` (« French ») A1, `luigi` (the louis d'or), `svizzera` (a
 hamburger), `brasile` (brazilwood) and `matteo` (« alternative form of matto ») A2. From a capitalised
 entry — 59 levelled lemmas take their only senses that are no name's from one, words written in

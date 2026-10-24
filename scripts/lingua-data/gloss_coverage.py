@@ -20,7 +20,7 @@ it fails under the pair's floor — the share each of the three tops must reach,
 `--floor` given (add-lingua-pack-es-en D6: es-en is held to es-fr's published figures by the reduce
 job, before it ships and is published; add-lingua-pack-en-es D3: en-es to a floor the owner sets;
 add-lingua-pack-fr-en D4: fr-en likewise; add-lingua-pack-fr-es D8: fr-es, fixed before it was
-measured).
+measured; add-lingua-pack-it-fr D7: it-fr, the same way).
 """
 
 from __future__ import annotations
@@ -54,11 +54,16 @@ TOPS = (5_000, 10_000, 20_000)
 # 70.8 / 56.5 %, the programme's) less two points — settled by the owner on 2026-10-09, before the
 # measurement whose tables are committed (task 0.1). Never lowered after a measurement: fr-es's first
 # update measured under it commits no tables, and no package lists fr-es.
+# it-fr (add-lingua-pack-it-fr D7, the programme's M6): the same rule, the study's figures on change 9's
+# committed ranks with both fallbacks and D4's and D5's readings of the section (89.2 / 81.8 / 73.3 %,
+# reduced from the proposal-time copies of the sources, 2026-10-24) less two points — proposed; the owner
+# settles it (task 0.1) before the measurement whose tables are committed, never lowered after it.
 FLOORS = {
     "es-en": (87.6, 77.2, 63.7),
     "en-es": (91.4, 83.2, 69.9),
     "fr-en": (91.9, 85.1, 74.4),
     "fr-es": (81.4, 68.8, 54.5),
+    "it-fr": (87.2, 79.8, 71.3),
 }
 
 

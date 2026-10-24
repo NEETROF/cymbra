@@ -2688,8 +2688,9 @@ fn spec_scenario_a_layer_and_its_base() {
 // Italian's readings (add-lingua-italian-grammar-tables, change 13) are `tables/it/grammar.tsv`, and
 // `tags.tsv` is their pinned pool, written by hand once from the first reduction's readings (D8).
 // Italian's acronym rows (keep-lingua-italian-acronyms-and-names, change 11) are forms in capitals
-// that are their own lemmas, and its dictionary words until change 16 glosses it-fr. Italian's levels
-// (add-lingua-italian-levels, change 14) are `tables/it/level.tsv`, estimated as French's are.
+// that are their own lemmas, and dictionary words beside the lemmas it-fr glosses since change 16
+// (add-lingua-pack-it-fr, the update of 2026.10.24). Italian's levels (add-lingua-italian-levels,
+// change 14) are `tables/it/level.tsv`, estimated as French's are, given to the dictionary words.
 
 /// Italian's acronym rows as `tables/it/forms.tsv` holds them (keep-lingua-italian-acronyms-and-names
 /// D2): the forms holding a capital, each its own lemma.
@@ -2718,10 +2719,11 @@ fn it_fr() -> &'static (Vec<u8>, SplitPack) {
 fn spec_scenario_the_reference_and_the_pipeline() {
     // tables/it/studied.json names it-fr; tags.tsv holds the readings' tags, change 13's pool
     // (add-lingua-italian-grammar-tables D8), which replaced change 9's one canonical tag;
-    // lexical.tsv holds change 11's acronym rows alone until change 16's dictionary words
-    // (keep-lingua-italian-acronyms-and-names D6); level.tsv holds change 14's estimated levels
+    // lexical.tsv holds Italian's dictionary words — it-fr's glossed lemmas less those it glosses by a
+    // proper noun's senses alone — and change 11's acronym rows (add-lingua-pack-it-fr D5,
+    // keep-lingua-italian-acronyms-and-names D6); level.tsv holds change 14's estimated levels
     // (add-lingua-italian-levels), which the manifest says are estimated; the pack builds whole and
-    // in parts to its pin; no package lists it-fr.
+    // in parts to its pin; no package lists it-fr (change 20 lists it).
     let it = tables().join("it");
     assert_eq!(json(&it.join(STUDIED_RECORD))["reference"], "it-fr");
     let pin = std::fs::read_to_string(it.join("tags.tsv")).unwrap();
@@ -2750,13 +2752,48 @@ fn spec_scenario_the_reference_and_the_pipeline() {
             "tags.tsv"
         ]
     );
-    assert_eq!(
-        std::fs::read_to_string(it.join("lexical.tsv")).unwrap(),
-        "NATO\nUSA\n"
-    );
     let dir = tables().join("it-fr");
+    let glossed = tsv(&dir.join("gloss.tsv"));
+    let senses = tsv(&dir.join("senses.tsv"));
+    assert!(senses.keys().eq(glossed.keys()), "senses.tsv's lemmas");
+    let names: BTreeSet<&String> = senses
+        .iter()
+        .filter(|(_, runs)| runs.split('\t').all(|run| run.starts_with("PROPN:")))
+        .map(|(lemma, _)| lemma)
+        .collect();
+    let mut expected: BTreeSet<String> = glossed
+        .keys()
+        .filter(|lemma| !names.contains(lemma))
+        .cloned()
+        .collect();
+    expected.extend(italian_acronyms());
+    assert_eq!(
+        std::fs::read_to_string(it.join("lexical.tsv"))
+            .unwrap()
+            .lines()
+            .map(str::to_owned)
+            .collect::<Vec<_>>(),
+        expected.into_iter().collect::<Vec<_>>(),
+        "Italian's dictionary words: it-fr's glossed lemmas less its names, plus the rows"
+    );
+    // Every glossed lemma is ranked, but the acronym rows (add-lingua-pack-it-fr D10), as fr-en's.
+    let ranked = tsv(&it.join("freq.tsv"));
+    let rows = italian_acronyms();
+    assert!(
+        glossed
+            .keys()
+            .all(|l| ranked.contains_key(l) || rows.contains(l)),
+        "an unranked lemma glossed"
+    );
     let held = files(&dir);
-    for file in ["NOTICE", "gloss.tsv", "manifest.json", "pin.json"] {
+    for file in [
+        "NOTICE",
+        "gloss.tsv",
+        "manifest.json",
+        "mwe.tsv",
+        "pin.json",
+        "senses.tsv",
+    ] {
         assert!(held.iter().any(|f| f == file), "it-fr/{file}");
     }
     assert!(
@@ -2765,12 +2802,14 @@ fn spec_scenario_the_reference_and_the_pipeline() {
             "README.md",
             "gloss.tsv",
             "manifest.json",
-            "pin.json"
+            "mwe.tsv",
+            "pin.json",
+            "senses.tsv"
         ]
         .contains(&f.as_str())),
         "it-fr/ holds {held:?}"
     );
-    assert_eq!(std::fs::read_to_string(dir.join("gloss.tsv")).unwrap(), "");
+    assert!(glossed.len() > 30_000, "{} glosses", glossed.len());
     let manifest = json(&dir.join("manifest.json"));
     assert_eq!(manifest["meta"]["studied"], "it");
     assert_eq!(manifest["meta"]["native"], "fr");
@@ -2787,12 +2826,20 @@ fn spec_scenario_the_reference_and_the_pipeline() {
         serde_json::json!([
             "reduce-it-fr.py",
             "reduce_common.py",
+            "reduce_edition_fr.py",
             "reduce_italian_acronyms.py",
             "reduce_italian_treebank.py"
         ])
     );
     let sources = pin["sources"].as_object().unwrap();
-    for name in ["kaikki-en", "markit-dev", "markit-train", "wordfreq"] {
+    for name in [
+        "kaikki-en",
+        "kaikki-fr",
+        "kaikki-it",
+        "markit-dev",
+        "markit-train",
+        "wordfreq",
+    ] {
         assert!(sources.contains_key(name), "pin.json records {name}");
     }
     assert!(
@@ -2807,12 +2854,26 @@ fn spec_scenario_the_reference_and_the_pipeline() {
         english.keys().map(String::as_str).collect::<Vec<_>>(),
         ["kaikki-Italian.jsonl"]
     );
+    // it-fr's glosses (add-lingua-pack-it-fr D3): the French Wiktionary's Italian section and its
+    // Italian translations, the Italian Wiktionary's French translations.
+    let french = sources["kaikki-fr"]["files"].as_object().unwrap();
+    assert_eq!(
+        french.keys().map(String::as_str).collect::<BTreeSet<_>>(),
+        BTreeSet::from(["kaikki-fr-Italien.jsonl", "kaikki-fr-traductions-it.jsonl"])
+    );
+    let italian = sources["kaikki-it"]["files"].as_object().unwrap();
+    assert_eq!(
+        italian.keys().map(String::as_str).collect::<Vec<_>>(),
+        ["kaikki-it-traductions-fr.jsonl"]
+    );
     let notice = std::fs::read_to_string(dir.join("NOTICE")).unwrap();
     for credit in [
         "enwiktionary",
         "Italian section",
         "wordfreq",
         "UD Italian-MarkIT",
+        "frwiktionary",
+        "itwiktionary",
     ] {
         assert!(notice.contains(credit), "it-fr/NOTICE names {credit:?}");
     }
@@ -2834,15 +2895,47 @@ fn spec_scenario_the_reference_and_the_pipeline() {
     let pack = Pack::load(whole).unwrap();
     assert_eq!(pack.pair().key(), "it-fr");
     // The vocabulary estimate counts the ranked lemmas that are dictionary words or levelled
-    // (`Pack::dictionary_words`): the rows have no rank, so until change 16's dictionary words it
-    // counts Italian's levelled lemmas alone (add-lingua-italian-levels).
+    // (`Pack::dictionary_words`): every levelled lemma is a dictionary word (add-lingua-pack-it-fr
+    // D5), and the rows have no rank, so it counts Italian's ranked dictionary words.
     let counted: BTreeSet<&str> = pack
         .dictionary_words()
         .into_iter()
         .map(|(lemma, _)| lemma)
         .collect();
+    let ranks = tsv(&tables().join("it/freq.tsv"));
+    let words = dictionary_words_of("it");
+    let ranked_words: BTreeSet<&str> = words
+        .iter()
+        .filter(|word| ranks.contains_key(*word))
+        .map(String::as_str)
+        .collect();
+    assert_eq!(counted, ranked_words);
+}
+
+#[test]
+fn every_italian_levelled_lemma_is_a_dictionary_word() {
+    // add-lingua-pack-it-fr D5: Italian's estimated levels go to its dictionary words alone
+    // (*Italian's estimated levels*): the names change 14 levelled through a sense of another part
+    // of speech, or from a capitalised entry, take none once it-fr glosses them by a name alone.
     let levels = tsv(&tables().join("it/level.tsv"));
-    assert_eq!(counted, levels.keys().map(String::as_str).collect());
+    let words: BTreeSet<String> = dictionary_words_of("it").into_iter().collect();
+    assert_eq!(levels.len(), 8_302);
+    let stray: Vec<&String> = levels.keys().filter(|l| !words.contains(*l)).collect();
+    assert!(stray.is_empty(), "levelled, no dictionary word: {stray:?}");
+    for name in [
+        "roma",
+        "marco",
+        "napoli",
+        "francesco",
+        "maria",
+        "gesù",
+        "palestina",
+        "mm",
+        "cd",
+    ] {
+        assert!(!levels.contains_key(name), "{name} levelled");
+        assert!(!words.contains(name), "{name} a dictionary word");
+    }
 }
 
 #[test]
@@ -2883,9 +2976,12 @@ fn spec_scenario_italian_s_acronym_rows() {
         assert_eq!(pack.rank(row), None, "{row}");
         assert_eq!(pack.level(row), None, "{row}");
         assert!(pack.is_dictionary_word(row), "{row}");
-        // Unglossed until change 16 (D3, D6): the card shows the acronym alone.
-        assert_eq!(pack.gloss(row), None, "{row}");
     }
+    // Glossed through the row's synonyms (D3; add-lingua-pack-it-fr D5): `USA` joins `america`'s
+    // first sense and `Stati Uniti`'s, a proper noun's entry; `NATO`, which names neither, none —
+    // the card shows the acronym alone.
+    assert_eq!(pack.gloss("USA"), Some("Amérique (continent); États-Unis"));
+    assert_eq!(pack.gloss("NATO"), None);
     assert_eq!(lexicon.lemma_of("nato"), Some("nascere"));
     assert_eq!(lexicon.lemma_of("usa"), Some("uso"));
     assert!(pack.rank("nascere").is_some());
@@ -3020,18 +3116,37 @@ fn spec_scenario_italian_s_pin_is_the_readings_tags() {
 #[test]
 fn spec_scenario_the_base_s_pool() {
     // add-lingua-italian-grammar-tables D8: it-fr's base lays its tag pool out as the pin, then the
-    // readings' tags outside it — none —, and holds nothing of a pair's senses: the whole pack's pool
-    // and the base's are the pin, and the layer carries no sense tag (it-fr glosses nothing yet).
+    // readings' tags outside it — none —, and holds nothing of a pair's senses: the base's pool is the
+    // pin; the whole pack's is the pin followed by the tags only it-fr's sense runs carry, which its
+    // layer holds (split-lingua-pack-format).
     let pin = std::fs::read_to_string(tables().join("it/tags.tsv")).unwrap();
     let pin: Vec<&str> = pin.lines().collect();
     let (whole, split) = it_fr();
-    for (part, bytes) in [("whole", whole), ("base", &split.base)] {
+    let pool_of = |bytes: &[u8], part: &str| -> Vec<String> {
         let parts = sections(bytes);
         let pool = section_of(&parts, section::TAGS).unwrap_or_else(|| panic!("{part}: a pool"));
-        let pool: Vec<&str> = std::str::from_utf8(pool).unwrap().split('\n').collect();
-        assert_eq!(pool, pin, "it-fr's {part} pool");
-    }
-    assert!(section_of(&sections(&split.layer), section::SENSES_TAGS).is_none());
+        std::str::from_utf8(pool)
+            .unwrap()
+            .split('\n')
+            .map(str::to_owned)
+            .collect()
+    };
+    assert_eq!(pool_of(&split.base, "base"), pin, "it-fr's base pool");
+    let whole_pool = pool_of(whole, "whole");
+    assert_eq!(
+        whole_pool[..pin.len()],
+        pin[..],
+        "it-fr's whole pool opens on the pin"
+    );
+    let layer_parts = sections(&split.layer);
+    let layer = section_of(&layer_parts, section::SENSES_TAGS).expect("the layer's sense tags");
+    let layer: Vec<&str> = std::str::from_utf8(layer).unwrap().split('\n').collect();
+    assert_eq!(
+        whole_pool[pin.len()..],
+        layer[..],
+        "then the layer's sense tags"
+    );
+    assert!(layer.iter().all(|tag| !pin.contains(tag)));
 }
 
 #[test]

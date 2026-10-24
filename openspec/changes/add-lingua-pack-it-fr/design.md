@@ -94,7 +94,9 @@ writes about 0.77 GB more for the Italian section.
 
 kaikki files some French definitions as links: the gloss « Du. » of `del` becomes a form of « Du ».
 A sense tagged `form-of` is a gloss when every target is a word no Italian entry of the section heads
-— by its exact spelling, whatever its case — and the French edition's form-of pattern (`FR.form_of`,
+— by its exact spelling, whatever its case; an entry heads its word only by a meaning, a sense that
+is no pointer (the review of the implementation: `toi`, whose entry is *togliere*'s form alone, heads
+no word, so `te`'s « Toi : pronom disjoint… » glosses `te`) — and the French edition's form-of pattern (`FR.form_of`,
 `_FORM_OF` in `reduce_edition_fr.py`: « Pluriel de… », « Première personne… ») does not read its text
 as an inflection; `_is_form_of` is not that test (it is true of every sense tagged form-of). Measured
 with the exact-spelling test: 34 senses with a capitalised target (`del` « Du. … », `al` « Au. »,
@@ -165,7 +167,10 @@ many species names: « pinguino del fiordland ») —, a typographic apostrophe 
 headwords write ’: `essere d'accordo`, `l'altro ieri`, `uomo d'affari`, lost to an ASCII pattern);
 then those the translation tables gloss (`fallback_expressions`: 7,411, `meccanica quantica`, `un
 po'` « Un peu »), as es-fr's D4 includes them; and the words without a space that change 6's
-pre-pass splits into two tokens or more, from the section (`all'improvviso`, `c’è`) and from the
+pre-pass splits into two tokens or more, beginning with an elided piece — an articulated preposition
+written whole excepted (`alla`, `nel`: its pieces are a preposition and an article, and offered alone
+it would answer every « alla » with « à la », change 12's D2) —, from the section (`all'improvviso`,
+`c’è`) and from the
 translation tables (`d'accordo` « d’accord », `senz'altro`, which `fallback_expressions` skips for
 having no space), read by it-fr's own reader as fr-en's translated expressions read a word the
 tokenisation splits alone. Each is keyed at build by change 12's rules;
@@ -241,10 +246,13 @@ the section does not gloss (`web`, `team`); `della` linked to `la`; the usage no
 `del`'s gloss; the lemmas left without a gloss by D5's pre-pass, and so without a level; `marco`
 glossed « Marc » alone (a first name), so no dictionary word; `te`, cleared of its province by D5,
 glossed « Te » read backwards from the French entry « te », a letter's name (fr-es's rule that a
-letter glosses no word in either table would stop it); 27 top-20,000 fallback glosses repeating a
-word across parts of speech (« Décade; Décade », `beige`), which fr-es's listed-once rule fixes;
-327 rows of the 20,000 still holding a name beside their common senses, about 268 of them noise
-(`vita` and `ora` « …, commune d'Italie », `era` « Héra », `qui` and `qua` « Riri » and « Loulou »,
+letter glosses no word in either table would stop it) — fixed at implementation, after the review:
+an entry heads its word only by a meaning, so `te` reads « Toi : pronom disjoint… » (D4); 27
+top-20,000 fallback glosses repeating a word across parts of speech (« Décade; Décade », `beige`),
+which fr-es's listed-once rule fixes — fixed at implementation for a sense repeated up to case
+(*The review's fixes*); 327 rows of the 20,000 still holding a name beside their common senses, about
+268 of them noise (`vita` and `ora` « …, commune d'Italie » — fixed at implementation, a commune's note
+being a name's —, `era` « Héra », `qui` and `qua` « Riri » and « Loulou »,
 `regina` « Régine », constellations) — the measured candidate fix, a name spelled exactly as the word
 carrying no translation, would also lose `riga`, `congo`, `risorgimento`, `pinocchio`, `panama`,
 `trani` and `lugo`; `renato` and `nasa` left with no gloss (`nasa` better as a row of change 11's
@@ -271,3 +279,203 @@ by the update workflow's pull request; rollback is a revert with the golden's.
 through the shared rules, D4 and the fallbacks 1–1.5; dictionary words, acronym glosses, levels
 0.5; expressions 0.5; the floor, the coverage and the README 0.5; the baseline's hand-over and the
 checks 0.5–1.
+
+## Implementation — what ships, what departs, and the predicted figures (2026-10-24)
+
+Implemented on `main` after changes 5 to 15 and 11a (analyser `1.4.0`) and change 12. The pull request
+holds the reducer, the sources' registration, the floor and the checks; **it-fr's tables are not in
+it**: they arrive with the owner's dispatch (task 3.1, mode `update`, `keep: en`), which publishes a new
+sources release. Every figure below is therefore **predicted** — reduced locally on the proposal-time
+copies of the French Wiktionary's Italian section (kaikki's own extract, 1,047 MB, laid out
+differently from the 769,483,152 B the dump derives) and of the two translation files — and
+re-measured after the dispatch. The review of the implementation reduced the same rules from the
+dumps served on 2026-10-24 (the French one regenerated 2026-10-23) and obtained the same tables byte
+for byte, so a dispatch on those dumps writes what is predicted here.
+
+**Committed (2026-10-24).** The owner settled the floor at 87.2 / 79.8 / 71.3 and approved the update:
+`lingua-pack-update` run 40130354122 (mode `update`, `keep: en`), the release
+`lingua-pack-sources-it-fr-2026.10.24`, the commit `40aafd84f`. Its tables are the prediction byte for
+byte — the pack `0e6795d9…` (2,645,342 B), its base `f8c78228…`, its layer `0927f745…`; coverage
+89.2 / 81.8 / 73.3 —, so every figure below, measured again on the committed tables (change 12's
+D10 figures, the names count, the golden's diff), stands as measured. UD Italian-PUD reads 99.26 /
+91.31 / 99.90 on them, as on the tables before: the glosses move no lemma.
+
+**Main reproduced first.** Reduced again locally from it-fr's pinned release assets (Python 3.12,
+`requirements-reduce.txt`), `main`'s reducer gives `main`'s committed `tables/it/` and `tables/it-fr/`
+byte for byte. This change's reducer, over the same English section and the local French and Italian
+files, leaves `tables/it/{forms,freq,grammar,tags}.tsv` byte for byte and moves `lexical.tsv` and
+`level.tsv` alone; no table, pin or golden of the six other pairs moves.
+
+### What departs from D1–D10, or settles what they leave open
+
+- **D1, step by step.** The native side is called as fr-es's is (`native_side`): the shared
+  `reduce_gloss`, `reduce_expressions` and `fallback_glosses` one source at a time, so that the lemmas
+  each source glosses are kept for the report; a test holds its tables equal to
+  `reduce_common.native_tables`'. Neither shared module is edited.
+- **D2, Italian for the shared rules.** `IT = common.Studied(...)`: change 9's token pattern, and as
+  coordinators the conjunctions UD Italian-MarkIT's training and development sections tag CCONJ at
+  least twice, CCONJ the commonest of their tags (`e`, `ed`, `o`, `ma`, `sia`, `oppure`, `né`, `cioè`,
+  `ovvero`, `ossia`, `nonché`, `bensì`) — a `conj` entry's run is CCONJ when its word is one. The
+  French tables read backwards are ordered by wordfreq `fr` (`reduce(native_frequency=…)`), as es-fr's.
+- **D4, as implemented** (`section_as_read`, `SectionReading`): letters are left out first, as es-fr's
+  are; « no other glossed sense » counts a meaning of the word's own, a proper noun's sense D5 keeps
+  and a link to a capitalised word D4 reads as a gloss. Measured: **34** links to a capitalised word
+  read as glosses (D4's 34), **42** to a lowercase word, **9** lowercase links left forms beside
+  another gloss (42 + 9 = D4's 51). On change 9's committed ranks six lemmas gain a gloss (`ad` « À,
+  dans sa forme euphonique », `degli`, `coloro` « Celles et ceux », `der`, `ar`, `pegli`) and six
+  change it (`del` « Du. … » where the tables gave one, `delle`, `cogli`, `motociclista`, `accusatore`,
+  `caco`); coverage +0.1 point. **Since the review, an entry heads its word only by a meaning**: `toi`,
+  whose entry is *togliere*'s form alone, heads none, so `te`'s « Toi : pronom disjoint… » glosses `te`
+  (it was « Te », a letter's French name read backwards); and the pointer wordings `FR.form_of` misses
+  — « Agglutination de/du… » (a clitic compound: 104,895 senses link the pronoun `gli`, whose entries
+  are forms alone), « Forme pronominale de… », « Ancienne orthographe de… », « Seconde personne… » —
+  are inflections too (`_POINTER_WORDING`): 33 capitalised and 36 lowercase links read as glosses, 11
+  left forms. `li` is no ranked lemma of change 9's (a form of *lo*).
+- **D5, as implemented.** « An acronym's sense » is a sense of an entry whose headword the shared
+  rules read as an acronym (written in capitals, `TE`, `LI`, `SO`) or a sense opening « Abréviation
+  de », « Sigle de », « Acronyme de » (`A` « Abréviation de Azione… », kept off `a`). A name's note is
+  read after the headword repeated too (« Del, hameau de Saint-Denis », off `del`), and since the review
+  a commune's note is one (« Ora, commune d’Italie… », « Commune, commune d’Italie… »). « A lowercase entry
+  of its own » is an entry headed in lowercase that is no proper noun's, of whatever senses. Measured:
+  3,884 name notes and 83 acronym senses set aside, 3,883 entries left with no sense (dropped). On the
+  20,000 commonest: of the 1,058 rows mixing a name with a common sense, 324 still hold one (D5's 327);
+  of the 2,039 rows glossed by a name alone without the rule — nearly all real names (`italia`, `roma`)
+  —, 64 change: 49 gain a real gloss (`te`, `migliore`, `tratta`, `piani`, `fiori`), 1 keeps a name
+  (`cassino`), 14 end with none (`terzi`, `renato`, `napolitano`, `baffi`, `bassano`, `coppe`, `ge`,
+  `calvino`, `paro`, `sperduto`, `pilato`, `ventola`, `ghe`, `ze`); coverage moves by under 0.1 point.
+  `soldi`, `so`, `fatta`, `bianca` and `li`, which the design names, are no ranked lemmas of change 9's
+  committed tables (forms of *soldo*, *sapere*, *fare*, *bianco*, *lo*): they gloss nothing either way.
+- **D5, the acronym rows.** `acronym_glosses` passes change 11's `acronym_gloss` the pair's glosses
+  and expressions, a row word the pair does not gloss read from its entry in the section whatever its
+  part of speech (`section_words`): `USA` « Amérique (continent); États-Unis », one `PROPN` run of 2;
+  `NATO` none.
+- **D6, which single words are expressions.** A word without a space is offered when it is an Italian
+  token beginning with an elided piece (`_ELIDED_START`) and no form: `all'improvviso`, `c'è`,
+  `d'accordo`, `senz'altro`, `mezz'ora`. An articulated preposition written whole (`alla`, `nel`),
+  which the pre-pass splits too, is not: its pieces are a preposition and an article, and offered alone
+  it would answer every « alla » with « à la » (change 12's D2). Predicted: **22** from the section and
+  **53** from the tables (change 12 counted 77 such words in the English section).
+- **D8, the report.** The reduction writes `measures.json` beside its tables — en-es's and fr-es's shape
+  (`top`, `glossed`, `share`, `direct`, `inverted`), which `pack_report.py --measures` shows in the
+  update's report, plus `coverage`, `by source` and `sample`: 100 glossed lemmas of the 20,000
+  commonest drawn by a fixed seed (`SAMPLE_SEED`), each with its rank, source and gloss — and prints
+  them. `pack_sources.py split` files it nowhere and no pack stores it. `tables/it-fr/README.md` and the
+  programme's *Measured figures* record the dispatch's figures (task 3.1), not these.
+- **D8, the credits.** The NOTICE adds the French Wiktionary's Italian section and translation tables
+  and the Italian Wiktionary, with their licences' addresses; the manifest's kaikki licence names
+  `enwiktionary, frwiktionary, itwiktionary`.
+- **D9 and D10, after the dispatch.** Tasks 4.1 and 4.2 need the committed tables: done on a scratch
+  copy of the predicted tables and reverted (below); they land when the dispatch's branch is
+  fast-forwarded and the golden re-blessed. Until then the Italian baseline keeps its fixture, and
+  `test_gloss_coverage.py` holds the committed tables to the floor once `gloss.tsv` is not empty.
+
+### The review's fixes (2026-10-24), each measured alone
+
+Before the dispatch, the review asked for it-fr-only fixes to its pre-pass — never the shared modules,
+so that no other pair moves —, each criterion written before its outcome was counted. Each fix's
+effect is the reduction with that fix off against all on, over the same local sources:
+
+| Fix | Criterion | Glosses moved (of the 20,000) | Examples |
+|---|---|---|---|
+| D4: headed by a meaning, compounds' wordings | above | 2 (2): 1 changed, 1 gained | `te` « Toi : pronom disjoint… », `pel` « Pour le » |
+| Leaks (`read_sense`) | an example filed as a sense (`#*`, `#:`, « La traduction en français de l’exemple manque ») or a link's address goes; a colour's hexadecimal codes are taken out; a head line merged into a sense (its transcription between backslashes) gives the meaning after its last « * », or goes | 32 (23) changed; 198 expressions | `io`, `stesso` « Même; Le même », `età`, `signore` « Monsieur », `bianco`, `verde`, `sedere` « Derrière; Asseoir », `natale`, `caffè` |
+| Communes (D5) | « commune d' / commune de » is a name's note, after the headword or « Commune, » | 151 (108): 144 changed, 7 lost (names alone: `pella`, `vaglia`, `trino`); 13 of the 1,000 | `ora` « Heure; Maintenant; Or », `vita` « Vie », `lei`, `paese`, `mese`, `sale`, `cento`; `terra`, `luna`, `cristo` keep their names |
+| Letters written bare (`LETTER_NAMES`) | a noun sense that is only the French name of the Greek or Cyrillic letter its word also is, from a word holding a common word's meaning in another sense | 4 (4) changed | `ci`, `ce`, `chi` (the pronouns alone), `gamma` « Gamme »; `nu`, `psi`, `pi`, `ro`, `rho` keep their letter |
+| Repeated senses (`without_repeated_senses`) | a sense equal to an earlier one of the word up to case, composition and its closing period goes, its run shortened | 87 (39) changed | `italiano` « Italien », `passato` « Passé », `diritto`, `franco`, `beige`, `bordato` |
+
+Two criteria were narrowed after a first count, and the narrowing is recorded: D4's « headed by a
+meaning » alone unblocked 107,226 compounds' links (« Agglutination du verbe… avec le pronom gli »), so
+the compounds' wordings were read as inflections; and the letters' « other meaning » first counted a
+province's acronym or a commune, which took the letter from `nu`, `psi`, `pi`, `ro` and `rho`, so it
+counts a common word's meaning alone. None of the fixes moves the coverage at one decimal.
+
+### The study (task 0.1, for the owner)
+
+On change 9's committed ranks (`tables/it/freq.tsv`), D4 and D5 on, letters out, the shared rules
+unedited, `gloss_coverage.measure`'s count:
+
+| Sources | 5,000 | 10,000 | 20,000 |
+|---|---|---|---|
+| The section's definitions alone | 87.6 | 79.5 | 70.5 |
+| + the Italian Wiktionary's French translations | 88.0 | 80.0 | 71.0 |
+| + the French tables read backwards (both fallbacks) | **89.2** | **81.8** | **73.3** |
+| **Proposed floor** (less two points) | **87.2** | **79.8** | **71.3** |
+
+The same figures before and after the review's fixes. 558 lemmas of the 20,000 are glossed by a
+fallback (108 direct, 450 read backwards); reading the tables in the other order moves 33 of them,
+none in or out (D2's 585 and 38 on its ranking). Before the fixes, D5 off: 89.2 / 81.9 / 73.3; D4 off:
+89.1 / 81.8 / 73.2. The proposed floor is written into the requirement and held by
+`test_gloss_coverage.py`; the owner settles it before the dispatch's measurement.
+
+### Predicted dispatch output
+
+`tables/it-fr/`: `gloss.tsv` 32,691 rows — 31,006 from the section, 279 from the Italian Wiktionary,
+1,405 read backwards, the `USA` row; 94.8 % from a definition; 2.8 % of the glossed 10,000 commonest
+from a table —, `senses.tsv` as many, `mwe.tsv` 18,296 (10,704 of the section with a space, 7,517 of
+the tables, 22 + 53 split words), `NOTICE`, `manifest.json` (`pack_version` the snapshot), `pin.json`
+(the English record kept, a French and an Italian record under the new release); `tables/it/`:
+`lexical.tsv` 24,216 dictionary words (8,476 glossed lemmas are names alone — change 11's names
+count), `level.tsv` 8,302 levels, **578 lemmas leaving (458 unglossed, 120 names alone) and 578
+joining**, 1,162 changing band. Of the
+1,425 commonest, 102 are no dictionary word (49 unglossed — `facebook`, `ok`, `web`, `post`, `club` —,
+53 glossed by a name alone — `italia`, `roma`, `milano`); D5's 52 was measured on a ranking that drops
+the names change 9 ranks. The pack 2,645,342 B (base 1,551,534 B, sha256 `f8c78228…`; layer 1,094,048
+B), under the 5 MiB budget: built with `pack_version` `2026.10.24`, so a dispatch on another day moves
+the whole pack's and the layer's sha256, never the base's. Of the names and initialisms change 14 levelled, `roma`, `marco`, `napoli`, `francesco`,
+`maria`, `gesù`, `luigi`, `adam`, `assunta`, `palestina`, `bellini`, `reich`, `mm`, `cd`, `ps`, `ac`,
+`tar` and `cup` leave the levels; `svizzera` (A2, a noun « Suisse »), `alzheimer` (C1, a noun), `pc`
+(A2, « PC, ordi personnel ») and `pg` (B2, « Abréviation de personaggio giocante », a noun's lowercase
+entry) stay, glossed as words; `bibbia`, `rinascimento` and `corano` leave too, glossed by a proper
+noun alone (change 17's list).
+
+### Change 12's D10 figures, re-measured (task 3.2: predicted; re-measured after the dispatch)
+
+The real builder over the predicted tables, as change 12's measurement read its candidates: 18,296
+headwords, **14,776 keyed**, 3,520 left out (a word the pack does not hold, or past seven tokens);
+by tokens 2: 9,976, 3: 6,057, 4: 1,376, 5: 488, 6: 240, 7: 76, beyond seven 61; of the 75 words
+without a space, 62 keyed. D2: 1,750 hold a determiner the key writes, 1,039 keys differ from the
+every-token-lemmatised one. D4: 4,677 headwords named; 140 keys several headwords reach (14,634 keys);
+`expr.names.zst` 45,560 B, `expr.others` 1,140 B. D5: 157 keys end on `di` (70 on `a`, 13 on `da`, 13
+on `su`, 7 on `con`); over change 11a's corpus (1,011,235 blocks), 296,509 matches and **3,000 `di`
+retries on 91 expressions** (`avere bisogno di` 564, `a causa di` 561, `alla fine di` 233, `servirsi di`
+203, `nel corso di` 197), against change 12's 3,129 on 76 — counted, not labelled. D6: 689 headwords
+hold an elision, 7 a truncation, 820 an articulated preposition. The review's fixes move none of these:
+they change senses, not headwords.
+
+**The predicted golden** (tasks 4.1, 4.2, on a scratch copy of the predicted tables, reverted; the
+checks are committed on the side branch `impl/add-lingua-pack-it-fr-task4`, to apply after the
+dispatch): 150 of the 176 sections of `it-fr.golden` move (phrase-gloss 49, gloss 40, word-grammar 31,
+analyse 17 — 205 of 1,403 tokens change lemma, the real forms replacing the fixture's —, the pack
+line, the vocabulary estimate's universe 121 → 24,214, the ladder's bands); the fixes move 27 of them
+against the first prediction (`sale` and `vita` lose their communes). Four of the fixture's checks
+change: `Lo` read *lo*, `città` « Cité, ville », and six names of the nomi page read as words of the
+pack — `Rossi` *rosso*, `Bianchi` *bianco*, `Conti` *conto*, `Bari` *barare*, `Esposito`, `Ferrari` —, a
+known defect for change 17. The six other baselines and `cross_native` pass unblessed on it.
+
+### Known data defects, for change 17
+
+Left for change 17 by the review of the implementation (its examples and counts), beside the
+design's list:
+- **the wrong sense first, by the entries' order**: `gente`, `fino`, `fra`, `spesso`, `pure`, `spezie`,
+  `loro` — the round-robin opens on the first entry's sense, not the commonest one;
+- **participles borrowing their infinitive's gloss**: `assicurato`, `avvolto` — a form-of sense in the
+  same part of speech lends the verb's senses;
+- **pointers that are no `form_of`**: `lettere`, `signor` (« Variante de signore », an `alt_of`), about
+  18 lemmas of the 20,000 left unglossed;
+- **a name's sense blocking a common word**: `rose`, `panni`, `gemelli`;
+- **names losing their level**: `bibbia`, `rinascimento`, `corano`, glossed by a proper noun alone, so
+  no dictionary word;
+- **`che` « Quoi; Quel »**, with no « Que »;
+- **the inherited leaks of the other French-glossed pairs**: es-fr and en-fr carry the same kinds of
+  example, head-line and colour-code leaks it-fr's pre-pass now reads; the shared rules are not edited
+  here, so that no other pair moves.
+
+Seen in the predicted tables besides: an example the section splits into senses with no marker
+(`volere` « …; Il faut dix heures pour aller à Brindisi; Ci vuole un uovo per la torta; … »; `merli`
+« murailles d'une forteresse » followed by its Italian); split words that are no Italian word, from the
+section (`d'n'b` « Drum and bass ») and the tables (`c'hwerty`, `l'wha`); a mythological name kept
+beside a pronoun (`io` « …; Io, fille d'Inachus… »), D5's rule keeping any proper noun's sense that is
+no note; surnames ranked by change 9 and glossed « Nom de famille » alone (`lexa`, `micheletto`),
+names, so no dictionary word; and the 458 unglossed lemmas that leave the levels (`entro`, `supporto`,
+`verifica`: no entry in the sources); commune notes the review's wording does not read (`vittoria`
+« …; Vittoria, commune et ville du libre consortium… », `ro` « …; Ro (commune italienne… »).
