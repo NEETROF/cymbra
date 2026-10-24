@@ -38,11 +38,13 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA app_updates
 REVOKE ALL ON SCHEMA public FROM "updates_svc";
 
 -- The ops role reads every schema from one connection; add `app_updates` to its
--- search_path (idempotent, WITHOUT touching the password). Adjust the role name
+-- search_path (idempotent, WITHOUT touching the password). This REPLACES the whole
+-- list, so it must stay equal to the admin_svc line of db/init/roles.sql.tpl —
+-- a list missing a schema (as this one once lacked `lingua`) silently removes it. Adjust the role name
 -- if your ops role is not `admin_svc`.
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'admin_svc') THEN
-    EXECUTE 'ALTER ROLE admin_svc SET search_path = auth, user_account, music, jobs, feature_flags, analytics, plans, app_updates, public';
+    EXECUTE 'ALTER ROLE admin_svc SET search_path = auth, user_account, music, jobs, feature_flags, analytics, plans, lingua, app_updates, public';
   END IF;
 END $$;
