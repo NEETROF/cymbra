@@ -223,7 +223,15 @@ jobs:
           test -f /usr/share/applications/cymbra-music.desktop
           test "$(stat -c %U /usr/lib/cymbra-music/cymbra-update-helper)" = root
           /usr/lib/cymbra-music/cymbra-update-helper --version
-          pkaction --action-id app.cymbra.music.update --verbose
+          # The polkit action, read from the file: pkaction needs a running polkitd.
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          a = ET.parse('/usr/share/polkit-1/actions/app.cymbra.music.update.policy').getroot().find('action')
+          assert a.get('id') == 'app.cymbra.music.update'
+          path = [x.text for x in a.findall('annotate') if x.get('key') == 'org.freedesktop.policykit.exec.path']
+          assert path == ['/usr/lib/cymbra-music/cymbra-update-helper'], path
+          print('polkit action ok:', a.get('id'), '->', path[0])
+          PY
           # Nothing of it may be writable by anyone but root.
           test -z "$(find /opt/cymbra-music /usr/lib/cymbra-music -perm /022 ! -type l)"
           # The glibc floor this build actually needs (design D10): 22.04 ships 2.35.
