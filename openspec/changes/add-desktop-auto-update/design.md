@@ -19,9 +19,16 @@ Constraints that shape the design:
   `path_provider`, `shared_preferences`, `package_info_plus`, `cymbra_flags`,
   and a platform seam at
   [app_platform.dart:52](../../../apps/music/lib/services/app_platform.dart:52).
-- **No Windows code-signing certificate**, by owner decision. That rules out
-  MSIX (it cannot be sideloaded without a trusted certificate) and means
-  SmartScreen will warn on the downloaded installer.
+- **Windows binaries must be signed.** The change was first written with no
+  certificate (owner decision, 2026-08). Revisited 2026-10-24: on Windows 11,
+  Smart App Control "will block execution of unsigned files unless the file has a
+  positive reputation", for every executable and with no per-app bypass — so an
+  unsigned installer, and every unsigned update the app installs, is simply
+  blocked where it is on. Microsoft Artifact Signing (~10 $/month, organizations
+  in the EU eligible) is the chosen source (decision 9).
+- **Linux users install packages.** The audience on Linux expects a `.deb`, not a
+  single-file AppImage; the owner chose the `.deb` with updates still driven from
+  the app (decision 5, revised 2026-10-24).
 - **CLAUDE.md gates**: ≥80 % line coverage both ecosystems, Riverpod+Freezed
   with dependencies as providers, no raw technical error strings in the UI.
 
@@ -44,9 +51,15 @@ Constraints that shape the design:
 - macOS, iOS, Android — store-managed, untouched.
 - Delta/differential updates (zsync, MSIX block-map). Full downloads for now;
   the manifest shape leaves room to add them.
-- `.deb` + APT repository, Flatpak, Snap. Rejected as more infrastructure for
-  the same outcome at the current scale.
-- A Windows code-signing certificate, and therefore MSIX / `.appinstaller`.
+- An APT repository, Flatpak, Snap, the Microsoft Store. An APT repository is
+  not needed once the app drives the update itself; the sandboxed formats block
+  raw MIDI access out of the box (Snap's `alsa` interface is
+  `deny-auto-connection`); the stores were weighed and declined by the owner.
+- MSIX / `.appinstaller`. Signing would make it possible, but the per-user Inno
+  installer already updates without elevation; nothing is gained by switching.
+- Distributions other than Debian/Ubuntu derivatives as packages. They keep the
+  tarball, which notifies but does not self-update; an `.rpm` follows only on
+  demand.
 - Silent updates without consent. The user always approves an install.
 - ARM64 desktop builds. The pipeline is x64-only today; the manifest is keyed by
   `os`+`arch` so adding one is additive.
@@ -117,7 +130,7 @@ The manifest itself:
   "notes_url": "https://github.com/NEETROF/cymbra/releases/tag/music-v1.25.0",
   "targets": {
     "windows-x64": { "kind": "inno-setup", "url": "https://…-setup.exe",  "size": 48123904, "sha256": "…" },
-    "linux-x64":   { "kind": "appimage",   "url": "https://….AppImage",   "size": 52428800, "sha256": "…" }
+    "linux-x64":   { "kind": "deb",        "url": "https://…_amd64.deb",   "size": 52428800, "sha256": "…" }
   }
 }
 ```
@@ -167,28 +180,57 @@ less code on Windows, but it covers Windows and macOS only, so Linux would need
 a hand-written path anyway; one shared architecture beats two half-architectures
 in a repo that gates on coverage.
 
-### 5. Linux: AppImage that replaces itself
+### 5. Linux: a `.deb` upgraded by a privileged helper the app cannot steer
 
-The AppImage runtime exports `$APPIMAGE` (the absolute path of the running file).
-The updater downloads the new AppImage **into the same directory** — same
-filesystem, so the swap is a single atomic `rename()` — `chmod 0755`, renames it
-over `$APPIMAGE`, then re-executes that path detached and exits.
+*Revised 2026-10-24 — replaces the self-replacing AppImage, which was implemented
+first.*
 
-Replacing a running executable by `rename()` is safe on Linux: the running
-process keeps the old inode open. (Overwriting in place is what fails, with
-`ETXTBSY`.)
+The package installs the Flutter bundle whole under `/opt/cymbra-music` (the
+embedder resolves `data/` and `lib/` relative to the executable), a launcher
+symlink, a desktop entry, an icon, a marker file `install_method.txt` = `deb`,
+and two update pieces owned by root:
 
-If `$APPIMAGE` is unset (tarball install, `flutter run`) or the directory is not
-writable (`/opt`, root-owned), the updater takes the notify-only path. It never
-escalates privileges.
+- `/usr/lib/cymbra-music/cymbra-update-helper`, a small Rust binary built from
+  `crates/update-manifest`, so it verifies with the **same code** as the backend
+  and the CI signer;
+- a polkit action whose `exec.path` annotation names exactly that helper, so the
+  system dialog says "Cymbra Music wants to install an update" instead of a
+  generic "run a program as administrator".
 
-*Alternatives considered.* `.deb` + self-hosted APT repo — apt would handle
-updates with no in-app code, but needs a GPG-signed repository, the user must add
-the source and have root, and the update UX leaves the product entirely.
-Self-hosted Flatpak — best desktop-integrated UX, heaviest infrastructure
-(ostree repo, build manifest) and the user must add a remote. Swapping the
-`tar.gz` directory in place — works only for user-writable installs and is not
-atomic mid-swap, so a crash leaves a broken installation.
+Update flow: the app verifies and downloads as on Windows, then runs
+`pkexec /usr/lib/cymbra-music/cymbra-update-helper <envelope> <package>` and the
+user types their password. The helper treats both files as **hostile input**:
+
+1. reads both into memory under size caps and writes the package into a fresh
+   root-owned directory — every later check runs on that private copy, so a
+   process of the user swapping the file after the password prompt changes
+   nothing;
+2. verifies the envelope against the trusted keys **compiled into the helper**
+   (never keys passed in by the caller), requires `product = music` and a
+   `linux-x64` target of kind `deb`;
+3. checks the copy's size and SHA-256 against that target;
+4. refuses anything not strictly newer than the installed package version;
+5. installs the copy with `apt-get install` (which resolves dependencies), then
+   deletes it.
+
+The app relaunches itself once the helper exits successfully. A dismissed
+password dialog (pkexec exit 126) is not an error: the offer stays available.
+
+Replacing files of a running program is safe here for the same reason as before:
+`dpkg` unpacks by rename, and the running process keeps its open inodes.
+
+*Why a helper and not `pkexec apt-get install <file>`.* The app runs as the
+user; whatever the user's account can write, malware running as the user can
+write too. If root installed a path the app handed over, typing the password
+would install whatever sits at that path at that moment — a privilege escalation
+dressed as an update. The helper closes that by verifying, as root, a private
+copy against keys the caller cannot supply.
+
+*Alternatives considered.* The AppImage self-swap (implemented first, then
+dropped: it does not match how Linux users install software, and needs FUSE on
+the host). An APT repository (no in-app update; the user must add a source). A
+per-user tarball that swaps its directory (not atomic; a crash mid-swap leaves a
+broken install).
 
 ### 6. Verify in a fixed order, and never downgrade
 
@@ -248,6 +290,34 @@ cause — never a raw error string on screen.
 single action, because the alternative is a client failing against the backend
 with errors the user cannot act on.
 
+### 9. Windows signing: Artifact Signing, before hashing
+
+The `windows` job signs `music.exe`, every bundled `.dll` and then the Inno
+installer (Inno's own uninstaller is signed through its `SignTool` directive),
+with Microsoft Artifact Signing through its GitHub Action, authenticated by a
+service principal held as repository secrets. Signing runs **before** the
+manifest job hashes the installer: a file signed after hashing no longer matches
+its manifest and every client would refuse it.
+
+The certificate's subject is the company's legal name, which is therefore what
+Windows shows as the publisher; the installer's `AppPublisher` and the runner's
+version resource say the same name. A dry-run without the signing secrets builds
+unsigned and says so, exactly like the existing optional macOS signing.
+
+*Alternatives considered.* An OV certificate (150–300 $/year, hardware token or
+cloud HSM — same SmartScreen behaviour, worse CI integration). EV (no longer
+bypasses SmartScreen since 2024). Staying unsigned (blocked by Smart App
+Control; reputation restarts at zero on every release).
+
+### 10. The Linux binary is built on the oldest supported Ubuntu
+
+A Linux binary runs only on systems whose glibc is at least as new as the one it
+was linked against. The release job used `ubuntu-latest` (24.04), so its output
+refused to start on Ubuntu 22.04 and Debian 12. The `linux` job — and only that
+job — now runs on `ubuntu-22.04`, the oldest image GitHub provides; every other
+job keeps its image. When GitHub retires that image the job stops starting, and
+moving to the next one is a deliberate decision to drop those distributions.
+
 ## Risks / Trade-offs
 
 - **The updater is remote code execution by design.** → The verify-before-execute
@@ -259,10 +329,19 @@ with errors the user cannot act on.
   a connection error, so the client sees a malformed response and stays quiet.
   → The Caddyfile change is a blocking deploy task with an explicit
   `curl` verification against production before the first release is ingested.
-- **SmartScreen warns on the unsigned installer**, and reputation builds slowly.
-  → Accepted for now; documented on the download page. The `key_id` field and the
-  installer pipeline are designed so adding a certificate later is a CI change,
-  not a redesign.
+- **SmartScreen still warns on the first releases**, signed or not, until the
+  publisher's reputation builds. → Signing (decision 9) lets it accumulate across
+  releases; the download page explains the warning and shows the publisher name.
+- **Artifact Signing is a dependency on a Microsoft account and on an identity
+  validation** that can take up to 20 business days. → Started before the first
+  signed release; an unsigned dry-run keeps the pipeline testable meanwhile.
+- **The Linux helper runs as root.** → It is small, reads only its two
+  arguments, verifies a private copy against compiled-in keys, and is tested on
+  the same golden fixtures as the backend. It never runs anything but
+  `apt-get install` on a verified package.
+- **No polkit agent** (a bare window manager, an SSH session). → `pkexec` cannot
+  ask; the app reports a localized "could not install, download it instead"
+  message and offers the release page.
 - **Signing key loss or compromise.** → Loss means clients stop accepting new
   releases until a build ships with a new key, so the key is backed up out of
   band at creation. Compromise is contained by shipping a build that drops the
@@ -270,8 +349,6 @@ with errors the user cannot act on.
   allow overlap during rotation.
 - **The Inno `AppId` is a one-way door.** → Generated once, checked in, and
   called out in the installer script's header comment.
-- **`appimagetool` needs FUSE**, which GitHub runners do not reliably provide. →
-  Invoke it with `--appimage-extract-and-run`.
 - **An interrupted Windows install can leave the app unlaunchable** (the
   installer replaced files, then failed or was killed). → Inno's own rollback
   covers the common case; the recovery path is re-running the installer, which
