@@ -18,12 +18,15 @@ const MODULES: Record<InterfaceLanguage, typeof fr> = { fr, en, es };
 /**
  * A language the catalogue names: a studied language, or a native one — French among them, whose
  * voices the read-aloud block spoke of before French was a studied language
- * (add-lingua-french-read-aloud D4), and a studied one too since enable-lingua-french.
+ * (add-lingua-french-read-aloud D4), and a studied one too since enable-lingua-french — or Italian,
+ * whose voices the read-aloud block speaks of before enable-lingua-italian widens the studied
+ * languages (add-lingua-italian-read-aloud D3): the level titles, keyed by the studied language,
+ * name it only from then.
  */
-export type NamedLanguage = StudiedLanguage | NativeLanguage;
+export type NamedLanguage = StudiedLanguage | NativeLanguage | "it";
 
 /** The languages the catalogue names, by code: what `isNamedLanguage` reads a plain tag against. */
-const NAMED: Record<NamedLanguage, true> = { en: true, es: true, fr: true };
+const NAMED: Record<NamedLanguage, true> = { en: true, es: true, fr: true, it: true };
 
 /** Whether the catalogue names `tag` — a speaker's language, a plain primary subtag. */
 export function isNamedLanguage(tag: string): tag is NamedLanguage {
@@ -37,7 +40,12 @@ export function isNamedLanguage(tag: string): tag is NamedLanguage {
  */
 function words(language: InterfaceLanguage, named: NamedLanguage): LanguageWords {
   const module = MODULES[language];
-  const entries: Record<NamedLanguage, LanguageWords> = { en: module.english, es: module.spanish, fr: module.french };
+  const entries: Record<NamedLanguage, LanguageWords> = {
+    en: module.english,
+    es: module.spanish,
+    fr: module.french,
+    it: module.italian,
+  };
   return entries[named];
 }
 
