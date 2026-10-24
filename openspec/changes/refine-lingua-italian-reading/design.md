@@ -455,7 +455,10 @@ were emulated beside it, and the two agreed on every occurrence.
 token `da` + `i` — the gold is 5 prepositions and no verb, all 5 read as the preposition. In the other
 texts, the design's rule read 331 as the verb, each read by hand, and 1,898 as the preposition, of
 which a seeded sample of 100 was read (`random.Random(20261024).sample`, in corpus order); every `da'`
-was read too. Each judgement is recorded per occurrence.
+was read too. Each judgement is recorded per occurrence: I read every occurrence, and the file was
+written « default unless listed » (`write_judgements.py`) — each verb reading the verb, each sampled
+preposition reading and each `da'` the preposition, but the ones listed with the reason they are
+not — rather than as 496 labels typed one by one.
 
 *Criterion 2, per trigger* (a trigger's readings are the occurrences it fires on, alone or with
 another; MarkIT and the hand-read texts pooled):
@@ -532,10 +535,11 @@ read `su` + `i`) and a Venetian quotation's « a' ghe son mi » (read `a` + `i`)
   without `me` and `te`, its scenario *dai, the verb* loses « non dai retta », which *dai, the
   preposition* now holds with « vieni con me dai nonni? ». « Me lo dai? » keeps the verb: `lo`
   before, `?` after.
-- **One reading of the criteria corrected before a precision was read.** The criteria written down
-  for this measurement kept a trigger that fires on no occurrence, as unmeasured; D4's own words for
-  `me` and `te` (« D5 keeps them only on their own figures ») say otherwise, and the design wins:
-  they are dropped. The owner may restore them (task 3.1).
+- **`me` and `te`, decided after the counts.** The criteria written down for this measurement kept a
+  trigger that fires on no occurrence, as unmeasured. The counts then showed that `me` and `te` fire
+  on none, and only after reading them I dropped the two, conservatively, under D4's own words
+  (« D5 keeps them only on their own figures »), which the generic line of the criteria contradicts
+  for them; no precision of any trigger had been read. The owner approved it (task 3.1).
 - **`mo'`** ships, unmeasured (above).
 - **How the rules read their context**, decided before the figures and not tuned after them: « the
   word just before it, nothing but a space between » is one or more whitespace characters after the
@@ -558,15 +562,28 @@ read `su` + `i`) and a Venetian quotation's « a' ghe son mi » (read `a` + `i`)
 - **Where D1's two new lines go**: each at the end of its page, so that no other block's index
   moves.
 - **Task 1.7** does not apply: change 12 is not on main; its implementation covers this change's
-  tables by the pointer in its D6.
+  tables by the pointer in its D6, and its task 1.3 names them.
+- **At review (2026-10-24), two fixes.** A word card on « ne' », « a' », « co' » or « su' » — the
+  written word a page hands it when it read the word before another as the preposition and `i`, the
+  only reading whose span holds the apostrophe — answers that reading first (`tokenize_readings`),
+  the apocope where the card asks it: the spec's word-card sentence names the four, and a scenario
+  holds them. And a quoted short word no longer leaves its quote open: the apostrophe after a word
+  a quote mark opened right before (« la particella 'ne' », « 'a' », « 'de' », « 'po' ») closes the
+  quote, and `a'`, `co'`, `ne'`, `su'` never keep one open — the pre-pass reads them with their
+  apostrophe only where no quote is open, so « 'Vieni su' gli disse, un po' » reads `poco` again, as
+  on main; the accent requirement's sentence and a scenario say so. Neither fix touches the reducer:
+  the rule digest and the predicted pack stand.
 
 ### The golden (task 5.4)
 
-`it-fr.golden`, re-blessed once and passing unblessed after, moves in: the pack line (6,010 → 6,482
+`it-fr.golden`, re-blessed once and passing unblessed after (and once more at review, for the
+fixture's `sarà`), moves in: the pack line (6,010 → 6,485
 bytes, `analyzer_version` 1.4.0) and the `analyzer_version` field of every `analyse` probe; D1's
-lines on `elisioni` (`non`, `più`; `sarà`), `ricetta` (`Sbattete`, `uova`, `con`, `parmigiano`,
+lines on `elisioni` (`non`, `più`; `sarà`, read *essere* through a fixture row added at review), `ricetta` (`Sbattete`, `uova`, `con`, `parmigiano`,
 `cuocete`), `tecnico` (`affidabilità`), `grammatica` (`mi`, `hai`, and the courtesy line, its `La`
-and `Le` read as the article's word, not set aside as names) and `informale` (the new line: `pò` →
+and `Le` read as the article's word *il*, not set aside as names — a known limit: the courtesy
+pronoun, *Lei*'s `La` and `Le`, is not told from the article, as no rule of the analysis tells
+them) and `informale` (the new line: `pò` →
 *poco*, `quale` + `è`), the reader's `elisioni` probe with them; the fixture's new glosses (above); the
 level ladder's typical vocabularies and the vocabulary estimates' universe (111 → 121), which count
 the fixture's ranked, glossed lemmas; and the probes D8 adds — nine phrases and three grammar pairs,

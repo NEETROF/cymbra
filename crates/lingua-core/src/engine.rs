@@ -6842,6 +6842,20 @@ mod tests {
     }
 
     #[test]
+    fn spec_scenario_a_word_card_on_a_truncated_articulated_preposition() {
+        let pack = italian_context_pack();
+        // At review: `a'`, `co'`, `ne'` and `su'`, written with the apostrophe a page's split
+        // reading spans, answer the preposition and `i`; the apocope where the card asks it.
+        assert_eq!(word_grammar("ne'", "in", IT, &pack).pieces, ["in", "i"]);
+        assert_eq!(word_grammar("a'", "a", IT, &pack).pieces, ["a", "i"]);
+        assert_eq!(word_grammar("co'", "con", IT, &pack).pieces, ["con", "i"]);
+        assert_eq!(word_grammar("su’", "su", IT, &pack).pieces, ["su", "i"]);
+        assert_eq!(word_grammar("Ne'", "i", IT, &pack).pieces, ["In", "i"]);
+        assert!(word_grammar("ne'", "ne", IT, &pack).pieces.is_empty());
+        assert!(word_grammar("ne", "in", IT, &pack).pieces.is_empty());
+    }
+
+    #[test]
     fn the_four_readers_read_nato_alike() {
         // A page's block, a selection, a card's written word and an expression's headword read
         // « NATO » through one rule (keep-lingua-italian-acronyms-and-names D1).

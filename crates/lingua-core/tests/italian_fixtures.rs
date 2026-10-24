@@ -414,6 +414,29 @@ const CASES: &[Case] = &[
             ("poco", "po'"),
         ],
     ),
+    // … and quoted alone, the whole quoted span: its apostrophe closes the quote (at review).
+    (
+        "la particella 'ne' indica, un po'",
+        &[
+            ("la", "la"),
+            ("particella", "particella"),
+            ("ne", "ne"),
+            ("indica", "indica"),
+            ("un", "un"),
+            ("poco", "po'"),
+        ],
+    ),
+    (
+        "'Vieni su' gli disse, un po'",
+        &[
+            ("Vieni", "Vieni"),
+            ("su", "su"),
+            ("gli", "gli"),
+            ("disse", "disse"),
+            ("un", "un"),
+            ("poco", "po'"),
+        ],
+    ),
     // --- `mo'` by the word after it (D4) ---
     (
         "a mo' di esempio",
@@ -862,6 +885,14 @@ fn a_word_card_reads_the_written_word_through_the_pre_pass() {
     assert!(pieces("dai", "uomo").is_empty());
     assert_eq!(pieces("Da'", "da"), ["Da", "i"]);
     assert!(pieces("mo'", "modo").is_empty() && pieces("mo'", "mò").is_empty());
+    // At review: written with its apostrophe, as a page's split reading spans it, a truncated
+    // articulated preposition answers the preposition and `i`, the apocope only where the card asks
+    // it.
+    assert_eq!(pieces("ne'", "in"), ["in", "i"]);
+    assert_eq!(pieces("a'", "a"), ["a", "i"]);
+    assert_eq!(pieces("co'", "con"), ["con", "i"]);
+    assert_eq!(pieces("su'", "su"), ["su", "i"]);
+    assert!(pieces("ne'", "ne").is_empty());
     // A truncated articulated preposition before a word, and the new elided forms, give their
     // pieces.
     assert_eq!(pieces("ne' campi", "campo"), ["in", "i", "campi"]);

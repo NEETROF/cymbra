@@ -18,7 +18,7 @@
 
 ## 3. Owner
 
-- [ ] 3.1 [manual] The owner reads 2.1–2.3's figures and the golden's diff (5.4), and may drop a piece, a truncation or a trigger before the tables are reduced (4.3).
+- [x] 3.1 [manual] The owner reads 2.1–2.3's figures and the golden's diff (5.4), and may drop a piece, a truncation or a trigger before the tables are reduced (4.3). — Done 2026-10-24: the owner approved everything (« J'approuve tout »): the triggers as measured (the clitic and punctuation triggers kept, `non` and `me`/`te` dropped), the cost of the five `da'` imperatives, `mo'` unmeasured, and every piece and truncation with its flagged cases (`fin'ora`, the Tuscan `su'`, the Venetian `a'`, `prim'aria` and `ultim'anni`).
 
 ## 4. The reducer and the tables (scripts/lingua-data, crates/lingua-pack)
 

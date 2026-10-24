@@ -54,7 +54,8 @@ same day (« Tout appliquer »). This change gathers them:
   sentence's end, and the preposition otherwise. A word card, which has no context, reads the word
   the way its dictionary form asks. Both rules are measured before they ship, by criteria written
   in this design, on corpora that exclude UD Italian-PUD and MarkIT's test section (D5); a rule that
-  fails them does not ship, and the spec's block follows.
+  fails them does not ship, and the spec's block follows. *As measured, `non`, `me` and `te` are no
+  triggers (design, Implementation).*
 - **The closed classes** (`analysis/function_words.rs`, D6): the prepositions `davanti`, `dietro`;
   the determiners `ambedue`, `entrambe`, `entrambi`, `parecchi`, `parecchia`, `parecchie`,
   `parecchio`; the conjunctions `anziché`, `bensì`, `nonché`, `ossia`, `pertanto`, `qualora`.
