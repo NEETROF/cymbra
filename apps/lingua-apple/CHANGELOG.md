@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.0](https://github.com/NEETROF/cymbra/compare/lingua-apple-v1.8.1...lingua-apple-v1.9.0) (2026-10-24)
+
+
+### Features
+
+* **lingua:** ship each studied language's base once and each pair's layer ([#1037](https://github.com/NEETROF/cymbra/issues/1037)) ([a39eb7d](https://github.com/NEETROF/cymbra/commit/a39eb7d8b3f6f4ecd59e4b53ea1c8d42fd3d6f1e))
+
 ## [1.8.1](https://github.com/NEETROF/cymbra/compare/lingua-apple-v1.8.0...lingua-apple-v1.8.1) (2026-10-15)
 
 
