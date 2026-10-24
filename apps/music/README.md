@@ -249,11 +249,13 @@ self-updates on Windows. One-time setup:
    `PARTNER_CENTER_*` secrets. From then on, each `music-v*` tag submits the new
    version, certified in up to three business days.
 
-**Linux ships a `.deb`** next to the tarball, built on **ubuntu-22.04** so the
+**Linux ships an AppImage** next to the tarball, built on **ubuntu-22.04** so the
 binary also runs on Ubuntu 22.04 and Debian 12 (a binary needs a glibc at least as
-new as the one it was linked against). It updates itself from the signed feed
-(change `add-desktop-auto-update`) through `pkexec` and the root-owned
-`cymbra-update-helper` the package installs.
+new as the one it was linked against). It replaces itself from the signed feed
+(change `add-desktop-auto-update`) — no password, no privileged code — when its
+directory is writable; elsewhere it only points to the download page. Users who
+want it in their application menu use an integration tool (Gear Lever,
+AppImageLauncher).
 
 ### Config via `--dart-define-from-file`
 

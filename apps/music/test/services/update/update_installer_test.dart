@@ -16,23 +16,18 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/services/update/process_runner.dart';
-import 'package:music/services/update/app_version.dart';
 import 'package:music/services/update/update_installer.dart';
-import 'package:music/services/update/update_manifest.dart';
 
 /// Records what the installer would have spawned. **No test ever starts a real
 /// process or exits the test runner** — that is the entire reason the seam
 /// exists (task 7.7).
 class RecordingProcessRunner implements ProcessRunner {
-  RecordingProcessRunner({this.runExitCode = 0});
+  RecordingProcessRunner({this.chmodExitCode = 0});
 
   final List<({String executable, List<String> arguments})> started = [];
   final List<({String executable, List<String> arguments})> ran = [];
   int quits = 0;
-  int runExitCode;
-
-  /// Set to make [run] throw, modelling a missing executable.
-  Object? runError;
+  int chmodExitCode;
 
   /// Set to make the spawn throw, modelling a missing or locked executable.
   Object? startError;
@@ -45,29 +40,13 @@ class RecordingProcessRunner implements ProcessRunner {
 
   @override
   Future<int> run(String executable, List<String> arguments) async {
-    if (runError != null) throw runError!;
     ran.add((executable: executable, arguments: arguments));
-    return runExitCode;
+    return chmodExitCode;
   }
 
   @override
   void quit() => quits++;
 }
-
-const _envelope =
-    '{"manifest":"…","signature":"…","key_id":"k","rollout_percent":0}';
-
-UpdateManifest _manifest({String envelope = _envelope}) => UpdateManifest(
-  schema: kUpdateSchemaVersion,
-  product: 'music',
-  channel: 'stable',
-  version: AppVersion.tryParse('1.40.0+50')!,
-  releasedAt: '2026-10-24T00:00:00Z',
-  minSupportedVersion: null,
-  notesUrl: null,
-  targets: const {},
-  signedEnvelope: envelope,
-);
 
 void main() {
   late Directory temp;
@@ -84,153 +63,147 @@ void main() {
   File artifact(String name, [String body = 'payload']) =>
       File('${temp.path}/$name')..writeAsStringSync(body);
 
-  group('LinuxPackageUpdateInstaller', () {
-    late File executable;
-    late File helper;
-    late File pkexec;
-
-    /// A package install: the marker beside the executable, the root-owned
-    /// helper and pkexec — each a plain file here, nothing is ever run.
-    LinuxPackageUpdateInstaller packaged({
-      bool marker = true,
-      bool withHelper = true,
-      bool withPkexec = true,
-    }) {
-      final opt = Directory('${temp.path}/opt/cymbra-music')
-        ..createSync(recursive: true);
-      executable = File('${opt.path}/music')..writeAsStringSync('binary');
-      if (marker) {
-        File('${opt.path}/$kInstallMarker').writeAsStringSync('deb');
-      }
-      helper = File('${temp.path}/cymbra-update-helper');
-      withHelper
-          ? helper.writeAsStringSync('helper')
-          : (helper.existsSync() ? helper.deleteSync() : null);
-      pkexec = File('${temp.path}/pkexec');
-      withPkexec
-          ? pkexec.writeAsStringSync('pkexec')
-          : (pkexec.existsSync() ? pkexec.deleteSync() : null);
-      return LinuxPackageUpdateInstaller(
-        runner,
-        executable: executable.path,
-        helperPath: helper.path,
-        pkexecPath: pkexec.path,
-      );
-    }
-
-    File download() {
-      final dir = Directory('${temp.path}/download')..createSync();
-      return File('${dir.path}/cymbra-music_1.40.0_amd64.deb')
-        ..writeAsStringSync('package');
-    }
-
+  group('LinuxUpdateInstaller', () {
     test(
-      'runs pkexec on the helper with the envelope and the package, relaunches, exits',
+      'chmods then renames over the running file, relaunches, and exits',
       () async {
-        final installer = packaged();
-        final deb = download();
+        final running = artifact('Cymbra.AppImage', 'old version');
+        final installer = LinuxUpdateInstaller(
+          runner,
+          environment: {'APPIMAGE': running.path},
+        );
+        final downloaded = artifact('downloaded.AppImage', 'new version');
 
         expect(await installer.canSelfInstall(), isTrue);
-        expect(
-          await installer.install(deb, _manifest()),
-          isA<InstallStarted>(),
-        );
+        expect(await installer.install(downloaded), isA<InstallStarted>());
 
-        // Exactly one escalation, and only for the packaged helper.
+        // The running path now holds the new bytes — replacing a running
+        // executable by rename() is safe on Linux (the process keeps the old
+        // inode); overwriting in place is what fails with ETXTBSY.
+        expect(running.readAsStringSync(), 'new version');
+        // chmod is AWAITED before the rename: a non-executable file renamed into
+        // place is an app that no longer starts.
         expect(runner.ran, hasLength(1));
-        final call = runner.ran.single;
-        expect(call.executable, pkexec.path);
-        final envelopePath = '${deb.parent.path}/envelope.json';
-        expect(call.arguments, [helper.path, envelopePath, deb.path]);
-        // The helper gets the exact feed response, to re-verify with its keys.
-        expect(File(envelopePath).readAsStringSync(), _envelope);
-        expect(runner.started.single.executable, executable.path);
+        expect(runner.ran.single.executable, 'chmod');
+        expect(runner.ran.single.arguments.first, '0755');
+        expect(runner.started.single.executable, running.path);
         expect(runner.quits, 1);
+        // The staging file is gone: it WAS the rename source.
+        expect(
+          temp.listSync().map((e) => e.path.split('/').last),
+          isNot(contains(startsWith('.Cymbra.AppImage'))),
+        );
       },
     );
 
     test(
-      'a dismissed password dialog is a cancellation, not an error',
+      r'$APPIMAGE unset (tarball install or a dev run) is notify-only',
       () async {
-        runner.runExitCode = kPkexecDismissed;
-        final installer = packaged();
+        final installer = LinuxUpdateInstaller(runner, environment: const {});
+        expect(await installer.canSelfInstall(), isFalse);
         expect(
-          await installer.install(download(), _manifest()),
-          isA<InstallCancelled>(),
+          await installer.install(artifact('downloaded.AppImage')),
+          isA<InstallNotSelfInstallable>(),
         );
         expect(runner.started, isEmpty);
         expect(runner.quits, 0);
       },
     );
 
-    for (final code in [2, 3, 127]) {
-      test('helper exit $code is a failure and the app stays open', () async {
-        runner.runExitCode = code;
-        final installer = packaged();
-        expect(
-          await installer.install(download(), _manifest()),
-          isA<InstallFailed>(),
-        );
-        expect(runner.started, isEmpty);
-        expect(runner.quits, 0);
-      });
-    }
-
-    test('no marker (the tarball, a dev run) is notify-only', () async {
-      final installer = packaged(marker: false);
+    test(r'an empty $APPIMAGE is treated as unset', () async {
+      final installer = LinuxUpdateInstaller(
+        runner,
+        environment: const {'APPIMAGE': ''},
+      );
       expect(await installer.canSelfInstall(), isFalse);
-      expect(
-        await installer.install(download(), _manifest()),
-        isA<InstallNotSelfInstallable>(),
-      );
-      expect(runner.ran, isEmpty);
     });
 
     test(
-      'a missing helper or pkexec is notify-only — never another route',
+      'a read-only directory is notify-only — it never escalates',
       () async {
-        expect(await packaged(withHelper: false).canSelfInstall(), isFalse);
-        expect(await packaged(withPkexec: false).canSelfInstall(), isFalse);
-        expect(runner.ran, isEmpty);
+        final readOnly = Directory('${temp.path}/opt')..createSync();
+        final running = File('${readOnly.path}/Cymbra.AppImage')
+          ..writeAsStringSync('old');
+        // 0555: the probe write fails, which is exactly what a root-owned /opt
+        // looks like to a normal user.
+        Process.runSync('chmod', ['0555', readOnly.path]);
+        addTearDown(() => Process.runSync('chmod', ['0755', readOnly.path]));
+
+        final installer = LinuxUpdateInstaller(
+          runner,
+          environment: {'APPIMAGE': running.path},
+        );
+        expect(await installer.canSelfInstall(), isFalse);
+        expect(
+          await installer.install(artifact('downloaded.AppImage')),
+          isA<InstallNotSelfInstallable>(),
+        );
+        expect(runner.started, isEmpty);
+        expect(runner.quits, 0);
+        // POSIX modes only; the Linux installer never runs on Windows anyway.
       },
+      skip: Platform.isWindows ? 'POSIX permissions' : null,
     );
 
-    test('no signed envelope means nothing is escalated', () async {
-      final installer = packaged();
-      expect(
-        await installer.install(download(), _manifest(envelope: '')),
-        isA<InstallFailed>(),
-      );
-      expect(runner.ran, isEmpty);
-    });
-
-    test('a pkexec that cannot be run is a failure', () async {
-      runner.runError = const ProcessException('pkexec', [], 'boom');
-      expect(
-        await packaged().install(download(), _manifest()),
-        isA<InstallFailed>(),
-      );
-      expect(runner.quits, 0);
-    });
-
     test(
-      'a failed relaunch is reported, the upgrade having happened',
+      'a failed chmod aborts before the rename, leaving the old file',
       () async {
-        runner.startError = const ProcessException('music', [], 'boom');
+        runner.chmodExitCode = 1;
+        final running = artifact('Cymbra.AppImage', 'old version');
+        final installer = LinuxUpdateInstaller(
+          runner,
+          environment: {'APPIMAGE': running.path},
+        );
         expect(
-          await packaged().install(download(), _manifest()),
+          await installer.install(
+            artifact('downloaded.AppImage', 'new version'),
+          ),
           isA<InstallFailed>(),
         );
+        expect(running.readAsStringSync(), 'old version');
         expect(runner.quits, 0);
       },
     );
+
+    test(
+      'a failed relaunch is reported, but the swap already happened',
+      () async {
+        final running = artifact('Cymbra.AppImage', 'old version');
+        final installer = LinuxUpdateInstaller(
+          runner,
+          environment: {'APPIMAGE': running.path},
+        );
+        runner.startError = const ProcessException('AppImage', [], 'boom');
+        final outcome = await installer.install(
+          artifact('downloaded.AppImage', 'new version'),
+        );
+        expect(outcome, isA<InstallFailed>());
+        // Saying "the update failed" would be a lie: the next manual launch is new.
+        expect(running.readAsStringSync(), 'new version');
+        expect(runner.quits, 0);
+      },
+    );
+
+    test('a stale staging file from a killed attempt is replaced', () async {
+      final running = artifact('Cymbra.AppImage', 'old version');
+      File('${temp.path}/.Cymbra.AppImage.new').writeAsStringSync('stale');
+      final installer = LinuxUpdateInstaller(
+        runner,
+        environment: {'APPIMAGE': running.path},
+      );
+      expect(
+        await installer.install(artifact('downloaded.AppImage', 'new version')),
+        isA<InstallStarted>(),
+      );
+      expect(running.readAsStringSync(), 'new version');
+    });
   });
 
   test('NoopUpdateInstaller never self-installs', () async {
     const installer = NoopUpdateInstaller();
     expect(await installer.canSelfInstall(), isFalse);
     expect(
-      await installer.install(artifact('anything'), _manifest()),
+      await installer.install(artifact('anything')),
       isA<InstallNotSelfInstallable>(),
     );
   });

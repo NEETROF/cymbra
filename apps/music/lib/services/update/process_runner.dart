@@ -33,13 +33,13 @@ abstract class ProcessRunner {
   Future<void> startDetached(String executable, List<String> arguments);
 
   /// Runs [executable] to completion and returns its exit code. Used for the
-  /// Linux package upgrade (`pkexec` + the update helper), whose exit code
-  /// decides between relaunching, offering again and reporting a failure.
+  /// short auxiliary commands the swap depends on (`chmod`), where firing and
+  /// forgetting would race the very next step.
   Future<int> run(String executable, List<String> arguments);
 
   /// Ends the running app. Called only after a successful [startDetached] —
   /// on Windows the installer cannot replace a running `.exe`, and on Linux the
-  /// relaunched, upgraded app is the one that should own the window.
+  /// relaunched AppImage is the one that should own the window.
   void quit();
 }
 

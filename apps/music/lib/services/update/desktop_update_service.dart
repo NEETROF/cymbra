@@ -311,16 +311,15 @@ class HttpDesktopUpdateService implements DesktopUpdateService {
     ).join();
   }
 
-  /// The artifact keeps a name the platform installer understands: Windows needs
-  /// a `.exe` to spawn, and `apt-get` a path ending in `.deb`.
+  /// The artifact keeps a name the platform installer understands: an AppImage
+  /// must stay executable-shaped.
   static String _fileNameFor(UpdateTarget target) {
     final last = Uri.parse(target.url).pathSegments.lastOrNull ?? '';
     if (last.isNotEmpty && !last.contains('/') && !last.contains('\\')) {
       return last;
     }
     return switch (target.kind) {
-      'inno-setup' => 'cymbra-setup.exe',
-      'deb' => 'cymbra-music.deb',
+      'appimage' => 'Cymbra.AppImage',
       _ => 'cymbra-update.bin',
     };
   }

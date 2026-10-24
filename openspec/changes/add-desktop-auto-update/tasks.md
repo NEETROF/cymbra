@@ -47,7 +47,7 @@
 - [ ] 5.2 Restore `apps/music/linux/appimage/` (`AppRun`, `.desktop`, icon, `build_appdir.sh`) and the `appimagetool --appimage-extract-and-run` packaging in the `linux` job, keeping the tarball. Verify: the dry-run builds the AppImage.
 - [ ] 5.3 Smoke-check in CI: the AppImage is executable, unpacks to the expected layout, and the bundled binary's glibc floor is reported. Verify: in the dry-run log.
 - [ ] 5.4 Attach the AppImage to the release (tag-gated) and hand it to the manifest job as the `linux-x64` target of kind `appimage`.
-- [ ] 5.5 Remove the `.deb` recipe, the privileged helper (`cymbra-update-helper`, `release-keys.json`) and their tests and CI steps.
+- [x] 5.5 Remove the `.deb` recipe, the privileged helper (`cymbra-update-helper`, `release-keys.json`) and their tests and CI steps.
 
 ## 6. Release pipeline — sign, publish, ingest
 
@@ -68,7 +68,7 @@
 - [x] 7.6 Implement the download path: unique directory inside the app's private temp storage, streamed download with progress, hard size cap, incremental SHA-256, delete on mismatch.
 - [x] 7.7 Add the `UpdateInstaller` seam plus a `ProcessRunner` seam so no test ever spawns a process.
 - [x] 7.8 ~~`WindowsUpdateInstaller`~~ — implemented, then removed with the move to the Microsoft Store (4.1).
-- [ ] 7.9 Restore `LinuxUpdateInstaller` (AppImage): read `$APPIMAGE`, verify the directory is writable, stage beside it, `chmod 0755`, atomic rename over the running file, relaunch detached, exit; unset or read-only ⇒ notify-only. (The `.deb` installer that replaced it on 2026-10-24 is removed.)
+- [x] 7.9 Restore `LinuxUpdateInstaller` (AppImage): read `$APPIMAGE`, verify the directory is writable, stage beside it, `chmod 0755`, atomic rename over the running file, relaunch detached, exit; unset or read-only ⇒ notify-only. (The `.deb` installer that replaced it on 2026-10-24 is removed.)
 - [x] 7.10 Add `lib/services/update/rollout_bucket.dart`: draw once, persist in `shared_preferences`, compare against `rollout_percent`.
 - [x] 7.11 Expose all seams as Riverpod providers per the `flutter-riverpod-architecture` skill.
 
@@ -94,7 +94,7 @@
 - [x] 9.3 Dart tests for the service: no-downgrade, size cap exceeded, checksum mismatch deletes and refuses to execute, target selection per os/arch, missing target.
 - [x] 9.4 Notifier tests with mockito-generated mocks via `ProviderScope` overrides: throttle honoured, manual check bypasses throttle and rollout, skipped version not re-offered, flag off ⇒ no check, non-desktop ⇒ no check, prompt deferred during a session.
 - [x] 9.5 Installer tests over the `ProcessRunner` seam (the Windows and AppImage cases are superseded by 4.1 and 9.9).
-- [ ] 9.9 AppImage installer tests over the `ProcessRunner` seam: chmod before rename, atomic swap, relaunch, `$APPIMAGE` unset or read-only ⇒ notify-only, failed chmod leaves the old file, stale staging file replaced.
+- [x] 9.9 AppImage installer tests over the `ProcessRunner` seam: chmod before rename, atomic swap, relaunch, `$APPIMAGE` unset or read-only ⇒ notify-only, failed chmod leaves the old file, stale staging file replaced.
 - [x] 9.6 Widget tests: prompt, progress, notify-only variant, blocking forced-update screen.
 - [x] 9.7 Rust tests for the feed handlers and the manifest crate, including the same golden fixture.
 - [x] 9.8 `cargo llvm-cov` ≥ 80 % and `flutter test --coverage` ≥ 80 % for the new code; `melos run analyze`, `dart run custom_lint`, `dart format`, `cargo fmt`, `cargo clippy -D warnings` all clean.

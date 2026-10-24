@@ -147,7 +147,7 @@ jobs:
     # The OLDEST supported Ubuntu, on purpose and for this job only (change:
     # add-desktop-auto-update, design D10): a Linux binary needs a glibc at least
     # as new as the one it was linked against, so building on ubuntu-latest
-    # (24.04) produced a .deb/tarball that refused to start on Ubuntu 22.04 and
+    # (24.04) produced an AppImage/tarball that refused to start on Ubuntu 22.04 and
     # Debian 12. When GitHub retires this image the job stops starting — moving
     # to the next one is then a deliberate decision to drop those systems.
     runs-on: ubuntu-22.04
@@ -197,55 +197,46 @@ jobs:
         working-directory: apps/music/build/linux/x64/release/bundle
         run: tar czf "$GITHUB_WORKSPACE/cymbra-${TAG}-linux-x64.tar.gz" .
       # The self-updating artifact (change: add-desktop-auto-update, design D5):
-      # a .deb upgraded from the app through pkexec and the privileged helper it
-      # installs. The tarball above stays published — it takes the notify-only
-      # update path.
-      - name: Build the update helper
-        run: cargo build --release --locked -p cymbra-update-manifest --bin cymbra-update-helper
-      - name: Package (.deb)
+      # a single file that replaces itself in place — no password, no privileged
+      # code. The tarball above stays published; it takes the notify-only path.
+      - name: Package (AppImage)
         run: |
           set -euo pipefail
-          VERSION="$(sed -n 's/^version: *//p' apps/music/pubspec.yaml | tr -d '[:space:]')"
-          bash apps/music/linux/deb/build_deb.sh \
+          bash apps/music/linux/appimage/build_appdir.sh \
             apps/music/build/linux/x64/release/bundle \
-            target/release/cymbra-update-helper \
-            "$VERSION" \
-            "$GITHUB_WORKSPACE/cymbra-${TAG}-linux-amd64.deb"
-      # A packaging regression must fail the job here, not on a user's desktop:
-      # install the package for real on the runner, check what it put where, then
-      # remove it.
-      - name: Smoke-check the .deb
+            "$RUNNER_TEMP/Cymbra.AppDir"
+          # The current appimagetool ships the static type-2 runtime (FUSE 3
+          # embedded): hosts need fusermount3, no longer libfuse2.
+          curl -fsSL -o "$RUNNER_TEMP/appimagetool" \
+            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x "$RUNNER_TEMP/appimagetool"
+          # GitHub runners have no reliable FUSE, so appimagetool must unpack
+          # itself instead of mounting (design: Risks).
+          ARCH=x86_64 "$RUNNER_TEMP/appimagetool" --appimage-extract-and-run \
+            "$RUNNER_TEMP/Cymbra.AppDir" \
+            "$GITHUB_WORKSPACE/cymbra-${TAG}-linux-x86_64.AppImage"
+      # A packaging regression must fail the job here, not on a user's desktop.
+      - name: Smoke-check the AppImage
         run: |
           set -euo pipefail
-          DEB="$GITHUB_WORKSPACE/cymbra-${TAG}-linux-amd64.deb"
-          dpkg-deb --info "$DEB"
-          sudo apt-get install -y "$DEB"
-          test -x /opt/cymbra-music/music
-          test -d /opt/cymbra-music/data/flutter_assets
-          test "$(cat /opt/cymbra-music/install_method.txt)" = deb
-          test -L /usr/bin/cymbra-music
-          test -f /usr/share/applications/cymbra-music.desktop
-          test "$(stat -c %U /usr/lib/cymbra-music/cymbra-update-helper)" = root
-          /usr/lib/cymbra-music/cymbra-update-helper --version
-          # The polkit action, read from the file: pkaction needs a running polkitd.
-          python3 - <<'PY'
-          import xml.etree.ElementTree as ET
-          a = ET.parse('/usr/share/polkit-1/actions/app.cymbra.music.update.policy').getroot().find('action')
-          assert a.get('id') == 'app.cymbra.music.update'
-          path = [x.text for x in a.findall('annotate') if x.get('key') == 'org.freedesktop.policykit.exec.path']
-          assert path == ['/usr/lib/cymbra-music/cymbra-update-helper'], path
-          print('polkit action ok:', a.get('id'), '->', path[0])
-          PY
-          # Nothing of it may be writable by anyone but root.
-          test -z "$(find /opt/cymbra-music /usr/lib/cymbra-music -perm /022 ! -type l)"
+          APP="cymbra-${TAG}-linux-x86_64.AppImage"
+          test -x "$APP" || { echo "AppImage is not executable"; exit 1; }
+          # Unpack rather than mount (no FUSE) and assert the recipe is intact.
+          "./$APP" --appimage-extract >/dev/null
+          test -x squashfs-root/AppRun
+          test -f squashfs-root/cymbra-music.desktop
+          test -f squashfs-root/cymbra-music.png
+          test -x squashfs-root/usr/bin/music
+          test -d squashfs-root/usr/bin/data/flutter_assets
           # The glibc floor this build actually needs (design D10): 22.04 ships 2.35.
-          objdump -T /opt/cymbra-music/music | grep -o 'GLIBC_[0-9.]*' | sort -Vu | tail -1
-          sudo apt-get remove -y cymbra-music
+          objdump -T squashfs-root/usr/bin/music | grep -o 'GLIBC_[0-9.]*' | sort -Vu | tail -1
+          echo "AppImage version: $(sed -n 's/^version: //p' apps/music/pubspec.yaml)"
+          rm -rf squashfs-root
       - name: Upload the desktop artifact for the manifest job
         uses: actions/upload-artifact@v4
         with:
           name: desktop-linux
-          path: cymbra-${{ env.TAG }}-linux-amd64.deb
+          path: cymbra-${{ env.TAG }}-linux-x86_64.AppImage
           retention-days: 1
       # Release assets only for a real tag. A branch dry-run (empty `tag`
       # input) must not create a release named after the branch.
@@ -256,7 +247,7 @@ jobs:
           tag_name: ${{ env.TAG }}
           files: |
             cymbra-${{ env.TAG }}-linux-x64.tar.gz
-            cymbra-${{ env.TAG }}-linux-amd64.deb
+            cymbra-${{ env.TAG }}-linux-x86_64.AppImage
 
   macos:
     runs-on: macos-latest
@@ -621,7 +612,7 @@ jobs:
           VERSION="$(sed -n 's/^version: //p' apps/music/pubspec.yaml | tr -d '[:space:]')"
           CHANNEL="$(jq -r '.channel' apps/music/config/desktop_release.json)"
           MIN="$(jq -r '.min_supported_version' apps/music/config/desktop_release.json)"
-          LNX="dist/cymbra-${TAG}-linux-amd64.deb"
+          LNX="dist/cymbra-${TAG}-linux-x86_64.AppImage"
           test -f "$LNX"
           BASE="https://github.com/${{ github.repository }}/releases/download/${TAG}"
           jq -n \
@@ -642,7 +633,7 @@ jobs:
                released_at: $released,
                notes_url: $notes,
                targets: {
-                 "linux-x64":   { kind: "deb",        url: $lnx_url, size: $lnx_size, sha256: $lnx_sha }
+                 "linux-x64":   { kind: "appimage",   url: $lnx_url, size: $lnx_size, sha256: $lnx_sha }
                }
              }
              + (if $min == "" then {} else { min_supported_version: $min } end)' \

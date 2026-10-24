@@ -82,7 +82,6 @@ class UpdateManifest {
     required this.minSupportedVersion,
     required this.notesUrl,
     required this.targets,
-    this.signedEnvelope = '',
   });
 
   final int schema;
@@ -98,11 +97,6 @@ class UpdateManifest {
 
   /// Artifacts by `<os>-<arch>` (`windows-x64`, `linux-x64`).
   final Map<String, UpdateTarget> targets;
-
-  /// The exact feed response this manifest was verified from. Kept because the
-  /// Linux privileged helper re-verifies it with its OWN keys before installing
-  /// (design D5) — it never trusts this app's verdict.
-  final String signedEnvelope;
 
   UpdateTarget? targetFor(String osArch) => targets[osArch];
 }
@@ -214,7 +208,7 @@ Future<UpdateVerifyResult> verifyUpdateEnvelope(
   );
   if (!ok) return const UpdateRefused(UpdateVerifyFailure.badSignature);
 
-  final manifest = _parseManifest(manifestBytes, signedEnvelope: body);
+  final manifest = _parseManifest(manifestBytes);
   if (manifest == null) {
     return const UpdateRefused(UpdateVerifyFailure.malformedManifest);
   }
@@ -227,10 +221,7 @@ Future<UpdateVerifyResult> verifyUpdateEnvelope(
   return UpdateVerified(manifest, percent);
 }
 
-UpdateManifest? _parseManifest(
-  Uint8List bytes, {
-  required String signedEnvelope,
-}) {
+UpdateManifest? _parseManifest(Uint8List bytes) {
   final Object? raw;
   try {
     raw = jsonDecode(utf8.decode(bytes));
@@ -278,6 +269,5 @@ UpdateManifest? _parseManifest(
     minSupportedVersion: minRaw is String ? AppVersion.tryParse(minRaw) : null,
     notesUrl: notesRaw is String ? notesRaw : null,
     targets: targets,
-    signedEnvelope: signedEnvelope,
   );
 }

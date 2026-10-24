@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:io' show File, FileSystemEntity, Platform;
+import 'dart:io' show Directory, File, Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,14 +20,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../app_platform.dart';
 import 'process_runner.dart';
-import 'update_manifest.dart';
 
 part 'update_installer.g.dart';
-
-/// The file the Linux package drops beside the executable to mark a
-/// package-managed install (design D5). The tarball has no marker, so it takes
-/// the notify-only path.
-const kInstallMarker = 'install_method.txt';
 
 /// What happened when the updater tried to install a verified artifact.
 sealed class InstallOutcome {
@@ -51,12 +45,6 @@ class InstallNotSelfInstallable extends InstallOutcome {
   final String reason;
 }
 
-/// The user dismissed the system password dialog. Not a failure: nothing was
-/// installed and the offer stays available.
-class InstallCancelled extends InstallOutcome {
-  const InstallCancelled();
-}
-
 /// The install was attempted and failed.
 class InstallFailed extends InstallOutcome {
   const InstallFailed(this.reason);
@@ -72,94 +60,108 @@ abstract class UpdateInstaller {
   Future<bool> canSelfInstall();
 
   /// Installs [artifact] — a file that has already been signature-verified,
-  /// size-checked and hash-checked against [manifest]. On success the app exits.
-  Future<InstallOutcome> install(File artifact, UpdateManifest manifest);
+  /// size-checked and hash-checked. On success the app exits.
+  Future<InstallOutcome> install(File artifact);
 }
 
-/// The privileged helper the `.deb` installs, root-owned (design D5).
-const kLinuxUpdateHelper = '/usr/lib/cymbra-music/cymbra-update-helper';
-
-/// The system tool that asks for the password and runs the helper as root.
-const kPkexec = '/usr/bin/pkexec';
-
-/// `pkexec`'s exit code when the user dismissed the authentication dialog.
-const kPkexecDismissed = 126;
-
-/// Linux: a `.deb` upgraded through the system password dialog (design D5).
+/// Linux: an AppImage replaces itself (design D5).
 ///
-/// The package leaves [kInstallMarker] beside the executable and installs
-/// [kLinuxUpdateHelper]. The app writes the
-/// signed envelope beside the verified package and runs
-/// `pkexec <helper> <envelope> <package>`. The helper trusts neither file: it
-/// copies the package somewhere only root can write, re-verifies the envelope
-/// with its own compiled-in keys and the copy against the manifest, and only
-/// then installs it — so a process of the user swapping the file while the
-/// password dialog is up changes nothing.
+/// The AppImage runtime exports `$APPIMAGE` — the absolute path of the running
+/// file. The new one is downloaded, moved **into the same directory** (same
+/// filesystem, so the swap is a single atomic `rename()`), made executable, and
+/// renamed over the running file.
 ///
-/// No marker (the tarball, a dev run), no helper or no `pkexec` ⇒ notify-only.
-/// The only escalation is that one helper, through the system's own dialog.
-class LinuxPackageUpdateInstaller implements UpdateInstaller {
-  LinuxPackageUpdateInstaller(
-    this._runner, {
-    String? executable,
-    this.helperPath = kLinuxUpdateHelper,
-    this.pkexecPath = kPkexec,
-  }) : _executable = executable ?? Platform.resolvedExecutable;
+/// Replacing a running executable by `rename()` is safe on Linux: the running
+/// process keeps the old inode open. Overwriting the file *in place* is what
+/// fails, with `ETXTBSY` — which is why the order below is copy-then-rename and
+/// never write-through.
+///
+/// `$APPIMAGE` unset (a tarball install, or `flutter run`) or a directory that
+/// is not writable (`/opt`, root-owned) ⇒ notify-only. It never escalates.
+class LinuxUpdateInstaller implements UpdateInstaller {
+  LinuxUpdateInstaller(this._runner, {Map<String, String>? environment})
+    : _environment = environment ?? Platform.environment;
 
   final ProcessRunner _runner;
-  final String _executable;
-  final String helperPath;
-  final String pkexecPath;
+  final Map<String, String> _environment;
+
+  /// The running AppImage's path, or `null` when this is not an AppImage.
+  String? get appImagePath {
+    final value = _environment['APPIMAGE'];
+    if (value == null || value.isEmpty) return null;
+    return value;
+  }
 
   @override
-  Future<bool> canSelfInstall() async =>
-      FileSystemEntity.isFileSync(
-        '${File(_executable).parent.path}/$kInstallMarker',
-      ) &&
-      FileSystemEntity.isFileSync(helperPath) &&
-      FileSystemEntity.isFileSync(pkexecPath);
+  Future<bool> canSelfInstall() async {
+    final path = appImagePath;
+    if (path == null) return false;
+    return _directoryIsWritable(File(path).parent);
+  }
 
   @override
-  Future<InstallOutcome> install(File artifact, UpdateManifest manifest) async {
-    if (!await canSelfInstall()) {
+  Future<InstallOutcome> install(File artifact) async {
+    final path = appImagePath;
+    if (path == null) {
       return const InstallNotSelfInstallable(
-        'no package marker, helper or pkexec (tarball install or a dev run)',
+        r'$APPIMAGE is unset (tarball install or a dev run)',
       );
     }
-    if (manifest.signedEnvelope.isEmpty) {
-      return const InstallFailed('no signed envelope to hand to the helper');
-    }
-    final int code;
-    try {
-      // Beside the package, in the download's private directory: the helper
-      // reads both and works on its own copy from then on.
-      final envelope = File('${artifact.parent.path}/envelope.json');
-      await envelope.writeAsString(manifest.signedEnvelope, flush: true);
-      code = await _runner.run(pkexecPath, [
-        helperPath,
-        envelope.path,
-        artifact.path,
-      ]);
-    } on Object catch (e) {
-      debugPrint('desktop update: could not run the update helper ($e)');
-      return InstallFailed('helper spawn failed: $e');
-    }
-    if (code == kPkexecDismissed) return const InstallCancelled();
-    if (code != 0) {
-      // 2 refused, 3 apt failed, 127 no polkit agent — the log says which.
-      debugPrint('desktop update: the update helper exited with $code');
-      return InstallFailed('helper exited with $code');
+    final running = File(path);
+    final dir = running.parent;
+    if (!_directoryIsWritable(dir)) {
+      return InstallNotSelfInstallable('${dir.path} is not writable');
     }
     try {
-      await _runner.startDetached(_executable, const []);
+      // Stage beside the target so the final step is a rename WITHIN one
+      // filesystem — an atomic swap. Copying across filesystems first and
+      // renaming after is the whole point; a cross-device rename would fall back
+      // to a non-atomic copy and a crash mid-way would leave a broken install.
+      final staged = File('${dir.path}/.${_basename(path)}.new');
+      if (await staged.exists()) await staged.delete();
+      await artifact.copy(staged.path);
+      await _chmodExecutable(staged);
+      await staged.rename(running.path);
     } on Object catch (e) {
-      // The new package IS installed; only the relaunch failed. The next
-      // manual launch is the new version.
-      debugPrint('desktop update: relaunch failed after the upgrade ($e)');
+      debugPrint('desktop update: AppImage swap failed ($e)');
+      return InstallFailed('swap failed: $e');
+    }
+    try {
+      await _runner.startDetached(running.path, const []);
+    } on Object catch (e) {
+      // The new binary IS in place; only the relaunch failed. Say so rather than
+      // implying the update did not happen — the next manual launch is new.
+      debugPrint(
+        'desktop update: relaunch failed after a successful swap ($e)',
+      );
       return InstallFailed('relaunch failed: $e');
     }
     _runner.quit();
     return const InstallStarted();
+  }
+
+  static String _basename(String path) => path.split('/').last;
+
+  static bool _directoryIsWritable(Directory dir) {
+    // Ask the filesystem instead of reasoning about ownership and modes: a probe
+    // file is the only answer that accounts for ACLs, read-only mounts and
+    // containers.
+    try {
+      final probe = File('${dir.path}/.cymbra-update-probe');
+      probe.writeAsStringSync('');
+      probe.deleteSync();
+      return true;
+    } on Object {
+      return false;
+    }
+  }
+
+  Future<void> _chmodExecutable(File file) async {
+    // 0755: the AppImage must be executable by the user who launches it. Awaited
+    // rather than fired and forgotten — the rename is the very next step, and a
+    // non-executable file renamed into place is an app that no longer starts.
+    final code = await _runner.run('chmod', ['0755', file.path]);
+    if (code != 0) throw StateError('chmod exited with $code');
   }
 }
 
@@ -173,10 +175,7 @@ class NoopUpdateInstaller implements UpdateInstaller {
   Future<bool> canSelfInstall() async => false;
 
   @override
-  Future<InstallOutcome> install(
-    File artifact,
-    UpdateManifest manifest,
-  ) async =>
+  Future<InstallOutcome> install(File artifact) async =>
       const InstallNotSelfInstallable('this platform does not self-update');
 }
 
@@ -185,7 +184,7 @@ class NoopUpdateInstaller implements UpdateInstaller {
 UpdateInstaller updateInstaller(Ref ref) {
   final runner = ref.watch(processRunnerProvider);
   return switch (ref.watch(appPlatformProvider)) {
-    AppPlatform.linux => LinuxPackageUpdateInstaller(runner),
+    AppPlatform.linux => LinuxUpdateInstaller(runner),
     _ => const NoopUpdateInstaller(),
   };
 }
