@@ -88,7 +88,9 @@ None.
   grammar* and *The Italian card is pinned on the real packs*.
 - `lingua-decks-review`: ADDED — *Review finds an Italian expression card named without a space*.
   For an Italian card whose lemma holds no space, it takes the place of the sentence of change 12's
-  *Review finds an Italian expression card by its name* that looks every other card up as before; this change archives after 51, after the card wording change and
+  *Review finds an Italian expression card by its name* that looks every other card up as before,
+  and of that requirement's scenario *Every other card* where it names an Italian card on a single
+  word (`d'accordo` is now read at its key); this change archives after 51, after the card wording change and
   `refine-lingua-card-invariable-plurals`, and after the Italian changes 5, 6, 12, 13 and 16 whose
   baseline, pieces, keys, readings and golden it reads.
 

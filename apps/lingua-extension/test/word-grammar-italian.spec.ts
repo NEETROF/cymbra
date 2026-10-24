@@ -175,9 +175,7 @@ describe("An Italian card names its forms in the interface language's grammar", 
   it("A plural spelled like its dictionary form, a numeral, and a plural determiner without a gender stay unnamed", () => {
     for (const renderer of [fr, en, es]) {
       expect(lines(renderer, "città", "città", [noun("Fem", "Plur"), noun("Fem", "Sing")])).toEqual([]);
-      expect(lines(renderer, "mille", "mila", [{ pos: "NUM", features: { Gender: "Fem", Number: "Plur" } }])).toEqual(
-        [],
-      );
+      expect(lines(renderer, "mille", "mila", [{ pos: "NUM", features: { Number: "Plur" } }])).toEqual([]);
       expect(lines(renderer, "il", "i", [{ pos: "DET", features: { Number: "Plur" } }])).toEqual([]);
     }
     expect(lines(fr, "casa", "case", [noun("Fem", "Plur")])).toEqual(["féminin pluriel de casa"]);

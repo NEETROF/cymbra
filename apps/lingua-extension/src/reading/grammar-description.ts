@@ -286,9 +286,9 @@ export interface CardNames {
  * - the gerund: English's -ing form, Spanish's gerundio and Italian's (`parlando`, D4); French has
  *   none — « en parlant » is the participle after « en » (D4);
  * - the moods' merge (D3): French's « parle » is said once in the present indicative or
- *   subjunctive, and Italian's « parliamo » (add-lingua-italian-word-card D3, the owner's question:
- *   `parli`, whose two moods hold different persons, is not merged); no English or Spanish form meets
- *   the rule, and theirs stay unmerged.
+ *   subjunctive, and Italian's « parliamo » (add-lingua-italian-word-card D3, the owner's decision
+ *   of 2026-10-25: `parli`, whose two moods hold different persons, is not merged); no English or
+ *   Spanish form meets the rule, and theirs stay unmerged.
  * A plural spelled like the dictionary form is not keyed: `isInvariablePlural` leaves it out for
  * every studied language (refine-lingua-card-invariable-plurals D3).
  */

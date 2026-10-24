@@ -106,7 +106,10 @@ moods apart, as 51's rule says: "second-person singular present indicative and f
 third-person singular present subjunctive of parlare". A partial merge (the shared person named
 once, the subjunctive keeping the rest) would be a new rule, which this change does not add: it is
 the owner's question, with the merge for Italian at all (M21 was settled for French), read on the
-snapshot (task 4.1).
+snapshot (task 4.1). Settled by the owner on 2026-10-25, as implemented: Italian's moods are merged
+where their persons are the same (`parliamo`, `siamo`: « 1re personne du pluriel du présent de
+l’indicatif ou du subjonctif »), and `parli`'s are named apart, the subjunctive's singular grouped
+(*Open Questions*).
 
 ### D4 — The gerund and the present participle
 
@@ -127,7 +130,10 @@ read in the expression table at that key, the gloss of the headword it is named 
 (`perché`, `po'` read `poco`) is a word. The extension's card already stores the gloss an expression
 card showed whatever its name's spelling (change 51's D8). A test in `lingua-wasm` holds it. The rule
 takes the place, for an Italian card whose lemma holds no space, of change 12's sentence that looks
-every other card up as before.
+every other card up as before, and of its scenario *Every other card* where that scenario names an
+Italian card on a single word: `d'accordo` is one written word and is no longer looked up as
+before, while a one-token lemma still is (the review found the two texts at odds; the override
+covers both).
 
 ### D6 — The Italian card, pinned on the real packs
 
@@ -148,7 +154,13 @@ every grammar and phrase probe of `it-fr.golden` with the French renderer into
 pack-update workflow's re-bless step (`lingua-pack-update.yml`, the `yarn vitest run … -u` line)
 names `test/word-card-it-fr.spec.ts`, so a re-reduction of it-fr re-blesses the snapshot with the
 golden. What the snapshot
-shows wrong in the data goes to change 17's list, or to the refinement after it.
+shows wrong in the data goes to change 17's list, or to the refinement after it. Found at
+implementation: `fate`, which the committed `tables/it/grammar.tsv` reads as *fare*'s second person
+plural of the present subjunctive (its line 46129) beside the indicative and the imperative — the
+subjunctive is `facciate` —, so the card says « 2e personne du pluriel du présent de l’indicatif ou
+du subjonctif et 2e personne du pluriel de l’impératif de fare » on a common word: the renderer is
+right and the data wrong, for change 17's list; and the committed it-fr table holds no `anch'io`, so
+the golden's « anch'io » phrase shows its words' rows (`anche`).
 
 ### D7 — What does not move
 
@@ -205,14 +217,42 @@ them:
   wraps for French, so French's cards read as before. Its test is in `tests/languages.rs`, beside
   change 12's, over the it-fr fixture re-stamped as it-en: `d'accordo` and `anch'io` show it-en's
   glosses, `perché` its word's.
-- The committed it-fr table holds no `anch'io`: the golden's « anch'io » phrase shows its words'
-  rows (`anche`), for change 17's list.
+- **Known conventions, kept** (the review's notes; each a possible later refinement, none changed
+  here, since each would move other studied languages' cards or needs data this change does not
+  hold):
+  - in French, the persons of one tense come plural first (`numbers: ["Plur", "Sing"]`, the French
+    renderer's convention for every studied language): `sono` reads « 3e personne du pluriel du
+    présent de l’indicatif et 1re personne du singulier du présent de l’indicatif d’essere »;
+  - the French renderer never names two genders of one number once (change 51's D6 merges them in
+    the English and Spanish renderers only): `grandi` reads « pluriel, féminin pluriel et masculin
+    pluriel de grande », `parlanti`'s « peut aussi être » line « le pluriel et le masculin pluriel
+    de parlante »;
+  - a numeral's form is unnamed on every card: `mila`, `milioni` and `miliardi` (`NUM|Number=Plur`)
+    give no « pluriel de mille » line;
+  - a determiner's plural without a gender is unnamed, so `tali`'s only line is another dictionary
+    form's, the rare « peut aussi être le masculin pluriel de talo ».
 
 ## Open Questions
 
 For the owner, none blocking (task 4.1): whether Italian merges its moods at all (M21 was settled for
 French; `CARD_NAMES.it.moods` is proposed true), and whether a partial merge names `parli`'s shared
 second person once (8,392 forms; a new rule of the description, no French or Spanish line moving).
+
+Settled by the owner on 2026-10-25, having read `test/baseline/word-card-it-fr.txt` (task 4.1), each
+as implemented:
+
+- **Italian merges its moods** where the indicative and the subjunctive of one tense hold the same
+  persons in one number: `CARD_NAMES.it.moods` stays true, `parliamo` reads « 1re personne du
+  pluriel du présent de l’indicatif ou du subjonctif et 1re personne du pluriel de l’impératif de
+  parlare » and `siamo` « 1re personne du pluriel du présent de l’indicatif ou du subjonctif
+  d’essere ».
+- **No partial merge for `parli`**: its moods stay apart, the subjunctive's singular grouped —
+  « 2e personne du singulier du présent de l’indicatif et 1re, 2e et 3e personnes du singulier du
+  présent du subjonctif de parlare »; the description gains no rule.
+- **The French terms are approved** as D2 lists them: « présent de l’indicatif », « imparfait de
+  l’indicatif », « passé simple », « futur », « conditionnel », « présent du subjonctif »,
+  « imparfait du subjonctif », « impératif », « gérondif », « participe présent », « participe
+  passé », and the merged « présent de l’indicatif ou du subjonctif ».
 
 ## Risks / Trade-offs
 

@@ -17,6 +17,6 @@
 
 ## 4. Owner and gates
 
-- [ ] 4.1 [manual] The owner reads `word-card-it-fr.txt` (the French terms, the merges, the order) and settles the open questions — Italian's moods merged at all, and a partial merge for `parli` — before the implementation merges.
+- [x] 4.1 [manual] The owner reads `word-card-it-fr.txt` (the French terms, the merges, the order) and settles the open questions — Italian's moods merged at all, and a partial merge for `parli` — before the implementation merges. (Done 2026-10-25: the owner kept the moods merged where the persons are the same, `parli` apart with the subjunctive singular grouped, and approved the French terms.)
 - [x] 4.2 In `apps/lingua-extension`: `yarn lint`, `yarn format:check`, `yarn typecheck`, `yarn test`, `yarn build`, `yarn check:variants`; `cargo fmt --all --check`; `cargo clippy --workspace --all-targets -- -D warnings`; `cargo test --workspace`.
-- [ ] 4.3 `openspec validate add-lingua-italian-word-card --strict` passes; `python3 scripts/openspec_archive_order.py add-lingua-italian-word-card` names its prerequisites; `docs/lingua/italian-programme.md` row 18's status names this change's pull requests. (The validation passes and the archive order names the eight changes of `archiveAfter`; the programme's row is updated with the pull request's number once it is open.)
+- [x] 4.3 `openspec validate add-lingua-italian-word-card --strict` passes; `python3 scripts/openspec_archive_order.py add-lingua-italian-word-card` names its prerequisites; `docs/lingua/italian-programme.md` row 18's status names this change's pull requests. (Done: the validation passes, the archive order names the eight changes of `archiveAfter`, and row 18 names #1055.)
