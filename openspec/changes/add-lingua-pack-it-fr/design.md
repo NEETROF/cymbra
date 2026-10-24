@@ -292,6 +292,14 @@ re-measured after the dispatch. The review of the implementation reduced the sam
 dumps served on 2026-10-24 (the French one regenerated 2026-10-23) and obtained the same tables byte
 for byte, so a dispatch on those dumps writes what is predicted here.
 
+**Committed (2026-10-24).** The owner settled the floor at 87.2 / 79.8 / 71.3 and approved the update:
+`lingua-pack-update` run 40130354122 (mode `update`, `keep: en`), the release
+`lingua-pack-sources-it-fr-2026.10.24`, the commit `40aafd84f`. Its tables are the prediction byte for
+byte — the pack `0e6795d9…` (2,645,342 B), its base `f8c78228…`, its layer `0927f745…`; coverage
+89.2 / 81.8 / 73.3 —, so every figure below, measured again on the committed tables (change 12's
+D10 figures, the names count, the golden's diff), stands as measured. UD Italian-PUD reads 99.26 /
+91.31 / 99.90 on them, as on the tables before: the glosses move no lemma.
+
 **Main reproduced first.** Reduced again locally from it-fr's pinned release assets (Python 3.12,
 `requirements-reduce.txt`), `main`'s reducer gives `main`'s committed `tables/it/` and `tables/it-fr/`
 byte for byte. This change's reducer, over the same English section and the local French and Italian
