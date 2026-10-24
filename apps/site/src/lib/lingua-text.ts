@@ -116,7 +116,7 @@ export interface ShowcaseText {
 }
 
 const fr: LinguaTable = {
-  names: { en: "anglais", es: "espagnol", fr: "français" },
+  names: { en: "anglais", es: "espagnol", fr: "français", it: "italien" },
   speakers: { fr: "francophones", en: "anglophones", es: "hispanophones" },
   title: "Cymbra Lingua — enrichissez votre vocabulaire en lisant le web",
   description:
@@ -232,7 +232,7 @@ const fr: LinguaTable = {
 };
 
 const en: LinguaTable = {
-  names: { en: "English", es: "Spanish", fr: "French" },
+  names: { en: "English", es: "Spanish", fr: "French", it: "Italian" },
   speakers: { fr: "French speakers", en: "English speakers", es: "Spanish speakers" },
   title: "Cymbra Lingua — grow your vocabulary while you read the web",
   description:
@@ -343,7 +343,7 @@ const en: LinguaTable = {
 };
 
 const es: LinguaTable = {
-  names: { en: "inglés", es: "español", fr: "francés" },
+  names: { en: "inglés", es: "español", fr: "francés", it: "italiano" },
   speakers: { es: "hispanohablantes", en: "anglohablantes", fr: "francohablantes" },
   title: "Cymbra Lingua — amplía tu vocabulario leyendo la web",
   description:
@@ -471,14 +471,17 @@ export interface StudiedLanguage {
  * What each studied language's packs are (change: add-lingua-french-listings, D7), whatever the
  * language they are glossed in: English's card names no gender and its levels are CEFR-J's and
  * Octanove's; Spanish's and French's cards name the tense and the gender (the Spanish programme;
- * change 45) and their levels are estimated from word frequency (`levels_estimated`; change 46).
- * A shipped pair studying a language not described here fails the build, as one the tables
- * cannot name does.
+ * change 45) and their levels are estimated from word frequency (`levels_estimated`; change 46);
+ * so are Italian's (the Italian programme's changes 13 and 18 for the card, change 14 for the
+ * levels; add-lingua-italian-listings, D1) — inert until a shipped pair studies Italian (it-fr,
+ * change 20). A shipped pair studying a language not described here fails the build, as one the
+ * tables cannot name does.
  */
 export const STUDIED: Readonly<Record<string, StudiedLanguage>> = {
   en: { namesTenseAndGender: false, levelsEstimated: false },
   es: { namesTenseAndGender: true, levelsEstimated: true },
   fr: { namesTenseAndGender: true, levelsEstimated: true },
+  it: { namesTenseAndGender: true, levelsEstimated: true },
 };
 
 /** `code`'s entry in `STUDIED`, or the build stops, naming the language. */

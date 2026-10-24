@@ -67,13 +67,15 @@ French home's card names the languages read with a French gloss, in `packs.json`
 
 **What each studied language's card and levels are** is one table, `STUDIED` in
 `src/lib/lingua-text.ts` (change `add-lingua-french-listings`, D7): English's card names no
-gender and its levels are CEFR-J's and Octanove's; Spanish's and French's cards name the
-tense and the gender and their levels are estimated from word frequency. The Lingua page
+gender and its levels are CEFR-J's and Octanove's; Spanish's, French's and Italian's cards
+name the tense and the gender and their levels are estimated from word frequency — Italian's
+entry (change `add-lingua-italian-listings`, D1) inert until it-fr is listed. The Lingua page
 appends one sentence to the click card and one to the level card naming, together, the
 studied languages of the shipped pairs that have the property, the page's readers' first —
 « En espagnol et en français, la carte nomme aussi le temps et le genre », "For Spanish and
 French, the levels are estimated…", « En francés y en español… » on `/es/lingua` once fr-es
-ships. A shipped pair whose studied language the table does not describe fails the build. The
+ships, « En espagnol, en italien et en français… » once it-fr does. A shipped pair whose
+studied language the table does not describe fails the build. The
 scale is named as the extension's interface names it — « CEFR » in French and English, « MCER »
 in Spanish (M19).
 
