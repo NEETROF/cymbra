@@ -144,9 +144,13 @@ fn fresh_state(packs: &PackSet) -> LinguaState {
 /// D8): at its lemma first — a card made before Italian expressions were named holds the key it
 /// was shown under (`ad alto voce`) — then at the key its lemma, a name (`al dente`), reads as
 /// (`a il dente`), the gloss of the headword the card is named by, the key's own where none is
-/// (`vale la pena` shows its own gloss, not that of `valere la pena`, which wins the key). An
-/// Italian lemma without a space is a word, as before: a one-word selection over several
-/// pieces (`d'accordo`) is add-lingua-italian-word-card's.
+/// (`vale la pena` shows its own gloss, not that of `valere la pena`, which wins the key).
+///
+/// An Italian expression may be named without a space too (`d'accordo`, `anch'io`): an Italian
+/// card whose lemma holds none but reads, through Italian's reading, as two tokens or more, each a
+/// lemma, is read in the table at that key (`di accordo`), the gloss of the headword it is named
+/// by first, and as a word where the table has nothing there; a lemma read as one token
+/// (`perché`, `po'` read `poco`) is a word, as before (add-lingua-italian-word-card D5).
 fn readable_gloss(pack: Option<&Pack>, card: &Card) -> Option<String> {
     pack.and_then(|pack| pack_gloss(pack, &card.lemma))
         .or_else(|| card.gloss.clone())
@@ -158,8 +162,11 @@ fn readable_gloss(pack: Option<&Pack>, card: &Card) -> Option<String> {
 fn pack_gloss(pack: &Pack, lemma: &str) -> Option<String> {
     let lemma = without_edge_punctuation(lemma);
     let gloss = if !lemma.contains(' ') {
-        if pack.studied() == StudiedLanguage::French
-            && let Some(gloss) = french_expression_key(lemma, pack.lexicon())
+        // A French or an Italian expression named without a space: read at the key its name reads
+        // as, when that is two tokens or more (add-lingua-french-word-card D8,
+        // add-lingua-italian-word-card D5).
+        if let studied @ (StudiedLanguage::French | StudiedLanguage::Italian) = pack.studied()
+            && let Some(gloss) = reading_expression_key(lemma, studied, pack.lexicon())
                 .and_then(|key| pack.expression_gloss_named(&key, lemma))
         {
             return Some(gloss.to_owned());

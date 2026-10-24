@@ -154,6 +154,8 @@ jobs:
       # (add-lingua-pack-it-fr D9) committed it-fr's glosses — the hand-written fixture
       # scripts/lingua-data/testdata/it-fr/ before —, beside the real en-fr pack, whose update
       # moves its `beside en-fr` line alone; an it-fr update moves it as es-fr's moves its own.
+      # The Italian card's lines over it, in French, are pinned by test/word-card-it-fr.spec.ts
+      # (add-lingua-italian-word-card D6).
       - name: Invariance baselines (en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr)
         run: cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline --test fr_es_baseline --test italian_baseline
       # What a pack studies does not depend on how it glosses (add-lingua-pack-lexical-layer):

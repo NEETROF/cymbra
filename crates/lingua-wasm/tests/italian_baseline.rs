@@ -50,7 +50,10 @@
 //! with the probes it adds, at no new analyser version (add-lingua-italian-expression-keys D9: the
 //! `pack` line; four phrase probes — « ad alta voce » named as the dictionary writes it, « a causa
 //! dello sciopero » meeting `a causa di` by the `di` family read once more as `di`, « un po' di
-//! pane » and « C'è un po' di pane » meeting `un po'` —; eight phrase probes added).
+//! pane » and « C'è un po' di pane » meeting `un po'` —; eight phrase probes added), or the
+//! probes a later change adds (add-lingua-italian-word-card D6: the card's 24 grammar probes and 40
+//! lemmas asked as themselves, `support/italian.rs`, which the extension's
+//! `test/word-card-it-fr.spec.ts` renders with the interface in French; probes added, none moved).
 //! `lingua-pack-update` re-blesses on its own branch.
 //!
 //! Host only: the pack builder is native (C zstd), and the wasm surface is the same methods.
@@ -67,7 +70,7 @@ use lingua_core::analysis::tokenize::{
     ITALIAN_CONTRACTIONS, ITALIAN_ELIDED_PREPOSITIONS, ITALIAN_ELISIONS,
     ITALIAN_TRUNCATED_PREPOSITIONS, ITALIAN_TRUNCATIONS, tokenize,
 };
-use support::italian::ITALIAN;
+use support::italian::{CARD_PROBES, ITALIAN, MORE_LEMMAS, REFERENCE_GRAMMAR};
 use support::{PackSource, first_difference, testdata_pack};
 use unicode_normalization::UnicodeNormalization;
 
@@ -108,6 +111,26 @@ fn italian_output_has_not_moved() {
          and say why in the pull request. Otherwise the change is wrong.",
         first_difference(&expected, actual)
     );
+}
+
+/// The probes are the reference's, then the card's 24, then the 40 lemmas as themselves, each
+/// probe once (add-lingua-italian-word-card D6).
+#[test]
+fn the_probes_are_the_references_then_the_cards_then_forty_lemmas() {
+    let (reference, rest) = ITALIAN.grammar.split_at(REFERENCE_GRAMMAR.len());
+    let (card, more) = rest.split_at(CARD_PROBES.len());
+    assert_eq!(reference, REFERENCE_GRAMMAR);
+    assert_eq!(reference.len(), 32);
+    assert_eq!(card, CARD_PROBES);
+    assert_eq!(card.len(), 24);
+    assert_eq!(more.len(), 40);
+    for ((written, lemma), expected) in more.iter().zip(MORE_LEMMAS) {
+        assert_eq!((written, lemma), (expected, expected));
+    }
+    let mut probes = ITALIAN.grammar.to_vec();
+    probes.sort_unstable();
+    probes.dedup();
+    assert_eq!(probes.len(), ITALIAN.grammar.len(), "each probe once");
 }
 
 /// The blocks of the corpus page `name`.

@@ -739,6 +739,32 @@ describe("the grammar modules are renderers (generalise-lingua-card-wording D2)"
       expect(french).toHaveLength(1);
       expect(said[0]).not.toBe(french[0]);
     });
+
+    // add-lingua-italian-word-card D1: each renderer has an Italian table, the French one included.
+    it(`${language} says what the French says of an Italian word, in other words`, () => {
+      const draft = catalogue(language, "grammar") as unknown as GrammarRenderer;
+      const fin = (Mood: string, Person: string, Number: string, Tense?: string): Tag => ({
+        pos: "VERB",
+        features: { Mood, Number, Person, ...(Tense ? { Tense } : {}), VerbForm: "Fin" },
+      });
+      const GERUND: Tag = { pos: "VERB", features: { VerbForm: "Ger" } };
+      const PARTICIPLE: Tag = { pos: "VERB", features: { Number: "Plur", Tense: "Pres", VerbForm: "Part" } };
+      for (const tag of [fin("Ind", "3", "Sing", "Past"), fin("Cnd", "1", "Sing"), GERUND, PARTICIPLE]) {
+        const [french, said] = [fr.readingName(tag, "it"), draft.readingName(tag, "it")];
+        expect(said?.name.trim(), JSON.stringify(tag)).toBeTruthy();
+        expect(said?.name).not.toBe(french?.name);
+      }
+      const parliamo = grammarOf([
+        fin("Imp", "1", "Plur"),
+        fin("Ind", "1", "Plur", "Pres"),
+        fin("Sub", "1", "Plur", "Pres"),
+      ]);
+      const said = draft.grammarLines(parliamo, "parlare", "parliamo", "parliamo", "it").map(lineText);
+      const french = fr.grammarLines(parliamo, "parlare", "parliamo", "parliamo", "it").map(lineText);
+      expect(said).toHaveLength(1);
+      expect(french).toHaveLength(1);
+      expect(said[0]).not.toBe(french[0]);
+    });
   }
 });
 
