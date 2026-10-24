@@ -354,6 +354,58 @@ ranked (18):
   Sandy (French (Canada))
   Shelley (French (Canada))
 
+## chrome-macos it — android voices off, online voices off
+automatic: Alice
+ranked (9):
+  Alice
+  Eddy (Italian (Italy))
+  Flo (Italian (Italy))
+  Grandma (Italian (Italy))
+  Grandpa (Italian (Italy))
+  Reed (Italian (Italy))
+  Rocko (Italian (Italy))
+  Sandy (Italian (Italy))
+  Shelley (Italian (Italy))
+
+## chrome-macos it — android voices off, online voices on
+automatic: Alice
+ranked (9):
+  Alice
+  Eddy (Italian (Italy))
+  Flo (Italian (Italy))
+  Grandma (Italian (Italy))
+  Grandpa (Italian (Italy))
+  Reed (Italian (Italy))
+  Rocko (Italian (Italy))
+  Sandy (Italian (Italy))
+  Shelley (Italian (Italy))
+
+## chrome-macos it — android voices on, online voices off
+automatic: Alice
+ranked (9):
+  Alice
+  Eddy (Italian (Italy))
+  Flo (Italian (Italy))
+  Grandma (Italian (Italy))
+  Grandpa (Italian (Italy))
+  Reed (Italian (Italy))
+  Rocko (Italian (Italy))
+  Sandy (Italian (Italy))
+  Shelley (Italian (Italy))
+
+## chrome-macos it — android voices on, online voices on
+automatic: Alice
+ranked (9):
+  Alice
+  Eddy (Italian (Italy))
+  Flo (Italian (Italy))
+  Grandma (Italian (Italy))
+  Grandpa (Italian (Italy))
+  Reed (Italian (Italy))
+  Rocko (Italian (Italy))
+  Sandy (Italian (Italy))
+  Shelley (Italian (Italy))
+
 ## chrome-windows en — android voices off, online voices off
 automatic: (none)
 ranked (0):
@@ -424,6 +476,24 @@ ranked (3):
   Microsoft Julie - French (France)
   Microsoft Paul - French (France)
 
+## chrome-windows it — android voices off, online voices off
+automatic: (none)
+ranked (0):
+
+## chrome-windows it — android voices off, online voices on
+automatic: Google italiano
+ranked (1):
+  Google italiano
+
+## chrome-windows it — android voices on, online voices off
+automatic: (none)
+ranked (0):
+
+## chrome-windows it — android voices on, online voices on
+automatic: Google italiano
+ranked (1):
+  Google italiano
+
 ## firefox-android en — android voices off, online voices off
 automatic: (none)
 ranked (0):
@@ -491,6 +561,26 @@ automatic: moz-tts:android:fra_FRA_default
 ranked (2):
   moz-tts:android:fra_FRA_default
   moz-tts:android:fra_FRA_f00
+
+## firefox-android it — android voices off, online voices off
+automatic: (none)
+ranked (0):
+
+## firefox-android it — android voices off, online voices on
+automatic: (none)
+ranked (0):
+
+## firefox-android it — android voices on, online voices off
+automatic: moz-tts:android:ita_ITA_default
+ranked (2):
+  moz-tts:android:ita_ITA_default
+  moz-tts:android:ita_ITA_f00
+
+## firefox-android it — android voices on, online voices on
+automatic: moz-tts:android:ita_ITA_default
+ranked (2):
+  moz-tts:android:ita_ITA_default
+  moz-tts:android:ita_ITA_f00
 
 ## firefox-macos en — android voices off, online voices off
 automatic: urn:moz-tts:osx:com.apple.voice.compact.en-GB.Daniel
@@ -595,6 +685,26 @@ automatic: urn:moz-tts:osx:com.apple.voice.super-compact.fr-FR.Thomas
 ranked (2):
   urn:moz-tts:osx:com.apple.voice.super-compact.fr-FR.Thomas
   urn:moz-tts:osx:com.apple.voice.super-compact.fr-CA.Amelie
+
+## firefox-macos it — android voices off, online voices off
+automatic: urn:moz-tts:osx:com.apple.voice.super-compact.it-IT.Alice
+ranked (1):
+  urn:moz-tts:osx:com.apple.voice.super-compact.it-IT.Alice
+
+## firefox-macos it — android voices off, online voices on
+automatic: urn:moz-tts:osx:com.apple.voice.super-compact.it-IT.Alice
+ranked (1):
+  urn:moz-tts:osx:com.apple.voice.super-compact.it-IT.Alice
+
+## firefox-macos it — android voices on, online voices off
+automatic: urn:moz-tts:osx:com.apple.voice.super-compact.it-IT.Alice
+ranked (1):
+  urn:moz-tts:osx:com.apple.voice.super-compact.it-IT.Alice
+
+## firefox-macos it — android voices on, online voices on
+automatic: urn:moz-tts:osx:com.apple.voice.super-compact.it-IT.Alice
+ranked (1):
+  urn:moz-tts:osx:com.apple.voice.super-compact.it-IT.Alice
 
 ## safari-ios en — android voices off, online voices off
 automatic: com.apple.voice.super-compact.en-US.Samantha
@@ -760,6 +870,26 @@ ranked (2):
   com.apple.voice.compact.fr-FR.Thomas
   com.apple.voice.super-compact.fr-CA.Amelie
 
+## safari-ios it — android voices off, online voices off
+automatic: com.apple.voice.super-compact.it-IT.Alice
+ranked (1):
+  com.apple.voice.super-compact.it-IT.Alice
+
+## safari-ios it — android voices off, online voices on
+automatic: com.apple.voice.super-compact.it-IT.Alice
+ranked (1):
+  com.apple.voice.super-compact.it-IT.Alice
+
+## safari-ios it — android voices on, online voices off
+automatic: com.apple.voice.super-compact.it-IT.Alice
+ranked (1):
+  com.apple.voice.super-compact.it-IT.Alice
+
+## safari-ios it — android voices on, online voices on
+automatic: com.apple.voice.super-compact.it-IT.Alice
+ranked (1):
+  com.apple.voice.super-compact.it-IT.Alice
+
 ## safari-ios-simulator en — android voices off, online voices off
 automatic: com.apple.voice.super-compact.en-US.Samantha
 ranked (25):
@@ -924,6 +1054,26 @@ ranked (2):
   com.apple.voice.super-compact.fr-FR.Thomas
   com.apple.voice.super-compact.fr-CA.Amelie
 
+## safari-ios-simulator it — android voices off, online voices off
+automatic: com.apple.voice.super-compact.it-IT.Alice
+ranked (1):
+  com.apple.voice.super-compact.it-IT.Alice
+
+## safari-ios-simulator it — android voices off, online voices on
+automatic: com.apple.voice.super-compact.it-IT.Alice
+ranked (1):
+  com.apple.voice.super-compact.it-IT.Alice
+
+## safari-ios-simulator it — android voices on, online voices off
+automatic: com.apple.voice.super-compact.it-IT.Alice
+ranked (1):
+  com.apple.voice.super-compact.it-IT.Alice
+
+## safari-ios-simulator it — android voices on, online voices on
+automatic: com.apple.voice.super-compact.it-IT.Alice
+ranked (1):
+  com.apple.voice.super-compact.it-IT.Alice
+
 ## safari-macos en — android voices off, online voices off
 automatic: com.apple.voice.super-compact.en-US.Samantha
 ranked (25):
@@ -1087,3 +1237,23 @@ automatic: com.apple.voice.super-compact.fr-FR.Thomas
 ranked (2):
   com.apple.voice.super-compact.fr-FR.Thomas
   com.apple.voice.super-compact.fr-CA.Amelie
+
+## safari-macos it — android voices off, online voices off
+automatic: com.apple.voice.super-compact.it-IT.Alice
+ranked (1):
+  com.apple.voice.super-compact.it-IT.Alice
+
+## safari-macos it — android voices off, online voices on
+automatic: com.apple.voice.super-compact.it-IT.Alice
+ranked (1):
+  com.apple.voice.super-compact.it-IT.Alice
+
+## safari-macos it — android voices on, online voices off
+automatic: com.apple.voice.super-compact.it-IT.Alice
+ranked (1):
+  com.apple.voice.super-compact.it-IT.Alice
+
+## safari-macos it — android voices on, online voices on
+automatic: com.apple.voice.super-compact.it-IT.Alice
+ranked (1):
+  com.apple.voice.super-compact.it-IT.Alice
