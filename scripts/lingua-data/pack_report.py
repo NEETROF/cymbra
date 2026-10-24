@@ -274,16 +274,40 @@ def coverage_line(old: Path, new: Path) -> str | None:
     return f"Glossed, of the {tops} commonest lemmas: {shares}{was}."
 
 
+# The longest gloss a sample row shows; the reducer's measures hold it whole.
+SAMPLE_GLOSS = 120
+
+
 def share_line(pair: str, measures: Path) -> str:
     """What the reducer measured of the glosses' sources (`measures.json`, add-lingua-pack-en-es
     D4): among the glossed lemmas of the `top` commonest, the share from a translation table —
-    the direct, then the inverted — rather than from an entry; the pair named."""
+    the direct, then the inverted — rather than from an entry; the pair named. With it-fr's further
+    measures (add-lingua-pack-it-fr D8): the glossed lemmas by source, and its sample of glosses
+    marked by source, folded — the coverage beside it is the report's own (`coverage_line`)."""
     got = json.loads(measures.read_text(encoding="utf-8"))
     tables = ", ".join(f"{name} {len(got.get(name) or ())}" for name in ("direct", "inverted"))
-    return (
+    lines = [
         f"`{pair}`: of the {got['glossed']:,} glossed lemmas among the {got['top']:,} commonest, "
         f"**{got['share']} %** come from a translation table ({tables}) rather than from an entry."
-    )
+    ]
+    if isinstance(got.get("by source"), dict):
+        lines.append(
+            "Glossed lemmas by source: " + ", ".join(f"{name} {count:,}" for name, count in got["by source"].items()) + "."
+        )
+    sample = got.get("sample")
+    if isinstance(sample, list) and sample:
+        lines += [
+            "",
+            f"<details><summary>A sample of {len(sample)} glosses, marked by source</summary>",
+            "",
+            "| Rank | Lemma | Source | Gloss |",
+            "|---:|---|---|---|",
+        ]
+        for lemma, rank, source, gloss in sample:
+            cut = (gloss if len(gloss) <= SAMPLE_GLOSS else gloss[: SAMPLE_GLOSS - 1] + "…").replace("|", "\\|")
+            lines.append(f"| {rank} | `{lemma}` | {source} | {cut} |")
+        lines += ["", "</details>"]
+    return "\n".join(lines)
 
 
 def render(

@@ -165,6 +165,37 @@ class Measured(unittest.TestCase):
         self.assertIn("`en-fr`: of the", self.run_report(self.old, self.new, "--measures", str(measures), "--pair", "en-fr")[1])
 
 
+    def test_it_fr_s_sources_and_sample_are_shown(self):
+        # add-lingua-pack-it-fr D8: it-fr's measures add the glossed lemmas by source and a sample of
+        # glosses marked by source, which the update's report shows beside the share.
+        measures = self.root / "measures.json"
+        long_gloss = "Blanc, " + "d’une couleur " * 20
+        measures.write_text(
+            json.dumps(
+                {
+                    "top": 10000,
+                    "glossed": 8183,
+                    "share": 2.9,
+                    "direct": ["w2"] * 46,
+                    "inverted": ["w3"] * 188,
+                    "coverage": {"5000": 89.2, "10000": 81.8, "20000": 73.3},
+                    "by source": {"definitions": 31012, "direct": 279, "inverted": 1405},
+                    "sample": [["vi", 78, "definitions", "Vous; Y"], ["bianco", 626, "definitions", long_gloss], ["a|b", 9, "direct", "A | B"]],
+                }
+            ),
+            encoding="utf-8",
+        )
+        code, report = self.run_report(self.old, self.new, "--measures", str(measures), "--pair", "it-fr")
+        self.assertEqual(code, 0, report)
+        self.assertIn("Glossed lemmas by source: definitions 31,012, direct 279, inverted 1,405.", report)
+        self.assertIn("<details><summary>A sample of 3 glosses, marked by source</summary>", report)
+        self.assertIn("| 78 | `vi` | definitions | Vous; Y |", report)
+        row = next(line for line in report.splitlines() if "`bianco`" in line)
+        self.assertTrue(row.endswith("… |"), row)
+        self.assertIn("A \\| B", report)
+        self.assertLess(report.index("**2.9 %**"), report.index("Glossed lemmas by source"))
+
+
 class Identical(unittest.TestCase):
     """--identical (generalise-lingua-gloss-reducer D4): a pair reduced again expecting no change."""
 
