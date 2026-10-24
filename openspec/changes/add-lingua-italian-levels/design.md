@@ -92,8 +92,12 @@ being read; it-en and it-es (stage 2) read `tables/it/level.tsv` as committed an
 Until it-fr's glosses are committed, `tables/it/lexical.tsv` holds the acronym rows alone (change 11)
 and the levels read no pair's glosses. Change 16 commits the glosses and the dictionary words in one
 pull request and passes them as `words`, as `refine-lingua-fr-en-glosses` did for French: a level
-then goes only to a word a card can gloss (`roma`, `marco`, `maria`, levelled through their
-lowercase senses before, keep a level only if they are dictionary words), and `committed_tables.rs`
+then goes only to a word a card can gloss (names levelled before through a sense of another part of
+speech, from a lowercase or a capitalised entry — `roma`, `marco`, `napoli`, `francesco` from a
+lowercase one; `maria`, `gesù`, `adam`, `assunta`, `tommy`, `palestina`, `cambogia`, `bellini`,
+`reich`, `alzheimer` and the initialisms `mm`, `pc`, `cd`, `ps`, `ac`, `tar`, `pg`, `cup` from a
+capitalised one, 59 lemmas in all from a capitalised entry — keep a level only if they are dictionary
+words), and `committed_tables.rs`
 gains « every Italian levelled lemma is a dictionary word », as Spanish's and French's checks. The
 table moves then, in change 16's pull request; afterwards, glosses that add or remove no dictionary
 word, and another pair's glosses, leave it byte for byte (French's test).
@@ -130,7 +134,8 @@ task 2.1, as French's D9 measured +60,035 B).
 
 - [An estimate, not a list] → measured by one script beside French's and Spanish's committed
   tables (proposal); I8 accepted estimated levels with the label.
-- [Names with a lowercase homograph] → `roma` (rice), `marco` (the coin), `maria` levelled until
+- [Names with a sense of another part of speech, from a lowercase or a capitalised entry] → `roma`
+  (rice), `marco` (the coin), `napoli`, `francesco`, `maria`, `gesù`, `reich`, initialisms levelled until
   change 16 narrows the levels to dictionary words (D4).
 - [A common noun read as a verb's form] → `porta` is no lemma of change 9's tables (its D5, M8), so
   it has no level; French's analogue is `porte`.
@@ -148,6 +153,52 @@ another, French's rules of D2 ported; the same translation check run on French's
 committed `level.tsv` and their English glosses (`fr-en/gloss.tsv`, `es-en/gloss.tsv`) — the figures
 of the proposal. Folding inflected forms into their lemma by summed frequency (which French's D1
 rejected) moves the agreement figures by under a point and the A1 figure from 55.2 % to 60.1 %. Re-run on change 9's committed ranks at task 2.1.
+
+## As implemented
+
+`reduce-it-fr.py` holds the section *Italian's estimated levels*: `ENGLISH_BANDS`, French's
+`_LETTER_POS`, `_NOT_A_WORD_TAGS`, `_LETTER_GLOSS` and `_SPELLING_OF`, `word_senses` and
+`read_level_senses` (a pass of their own over the section, the forms' `_is_form_of` deciding what is a
+form of another word), `no_level`, `estimated_levels` and `levels_report` (which takes the bands, for
+its test). `reduce` writes `level.tsv` after `freq.tsv` from the ranks, the forms just chosen and the
+section — no `words` until change 16 —, the report line after the acronyms', and the summary's
+`levels` and `levels left out`; `manifest` writes `levels_estimated: true`, `notice` the levels'
+sentence. `reduce_common.py` is not edited.
+
+**The local reduction** (task 2.1's figures, made as the update makes it: Python 3.12 and
+`requirements-reduce.txt`, `build.sh --reduce it-fr` from the pinned 2026.10.23 sources, the release
+assets `lingua-pack-sources-it-fr-2026.10.23` and `lingua-pack-sources-morph-it-0.4.8`, MarkIT at
+`e210079d`). Reducing `main` first gave its committed tables byte for byte. With this change:
+8,302 levels, A1 1–1,080, A2 1,081–2,380, B1 2,381–4,855, B2 4,857–8,052, C1 8,053–9,371, C2
+9,377–10,690; left out 1,728 unknown, 635 names, 16 letters, 9 spellings, none by the guard; `forms.tsv`,
+`freq.tsv`, `grammar.tsv`, `lexical.tsv`, `tags.tsv` and `studied.json` byte for byte; the base grows
+by 60,037 B (1,491,875 → 1,551,912 B), the layer by 265 B (the NOTICE's sentence), the pack to
+1,553,605 B. The figures, the measurement and the weaknesses are recorded in `tables/it-fr/README.md`,
+*The levels*.
+
+**Departures from the proposal and this design**, each recorded in the pull request:
+
+1. *The spans and counts moved* from the prototype's: A1 ends at 1,080 (1,094), C2 spans
+   9,377–10,690 (9,446–10,768); 272 fewer names — exactly the name-only words among wordfreq's 14,000
+   commonest that change 9's names rule reads as another lemma's form (`sua` → *suo*, `grandi` →
+   *grande*), which the prototype ranked by their own string —, 205 more unknown words (none has an
+   entry in the section), 9 spellings instead of 18 (change 10 reads most as their word), 16 letters
+   instead of 18 (wordfreq's elision stems are no ranks).
+2. *The measurement's script is not the proposal's*: no variant of 72 tried on French and Spanish
+   reproduces the proposal's figures (the closest is up to 2.3 points off), so the three languages are
+   measured again by one script, its criteria written before Italian's figures were read. Italian's
+   figures read like French's and Spanish's, but two criteria are missed: C2, skipping articles,
+   within one level 57.9 % against 60.3 % and 61.1 % (the lower less two points, missed by 0.4 point;
+   the prototype measured the same gap); C3, the plain proxy's mean English level flat from B1 to B2
+   (2.38 → 2.37), rising when skipping.
+3. *The vocabulary estimate*: `Pack::dictionary_words` counts a ranked lemma that is a dictionary word
+   or carries a level (add-lingua-cefr-levels), so it-fr's estimate counts its 8,302 levelled lemmas
+   until change 16's dictionary words join them; no reader sees it before change 20. The committed
+   check that held it empty now holds it to the levelled lemmas.
+4. *`porta` and `perchè`* are no ranked lemmas of the committed tables (M8; change 10): the spec's
+   scenario of a ranked lemma whose own form reads as another, and `perchè`'s spelling rule, are held
+   on fixture entries, as French's `donnée` was; on the committed tables, `perchè` reads as *perché*
+   and `porta` as *portare*, each with its word's level.
 
 ## Open Questions
 

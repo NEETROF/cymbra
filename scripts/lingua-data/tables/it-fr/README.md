@@ -10,8 +10,9 @@ They are in two folders (split-lingua-pack-tables-by-language). it-fr is Italian
 which every pair studying Italian reads as committed (it-en, it-es), and this folder's `pin.json`
 records the sources of both. Change 9 writes Italian's forms and ranks, change 13 its readings
 (`../it/grammar.tsv`, add-lingua-italian-grammar-tables, *The readings* below) and their pinned tag
-pool (`../it/tags.tsv`); its glosses, levels and dictionary words are later changes' (16, 14, 11), so
-`gloss.tsv` is empty and `../it/lexical.tsv` holds change 11's acronym rows alone. The Italian
+pool (`../it/tags.tsv`), change 14 its estimated levels (`../it/level.tsv`, add-lingua-italian-levels,
+*The levels* below); its glosses and the rest of its dictionary words are change 16's, so `gloss.tsv`
+is empty and `../it/lexical.tsv` holds change 11's acronym rows alone. The Italian
 baseline (`crates/lingua-wasm/tests/italian_baseline.rs`) keeps its hand-written fixture
 (`scripts/lingua-data/testdata/it-fr/`) until change 16: a pack of forms and ranks alone would blind
 its gloss, expression and level probes; the readings are pinned by
@@ -22,8 +23,8 @@ In this folder:
 | File | What it maps | From |
 |---|---|---|
 | `gloss.tsv` | nothing yet: change 16 glosses Italian in French | — |
-| `NOTICE` | the attribution stack, embedded in the pack | — |
-| `manifest.json` | Italian glossed in French, Italian's analyser version (`ITALIAN_ANALYZER_VERSION`, read from lingua-core), `pack_version` (the snapshot); no `levels_estimated` until change 14 | — |
+| `NOTICE` | the attribution stack, embedded in the pack, and the sentence saying the levels are estimated | — |
+| `manifest.json` | Italian glossed in French, Italian's analyser version (`ITALIAN_ANALYZER_VERSION`, read from lingua-core), `pack_version` (the snapshot), `levels_estimated` (change 14) | — |
 | `pin.json` | the raw sources these tables and `../it/` came from, and the pack, base and layer they build | — |
 
 In `../it/`, Italian's tables, written by it-fr's reduction:
@@ -33,6 +34,7 @@ In `../it/`, Italian's tables, written by it-fr's reduction:
 | `forms.tsv` | form → lemma | kaikki.org, the English Wiktionary's Italian section (CC BY-SA 4.0 + GFDL), with UD Italian-MarkIT's counts to choose between lemmas (CC BY 4.0) and Morph-it!'s forms the Wiktionary names nowhere (CC BY-SA 2.0) |
 | `freq.tsv` | lemma → frequency rank, the 60,000 commonest | wordfreq 3.1.1 (CC BY-SA 4.0); a hyphenated word by MarkIT's own frequency too |
 | `grammar.tsv` | form → its readings, as Universal Dependencies tags (`form<TAB>lemma<TAB>tag<TAB>other\|-`) | kaikki.org, the same section (add-lingua-italian-grammar-tables, change 13) |
+| `level.tsv` | lemma → its estimated CEFR level, 8,302 lemmas of English's level sizes | none: derived from `freq.tsv` and the same section (add-lingua-italian-levels, change 14) |
 | `lexical.tsv` | Italian's dictionary words: the acronym rows alone, `NATO` and `USA`, until change 16 writes the rest | `reduce_italian_acronyms.ACRONYMS` (keep-lingua-italian-acronyms-and-names D6); change 16's glosses |
 | `tags.tsv` | Italian's pinned tag pool: the 83 tags its readings carry, in byte order; written by no reducer | committed by hand from the reduction's readings (change 13), replacing change 9's placeholder `NOUN` |
 | `studied.json` | the pair whose reduction writes `../it/`: it-fr | committed by hand |
@@ -193,6 +195,115 @@ noun; the owner may name rows, each with its reason, at any reduction. Two of th
 names rule's narrowing (the review of 2026-10-23) and are left for change 17's refinements: `dato`
 reads as *dare* (MarkIT's counts, 9 *dare* against 3 *dato*) and `dati` with it (« i dati »), and
 `lega` as *legare* (one count), whose `leghe` is then no form.
+
+## The levels (`../it/level.tsv`)
+
+**Estimated, not a CEFR list's** (add-lingua-italian-levels, change 14, the programme's I8). No
+Italian CEFR word list can be shipped: the *Profilo della lingua italiana* is not free, and no openly
+licensed Italian list was found. Italian's levels are estimated from frequency, as Spanish's and
+French's are, and the manifest says `levels_estimated`: the extension labels them estimated and the
+ladder borrows English's typical vocabularies, saying so — no code of their own; Italian is shown by
+those paths once change 20 widens the extension's studied languages. No list is read, measured against
+or committed; a licence request for one stays the owner's.
+
+**The derivation** (D1). The lemmas of `../it/freq.tsv`, in rank order then lemma, take English's
+level sizes — 1,020 A1, 1,158 A2, 2,015 B1, 2,347 B2, 886 C1, 876 C2: 8,302 lemmas — skipping those a
+CEFR list would leave out, a lemma left out giving its slot to the next. The sizes are constants of
+`reduce-it-fr.py` (`ENGLISH_BANDS`), equal to fr-en's by a test and never read from English's tables,
+so an English update cannot move Italian's levels unannounced.
+
+**Which lemmas take one** (D2) is read from the English Wiktionary's Italian section — the source of
+the forms, never a pair's glosses: change 16 passes Italian's dictionary words once it commits it-fr's
+(D4). Within the levelled span (ranks 1–10,690), 2,388 ranked lemmas take no level:
+
+| Rule | Left out | For example |
+|---|---|---|
+| 1. the section gives it no sense that is not a form of another word… | 1,728 | `facebook`, `of`, `eh`, `ecc`, `km`, `http`: none has an entry in the section |
+| …or only a name's, written there with a capital | 635 | `italia`, `milano`, `europa`, `giovanni`, `google` |
+| 2. a single character the section gives no word's sense — a letter's, its name read by its gloss, a symbol's, a name's, an abbreviation's, another word's spelling | 16 | `b`, `r` (« alternative spelling of er »), `x` (« abbreviation of per »), `é`, `u` (« the name of the Latin script letter U/u »), `k`, `à` (« obsolete spelling of ha »); `a` (the preposition), `e` and `o` (the conjunctions) keep their place |
+| 3. every sense it is given, a name's aside, only spells another word, read by French's prefixes, not kaikki's `alt_of` pointer — so a contraction or an apocope stays a word | 9 | `the` (« misspelling of tè »), `nè`, `can`, `are`, `contenente`, `zombie`, `buddha`, `ro`, `homo` |
+| 4. its own form reads as another lemma in `forms.tsv` | 0 | none: the ranks keep no such lemma (change 9's D6) and the builder refuses one; the rule stays as a guard |
+| 5. Italian's dictionary words do not list it | — | not read until change 16 passes them (D4) |
+
+Every word the pre-pass writes has a level through its lemma: the `di` family (`del`, `della`, …),
+the articles (*il*, *lo*, *uno*), the elided pieces' and the truncations' words and the split
+prepositions' pieces are A1 — `ciascuno`, `dovere` (`deve`), `povero` and `venti` A2, `alcuno` B2. `al` and `nel` are no
+words of the tables; `è` and `i` no lemmas (*essere*, *il*); `perchè` reads as *perché* (A1). M8's cost
+carries over: `porta` is no lemma, so the door has no level and « la porta » reads as *portare* (A1).
+The acronym rows have no rank, so no level.
+
+| Level | Lemmas | Ranks | First words |
+|---|---|---|---|
+| A1 | 1,020 | 1–1,080 | di, e, che, il, a, in, non, per |
+| A2 | 1,158 | 1,081–2,380 | impegno, luigi, maestro, morale, nascita, piani, principe, professore |
+| B1 | 2,015 | 2,381–4,855 | sconto, soddisfazione, sospensione, stronzo, suonare, terrorismo, terzi, tuttora |
+| B2 | 2,347 | 4,857–8,052 | ricercatore, rimediare, ripartire, ritirato, rotonda, saldo, satana, sconfiggere |
+| C1 | 886 | 8,053–9,371 | bassano, bunker, cacao, camerino, cartina, cessazione, cestino, cognizione |
+| C2 | 876 | 9,377–10,690 | ventenne, veridicità, videocamera, vile, vitello, abisso, accensione, aderente |
+
+These are a local reduction's, made as the update makes it — Python 3.12 and
+`requirements-reduce.txt`, `build.sh --reduce it-fr` from the pinned 2026.10.23 sources (the release
+assets `lingua-pack-sources-it-fr-2026.10.23` and `lingua-pack-sources-morph-it-0.4.8`, MarkIT at
+`e210079d`) — which first reproduced the committed tables byte for byte; `forms.tsv`, `freq.tsv`,
+`grammar.tsv`, `lexical.tsv`, `tags.tsv` and `studied.json` come out as committed.
+
+**Measured with open data only** (the proposal's measurement, re-run on change 9's ranks). One script
+over the three languages: a levelled lemma's translation is the first word of its English glosses —
+fr-en's and es-en's `gloss.tsv` for French and Spanish, the section's own glosses for Italian (each
+sense that is no form of another word and no name's, in page order) — that English's committed CEFR
+table levels, lowercased, text in brackets left out; « skipping » leaves out a leading *to*, *a*,
+*an* or *the*. PUD: UD Italian-, French- and Spanish-PUD's test sections (the same 1,000 sentences;
+gold lemmas; names, numbers, symbols and punctuation left out), each language's committed `level.tsv`.
+
+| | Italian | French | Spanish |
+|---|---|---|---|
+| A levelled lemma's translation and its English level: exact / within one | 22.7 % / 54.1 % of 7,075 (85.2 % covered) | 23.1 % / 54.1 % of 6,909 (83.2 %) | 24.4 % / 55.7 % of 6,790 (81.8 %) |
+| The same, skipping a leading article or *to* | 24.6 % / 57.9 % | 25.5 % / 60.3 % | 26.7 % / 61.1 % |
+| Mean English level of the translations, A1 → C2 | 1.76, 2.18, 2.38, 2.37, 2.52, 2.49 | 1.67, 2.14, 2.29, 2.44, 2.32, 2.37 | 1.74, 2.19, 2.38, 2.55, 2.48, 2.42 |
+| A1 words whose translation is English A1 / A1–A2 | 54.2 % / 76.3 % | 58.9 % / 80.0 % | 55.0 % / 76.5 % |
+| UD PUD's words at A1, A2, B1, B2, C1, C2, none | 75.8, 8.0, 6.0, 3.5, 0.8, 0.5, 5.4 % of 19,180 | 77.7, 7.8, 5.7, 2.7, 0.6, 0.5, 5.0 % of 20,411 | 76.5, 8.1, 6.0, 2.6, 0.8, 0.4, 5.6 % of 19,285 |
+| PUD's words presumed known when declaring A2, B1, B2, C1, C2 | 75.8, 83.8, 89.7, 93.2, 94.1 % | 77.7, 85.5, 91.2, 93.8, 94.4 % | 76.5, 84.6, 90.6, 93.2, 94.0 % |
+
+Italian's estimate reads like French's and Spanish's: its exact and within-one figures are within two
+points of theirs, its A1 like Spanish's, and a declared level presumes known within two points of what
+it does in French and Spanish (Spanish's PUD shares are within a tenth of change 46's; French's moved
+with its later tables). Two figures lag: skipping articles, Italian's within-one is 57.9 % against
+60.3 % and 61.1 % (the proposal's prototype measured the same gap, 59.4 % against 62.6 % and 62.8 %),
+missing by 0.4 point the floor written before the figures were read (the lower of French's and
+Spanish's less two points); and the plain proxy's mean English level does not rise from B1 to B2
+(2.38, 2.37), missing the second criterion written then (rising from A1 to B2) — it rises when skipping
+(2.52, 2.57); in all three languages the proxy cannot tell B2, C1 and C2 apart, a rare word's
+translation being often a common English word. The script does not reproduce the proposal's figures
+(its method was not recorded; of 72 variants tried on French and Spanish, the closest is up to 2.3
+points off), so its figures compare with each other only.
+
+**Against the proposal's figures**, measured on a prototype (wordfreq's list, each word ranked by its
+own string): A1 ended at rank 1,094 and C2 spanned 9,446–10,768; here 1,080 and 9,377–10,690. 2,388
+lemmas are left out instead of 2,466: 272 fewer names — exactly the 272 name-only words among wordfreq's
+14,000 commonest that change 9's names rule (its D5) reads as another lemma's form and does not rank
+(`sua` → *suo*, `grandi` → *grande*, `bambini` → *bambino*, `rossi` → *rosso*); 205 more unknown words,
+none of them in the section; 9 spellings instead of 18, change 10 reading most as their word (`perchè`
+→ *perché*); 16 letters instead of 18, wordfreq's elision stems (`l`, `d`) being no ranks.
+
+**Known weaknesses**, as French's and Spanish's: a name keeps a level through a sense of another
+part of speech, from a lowercase or a capitalised entry, until change 16 narrows the levels to
+dictionary words (D4). From a lowercase entry: `roma` (« a type of rice »), `marco` (the mark),
+`napoli` (« Neapolitan ») and `francesco` (« French ») A1, `luigi` (the louis d'or), `svizzera` (a
+hamburger), `brasile` (brazilwood) and `matteo` (« alternative form of matto ») A2. From a capitalised
+entry — 59 levelled lemmas take their only senses that are no name's from one, words written in
+capitals a list would hold among them (`tv`, `ok`, `dna`, `sms`) —: `maria` (« cannabis », from
+`Maria`) and `gesù` A1, `adam`, `assunta` and `tommy` B1, `palestina`, `cambogia` and `bellini` B2,
+`reich` and `alzheimer` C2, and initialisms, `mm`, `pc` and `cd` A2, `ps` and `ac` B1, `tar`, `pg` and
+`cup` B2. A lemma is ranked by its own string, so a
+word said mostly in other forms ranks low — `dovere` and `volere` A2, `alcuno` and `capello` B2; numbers
+written as words are levelled by frequency (`undici` B1, `quattordici` B2, `diciannove` C1), and `sei`
+reads as *essere* (M8), so six has none; rule 3 leaves out a word whose only sense of its own spells
+another, though readers meet it as a word of its own: `contenente` (« containing »), given as
+*contenere*'s participle (B1) and, of its own, only as « archaic form of continente ».
+
+The levels section is one byte per lemma of the pack's pool, in Italian's base with the flag: the base
+grows from 1,491,875 B to 1,551,912 B (+60,037 B), the layer from 1,653 B to 1,918 B (+265 B, the
+NOTICE's sentence), the pack from 1,493,303 B to 1,553,605 B (29.6 % of the 5 MiB budget).
 
 ## The readings (`../it/grammar.tsv`)
 

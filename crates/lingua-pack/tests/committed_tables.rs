@@ -1920,14 +1920,16 @@ const ENGLISH_LEVEL_SIZES: [(&str, usize); 6] = [
     ("C2", 876),
 ];
 
-#[test]
-fn spec_scenario_six_levels_of_english_s_sizes() {
-    let fr = tables().join("fr");
-    let levels = tsv(&fr.join("level.tsv"));
-    let ranks = tsv(&fr.join("freq.tsv"));
-    let forms = tsv(&fr.join("forms.tsv"));
-    assert_eq!(levels.len(), 8_302);
-    // Each a ranked lemma whose own form reads as itself: a pack finds a lemma by its own form.
+/// A studied language's estimated `level.tsv` (add-lingua-french-levels, add-lingua-italian-levels):
+/// 8,302 lemmas, each a ranked lemma whose own form reads as itself — a pack finds a lemma by its
+/// own form —, as many at each level as English's lists hold, given in rank order (each level's
+/// ranks after the level below's), written sorted as a reducer writes it.
+fn assert_english_s_sizes(language: &str) {
+    let dir = tables().join(language);
+    let levels = tsv(&dir.join("level.tsv"));
+    let ranks = tsv(&dir.join("freq.tsv"));
+    let forms = tsv(&dir.join("forms.tsv"));
+    assert_eq!(levels.len(), 8_302, "{language}/level.tsv");
     for lemma in levels.keys() {
         assert!(ranks.contains_key(lemma), "{lemma}: levelled, not ranked");
         assert_eq!(
@@ -1936,8 +1938,6 @@ fn spec_scenario_six_levels_of_english_s_sizes() {
             "{lemma}: its own form reads elsewhere"
         );
     }
-    // As many at each level as English's lists hold, given in rank order: each level's ranks come
-    // after the level below's.
     let mut below = 0;
     for (label, size) in ENGLISH_LEVEL_SIZES {
         let at: Vec<u32> = levels
@@ -1945,14 +1945,24 @@ fn spec_scenario_six_levels_of_english_s_sizes() {
             .filter(|(_, level)| *level == label)
             .map(|(lemma, _)| ranks[lemma].parse().unwrap())
             .collect();
-        assert_eq!(at.len(), size, "fr/level.tsv: {label}");
+        assert_eq!(at.len(), size, "{language}/level.tsv: {label}");
         let (first, last) = (*at.iter().min().unwrap(), *at.iter().max().unwrap());
         assert!(
             first > below,
-            "{label} starts at rank {first}, the level below ends at {below}"
+            "{language} {label} starts at rank {first}, the level below ends at {below}"
         );
         below = last;
     }
+    let text = std::fs::read_to_string(dir.join("level.tsv")).unwrap();
+    assert!(
+        text.lines().is_sorted(),
+        "{language}/level.tsv is not sorted"
+    );
+}
+
+#[test]
+fn spec_scenario_six_levels_of_english_s_sizes() {
+    assert_english_s_sizes("fr");
 }
 
 #[test]
@@ -1978,32 +1988,47 @@ fn spec_scenario_the_commonest_words_are_a1() {
     assert!(!levels.contains_key("etre"), "etre has a level");
 }
 
-#[test]
-fn spec_scenario_every_french_pack_says_so() {
-    // Every pack studying French built from the committed tables — fr-en today — says its levels
-    // are estimated, in its manifest and its pack, and its NOTICE says so, citing no CEFR list.
+/// Every pack studying `language` built from the committed tables says its levels are estimated, in
+/// its manifest and its pack, its NOTICE saying so and citing none of `lists`; each gives every
+/// lemma of the language's `level.tsv` its level (*A level reaches the lemma it is written for*);
+/// `reference` is among them.
+fn assert_every_pack_says_so(language: &str, reference: &str, lists: &[&str]) {
     let pairs = check_committed_tables(&tables()).unwrap_or_else(|e| panic!("{e}"));
-    let french: Vec<&String> = pairs.iter().filter(|p| studied_of(p) == "fr").collect();
-    assert!(french.iter().any(|p| *p == "fr-en"), "{french:?}");
-    for pair in french {
+    let studying: Vec<String> = pairs
+        .into_iter()
+        .filter(|p| studied_of(p) == language)
+        .collect();
+    assert!(studying.iter().any(|p| p == reference), "{studying:?}");
+    let table = level_table(&tables().join(language));
+    for pair in &studying {
         let dir = tables().join(pair);
         assert_eq!(
             json(&dir.join("manifest.json"))["meta"]["levels_estimated"],
             true,
             "{pair}/manifest.json"
         );
-        let pack = Pack::load(&committed_pack(pair)).unwrap();
+        let bytes = committed_pack(pair);
+        let pack = Pack::load(&bytes).unwrap();
         assert!(pack.has_levels(), "{pair}");
         assert!(pack.levels_estimated(), "{pair}");
+        let carried =
+            levels_on_their_lemmas(pair, &bytes, &table).unwrap_or_else(|e| panic!("{e}"));
+        assert_eq!(carried, 8_302, "{pair}");
         let notice = std::fs::read_to_string(dir.join("NOTICE")).unwrap();
         assert!(
             notice.contains("The levels are estimated, not taken from a CEFR list"),
             "{pair}/NOTICE"
         );
-        for list in ["FLELex", "CEFRLex", "CEFR-J", "Octanove"] {
+        for list in lists {
             assert!(!notice.contains(list), "{pair}/NOTICE names {list}");
         }
     }
+}
+
+#[test]
+fn spec_scenario_every_french_pack_says_so() {
+    // Every pack studying French built from the committed tables — fr-en and fr-es today.
+    assert_every_pack_says_so("fr", "fr-en", &["FLELex", "CEFRLex", "CEFR-J", "Octanove"]);
 }
 
 /// A committed pair's pack, built once per test binary for the six pairs the tests above build.
@@ -2094,7 +2119,9 @@ fn spec_scenario_the_committed_pairs_give_each_level_to_its_own_lemma() {
             .unwrap_or_else(|e| panic!("{e}"));
         assert_eq!(carried, table.len(), "{pair}");
     }
-    for pair in ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"] {
+    for pair in [
+        "en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr",
+    ] {
         assert_eq!(
             level_table(&tables().join(studied_of(pair))).len(),
             8_302,
@@ -2661,7 +2688,8 @@ fn spec_scenario_a_layer_and_its_base() {
 // Italian's readings (add-lingua-italian-grammar-tables, change 13) are `tables/it/grammar.tsv`, and
 // `tags.tsv` is their pinned pool, written by hand once from the first reduction's readings (D8).
 // Italian's acronym rows (keep-lingua-italian-acronyms-and-names, change 11) are forms in capitals
-// that are their own lemmas, and its dictionary words until change 16 glosses it-fr.
+// that are their own lemmas, and its dictionary words until change 16 glosses it-fr. Italian's levels
+// (add-lingua-italian-levels, change 14) are `tables/it/level.tsv`, estimated as French's are.
 
 /// Italian's acronym rows as `tables/it/forms.tsv` holds them (keep-lingua-italian-acronyms-and-names
 /// D2): the forms holding a capital, each its own lemma.
@@ -2691,8 +2719,9 @@ fn spec_scenario_the_reference_and_the_pipeline() {
     // tables/it/studied.json names it-fr; tags.tsv holds the readings' tags, change 13's pool
     // (add-lingua-italian-grammar-tables D8), which replaced change 9's one canonical tag;
     // lexical.tsv holds change 11's acronym rows alone until change 16's dictionary words
-    // (keep-lingua-italian-acronyms-and-names D6); the pack builds whole and in parts to its pin; no
-    // package lists it-fr.
+    // (keep-lingua-italian-acronyms-and-names D6); level.tsv holds change 14's estimated levels
+    // (add-lingua-italian-levels), which the manifest says are estimated; the pack builds whole and
+    // in parts to its pin; no package lists it-fr.
     let it = tables().join("it");
     assert_eq!(json(&it.join(STUDIED_RECORD))["reference"], "it-fr");
     let pin = std::fs::read_to_string(it.join("tags.tsv")).unwrap();
@@ -2715,6 +2744,7 @@ fn spec_scenario_the_reference_and_the_pipeline() {
             "forms.tsv",
             "freq.tsv",
             "grammar.tsv",
+            "level.tsv",
             "lexical.tsv",
             "studied.json",
             "tags.tsv"
@@ -2748,11 +2778,7 @@ fn spec_scenario_the_reference_and_the_pipeline() {
         manifest["meta"]["analyzer_version"],
         lingua_core::analysis::ITALIAN_ANALYZER_VERSION
     );
-    assert!(
-        manifest["meta"]
-            .get("levels_estimated")
-            .is_none_or(|v| v == false)
-    );
+    assert_eq!(manifest["meta"]["levels_estimated"], true);
     // The reference's pin: its sources, its rules, its pack and parts, and no studied record.
     let pin = json(&dir.join("pin.json"));
     assert!(pin.get("studied").is_none());
@@ -2807,8 +2833,16 @@ fn spec_scenario_the_reference_and_the_pipeline() {
     assert!(whole.len() < MAX_PACK_BYTES);
     let pack = Pack::load(whole).unwrap();
     assert_eq!(pack.pair().key(), "it-fr");
-    // The vocabulary estimate counts the ranked dictionary words: the rows have no rank.
-    assert!(pack.dictionary_words().is_empty());
+    // The vocabulary estimate counts the ranked lemmas that are dictionary words or levelled
+    // (`Pack::dictionary_words`): the rows have no rank, so until change 16's dictionary words it
+    // counts Italian's levelled lemmas alone (add-lingua-italian-levels).
+    let counted: BTreeSet<&str> = pack
+        .dictionary_words()
+        .into_iter()
+        .map(|(lemma, _)| lemma)
+        .collect();
+    let levels = tsv(&tables().join("it/level.tsv"));
+    assert_eq!(counted, levels.keys().map(String::as_str).collect());
 }
 
 #[test]
@@ -2836,7 +2870,11 @@ fn spec_scenario_italian_s_acronym_rows() {
         .cloned()
         .collect();
     assert_eq!(unranked, italian_acronyms());
-    assert!(!tables().join("it/level.tsv").exists());
+    // No rank, so no level: the rank order never reaches them (add-lingua-italian-levels D2).
+    let levels = tsv(&tables().join("it/level.tsv"));
+    for row in italian_acronyms() {
+        assert!(!levels.contains_key(&row), "{row} has a level");
+    }
     let pack = Pack::load(&it_fr().0).unwrap();
     let lexicon = pack.lexicon();
     for row in ["NATO", "USA"] {
@@ -3012,4 +3050,61 @@ fn spec_scenario_every_rank_on_its_own_italian_lemma() {
             .collect();
         assert_eq!(got, want, "it-fr: ranks {lo}–{hi}");
     }
+}
+
+// Italian's estimated levels (add-lingua-italian-levels, the Italian programme's change 14, I8):
+// it-fr's reduction writes `tables/it/level.tsv`, English's level sizes given to Italian's commonest
+// lemmas in rank order, which lemmas take one read from the English Wiktionary's Italian section.
+
+#[test]
+fn spec_scenario_six_levels_of_english_s_sizes_in_italian() {
+    assert_english_s_sizes("it");
+}
+
+#[test]
+fn spec_scenario_the_commonest_italian_words_are_a1() {
+    let levels = tsv(&tables().join("it/level.tsv"));
+    let ranks = tsv(&tables().join("it/freq.tsv"));
+    for word in [
+        "di", "e", "il", "essere", "avere", "che", "a", "del", "della", "o",
+    ] {
+        assert_eq!(levels.get(word).map(String::as_str), Some("A1"), "{word}");
+    }
+    // `al` and `nel` are no words of Italian's tables.
+    for word in ["al", "nel"] {
+        assert!(!ranks.contains_key(word), "{word} is a ranked lemma");
+        assert!(!levels.contains_key(word), "{word} has a level");
+    }
+    // What a CEFR list leaves out (design D2), all ranked: a name written only with its capital, a
+    // word the section does not know, a letter, a letter's name, a letter that is also an
+    // abbreviation and another word's spelling, a misspelling.
+    for word in ["milano", "giovanni", "km", "k", "u", "r", "the"] {
+        assert!(ranks.contains_key(word), "{word} is no ranked lemma");
+        assert!(!levels.contains_key(word), "{word} has a level");
+    }
+    // `perchè`, read as perché since read-lingua-italian-unmarked-spellings, is no ranked lemma and
+    // has no level of its own; `porta` reads as *portare* (M8), which keeps its own rank's level.
+    let forms = tsv(&tables().join("it/forms.tsv"));
+    for (word, lemma) in [("perchè", "perché"), ("porta", "portare")] {
+        assert_eq!(forms.get(word).map(String::as_str), Some(lemma), "{word}");
+        assert!(!ranks.contains_key(word), "{word} is a ranked lemma");
+        assert!(!levels.contains_key(word), "{word} has a level");
+        assert!(levels.contains_key(lemma), "{lemma} has no level");
+    }
+}
+
+#[test]
+fn spec_scenario_every_italian_pack_says_so() {
+    // Every pack studying Italian built from the committed tables — it-fr today —, citing neither
+    // the Profilo nor another list.
+    assert_every_pack_says_so(
+        "it",
+        "it-fr",
+        &["Profilo", "CEFR-J", "Octanove", "FLELex", "CEFRLex"],
+    );
+    // The levels and their flag live in Italian's base, which every pair studying Italian ships.
+    let (_, split) = it_fr();
+    assert!(BaseMeta::read(&split.base).unwrap().levels_estimated);
+    assert!(section_of(&sections(&split.base), section::LEVELS).is_some());
+    assert!(section_of(&sections(&split.layer), section::LEVELS).is_none());
 }

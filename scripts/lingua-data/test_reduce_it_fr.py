@@ -13,6 +13,7 @@ Run: python3 -m unittest discover -s scripts/lingua-data -p "test_*.py"
 
 import collections
 import importlib.util
+import inspect
 import io
 import json
 import os
@@ -1227,7 +1228,8 @@ class Reduction(unittest.TestCase):
             self.assertEqual(manifest["meta"]["native"], "fr")
             self.assertEqual(manifest["meta"]["pack_version"], "2026.10.23")
             self.assertEqual(manifest["meta"]["analyzer_version"], red.analyser_version())
-            self.assertNotIn("levels_estimated", manifest["meta"])
+            # Italian's levels are estimated (add-lingua-italian-levels D3).
+            self.assertIs(manifest["meta"]["levels_estimated"], True)
             notice = read("NOTICE")
             for source in manifest["sources"]:
                 self.assertIn(source["name"], notice)
@@ -1257,7 +1259,7 @@ class Reduction(unittest.TestCase):
             self.assertTrue(any(line.startswith("reduced it-fr: readings by part of speech") for line in lines), lines)
             # Italian's pinned tag pool is a person's (D8): no reduction writes it.
             self.assertFalse(os.path.exists(os.path.join(work, "tags.tsv")))
-            first = {name: read(name) for name in ("forms.tsv", "freq.tsv", "grammar.tsv", "NOTICE", "manifest.json")}
+            first = {name: read(name) for name in ("forms.tsv", "freq.tsv", "grammar.tsv", "level.tsv", "NOTICE", "manifest.json")}
             self.run_reduction(work, red.MORPH_IT)
             self.assertEqual({name: read(name) for name in first}, first, "the same inputs give the same tables")
 
@@ -1292,6 +1294,11 @@ class Reduction(unittest.TestCase):
             self.assertEqual((forms["nato"], forms["usa"]), ("nascere", "uso"))
             self.assertEqual([f for f in forms if any(c.isupper() for c in f)], ["NATO", "USA"])
             self.assertFalse({"NATO", "USA"} & set(ranks))
+            # No rank, so no level: the rank order never reaches them (add-lingua-italian-levels D2);
+            # `nato`'s and `usa`'s words take theirs.
+            levels = dict(line.split("\t") for line in _read(work, "level.tsv").splitlines())
+            self.assertFalse({"NATO", "USA"} & set(levels))
+            self.assertEqual((levels["nascere"], levels["uso"]), ("A1", "A1"))
             # The rows alone are Italian's dictionary words until change 16's glosses (D6).
             self.assertEqual(_read(work, "lexical.tsv"), "NATO\nUSA\n")
             self.assertEqual(_read(work, "gloss.tsv"), "")
@@ -2013,6 +2020,293 @@ class GrammarAtReview(unittest.TestCase):
         self.assertEqual(self.of(rows, "bellissimo"), [("bello", "ADJ|Degree=Sup|Gender=Masc|Number=Sing", "-")])
         self.assertEqual(self.of(rows, "abilissimo"), [("abile", "ADJ|Degree=Sup|Gender=Masc|Number=Sing", "-")])
         self.assertEqual(red._masculine_superlative({"superlative", "feminine"}, "bellissima"), {"superlative", "feminine"})
+
+
+# — Italian's estimated levels (add-lingua-italian-levels) —
+#
+# The section's entries the levels read, shaped as the English edition's dump of 2026-10-21 writes them
+# (`kaikki-Italian.jsonl`, its glosses shortened): a letter, a letter's name filed as a noun, another
+# word's spelling, a name written with its capital, a contraction.
+
+
+def letter(word, case="lowercase"):
+    """A letter's own entry (`k`: « The eleventh letter of the Italian alphabet … »)."""
+    return entry(
+        word,
+        pos="character",
+        senses=[{"glosses": [f"A letter of the Italian alphabet, called {word.lower()}."], "tags": ["feminine", "invariable", "letter", case, "masculine"]}],
+    )
+
+
+def letter_name(word):
+    """A letter's name, filed as a noun (`u`: « The name of the Latin script letter U/u. »)."""
+    return entry(word, senses=[{"glosses": [f"The name of the Latin script letter {word.upper()}/{word}."], "tags": ["feminine", "invariable"]}])
+
+
+def spells(word, target, pos="noun", gloss=None, tags=("alt-of", "misspelling")):
+    """An entry giving its word only as `target`'s spelling (`the`: « misspelling of tè »)."""
+    return entry(word, pos=pos, senses=[{"glosses": [gloss or f"misspelling of {target}"], "tags": list(tags), "alt_of": [{"word": target}]}])
+
+
+LEVEL_ENTRIES = [
+    # Rule 1: a name alone, written with its capital (`km` has no entry at all).
+    entry(
+        "Milano",
+        pos="name",
+        senses=[
+            {"glosses": ["Milan (a city and comune, the capital of Lombardy)"], "tags": ["feminine"]},
+            {"glosses": ["the letter M in the Italian spelling alphabet"], "tags": ["feminine"]},
+        ],
+    ),
+    entry("Giovanni", pos="name", senses=[{"glosses": ["a male given name from Hebrew, equivalent to English John"], "tags": ["masculine"]}]),
+    # Rule 2: single characters — letters, a letter's name, an abbreviation, another word's spelling —,
+    # and the three that are words.
+    letter("k"),
+    letter("K", case="uppercase"),
+    letter("b"),
+    letter("u"),
+    letter_name("u"),
+    letter("r"),
+    spells("r", "er", pos="article", gloss="alternative spelling of er", tags=("alt-of", "alternative", "masculine", "singular")),
+    entry("R", senses=[{"glosses": ["abbreviation of re (“king”)"], "tags": ["abbreviation", "alt-of"], "alt_of": [{"word": "re"}]}]),
+    letter("à"),
+    spells("à", "ha", pos="verb", gloss="obsolete spelling of ha, third-person singular present indicative of avere", tags=("alt-of", "obsolete")),
+    letter("e"),
+    letter_name("e"),
+    entry("e", pos="conj", senses=[{"glosses": ["and"]}]),
+    spells("e", "è", pos="verb", gloss="misspelling of è (third-person singular present indicative of essere)"),
+    letter("o"),
+    letter_name("o"),
+    entry("o", pos="conj", senses=[{"glosses": ["or"]}]),
+    letter("a"),
+    entry("a", senses=[{"glosses": ["The name of the Latin script letter A/a.; a"], "tags": ["invariable"]}]),
+    entry("a", pos="prep", senses=[{"glosses": ["Indicates the indirect object. to"]}]),
+    # Rule 3: only another word's spelling.
+    spells("the", "tè"),
+    spells("perchè", "perché", pos="conj"),
+    # A contraction stays a word (`del`, « contraction of di + il »), as an apocope would.
+    entry(
+        "del",
+        pos="contraction",
+        senses=[{"glosses": ["contraction of di + il; some, of the, from the"], "tags": ["abbreviation", "alt-of", "contraction"], "alt_of": [{"word": "di"}]}],
+    ),
+    entry("di", pos="prep", senses=[{"glosses": ["of"]}]),
+]
+
+
+def level_senses(entries=LEVEL_ENTRIES):
+    """`read_level_senses` over `entries` written as the section's lines."""
+    with tempfile.TemporaryDirectory() as work:
+        path = os.path.join(work, red.KAIKKI)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("not json\n")
+            for e in entries:
+                f.write(json.dumps(e, ensure_ascii=False) + "\n")
+        return red.read_level_senses(path)
+
+
+class EstimatedLevels(unittest.TestCase):
+    """What a CEFR list would leave out, read from the section (design D2), and the bands (D1)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.senses = level_senses()
+
+    def test_the_section_s_senses_are_those_no_form_of_another_word(self):
+        # Words are lowercased: `Milano` is read as `milano`, `K` as `k`.
+        self.assertEqual({pos for pos, _, _ in self.senses["milano"]}, {"name"})
+        self.assertEqual({pos for pos, _, _ in self.senses["k"]}, {"character"})
+        self.assertNotIn("km", self.senses)
+        # A form of another word gives no sense (`creduta`, `un`'s apocope); a contraction does.
+        senses = level_senses([*ENTRIES, *LEVEL_ENTRIES])
+        self.assertNotIn("creduta", senses)
+        self.assertNotIn("un", senses)
+        self.assertIn(("contraction", "contraction of di + il; some, of the, from the", frozenset({"abbreviation", "alt-of", "contraction"})), senses["del"])
+
+    def test_spec_scenario_what_a_cefr_list_leaves_out(self):
+        forms = {}
+        for lemma, why in [
+            ("km", "unknown"),
+            ("milano", "name"),
+            ("giovanni", "name"),
+            ("k", "letter"),
+            ("b", "letter"),
+            # A letter's name filed as a noun is a letter's, read by its gloss.
+            ("u", "letter"),
+            # A letter, an abbreviation, another word's spelling: no word's sense.
+            ("r", "letter"),
+            ("à", "letter"),
+            ("the", "spelling"),
+            ("perchè", "spelling"),
+            # The preposition and the two conjunctions are words; a contraction is no spelling.
+            ("a", None),
+            ("e", None),
+            ("o", None),
+            ("del", None),
+            ("di", None),
+        ]:
+            self.assertEqual(red.no_level(lemma, forms, self.senses), why, lemma)
+
+    def test_a_word_of_more_than_one_character_is_never_a_letter(self):
+        senses = {"di": [("noun", "The name of the Latin script letter D/d.; dee", frozenset({"feminine"}))]}
+        self.assertIsNone(red.no_level("di", {}, senses))
+
+    def test_a_spelling_whose_other_entry_is_a_name_s(self):
+        senses = {"zombie": [("noun", "alternative spelling of zombi", frozenset({"alt-of"})), ("name", "Zombie", frozenset())]}
+        self.assertEqual(red.no_level("zombie", {}, senses), "spelling")
+
+    def test_spec_scenario_a_lemma_whose_own_form_reads_as_another(self):
+        # `porta` ranked while the forms table maps it to *portare*: a guard — the builder files a level
+        # by the lemma's id and refuses such a lemma, and change 9 ranks none. It takes no level;
+        # portare keeps its own rank's, and the next lemma takes the place.
+        senses = {word: [("noun", "a meaning", frozenset())] for word in ("di", "portare", "porta", "casa", "vita")}
+        ranks = {"di": 1, "portare": 2, "porta": 3, "casa": 4, "vita": 5}
+        forms = {"di": "di", "portare": "portare", "porta": "portare", "porte": "porta", "casa": "casa", "vita": "vita"}
+        self.assertEqual(red.no_level("porta", forms, senses), "elsewhere")
+        levels, left_out = red.estimated_levels(ranks, forms, senses, bands=(("A1", 2), ("A2", 2)))
+        self.assertEqual(levels, {"di": "A1", "portare": "A1", "casa": "A2", "vita": "A2"})
+        self.assertEqual(left_out["elsewhere"], ["porta"])
+
+    def test_the_bands_go_in_rank_order_to_the_lemmas_a_cefr_list_would_hold(self):
+        ranks = {"di": 1, "e": 2, "km": 3, "the": 4, "milano": 5, "del": 6, "a": 7, "k": 8, "o": 9, "u": 10}
+        levels, left_out = red.estimated_levels(ranks, {}, self.senses, bands=(("A1", 2), ("A2", 1), ("B1", 2)))
+        self.assertEqual(levels, {"di": "A1", "e": "A1", "del": "A2", "a": "B1", "o": "B1"})
+        # Each rule's lemmas, up to the last level given: `u` comes after it.
+        self.assertEqual(
+            left_out,
+            {"unknown": ["km"], "name": ["milano"], "elsewhere": [], "letter": ["k"], "spelling": ["the"], "unlisted": []},
+        )
+        # Equal ranks go by the lemma, so the order never depends on the source's.
+        tied, _ = red.estimated_levels({"o": 1, "e": 1}, {}, self.senses, bands=(("A1", 1), ("A2", 1)))
+        self.assertEqual(tied, {"e": "A1", "o": "A2"})
+        # Too few lemmas: the bands stop where they run out.
+        short, _ = red.estimated_levels({"di": 1}, {}, self.senses)
+        self.assertEqual(short, {"di": "A1"})
+
+    def test_a_lemma_left_out_gives_its_slot_to_the_next(self):
+        ranks = {"di": 1, "milano": 2, "e": 3, "k": 4, "o": 5}
+        levels, _ = red.estimated_levels(ranks, {}, self.senses, bands=(("A1", 2), ("A2", 1)))
+        self.assertEqual(levels, {"di": "A1", "e": "A1", "o": "A2"})
+        # With English's bands, as many lemmas as there are slots take one.
+        many = {f"parola{i}": i for i in range(1, 9000)}
+        many_senses = {word: [("noun", "a word", frozenset())] for word in many}
+        many_senses["parola3"] = [("name", "a name", frozenset())]
+        levels, left_out = red.estimated_levels(many, {}, many_senses)
+        self.assertEqual(len(levels), 8302)
+        self.assertEqual(left_out["name"], ["parola3"])
+        self.assertEqual(levels["parola1021"], "A1")
+        self.assertEqual(levels["parola1022"], "A2")
+        self.assertEqual(levels["parola8303"], "C2")
+        self.assertNotIn("parola8304", levels)
+
+    def test_dictionary_words_narrow_the_levels_when_given(self):
+        # Change 16 passes Italian's dictionary words (D4): a lemma they do not list takes no level,
+        # read last, and gives its slot; without them the rule is not read.
+        ranks = {"di": 1, "roma": 2, "e": 3, "milano": 4, "o": 5}
+        senses = {**self.senses, "roma": [("name", "Rome", frozenset()), ("noun", "a type of rice", frozenset())]}
+        self.assertIsNone(red.no_level("roma", {}, senses))
+        words = {"di", "e", "o"}
+        self.assertEqual(red.no_level("roma", {}, senses, words), "unlisted")
+        # Another rule names a lemma first: `milano` is a name, listed or not.
+        self.assertEqual(red.no_level("milano", {}, senses, words), "name")
+        levels, left_out = red.estimated_levels(ranks, {}, senses, words, bands=(("A1", 2), ("A2", 1)))
+        self.assertEqual(levels, {"di": "A1", "e": "A1", "o": "A2"})
+        self.assertEqual(left_out["unlisted"], ["roma"])
+        self.assertEqual(red.LEVEL_RULES[-1], "unlisted")
+        unnarrowed, _ = red.estimated_levels(ranks, {}, senses, bands=(("A1", 2), ("A2", 1)))
+        self.assertEqual(unnarrowed, {"di": "A1", "roma": "A1", "e": "A2"})
+
+    def test_spec_scenario_the_table_does_not_wait_for_the_glosses(self):
+        # The derivation reads the ranks, the forms, the section's senses and, once change 16 passes
+        # them, Italian's dictionary words: glosses that add or remove no dictionary word leave it as
+        # it is, and another pair's glosses never reach it.
+        self.assertEqual(list(inspect.signature(red.estimated_levels).parameters), ["ranks", "forms", "senses", "words", "bands"])
+        ranks = {"di": 1, "e": 2, "del": 3}
+        bands = (("A1", 2), ("A2", 1))
+        self.assertEqual(
+            red.estimated_levels(ranks, {}, self.senses, {"di", "e", "del", "NATO"}, bands),
+            red.estimated_levels(ranks, {}, self.senses, None, bands),
+        )
+
+    def test_english_bands_hold_its_8302_cefr_lemmas_as_fr_en_s_do(self):
+        self.assertEqual([level for level, _ in red.ENGLISH_BANDS], ["A1", "A2", "B1", "B2", "C1", "C2"])
+        self.assertEqual([size for _, size in red.ENGLISH_BANDS], [1020, 1158, 2015, 2347, 886, 876])
+        self.assertEqual(sum(size for _, size in red.ENGLISH_BANDS), 8302)
+        spec = importlib.util.spec_from_file_location("reduce_fr_en", os.path.join(_HERE, "reduce-fr-en.py"))
+        fr_en = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(fr_en)
+        self.assertEqual(red.ENGLISH_BANDS, fr_en.ENGLISH_BANDS)
+
+    def test_the_report_names_each_level_s_span_and_each_rule(self):
+        ranks = {"di": 1, "km": 2, "e": 3, "o": 4}
+        levels, left_out = red.estimated_levels(ranks, {}, self.senses, bands=(("A1", 2), ("A2", 1)))
+        self.assertEqual(
+            red.levels_report(levels, left_out, ranks, bands=(("A1", 2), ("A2", 1))),
+            "levels=3 estimated: A1 2 (1–3); A2 1 (4–4); left out: unknown 1, name 0, elsewhere 0, letter 0, spelling 0, "
+            "unlisted 0",
+        )
+
+
+class EstimatedLevelsReduced(unittest.TestCase):
+    """The reduction of the fixture section, the levels' entries added and wordfreq ranking them."""
+
+    LEVEL_FREQUENCY = {
+        "di": 6.95, "e": 6.9, "a": 6.85, "o": 6.6, "milano": 5.5, "giovanni": 5.2, "km": 5.1, "the": 5.0,
+        "b": 4.9, "r": 4.85, "u": 4.8, "k": 4.6, "à": 4.4, "perchè": 4.2,
+    }
+
+    @classmethod
+    def setUpClass(cls):
+        reduction = Reduction()
+        reduction.setUp()
+        cls.addClassCleanup(reduction.doCleanups)
+        with tempfile.TemporaryDirectory() as work:
+            reduction.write_work(work, extra=LEVEL_ENTRIES)
+            cls.summary, cls.lines = reduction.run_reduction(work, None, extra=cls.LEVEL_FREQUENCY)
+            cls.out = {name: _read(work, name) for name in ("level.tsv", "freq.tsv", "forms.tsv", "manifest.json", "NOTICE")}
+        cls.levels = dict(line.split("\t") for line in cls.out["level.tsv"].splitlines())
+        cls.ranks = dict(line.split("\t") for line in cls.out["freq.tsv"].splitlines())
+        cls.forms = dict(line.split("\t") for line in cls.out["forms.tsv"].splitlines())
+
+    def test_spec_scenario_the_commonest_words_are_a1(self):
+        for word in ["di", "e", "il", "essere", "avere", "a", "del", "della", "o"]:
+            self.assertEqual(self.levels.get(word), "A1", word)
+        # `al` and `nel` are no words of Italian's tables.
+        for word in ["al", "nel"]:
+            self.assertNotIn(word, self.ranks)
+            self.assertNotIn(word, self.levels)
+
+    def test_spec_scenario_what_a_cefr_list_leaves_out(self):
+        for word in ["milano", "giovanni", "km", "k", "b", "u", "r", "à", "the", "perchè"]:
+            self.assertIn(word, self.ranks, word)
+            self.assertNotIn(word, self.levels, word)
+        # Besides them, the fixture's `cent` and `nepalese`, which the section does not know, and
+        # `nepal`, a name alone.
+        left_out = self.summary["levels left out"]
+        self.assertEqual((left_out["unknown"], left_out["name"], left_out["letter"], left_out["spelling"]), (3, 3, 5, 2))
+        self.assertEqual((left_out["elsewhere"], left_out["unlisted"]), (0, 0))
+
+    def test_every_level_is_a_ranked_lemma_s_and_its_own_form_s(self):
+        for lemma in self.levels:
+            self.assertIn(lemma, self.ranks)
+            self.assertEqual(self.forms[lemma], lemma)
+        rows = self.out["level.tsv"].splitlines()
+        self.assertEqual(rows, sorted(rows))
+        # The fixture ranks fewer lemmas than A1 holds: every lemma a CEFR list would hold is A1.
+        self.assertEqual(set(self.levels.values()), {"A1"})
+        self.assertEqual(self.summary["levels"], {"A1": len(self.levels)})
+        self.assertEqual(len(self.levels) + sum(self.summary["levels left out"].values()), len(self.ranks))
+        self.assertTrue(any(line.startswith(f"reduced it-fr: levels={len(self.levels)} estimated: A1 ") for line in self.lines), self.lines)
+
+    def test_spec_scenario_every_italian_pack_says_so(self):
+        manifest = json.loads(self.out["manifest.json"])
+        self.assertIs(manifest["meta"]["levels_estimated"], True)
+        notice = self.out["NOTICE"].replace("\n", " ")
+        self.assertIn("The levels are estimated, not taken from a CEFR list", notice)
+        self.assertIn("the English Wiktionary's Italian section saying which lemmas take one", notice)
+        self.assertIn("every pack studying Italian reads them as committed", notice)
+        for list_name in ("Profilo", "CEFR-J", "Octanove", "FLELex"):
+            self.assertNotIn(list_name, notice)
 
 
 if __name__ == "__main__":

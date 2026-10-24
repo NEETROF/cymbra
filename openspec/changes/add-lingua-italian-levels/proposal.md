@@ -56,8 +56,9 @@ that nor Spanish's 29.4 % and 65.9 %, so the figures compare only with each othe
   change 16 commits them, the levels go to Italian's dictionary words alone, as French's go to
   French's since `refine-lingua-fr-en-glosses` (the reducer's optional `words`, which change 16
   passes), and the check that every Italian levelled lemma is a dictionary word lands with it. Until
-  then `roma` (« a type of rice »), `marco` (the coin) and `maria` take a level through their
-  lowercase senses.
+  then names take a level through a sense of another part of speech, from a lowercase or a capitalised
+  entry: `roma` (« a type of rice »), `marco` (the coin), `napoli`, `francesco`, `maria`, `gesù`,
+  `adam`, `palestina`, `reich`, and initialisms (`pc`, `cd`, `ps`, `tar`).
 - **Nothing to build in the core, the engine or the extension** (D5): the ladder already gives a
   non-English language whose levels are estimated English's typical vocabularies and says so; the
   extension already labels estimated levels from the pack's flag. Italian is shown by those paths

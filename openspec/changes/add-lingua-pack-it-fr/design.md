@@ -147,6 +147,11 @@ section whatever its part of speech — `USA` joins `america`'s first sense « A
 and `stati uniti`'s « États-Unis », in the row's order, as change 11 requires; `NATO` has none. **The levels** go to
 the dictionary words alone (*Italian's estimated levels*, change 14): `estimated_levels` receives
 `words`, and `committed_tables.rs` gains « every Italian levelled lemma is a dictionary word ».
+Change 14 levelled names through a sense of another part of speech, from a lowercase or a capitalised
+entry (`tables/it-fr/README.md`, *The levels*, *Known weaknesses*: `roma`, `marco`, `napoli`,
+`francesco`, `maria`, `gesù`, `adam`, `palestina`, `reich`, the initialisms `pc`, `cd`, `ps`, `tar`…;
+59 levelled lemmas take their only senses that are no name's from a capitalised entry): this change's
+pull request confirms which of them drop out once the levels go to the dictionary words.
 Measured at implementation and recorded: the names count (24c counted English's 3,046), the lemmas
 of the 1,425 commonest that end as no dictionary word and so with no level (measured with D4, D5 and
 the fallbacks: 52 — 42 unglossed, 10 glossed by a name alone).
