@@ -22,7 +22,7 @@
 
 ## 4. Owner
 
-- [ ] 4.1 [manual] The owner reads D3's table of elided forms, D4's table of articulated prepositions and D5's truncations, and confirms the placements of D1 (enclitics in change 7, the apostrophe-accent spellings in change 10, the keys in change 12).
+- [x] 4.1 [manual] The owner reads D3's table of elided forms, D4's table of articulated prepositions and D5's truncations, and confirms the placements of D1 (enclitics in change 7, the apostrophe-accent spellings in change 10, the keys in change 12). *Done 2026-10-24: read by an Italian specialist on the owner's behalf; approved, corrections in `refine-lingua-italian-reading` — D3's, D4's and D5's tables approved, with its additions (eighteen elided forms, `coll'` and `degl'`, the truncations `ca'`, `de'`, `que'`, the truncated articulated prepositions `a'`, `co'`, `da'`, `ne'`, `su'`, and `mo'` and `dai` read by their context); D1's placements stand.*
 
 ## 5. Gates
 

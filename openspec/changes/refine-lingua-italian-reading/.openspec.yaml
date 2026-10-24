@@ -1,0 +1,6 @@
+schema: spec-driven
+created: 2026-10-24
+archiveAfter:
+  - add-lingua-italian-tokenisation
+  - add-lingua-italian-analysis
+  - read-lingua-italian-unmarked-spellings
