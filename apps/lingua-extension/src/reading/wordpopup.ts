@@ -295,9 +295,10 @@ interface Heard {
  * the span (`a'`, `co'`, `ne'`, `su'` before a word; `da'` wherever it stands, or the verb `dai`).
  * The token's text is another word on the page (`poco`, `dei`, `in`); the written form is what the
  * voice should say (« po' » is « po », « da' » « dà », measured). French's `ELIDED` test, which
- * would send them back to the form seen, comes after this.
+ * would send them back to the form seen, comes after this. Exported for the test that holds it to
+ * the core's `ITALIAN_TRUNCATIONS` and `ITALIAN_TRUNCATED_PREPOSITIONS` (`tokenize.rs`).
  */
-const ITALIAN_AS_WRITTEN: ReadonlySet<string> = new Set([
+export const ITALIAN_AS_WRITTEN: ReadonlySet<string> = new Set([
   "a'",
   "be'",
   "ca'",
@@ -325,6 +326,13 @@ function unaccented(text: string): string {
 
 /** What follows a text's last apostrophe — the whole text when it holds none. */
 const LAST_WORD = /[^'\u2019]*$/u;
+/** A text's trailing apostrophe, straight or typographic: `A'` of « A' piedi ». */
+const TRAILING_APOSTROPHE = /['\u2019]$/u;
+/**
+ * The number a page writes right after an Italian elided piece, its group separators included:
+ * `8` of « l'8 marzo », `800` of « nell'800 », `1.500` of « nell'1.500 ».
+ */
+const NUMBER_AFTER = /^\d+(?:[.,]\d+)*/u;
 /** « é », which a full stop or any punctuation silences (D4.5), its capital with it. */
 const SILENCED_BY_A_STOP = /^\u00e9$/iu;
 
@@ -345,13 +353,29 @@ function withAccentedWord(glued: string, nextText: string | undefined): string {
 }
 
 /**
- * Whether a voice reads `text` alone as a letter's name: one vowel, accented or a capital
- * (D4.5) — Alice says « è » in 1.03 s, « È » in 1.58 s, « A », « E », « I », « O » in 0.83–0.86 s,
- * where « è. » is the vowel (0.18 s) and « A. » … « O. » are byte for byte « a » … « o ». But « é »
- * (« É » too), which a full stop silences: read alone.
+ * An Italian elided piece glued to the number the page writes after it — « l'8 » of « l'8 marzo »,
+ * « nell'800 » —, which `gluedWord` stops before, as French's does: a voice reads « l'8 » as
+ * « l'otto », where the piece alone would be the word it stands for (`lo`, `in`). Null unless the
+ * piece, as the page writes it, ends on its apostrophe and a digit follows.
+ */
+function gluedNumber(content: WordPopupContent): string | null {
+  const span = content.selection;
+  const text = content.sentence;
+  if (!span || span.start < 0 || span.end <= span.start || span.end > text.length) return null;
+  const piece = text.slice(span.start, span.end);
+  const number = ELIDED.test(piece) ? NUMBER_AFTER.exec(text.slice(span.end))?.[0] : undefined;
+  return number ? piece + number : null;
+}
+
+/**
+ * Whether a voice reads `text` alone as a letter's name: one vowel, accented or a capital, its
+ * trailing apostrophe aside (« A' » of « A' piedi ») (D4.5) — Alice says « è » in 1.03 s, « È » in
+ * 1.58 s, « A », « E », « I », « O » in 0.83–0.86 s, where « è. » is the vowel (0.18 s) and « A. » …
+ * « O. » are byte for byte « a » … « o ». But « é » and its capital « É », which a full stop
+ * silences: read alone.
  */
 function namedAsLetter(text: string): boolean {
-  const letter = text.normalize("NFC");
+  const letter = text.replace(TRAILING_APOSTROPHE, "").normalize("NFC");
   if ([...letter].length !== 1) return false;
   const base = letter.normalize("NFD").charAt(0);
   if (!/^[aeiou]$/iu.test(base) || SILENCED_BY_A_STOP.test(letter)) return false;
@@ -360,21 +384,23 @@ function namedAsLetter(text: string): boolean {
 
 /**
  * What a single word's button reads for a speaker reading Italian (add-lingua-italian-read-aloud
- * D4): an elided piece with the word it leans on (`l'` → « l'uomo », `c'` → « c'è » for « c'e' »);
- * else a truncation or a truncated articulated preposition as written (« po' », « ne' »), before
+ * D4): an elided piece with the word it leans on (`l'` → « l'uomo », `c'` → « c'è » for « c'e' »),
+ * or with the number the page writes after it (« l'8 »); else a truncation or a truncated articulated preposition as written (« po' », « ne' »), before
  * French's `ELIDED` test; else French's rule — a piece of a split articulated preposition as
  * written (« al »), an elided piece alone and a spelling read for an accent as the form seen
  * (`perché` for « perche' », `È` for « E' »); then a vowel a voice would name as a letter, with a
- * full stop for the voice (« è. », « E. »), its label without it.
+ * full stop for the voice (« è. », « E. », « A'. »), its label without it.
  */
 function italianHeard(content: WordPopupContent, seen: string): Heard {
   const glued = gluedWord(content);
+  const number = glued ? null : gluedNumber(content);
   const written = content.written?.trim();
   let text: string;
   if (glued) text = withAccentedWord(glued, content.nextText);
+  else if (number) text = number;
   else if (written && ITALIAN_AS_WRITTEN.has(engineForm(written))) text = written;
   else text = frenchHeard(content, seen);
-  return { text, spoken: namedAsLetter(text) ? `${text}.` : text, leaning: !!glued };
+  return { text, spoken: namedAsLetter(text) ? `${text}.` : text, leaning: !!(glued || number) };
 }
 
 /** French's choice once no piece is glued: a split word's piece as written, never an elided piece alone. */

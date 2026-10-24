@@ -14,7 +14,7 @@
 ## 3. The card
 
 - [x] 3.1 `src/reading/session.ts` `pageHit`: the text of the token starting where the hit ends, from `blockTokensAt`, added to `PageHit` and carried by the card content (`selection-card.ts`) to `heardWord` (D4.1).
-- [x] 3.2 `src/reading/wordpopup.ts`: `heardWord` reads Italian by D4 — the glued word (its last word replaced by the next token's text where it differs only by an accent and an apostrophe), a split preposition's piece as written, a truncation of change 6's list as written before `ELIDED`, otherwise French's rule, then a one-vowel word (accented or a capital, not « é ») followed by a full stop; the label without the stop; the doc comment names this change.
+- [x] 3.2 `src/reading/wordpopup.ts`: `heardWord` reads Italian by D4 — the glued word (its last word replaced by the next token's text where it differs only by an accent and an apostrophe; an elided piece before a number glued to it, « l'8 »), a split preposition's piece as written, a truncation of change 6's list as written before `ELIDED`, otherwise French's rule, then a one-vowel word (accented or a capital, its trailing apostrophe aside, not « é » nor its capital « É ») followed by a full stop; the label without the stop; the doc comment names this change.
 - [x] 3.3 Tests: each scenario of *An Italian piece is heard as the page writes it*; the French, English and Spanish cases unchanged; `yarn test` passes.
 
 ## 4. Gates

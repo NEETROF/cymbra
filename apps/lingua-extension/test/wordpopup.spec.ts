@@ -1,5 +1,15 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createCard, type Gesture, gestureKey, WordPopup, type WordPopupContent } from "@/reading/wordpopup.ts";
+import {
+  createCard,
+  type Gesture,
+  gestureKey,
+  ITALIAN_AS_WRITTEN,
+  WordPopup,
+  type WordPopupContent,
+} from "@/reading/wordpopup.ts";
 import { createSpeaker, type VoiceInfo } from "@/reading/speech.ts";
 import { makeFakeSpeech } from "./helpers.ts";
 
@@ -1318,6 +1328,29 @@ describe("an Italian piece, heard as the page writes it (add-lingua-italian-read
       card.show(piece(sentence, "l'", { headword: "lo", surface: "lo" }), () => {});
       expect(row(card, fake)[0]).toEqual(["▶ Mot", "lo"]);
     });
+
+    it("an elided piece before a number: glued to it, « l'8 », « nell'800 », « dell'800 », « nell'1.500 »", () => {
+      const { fake, card } = speaking();
+      // The core drops the digits (the digit rule): the piece is the last token before them.
+      const sentence = "È nato l'8 marzo.";
+      card.show(piece(sentence, "l'", { headword: "lo", surface: "lo" }), () => {});
+      expect(row(card, fake)).toEqual([
+        ["▶ l'8", "l'8"],
+        ["▶ lo", "lo"],
+        ["▶ Phrase", sentence],
+      ]);
+      for (const [text, written, headword, surface, heard] of [
+        ["Nato nell'800.", "nell'", "in", "in", "nell'800"],
+        ["Nato nell'800.", "nell'", "lo", "lo", "nell'800"],
+        ["Il romanzo dell'800 è lungo.", "dell'", "dello", "dello", "dell'800"],
+        ["Nell'1.500 a.C.", "Nell'", "in", "In", "Nell'1.500"],
+        ["Tornerà l’11.", "l’", "lo", "lo", "l’11"],
+        ["Dall'8 marzo.", "Dall'", "da", "Da", "Dall'8"],
+      ]) {
+        card.show(piece(text, written, { headword, surface }), () => {});
+        expect(row(card, fake)[0], `${written} in ${text}`).toEqual([`▶ ${heard}`, heard]);
+      }
+    });
   });
 
   describe("a word the analysis split or truncated, as written", () => {
@@ -1433,6 +1466,22 @@ describe("an Italian piece, heard as the page writes it (add-lingua-italian-read
       }
     });
 
+    it("« A' » of « A' piedi », a capital vowel with its apostrophe: the stop after the apostrophe", () => {
+      const { fake, card } = speaking();
+      card.show(piece("A' piedi.", "A'", { headword: "a", surface: "A" }), () => {});
+      expect(row(card, fake)[0]).toEqual(["▶ Mot", "A'."]);
+      card.show(piece("A' piedi.", "A'", { headword: "il", surface: "i" }), () => {});
+      expect(row(card, fake).slice(0, 2)).toEqual([
+        ["▶ A'", "A'."],
+        ["▶ il", "il"],
+      ]);
+      card.show(piece("A’ tuoi.", "A’", { headword: "a", surface: "A" }), () => {});
+      expect(row(card, fake)[0]).toEqual(["▶ Mot", "A’."]);
+      // Lowercase, the vowel already: no stop.
+      card.show(piece("a' piedi", "a'", { headword: "a", surface: "a" }), () => {});
+      expect(row(card, fake)[0]).toEqual(["▶ Mot", "a'"]);
+    });
+
     it("keeps reading the vowel when a pending card completes, and stops it for another word", () => {
       const { speaker, card } = speaking();
       const e = (over: Partial<WordPopupContent> = {}) =>
@@ -1480,6 +1529,38 @@ describe("an Italian piece, heard as the page writes it (add-lingua-italian-read
       card.show(cards()[0], () => {});
       expect(row(card, fake)[0]).toEqual(["▶ c'e", "c'e"]);
     });
+
+    it("a French speaker never glues an elided piece to a number, nor stops after « A' »", () => {
+      const { fake, card } = speaking("fr", "en");
+      card.show(piece("Nato nell'800.", "nell'", { headword: "in", surface: "in" }), () => {});
+      expect(row(card, fake)[0]).toEqual(["▶ Word", "in"]);
+      card.show(piece("Le l'8 mai.", "l'", { headword: "le", surface: "le" }), () => {});
+      expect(row(card, fake)[0]).toEqual(["▶ Word", "le"]);
+      card.show(piece("A' piedi.", "A'", { headword: "a", surface: "A" }), () => {});
+      expect(row(card, fake)[0]).toEqual(["▶ Word", "A"]);
+    });
+  });
+});
+
+describe("Italian's words read as written follow the core's tables (add-lingua-italian-read-aloud D4.3)", () => {
+  const TOKENIZE_RS = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), "../../..", "crates/lingua-core/src/analysis/tokenize.rs"),
+    "utf8",
+  );
+
+  /** The written forms of one of `tokenize.rs`'s tables — each entry's first string, with its apostrophe. */
+  function writtenForms(table: string): string[] {
+    const body = new RegExp(`pub const ${table}: &\\[[^\\]]*\\] = &\\[([\\s\\S]*?)\\n\\];`).exec(TOKENIZE_RS)?.[1];
+    if (!body) throw new Error(`no ${table} in tokenize.rs`);
+    return [...body.matchAll(/^\s*\(\s*"([^"]+)"/gmu)].map((m) => `${m[1]}'`);
+  }
+
+  it("holds every truncation and truncated articulated preposition the pre-pass reads, and nothing else", () => {
+    const truncations = writtenForms("ITALIAN_TRUNCATIONS");
+    const prepositions = writtenForms("ITALIAN_TRUNCATED_PREPOSITIONS");
+    expect(truncations).toContain("po'");
+    expect(prepositions).toContain("ne'");
+    expect([...ITALIAN_AS_WRITTEN].sort()).toEqual([...new Set([...truncations, ...prepositions])].sort());
   });
 });
 

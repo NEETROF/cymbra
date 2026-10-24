@@ -143,8 +143,18 @@ heard as the page writes it, and the cards for the forms it added are tested:
   glued, as before (« trent'anni », « qual'è »); « l'ultim'ora » keeps the page's letters, its next
   token (`ultima`) not being a spelling read for an accent. The page hit's field is `nextText`,
   written only where a token starts where the hit ends.
-- **Rule 5's exception** covers « É » as « é »: neither is handed a full stop. Unmeasured — a capital
-  silenced would say nothing, one named says its letter —, it is on change 20's checklist.
+- **Rule 1 reaches a number**: an elided piece the page writes before digits (« l'8 marzo »,
+  « nell'800 », « dell'800 », whose digits the core drops) is glued to the number, separators
+  included (« nell'1.500 »), where French's `gluedWord` stops — so the voice reads « l'otto », not
+  `lo`, `in` or `dello` alone. French cards do not move.
+- **Rule 5** reads a capital vowel with its trailing apostrophe aside: « A' » of « A' piedi » is
+  handed « A'. », the stop after the apostrophe (a voice ignores it: « po' » is « po »).
+- **Rule 5's exception** covers « É » as « é » (the spec says so): neither is handed a full stop.
+  Unmeasured — a capital silenced would say nothing, one named says its letter —, it is on change
+  20's checklist, with a lone « é » / « É », which might be read « è. » / « È. » if Alice names the
+  letter.
+- **A sync guard**: `test/wordpopup.spec.ts` holds `ITALIAN_AS_WRITTEN` to the written forms of
+  `tokenize.rs`'s `ITALIAN_TRUNCATIONS` and `ITALIAN_TRUNCATED_PREPOSITIONS`, read from the source.
 
 ### D5 — What cannot move
 

@@ -40,7 +40,7 @@ The catalogue SHALL name Italian in each interface language — its name, the fo
 - **THEN** the voice reads an Italian sentence
 
 ### Requirement: An Italian piece is heard as the page writes it
-When the card's speaker reads Italian, the word button of a card opened on an elided piece — a selection the page writes glued to the next word, as `l'` in « l'uomo » — SHALL read the piece together with the word it leans on as the page writes them, as a French elided piece is read, the word it leans on taken as the analysis reads it when that word is a spelling read for an accent (« c'e' » heard « c'è »); a card opened on a piece of an articulated preposition the analysis split SHALL read the word as the page writes it (« al » for its `a`); a card opened on a truncation SHALL read it as the page writes it (« po' », not `poco`); any other card SHALL read as a French card reads, so that a word read for an accent is heard as its accented text (« perché » for « perche' »). Whatever text is chosen, a word of one vowel, accented or written as a capital, SHALL be read followed by a full stop, so that a voice reads the vowel and not the letter's name — except « é », which a full stop silences. The button SHALL be labelled with that text where the card labels the form seen, without the full stop added for the voice. The dictionary form's button and the sentence button SHALL read as before, and a card read in English, Spanish or French SHALL read exactly as before.
+When the card's speaker reads Italian, the word button of a card opened on an elided piece — a selection the page writes glued to the next word, as `l'` in « l'uomo » — SHALL read the piece together with the word it leans on as the page writes them, as a French elided piece is read, the word it leans on taken as the analysis reads it when that word is a spelling read for an accent (« c'e' » heard « c'è »), and a piece the page writes before a number SHALL read glued to that number (« l'8 » of « l'8 marzo »); a card opened on a piece of an articulated preposition the analysis split SHALL read the word as the page writes it (« al » for its `a`); a card opened on a truncation SHALL read it as the page writes it (« po' », not `poco`); any other card SHALL read as a French card reads, so that a word read for an accent is heard as its accented text (« perché » for « perche' »). Whatever text is chosen, a word of one vowel, accented or written as a capital, its trailing apostrophe aside (« A' » of « A' piedi »), SHALL be read followed by a full stop, so that a voice reads the vowel and not the letter's name — except « é » and its capital « É », which a full stop silences. The button SHALL be labelled with that text where the card labels the form seen, without the full stop added for the voice. The dictionary form's button and the sentence button SHALL read as before, and a card read in English, Spanish or French SHALL read exactly as before.
 
 #### Scenario: An elided article
 - **WHEN** the reader, with the interface in French, opens the card of `l'` in « L'uomo è arrivato. » on an Italian page
@@ -59,8 +59,12 @@ When the card's speaker reads Italian, the word button of a card opened on an el
 - **THEN** the first speaks « perché », the second « È. », and the third « c'è »
 
 #### Scenario: A vowel alone
-- **WHEN** the reader opens the card of « è » in « Roma è grande. » and of « E » in « E poi è partito. »
-- **THEN** the first card's form-seen button is labelled « è » and speaks « è. », and the second card's word button speaks « E. »
+- **WHEN** the reader opens the card of « è » in « Roma è grande. », of « E » in « E poi è partito. », of `a` in « A' piedi. » and of « É » in « É vero. »
+- **THEN** the first card's form-seen button is labelled « è » and speaks « è. », the second card's word button speaks « E. », the third's « A'. », and the fourth's speaks « É », with no full stop
+
+#### Scenario: An elided piece before a number
+- **WHEN** the reader opens the card of `l'` in « È nato l'8 marzo. » or of `in` in « Nato nell'800. », whose digits the analysis drops
+- **THEN** the word button speaks « l'8 » and « nell'800 », never `lo` or `in` alone
 
 #### Scenario: English, Spanish and French
 - **WHEN** the reader opens a card on an English, Spanish or French page, a split word's included
