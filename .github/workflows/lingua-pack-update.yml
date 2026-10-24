@@ -383,8 +383,9 @@ jobs:
           # (add-lingua-french-baseline D5), so an es-en update moves its `beside es-en` line;
           # and fr-es's (change 51), which moves with fr-es, with French's studied tables and
           # with en-es (its `beside en-es` line). And the Italian one (add-lingua-italian-baseline
-          # D9): its engine holds the real en-fr pack beside the it-fr fixture, so an en-fr update
-          # moves its `beside en-fr` line alone.
+          # D9): it runs over the committed it-fr tables since add-lingua-pack-it-fr, so an it-fr
+          # update moves it, and its engine holds the real en-fr pack beside, so an en-fr update
+          # moves its `beside en-fr` line.
           LINGUA_BLESS=1 cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline --test fr_es_baseline --test italian_baseline
           # The extension's snapshots follow them (add-lingua-english-card-wording D2, D4,
           # add-lingua-spanish-card-wording D2): the English card's lines over the es-en golden's

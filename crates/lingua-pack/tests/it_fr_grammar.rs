@@ -17,7 +17,8 @@
 //! Wiktionary's tags as Universal Dependencies tags, one reading per mood, person and number, and the
 //! other dictionary forms a form names. The card's Italian — its tense names, the merge of moods — is
 //! change 18's; this pins what it reads. Every probe asks a lemma the tables keep: the Italian
-//! baseline runs over its hand-written fixture until change 16, so the readings are pinned here.
+//! baseline ran over its hand-written fixture until change 16, so the readings were pinned here, and
+//! stay pinned beside it.
 
 use std::path::Path;
 use std::sync::OnceLock;

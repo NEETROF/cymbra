@@ -95,9 +95,9 @@
 //! authored so that whichlang reads them as Italian, which a learner of Italian counts until
 //! change 8's guard; its Latin block whichlang reads as French.
 //!
-//! The pack is the hand-written it-fr fixture, `scripts/lingua-data/testdata/it-fr/`, until
-//! change 16 commits `tables/it/` and `tables/it-fr/`; the engine starts on the real en-fr pack,
-//! as a French-native reader's does.
+//! The pack is built from the committed `tables/it/` and `tables/it-fr/` since change 16
+//! (add-lingua-pack-it-fr D9), the hand-written fixture `scripts/lingua-data/testdata/it-fr/` before;
+//! the engine starts on the real en-fr pack, as a French-native reader's does.
 
 use super::{Card, PackSource, Scenario};
 
@@ -284,7 +284,7 @@ const PAGE_NAMES: &[&str] = &[
 
 pub const ITALIAN: Scenario = Scenario {
     pair: "it-fr",
-    pack: PackSource::Testdata,
+    pack: PackSource::Tables,
     beside: &["en-fr"],
     test: "italian_baseline",
     pages: "pages-it.txt",
