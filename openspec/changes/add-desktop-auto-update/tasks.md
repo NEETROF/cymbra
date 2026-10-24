@@ -44,11 +44,11 @@
 
 *Revised 2026-10-24: the AppImage (implemented first: AppDir recipe, `appimagetool`, CI smoke check) is replaced by a `.deb`; its recipe and CI steps are removed.*
 
-- [ ] 5.1 Move the `linux` job of `music-release.yml` — and only it — to `ubuntu-22.04`, with a comment on why and on what retiring that image will mean. Verify: a dispatch dry-run builds, and the binary's highest required `GLIBC_` symbol is ≤ 2.35 (`objdump -T`).
+- [x] 5.1 Move the `linux` job of `music-release.yml` — and only it — to `ubuntu-22.04`, with a comment on why and on what retiring that image will mean. Verify: a dispatch dry-run builds, and the binary's highest required `GLIBC_` symbol is ≤ 2.35 (`objdump -T`). Verified 2026-10-24, run 40114401284: built on `ubuntu-22.04`, highest required symbol `GLIBC_2.34`.
 - [x] 5.2 Add `apps/music/linux/deb/`: control template (`Package: cymbra-music`, `Depends` on GTK 3, ALSA, libsecret and pkexec, with the alternatives that exist on 22.04 / 24.04 / Debian 12), `.desktop`, icon, polkit action annotated with the helper path, marker file. Verify: `dpkg-deb --info` / `--contents` in CI.
 - [x] 5.3 Add the package build script assembling `/opt/cymbra-music` (whole Flutter bundle), the launcher symlink, the desktop entry, the icon, the helper and the policy, with root ownership and the version from `pubspec.yaml`. Verify: `lintian` has no error-level tag, or each remaining one is justified in the script.
 - [x] 5.4 Wire it into the `linux` job, keep the tarball step, attach the `.deb` to the release (tag-gated) and hand it to the manifest job as the `linux-x64` target of kind `deb`.
-- [ ] 5.5 Smoke-check in CI: install the package with `apt-get install ./…deb` on the runner, check the files, the marker, the policy and that the helper reports its version; then remove it.
+- [x] 5.5 Smoke-check in CI: install the package with `apt-get install ./…deb` on the runner, check the files, the marker, the policy and that the helper reports its version; then remove it. Verified 2026-10-24, run 40114401284: installed with its dependencies, helper `--version`, polkit action read from its file, removed.
 - [x] 5.6 Remove `apps/music/linux/appimage/` and the AppImage CI steps.
 
 ## 6. Release pipeline — sign, publish, ingest
@@ -106,7 +106,7 @@
 ## 10. Manual validation
 
 - [ ] 10.1 Deploy the backend + Caddy change and confirm `GET /updates/desktop` returns `204` in production before any release is ingested.
-- [ ] 10.2 Build both artifacts from a dispatch dry-run and confirm the workflow signs, uploads and ingests nothing.
+- [x] 10.2 Build both artifacts from a dispatch dry-run and confirm the workflow signs, uploads and ingests nothing. Verified 2026-10-24, run 40114401284: all six build jobs green, `manifest` skipped, release uploads, Play, TestFlight and the Discord post not run; Windows built unsigned with the notice.
 - [ ] 10.3 Install the Windows installer as a standard user: no elevation prompt, app launches, marker present.
 - [ ] 10.4 Install the `.deb` on clean Ubuntu 22.04, Ubuntu 24.04 and Debian 12 desktops: dependencies resolve, the app launches from the application list, MIDI keyboard and sound work.
 - [ ] 10.5 Tag a release, verify the envelope asset, ingest at rollout 0, then raise it and confirm the client picks it up.
