@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PageAnalysis } from "@/analyzer/types.ts";
 import { HL_UNKNOWN } from "@/reading/highlight.ts";
 import type { Gesture } from "@/reading/wordpopup.ts";
+import { type PageHit, SelectionCards } from "@/reading/selection-card.ts";
 import { followNativeLanguage } from "@/reading/native-rebuild.ts";
 import {
   type CardLookup,
@@ -760,6 +761,101 @@ describe("a selection inside a word written as pieces", () => {
     const picked = await select(second.indexOf("homme"), 5, 1);
     expect(picked.phrases).toEqual(["l\u2019homme"]);
     s.detach();
+  });
+});
+
+describe("the token after a piece, for the card (add-lingua-italian-read-aloud D4.1)", () => {
+  const TEXT = "Non c'e' problema, l'uomo al mare.";
+  const at = (text: string) => TEXT.indexOf(text);
+  const token = (surface: string, lemma: string, start: number, end: number) => ({
+    block: 0,
+    start,
+    end,
+    surface,
+    lemma,
+    class: "Unknown" as const,
+    gloss: `${lemma}?`,
+  });
+  /** The Italian pre-pass's reading: `c'e'` as `ci` + `è`, `l'uomo` as `lo` + `uomo`, `al` as `a` + `il`. */
+  const analysed = (blocks: string[]): PageAnalysis => ({
+    analyzer_version: "1",
+    analysable: true,
+    tokens:
+      blocks[0] === TEXT
+        ? [
+            token("Non", "non", 0, 3),
+            token("ci", "ci", at("c'e'"), at("c'e'") + 2),
+            token("è", "essere", at("c'e'") + 2, at("c'e'") + 4),
+            token("problema", "problema", at("problema"), at("problema") + 8),
+            token("lo", "lo", at("l'uomo"), at("l'uomo") + 2),
+            token("uomo", "uomo", at("uomo"), at("uomo") + 4),
+            token("a", "a", at("al "), at("al ") + 2),
+            token("il", "il", at("al "), at("al ") + 2),
+            token("mare", "mare", at("mare"), at("mare") + 4),
+          ]
+        : [],
+    counted: 9,
+    known: 0,
+    percent: 0,
+  });
+
+  async function reading() {
+    const { port } = makeFakePort();
+    port.analyse = async (blocks) => analysed(blocks);
+    const hits: PageHit[] = [];
+    const spy = vi.spyOn(SelectionCards.prototype, "openForSelection").mockImplementation((_sel, hit) => {
+      if (hit) hits.push(hit);
+    });
+    const s = new ReadingSession(port, { css: CSS_TEXT, surface: "book" });
+    await s.start(null);
+    const { host } = section(`<p>${TEXT}</p>`);
+    const box = () => ({ left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 });
+    Object.assign((host.win as unknown as { Range: { prototype: object } }).Range.prototype, {
+      getBoundingClientRect: box,
+      getClientRects: () => [box()],
+    });
+    await s.attach(host);
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+    /** Select `[from, from + length)` of the paragraph and lift: the hit the cards are handed. */
+    const select = async (from: number, length: number): Promise<PageHit | undefined> => {
+      hits.length = 0;
+      const node = host.doc.querySelector("p")!.firstChild!;
+      const range = host.doc.createRange();
+      range.setStart(node, from);
+      range.setEnd(node, from + length);
+      const sel = host.win.getSelection()!;
+      sel.removeAllRanges();
+      sel.addRange(range);
+      host.doc.body.dispatchEvent(new host.win.Event("touchend", { bubbles: true }));
+      await settle();
+      sel.removeAllRanges();
+      await settle();
+      return hits[0];
+    };
+    return { s, select, spy };
+  }
+
+  it("hands the card of `c'` the text of the token that starts where it ends: `è`", async () => {
+    const { s, select, spy } = await reading();
+    const hit = await select(at("c'e'"), 1);
+    expect(hit?.token.surface).toBe("ci");
+    expect(hit?.written).toBe("c'");
+    expect(hit?.nextText).toBe("è");
+    expect((await select(at("l'uomo"), 1))?.nextText).toBe("uomo");
+    s.detach();
+    spy.mockRestore();
+  });
+
+  it("hands none where the next word starts after a space, pieces sharing a span included", async () => {
+    const { s, select, spy } = await reading();
+    const problema = await select(at("problema"), 8);
+    expect(problema?.token.surface).toBe("problema");
+    expect(problema && "nextText" in problema).toBe(false);
+    const al = await select(at("al "), 2);
+    expect(al?.token.surface).toBe("a");
+    expect(al && "nextText" in al).toBe(false);
+    s.detach();
+    spy.mockRestore();
   });
 });
 

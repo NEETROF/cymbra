@@ -9,13 +9,18 @@ import {
   levelQuestion,
   levelScale,
   levelTitle,
+  listedLanguageName,
   myLevelTitle,
   noTextDetected,
   noVoiceInstalled,
   previewSentence,
+  readAsForm,
   windowsVoiceLanguage,
 } from "@/analyzer/language-labels.ts";
 import type { StudiedLanguage } from "@/analyzer/types.ts";
+import { languages as enLanguages } from "@/i18n/en/languages.ts";
+import { languages as esLanguages } from "@/i18n/es/languages.ts";
+import { languages as frLanguages } from "@/i18n/fr/languages.ts";
 import { INTERFACE_LANGUAGES, type InterfaceLanguage } from "@/i18n/index.ts";
 
 // The labels module names a studied language in the interface language it is handed
@@ -292,5 +297,118 @@ describe("French, for its voices (add-lingua-french-read-aloud D4)", () => {
   it("names the languages the catalogue holds, and no other tag", () => {
     expect(["en", "es", "fr"].every(isNamedLanguage)).toBe(true);
     expect(["de", "", "EN", "fra", "constructor", "toString"].some(isNamedLanguage)).toBe(false);
+  });
+});
+
+describe("Italian, for its voices (add-lingua-italian-read-aloud D3)", () => {
+  /** The four messages the read-aloud block calls, for a speaker reading Italian. */
+  const voiceMessages = (language: InterfaceLanguage): Record<string, string> => ({
+    languageName: languageName(language, "it"),
+    noVoiceInstalled: noVoiceInstalled(language, "it"),
+    windowsVoiceLanguage: windowsVoiceLanguage(language, "it"),
+    previewSentence: previewSentence(language, "it"),
+  });
+  const PREVIEW = "Ecco come suoneranno le tue pagine quando Lingua le leggerà ad alta voce.";
+
+  it("a French-native reader reads them in French: « voix italienne », « Italien (Italie) »", () => {
+    expect(voiceMessages("fr")).toEqual({
+      languageName: "Italien",
+      noVoiceInstalled: "Aucune voix italienne n'est installée sur cet appareil. ",
+      windowsVoiceLanguage: "Italien (Italie)",
+      previewSentence: PREVIEW,
+    });
+  });
+
+  it("an English-native reader reads them in English", () => {
+    expect(voiceMessages("en")).toEqual({
+      languageName: "Italian",
+      noVoiceInstalled: "No Italian voice is installed on this device. ",
+      windowsVoiceLanguage: "Italian (Italy)",
+      previewSentence: PREVIEW,
+    });
+  });
+
+  it("a Spanish-native reader reads them in Spanish: « voz italiana », « Italiano (Italia) »", () => {
+    expect(voiceMessages("es")).toEqual({
+      languageName: "Italiano",
+      noVoiceInstalled: "No hay ninguna voz italiana instalada en este dispositivo. ",
+      windowsVoiceLanguage: "Italiano (Italia)",
+      previewSentence: PREVIEW,
+    });
+  });
+
+  it("none of the English and Spanish ones is the French one, but the preview, the same in all three", () => {
+    const french = voiceMessages("fr");
+    for (const language of ["en", "es"] as const) {
+      for (const [key, text] of Object.entries(voiceMessages(language))) {
+        if (key === "previewSentence") expect(text).toBe(french[key]);
+        else expect(text, `${language}: ${key} is still the French`).not.toBe(french[key]);
+      }
+    }
+  });
+
+  it("names Italian, a plain tag, and no other spelling of it", () => {
+    expect(isNamedLanguage("it")).toBe(true);
+    expect(["IT", "ita", "it-IT", "italian"].some(isNamedLanguage)).toBe(false);
+    expect([readAsForm("fr", "it"), readAsForm("en", "it"), readAsForm("es", "it")]).toEqual([
+      "italien",
+      "Italian",
+      "italiana",
+    ]);
+    expect([listedLanguageName("fr", "it"), listedLanguageName("en", "it"), listedLanguageName("es", "it")]).toEqual([
+      "italien",
+      "Italian",
+      "italiano",
+    ]);
+  });
+
+  it("holds the forms the level titles and the sentences take once Italian is studied", () => {
+    // Keyed by the studied language, the titles name Italian only from enable-lingua-italian
+    // (change 20): the templates are read here with the entry they will take.
+    const fr = frLanguages;
+    const { italian: frIt } = fr;
+    expect([
+      fr.levelTitle(frIt.of),
+      fr.levelTitleEstimated(frIt.of),
+      fr.myLevelTitle(frIt.of),
+      fr.chooseLevelPrompt(frIt.of),
+      fr.levelQuestion(frIt.of),
+      fr.noTextDetected(frIt.masculine),
+      fr.estimatedLevelsNote(frIt.the),
+      fr.borrowedTypicalNote(fr.english.the, frIt.the),
+    ]).toEqual([
+      "Niveau d'italien",
+      "Niveau d'italien estimé",
+      "Mon niveau d'italien",
+      "Choisis ton niveau d'italien",
+      "Quel est ton niveau d'italien ?",
+      "Pas de texte italien détecté sur cette page.",
+      "Niveaux estimés d'après la fréquence des mots, faute de liste CEFR libre de droits pour l'italien.",
+      "repris de l'anglais, dont l'italien reprend les tailles de niveaux.",
+    ]);
+    const en = enLanguages;
+    expect([
+      en.levelTitle(en.italian.of),
+      en.noTextDetected(en.italian.masculine),
+      en.estimatedLevelsNote(en.italian.the),
+    ]).toEqual([
+      "Italian level",
+      "No Italian text found on this page.",
+      "Levels estimated from word frequency, as no freely licensed CEFR list exists for Italian.",
+    ]);
+    const es = esLanguages;
+    expect([
+      es.levelTitle(es.italian.of),
+      es.levelQuestion(es.italian.of),
+      es.noTextDetected(es.italian.masculine),
+      es.estimatedLevelsNote(es.italian.the),
+      es.borrowedTypicalNote(es.italian.the, es.english.the),
+    ]).toEqual([
+      "Nivel de italiano",
+      "¿Cuál es tu nivel de italiano?",
+      "No se detectó texto en italiano en esta página.",
+      "Niveles estimados según la frecuencia de las palabras, a falta de una lista MCER de uso libre para el italiano.",
+      "tomado del italiano, cuyos tamaños de nivel retoma el inglés.",
+    ]);
   });
 });

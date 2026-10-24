@@ -1128,13 +1128,17 @@ export class ReadingSession {
     this.cards.openForToken(this.pageHit(hit));
   }
 
-  /** What the cards need from a resolved hit: the token, its box, its sentence and its place there. */
+  /**
+   * What the cards need from a resolved hit: the token, its box, its sentence and its place there —
+   * and the text of the token starting where it ends, when one does (`nextText`).
+   */
   private pageHit(hit: ResolvedToken): PageHit {
     const rect = hit.range.getBoundingClientRect();
     const { sentence, selection } = sentenceAndSelection(hit.range);
     // A word painted by its status in another language is still, to the document, a word it does not
     // know: its card is read again in that language (D6).
     const reread = this.rereadWords.has(hit.token.surface.toLowerCase());
+    const nextText = this.nextTokenText(hit);
     return {
       token: reread ? { ...hit.token, class: "Unknown" } : hit.token,
       rect: this.toSurface({ left: rect.left, top: rect.top, bottom: rect.bottom }),
@@ -1143,7 +1147,20 @@ export class ReadingSession {
       // The source word, as written: the two halves of `don't` share its range. Read without
       // its soft hyphens, which the core's span covers (ignore-lingua-soft-hyphens D5).
       written: withoutSoftHyphens(hit.range.toString()),
+      ...(nextText === undefined ? {} : { nextText }),
     };
+  }
+
+  /**
+   * The text of the token the analysis starts where `hit` ends, in its block — the word an elided
+   * piece leans on, as the analysis reads it: `è` after the `c'` of « c'e' », where the page writes
+   * « e' » (add-lingua-italian-read-aloud D4.1). None when the next word starts after a space, or
+   * outside every analysed block; pieces sharing a span give the first, as a click does.
+   */
+  private nextTokenText(hit: ResolvedToken): string | undefined {
+    const { block, end } = hit.token;
+    return this.blockTokensAt(hit.range.startContainer)?.tokens.find((t) => t.block === block && t.start === end)
+      ?.surface;
   }
 
   /** A box of the read document, where the surfaces are drawn. */

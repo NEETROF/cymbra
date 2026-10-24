@@ -155,6 +155,12 @@ export interface PageHit {
   written?: string;
   /** Where the token sits in `sentence`, found by position — what the translator marks. */
   selection?: Span | null;
+  /**
+   * The text of the token starting where this one ends, when one does — `è` after the `c'` of
+   * « c'e' » (add-lingua-italian-read-aloud D4.1): an Italian elided piece is heard with the word
+   * it leans on as the analysis reads it.
+   */
+  nextText?: string;
 }
 
 /** A settled selection: its text, its source sentence and its anchor box. */
@@ -493,6 +499,7 @@ export class SelectionCards {
       ...this.languageOfCard(),
       ...(written !== token.surface ? { written } : {}),
       ...placeInSentence(hit.selection),
+      ...(hit.nextText === undefined ? {} : { nextText: hit.nextText }),
     };
     const inSentence = (card: WordPopupContent, cls: TokenClass) =>
       this.wordEngine(card, cls, {

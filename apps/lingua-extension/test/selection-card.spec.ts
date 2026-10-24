@@ -886,6 +886,20 @@ describe("a word card asks its word's grammar (add-lingua-word-grammar)", () => 
     expect("selection" in h.last()).toBe(false);
   });
 
+  it("carries the next token's text, only where the page hit has one (add-lingua-italian-read-aloud D4.1)", async () => {
+    const h = harness();
+    const piece = pageToken({ surface: "ci", lemma: "ci", class: "Unknown", gloss: "Y" });
+    const place = { start: 4, end: 6 };
+    h.cards.openForToken({ token: piece, rect: RECT, sentence: "Non c'e' problema.", selection: place, nextText: "è" });
+    await settle();
+    expect(h.shows.length).toBeGreaterThan(0);
+    expect(h.shows.every((card) => card.nextText === "è")).toBe(true);
+    // Without one, no key at all: the card is exactly the card it was.
+    h.cards.openForToken({ token: piece, rect: RECT, sentence: "Non c'e' problema.", selection: place });
+    await settle();
+    expect("nextText" in h.last()).toBe(false);
+  });
+
   it("carries the place of a word outside the page analysis, only where known", async () => {
     const h = harness();
     const place = { start: 5, end: 9 };

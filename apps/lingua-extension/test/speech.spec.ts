@@ -242,6 +242,92 @@ describe("a French voice from France by default (add-lingua-french-read-aloud)",
   });
 });
 
+describe("an Italian voice from Italy by default (add-lingua-italian-read-aloud)", () => {
+  /** Réglages' modules in English and in Spanish, which word a voice's label. */
+  const EN = settingsCopy("en").settings;
+  const ES = settingsCopy("es").settings;
+  const alice = voice({ name: "Alice", lang: "it-IT" });
+  const swiss = voice({ name: "Svizzera", lang: "it-CH" });
+  const android = (name: string, lang: string): VoiceInfo =>
+    voice({ name, lang, localService: false, voiceURI: `moz-tts:android:${lang.replace(/-/g, "_")}` });
+  const ELOQUENCE = ["Eddy", "Flo", "Grandma", "Grandpa", "Reed", "Rocko", "Sandy", "Shelley"].map(
+    (name) => `${name} (Italian (Italy))`,
+  );
+
+  it.each(["chrome-macos", "firefox-macos", "safari-macos", "safari-ios-simulator", "safari-ios"])(
+    "%s: Alice, a voice of Italy",
+    (target) => {
+      const picked = pickVoice(voiceFixture(target), "it", null);
+      expect(picked?.name).toBe("Alice");
+      expect(picked?.lang).toBe("it-IT");
+    },
+  );
+
+  it("groups Chrome macOS: Alice, then the eight Eloquence voices apart, Google italiano not offered", () => {
+    const voices = voiceFixture("chrome-macos");
+    const { ordinary, others } = voiceGroups(voices, "it");
+    expect(ordinary.map((v) => v.name)).toEqual(["Alice"]);
+    expect(others.map((v) => v.name)).toEqual(ELOQUENCE);
+    expect(others.every(isDeprioritised)).toBe(true);
+    expect(rankVoices(voices, "it").map((v) => v.name)).not.toContain("Google italiano");
+    // Online voices allowed: a voice is on the device, so Google's does not stand in.
+    expect(rankVoices(voices, "it", false, true).map((v) => v.name)).toEqual(["Alice", ...ELOQUENCE]);
+    expect(pickVoice(voices, "it", "Google italiano", false, true)?.name).toBe("Alice");
+  });
+
+  it("Chrome Windows: no Italian voice on the device, so none speaks until the online voices are allowed", () => {
+    const voices = voiceFixture("chrome-windows");
+    expect(usableVoices(voices, "it")).toEqual([]);
+    expect(pickVoice(voices, "it", null)).toBeNull();
+    expect(voices.filter((v) => isRemoteVoice(v, "it")).map((v) => v.name)).toEqual(["Google italiano"]);
+    expect(pickVoice(voices, "it", null, false, true)?.name).toBe("Google italiano");
+  });
+
+  it("Firefox Android: nothing until Android's voices are allowed, then the voices of Italy", () => {
+    const voices = voiceFixture("firefox-android");
+    expect(pickVoice(voices, "it", null)).toBeNull();
+    expect(rankVoices(voices, "it", true).map((v) => v.lang)).toEqual(["ita-ITA-default", "ita-ITA-f00"]);
+    expect(pickVoice(voices, "it", null, true)?.lang).toBe("ita-ITA-default");
+  });
+
+  it("puts a voice of Italy before a Swiss one of the same quality", () => {
+    expect(rankVoices([swiss, alice], "it")).toEqual([alice, swiss]);
+    expect(pickVoice([swiss, alice], "it", null)).toBe(alice);
+    const switzerland = android("italien (CHE,DEFAULT)", "ita-CHE-default");
+    const italy = android("italien (ITA,DEFAULT)", "ita-ITA-default");
+    expect(pickVoice([switzerland, italy], "it", null, true)).toBe(italy);
+  });
+
+  it("keeps a voice the reader downloaded for its quality first, and the reader's choice", () => {
+    const enhanced = voice({ name: "Svizzera", lang: "it-CH", voiceURI: "com.apple.voice.enhanced.it-CH.Svizzera" });
+    const compact = voice({ name: "Alice", lang: "it-IT", voiceURI: "com.apple.voice.compact.it-IT.Alice" });
+    expect(pickVoice([enhanced, compact], "it", null)).toBe(enhanced);
+    expect(pickVoice([swiss, alice], "it", swiss.voiceURI)).toBe(swiss);
+  });
+
+  it("places Firefox for Android's ita-ITA voices in Italy and names it in the interface language", () => {
+    const italy = android("italien (ITA,DEFAULT)", "ita-ITA-default");
+    expect(voiceLabel(italy)).toBe("italien (ITA,DEFAULT) — Italie");
+    expect(voiceLabel(italy, "en", EN)).toBe("italien (ITA,DEFAULT) — Italy");
+    expect(voiceLabel(italy, "es", ES)).toBe("italien (ITA,DEFAULT) — Italia");
+    for (const label of [voiceLabel(italy), voiceLabel(italy, "en", EN), voiceLabel(italy, "es", ES)]) {
+      expect(label).not.toMatch(/— ITA$/);
+    }
+    expect(voiceLabel(alice, "en", EN)).toBe("Alice — Italy");
+    expect(voiceLabel(swiss, "es", ES)).toBe("Svizzera — Suiza");
+  });
+
+  it("leaves English's, Spanish's and French's choices as they were", () => {
+    expect(rankVoices([daniel, samantha], "en")).toEqual([samantha, daniel]);
+    const monica = voice({ name: "Mónica", lang: "es-ES" });
+    const paulina = voice({ name: "Paulina", lang: "es-MX" });
+    expect(rankVoices([paulina, monica], "es")).toEqual([monica, paulina]);
+    const thomas = voice({ name: "Thomas", lang: "fr-FR" });
+    const amelie = voice({ name: "Amélie", lang: "fr-CA" });
+    expect(rankVoices([amelie, thomas], "fr")).toEqual([thomas, amelie]);
+  });
+});
+
 describe("the reader's choice", () => {
   it("speaks with the chosen voice while it is listed and eligible", () => {
     const voices = voiceFixture("chrome-macos");

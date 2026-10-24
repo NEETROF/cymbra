@@ -170,6 +170,13 @@ export interface WordPopupContent {
    */
   selection?: Span | null;
   /**
+   * The text of the token the analysis starts where the selection ends, written only where one does
+   * (add-lingua-italian-read-aloud D4.1): an Italian elided piece is heard with the word it leans
+   * on, that word as the analysis reads it when it is a spelling read for an accent — `è` after the
+   * `c'` of « c'e' ».
+   */
+  nextText?: string;
+  /**
    * The studied language of the document the word was met in, whose forms the grammar lines name
    * (add-lingua-spanish-word-card) and which the card's words of the document say in `lang`
    * (localise-lingua-reading-surfaces); a card without one names English forms, as every card did.
@@ -269,10 +276,112 @@ function gluedWord(content: WordPopupContent): string | null {
   return text.slice(span.start, end);
 }
 
-/** What a single word's button reads, and whether it is an elided piece read with its word. */
+/**
+ * What a single word's button reads: `text`, which its label shows; `spoken`, what the voice is
+ * handed — `text`, or `text` with a full stop (`è.`, add-lingua-italian-read-aloud D4.5) —; and
+ * whether it is an elided piece read with its word.
+ */
 interface Heard {
   text: string;
+  spoken: string;
   leaning: boolean;
+}
+
+/**
+ * Italian's words written with their apostrophe last that are read as the page writes them
+ * (add-lingua-italian-read-aloud D4.3), in the engine's form: the truncations — change 6's `po'`,
+ * `mo'`, `fa'`, `va'`, `sta'`, `di'`, `be'`, and refine-lingua-italian-reading's `ca'`, `de'`,
+ * `que'` — and the truncated articulated prepositions, each read as a preposition and `i` sharing
+ * the span (`a'`, `co'`, `ne'`, `su'` before a word; `da'` wherever it stands, or the verb `dai`).
+ * The token's text is another word on the page (`poco`, `dei`, `in`); the written form is what the
+ * voice should say (« po' » is « po », « da' » « dà », measured). French's `ELIDED` test, which
+ * would send them back to the form seen, comes after this.
+ */
+const ITALIAN_AS_WRITTEN: ReadonlySet<string> = new Set([
+  "a'",
+  "be'",
+  "ca'",
+  "co'",
+  "da'",
+  "de'",
+  "di'",
+  "fa'",
+  "mo'",
+  "ne'",
+  "po'",
+  "que'",
+  "sta'",
+  "su'",
+  "va'",
+]);
+
+/** A text without its accents and its apostrophes, lowercase: « e' » and « è » are both `e`. */
+function unaccented(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/[\p{M}'\u2019]/gu, "")
+    .toLowerCase();
+}
+
+/** What follows a text's last apostrophe — the whole text when it holds none. */
+const LAST_WORD = /[^'\u2019]*$/u;
+/** « é », which a full stop or any punctuation silences (D4.5), its capital with it. */
+const SILENCED_BY_A_STOP = /^\u00e9$/iu;
+
+/**
+ * An Italian glued word with the word it leans on as the analysis reads it (D4.1): `gluedWord`
+ * stops before an apostrophe a space follows, so « non c'e' problema » glues « c'e », and the token
+ * after the piece reads `è`. The glued text's last word — after its last apostrophe — is replaced
+ * by that token's text when the two differ only by an accent and an apostrophe (« c'è »); any other
+ * next token (`uomo` of « l'uomo », `ultima` of « l'ultim'ora ») leaves it as the page writes it.
+ */
+function withAccentedWord(glued: string, nextText: string | undefined): string {
+  const next = nextText?.trim();
+  if (!next) return glued;
+  const at = glued.search(LAST_WORD);
+  const last = glued.slice(at);
+  const differs = last.normalize("NFC") !== next.normalize("NFC");
+  return differs && unaccented(last) === unaccented(next) ? glued.slice(0, at) + next : glued;
+}
+
+/**
+ * Whether a voice reads `text` alone as a letter's name: one vowel, accented or a capital
+ * (D4.5) — Alice says « è » in 1.03 s, « È » in 1.58 s, « A », « E », « I », « O » in 0.83–0.86 s,
+ * where « è. » is the vowel (0.18 s) and « A. » … « O. » are byte for byte « a » … « o ». But « é »
+ * (« É » too), which a full stop silences: read alone.
+ */
+function namedAsLetter(text: string): boolean {
+  const letter = text.normalize("NFC");
+  if ([...letter].length !== 1) return false;
+  const base = letter.normalize("NFD").charAt(0);
+  if (!/^[aeiou]$/iu.test(base) || SILENCED_BY_A_STOP.test(letter)) return false;
+  return letter !== base.toLowerCase();
+}
+
+/**
+ * What a single word's button reads for a speaker reading Italian (add-lingua-italian-read-aloud
+ * D4): an elided piece with the word it leans on (`l'` → « l'uomo », `c'` → « c'è » for « c'e' »);
+ * else a truncation or a truncated articulated preposition as written (« po' », « ne' »), before
+ * French's `ELIDED` test; else French's rule — a piece of a split articulated preposition as
+ * written (« al »), an elided piece alone and a spelling read for an accent as the form seen
+ * (`perché` for « perche' », `È` for « E' »); then a vowel a voice would name as a letter, with a
+ * full stop for the voice (« è. », « E. »), its label without it.
+ */
+function italianHeard(content: WordPopupContent, seen: string): Heard {
+  const glued = gluedWord(content);
+  const written = content.written?.trim();
+  let text: string;
+  if (glued) text = withAccentedWord(glued, content.nextText);
+  else if (written && ITALIAN_AS_WRITTEN.has(engineForm(written))) text = written;
+  else text = frenchHeard(content, seen);
+  return { text, spoken: namedAsLetter(text) ? `${text}.` : text, leaning: !!glued };
+}
+
+/** French's choice once no piece is glued: a split word's piece as written, never an elided piece alone. */
+function frenchHeard(content: WordPopupContent, seen: string): string {
+  const written = content.written?.trim();
+  const asWritten = !!written && !ELIDED.test(written) && engineForm(written) !== engineForm(seen);
+  return asWritten ? written : seen;
 }
 
 /**
@@ -282,21 +391,24 @@ interface Heard {
  * else a piece of a word the analysis split, the word as written (`à` → « au ») — but never an
  * elided piece alone (`l’ homme` typed with a space), whose form seen is the word it stands for when
  * the analysis writes it so (`Le`); else the form seen, as every card reads in English and Spanish
- * (`del` still reads its piece).
+ * (`del` still reads its piece). A speaker reading Italian hears it as `italianHeard` says
+ * (add-lingua-italian-read-aloud D4).
  */
 function heardWord(content: WordPopupContent, seen: string, speakerLanguage: string): Heard {
-  if (speakerLanguage !== "fr") return { text: seen, leaning: false };
+  if (speakerLanguage === "it") return italianHeard(content, seen);
+  if (speakerLanguage !== "fr") return { text: seen, spoken: seen, leaning: false };
   const glued = gluedWord(content);
-  if (glued) return { text: glued, leaning: true };
-  const written = content.written?.trim();
-  const asWritten = !!written && !ELIDED.test(written) && engineForm(written) !== engineForm(seen);
-  return { text: asWritten ? written : seen, leaning: false };
+  if (glued) return { text: glued, spoken: glued, leaning: true };
+  const text = frenchHeard(content, seen);
+  return { text, spoken: text, leaning: false };
 }
 
 /**
  * The texts a card offers to hear: the selection as seen — with the dictionary form beside it when
  * the card shows another form seen, each button saying what it reads (D2) — then its sentence unless
- * it is what the word button reads. A French speaker hears a single word as `heardWord` says.
+ * it is what the word button reads. A French or an Italian speaker hears a single word as
+ * `heardWord` says, each button labelled with the text it reads, without the full stop an Italian
+ * vowel is handed to the voice with.
  */
 function listensFor(content: WordPopupContent, copy: CardCopy, speakerLanguage: string): Listen[] {
   const selection = (content.surface || content.headword).trim();
@@ -305,8 +417,11 @@ function listensFor(content: WordPopupContent, copy: CardCopy, speakerLanguage: 
   const listens: Listen[] = [];
   // Several words are a selection, whether or not the pack knows the expression (« animal doméstico »).
   const several = content.expression || /\s/u.test(selection);
-  const word = several ? { text: selection, leaning: false } : heardWord(content, selection, speakerLanguage);
+  const word = several
+    ? { text: selection, spoken: selection, leaning: false }
+    : heardWord(content, selection, speakerLanguage);
   const heard = word.text;
+  const spoken = word.spoken;
   // An elided piece read with its word shows a form other than its dictionary one, whatever text the
   // analysis gives its token — `l'`, or the word it stands for, `Le` (add-lingua-french-tokenisation).
   const leans = word.leaning && heard.toLowerCase() !== headword.toLowerCase();
@@ -316,7 +431,7 @@ function listensFor(content: WordPopupContent, copy: CardCopy, speakerLanguage: 
     listens.push(
       {
         key: "selection",
-        text: heard,
+        text: spoken,
         label: copy.listenForm(heard),
         aria: copy.listenSeenFormLabel(heard),
       },
@@ -328,7 +443,7 @@ function listensFor(content: WordPopupContent, copy: CardCopy, speakerLanguage: 
       },
     );
   } else {
-    listens.push({ key: "selection", text: heard, label: copy.listenWord, aria: copy.listenWordLabel });
+    listens.push({ key: "selection", text: spoken, label: copy.listenWord, aria: copy.listenWordLabel });
   }
   const sentence = content.sentence.trim();
   if (sentence && !sameSpokenText(sentence, heard)) {
