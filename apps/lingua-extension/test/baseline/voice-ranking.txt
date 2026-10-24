@@ -266,6 +266,94 @@ ranked (18):
   Sandy (Spanish (Mexico))
   Shelley (Spanish (Mexico))
 
+## chrome-macos fr — android voices off, online voices off
+automatic: Thomas
+ranked (18):
+  Thomas
+  Amélie
+  Eddy (French (France))
+  Flo (French (France))
+  Grandma (French (France))
+  Grandpa (French (France))
+  Jacques
+  Rocko (French (France))
+  Sandy (French (France))
+  Shelley (French (France))
+  Eddy (French (Canada))
+  Flo (French (Canada))
+  Grandma (French (Canada))
+  Grandpa (French (Canada))
+  Reed (French (Canada))
+  Rocko (French (Canada))
+  Sandy (French (Canada))
+  Shelley (French (Canada))
+
+## chrome-macos fr — android voices off, online voices on
+automatic: Thomas
+ranked (18):
+  Thomas
+  Amélie
+  Eddy (French (France))
+  Flo (French (France))
+  Grandma (French (France))
+  Grandpa (French (France))
+  Jacques
+  Rocko (French (France))
+  Sandy (French (France))
+  Shelley (French (France))
+  Eddy (French (Canada))
+  Flo (French (Canada))
+  Grandma (French (Canada))
+  Grandpa (French (Canada))
+  Reed (French (Canada))
+  Rocko (French (Canada))
+  Sandy (French (Canada))
+  Shelley (French (Canada))
+
+## chrome-macos fr — android voices on, online voices off
+automatic: Thomas
+ranked (18):
+  Thomas
+  Amélie
+  Eddy (French (France))
+  Flo (French (France))
+  Grandma (French (France))
+  Grandpa (French (France))
+  Jacques
+  Rocko (French (France))
+  Sandy (French (France))
+  Shelley (French (France))
+  Eddy (French (Canada))
+  Flo (French (Canada))
+  Grandma (French (Canada))
+  Grandpa (French (Canada))
+  Reed (French (Canada))
+  Rocko (French (Canada))
+  Sandy (French (Canada))
+  Shelley (French (Canada))
+
+## chrome-macos fr — android voices on, online voices on
+automatic: Thomas
+ranked (18):
+  Thomas
+  Amélie
+  Eddy (French (France))
+  Flo (French (France))
+  Grandma (French (France))
+  Grandpa (French (France))
+  Jacques
+  Rocko (French (France))
+  Sandy (French (France))
+  Shelley (French (France))
+  Eddy (French (Canada))
+  Flo (French (Canada))
+  Grandma (French (Canada))
+  Grandpa (French (Canada))
+  Reed (French (Canada))
+  Rocko (French (Canada))
+  Sandy (French (Canada))
+  Shelley (French (Canada))
+
 ## chrome-windows en — android voices off, online voices off
 automatic: (none)
 ranked (0):
@@ -307,6 +395,34 @@ automatic: Google español
 ranked (2):
   Google español
   Google español de Estados Unidos
+
+## chrome-windows fr — android voices off, online voices off
+automatic: Microsoft Hortense - French (France)
+ranked (3):
+  Microsoft Hortense - French (France)
+  Microsoft Julie - French (France)
+  Microsoft Paul - French (France)
+
+## chrome-windows fr — android voices off, online voices on
+automatic: Microsoft Hortense - French (France)
+ranked (3):
+  Microsoft Hortense - French (France)
+  Microsoft Julie - French (France)
+  Microsoft Paul - French (France)
+
+## chrome-windows fr — android voices on, online voices off
+automatic: Microsoft Hortense - French (France)
+ranked (3):
+  Microsoft Hortense - French (France)
+  Microsoft Julie - French (France)
+  Microsoft Paul - French (France)
+
+## chrome-windows fr — android voices on, online voices on
+automatic: Microsoft Hortense - French (France)
+ranked (3):
+  Microsoft Hortense - French (France)
+  Microsoft Julie - French (France)
+  Microsoft Paul - French (France)
 
 ## firefox-android en — android voices off, online voices off
 automatic: (none)
@@ -355,6 +471,26 @@ ranked (4):
   moz-tts:android:spa_ESP_f00
   moz-tts:android:spa_MEX_default
   moz-tts:android:spa_MEX_f00
+
+## firefox-android fr — android voices off, online voices off
+automatic: (none)
+ranked (0):
+
+## firefox-android fr — android voices off, online voices on
+automatic: (none)
+ranked (0):
+
+## firefox-android fr — android voices on, online voices off
+automatic: moz-tts:android:fra_FRA_default
+ranked (2):
+  moz-tts:android:fra_FRA_default
+  moz-tts:android:fra_FRA_f00
+
+## firefox-android fr — android voices on, online voices on
+automatic: moz-tts:android:fra_FRA_default
+ranked (2):
+  moz-tts:android:fra_FRA_default
+  moz-tts:android:fra_FRA_f00
 
 ## firefox-macos en — android voices off, online voices off
 automatic: urn:moz-tts:osx:com.apple.voice.compact.en-GB.Daniel
@@ -435,6 +571,30 @@ automatic: urn:moz-tts:osx:com.apple.voice.super-compact.es-ES.Monica
 ranked (2):
   urn:moz-tts:osx:com.apple.voice.super-compact.es-ES.Monica
   urn:moz-tts:osx:com.apple.voice.super-compact.es-MX.Paulina
+
+## firefox-macos fr — android voices off, online voices off
+automatic: urn:moz-tts:osx:com.apple.voice.super-compact.fr-FR.Thomas
+ranked (2):
+  urn:moz-tts:osx:com.apple.voice.super-compact.fr-FR.Thomas
+  urn:moz-tts:osx:com.apple.voice.super-compact.fr-CA.Amelie
+
+## firefox-macos fr — android voices off, online voices on
+automatic: urn:moz-tts:osx:com.apple.voice.super-compact.fr-FR.Thomas
+ranked (2):
+  urn:moz-tts:osx:com.apple.voice.super-compact.fr-FR.Thomas
+  urn:moz-tts:osx:com.apple.voice.super-compact.fr-CA.Amelie
+
+## firefox-macos fr — android voices on, online voices off
+automatic: urn:moz-tts:osx:com.apple.voice.super-compact.fr-FR.Thomas
+ranked (2):
+  urn:moz-tts:osx:com.apple.voice.super-compact.fr-FR.Thomas
+  urn:moz-tts:osx:com.apple.voice.super-compact.fr-CA.Amelie
+
+## firefox-macos fr — android voices on, online voices on
+automatic: urn:moz-tts:osx:com.apple.voice.super-compact.fr-FR.Thomas
+ranked (2):
+  urn:moz-tts:osx:com.apple.voice.super-compact.fr-FR.Thomas
+  urn:moz-tts:osx:com.apple.voice.super-compact.fr-CA.Amelie
 
 ## safari-ios en — android voices off, online voices off
 automatic: com.apple.voice.super-compact.en-US.Samantha
@@ -576,6 +736,30 @@ ranked (2):
   com.apple.voice.super-compact.es-ES.Monica
   com.apple.voice.super-compact.es-MX.Paulina
 
+## safari-ios fr — android voices off, online voices off
+automatic: com.apple.voice.compact.fr-FR.Thomas
+ranked (2):
+  com.apple.voice.compact.fr-FR.Thomas
+  com.apple.voice.super-compact.fr-CA.Amelie
+
+## safari-ios fr — android voices off, online voices on
+automatic: com.apple.voice.compact.fr-FR.Thomas
+ranked (2):
+  com.apple.voice.compact.fr-FR.Thomas
+  com.apple.voice.super-compact.fr-CA.Amelie
+
+## safari-ios fr — android voices on, online voices off
+automatic: com.apple.voice.compact.fr-FR.Thomas
+ranked (2):
+  com.apple.voice.compact.fr-FR.Thomas
+  com.apple.voice.super-compact.fr-CA.Amelie
+
+## safari-ios fr — android voices on, online voices on
+automatic: com.apple.voice.compact.fr-FR.Thomas
+ranked (2):
+  com.apple.voice.compact.fr-FR.Thomas
+  com.apple.voice.super-compact.fr-CA.Amelie
+
 ## safari-ios-simulator en — android voices off, online voices off
 automatic: com.apple.voice.super-compact.en-US.Samantha
 ranked (25):
@@ -716,6 +900,30 @@ ranked (2):
   com.apple.voice.super-compact.es-ES.Monica
   com.apple.voice.super-compact.es-MX.Paulina
 
+## safari-ios-simulator fr — android voices off, online voices off
+automatic: com.apple.voice.super-compact.fr-FR.Thomas
+ranked (2):
+  com.apple.voice.super-compact.fr-FR.Thomas
+  com.apple.voice.super-compact.fr-CA.Amelie
+
+## safari-ios-simulator fr — android voices off, online voices on
+automatic: com.apple.voice.super-compact.fr-FR.Thomas
+ranked (2):
+  com.apple.voice.super-compact.fr-FR.Thomas
+  com.apple.voice.super-compact.fr-CA.Amelie
+
+## safari-ios-simulator fr — android voices on, online voices off
+automatic: com.apple.voice.super-compact.fr-FR.Thomas
+ranked (2):
+  com.apple.voice.super-compact.fr-FR.Thomas
+  com.apple.voice.super-compact.fr-CA.Amelie
+
+## safari-ios-simulator fr — android voices on, online voices on
+automatic: com.apple.voice.super-compact.fr-FR.Thomas
+ranked (2):
+  com.apple.voice.super-compact.fr-FR.Thomas
+  com.apple.voice.super-compact.fr-CA.Amelie
+
 ## safari-macos en — android voices off, online voices off
 automatic: com.apple.voice.super-compact.en-US.Samantha
 ranked (25):
@@ -855,3 +1063,27 @@ automatic: com.apple.voice.super-compact.es-ES.Monica
 ranked (2):
   com.apple.voice.super-compact.es-ES.Monica
   com.apple.voice.super-compact.es-MX.Paulina
+
+## safari-macos fr — android voices off, online voices off
+automatic: com.apple.voice.super-compact.fr-FR.Thomas
+ranked (2):
+  com.apple.voice.super-compact.fr-FR.Thomas
+  com.apple.voice.super-compact.fr-CA.Amelie
+
+## safari-macos fr — android voices off, online voices on
+automatic: com.apple.voice.super-compact.fr-FR.Thomas
+ranked (2):
+  com.apple.voice.super-compact.fr-FR.Thomas
+  com.apple.voice.super-compact.fr-CA.Amelie
+
+## safari-macos fr — android voices on, online voices off
+automatic: com.apple.voice.super-compact.fr-FR.Thomas
+ranked (2):
+  com.apple.voice.super-compact.fr-FR.Thomas
+  com.apple.voice.super-compact.fr-CA.Amelie
+
+## safari-macos fr — android voices on, online voices on
+automatic: com.apple.voice.super-compact.fr-FR.Thomas
+ranked (2):
+  com.apple.voice.super-compact.fr-FR.Thomas
+  com.apple.voice.super-compact.fr-CA.Amelie
