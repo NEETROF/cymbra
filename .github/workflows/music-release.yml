@@ -43,16 +43,20 @@ name: music-release
 #   Repository VARIABLE (not a secret):
 #     DESKTOP_UPDATE_INGEST_URL     the ingest endpoint; defaults to
 #                                   https://api.cymbra.app/updates/desktop
-#   Windows code signing (Microsoft Artifact Signing, design D9) — all six or none:
-#     ARTIFACT_SIGNING_TENANT_ID    secrets: the Entra tenant, and the service
-#     ARTIFACT_SIGNING_CLIENT_ID    principal holding the "Artifact Signing
-#     ARTIFACT_SIGNING_CLIENT_SECRET Certificate Profile Signer" role.
-#     ARTIFACT_SIGNING_ENDPOINT     variables: the account's REGIONAL endpoint
-#     ARTIFACT_SIGNING_ACCOUNT      (e.g. https://weu.codesigning.azure.net — a
-#     ARTIFACT_SIGNING_PROFILE      region mismatch answers 403), the account
-#                                   name and the Public Trust certificate profile.
-#                                   Absent ⇒ unsigned dry-run; a music-v* tag FAILS
-#                                   rather than publish unsigned binaries.
+#   Windows — Microsoft Store (design D4). Repository VARIABLES (public values,
+#   Partner Center → the app → Product identity / Product management):
+#     MSSTORE_PRODUCT_ID            the Store ID (e.g. 9NXXXXXXXXXX).
+#     MSSTORE_IDENTITY_NAME         Package/Identity/Name.
+#     MSSTORE_PUBLISHER             Package/Identity/Publisher (CN=…).
+#     MSSTORE_PUBLISHER_DISPLAY_NAME Package/Properties/PublisherDisplayName.
+#   SECRETS — the Entra application granted access in Partner Center → Account
+#   settings → User management → Microsoft Entra applications:
+#     PARTNER_CENTER_TENANT_ID, PARTNER_CENTER_CLIENT_ID,
+#     PARTNER_CENTER_CLIENT_SECRET, PARTNER_CENTER_SELLER_ID (Account settings →
+#     Legal info → Seller ID).
+#   Absent ⇒ a dry-run packages with the placeholder identity; a music-v* tag
+#   FAILS rather than skip the Store. The first submission is made by hand in
+#   Partner Center (the dry-run keeps the MSIX as an artifact for that).
 #   Android (Play upload key + store upload):
 #     PLAY_SERVICE_ACCOUNT_JSON    raw JSON key of a Google Cloud service account
 #                                  (project `cymbra`) that has been INVITED as a
@@ -472,18 +476,16 @@ jobs:
 
   windows:
     runs-on: windows-latest
-    # Authenticode signing (change: add-desktop-auto-update, design D9) through
-    # Microsoft Artifact Signing. The service principal authenticates the signing
-    # library through DefaultAzureCredential's environment credential. All six
-    # values set ⇒ signed; any missing ⇒ an unsigned dry-run, and a tag refuses
-    # to publish (Smart App Control blocks unsigned executables outright).
+    # Microsoft Store distribution (change: add-desktop-auto-update, design D4):
+    # the Store signs the MSIX and updates it, so nothing here signs and the app
+    # never self-updates on Windows. Identity values are repository VARIABLES
+    # (public, from Partner Center → Product identity); the API credentials are
+    # SECRETS. A dry-run packages with the pubspec's placeholder identity.
     env:
-      AZURE_TENANT_ID: ${{ secrets.ARTIFACT_SIGNING_TENANT_ID }}
-      AZURE_CLIENT_ID: ${{ secrets.ARTIFACT_SIGNING_CLIENT_ID }}
-      AZURE_CLIENT_SECRET: ${{ secrets.ARTIFACT_SIGNING_CLIENT_SECRET }}
-      ARTIFACT_SIGNING_ENDPOINT: ${{ vars.ARTIFACT_SIGNING_ENDPOINT }}
-      ARTIFACT_SIGNING_ACCOUNT: ${{ vars.ARTIFACT_SIGNING_ACCOUNT }}
-      ARTIFACT_SIGNING_PROFILE: ${{ vars.ARTIFACT_SIGNING_PROFILE }}
+      MSSTORE_PRODUCT_ID: ${{ vars.MSSTORE_PRODUCT_ID }}
+      MSSTORE_IDENTITY_NAME: ${{ vars.MSSTORE_IDENTITY_NAME }}
+      MSSTORE_PUBLISHER: ${{ vars.MSSTORE_PUBLISHER }}
+      MSSTORE_PUBLISHER_DISPLAY_NAME: ${{ vars.MSSTORE_PUBLISHER_DISPLAY_NAME }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -522,126 +524,70 @@ jobs:
           --dart-define-from-file=config/prod.json
           --dart-define=DESKTOP_GOOGLE_CLIENT_ID=${{ secrets.DESKTOP_GOOGLE_CLIENT_ID }}
           --dart-define=DESKTOP_GOOGLE_CLIENT_SECRET=${{ secrets.DESKTOP_GOOGLE_CLIENT_SECRET }}
-      - name: Set up Artifact Signing
+      # Wrap THIS job's build (production config baked in) — `msstore package`
+      # would run its own `flutter build windows` without our --dart-defines.
+      # The Store reserves the fourth version field: major.minor.patch.0.
+      - name: Package (MSIX for the Microsoft Store)
         shell: pwsh
+        working-directory: apps/music
         run: |
           $ErrorActionPreference = 'Stop'
-          $vars = 'AZURE_TENANT_ID','AZURE_CLIENT_ID','AZURE_CLIENT_SECRET',
-                  'ARTIFACT_SIGNING_ENDPOINT','ARTIFACT_SIGNING_ACCOUNT','ARTIFACT_SIGNING_PROFILE'
-          $missing = $vars | Where-Object { -not [Environment]::GetEnvironmentVariable($_) }
-          if ($missing) {
-            if ($env:TAG -like 'music-v*') {
-              Write-Host "::error::Artifact Signing not configured (missing: $($missing -join ', ')) — refusing to publish unsigned Windows binaries."
-              exit 1
-            }
-            Write-Host "::notice::Artifact Signing not configured — this dry-run builds UNSIGNED Windows binaries."
-            exit 0
+          $full = (Select-String -Path pubspec.yaml -Pattern '^version:\s*(.+)$').Matches[0].Groups[1].Value.Trim()
+          $msixVersion = "$($full.Split('+')[0]).0"
+          $msixArgs = @('run', 'msix:create', '--store', '--build-windows', 'false',
+                    '--version', $msixVersion,
+                    '--output-path', $env:GITHUB_WORKSPACE,
+                    '--output-name', "cymbra-$env:TAG-windows-x64")
+          $identity = @($env:MSSTORE_IDENTITY_NAME, $env:MSSTORE_PUBLISHER, $env:MSSTORE_PUBLISHER_DISPLAY_NAME)
+          if ($identity -notcontains '' -and $identity -notcontains $null) {
+            $msixArgs += @('--identity-name', $env:MSSTORE_IDENTITY_NAME,
+                       '--publisher', $env:MSSTORE_PUBLISHER,
+                       '--publisher-display-name', $env:MSSTORE_PUBLISHER_DISPLAY_NAME)
+            Write-Host "MSIX $msixVersion with the Partner Center identity"
+          } elseif ($env:TAG -like 'music-v*') {
+            Write-Host "::error::MSSTORE_IDENTITY_NAME / MSSTORE_PUBLISHER / MSSTORE_PUBLISHER_DISPLAY_NAME not set — a release cannot be packaged for the Store."
+            exit 1
+          } else {
+            Write-Host "::notice::Store identity not configured — dry-run MSIX with the placeholder identity."
           }
-          # SignTool from the Windows SDK build tools + the Artifact Signing dlib,
-          # both from NuGet, so the job does not depend on the runner image's SDK.
-          $tools = Join-Path $env:RUNNER_TEMP 'signing'
-          New-Item -ItemType Directory -Force $tools | Out-Null
-          Invoke-WebRequest https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile "$tools\nuget.exe"
-          & "$tools\nuget.exe" install Microsoft.Windows.SDK.BuildTools -x -OutputDirectory $tools | Out-Null
-          & "$tools\nuget.exe" install Microsoft.ArtifactSigning.Client -x -OutputDirectory $tools | Out-Null
-          $signtool = Get-ChildItem $tools -Recurse -Filter signtool.exe |
-            Where-Object { $_.FullName -match '\\x64\\' } | Select-Object -First 1
-          $dlib = Get-ChildItem $tools -Recurse -Filter Azure.CodeSigning.Dlib.dll |
-            Where-Object { $_.FullName -match '\\x64\\' } | Select-Object -First 1
-          if (-not $signtool -or -not $dlib) { throw "signtool or the Artifact Signing dlib not found" }
-          # Only the environment credential: the others are slow to fail on a runner.
-          @{
-            Endpoint = $env:ARTIFACT_SIGNING_ENDPOINT
-            CodeSigningAccountName = $env:ARTIFACT_SIGNING_ACCOUNT
-            CertificateProfileName = $env:ARTIFACT_SIGNING_PROFILE
-            CorrelationId = "music-$env:TAG-$env:GITHUB_RUN_ID"
-            ExcludeCredentials = @('ManagedIdentityCredential','WorkloadIdentityCredential',
-              'SharedTokenCacheCredential','VisualStudioCredential','VisualStudioCodeCredential',
-              'AzureCliCredential','AzurePowerShellCredential','AzureDeveloperCliCredential',
-              'InteractiveBrowserCredential')
-          } | ConvertTo-Json | Set-Content "$tools\metadata.json"
-          "SIGNTOOL=$($signtool.FullName)" >> $env:GITHUB_ENV
-          "SIGN_DLIB=$($dlib.FullName)" >> $env:GITHUB_ENV
-          "SIGN_METADATA=$tools\metadata.json" >> $env:GITHUB_ENV
-      # Sign every PE file of ours before anything is packaged, so the zip and the
-      # installer both carry signed binaries. Files already validly signed (a
-      # vendor's redistributable) are left alone rather than re-signed under our name.
-      - name: Sign the application binaries
-        if: env.SIGNTOOL != ''
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $files = Get-ChildItem apps/music/build/windows/x64/runner/Release -Recurse -Include *.exe,*.dll |
-            Where-Object { (Get-AuthenticodeSignature $_.FullName).Status -ne 'Valid' }
-          foreach ($f in $files) {
-            & $env:SIGNTOOL sign /fd SHA256 /tr http://timestamp.acs.microsoft.com /td SHA256 `
-              /dlib $env:SIGN_DLIB /dmdf $env:SIGN_METADATA $f.FullName
-            if ($LASTEXITCODE -ne 0) { throw "signing $($f.Name) failed" }
-          }
-          & $env:SIGNTOOL verify /pa /v apps/music/build/windows/x64/runner/Release/music.exe
-          if ($LASTEXITCODE -ne 0) { throw "music.exe does not verify" }
-      - name: Package (portable zip)
-        shell: pwsh
-        run: Compress-Archive -Path apps/music/build/windows/x64/runner/Release/* -DestinationPath "cymbra-$env:TAG-windows-x64.zip"
-      # The self-updating artifact (change: add-desktop-auto-update, design D4):
-      # a PER-USER installer, which is the entire reason an update can be applied
-      # silently with no UAC prompt. The portable zip above stays published — it
-      # has no install marker and therefore takes the notify-only update path.
-      - name: Package (per-user installer)
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          # Inno is preinstalled on windows-latest; install it only if it is not.
-          $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
-          if (-not (Test-Path $iscc)) {
-            choco install innosetup -y --no-progress
-          }
-          if (-not (Test-Path $iscc)) { throw "ISCC.exe not found after install" }
-          # Inno's VersionInfoVersion wants the numeric triple only, not `+build`.
-          $pubspec = Select-String -Path apps/music/pubspec.yaml -Pattern '^version:\s*(.+)$'
-          $full = $pubspec.Matches[0].Groups[1].Value.Trim()
-          $numeric = $full.Split('+')[0]
-          Write-Host "installer version: $numeric (pubspec $full)"
-          $isccArgs = @(
-            "/DAppVersion=$numeric",
-            "/DBuildDir=$PWD\apps\music\build\windows\x64\runner\Release",
-            "/DOutputDir=$PWD",
-            "/DOutputBaseFilename=cymbra-$env:TAG-windows-x64-setup"
-          )
-          if ($env:SIGNTOOL) {
-            # Inno signs the setup AND the uninstaller it embeds (design D9). The
-            # command line compiler takes no quotes: `$q` stands for one, `$f` for
-            # the file Inno is signing.
-            $cmd = "`$q$env:SIGNTOOL`$q sign /fd SHA256 /tr http://timestamp.acs.microsoft.com /td SHA256 /dlib `$q$env:SIGN_DLIB`$q /dmdf `$q$env:SIGN_METADATA`$q `$f"
-            $isccArgs += @('/DSignToolName=artifact', "/Sartifact=$cmd")
-          }
-          & $iscc @isccArgs apps\music\windows\installer\cymbra.iss
-          if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
-          if (-not (Test-Path "cymbra-$env:TAG-windows-x64-setup.exe")) {
-            throw "the installer was not produced"
-          }
-          if ($env:SIGNTOOL) {
-            # Signed BEFORE the manifest job hashes it: a file signed after hashing
-            # would no longer match its manifest and every client would refuse it.
-            & $env:SIGNTOOL verify /pa /v "cymbra-$env:TAG-windows-x64-setup.exe"
-            if ($LASTEXITCODE -ne 0) { throw "the installer does not verify" }
-          }
-      - name: Upload the desktop artifact for the manifest job
+          & dart @msixArgs
+          if ($LASTEXITCODE -ne 0) { throw "msix:create failed" }
+          if (-not (Test-Path "$env:GITHUB_WORKSPACE\cymbra-$env:TAG-windows-x64.msix")) { throw "no MSIX produced" }
+      # Kept a week: with the identity configured, a dry-run's MSIX is the one to
+      # upload by hand for the Store's FIRST submission (CI submits the next ones).
+      - name: Keep the MSIX
         uses: actions/upload-artifact@v4
         with:
-          name: desktop-windows
-          path: cymbra-${{ env.TAG }}-windows-x64-setup.exe
-          retention-days: 1
-      # Release assets only for a real tag. A branch dry-run (empty `tag`
-      # input) must not create a release named after the branch.
-      - name: Attach to the GitHub Release
+          name: windows-msix
+          path: cymbra-${{ env.TAG }}-windows-x64.msix
+          retention-days: 7
+      - name: Install the Microsoft Store Developer CLI
         if: startsWith(env.TAG, 'music-v')
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ env.TAG }}
-          files: |
-            cymbra-${{ env.TAG }}-windows-x64.zip
-            cymbra-${{ env.TAG }}-windows-x64-setup.exe
+        uses: microsoft/microsoft-store-apppublisher@v1.1
+      - name: Submit to the Microsoft Store
+        if: startsWith(env.TAG, 'music-v')
+        shell: pwsh
+        env:
+          PARTNER_CENTER_TENANT_ID: ${{ secrets.PARTNER_CENTER_TENANT_ID }}
+          PARTNER_CENTER_SELLER_ID: ${{ secrets.PARTNER_CENTER_SELLER_ID }}
+          PARTNER_CENTER_CLIENT_ID: ${{ secrets.PARTNER_CENTER_CLIENT_ID }}
+          PARTNER_CENTER_CLIENT_SECRET: ${{ secrets.PARTNER_CENTER_CLIENT_SECRET }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $need = 'PARTNER_CENTER_TENANT_ID','PARTNER_CENTER_SELLER_ID','PARTNER_CENTER_CLIENT_ID',
+                  'PARTNER_CENTER_CLIENT_SECRET','MSSTORE_PRODUCT_ID'
+          $missing = $need | Where-Object { -not [Environment]::GetEnvironmentVariable($_) }
+          if ($missing) {
+            Write-Host "::error::Microsoft Store submission not configured (missing: $($missing -join ', '))."
+            exit 1
+          }
+          msstore reconfigure --tenantId $env:PARTNER_CENTER_TENANT_ID --sellerId $env:PARTNER_CENTER_SELLER_ID `
+            --clientId $env:PARTNER_CENTER_CLIENT_ID --clientSecret $env:PARTNER_CENTER_CLIENT_SECRET
+          if ($LASTEXITCODE -ne 0) { throw "msstore reconfigure failed" }
+          # Uploads the package to a new submission and commits it: the Store then
+          # certifies it (up to three business days) and publishes it.
+          msstore publish apps/music -i "cymbra-$env:TAG-windows-x64.msix" -id $env:MSSTORE_PRODUCT_ID
+          if ($LASTEXITCODE -ne 0) { throw "msstore publish failed" }
 
   # --- signed update manifest (change: add-desktop-auto-update, group 6) -------
   # Produces the release identity that the desktop updater trusts. Deliberately
@@ -650,7 +596,7 @@ jobs:
   # fabricate one. Runs ONLY for a real `music-v*` tag — a branch dry-run builds
   # and packages both artifacts but signs, uploads and ingests nothing.
   manifest:
-    needs: [windows, linux]
+    needs: [linux]
     if: startsWith(github.event.inputs.tag || github.ref_name, 'music-v')
     runs-on: ubuntu-latest
     steps:
@@ -675,9 +621,8 @@ jobs:
           VERSION="$(sed -n 's/^version: //p' apps/music/pubspec.yaml | tr -d '[:space:]')"
           CHANNEL="$(jq -r '.channel' apps/music/config/desktop_release.json)"
           MIN="$(jq -r '.min_supported_version' apps/music/config/desktop_release.json)"
-          WIN="dist/cymbra-${TAG}-windows-x64-setup.exe"
           LNX="dist/cymbra-${TAG}-linux-amd64.deb"
-          test -f "$WIN" && test -f "$LNX"
+          test -f "$LNX"
           BASE="https://github.com/${{ github.repository }}/releases/download/${TAG}"
           jq -n \
             --argjson schema 1 \
@@ -686,9 +631,6 @@ jobs:
             --arg min "$MIN" \
             --arg released "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg notes "https://github.com/${{ github.repository }}/releases/tag/${TAG}" \
-            --arg win_url "$BASE/$(basename "$WIN")" \
-            --argjson win_size "$(stat -c %s "$WIN")" \
-            --arg win_sha "$(sha256sum "$WIN" | cut -d" " -f1)" \
             --arg lnx_url "$BASE/$(basename "$LNX")" \
             --argjson lnx_size "$(stat -c %s "$LNX")" \
             --arg lnx_sha "$(sha256sum "$LNX" | cut -d" " -f1)" \
@@ -700,7 +642,6 @@ jobs:
                released_at: $released,
                notes_url: $notes,
                targets: {
-                 "windows-x64": { kind: "inno-setup", url: $win_url, size: $win_size, sha256: $win_sha },
                  "linux-x64":   { kind: "deb",        url: $lnx_url, size: $lnx_size, sha256: $lnx_sha }
                }
              }

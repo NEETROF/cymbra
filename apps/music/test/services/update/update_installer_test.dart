@@ -84,82 +84,6 @@ void main() {
   File artifact(String name, [String body = 'payload']) =>
       File('${temp.path}/$name')..writeAsStringSync(body);
 
-  group('WindowsUpdateInstaller', () {
-    Directory installDir({required bool marker}) {
-      final dir = Directory('${temp.path}/install')..createSync();
-      if (marker) {
-        File(
-          '${dir.path}/$kWindowsInstallMarker',
-        ).writeAsStringSync('inno-setup');
-      }
-      return dir;
-    }
-
-    test(
-      'spawns the installer with the exact silent arguments, then exits',
-      () async {
-        final dir = installDir(marker: true);
-        final installer = WindowsUpdateInstaller(
-          runner,
-          executableDir: dir.path,
-        );
-        final setup = artifact('cymbra-setup.exe');
-
-        expect(await installer.canSelfInstall(), isTrue);
-        expect(
-          await installer.install(setup, _manifest()),
-          isA<InstallStarted>(),
-        );
-
-        expect(runner.started, hasLength(1));
-        expect(runner.started.single.executable, setup.path);
-        // Every flag matters: /VERYSILENT + /SUPPRESSMSGBOXES so nothing blocks on
-        // a dialog nobody sees, /NORESTART so the machine is never rebooted behind
-        // the user, /CLOSEAPPLICATIONS + /RESTARTAPPLICATIONS for the files this
-        // process still holds.
-        expect(runner.started.single.arguments, [
-          '/VERYSILENT',
-          '/SUPPRESSMSGBOXES',
-          '/NORESTART',
-          '/CLOSEAPPLICATIONS',
-          '/RESTARTAPPLICATIONS',
-        ]);
-        // A running .exe cannot be overwritten on Windows: the app MUST exit.
-        expect(runner.quits, 1);
-      },
-    );
-
-    test(
-      'no marker (the portable zip) is notify-only, and spawns nothing',
-      () async {
-        final dir = installDir(marker: false);
-        final installer = WindowsUpdateInstaller(
-          runner,
-          executableDir: dir.path,
-        );
-        expect(await installer.canSelfInstall(), isFalse);
-        expect(
-          await installer.install(artifact('cymbra-setup.exe'), _manifest()),
-          isA<InstallNotSelfInstallable>(),
-        );
-        expect(runner.started, isEmpty);
-        expect(runner.quits, 0);
-      },
-    );
-
-    test('a failed spawn is a failure, and the app does NOT exit', () async {
-      final dir = installDir(marker: true);
-      runner.startError = const ProcessException('setup.exe', [], 'boom');
-      final installer = WindowsUpdateInstaller(runner, executableDir: dir.path);
-      expect(
-        await installer.install(artifact('cymbra-setup.exe'), _manifest()),
-        isA<InstallFailed>(),
-      );
-      // Quitting here would close the app with nothing installed.
-      expect(runner.quits, 0);
-    });
-  });
-
   group('LinuxPackageUpdateInstaller', () {
     late File executable;
     late File helper;
@@ -176,7 +100,7 @@ void main() {
         ..createSync(recursive: true);
       executable = File('${opt.path}/music')..writeAsStringSync('binary');
       if (marker) {
-        File('${opt.path}/$kWindowsInstallMarker').writeAsStringSync('deb');
+        File('${opt.path}/$kInstallMarker').writeAsStringSync('deb');
       }
       helper = File('${temp.path}/cymbra-update-helper');
       withHelper

@@ -33,6 +33,11 @@ extension AppPlatformX on AppPlatform {
       this == AppPlatform.macos ||
       this == AppPlatform.android;
 
+  /// True only where the app installs its own updates (change:
+  /// add-desktop-auto-update): the Linux package. Windows ships through the
+  /// Microsoft Store, which updates it, like the other store builds.
+  bool get selfUpdates => this == AppPlatform.linux;
+
   /// True where a purchase goes through the web checkout in the browser.
   bool get usesWebCheckout =>
       this == AppPlatform.linux ||

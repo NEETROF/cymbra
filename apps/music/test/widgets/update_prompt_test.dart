@@ -42,7 +42,7 @@ UpdateManifest _manifest({String? notes = 'https://example.invalid/notes'}) =>
       releasedAt: '2026-08-21T10:00:00Z',
       minSupportedVersion: null,
       notesUrl: notes,
-      targets: const {'windows-x64': _target},
+      targets: const {'linux-x64': _target},
     );
 
 /// Pins the notifier to a fixed state so the widget renders one branch without

@@ -54,7 +54,7 @@ UpdateManifest manifest({String version = '1.25.0+34', String? min}) =>
       releasedAt: '2026-08-21T10:00:00Z',
       minSupportedVersion: min == null ? null : v(min),
       notesUrl: 'https://example.invalid/notes',
-      targets: const {'windows-x64': _target},
+      targets: const {'linux-x64': _target},
     );
 
 void main() {
@@ -73,7 +73,7 @@ void main() {
 
   ProviderContainer build({
     bool enabled = true,
-    AppPlatform platform = AppPlatform.windows,
+    AppPlatform platform = AppPlatform.linux,
     Map<String, String>? stored,
     String current = '1.24.0+32',
     bool sessionActive = false,

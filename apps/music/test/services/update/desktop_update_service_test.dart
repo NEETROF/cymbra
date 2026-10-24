@@ -47,7 +47,7 @@ void main() {
     if (tempRoot.existsSync()) tempRoot.deleteSync(recursive: true);
   });
 
-  ProviderContainer container({AppPlatform platform = AppPlatform.windows}) =>
+  ProviderContainer container({AppPlatform platform = AppPlatform.linux}) =>
       ProviderContainer(
         overrides: [
           appPlatformProvider.overrideWithValue(platform),
@@ -83,7 +83,8 @@ void main() {
       expect(outcome, isA<UpdateAvailable>());
       final available = outcome as UpdateAvailable;
       expect(available.manifest.version.toString(), '1.25.0+34');
-      expect(available.target.kind, 'inno-setup');
+      // The golden fixture predates the .deb; what matters is the linux-x64 pick.
+      expect(available.target.kind, 'appimage');
       expect(available.rolloutPercent, 25);
     });
 
@@ -115,19 +116,21 @@ void main() {
     test(
       'a release with no artifact for this platform offers nothing',
       () async {
-        // macOS is store-managed: the feed is never consulted at all.
-        final c = container(platform: AppPlatform.macos);
-        addTearDown(c.dispose);
-        var called = false;
-        final s = service(
-          c,
-          MockClient((_) async {
-            called = true;
-            return http.Response(_fixture('envelope_valid.json'), 200);
-          }),
-        );
-        expect(await s.check(v('1.0.0+1')), isA<UpdateUpToDate>());
-        expect(called, isFalse);
+        // macOS and Windows are store-managed: the feed is never consulted.
+        for (final platform in [AppPlatform.macos, AppPlatform.windows]) {
+          final c = container(platform: platform);
+          addTearDown(c.dispose);
+          var called = false;
+          final s = service(
+            c,
+            MockClient((_) async {
+              called = true;
+              return http.Response(_fixture('envelope_valid.json'), 200);
+            }),
+          );
+          expect(await s.check(v('1.0.0+1')), isA<UpdateUpToDate>());
+          expect(called, isFalse, reason: '$platform');
+        }
       },
     );
 
@@ -354,7 +357,7 @@ void main() {
 
   group('updateTargetKey', () {
     test('only the store-less desktop platforms consult the feed', () {
-      expect(updateTargetKey(AppPlatform.windows), 'windows-x64');
+      expect(updateTargetKey(AppPlatform.windows), isNull);
       expect(updateTargetKey(AppPlatform.linux), 'linux-x64');
       for (final p in [
         AppPlatform.ios,

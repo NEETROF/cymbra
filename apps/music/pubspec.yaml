@@ -184,6 +184,7 @@ dev_dependencies:
   #   dart run flutter_native_splash:create
   flutter_launcher_icons: ^0.14.1
   flutter_native_splash: ^2.4.3
+  msix: ^3.18.0
 
 # Launcher icons generated from the Cymbra source art. The full-bleed square
 # (`icon.png`, no alpha) feeds iOS and legacy Android; the transparent mark
@@ -307,3 +308,21 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# Microsoft Store packaging (change: add-desktop-auto-update, design D4). The
+# release workflow wraps its own `flutter build windows` output (production
+# config baked in) — hence build_windows: false — and passes the Partner Center
+# identity (identity name, publisher, publisher display name) and the
+# `major.minor.patch.0` version on the command line; the values below are only
+# the dry-run placeholders. `store: true`: the Store signs the package.
+msix_config:
+  display_name: Cymbra Music
+  publisher_display_name: NEETROF
+  identity_name: NEETROF.CymbraMusic.DryRun
+  publisher: CN=00000000-0000-0000-0000-000000000000
+  logo_path: assets/branding/icon.png
+  languages: en-us, fr-fr, es-es, it-it
+  capabilities: internetClient
+  store: true
+  build_windows: false
+  install_certificate: false

@@ -38,7 +38,7 @@ class DesktopUpdateTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final platform = ref.watch(appPlatformProvider);
-    if (platform != AppPlatform.windows && platform != AppPlatform.linux) {
+    if (!platform.selfUpdates) {
       return const SizedBox.shrink();
     }
     if (!ref.watch(desktopUpdateEnabledProvider)) {

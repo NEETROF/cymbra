@@ -32,11 +32,11 @@
 
 *Revised 2026-10-24: the per-user Inno installer, its silent self-update and the Artifact Signing step (implemented first, groups 4.1–4.9 of the earlier plan) are replaced by the Microsoft Store; their code is removed.*
 
-- [ ] 4.1 Remove the Inno installer (`apps/music/windows/installer/`), the Windows signing steps and secrets documentation, the `WindowsUpdateInstaller` and its tests; the Windows build never self-updates (`AppPlatform.selfUpdates` is Linux only) and the manifest carries no Windows target. Verify: no `inno`/`signtool`/`ARTIFACT_SIGNING` left outside the archive notes; installer and notifier tests pass.
-- [ ] 4.2 Add the `msix` dev dependency and its `msix_config` (display name, logo, languages, capabilities, `store: true`), the Store identity values coming from repository variables at package time. Verify: `flutter analyze` clean.
+- [x] 4.1 Remove the Inno installer (`apps/music/windows/installer/`), the Windows signing steps and secrets documentation, the `WindowsUpdateInstaller` and its tests; the Windows build never self-updates (`AppPlatform.selfUpdates` is Linux only) and the manifest carries no Windows target. Verify: no `inno`/`signtool`/`ARTIFACT_SIGNING` left outside the archive notes; installer and notifier tests pass.
+- [x] 4.2 Add the `msix` dev dependency and its `msix_config` (display name, logo, languages, capabilities, `store: true`), the Store identity values coming from repository variables at package time. Verify: `flutter analyze` clean.
 - [ ] 4.3 In the `windows` job: package the release build with `msix:create --store --build-windows false`, version `major.minor.patch.0`; placeholder identity on a dry run. Verify: the dry-run job produces an `.msix`.
 - [ ] 4.4 On a `music-v*` tag: install the Microsoft Store Developer CLI, `msstore reconfigure` from the Partner Center secrets, `msstore publish -i <msix> -id <product>`; fail the job if the credentials are missing. Stop attaching the portable zip to the GitHub Release.
-- [ ] 4.5 Document the Partner Center setup (company account, app reservation, first manual submission, Entra app for the API, the secrets and variables) in the workflow header and `apps/music/README.md`.
+- [x] 4.5 Document the Partner Center setup (company account, app reservation, first manual submission, Entra app for the API, the secrets and variables) in the workflow header and `apps/music/README.md`.
 - [x] 4.6 The runner version resource names the company (`CompanyName`, `LegalCopyright`), consistent with the Store publisher.
 
 ## 5. Linux packaging — Debian package

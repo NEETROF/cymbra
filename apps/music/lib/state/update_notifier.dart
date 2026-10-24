@@ -75,9 +75,9 @@ class Update extends _$Update {
   bool get _eligible {
     if (!ref.read(desktopUpdateEnabledProvider)) return false;
     final platform = ref.read(appPlatformProvider);
-    // macOS/iOS/Android are store-managed and web has no artifact — consulting
-    // the feed there would offer a Windows installer to a Mac.
-    return platform == AppPlatform.windows || platform == AppPlatform.linux;
+    // Windows, macOS, iOS and Android are store-managed and web has no
+    // artifact: only the Linux package updates itself.
+    return platform.selfUpdates;
   }
 
   /// The throttled launch check. A no-op when the feature is off, on a

@@ -127,8 +127,9 @@ abstract class DesktopUpdateService {
 /// The `<os>-<arch>` key used in the manifest's `targets`. x64 only today; the
 /// manifest is keyed so adding arm64 is additive.
 String? updateTargetKey(AppPlatform platform) => switch (platform) {
-  AppPlatform.windows => 'windows-x64',
   AppPlatform.linux => 'linux-x64',
+  // Windows ships through the Microsoft Store, which updates it.
+  AppPlatform.windows ||
   // Store-managed platforms never consult the feed.
   AppPlatform.ios ||
   AppPlatform.android ||

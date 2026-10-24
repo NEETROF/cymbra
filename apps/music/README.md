@@ -223,32 +223,37 @@ being attached. Details below.
 
 ### Windows and Linux desktop releases
 
-The `windows` job builds a per-user Inno Setup installer next to the portable zip;
-the `linux` job builds a `.deb` next to the tarball, on **ubuntu-22.04** so the
-binary also runs on Ubuntu 22.04 and Debian 12 (a binary needs a glibc at least as
-new as the one it was linked against). Both installers update themselves from the
-signed feed (change `add-desktop-auto-update`); the Linux one through `pkexec` and
-the root-owned `cymbra-update-helper` the package installs.
+**Windows ships through the Microsoft Store.** The `windows` job wraps its own
+`flutter build windows` output (production config baked in) into an MSIX with the
+[`msix`](https://pub.dev/packages/msix) package (`msix_config` in `pubspec.yaml`,
+version `major.minor.patch.0`) and, on a `music-v*` tag, submits it with the
+Microsoft Store Developer CLI. The Store signs the package (no certificate, no
+SmartScreen warning, no Smart App Control block) and updates it — the app never
+self-updates on Windows. One-time setup:
 
-**Windows signing (Artifact Signing).** Unsigned executables are blocked outright by
-Windows 11's Smart App Control, so a `music-v*` tag refuses to publish unsigned
-Windows binaries. One-time setup:
-
-1. A **paid** Azure subscription (free/trial ones are refused), the
-   `Microsoft.CodeSigning` resource provider registered, an Artifact Signing
-   account in an EU region (e.g. West Europe).
-2. A **Public Trust organization identity validation** for the company — legal
-   name, SIREN, website and an e-mail on a domain the company owns. 1 to 20
-   business days. The certificate shows the legal name as the publisher, which is
-   why the installer's `AppPublisher` and the runner's `CompanyName` say the same.
-3. A Public Trust certificate profile, and a service principal with the
-   *Artifact Signing Certificate Profile Signer* role on it.
-4. The three secrets and three variables listed in the header of
+1. A **company** developer account for NEETROF at
+   [storedeveloper.microsoft.com](https://storedeveloper.microsoft.com) (free since
+   2026-05).
+2. Reserve the name *Cymbra Music*, then copy from *Product identity* the Store ID
+   and the three package identity values into the `MSSTORE_*` repository
+   variables listed in the header of
    [`music-release.yml`](../../.github/workflows/music-release.yml).
+3. **First submission by hand**: run the release workflow without a tag (identity
+   variables set), download the `windows-msix` artifact, and submit it in Partner
+   Center with the listing, screenshots, age rating, privacy policy URL and, under
+   in-app purchases, the declaration that the app uses a third-party payment
+   provider (Store policy 10.8.2).
+4. Partner Center → Account settings → User management → **Microsoft Entra
+   applications**: add an application with the *Manager* role and a key; put its
+   tenant id, client id, key and the account's Seller ID into the
+   `PARTNER_CENTER_*` secrets. From then on, each `music-v*` tag submits the new
+   version, certified in up to three business days.
 
-The job signs every unsigned `.exe`/`.dll` of the build, then lets Inno sign the
-setup **and** its uninstaller, and verifies with `signtool verify /pa` — all before
-the manifest job hashes the installer.
+**Linux ships a `.deb`** next to the tarball, built on **ubuntu-22.04** so the
+binary also runs on Ubuntu 22.04 and Debian 12 (a binary needs a glibc at least as
+new as the one it was linked against). It updates itself from the signed feed
+(change `add-desktop-auto-update`) through `pkexec` and the root-owned
+`cymbra-update-helper` the package installs.
 
 ### Config via `--dart-define-from-file`
 

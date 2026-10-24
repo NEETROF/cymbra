@@ -42,7 +42,7 @@ UpdateManifest _manifest() => UpdateManifest(
   releasedAt: '2026-08-21T10:00:00Z',
   minSupportedVersion: null,
   notesUrl: null,
-  targets: const {'windows-x64': _target},
+  targets: const {'linux-x64': _target},
 );
 
 /// A notifier whose state the test drives directly, so the listener is exercised
@@ -213,15 +213,16 @@ void main() {
       await tester.pump();
     }
 
-    testWidgets('renders on Windows and Linux', (tester) async {
-      for (final p in [AppPlatform.windows, AppPlatform.linux]) {
-        await pumpTile(tester, platform: p);
-        expect(find.byKey(const Key('profile-check-updates')), findsOne);
-      }
+    testWidgets('renders on Linux, the only self-updating build', (
+      tester,
+    ) async {
+      await pumpTile(tester, platform: AppPlatform.linux);
+      expect(find.byKey(const Key('profile-check-updates')), findsOne);
     });
 
     testWidgets('renders nothing on store-managed platforms', (tester) async {
       for (final p in [
+        AppPlatform.windows,
         AppPlatform.ios,
         AppPlatform.android,
         AppPlatform.macos,
@@ -233,7 +234,7 @@ void main() {
     });
 
     testWidgets('renders nothing while the flag is off', (tester) async {
-      await pumpTile(tester, platform: AppPlatform.windows, enabled: false);
+      await pumpTile(tester, platform: AppPlatform.linux, enabled: false);
       expect(find.byKey(const Key('profile-check-updates')), findsNothing);
     });
 
@@ -241,7 +242,7 @@ void main() {
       final l10n = await AppLocalizations.delegate.load(const Locale('en'));
       await pumpTile(
         tester,
-        platform: AppPlatform.windows,
+        platform: AppPlatform.linux,
         state: const UpdateState.upToDate(),
       );
       expect(find.text(l10n.updateUpToDateStatus), findsOne);
@@ -253,7 +254,7 @@ void main() {
         final l10n = await AppLocalizations.delegate.load(const Locale('en'));
         await pumpTile(
           tester,
-          platform: AppPlatform.windows,
+          platform: AppPlatform.linux,
           state: const UpdateState.checking(),
         );
         expect(find.text(l10n.updateCheckingStatus), findsOne);
@@ -267,7 +268,7 @@ void main() {
       final l10n = await AppLocalizations.delegate.load(const Locale('en'));
       await pumpTile(
         tester,
-        platform: AppPlatform.windows,
+        platform: AppPlatform.linux,
         state: const UpdateState.failed(UpdateFailureCause.network),
       );
       expect(find.text(l10n.updateErrorNetwork), findsOne);
