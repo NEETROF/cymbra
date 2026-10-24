@@ -1175,6 +1175,39 @@ def _read(work, name):
         return f.read()
 
 
+# — it-fr's native side (add-lingua-pack-it-fr), on entries shaped as kaikki writes them —
+
+
+def fr_entry(word, pos="noun", *glosses, senses=None, tags=None):
+    """An entry of the French Wiktionary's Italian section: a word, its part of speech and its French
+    senses (`Maison.`), or the senses given."""
+    e = {"word": word, "lang_code": "it", "lang": "Italien", "pos": pos, "senses": senses or [{"glosses": [g]} for g in glosses]}
+    if tags:
+        e["tags"] = list(tags)
+    return e
+
+
+def fr_link(word, pos, text, *targets, tags=("form-of",)):
+    """A sense kaikki files as a form of `targets` (`del` « Du. », a form of « Du »)."""
+    return {"glosses": [text], "tags": list(tags), "form_of": [{"word": t} for t in targets]}
+
+
+def translations(word, pos, *words):
+    """A line of a translation file as `pack_sources.derive` writes it: a word, its part of speech,
+    the translations it lists."""
+    return {"pos": pos, "translations": [{"word": w} for w in words], "word": word}
+
+
+def write_native(work, section=(), direct=(), inverted=()):
+    """it-fr's three native sources in `work` (pack_sources.DUMPS["it-fr"]), a line that is no JSON
+    first in each."""
+    for name, lines in ((red.SECTION, section), (red.DIRECT, direct), (red.INVERTED, inverted)):
+        with open(os.path.join(work, name), "w", encoding="utf-8") as f:
+            f.write("not json\n")
+            for line in lines:
+                f.write(json.dumps(line, ensure_ascii=False) + "\n")
+
+
 class Reduction(unittest.TestCase):
     """The reduction end to end, over a work folder (D9). The web's list and the owner's exceptions
     are the reviewed tables' real words, which this small section does not rank: each test reads one
@@ -1190,7 +1223,7 @@ class Reduction(unittest.TestCase):
             patch.start()
             self.addCleanup(patch.stop)
 
-    def write_work(self, work, morph_it=False, extra=()):
+    def write_work(self, work, morph_it=False, extra=(), native=None):
         entries = list(ENTRIES) + list(extra)
         # Every word the pre-pass writes a form, as the real section makes it.
         listed = {e["word"].lower() for e in entries}
@@ -1199,6 +1232,13 @@ class Reduction(unittest.TestCase):
             f.write("not json\n")
             for e in entries:
                 f.write(json.dumps(e, ensure_ascii=False) + "\n")
+        # it-fr's native side (add-lingua-pack-it-fr): by default the French Wiktionary's Italian
+        # section glosses every word of the section and of wordfreq's list as a common noun, so that
+        # each is one of Italian's dictionary words, and the translation tables say nothing.
+        if native is None:
+            words = sorted({e["word"].lower() for e in entries} | set(TOP))
+            native = ([fr_entry(w, "noun", f"Sens de {w}.") for w in words], [], [])
+        write_native(work, *native)
         for name in red.MARKIT:
             with open(os.path.join(work, name), "w", encoding="utf-8") as f:
                 f.write(Treebank.SAMPLE)
@@ -1272,8 +1312,13 @@ class Reduction(unittest.TestCase):
             forms = dict(line.split("\t") for line in read("forms.tsv").splitlines())
             self.assertEqual(forms["credettero"], "credere")
             self.assertEqual(forms["l'"], "lo")
-            self.assertEqual(read("lexical.tsv"), "")
-            self.assertEqual(read("gloss.tsv"), "")
+            # it-fr's glosses (add-lingua-pack-it-fr): every ranked lemma the section glosses, and
+            # Italian's dictionary words, those glossed by no name alone — no acronym row here.
+            ranked = dict(line.split("\t") for line in read("freq.tsv").splitlines())
+            glosses = dict(line.split("\t") for line in read("gloss.tsv").splitlines())
+            self.assertEqual(glosses["casa"], "Sens de casa")
+            self.assertEqual(set(glosses), set(ranked))
+            self.assertEqual(read("lexical.tsv").splitlines(), sorted(ranked))
             ranks = [line.split("\t") for line in read("freq.tsv").splitlines()]
             self.assertEqual([int(r) for _, r in ranks], list(range(1, len(ranks) + 1)))
             manifest = json.loads(read("manifest.json"))
@@ -1312,7 +1357,13 @@ class Reduction(unittest.TestCase):
             self.assertTrue(any(line.startswith("reduced it-fr: readings by part of speech") for line in lines), lines)
             # Italian's pinned tag pool is a person's (D8): no reduction writes it.
             self.assertFalse(os.path.exists(os.path.join(work, "tags.tsv")))
-            first = {name: read(name) for name in ("forms.tsv", "freq.tsv", "grammar.tsv", "level.tsv", "NOTICE", "manifest.json")}
+            first = {
+                name: read(name)
+                for name in (
+                    "forms.tsv", "freq.tsv", "grammar.tsv", "level.tsv", "lexical.tsv", "gloss.tsv", "senses.tsv",
+                    "mwe.tsv", "NOTICE", "manifest.json",
+                )
+            }
             self.run_reduction(work, red.MORPH_IT)
             self.assertEqual({name: read(name) for name in first}, first, "the same inputs give the same tables")
 
@@ -1352,9 +1403,12 @@ class Reduction(unittest.TestCase):
             levels = dict(line.split("\t") for line in _read(work, "level.tsv").splitlines())
             self.assertFalse({"NATO", "USA"} & set(levels))
             self.assertEqual((levels["nascere"], levels["uso"]), ("A1", "A1"))
-            # The rows alone are Italian's dictionary words until change 16's glosses (D6).
-            self.assertEqual(_read(work, "lexical.tsv"), "NATO\nUSA\n")
-            self.assertEqual(_read(work, "gloss.tsv"), "")
+            # The rows are Italian's dictionary words beside the lemmas it-fr glosses (D6, and
+            # add-lingua-pack-it-fr D5), glossed or not: the section here glosses neither row's synonyms.
+            words = _read(work, "lexical.tsv").splitlines()
+            self.assertEqual(words[:2], ["NATO", "USA"])
+            self.assertEqual(set(words[2:]), set(ranks))
+            self.assertFalse({"NATO", "USA"} & {line.split("\t")[0] for line in _read(work, "gloss.tsv").splitlines()})
             self.assertEqual(summary["acronyms"], ["NATO", "USA"])
             self.assertIn("reduced it-fr: acronyms=2 (NATO, USA), each a form in capitals that is its own lemma", "\n".join(lines))
 
@@ -2360,6 +2414,469 @@ class EstimatedLevelsReduced(unittest.TestCase):
         self.assertIn("every pack studying Italian reads them as committed", notice)
         for list_name in ("Profilo", "CEFR-J", "Octanove", "FLELex"):
             self.assertNotIn(list_name, notice)
+
+
+class NativeSide(unittest.TestCase):
+    """it-fr's native side (add-lingua-pack-it-fr D2, D4–D6), over a small French Wiktionary's Italian
+    section shaped as kaikki writes it — the senses quoted are the section's — and the two
+    translation tables."""
+
+    SECTION = [
+        fr_entry("casa", "noun", "Maison.", "Domicile."),
+        # D4: a gloss filed as a link to the French « Du »; the hamlet `Del` kept off it (D5).
+        fr_entry("del", "article", senses=[fr_link("del", "article", "Du. Note d’usage : devant une consonne.", "Du")]),
+        fr_entry("Del", "name", "Del, hameau de Saint-Denis."),
+        # « Pluriel de storia », which kaikki files as a form of « Pluriel »: an inflection by its text.
+        fr_entry("storie", "noun", senses=[fr_link("storie", "noun", "Pluriel de storia.", "Pluriel")]),
+        fr_entry("storia", "noun", "Histoire."),
+        # A lowercase target no Italian entry heads, the word glossed by nothing else: a gloss.
+        fr_entry("degli", "article", senses=[fr_link("degli", "article", "Article contracté souvent traduit par des.", "impures")]),
+        # … beside the word's own senses: left a form.
+        fr_entry("pelle", "noun", "Peau.", "Fourrure, peau, pelage, poil d’animal."),
+        fr_entry("pelle", "article", senses=[fr_link("pelle", "article", "Article contracté souvent traduit par pour les.", "les")]),
+        # A link to the Italian `la`: a form, which the tables gloss.
+        fr_entry("della", "article", senses=[fr_link("della", "article", "Article contracté souvent traduit par De la.", "la")]),
+        fr_entry("la", "article", "La."),
+        fr_entry(
+            "coloro",
+            "pron",
+            senses=[
+                fr_link("coloro", "pron", "Pluriel de colui : Ceux.", "Ceux"),
+                fr_link("coloro", "pron", "Celles et ceux.", "Celles et ceux"),
+            ],
+        ),
+        # D5: a proper noun's sense that is no name's note stays beside the common word's.
+        fr_entry("luna", "noun", "Lune."),
+        fr_entry("Luna", "name", "Lune, satellite de la Terre."),
+        # D5: a surname kept off a word of form-of senses only, which borrows its base's gloss.
+        fr_entry("soldi", "noun", senses=[fr_link("soldi", "noun", "Pluriel de soldo.", "soldo")]),
+        fr_entry("soldo", "noun", "Sou."),
+        fr_entry("Soldi", "name", "Nom de famille."),
+        # D5: a province's acronym kept off `te`, and the letter left out. `te`'s link names `toi`,
+        # whose entry is *togliere*'s form alone, as the section writes it: no Italian word heads it
+        # (the review), so the link glosses `te` — not the tables' « Te », the letter's French name.
+        fr_entry(
+            "te",
+            "pron",
+            senses=[
+                fr_link("te", "pron", "Toi : pronom disjoint de la deuxième personne du singulier.", "toi"),
+                {"glosses": ["Variante de ti : forme objet de la deuxième personne du singulier."], "tags": ["alt-of"], "alt_of": [{"word": "ti"}]},
+            ],
+        ),
+        fr_entry("te", "noun", "Te, vingtième lettre de l’alphabet cyrillique."),
+        fr_entry("TE", "name", "Province de Térame."),
+        fr_entry("toi", "verb", senses=[fr_link("toi", "verb", "Deuxième personne du singulier de l’indicatif présent de togliere.", "togliere")]),
+        fr_entry("togliere", "verb", "Ôter."),
+        # The review's leaks: examples filed as senses (`stesso`, `età`, `io` with its missing
+        # translation and the placeholder link), a colour's codes (`bianco`), a head line merged into
+        # a sense (`sedere`'s meaning kept, `signore`'s form dropped).
+        fr_entry(
+            "stesso",
+            "adj",
+            "Même.",
+            "io sono stanco di dover ricordare le stesse cose.\n#*: moi, je suis fatigué de rappeler les mêmes choses.",
+        ),
+        fr_entry("età", "noun", "Âge.", "Époque, période.", "età glaciale.\n#*: ère glaciaire."),
+        fr_entry(
+            "io",
+            "pron",
+            "Pronom de la première personne du singulier.",
+            "Io mi chiamo Fabrizio. — (Il figlio, 2014)\n#*: La traduction en français de l’exemple manque. ([https://server.dummy/x Ajouter])",
+        ),
+        fr_entry("bianco", "noun", "Blanc, la couleur comme celle des os. #FFFFFF", "Blanc, personne dont la couleur de peau est claire."),
+        fr_entry("Bianco", "name", "Commune, commune d’Italie de la ville métropolitaine de Reggio de Calabre."),
+        fr_entry("verde", "adj", "Vert, couleur verte. — #C2F732 #00FF00 #10E010"),
+        fr_entry("sedere", "noun", "Derrière."),
+        fr_entry("sedere", "verb", "\\se.ˈde.re\\intransitif2ᵉ groupe (voir la conjugaison)* Asseoir."),
+        fr_entry("signore", "noun", "Monsieur."),
+        fr_entry("signore", "noun", "signore\\si.ˈɲɔ.re\\fémininpluriel:Pluriel de signora.", tags=("form-of",)),
+        # D5 since the review: a commune's note kept off a common word, a planet or Christ kept.
+        fr_entry("ora", "noun", "Heure."),
+        fr_entry("ora", "adv", "Maintenant."),
+        fr_entry("Ora", "name", "Ora, commune d’Italie de la province de Bolzano."),
+        fr_entry("terra", "noun", "Terre, le sol sur lequel nous marchons."),
+        fr_entry("Terra", "name", "La Terre, planète tellurique sur laquelle nous vivons."),
+        fr_entry("cristo", "noun", "Hère, bougre."),
+        fr_entry("Cristo", "name", "Christ."),
+        fr_entry("Luna", "name", "Luna, commune d’Espagne, située dans la province de Saragosse."),
+        # The letters the section names bare: off a word holding another meaning, kept on a letter.
+        fr_entry("ci", "pron", "Nous, pronom clitique objet de la première personne du pluriel."),
+        fr_entry("ci", "noun", "Tsy."),
+        fr_entry("chi", "pron", "Qui, celui qui."),
+        fr_entry("chi", "noun", "Khi."),
+        fr_entry("gamma", "noun", "Gamma."),
+        fr_entry("nu", "noun", "Nu."),
+        fr_entry("NU", "name", "Province de Nuoro."),
+        fr_entry("nudo", "adj", "Nu."),
+        fr_entry("nudo", "noun", "Nu."),
+        # A sense repeating another up to case, across parts of speech.
+        fr_entry("italiano", "adj", "Italien."),
+        fr_entry("italiano", "noun", "Italien."),
+        fr_entry("italiano", "noun", "italien."),
+        # D5: an acronym's sense by its text, off a word with a sense of its own.
+        fr_entry("a", "prep", "À."),
+        fr_entry("A", "name", "Abréviation de Azione, nom d’un parti politique italien."),
+        # A first name with no lowercase entry: its note glosses it, and it is no dictionary word.
+        fr_entry("Francesco", "name", "Prénom masculin, équivalant à François."),
+        # The acronym row's synonyms, proper nouns both (D5).
+        fr_entry("America", "name", "Amérique (continent).", "États-Unis d’Amérique."),
+        fr_entry("Stati Uniti", "name", "États-Unis."),
+        # D6: expressions, the typographic apostrophe read as `'`.
+        fr_entry("essere d’accordo", "verb", "Être d’accord."),
+        fr_entry("all’improvviso", "adv", "Soudainement."),
+        fr_entry("c’è", "verb", senses=[fr_link("c’è", "verb", "Il y a.", "Il y a")]),
+        # A proper noun with a space, and one the pre-pass splits: no expression.
+        fr_entry("Valle d’Aosta", "name", "Vallée d’Aoste."),
+        fr_entry("all’Aia", "name", "À La Haye."),
+        {"word": "x", "lang_code": "it", "pos": "character", "senses": [{"glosses": ["Lettre x."]}]},
+    ]
+    # The Italian Wiktionary's French translations (direct), in the table's order.
+    DIRECT = [
+        translations("app", "noun", "appli", "application"),
+        translations("gratis", "adv", "gratuitement", "gratis", "gratuit", "à l’œil"),
+        translations("senz’altro", "adv", "sans faute"),
+        translations("dentifricio", "noun", "dentifrice"),
+    ]
+    # The French Wiktionary's Italian translations (inverted, read backwards).
+    INVERTED = [
+        translations("application", "noun", "app"),
+        translations("dentifrice", "noun", "pasta dentifricia", "dentifricio"),
+        translations("téléphone intelligent", "noun", "smartphone"),
+        translations("ordiphone", "noun", "smartphone"),
+        translations("smartphone", "noun", "smartphone"),
+        translations("d'accord", "adv", "d’accordo"),
+        translations("mécanique quantique", "noun", "meccanica quantica"),
+        translations("te", "noun", "te"),
+        translations("beige", "adj", "beige"),
+        translations("beige", "noun", "beige"),
+        translations("de la", "article", "della"),
+        translations("des", "article", "della"),
+    ]
+    LEMMAS = [
+        "a", "del", "della", "degli", "te", "casa", "coloro", "luna", "pelle", "soldi", "storie",
+        "francesco", "app", "gratis", "smartphone", "dentifricio", "stesso", "età", "io", "bianco",
+        "verde", "sedere", "signore", "ora", "terra", "cristo", "ci", "chi", "gamma", "nu", "nudo", "italiano",
+        "beige",
+    ]
+    RANKS = {lemma: rank for rank, lemma in enumerate(LEMMAS, 1)}
+    FORMS = {lemma: lemma for lemma in LEMMAS}
+    # The French words' frequencies, doubled.
+    FRENCH = {"smartphone": 4.2, "ordiphone": 1.5, "téléphone intelligent": 2.0, "des": 7.0, "de la": 6.0}
+    ROWS = {"USA": ((), ("America", "Stati Uniti"), "PROPN", "the country"), "NATO": ((), (), "PROPN", "the alliance")}
+
+    @classmethod
+    def setUpClass(cls):
+        tmp = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(tmp.cleanup)
+        work = tmp.name
+        write_native(work, cls.SECTION, cls.DIRECT, cls.INVERTED)
+        cls.stats = collections.Counter()
+        cls.section = red.section_as_read(os.path.join(work, red.SECTION), os.path.join(work, red.SECTION_READ), cls.stats)
+        direct = red.common.read_translations(
+            red.straight_translations(os.path.join(work, red.DIRECT), os.path.join(work, red.DIRECT_READ), inverted=False),
+            inverted=False,
+            studied=red.IT,
+        )
+        inverted = red.common.read_translations(
+            red.straight_translations(os.path.join(work, red.INVERTED), os.path.join(work, red.INVERTED_READ), inverted=True),
+            inverted=True,
+            studied=red.IT,
+        )
+        cls.sources = [(direct, list), (inverted, red.common.by_native_frequency(lambda w: cls.FRENCH.get(w, 0.0)))]
+        cls.glosses, cls.runs, cls.expressions, cls.steps = red.native_side(cls.section, cls.RANKS, cls.sources)
+        cls.shared = (dict(cls.glosses), dict(cls.runs))
+        cls.repeated = red.without_repeated_senses(cls.glosses, cls.runs)
+        with mock.patch.dict(red.acronyms.ACRONYMS, cls.ROWS, clear=True):
+            cls.split, cls.entries = red.section_words(cls.section, cls.FORMS, red.row_words())
+            cls.split_tables = red.table_split_words(cls.sources, cls.FORMS, cls.split)
+            cls.acronym_glosses = red.acronym_glosses(cls.glosses, cls.expressions, cls.entries)
+        with open(cls.section, encoding="utf-8") as f:
+            cls.read = [json.loads(line) for line in f]
+
+    def test_spec_scenario_a_word_glossed_by_its_definition(self):
+        self.assertEqual(self.glosses["casa"], "Maison; Domicile")
+        self.assertEqual(self.runs["casa"], [("NOUN", 2)])
+        self.assertIn("casa", self.steps["definitions"])
+
+    def test_the_native_side_is_the_shared_one(self):
+        # Step by step, the tables `reduce_common.native_tables` gives (D1).
+        glosses, runs, expressions, primary = red.common.native_tables(
+            self.section, self.RANKS, studied=red.IT, edition=red.EDITION, fallbacks=self.sources
+        )
+        self.assertEqual((glosses, runs, expressions), (*self.shared, self.expressions))
+        self.assertEqual(primary, len(self.steps["definitions"]))
+
+    def test_spec_scenario_the_fallbacks_order(self):
+        # `app`: the Italian table's French words first, in its order — not « Application » read
+        # backwards from the French entry.
+        self.assertEqual(self.glosses["app"], "Appli, application")
+        self.assertIn("app", self.steps["direct"])
+        # At most three words per part of speech from a table, in the table's order.
+        self.assertEqual(self.glosses["gratis"], "Gratuitement, gratis, gratuit")
+        # Read backwards only where the Italian table has none, the commonest French word first.
+        self.assertEqual(self.glosses["smartphone"], "Smartphone, téléphone intelligent, ordiphone")
+        self.assertEqual(self.runs["smartphone"], [("NOUN", 1)])
+        self.assertIn("smartphone", self.steps["inverted"])
+        # A word both tables list takes the Italian table's.
+        self.assertEqual(self.glosses["dentifricio"], "Dentifrice")
+        self.assertEqual(red.source_of("dentifricio", self.steps), "direct")
+        self.assertIsNone(red.source_of("missing", self.steps))
+
+    def test_spec_scenario_a_gloss_read_as_a_link(self):
+        # `del` « Du. », a link to the French « Du », which no Italian entry heads: a gloss, with its
+        # usage note; the hamlet `Del` kept off it (D5).
+        self.assertEqual(self.glosses["del"], "Du. Note d’usage : devant une consonne")
+        self.assertNotIn("hameau", self.glosses["del"])
+        # `storie`: « Pluriel de storia » is an inflection by its text, whatever its target: still a
+        # form, its pointer naming « Pluriel », which lends nothing.
+        self.assertNotIn("storie", self.glosses)
+        # `coloro`: its « Pluriel de… » senses stay forms, « Celles et ceux » glosses it.
+        self.assertEqual(self.glosses["coloro"], "Celles et ceux")
+        # `c'è`, an expression: « Il y a ».
+        self.assertEqual(self.split["c'è"], "Il y a")
+
+    def test_spec_scenario_a_link_to_a_lowercase_word_beside_a_gloss(self):
+        # `degli`, glossed by nothing else: its link is its gloss.
+        self.assertEqual(self.glosses["degli"], "Article contracté souvent traduit par des")
+        # `pelle`: its own senses alone, the article's link left a form.
+        self.assertEqual(self.glosses["pelle"], "Peau; Fourrure, peau, pelage, poil d’animal")
+        self.assertEqual(self.runs["pelle"], [("NOUN", 2)])
+        # The exact spelling: `della` links the Italian `la`, whose entry holds a meaning: a form; the
+        # tables gloss it.
+        self.assertEqual(self.glosses["della"], "Des, de la")
+        self.assertIn("della", self.steps["inverted"])
+        # `te`'s link names `toi`, whose entry is a form alone: no Italian word heads it, so the link
+        # glosses `te` (the review) — not the tables' « Te ».
+        self.assertEqual(self.glosses["te"], "Toi : pronom disjoint de la deuxième personne du singulier")
+        self.assertIn("te", self.steps["definitions"])
+        self.assertEqual(
+            {k: n for k, n in self.stats.items() if k.startswith(("links", "lowercase"))},
+            {"links read as a gloss": 3, "links read as a gloss, a lowercase target": 2, "lowercase links kept beside another gloss": 1},
+        )
+
+    def test_spec_scenario_a_proper_noun_beside_a_common_word(self):
+        self.assertEqual(self.glosses["luna"], "Lune; Lune, satellite de la Terre")
+        self.assertEqual(self.runs["luna"], [("NOUN", 1), ("PROPN", 1)])
+
+    def test_spec_scenario_a_surname_keeps_off_a_common_word(self):
+        # `soldi`, a form: its base's gloss, never the surname's note.
+        self.assertEqual(self.glosses["soldi"], "Sou")
+        # `te`: neither the province's acronym nor the letter.
+        self.assertNotIn("Térame", self.glosses["te"])
+        self.assertNotIn("lettre", self.glosses["te"])
+        # `a`: its own sense alone, the party's abbreviation kept off it.
+        self.assertEqual(self.glosses["a"], "À")
+        self.assertEqual((self.stats["name notes"], self.stats["name notes, communes"]), (2, 3))
+        self.assertEqual(self.stats["acronym senses"], 3)
+        self.assertEqual((self.stats["letter entries"], self.stats["letter senses"]), (1, 1))
+        # The entries left with no sense go: `Del`, `Soldi`, `TE`, `A`, `NU`, the letter's `te`, the
+        # communes `Bianco`, `Ora` and `Luna`, `ci`'s and `chi`'s letters, and `signore`'s leaked form.
+        self.assertEqual(self.stats["entries left with no sense"], 12)
+        headwords = [e["word"] for e in self.read]
+        for gone in ("Del", "Soldi", "TE", "A", "x"):
+            self.assertNotIn(gone, headwords)
+        # A word that is only a name keeps its note: `Francesco`, no lowercase entry.
+        self.assertEqual(self.glosses["francesco"], "Prénom masculin, équivalant à François")
+        self.assertIn("Francesco", headwords)
+
+    def test_what_kaikki_leaks_into_a_sense(self):
+        # The review: an example filed as a sense goes, the word's other senses stay.
+        self.assertEqual(self.glosses["stesso"], "Même")
+        self.assertEqual(self.glosses["età"], "Âge; Époque, période")
+        # `io`: the example with its missing translation and kaikki's placeholder link.
+        self.assertEqual(self.glosses["io"], "Pronom de la première personne du singulier")
+        # A colour's codes go, its meaning stays.
+        self.assertEqual(self.glosses["bianco"], "Blanc, la couleur comme celle des os; Blanc, personne dont la couleur de peau est claire")
+        self.assertEqual(self.glosses["verde"], "Vert, couleur verte")
+        # A head line merged into a sense: the meaning after it stays, a form with no meaning goes.
+        self.assertEqual(self.glosses["sedere"], "Derrière; Asseoir")
+        self.assertEqual(self.runs["sedere"], [("NOUN", 1), ("VERB", 1)])
+        self.assertEqual(self.glosses["signore"], "Monsieur")
+        self.assertEqual(
+            {k: self.stats[k] for k in ("examples filed as a sense", "colour codes taken out", "head lines read for their meaning", "head lines with no meaning")},
+            {"examples filed as a sense": 3, "colour codes taken out": 2, "head lines read for their meaning": 1, "head lines with no meaning": 1},
+        )
+        for gloss in self.glosses.values():
+            for leak in ("#*", "#FFFFFF", "\\", "server.dummy", "exemple manque"):
+                self.assertNotIn(leak, gloss)
+        # Read alone, sense by sense.
+        self.assertEqual(red.read_sense({"glosses": ["Même."]}), ({"glosses": ["Même."]}, None))
+        self.assertEqual(red.read_sense({"glosses": ["Voir https://example.org."]}), (None, "senses holding an address"))
+        self.assertEqual(red.read_sense({"glosses": ["#FFFFFF"]}), (None, "colour codes taken out"))
+        self.assertEqual(red.read_sense({}), ({}, None))
+
+    def test_spec_scenario_a_commune_keeps_off_a_common_word(self):
+        # The review: a commune's note is a name's note (D5) — off `ora`, `bianco` and `luna`; the
+        # Earth, Christ and the Moon stay beside their words.
+        self.assertEqual(self.glosses["ora"], "Heure; Maintenant")
+        self.assertNotIn("commune", self.glosses["bianco"])
+        self.assertEqual(self.glosses["luna"], "Lune; Lune, satellite de la Terre")
+        self.assertEqual(self.glosses["terra"], "Terre, le sol sur lequel nous marchons; La Terre, planète tellurique sur laquelle nous vivons")
+        self.assertEqual(self.glosses["cristo"], "Hère, bougre; Christ")
+        for note in ("Ora, commune d’Italie de la province…", "Commune, commune d’Italie de…", "commune de Rome"):
+            self.assertTrue(red._NAME_NOTE.match(red._without_headword(note, "Ora")), note)
+        for name in ("La Terre, planète tellurique", "Christ", "Lune, satellite de la Terre", "Communauté de communes"):
+            self.assertFalse(red._NAME_NOTE.match(name), name)
+
+    def test_a_letter_s_name_written_bare(self):
+        # The review: `ci` « Tsy », `chi` « Khi » off the pronouns; `gamma`, only a letter, keeps its
+        # name; `nudo` « Nu » is French, never a letter here.
+        self.assertEqual(self.glosses["ci"], "Nous, pronom clitique objet de la première personne du pluriel")
+        self.assertEqual(self.glosses["chi"], "Qui, celui qui")
+        self.assertEqual(self.glosses["gamma"], "Gamma")
+        # A province's acronym is no common word's meaning: `nu` keeps its letter.
+        self.assertEqual(self.glosses["nu"], "Nu")
+        self.assertEqual(self.glosses["nudo"], "Nu")
+        self.assertEqual(self.stats["letter names written bare"], 2)
+        self.assertEqual(sorted(red.LETTER_NAMES), list(red.LETTER_NAMES), "kept sorted")
+        self.assertNotIn("nudo", red.LETTER_NAMES)
+        self.assertNotIn("guado", red.LETTER_NAMES)
+
+    def test_a_sense_repeating_another(self):
+        # The review: `italiano` « Italien; italien » across its parts of speech, `beige` across a
+        # table's; a run shortened with its sense.
+        self.assertEqual((self.glosses["italiano"], self.runs["italiano"]), ("Italien", [("ADJ", 1)]))
+        self.assertEqual((self.glosses["beige"], self.runs["beige"]), ("Beige", [("ADJ", 1)]))
+        self.assertEqual(self.shared[0]["italiano"], "Italien; italien")
+        self.assertEqual(self.repeated, ["beige", "italiano"])
+        glosses, runs = {"x": "A; B; a.; C"}, {"x": [("NOUN", 2), ("VERB", 2)]}
+        self.assertEqual(red.without_repeated_senses(glosses, runs), ["x"])
+        self.assertEqual((glosses["x"], runs["x"]), ("A; B; C", [("NOUN", 2), ("VERB", 1)]))
+        # A gloss whose runs do not count its senses is left as it is.
+        glosses, runs = {"y": "A; a"}, {"y": [("NOUN", 1)]}
+        self.assertEqual(red.without_repeated_senses(glosses, runs), [])
+        self.assertEqual(glosses["y"], "A; a")
+
+    def test_the_section_as_read_keeps_what_it_does_not_change(self):
+        # The typographic apostrophe read as `'` in a headword; an entry the pass does not change is
+        # written as its line was.
+        headwords = [e["word"] for e in self.read]
+        self.assertIn("essere d'accordo", headwords)
+        self.assertNotIn("essere d’accordo", headwords)
+        casa = next(e for e in self.read if e["word"] == "casa")
+        self.assertEqual(casa, self.SECTION[0])
+        # A line that is no JSON object is left out, and so are the thirteen entries left with no sense
+        # or a letter's.
+        self.assertEqual(len(self.read), len(self.SECTION) - 13)
+
+    def test_spec_scenario_an_acronym_through_a_proper_noun_synonym(self):
+        # `USA`: `America`'s first sense and `Stati Uniti`'s, a proper noun's entry, in the row's
+        # order — one run of the row's part of speech; `NATO`, which names neither, none.
+        self.assertEqual(self.acronym_glosses, {"USA": ("Amérique (continent); États-Unis", [("PROPN", 2)])})
+        self.assertNotIn("stati uniti", self.expressions)
+        self.assertEqual(self.entries["stati uniti"], "États-Unis")
+        with mock.patch.dict(red.acronyms.ACRONYMS, self.ROWS, clear=True):
+            self.assertEqual(red.row_words(), {"america", "stati uniti"})
+            # The pair's own gloss of a synonym wins over its entry read whatever its part of speech.
+            own = red.acronym_glosses({"america": "Amérique; Amériques"}, {}, self.entries)
+        self.assertEqual(own["USA"][0], "Amérique; États-Unis")
+
+    def test_spec_scenario_expressions_from_every_source(self):
+        # The section's headword written with ’, a word the pre-pass splits from the section, one
+        # with a space and one the pre-pass splits from the tables — keyed at build.
+        self.assertEqual(self.expressions["essere d'accordo"], "Être d’accord")
+        self.assertEqual(self.split["all'improvviso"], "Soudainement")
+        self.assertEqual(self.expressions["meccanica quantica"], "Mécanique quantique")
+        self.assertEqual(self.split_tables, {"senz'altro": "Sans faute", "d'accordo": "D'accord"})
+        self.assertIn("essere d'accordo", self.steps["section expressions"])
+        self.assertNotIn("meccanica quantica", self.steps["section expressions"])
+        # No proper noun: neither `Valle d'Aosta` nor `all'Aia`.
+        self.assertNotIn("valle d'aosta", self.expressions)
+        self.assertNotIn("all'aia", self.split)
+
+    def test_a_compound_s_link_is_no_gloss(self):
+        # The review: `gli` heads only form-of entries, so a clitic compound's link « Agglutination du
+        # verbe… avec le pronom gli » names no word a meaning heads — still a pointer by its wording,
+        # with a pronominal form, an old spelling and a person written « seconde ».
+        for text in (
+            "Agglutination du verbe abalienare avec le pronom gli (« lui »).",
+            "Agglutination de la deuxième personne du singulier de l’impératif présent du verbe dare avec le pronom le.",
+            "Forme pronominale de maritare : se marier.",
+            "Ancienne orthographe de asti, pluriel de astio.",
+            "Seconde personne du pluriel de l'indicatif présent de enumerare.",
+        ):
+            self.assertIsNone(red._link({"glosses": [text], "tags": ["form-of"], "form_of": [{"word": "gli"}]}), text)
+        self.assertIsNotNone(red._link({"glosses": ["Du."], "tags": ["form-of"], "form_of": [{"word": "Du"}]}))
+
+    def test_what_the_pre_pass_splits(self):
+        forms = {"po'": "poco", "nell'": "nello"}
+        for word in ("d'accordo", "all'improvviso", "c'è", "senz'altro", "mezz'ora", "dov'è", "sott'olio"):
+            self.assertTrue(red.split_word(word, forms), word)
+        # A space, no elided piece, an articulated preposition written whole, a truncation, a form.
+        for word in ("un po'", "perché", "alla", "nel", "po'", "anglo-americano", "nell'"):
+            self.assertFalse(red.split_word(word, forms), word)
+
+    def test_measures(self):
+        got = red.measures(self.RANKS, self.glosses, self.steps, top=10)
+        self.assertEqual(got["top"], 10)
+        self.assertEqual(got["by source"], {k: len(self.steps[k]) for k in ("definitions", "direct", "inverted")})
+        self.assertEqual(got["glossed"], sum(1 for lemma in self.LEMMAS[:10] if lemma in self.glosses))
+        self.assertEqual(len(got["sample"]), len([l for l in self.LEMMAS if l in self.glosses]))
+        lemma, rank, source, gloss = got["sample"][0]
+        self.assertEqual((rank, source, gloss), (self.RANKS[lemma], red.source_of(lemma, self.steps), self.glosses[lemma]))
+        self.assertEqual([s[1] for s in got["sample"]], sorted(s[1] for s in got["sample"]))
+        self.assertEqual(red.coverage({"a": 1, "b": 2}, {"a": "A"}, tops=(1, 2)), [100.0, 50.0])
+
+    def test_the_straightened_tables(self):
+        # Each Italian word as Italian is written; the French words as they are.
+        self.assertIn("senz'altro", self.sources[0][0])
+        self.assertIn("d'accordo", self.sources[1][0])
+        self.assertEqual(self.sources[0][0]["gratis"]["ADV"][-1], "à l’œil")
+
+
+class NativeSideReduced(unittest.TestCase):
+    """The reduction end to end with a native side (add-lingua-pack-it-fr D5): Italian's dictionary
+    words, the levels narrowed to them, the report."""
+
+    def setUp(self):
+        self.reduction = Reduction()
+        self.reduction.setUp()
+        self.addCleanup(self.reduction.doCleanups)
+
+    def test_spec_scenario_the_levels_go_to_dictionary_words(self):
+        words = sorted({e["word"].lower() for e in ENTRIES} | set(TOP) | set(red.prepass_words()))
+        # `casa` glossed by nothing, `roma` by a name alone: no dictionary word, so no level.
+        section = [fr_entry(w, "noun", f"Sens de {w}.") for w in words if w not in ("casa", "roma")]
+        section.append(fr_entry("Roma", "name", "Rome."))
+        with tempfile.TemporaryDirectory() as work:
+            self.reduction.write_work(work, native=(section, [], []))
+            summary, lines = self.reduction.run_reduction(work, None)
+            levels = dict(line.split("\t") for line in _read(work, "level.tsv").splitlines())
+            lexical = _read(work, "lexical.tsv").splitlines()
+            glosses = dict(line.split("\t") for line in _read(work, "gloss.tsv").splitlines())
+            senses = dict(line.split("\t", 1) for line in _read(work, "senses.tsv").splitlines())
+        self.assertTrue(set(levels) <= set(lexical), set(levels) - set(lexical))
+        self.assertNotIn("casa", lexical)
+        self.assertNotIn("casa", levels)
+        self.assertEqual((glosses["roma"], senses["roma"]), ("Rome", "PROPN:1"))
+        self.assertNotIn("roma", lexical)
+        self.assertGreaterEqual(summary["levels left out"]["unlisted"], 1)
+        self.assertEqual(summary["names"], 1)
+        self.assertEqual(summary["dictionary words"], len(lexical))
+        self.assertEqual(lexical, sorted(lexical))
+        self.assertTrue(any(line.startswith("reduced it-fr: glosses=") for line in lines), lines)
+        self.assertTrue(any(line.startswith("reduced it-fr: sample: ") for line in lines), lines)
+
+    def test_the_native_sources_are_read(self):
+        with tempfile.TemporaryDirectory() as work:
+            self.reduction.write_work(work)
+            os.remove(os.path.join(work, red.DIRECT))
+            with self.assertRaises(SystemExit) as raised:
+                self.reduction.run_reduction(work, None)
+            self.assertIn(red.DIRECT, str(raised.exception))
+            self.assertIn("DUMPS['it-fr']", str(raised.exception))
+
+    def test_the_credits(self):
+        with tempfile.TemporaryDirectory() as work:
+            self.reduction.write_work(work)
+            self.reduction.run_reduction(work, None)
+            notice = _read(work, "NOTICE")
+            manifest = json.loads(_read(work, "manifest.json"))
+            measured = json.loads(_read(work, "measures.json"))
+        self.assertIn("French Wiktionary (frwiktionary), Italian section", notice)
+        self.assertIn("Italian Wiktionary (itwiktionary)", notice)
+        self.assertEqual(manifest["meta"]["licences"][0], "kaikki / enwiktionary, frwiktionary, itwiktionary (CC BY-SA 4.0 + GFDL)")
+        self.assertEqual(set(measured), {"top", "glossed", "share", "direct", "inverted", "coverage", "by source", "sample"})
 
 
 if __name__ == "__main__":

@@ -591,13 +591,18 @@ Reduced by `reduce-it-fr.py` (add-lingua-italian-forms-tables, change 9 of
 reads as committed. It writes Italian's forms and ranks from the English Wiktionary's Italian section,
 and their readings (`tables/it/grammar.tsv`, add-lingua-italian-grammar-tables, change 13), whose
 pinned tag pool `tables/it/tags.tsv` replaced the one tag change 4 pins for a pool-less fixture, `NOUN`,
-and Italian's estimated levels (`tables/it/level.tsv`, add-lingua-italian-levels, change 14); its glosses
-(from the Italian Wiktionary's French section) and the rest of Italian's dictionary words are change
-16's, so `tables/it-fr/gloss.tsv` is empty and `tables/it/lexical.tsv` holds the acronym rows alone. No package carries it-fr (`packs.json` is unchanged), and the Italian baseline keeps its
-fixture (`testdata/it-fr/`) until change 16. Its reducer loads `reduce_common.py` (for `write`),
-`reduce_italian_treebank.py`, MarkIT's counts, and `reduce_italian_acronyms.py`, Italian's acronym
-table (keep-lingua-italian-acronyms-and-names), two rule modules of its own that a later Italian pair
-may load: an edit of `reduce-it-fr.py` or of either module re-pins it-fr alone.
+and Italian's estimated levels (`tables/it/level.tsv`, add-lingua-italian-levels, change 14). Since
+add-lingua-pack-it-fr (change 16) it also writes it-fr's French glosses, sense runs and expressions and
+Italian's dictionary words (*IT → FR: Italian glossed in French*, below), which the levels go to; the
+tables arrive with the owner's `lingua-pack-update` dispatch (mode `update`, `keep: en`), until which
+`tables/it-fr/gloss.tsv` is empty and `tables/it/lexical.tsv` holds the acronym rows alone. No package
+carries it-fr (`packs.json` is unchanged, change 20 lists it), and the Italian baseline keeps its
+fixture (`testdata/it-fr/`) until those tables are committed. Its reducer loads `reduce_common.py`,
+`reduce_edition_fr.py` (the French Wiktionary's rules, as es-fr's), `reduce_italian_treebank.py`,
+MarkIT's counts, and `reduce_italian_acronyms.py`, Italian's acronym table
+(keep-lingua-italian-acronyms-and-names), two rule modules of its own that a later Italian pair may
+load: an edit of `reduce-it-fr.py` or of either Italian module re-pins it-fr alone, and an edit of
+`reduce_edition_fr.py` en-fr, es-fr and it-fr.
 
 **Italian's acronym table** (keep-lingua-italian-acronyms-and-names, change 11): `NATO` and `USA`, the
 rows of `reduce_italian_acronyms.ACRONYMS` (D2), each backed by the section's own entry headed as the
@@ -630,8 +635,8 @@ branch as fr-en's was.
 | `tables/it/grammar.tsv` (`form → readings`) | **kaikki.org**, the same section: the tags of each form | CC BY-SA 4.0 + GFDL | the readings of the forms `forms.tsv` holds, under its ranked lemmas, as Universal Dependencies tags (add-lingua-italian-grammar-tables), in the same pass as the forms, each table form written as the forms write it (`dièdi` → `diedi`). A verb form takes its mood, tense, person and number — the passato remoto as `Tense=Past`, the imperfetto `Tense=Imp`, the conditional and the imperative with no tense, the imperative in its second singular and first and second plural alone —, or its form: the infinitive, the gerund (`VerbForm=Ger`), the present participle (`VerbForm=Part\|Tense=Pres` with its number), the past participle with its gender and number, the agreed ones through the participle's own entry. A sense merging persons or moods reads as each; none from the negative or the formal imperative, a defective verb's `-`, a clitic cluster, a dialectal, hypercorrect, regional or register-marked row, or the Classical Roman Dialect's conjugation table kaikki merges in unmarked (a table whose present's first plural ends nowhere in `-iamo` while another's does). A reflexive verb's rows read as the forms read them: without their pronoun (`mi làvo` → `lavo`, *lavare*'s), a row carrying it as its bare base under a reflexive-only lemma (`pentìrsi` → `pentire`), never as its clitic-bearing string. A noun takes its gender (`it-noun`'s argument, else its senses') on its own form and its plural, both numbers when the dictionary gives one form (`#`: `città`), the singular alone when uncountable (`-`: `gas`); an adjective its agreement and degree (`minore` names *piccolo*); a determiner (articles among them), pronoun or numeral its agreement, a pronoun's row only with a gender; the article table kaikki writes under each article in full under *il*, under the others for the forms their heads name. A table first, a form's own entry for what no table lists of the same part of speech; a form of a form along one part of speech with its own agreement, never through a nominal plural (`creduta` → *credere*; `colli` no *colla* through `colle`); a reading's part of speech one its lemma's entries hold (`parlata`, the noun, names *parlare*); change 10's spellings carry their word's readings (`perchè`, `puo`), a spelling's table only where the word's gives nothing (`moglie`). None from a doubtful row or sense, a regional or register-marked sense, a capitalised headword, an alternative-only entry (the apocopes `bel`, `buon`), a derived word's row, a feminine noun's masculine, a plural-headed determiner's or pronoun's table, or a link an override row sets aside. A reading of another ranked lemma is marked `other`, toward an entry of the dictionary that is not only regional, in a part of speech it holds with a meaning not marked archaic, poetic or literary (`dire` no *diro*), never from a poetic, Latin or literary row or sense alone (`sono` no *suonare*) nor with the cell a doubtful spelling stands for (`anno` no *avere*); the form keeps its one lemma (M8). 132,849 readings in 83 tags, 94,786 forms reading as their own lemma, 13,366 `other` marks; measured on UD Italian-PUD and MarkIT's test section (`tables/it-fr/README.md`, *The readings*) |
 | `tables/it/level.tsv` (`lemma → CEFR`) | none: derived from `freq.tsv` and the English Wiktionary's Italian section | that of `freq.tsv` and kaikki's | **estimated**, since no Italian CEFR list can be shipped (the *Profilo della lingua italiana* is not free, and no openly licensed Italian list was found; I8) and no list is read. In rank order, the ranked lemmas a CEFR list would hold take English's band sizes (1,020 A1 … 876 C2, `ENGLISH_BANDS`, equal to fr-en's and es-fr's by a test): 8,302 lemmas, A1 ranks 1–1,080 … C2 9,377–10,690. Read from the section, never from a pair's glosses, a lemma takes none when the section gives it no sense that is not a form of another word or only a name's (`km`, `facebook`; `milano`, `giovanni`: 1,728 and 635), when it is a single character whose every sense is a letter's — a letter's name read by its gloss —, a symbol's, a name's, an abbreviation's or another word's spelling (`b`, `k`, `u`, `r`, `x`, `à`: 16; `a`, `e` and `o` are A1), when every sense only spells another word by French's prefixes (`the`, `nè`, `zombie`: 9; a contraction stays a word, `del` A1 — `perchè` reads as *perché* since read-lingua-italian-unmarked-spellings), or when its own form reads as another lemma (a guard: none on these ranks). The acronym rows have no rank, so no level. Until change 16 commits it-fr's glosses no dictionary word narrows them (D4): a name keeps a level through a sense of another part of speech, from a lowercase or a capitalised entry — `roma`, `marco`, `napoli`, `francesco`, `maria` and `gesù` A1, `luigi`, `svizzera` A2, `adam`, `assunta` B1, `palestina`, `bellini` B2, `reich`, `alzheimer` C2, and initialisms (`mm`, `pc`, `cd` A2, `ps`, `ac` B1, `tar`, `pg`, `cup` B2); 59 levelled lemmas take their only senses that are no name's from a capitalised entry. The manifest says `levels_estimated`, the NOTICE that the levels are estimated (add-lingua-italian-levels; `tables/it-fr/README.md`, *The levels*) |
 | `tables/it/tags.tsv` | Italian's pinned tag pool: the 83 tags its readings carry, in byte order | — | written once by a person from the first reduction's readings, replacing change 9's placeholder `NOUN`, kept by every reduction; a tag a later one adds is appended (`tables/it-fr/README.md`) |
-| `tables/it/lexical.tsv` | Italian's acronym rows (`reduce_italian_acronyms.ACRONYMS`) | — | the acronym rows alone, `NATO` and `USA` (keep-lingua-italian-acronyms-and-names D6), until change 16's dictionary words join them — it-fr's glossed lemmas less its names, plus the rows (D5); the committed-tables check and the builder's `check_studied` accept the rows whatever their sense runs and whether glossed |
-| `tables/it-fr/gloss.tsv` | none yet | — | empty until change 16 |
+| `tables/it/lexical.tsv` | Italian's acronym rows (`reduce_italian_acronyms.ACRONYMS`); it-fr's glosses | — | the acronym rows alone, `NATO` and `USA` (keep-lingua-italian-acronyms-and-names D6), until the update that commits it-fr's glosses; the reduction writes the dictionary words beside them since change 16 — it-fr's glossed lemmas less its names, plus the rows (*IT → FR: Italian glossed in French*); the committed-tables check and the builder's `check_studied` accept the rows whatever their sense runs and whether glossed |
+| `tables/it-fr/gloss.tsv` | the French Wiktionary's Italian section and the translation tables (*IT → FR: Italian glossed in French*) | CC BY-SA 4.0 + GFDL | empty until the update that commits change 16's reduction |
 | `NOTICE` | the section, wordfreq, MarkIT, Morph-it! while pinned | — | the attribution stack, embedded in the pack, and the sentence saying the levels are estimated, no CEFR list read (add-lingua-italian-levels D3); UD Italian-PUD is measured against, never shipped |
 
 **The sources pinned** (`tables/it-fr/pin.json`): the Italian section derived on 2026-10-23 from the
@@ -667,9 +672,91 @@ implementation, on UD Italian-PUD, 99.26 % of 19,155 words resolved, 91.39 % of 
 99.90 % of 985 auxiliaries took PUD's lemma; MarkIT's test section, reported: 99.43 %, 94.65 % of 4,113,
 98.87 % of 530. M8's cost: 32 / 47 / 69 dictionary nouns read as a verb among wordfreq's 1,000 / 2,000 / 5,000.
 
+### IT → FR: Italian glossed in French (add-lingua-pack-it-fr)
+
+it-fr's native side (change 16 of `docs/lingua/italian-programme.md`) is written by the reduction that
+writes Italian's studied side, through the native side every pair shares (`reduce_common`) with the
+French Wiktionary's rules (`reduce_edition_fr.FR`), in es-fr's order (D1, D2): **the French
+Wiktionary's Italian section's definitions** (`kaikki-fr-Italien.jsonl`), then **the Italian
+Wiktionary's French translations** (`kaikki-it-traductions-fr.jsonl`, the direct fallback, in the
+table's order), then **the French Wiktionary's translation tables read backwards**
+(`kaikki-fr-traductions-it.jsonl`: a French entry listing an Italian word glosses it with the French
+headword, commonest French word first) — at most three words per part of speech from a table, a
+typographic apostrophe in a headword or an Italian word of either table read as `'`. Every gloss is
+French written by a person (M5). Before the shared rules read it, the section is read as it-fr reads
+it (`section_as_read`, written beside the sources as `kaikki-fr-Italien-lu.jsonl`):
+
+- **its letters out**, as es-fr's are (`te` « Te, vingtième lettre de l'alphabet cyrillique »);
+- **names and acronyms keep off common words** (D5): an acronym's sense — its headword in capitals,
+  or its sense opening « Abréviation de », « Sigle de », « Acronyme de » — and a proper noun's sense
+  that only says surname, first name, hamlet or commune (« Nom de famille », « Prénom… », « Diminutif
+  de… », « Hameau de… », « Commune d’Italie… », after the headword repeated too: « Del, hameau de
+  Saint-Denis », « Ora, commune d’Italie… ») go when the word has
+  a lowercase entry of its own, even one of form-of senses only (`TE` off `te`, `Soldi` off `soldi`,
+  `Del` off `del`, `A` « Abréviation de Azione » off `a`); any other proper noun's sense stays (`Luna`
+  « Lune, satellite de la Terre »), and a word that is only a name keeps its notes;
+- **a gloss read as a link is a gloss** (D4): a sense tagged form-of whose every target no Italian
+  entry of the section holding a meaning heads, by its exact spelling, and whose text `FR.form_of` does
+  not read as an inflection, glosses its headword (`del` « Du. », `coloro` « Celles et ceux », `c'è`
+  « Il y a ») — where a target is written in lowercase, only when the word has no other glossed sense
+  (`degli`, `delle`, `te` « Toi : pronom disjoint… », linked to `toi`, whose entry is *togliere*'s form
+  alone; not `pelle`, `collo`, `colle`, `dello`). `storie` « Pluriel de storia » stays a form, and so
+  does `della` (linked to the Italian `la`, glossed by the tables);
+- **what kaikki leaks into a sense** (the review of the implementation): an example and its
+  translation filed as a sense (`#*:`, « La traduction en français de l’exemple manque »: `io`,
+  `stesso`, `età`) and a link's address (`server.dummy`) go; a colour's hexadecimal codes are taken
+  out of the meaning they follow (`bianco` « Blanc, la couleur comme celle des os », `verde`); a head
+  line merged into a sense, its transcription between backslashes, gives the meaning written after
+  it (`sedere` « Asseoir ») or goes (`signore`'s plural form); a letter's name the section writes bare
+  (`LETTER_NAMES`: `ci` « Tsy », `ce` « Tsé », `chi` « Khi ») goes from a word holding another meaning;
+  and a word's sense repeating an earlier one up to case is shown once (`italiano` « Italien »,
+  `beige`). All of it is it-fr's own: `reduce_common.py` and `reduce_edition_fr.py` are not edited,
+  and es-fr and en-fr keep the leaks they have (change 17's list).
+
+**Expressions** (`mwe.tsv`, D6): the section's glossed headwords with a space, then those the
+translation tables gloss, then the words without a space Italian's pre-pass splits — an Italian token
+beginning with an elided piece (`all'improvviso`, `c'è`, `d'accordo`, `senz'altro`), never an
+articulated preposition written whole —, the section's first, each keyed at build by change 12's
+rules (`add-lingua-italian-expression-keys`), a headword longer than seven tokens left out there.
+**Dictionary words** (`tables/it/lexical.tsv`, D5): it-fr's glossed lemmas less those it glosses by a
+proper noun's senses alone (`reduce_edition_fr.dictionary_words`), plus the acronym rows, glossed
+through their synonyms, a synonym read from its entry in the section whatever its part of speech
+(`USA` « Amérique (continent); États-Unis »; `NATO` none). **The levels** go to the dictionary words
+alone (`estimated_levels` receives them). **Coverage** is held to `gloss_coverage.FLOORS["it-fr"]` by
+the `reduce` job; `measures.json` (no table: `split` files it nowhere) carries the translation-table
+share of the glossed 10,000 commonest, the coverage, the glossed lemmas by source and a sample of 100
+glosses of the 20,000 commonest marked by source. The update's report (`pack_report.py --measures`)
+shows the share, the glossed lemmas by source and the sample, folded, beside the coverage it measures
+itself on the new tables; `tables/it-fr/README.md` records them. Nothing of it is stored in a pack.
+
+| Table | Upstream source | Licence | Reduction |
+|---|---|---|---|
+| `tables/it-fr/gloss.tsv`, `senses.tsv` | **kaikki.org**: the French Wiktionary's (`frwiktionary`) Italian section and its French entries' Italian translations (`EDITIONS["fr"]`); the Italian Wiktionary's (`itwiktionary`) French translations (`EDITIONS["it"]`) | CC BY-SA 4.0 + GFDL | up to eight whole senses per ranked lemma, grouped by part of speech (the shared rules), from the section as read; the fallbacks for the lemmas it leaves out |
+| `tables/it-fr/mwe.tsv` | the same three files | CC BY-SA 4.0 + GFDL | the section's headwords with a space, the tables', the words the pre-pass splits (D6) |
+| `tables/it/lexical.tsv` | it-fr's glosses and runs; the acronym rows | — | the dictionary words, the rows among them |
+| `tables/it/level.tsv` | as above, and the dictionary words | — | the levels narrowed to the dictionary words |
+| `NOTICE` | the five sources: the English Wiktionary's Italian section, wordfreq, MarkIT, Morph-it! while pinned, the French and Italian Wiktionaries | — | the attribution stack; `manifest.json` names kaikki's three editions |
+
+**Predicted at implementation** (2026-10-24, after the review's fixes, on the proposal-time copies of
+the French Wiktionary's Italian section — kaikki's extract, 1,047 MB, laid out differently from the
+769,483,152 B the dump derives — and of the two translation files; the committed studied tables of
+2026.10.23; Python 3.12 and `requirements-reduce.txt`; the review obtained the same tables from the
+dumps served on 2026-10-24): 32,691 glosses — 31,006 from the section, 279 from the Italian
+Wiktionary, 1,405 read backwards, the `USA` row —, 94.8 % from a definition; coverage **89.2 / 81.8 /
+73.3 %** of the 5,000 / 10,000 / 20,000 commonest (87.6 / 79.5 / 70.5 from the definitions alone);
+18,296 expressions (10,704 of the section with a space, 7,517 of the tables, 22 + 53 split words);
+24,216 dictionary words, 8,476 glossed lemmas names alone; the section as read: 3,884 name notes, 245
+communes' notes and 83 acronym senses set aside, 33 links to a capitalised word and 36 to a lowercase
+one read as glosses, 11 lowercase links left forms beside another gloss, 35 letter senses, 7 letter
+entries and 5 letters' bare names out, 9 examples filed as senses, 226 colour codes, 9 head lines read
+for their meaning and 16 dropped, 87 glosses repeating a sense. The pack 2,645,342 B, its base
+1,551,534 B, its layer 1,094,048 B. The update's figures, on the dumps it reads, are recorded in
+`tables/it-fr/README.md`.
+
 ## The editions' dumps
 
-kaikki is read at **three addresses, one dump per Wiktionary edition**
+kaikki is read at **one address per Wiktionary edition** — the English, French and Spanish ones, and
+the Italian one since add-lingua-pack-it-fr —
 (migrate-lingua-pack-sources-to-raw-dumps, change 38 of `docs/lingua/language-matrix-programme.md`):
 kaikki has marked its per-language files deprecated and keeps its dumps of whole editions. Every file
 a pair reads of kaikki is derived from the dump of the edition that writes it, in one pass per
@@ -689,6 +776,9 @@ derived from the dumps served on 2026-10-08:
 | | `kaikki-fr-Espagnol.jsonl` | Spanish entries | 212,331,331 B | es-fr |
 | | `kaikki-fr-traductions.jsonl` | French entries' Spanish translations | 6,191,621 B | es-fr (inverted), fr-es (direct) |
 | | `kaikki-fr-traductions-en.jsonl` | French entries' English translations | 14,573,988 B | fr-en (expressions; registered again by add-lingua-fr-en-translated-expressions, measured on this dump) |
+| | `kaikki-fr-Italien.jsonl` | Italian entries | 769,483,152 B (the proposal's measure; the review derived it again from the dump regenerated 2026-10-23) | it-fr (glosses, expressions; add-lingua-pack-it-fr) |
+| | `kaikki-fr-traductions-it.jsonl` | French entries' Italian translations | about 7 MB | it-fr (inverted) |
+| **Italian** (`kaikki.org/itwiktionary/raw-wiktextract-data.jsonl.gz`): 43,849,715 B gzipped, regenerated 2026-10-21 | `kaikki-it-traductions-fr.jsonl` | Italian entries' French translations | about 1.2 MB | it-fr (direct) |
 | **Spanish** (`kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz`): 103,226,106 B gzipped, 1,233,016,167 B decompressed, regenerated 2026-10-02 12:12 | `kaikki-es-English.jsonl` | English entries | 36,426,539 B | en-es |
 | | `kaikki-es-Frances.jsonl` | French entries | 7,438,610 B | fr-es (definitions) |
 | | `kaikki-es-traductions.jsonl` | Spanish entries' French translations | 1,537,580 B | es-fr (direct), fr-es (inverted) |
@@ -706,6 +796,11 @@ D3). The French edition's French entries' English translations (`kaikki-fr-tradu
 are registered again, for fr-en's expressions alone — no word is glossed from them
 (add-lingua-fr-en-translated-expressions D1, D6): the French edition's catalogue derives four files
 in its one pass, and `DUMPS["fr-en"]` reads two editions, each its own record of fr-en's pin.
+add-lingua-pack-it-fr (D3) adds the French edition's Italian entries and its French entries' Italian
+translations, and a fourth edition, the Italian Wiktionary, with its Italian entries' French
+translations: the French catalogue derives six files, and since a dump's whole catalogue is derived
+at its first read, **every French-dump derivation** — en-fr's, es-fr's, fr-en's and fr-es's updates,
+the monthly dry run — **writes about 0.77 GB more**, the Italian section, whichever pair reads it.
 
 **An update can keep an edition** (add-lingua-fr-en-translated-expressions D6).
 `pack_sources.py fetch-live --keep-edition E` (repeatable; `build.sh` passes `LINGUA_KEEP_EDITIONS`,
