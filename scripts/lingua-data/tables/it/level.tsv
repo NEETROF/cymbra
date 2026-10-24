@@ -842,7 +842,7 @@ basilica	B1
 basilico	C2
 basket	B1
 bassa	A1
-bassano	C1
+bassano	B2
 basso	A1
 basta	A1
 bastardo	B2
@@ -1040,7 +1040,7 @@ buio	A2
 bulgaro	C1
 bullismo	B2
 bullo	C2
-bunker	C1
+bunker	B2
 buonanotte	B1
 buonasera	B1
 buongiorno	A2
@@ -1056,7 +1056,7 @@ buttare	B1
 buttata	C1
 ca	A2
 cabina	B1
-cacao	C1
+cacao	B2
 cacca	B2
 cacchio	B2
 cacciare	B2
@@ -1067,6 +1067,7 @@ cadenza	B2
 cadere	A2
 caduta	A2
 caduto	B1
+caffeina	C2
 caffè	A1
 cagare	B1
 cagata	C1
@@ -1077,6 +1078,7 @@ calamità	C2
 calare	C2
 calcare	C1
 calce	C1
+calcestruzzo	C2
 calciatore	B1
 calcio	A1
 calciomercato	C1
@@ -1100,7 +1102,7 @@ cambogia	B2
 camera	A1
 cameriera	B2
 cameriere	B2
-camerino	C1
+camerino	B2
 camicia	B1
 camino	B2
 camion	B1
@@ -1171,6 +1173,7 @@ capo	A1
 capodanno	B1
 capogruppo	C2
 capolavoro	B1
+capolinea	C2
 capoluogo	B1
 cappella	B1
 cappello	B1
@@ -1192,6 +1195,7 @@ carcere	A2
 card	B1
 cardiaco	B2
 cardinale	A2
+cardine	C2
 carenza	B1
 carestia	C1
 carica	A1
@@ -1410,7 +1414,6 @@ cinesi	A2
 cinghiale	C1
 cinico	C2
 cinismo	C2
-cinquant'anni	B2
 cinquanta	B1
 cinquantina	C2
 cinque	A1
@@ -6001,7 +6004,6 @@ quantitativo	B2
 quantità	A1
 quanto	A1
 quantomeno	B2
-quarant'anni	B2
 quaranta	B1
 quarantena	C2
 quarta	A2
@@ -6283,7 +6285,7 @@ ricco	A2
 ricerca	A1
 ricercare	B2
 ricercato	B2
-ricercatore	B2
+ricercatore	B1
 ricetta	A2
 ricevere	A2
 ricevimento	B2
@@ -7554,7 +7556,6 @@ tana	B2
 tangenziale	C1
 tangibile	C2
 tango	B2
-tant'è	B2
 tantino	C2
 tanto	A1
 tantomeno	B2
@@ -7852,7 +7853,6 @@ tremendo	B2
 tremila	C1
 trend	B1
 treno	A1
-trent'anni	B1
 trenta	A2
 trentino	B1
 triangolo	B2
@@ -8085,7 +8085,7 @@ veneti	B2
 veneto	A2
 veneziano	B2
 venire	A1
-ventenne	C2
+ventenne	C1
 ventennio	B2
 ventesimo	C1
 venti	A2
@@ -8107,7 +8107,7 @@ vergine	A2
 verginità	C2
 vergogna	A2
 vergognoso	B2
-veridicità	C2
+veridicità	C1
 verifica	A2
 verificare	A2
 verità	A1
@@ -8157,7 +8157,7 @@ vicino	A1
 vico	C1
 vicolo	B2
 video	A1
-videocamera	C2
+videocamera	C1
 videoclip	B2
 videogame	C2
 videogioco	B2
@@ -8170,7 +8170,7 @@ vigilia	B1
 vigna	C1
 vignetta	B2
 vigore	A2
-vile	C2
+vile	C1
 villa	A1
 villaggio	A2
 vincente	B1
