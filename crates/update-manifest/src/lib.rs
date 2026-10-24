@@ -50,7 +50,7 @@ pub const SCHEMA_VERSION: u32 = 1;
 /// (e.g. `windows-x64`, `linux-x64`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Target {
-    /// Install method the artifact implies: `inno-setup`, `appimage`.
+    /// Install method the artifact implies: `inno-setup`, `deb`.
     pub kind: String,
     /// Absolute download URL (a GitHub Release asset).
     pub url: String,

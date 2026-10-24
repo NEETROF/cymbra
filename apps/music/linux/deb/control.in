@@ -1,0 +1,15 @@
+Package: cymbra-music
+Version: @VERSION@
+Architecture: amd64
+Maintainer: NEETROF <contact@cymbra.app>
+Installed-Size: @INSTALLED_SIZE@
+Depends: libc6 (>= 2.35), libgtk-3-0 | libgtk-3-0t64, libasound2 | libasound2t64, libsecret-1-0, pkexec | policykit-1, apt
+Section: sound
+Priority: optional
+Homepage: https://cymbra.app/music
+Description: Learn and practise music with your MIDI instrument
+ Cymbra Music follows the score in real time while you play a MIDI keyboard
+ or electronic drum kit, with immediate feedback and step-by-step lessons.
+ .
+ Updates are offered inside the app and installed after you confirm with your
+ password.

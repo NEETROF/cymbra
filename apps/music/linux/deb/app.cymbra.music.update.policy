@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!--
+  Cymbra Music update (change: add-desktop-auto-update, design D5).
+  The exec.path annotation ties this action to the packaged helper ONLY, so the
+  password dialog names Cymbra Music instead of "run a program as root", and
+  pkexec of any other program keeps its generic action.
+-->
+<policyconfig>
+  <vendor>Cymbra</vendor>
+  <vendor_url>https://cymbra.app</vendor_url>
+  <icon_name>cymbra-music</icon_name>
+  <action id="app.cymbra.music.update">
+    <description>Install a Cymbra Music update</description>
+    <description xml:lang="fr">Installer une mise à jour de Cymbra Music</description>
+    <description xml:lang="es">Instalar una actualización de Cymbra Music</description>
+    <description xml:lang="it">Installare un aggiornamento di Cymbra Music</description>
+    <message>Cymbra Music wants to install an update.</message>
+    <message xml:lang="fr">Cymbra Music veut installer une mise à jour.</message>
+    <message xml:lang="es">Cymbra Music quiere instalar una actualización.</message>
+    <message xml:lang="it">Cymbra Music vuole installare un aggiornamento.</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/lib/cymbra-music/cymbra-update-helper</annotate>
+  </action>
+</policyconfig>
