@@ -32,3 +32,6 @@ tower.workspace = true
 # Sign fixture envelopes in the handler tests.
 ed25519-dalek = { workspace = true }
 base64.workspace = true
+
+[lints]
+workspace = true

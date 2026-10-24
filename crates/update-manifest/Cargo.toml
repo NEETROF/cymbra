@@ -43,3 +43,6 @@ path = "src/bin/sign.rs"
 [[bin]]
 name = "cymbra-update-helper"
 path = "src/bin/helper.rs"
+
+[lints]
+workspace = true
