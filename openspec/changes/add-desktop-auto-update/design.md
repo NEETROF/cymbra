@@ -98,7 +98,7 @@ The endpoint returns an envelope:
 {
   "manifest": "<base64 of the exact manifest JSON bytes>",
   "signature": "<base64 Ed25519 signature over those bytes>",
-  "key_id": "2026-08-a",
+  "key_id": "2026-10-a",
   "rollout_percent": 25
 }
 ```

@@ -33,5 +33,5 @@ library;
 
 /// `key_id` → base64 32-byte Ed25519 public key.
 const Map<String, String> kUpdateTrustedKeys = {
-  '2026-08-a': 'CPn7pYhTnCufY1/ptXO2l1ICbdXRnEUchv37/NMBSjY=',
+  '2026-10-a': '/0+Xgb4PfdIbmb+QL33jQ5/llpybMw5cvDhe2z0lKlQ=',
 };

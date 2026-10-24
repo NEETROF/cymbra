@@ -6,7 +6,7 @@
 - [x] 1.4 Implement `sign(manifest_bytes, secret_key) -> Envelope` and `verify(envelope, trusted_keys) -> Result<Manifest>`, rejecting unknown `key_id`, bad signature, and unknown `schema`.
 - [x] 1.5 Unit-test sign/verify: valid round trip, tampered manifest bytes, tampered signature, unknown `key_id`, unknown `schema`, malformed base64.
 - [x] 1.6 Add a `keygen` helper (behind a bin or a test-only fn) and generate the release keypair; record the public key and keep the private key out of the repo.
-- [ ] 1.8 Regenerate the release keypair: the private key of `2026-08-a` was lost before reaching a secret (no build ever shipped its public key). New `key_id`, public key in `update_signing_keys.dart`, in the helper's compiled-in key set and in `CYMBRA_UPDATE_TRUSTED_KEYS`; private key straight into `DESKTOP_UPDATE_SIGNING_KEY` + an offline backup. Verify: `gh secret list` shows it; golden fixtures unchanged (they use the fixed test key).
+- [x] 1.8 Regenerate the release keypair: the private key of `2026-08-a` was lost before reaching a secret (no build ever shipped its public key). New `key_id`, public key in `update_signing_keys.dart`, in the helper's compiled-in key set and in `CYMBRA_UPDATE_TRUSTED_KEYS`; private key straight into `DESKTOP_UPDATE_SIGNING_KEY` + an offline backup. Verify: `gh secret list` shows it; golden fixtures unchanged (they use the fixed test key). Done 2026-10-24: `key_id` `2026-10-a`, secret set, offline backup by the owner.
 - [x] 1.7 Check in the golden fixture under `crates/update-manifest/fixtures/`: a signed manifest, its public key, and tampered variants — consumed by both the Rust and the Dart tests.
 
 ## 2. Backend update feed

@@ -21,7 +21,7 @@
 //! serialized again), and writes the envelope to **stdout**.
 //!
 //! ```text
-//! update-sign --key-id 2026-08-a --rollout 0 < manifest.json > envelope.json
+//! update-sign --key-id 2026-10-a --rollout 0 < manifest.json > envelope.json
 //! ```
 //!
 //! The signing secret comes from `DESKTOP_UPDATE_SIGNING_KEY` (base64, 32

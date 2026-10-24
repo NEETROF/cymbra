@@ -5,5 +5,5 @@
   "_channel": "Release channel the manifest is published under.",
   "channel": "stable",
   "_key_id": "Which trusted key CI signs with. Must be present in the app's compiled-in key set AND in the backend's CYMBRA_UPDATE_TRUSTED_KEYS.",
-  "key_id": "2026-08-a"
+  "key_id": "2026-10-a"
 }
