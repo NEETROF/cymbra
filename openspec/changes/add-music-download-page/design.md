@@ -2,7 +2,7 @@
 
 ## Context
 
-`add-desktop-auto-update` (PR #1052, into `final/desktop-deployment`) has the release CI sign a manifest and POST it to the backend, which re-verifies and stores it (`backend/updates`, table `releases`) and serves it at `GET /updates/desktop` for the in-app updater. That endpoint answers only for releases that are not paused **and** above rollout 0, and returns a base64 envelope meant to be verified by the app. The manifest is keyed by `<os>-<arch>` with one target each (`inno-setup`, `deb`). The Windows installer and its binaries are Authenticode-signed with Artifact Signing (publisher NEETROF); the Linux `.deb` is built on Ubuntu 22.04 and installs on 22.04, 24.04 and Debian 12.
+`add-desktop-auto-update` (PR #1052, into `final/desktop-deployment`) has the release CI sign a manifest and POST it to the backend, which re-verifies and stores it (`backend/updates`, table `releases`) and serves it at `GET /updates/desktop` for the in-app updater. That endpoint answers only for releases that are not paused **and** above rollout 0, and returns a base64 envelope meant to be verified by the app. The manifest is keyed by `<os>-<arch>` and, since Windows ships through the Microsoft Store, carries only `linux-x64`, the self-updating AppImage, built on Ubuntu 22.04 so it starts on 22.04, 24.04 and Debian 12.
 
 The site (`apps/site`, Astro, fr/en/es) has no desktop download: `lib/stores.ts` renders a dimmed "Windows / Linux — soon" button. `site-deploy` is **manual by design** (releasing and deploying are two decisions). Interactive pieces are Vue islands using the shared `@cymbra/web-auth` client.
 
@@ -10,7 +10,7 @@ The site (`apps/site`, Astro, fr/en/es) has no desktop download: `lib/stores.ts`
 
 **Goals:** a visitor reaches the latest Windows and Linux build from cymbra.app in two clicks; the page never goes stale between site deploys; the page never lies (no dead card, no foreign link); the existing updater is untouched.
 
-**Non-Goals:** code signing itself (owned by `add-desktop-auto-update`) or SmartScreen reputation; a Linux store; an `.rpm`; listing the zip/tarball in the manifest; install counting or any per-visitor data; changing rollout semantics.
+**Non-Goals:** Windows distribution itself (the Store, owned by `add-desktop-auto-update`); a Linux store; `.deb`/`.rpm` packages; listing the zip/tarball in the manifest; install counting or any per-visitor data; changing rollout semantics.
 
 ## Decisions
 
@@ -24,7 +24,7 @@ The site (`apps/site`, Astro, fr/en/es) has no desktop download: `lib/stores.ts`
 
 **D5. The browser still allow-lists the link.** The page renders a link only for `https://github.com/NEETROF/cymbra/releases/download/…`. Defence in depth if the signing key were ever misused.
 
-**D6. Installer and `.deb` only.** The manifest's `<os>-<arch>` key admits one artifact per platform; the portable zip and tarball are reachable through the GitHub Releases link. No manifest schema change, no signature-compatibility fixture to regenerate.
+**D6. Windows is a Store link; Linux is the AppImage.** Windows ships through the Microsoft Store, so its card is a static Store web-installer button (product id from the site's build configuration; "coming soon" while unset) and the endpoint carries no Windows target. On Linux the manifest's `linux-x64` target is the AppImage; the tarball is reachable through the release page. No manifest schema change, no signature-compatibility fixture to regenerate.
 
 **D7. Island follows the site's front-end rules** (`vue-frontend-architecture`): the component never calls the API; a composable owns the request behind an injectable client seam, and its state is one `ts-pattern` union (`idle | loading | success | none | error`), matched exhaustively. `none` (204) and `error` render the same fallback.
 
@@ -32,7 +32,7 @@ The site (`apps/site`, Astro, fr/en/es) has no desktop download: `lib/stores.ts`
 
 **D9. Release notes as a link only** (resolves the notes decision): the manifest carries `notes_url`; the page shows it when present and nothing when absent. No rendering of notes content.
 
-**D11. Install guidance per platform, for signed and packaged builds.** Windows: the installer is signed, so Smart App Control lets it run, but SmartScreen may still show a notice while the publisher's reputation is young; the card shows what it looks like, that the publisher named is NEETROF, and that "More info → Run anyway" is safe *only* when that name is shown. It never suggests turning a protection off. Linux: the `.deb` opens in the distribution's software installer, or `sudo apt install ./cymbra-music…deb` (`apt`, not `dpkg -i`, so dependencies resolve); other distributions take the tarball, which does not update itself.
+**D11. Install guidance per platform.** Windows: installs and updates through the Microsoft Store; nothing to explain about signing or SmartScreen. Linux: the AppImage is one file for every distribution; allow it to run (file properties, or `chmod +x`); keep it in a folder the user can write to (`~/Applications`) so the app can replace it when updating — elsewhere it only notifies; it needs FUSE support, which current desktops include (the static runtime no longer needs `libfuse2`); Gear Lever or AppImageLauncher add it to the application menu. No card ever suggests turning a protection off.
 
 **D10. Platform highlight is cosmetic.** Detected from the user agent; wrong detection only changes which card is emphasised. Both cards always render.
 
@@ -41,7 +41,6 @@ The site (`apps/site`, Astro, fr/en/es) has no desktop download: `lib/stores.ts`
 - **Stale CDN cache** → short `max-age` (same order as the updater feed); a just-ingested release can take minutes to show.
 - **Pause surprises** (older release resurfaces) → D3 note in the runbook; the page shows the version number so it is visible.
 - **No reliable "Music only" releases list**: GitHub's releases search (`?q=`) is full-text over titles and notes — checked 2026-10-24, `q=music` also returns site, backend and back-office releases, `q=music-v` returns nothing. → each card links the exact `releases/tag/music-vX.Y.Z` page (derived from the manifest version); the outage fallback links the unfiltered releases page.
-- **SmartScreen notice on early releases**, signed or not, until reputation builds. → Explained on the card with the publisher name (D11); signing lets reputation carry across releases.
-- **A release built before signing is configured** would be blocked by Smart App Control. → `add-desktop-auto-update` makes a `music-v*` tag refuse to publish unsigned Windows binaries, so the page can never link one.
+- **Store product id not yet known** when the page ships. → The Windows card shows "coming soon" until the id is configured in the site's build variables; no code change needed.
 - **Archive ordering** with `add-desktop-auto-update` (see proposal) → archive that change first, or `/opsx:sync`.
 - **Feed route missing from the Caddy matcher** → silent `200` + empty `grpc-status: 12`; task and prod check below.
