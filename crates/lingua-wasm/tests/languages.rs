@@ -238,10 +238,19 @@ fn committed_pack(pair: &str) -> Vec<u8> {
 fn spec_scenario_every_french_pack_says_its_levels_are_estimated() {
     let mut engine = LinguaEngine::new(&committed_pack("es-en")).unwrap();
     assert_eq!(engine.add_pack(&committed_pack("fr-en")).unwrap(), "fr");
-    let fr = Some("fr".to_owned());
-    assert!(engine.has_levels(fr.clone()).unwrap());
-    assert!(engine.levels_estimated(fr.clone()).unwrap());
-    let rows = ladder(&engine, fr);
+    assert_estimated_ladder(&engine, "fr");
+}
+
+/// `language`'s levels, on `engine`, are estimated: the engine says so, and the ladder borrows
+/// English's frozen typical vocabularies and says so, its totals English's level sizes.
+fn assert_estimated_ladder(engine: &LinguaEngine, language: &str) {
+    let studied = Some(language.to_owned());
+    assert!(engine.has_levels(studied.clone()).unwrap(), "{language}");
+    assert!(
+        engine.levels_estimated(studied.clone()).unwrap(),
+        "{language}"
+    );
+    let rows = ladder(engine, studied);
     assert_eq!(rows.len(), ENGLISH_TYPICAL_VOCABULARY.len());
     let sizes = [1_020, 1_158, 2_015, 2_347, 886, 876];
     for ((row, typical), (level, size)) in rows
@@ -249,11 +258,25 @@ fn spec_scenario_every_french_pack_says_its_levels_are_estimated() {
         .zip(ENGLISH_TYPICAL_VOCABULARY)
         .zip(CefrLevel::ALL.iter().zip(sizes))
     {
-        assert_eq!(row["level"], level.label());
-        assert_eq!(row["typicalVocabulary"], typical, "{}", level.label());
-        assert_eq!(row["typicalFrom"], "en", "{}", level.label());
-        assert_eq!(row["total"], size, "{}", level.label());
+        let label = level.label();
+        assert_eq!(row["level"], label, "{language}");
+        assert_eq!(row["typicalVocabulary"], typical, "{language} {label}");
+        assert_eq!(row["typicalFrom"], "en", "{language} {label}");
+        assert_eq!(row["total"], size, "{language} {label}");
     }
+}
+
+/// Italian's levels are estimated (add-lingua-italian-levels, I8): a French-native reader's engine
+/// on the committed en-fr pack, the committed it-fr pack added, reports them as estimated, and
+/// Italian's ladder borrows English's frozen typical vocabularies and says so, its totals English's
+/// level sizes (design D5: no code, the paths French's and Spanish's levels take).
+#[test]
+fn spec_scenario_every_italian_pack_says_its_levels_are_estimated() {
+    let mut engine = LinguaEngine::new(&committed_pack("en-fr")).unwrap();
+    assert_eq!(engine.add_pack(&committed_pack("it-fr")).unwrap(), "it");
+    assert_estimated_ladder(&engine, "it");
+    // English's own levels are a list's, on the same engine.
+    assert!(!engine.levels_estimated(None).unwrap());
 }
 
 /// split-lingua-pack-format D7: an engine started on en-fr's base and layer, es-fr's added as its
