@@ -111,53 +111,30 @@ release only when its rollout percentage covers that bucket.
 - **THEN** the app SHALL offer the verified release regardless of the rollout
   percentage
 
-### Requirement: Password-confirmed package upgrade on Linux
+### Requirement: Self-replacement on Linux AppImage
 
-The app SHALL apply a Linux update to a package installation by handing the
-verified envelope and package to the privileged helper the package installed,
-through the system's authentication dialog, and SHALL relaunch once the helper
-succeeds. The helper SHALL NOT trust anything the app hands it: it SHALL verify,
-as administrator and on a private copy, the envelope against its own trusted
-keys and the package against the verified manifest before installing.
+The app SHALL apply a Linux update by replacing its own file atomically and
+relaunching, whenever the running build is an AppImage whose file is writable.
 
-#### Scenario: Approved update
+#### Scenario: AppImage replaces itself
 
-- **WHEN** the user approves an update on a package installation and confirms
-  the system authentication dialog
-- **THEN** the helper SHALL verify and install the new package, and the app
-  SHALL relaunch on the new version
+- **WHEN** the user approves an update and the running AppImage path is known
+  and writable
+- **THEN** the app SHALL download the new AppImage into the same directory, make
+  it executable, replace the running file with a single atomic rename, relaunch
+  it detached, and exit
 
-#### Scenario: The user dismisses the password dialog
+#### Scenario: Non-AppImage or read-only install
 
-- **WHEN** the user cancels the system authentication dialog
-- **THEN** nothing SHALL be installed, no error SHALL be shown, and the update
-  SHALL remain on offer
-
-#### Scenario: A substituted package is refused
-
-- **WHEN** the package file handed to the helper does not match the size and
-  SHA-256 of the `linux-x64` target of a correctly signed manifest, or the
-  envelope does not verify against the helper's own keys
-- **THEN** the helper SHALL install nothing and SHALL exit with a failure
-
-#### Scenario: No downgrade through the helper
-
-- **WHEN** the verified manifest's version is not strictly newer than the
-  installed package
-- **THEN** the helper SHALL install nothing
-
-#### Scenario: Not a package installation
-
-- **WHEN** the running Linux build carries no package marker, as with the
-  tarball, or the helper or the authentication tool is missing
+- **WHEN** the running Linux build is not an AppImage, or its file or directory
+  is not writable by the current user
 - **THEN** the app SHALL NOT attempt an install and SHALL instead offer to open
   the release page
 
-#### Scenario: Escalation only through the packaged helper
+#### Scenario: The updater never escalates privileges
 
-- **WHEN** the app needs administrator rights to update
-- **THEN** it SHALL request them only for the helper installed by the package,
-  through the system's authentication dialog, and for nothing else
+- **WHEN** an install location is not writable
+- **THEN** the app SHALL NOT invoke any privilege-escalation mechanism
 
 ### Requirement: Update prompts never interrupt playing
 

@@ -25,9 +25,10 @@ Constraints that shape the design:
   ~10 $/month, OV certificates 150–300 $/year); the Store re-signs MSIX packages
   for free, updates them, and company accounts are free since 2026-05. The app
   therefore never self-updates on Windows (decision 4, revised).
-- **Linux users install packages.** The audience on Linux expects a `.deb`, not a
-  single-file AppImage; the owner chose the `.deb` with updates still driven from
-  the app (decision 5, revised 2026-10-24).
+- **Linux: one file for every distribution.** A `.deb` upgraded through `pkexec`
+  and a root helper was implemented and tested on 2026-10-24, then dropped by the
+  owner for the AppImage (decision 5): every distribution, no password, no
+  privileged code.
 - **CLAUDE.md gates**: ≥80 % line coverage both ecosystems, Riverpod+Freezed
   with dependencies as providers, no raw technical error strings in the UI.
 
@@ -50,9 +51,10 @@ Constraints that shape the design:
 - macOS, iOS, Android — store-managed, untouched.
 - Delta/differential updates (zsync, MSIX block-map). Full downloads for now;
   the manifest shape leaves room to add them.
-- An APT repository, Flatpak, Snap on Linux. An APT repository is not needed
-  once the app drives the update itself; the sandboxed formats block raw MIDI
-  access out of the box (Snap's `alsa` interface is `deny-auto-connection`).
+- A `.deb`, an APT repository, Flatpak, Snap on Linux. The `.deb` (tried) is
+  Debian-family only and needs a password per update; the sandboxed formats
+  block raw MIDI access out of the box (Snap's `alsa` interface is
+  `deny-auto-connection`).
 - A Windows code-signing certificate, a self-hosted Windows installer, and the
   portable zip as a public download (unsigned ⇒ blocked by Smart App Control).
 - Distributions other than Debian/Ubuntu derivatives as packages. They keep the
@@ -127,7 +129,7 @@ The manifest itself:
   "min_supported_version": "1.20.0+27",
   "notes_url": "https://github.com/NEETROF/cymbra/releases/tag/music-v1.25.0",
   "targets": {
-    "linux-x64":   { "kind": "deb",        "url": "https://…_amd64.deb",   "size": 52428800, "sha256": "…" }
+    "linux-x64":   { "kind": "appimage",   "url": "https://….AppImage",   "size": 52428800, "sha256": "…" }
   }
 }
 ```
@@ -173,57 +175,38 @@ loopback behave as in an unpackaged build (to confirm on a real machine).
 (blocked by Smart App Control). `msstore package`, which runs its own
 `flutter build` without this repository's `--dart-define`s.
 
-### 5. Linux: a `.deb` upgraded by a privileged helper the app cannot steer
+### 5. Linux: AppImage that replaces itself
 
-*Revised 2026-10-24 — replaces the self-replacing AppImage, which was implemented
-first.*
+The AppImage is built with the current `appimagetool`, whose static type-2
+runtime embeds FUSE 3: hosts need FUSE support (`fusermount3`, present on
+current desktops) but no longer `libfuse2`. It is not added to the desktop's
+application menu by itself; integration tools (Gear Lever, AppImageLauncher) do
+that, and the download page says so.
 
-The package installs the Flutter bundle whole under `/opt/cymbra-music` (the
-embedder resolves `data/` and `lib/` relative to the executable), a launcher
-symlink, a desktop entry, an icon, a marker file `install_method.txt` = `deb`,
-and two update pieces owned by root:
 
-- `/usr/lib/cymbra-music/cymbra-update-helper`, a small Rust binary built from
-  `crates/update-manifest`, so it verifies with the **same code** as the backend
-  and the CI signer;
-- a polkit action whose `exec.path` annotation names exactly that helper, so the
-  system dialog says "Cymbra Music wants to install an update" instead of a
-  generic "run a program as administrator".
+The AppImage runtime exports `$APPIMAGE` (the absolute path of the running file).
+The updater downloads the new AppImage **into the same directory** — same
+filesystem, so the swap is a single atomic `rename()` — `chmod 0755`, renames it
+over `$APPIMAGE`, then re-executes that path detached and exits.
 
-Update flow: the app verifies and downloads as on Windows, then runs
-`pkexec /usr/lib/cymbra-music/cymbra-update-helper <envelope> <package>` and the
-user types their password. The helper treats both files as **hostile input**:
+Replacing a running executable by `rename()` is safe on Linux: the running
+process keeps the old inode open. (Overwriting in place is what fails, with
+`ETXTBSY`.)
 
-1. reads both into memory under size caps and writes the package into a fresh
-   root-owned directory — every later check runs on that private copy, so a
-   process of the user swapping the file after the password prompt changes
-   nothing;
-2. verifies the envelope against the trusted keys **compiled into the helper**
-   (never keys passed in by the caller), requires `product = music` and a
-   `linux-x64` target of kind `deb`;
-3. checks the copy's size and SHA-256 against that target;
-4. refuses anything not strictly newer than the installed package version;
-5. installs the copy with `apt-get install` (which resolves dependencies), then
-   deletes it.
+If `$APPIMAGE` is unset (tarball install, `flutter run`) or the directory is not
+writable (`/opt`, root-owned), the updater takes the notify-only path. It never
+escalates privileges.
 
-The app relaunches itself once the helper exits successfully. A dismissed
-password dialog (pkexec exit 126) is not an error: the offer stays available.
-
-Replacing files of a running program is safe here for the same reason as before:
-`dpkg` unpacks by rename, and the running process keeps its open inodes.
-
-*Why a helper and not `pkexec apt-get install <file>`.* The app runs as the
-user; whatever the user's account can write, malware running as the user can
-write too. If root installed a path the app handed over, typing the password
-would install whatever sits at that path at that moment — a privilege escalation
-dressed as an update. The helper closes that by verifying, as root, a private
-copy against keys the caller cannot supply.
-
-*Alternatives considered.* The AppImage self-swap (implemented first, then
-dropped: it does not match how Linux users install software, and needs FUSE on
-the host). An APT repository (no in-app update; the user must add a source). A
-per-user tarball that swaps its directory (not atomic; a crash mid-swap leaves a
-broken install).
+*Alternatives considered.* A `.deb` upgraded from the app through `pkexec` and a
+root-owned helper re-verifying a private copy (implemented and tested on
+2026-10-24, then dropped: Debian/Ubuntu only, a password at every update, and
+privileged code to maintain). `.deb` + self-hosted APT repo — apt would handle
+updates with no in-app code, but needs a GPG-signed repository, the user must add
+the source and have root, and the update UX leaves the product entirely.
+Self-hosted Flatpak — best desktop-integrated UX, heaviest infrastructure
+(ostree repo, build manifest) and the user must add a remote. Swapping the
+`tar.gz` directory in place — works only for user-writable installs and is not
+atomic mid-swap, so a crash leaves a broken installation.
 
 ### 6. Verify in a fixed order, and never downgrade
 
@@ -315,13 +298,9 @@ moving to the next one is a deliberate decision to drop those distributions.
   audience; no public fallback, since an unsigned binary is blocked anyway.
 - **The first Store submission is manual** (app reservation, listing, age rating,
   privacy policy URL) before CI can submit updates.
-- **The Linux helper runs as root.** → It is small, reads only its two
-  arguments, verifies a private copy against compiled-in keys, and is tested on
-  the same golden fixtures as the backend. It never runs anything but
-  `apt-get install` on a verified package.
-- **No polkit agent** (a bare window manager, an SSH session). → `pkexec` cannot
-  ask; the app reports a localized "could not install, download it instead"
-  message and offers the release page.
+
+- **`appimagetool` needs FUSE**, which GitHub runners do not reliably provide. →
+  Invoke it with `--appimage-extract-and-run`.
 - **Signing key loss or compromise.** → Loss means clients stop accepting new
   releases until a build ships with a new key, so the key is backed up out of
   band at creation. Compromise is contained by shipping a build that drops the

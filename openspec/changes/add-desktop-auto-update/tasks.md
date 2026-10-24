@@ -39,16 +39,15 @@
 - [x] 4.5 Document the Partner Center setup (company account, app reservation, first manual submission, Entra app for the API, the secrets and variables) in the workflow header and `apps/music/README.md`.
 - [x] 4.6 The runner version resource names the company (`CompanyName`, `LegalCopyright`), consistent with the Store publisher.
 
-## 5. Linux packaging — Debian package
+## 5. Linux packaging — AppImage
 
-*Revised 2026-10-24: the AppImage (implemented first: AppDir recipe, `appimagetool`, CI smoke check) is replaced by a `.deb`; its recipe and CI steps are removed.*
+*Revised 2026-10-24: a `.deb` upgraded through `pkexec` and a root helper was implemented, tested (CI dry-run, Docker end to end) and then dropped by the owner for the AppImage implemented in August; the `.deb` recipe, the helper and their CI steps are removed.*
 
-- [x] 5.1 Move the `linux` job of `music-release.yml` — and only it — to `ubuntu-22.04`, with a comment on why and on what retiring that image will mean. Verify: a dispatch dry-run builds, and the binary's highest required `GLIBC_` symbol is ≤ 2.35 (`objdump -T`). Verified 2026-10-24, run 40114401284: built on `ubuntu-22.04`, highest required symbol `GLIBC_2.34`.
-- [x] 5.2 Add `apps/music/linux/deb/`: control template (`Package: cymbra-music`, `Depends` on GTK 3, ALSA, libsecret and pkexec, with the alternatives that exist on 22.04 / 24.04 / Debian 12), `.desktop`, icon, polkit action annotated with the helper path, marker file. Verify: `dpkg-deb --info` / `--contents` in CI.
-- [x] 5.3 Add the package build script assembling `/opt/cymbra-music` (whole Flutter bundle), the launcher symlink, the desktop entry, the icon, the helper and the policy, with root ownership and the version from `pubspec.yaml`. Verify: `lintian` has no error-level tag, or each remaining one is justified in the script.
-- [x] 5.4 Wire it into the `linux` job, keep the tarball step, attach the `.deb` to the release (tag-gated) and hand it to the manifest job as the `linux-x64` target of kind `deb`.
-- [x] 5.5 Smoke-check in CI: install the package with `apt-get install ./…deb` on the runner, check the files, the marker, the policy and that the helper reports its version; then remove it. Verified 2026-10-24, run 40114401284: installed with its dependencies, helper `--version`, polkit action read from its file, removed.
-- [x] 5.6 Remove `apps/music/linux/appimage/` and the AppImage CI steps.
+- [x] 5.1 Move the `linux` job of `music-release.yml` — and only it — to `ubuntu-22.04`, with a comment on why and on what retiring that image will mean. Verified 2026-10-24, run 40114401284: highest required symbol `GLIBC_2.34`.
+- [ ] 5.2 Restore `apps/music/linux/appimage/` (`AppRun`, `.desktop`, icon, `build_appdir.sh`) and the `appimagetool --appimage-extract-and-run` packaging in the `linux` job, keeping the tarball. Verify: the dry-run builds the AppImage.
+- [ ] 5.3 Smoke-check in CI: the AppImage is executable, unpacks to the expected layout, and the bundled binary's glibc floor is reported. Verify: in the dry-run log.
+- [ ] 5.4 Attach the AppImage to the release (tag-gated) and hand it to the manifest job as the `linux-x64` target of kind `appimage`.
+- [ ] 5.5 Remove the `.deb` recipe, the privileged helper (`cymbra-update-helper`, `release-keys.json`) and their tests and CI steps.
 
 ## 6. Release pipeline — sign, publish, ingest
 
@@ -69,11 +68,9 @@
 - [x] 7.6 Implement the download path: unique directory inside the app's private temp storage, streamed download with progress, hard size cap, incremental SHA-256, delete on mismatch.
 - [x] 7.7 Add the `UpdateInstaller` seam plus a `ProcessRunner` seam so no test ever spawns a process.
 - [x] 7.8 ~~`WindowsUpdateInstaller`~~ — implemented, then removed with the move to the Microsoft Store (4.1).
-- [x] 7.9 Replace the AppImage installer with `LinuxPackageUpdateInstaller`: package marker + helper + `pkexec` present ⇒ self-installable; write the verified envelope beside the package; run `pkexec <helper> <envelope> <package>`; exit 0 ⇒ relaunch + quit, 126 ⇒ cancelled (offer stays, no error), anything else ⇒ failed with a localized message; no marker ⇒ notify-only. (Was: : read `$APPIMAGE`, verify the directory is writable, download beside it, `chmod 0755`, atomic rename over the running file, relaunch detached, exit; unset or read-only ⇒ report not-self-installable, never escalate.
+- [ ] 7.9 Restore `LinuxUpdateInstaller` (AppImage): read `$APPIMAGE`, verify the directory is writable, stage beside it, `chmod 0755`, atomic rename over the running file, relaunch detached, exit; unset or read-only ⇒ notify-only. (The `.deb` installer that replaced it on 2026-10-24 is removed.)
 - [x] 7.10 Add `lib/services/update/rollout_bucket.dart`: draw once, persist in `shared_preferences`, compare against `rollout_percent`.
 - [x] 7.11 Expose all seams as Riverpod providers per the `flutter-riverpod-architecture` skill.
-- [x] 7.12 Add the privileged helper `cymbra-update-helper` (bin in `crates/update-manifest`): read both arguments under size caps, copy the package into a fresh root-owned directory, verify the envelope against the compiled-in key set, require `product = music` and a `linux-x64` `deb` target, check size + SHA-256 of the copy, require a strictly newer version than `dpkg-query` reports, run `apt-get install` on the copy, clean up. The decision logic is a pure function. Verify: unit tests on the golden fixtures — valid, substituted package, tampered envelope, unknown key, wrong product/kind, not newer — and a test that the helper's key set equals the app's.
-- [x] 7.13 Add an `InstallCancelled` outcome and handle it in the notifier (back to the offer, no error). Verify: notifier test.
 
 ## 8. App — state, UI and localization
 
@@ -97,7 +94,7 @@
 - [x] 9.3 Dart tests for the service: no-downgrade, size cap exceeded, checksum mismatch deletes and refuses to execute, target selection per os/arch, missing target.
 - [x] 9.4 Notifier tests with mockito-generated mocks via `ProviderScope` overrides: throttle honoured, manual check bypasses throttle and rollout, skipped version not re-offered, flag off ⇒ no check, non-desktop ⇒ no check, prompt deferred during a session.
 - [x] 9.5 Installer tests over the `ProcessRunner` seam (the Windows and AppImage cases are superseded by 4.1 and 9.9).
-- [x] 9.9 Linux package installer tests over the `ProcessRunner` seam: exact `pkexec` arguments, exit 0 / 126 / other, marker / helper / `pkexec` missing ⇒ notify-only, envelope written beside the package.
+- [ ] 9.9 AppImage installer tests over the `ProcessRunner` seam: chmod before rename, atomic swap, relaunch, `$APPIMAGE` unset or read-only ⇒ notify-only, failed chmod leaves the old file, stale staging file replaced.
 - [x] 9.6 Widget tests: prompt, progress, notify-only variant, blocking forced-update screen.
 - [x] 9.7 Rust tests for the feed handlers and the manifest crate, including the same golden fixture.
 - [x] 9.8 `cargo llvm-cov` ≥ 80 % and `flutter test --coverage` ≥ 80 % for the new code; `melos run analyze`, `dart run custom_lint`, `dart format`, `cargo fmt`, `cargo clippy -D warnings` all clean.
@@ -107,10 +104,10 @@
 - [ ] 10.1 Deploy the backend + Caddy change and confirm `GET /updates/desktop` returns `204` in production before any release is ingested.
 - [x] 10.2 Build both artifacts from a dispatch dry-run and confirm the workflow signs, uploads and ingests nothing. Verified 2026-10-24, run 40114401284: all six build jobs green, `manifest` skipped, release uploads, Play, TestFlight and the Discord post not run; Windows built unsigned with the notice.
 - [ ] 10.3 Install the Store build on a real Windows 11 machine with Smart App Control on: no warning, MIDI keyboard, sound, Google sign-in (loopback) and web checkout work inside the package.
-- [ ] 10.4 Install the `.deb` on clean Ubuntu 22.04, Ubuntu 24.04 and Debian 12 desktops: dependencies resolve, the app launches from the application list, MIDI keyboard and sound work.
+- [ ] 10.4 Run the AppImage on clean Ubuntu 22.04, Ubuntu 24.04, Debian 12 and Fedora desktops: launches, MIDI keyboard and sound work; note what an integration tool (Gear Lever) adds to the menu.
 - [ ] 10.5 Tag a release, verify the envelope asset, ingest at rollout 0, then raise it and confirm the client picks it up.
 - [ ] 10.6 Submit a second version through the tag: certification passes and the installed app updates through the Store.
-- [ ] 10.7 End-to-end Linux package update: the password dialog names Cymbra Music, the package is upgraded, the app relaunches on the new version; cancelling the dialog leaves the offer; a substituted package is refused.
+- [ ] 10.7 End-to-end Linux AppImage update: no password asked, file replaced in place, relaunch on the new version; an AppImage in a read-only directory shows notify-only.
 - [ ] 10.8 Negative paths on real builds: the tarball shows notify-only; a manifest with a bad signature is refused and nothing is downloaded.
 - [ ] 10.9 Set `rollout_percent = 0` and confirm the release stops being offered within the cache lifetime.
 - [ ] 10.10 Confirm a forced update below `min_supported_version` blocks, in all four locales.

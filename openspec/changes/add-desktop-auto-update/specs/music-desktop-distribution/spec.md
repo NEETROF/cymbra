@@ -38,38 +38,29 @@ No unsigned Windows executable SHALL be offered to the public.
 - **THEN** no unsigned Windows executable or archive SHALL be attached to the
   GitHub Release
 
-### Requirement: Linux releases ship a Debian package
+### Requirement: Linux releases ship an AppImage
 
-The Linux release artifact SHALL include a `.deb` package for Debian and Ubuntu
-derivatives that installs the application system-wide with a desktop entry and
-icon, and that carries the privileged update helper and its system
-authorization policy. The tarball SHALL continue to be published alongside it.
+The Linux release artifact SHALL include a self-contained AppImage that runs
+without installation or root, so that the application can replace its own file
+when updating. The tarball SHALL continue to be published alongside it.
 
-#### Scenario: Release produces a package
+#### Scenario: Release produces an AppImage
 
 - **WHEN** a `music-v*` tag triggers the release build
-- **THEN** the Linux job SHALL produce a `.deb` package and attach it to the
-  GitHub Release, in addition to the tarball
+- **THEN** the Linux job SHALL produce an executable AppImage and attach it to
+  the GitHub Release, in addition to the tarball
 
-#### Scenario: Installation through the package manager
+#### Scenario: The AppImage is self-contained
 
-- **WHEN** the package is installed with the system package manager on a
-  supported distribution
-- **THEN** the package manager SHALL install its declared runtime dependencies,
-  and the application SHALL appear in the desktop's application list with its
-  name and icon
+- **WHEN** the AppImage is run on a supported distribution without the
+  application's build dependencies installed
+- **THEN** it SHALL launch, bundling the Flutter and native runtime libraries it
+  needs
 
-#### Scenario: The install method is discoverable at runtime
+#### Scenario: Desktop metadata is embedded
 
-- **WHEN** the package is installed
-- **THEN** it SHALL leave a marker beside the application identifying the
-  installation as package-managed, so the running application can tell it apart
-  from a tarball extraction
-
-#### Scenario: Upgrade in place
-
-- **WHEN** a package for a later version is installed over an existing one
-- **THEN** it SHALL upgrade that installation rather than install a second copy
+- **WHEN** the AppImage is inspected or integrated by a desktop environment
+- **THEN** it SHALL carry the application name, icon and desktop entry
 
 ### Requirement: Linux builds run on the oldest supported distribution
 

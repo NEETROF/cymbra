@@ -17,17 +17,18 @@ compromise of the hosting side, not just to a download button.
 ## What Changes
 
 - **Windows ships through the Microsoft Store** (revised 2026-10-24: the owner will not pay for a code-signing certificate). The release builds an MSIX from the Flutter build and submits it to the Store, which re-signs it — no SmartScreen warning, no Smart App Control block, no certificate — and updates it. The site's download button uses the Store web installer, so a visitor never has to browse the Store. Company developer accounts are free since 2026-05. The app does not self-update on Windows. The portable zip is no longer offered to the public (unsigned, Smart App Control blocks it).
-- **Linux artifact becomes a `.deb` package.** Installed under `/opt/cymbra-music`
-  with a desktop entry, as a Linux user expects to install software. It ships a
-  small privileged update helper so the app can update itself through the
-  system's own password dialog. The `tar.gz` stays published (other distributions;
-  no self-update). The Linux build moves to the oldest supported Ubuntu (22.04),
-  so the binary also runs on Ubuntu 22.04 and Debian 12 — today's build on the
-  latest Ubuntu does not, a defect the tarball already carries.
+- **Linux artifact gains an AppImage** (a `.deb` upgraded through `pkexec` was
+  tried on 2026-10-24 and dropped the same day by the owner): a single
+  self-contained file that runs on every distribution and replaces itself in
+  place, with no password and no privileged code. The `tar.gz` stays published.
+  The Linux build moves to the oldest supported Ubuntu (22.04), so the binary also
+  runs on Ubuntu 22.04 and Debian 12 — today's build on the latest Ubuntu does
+  not, a defect the tarball already carries.
 - **On Linux, the app checks for updates, downloads, verifies and installs.** A throttled
   check on launch (once per 24 h) plus an on-demand check from settings; a
-  non-blocking prompt; download with progress; then a password-confirmed package
-  upgrade + relaunch. The tarball, which cannot self-update, degrades to "a new version exists, here is the download
+  non-blocking prompt; download with progress; then an atomic swap of the
+  AppImage + relaunch. The tarball and a read-only AppImage location, which cannot
+  self-update, degrade to "a new version exists, here is the download
   page" rather than failing.
 - **A signed update manifest, served by the backend.** A new public HTTP
   endpoint returns the manifest for a product/channel/OS/arch. The manifest is
@@ -52,7 +53,7 @@ compromise of the hosting side, not just to a download button.
   installs per platform, how it degrades, and how it behaves in the UI.
 - `music-desktop-distribution`: the Windows and Linux release artifacts and how
   they are produced and published — the Windows MSIX submitted to the Microsoft
-  Store, the Linux `.deb` and the signed manifest published alongside it.
+  Store, the Linux AppImage and the signed manifest published alongside it.
 
 ### Modified Capabilities
 <!-- None. `runtime-feature-flags`, `backend-service` and
@@ -61,7 +62,7 @@ compromise of the hosting side, not just to a download button.
 
 ## Impact
 
-**Products.** Music: new (Store MSIX, `.deb`, Linux in-app updater, settings entry,
+**Products.** Music: new (Store MSIX, AppImage, Linux in-app updater, settings entry,
 localized strings). Platform/backend: new (public `/updates/*` router, admin
 ingest route, one table, one shared manifest crate). Live: nothing now — the
 feed is shaped so it can consume it later. Back-office and site: untouched;
@@ -71,13 +72,13 @@ rollout is driven by the CI ingest payload, a back-office screen is a follow-up.
 - `apps/music/lib/services/update/*` (service, installer seams, manifest
   verification), `apps/music/lib/state/*` (Riverpod notifier + a listener
   widget), settings entry, `l10n` strings (fr/en).
-- `apps/music/pubspec.yaml` (`msix` packaging config), `apps/music/linux/deb/`
-  (package recipe: control file, `.desktop`, icon, polkit policy).
+- `apps/music/pubspec.yaml` (`msix` packaging config), `apps/music/linux/appimage/`
+  (AppDir recipe: `AppRun`, `.desktop`, icon).
 - `backend/updates` (the module owns its HTTP surface; the server mounts it) + a
-  new `crates/update-manifest` shared by the backend ingest, the CI signing
-  binary and the Linux privileged update helper.
+  new `crates/update-manifest` shared by the backend ingest and the CI signing
+  binary.
 - [music-release.yml](../../../.github/workflows/music-release.yml): MSIX
-  packaging and Store submission in the `windows` job, `.deb` packaging in the
+  packaging and Store submission in the `windows` job, AppImage packaging in the
   `linux` job, plus a manifest job that signs and publishes the Linux release.
 
 **Ops.** `/updates/*` **must** be added to the Caddy allow-list
@@ -96,4 +97,4 @@ on the Rust side. No new runtime service.
 
 **Risk.** The updater executes downloaded code, so the whole design hangs on
 verify-before-execute (signature, then size, then SHA-256, then no-downgrade).
-On Linux the privileged helper is the piece to keep small and tested; on Windows the Store owns signing and updates.
+On Linux the AppImage swap is the piece to keep atomic and tested; on Windows the Store owns signing and updates.
