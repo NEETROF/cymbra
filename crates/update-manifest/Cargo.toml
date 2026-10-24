@@ -18,6 +18,8 @@ serde_json.workspace = true
 base64.workspace = true
 ed25519-dalek = { workspace = true }
 thiserror.workspace = true
+# The Linux update helper hashes the package it is about to install.
+sha2.workspace = true
 rand_core = { version = "0.6", features = ["getrandom"] }
 
 [dev-dependencies]
@@ -34,3 +36,10 @@ path = "src/bin/keygen.rs"
 [[bin]]
 name = "update-sign"
 path = "src/bin/sign.rs"
+
+# Linux privileged update helper (design D5): installed by the .deb under
+# /usr/lib/cymbra-music and run through pkexec. Verifies a private copy of the
+# package against its own compiled-in keys before `apt-get install`.
+[[bin]]
+name = "cymbra-update-helper"
+path = "src/bin/helper.rs"

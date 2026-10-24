@@ -37,13 +37,13 @@
 
 use std::sync::Arc;
 
+use crate::{Release, ReleaseRepo, version_order};
 use axum::Router;
 use axum::extract::{Query, State};
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use cymbra_update_manifest::{Envelope, TrustedKeys, VerifyError};
-use crate::{Release, ReleaseRepo, version_order};
 use serde::Deserialize;
 
 /// How long a feed response may be cached. The kill-switch (`rollout_percent = 0`)
@@ -215,12 +215,12 @@ pub fn release_from_envelope(body: &str, trusted: &TrustedKeys) -> Result<Releas
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::MockReleaseRepo;
     use axum::body::Body;
     use axum::http::Request;
     use base64::Engine as _;
     use base64::engine::general_purpose::STANDARD as B64;
     use cymbra_update_manifest::{Manifest, SCHEMA_VERSION, Target, sign};
-    use crate::MockReleaseRepo;
     use ed25519_dalek::SigningKey;
     use std::collections::BTreeMap;
     use tower::ServiceExt as _;

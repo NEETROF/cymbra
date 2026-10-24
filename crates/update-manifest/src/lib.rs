@@ -35,6 +35,8 @@
 
 use std::collections::BTreeMap;
 
+pub mod helper;
+
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as B64;
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
@@ -210,6 +212,18 @@ pub fn signing_key_from_base64(b64: &str) -> Result<SigningKey, VerifyError> {
     Ok(SigningKey::from_bytes(&array))
 }
 
+/// The release keys a shipped build trusts, `key_id` → base64 public key — the
+/// one checked-in source for the Linux helper, and the set the app's
+/// `kUpdateTrustedKeys` is tested against (a drift fails a test, not an update).
+pub const RELEASE_KEYS_JSON: &str = include_str!("../release-keys.json");
+
+/// [`RELEASE_KEYS_JSON`] as a [`TrustedKeys`] set.
+pub fn release_keys() -> Result<TrustedKeys, VerifyError> {
+    let pairs: BTreeMap<String, String> =
+        serde_json::from_str(RELEASE_KEYS_JSON).map_err(|_| VerifyError::MalformedBase64)?;
+    trusted_keys_from_pairs(pairs.iter().map(|(k, v)| (k.as_str(), v.as_str())))
+}
+
 /// Parse the `CYMBRA_UPDATE_TRUSTED_KEYS` form: `id=<base64>` entries separated
 /// by commas. Empty input yields an empty set, which fails every ingest closed.
 pub fn trusted_keys_from_env_value(value: &str) -> Result<TrustedKeys, VerifyError> {
@@ -227,6 +241,12 @@ pub fn trusted_keys_from_env_value(value: &str) -> Result<TrustedKeys, VerifyErr
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn the_release_key_set_parses() {
+        let keys = release_keys().unwrap();
+        assert!(!keys.is_empty());
+    }
     use super::*;
 
     /// A fixed secret so the fixture and these tests are reproducible. This is a
