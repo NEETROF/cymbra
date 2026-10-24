@@ -28,17 +28,16 @@
 - [x] 3.2 Document the deploy step in `backend/deploy/DEPLOY.md`: git pull + `caddy reload` on the box, then `curl -i https://<prod>/updates/desktop?product=music&channel=stable` expecting `204` (not a gRPC-shaped response).
 - [x] 3.3 Add the new env vars to the prod compose/env files and to the deploy checklist.
 
-## 4. Windows packaging — per-user installer
+## 4. Windows packaging — Microsoft Store
 
-- [x] 4.1 Write `apps/music/windows/installer/cymbra.iss`: `PrivilegesRequired=lowest`, `DefaultDirName={localappdata}\Programs\Cymbra`, `CloseApplications=yes`, `RestartApplications=yes`, uninstall entry, icon.
-- [x] 4.2 Generate the `AppId` GUID once, hard-code it, and comment in the file header that it is permanent — changing it makes later updates install alongside instead of over.
-- [x] 4.3 Add a `[Files]` marker written into `{app}` identifying the install as installer-managed (read at runtime to tell it apart from the portable zip).
-- [x] 4.4 Add the `[Run]` relaunch entry flagged `postinstall nowait` **without** `skipifsilent`, so a silent update relaunches the app.
-- [x] 4.5 Wire the installer build into the `windows` job of [music-release.yml](../../../.github/workflows/music-release.yml) (use the preinstalled `iscc` if the runner image has it, otherwise install Inno Setup), keeping the portable zip step.
-- [x] 4.6 Attach the installer to the GitHub Release alongside the zip, tag-gated like the existing uploads.
-- [ ] 4.7 Sign `music.exe`, the bundled `.dll`s and the installer (plus Inno's uninstaller via its `SignTool` directive) with Artifact Signing in the `windows` job, BEFORE the installer is uploaded for the manifest job; absent secrets ⇒ unsigned dry-run with a notice. Verify: `signtool verify /pa` passes on both files in the job log.
-- [x] 4.8 Align the publisher name: `CompanyName` / `LegalCopyright` in `windows/runner/Runner.rc` say the company's legal name, like the installer's `AppPublisher`. Verify: the built exe's file properties.
-- [x] 4.9 Document the Artifact Signing setup (Azure subscription, identity validation, certificate profile, service principal, the repository secrets) in the workflow header and `apps/music/README.md`.
+*Revised 2026-10-24: the per-user Inno installer, its silent self-update and the Artifact Signing step (implemented first, groups 4.1–4.9 of the earlier plan) are replaced by the Microsoft Store; their code is removed.*
+
+- [ ] 4.1 Remove the Inno installer (`apps/music/windows/installer/`), the Windows signing steps and secrets documentation, the `WindowsUpdateInstaller` and its tests; the Windows build never self-updates (`AppPlatform.selfUpdates` is Linux only) and the manifest carries no Windows target. Verify: no `inno`/`signtool`/`ARTIFACT_SIGNING` left outside the archive notes; installer and notifier tests pass.
+- [ ] 4.2 Add the `msix` dev dependency and its `msix_config` (display name, logo, languages, capabilities, `store: true`), the Store identity values coming from repository variables at package time. Verify: `flutter analyze` clean.
+- [ ] 4.3 In the `windows` job: package the release build with `msix:create --store --build-windows false`, version `major.minor.patch.0`; placeholder identity on a dry run. Verify: the dry-run job produces an `.msix`.
+- [ ] 4.4 On a `music-v*` tag: install the Microsoft Store Developer CLI, `msstore reconfigure` from the Partner Center secrets, `msstore publish -i <msix> -id <product>`; fail the job if the credentials are missing. Stop attaching the portable zip to the GitHub Release.
+- [ ] 4.5 Document the Partner Center setup (company account, app reservation, first manual submission, Entra app for the API, the secrets and variables) in the workflow header and `apps/music/README.md`.
+- [x] 4.6 The runner version resource names the company (`CompanyName`, `LegalCopyright`), consistent with the Store publisher.
 
 ## 5. Linux packaging — Debian package
 
@@ -69,7 +68,7 @@
 - [x] 7.5 Add `DesktopUpdateService` (abstract + HTTP implementation): fetch the feed, verify, select the target for the running os/arch, reject non-newer versions.
 - [x] 7.6 Implement the download path: unique directory inside the app's private temp storage, streamed download with progress, hard size cap, incremental SHA-256, delete on mismatch.
 - [x] 7.7 Add the `UpdateInstaller` seam plus a `ProcessRunner` seam so no test ever spawns a process.
-- [x] 7.8 Implement `WindowsUpdateInstaller`: detect the installer marker, spawn detached with `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS`, then exit; no marker ⇒ report not-self-installable.
+- [x] 7.8 ~~`WindowsUpdateInstaller`~~ — implemented, then removed with the move to the Microsoft Store (4.1).
 - [x] 7.9 Replace the AppImage installer with `LinuxPackageUpdateInstaller`: package marker + helper + `pkexec` present ⇒ self-installable; write the verified envelope beside the package; run `pkexec <helper> <envelope> <package>`; exit 0 ⇒ relaunch + quit, 126 ⇒ cancelled (offer stays, no error), anything else ⇒ failed with a localized message; no marker ⇒ notify-only. (Was: : read `$APPIMAGE`, verify the directory is writable, download beside it, `chmod 0755`, atomic rename over the running file, relaunch detached, exit; unset or read-only ⇒ report not-self-installable, never escalate.
 - [x] 7.10 Add `lib/services/update/rollout_bucket.dart`: draw once, persist in `shared_preferences`, compare against `rollout_percent`.
 - [x] 7.11 Expose all seams as Riverpod providers per the `flutter-riverpod-architecture` skill.
@@ -97,7 +96,7 @@
 - [x] 9.2 Dart tests for manifest verification against the **checked-in golden fixture** — valid, tampered bytes, tampered signature, unknown key id, unknown schema — proving Rust/Dart compatibility.
 - [x] 9.3 Dart tests for the service: no-downgrade, size cap exceeded, checksum mismatch deletes and refuses to execute, target selection per os/arch, missing target.
 - [x] 9.4 Notifier tests with mockito-generated mocks via `ProviderScope` overrides: throttle honoured, manual check bypasses throttle and rollout, skipped version not re-offered, flag off ⇒ no check, non-desktop ⇒ no check, prompt deferred during a session.
-- [x] 9.5 Installer tests over the `ProcessRunner` seam: correct Windows arguments, marker absent ⇒ notify-only (AppImage cases superseded by 9.9).
+- [x] 9.5 Installer tests over the `ProcessRunner` seam (the Windows and AppImage cases are superseded by 4.1 and 9.9).
 - [x] 9.9 Linux package installer tests over the `ProcessRunner` seam: exact `pkexec` arguments, exit 0 / 126 / other, marker / helper / `pkexec` missing ⇒ notify-only, envelope written beside the package.
 - [x] 9.6 Widget tests: prompt, progress, notify-only variant, blocking forced-update screen.
 - [x] 9.7 Rust tests for the feed handlers and the manifest crate, including the same golden fixture.
@@ -107,12 +106,11 @@
 
 - [ ] 10.1 Deploy the backend + Caddy change and confirm `GET /updates/desktop` returns `204` in production before any release is ingested.
 - [x] 10.2 Build both artifacts from a dispatch dry-run and confirm the workflow signs, uploads and ingests nothing. Verified 2026-10-24, run 40114401284: all six build jobs green, `manifest` skipped, release uploads, Play, TestFlight and the Discord post not run; Windows built unsigned with the notice.
-- [ ] 10.3 Install the Windows installer as a standard user: no elevation prompt, app launches, marker present.
+- [ ] 10.3 Install the Store build on a real Windows 11 machine with Smart App Control on: no warning, MIDI keyboard, sound, Google sign-in (loopback) and web checkout work inside the package.
 - [ ] 10.4 Install the `.deb` on clean Ubuntu 22.04, Ubuntu 24.04 and Debian 12 desktops: dependencies resolve, the app launches from the application list, MIDI keyboard and sound work.
 - [ ] 10.5 Tag a release, verify the envelope asset, ingest at rollout 0, then raise it and confirm the client picks it up.
-- [ ] 10.6 End-to-end Windows update from the previous version: prompt, download, silent install, relaunch on the new version, no UAC.
+- [ ] 10.6 Submit a second version through the tag: certification passes and the installed app updates through the Store.
 - [ ] 10.7 End-to-end Linux package update: the password dialog names Cymbra Music, the package is upgraded, the app relaunches on the new version; cancelling the dialog leaves the offer; a substituted package is refused.
-- [ ] 10.8 Negative paths on real builds: portable zip and tarball show notify-only; a manifest with a bad signature is refused and nothing is downloaded.
+- [ ] 10.8 Negative paths on real builds: the tarball shows notify-only; a manifest with a bad signature is refused and nothing is downloaded.
 - [ ] 10.9 Set `rollout_percent = 0` and confirm the release stops being offered within the cache lifetime.
 - [ ] 10.10 Confirm a forced update below `min_supported_version` blocks, in all four locales.
-- [ ] 10.11 Windows: the installer and the app show the company as verified publisher; a machine with Smart App Control on installs and updates.

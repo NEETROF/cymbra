@@ -1,28 +1,27 @@
 ## ADDED Requirements
 
-### Requirement: Desktop-only update checking
+### Requirement: Linux-only update checking
 
-Cymbra Music SHALL check for updates only on the Windows and Linux desktop
-builds. On iOS, Android and macOS, where distribution is store-managed, the app
+Cymbra Music SHALL check for updates only on the Linux desktop build. On Windows,
+iOS, Android and macOS, where distribution and updates are store-managed, the app
 SHALL NOT check, prompt, download or install anything.
 
 #### Scenario: Store-managed platform never checks
 
-- **WHEN** the app starts on iOS, Android or macOS
+- **WHEN** the app starts on Windows, iOS, Android or macOS
 - **THEN** no update check SHALL be performed and no update user interface
   SHALL be reachable
 
-#### Scenario: Desktop platform checks at launch
+#### Scenario: Linux checks at launch
 
-- **WHEN** the app starts on Windows or Linux and the last successful check is
-  older than 24 hours
+- **WHEN** the app starts on Linux and the last successful check is older than
+  24 hours
 - **THEN** the app SHALL fetch the update feed in the background without
   blocking startup
 
 #### Scenario: Check is throttled
 
-- **WHEN** the app starts on Windows or Linux and a check succeeded less than
-  24 hours ago
+- **WHEN** the app starts on Linux and a check succeeded less than 24 hours ago
 - **THEN** no network request SHALL be made
 
 #### Scenario: Manual check ignores the throttle
@@ -111,31 +110,6 @@ release only when its rollout percentage covers that bucket.
 - **WHEN** the user explicitly checks for updates from settings
 - **THEN** the app SHALL offer the verified release regardless of the rollout
   percentage
-
-### Requirement: Silent installation on Windows without elevation
-
-The app SHALL apply an update by running the verified installer silently and
-relaunching, without requesting administrator elevation, whenever the running
-Windows build was installed by the Cymbra per-user installer.
-
-#### Scenario: Silent update of a per-user install
-
-- **WHEN** the user approves an update on a Windows install carrying the
-  installer's marker
-- **THEN** the app SHALL start the verified installer detached in silent mode,
-  exit, and SHALL be relaunched by the installer once the files are replaced
-
-#### Scenario: No elevation prompt
-
-- **WHEN** an update is applied to a per-user installation
-- **THEN** no User Account Control prompt SHALL be shown
-
-#### Scenario: Portable installation cannot self-install
-
-- **WHEN** the running Windows build has no installer marker, as with the
-  portable archive
-- **THEN** the app SHALL NOT attempt an install and SHALL instead offer to open
-  the release page
 
 ### Requirement: Password-confirmed package upgrade on Linux
 

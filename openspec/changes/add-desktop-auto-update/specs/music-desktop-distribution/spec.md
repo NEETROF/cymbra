@@ -1,42 +1,42 @@
 ## ADDED Requirements
 
-### Requirement: Windows releases ship a per-user installer
+### Requirement: Windows releases ship through the Microsoft Store
 
-The Windows release artifact SHALL include an installer that installs for the
-current user only, into the user's local application data directory, so that
-subsequent updates can be applied without administrator elevation. The portable
-archive SHALL continue to be published alongside it.
+The Windows release SHALL be an MSIX package built from the release's own Windows
+build and submitted to the Microsoft Store, which signs it and delivers updates.
+No unsigned Windows executable SHALL be offered to the public.
 
-#### Scenario: Release produces an installer
+#### Scenario: A tagged release is submitted
 
-- **WHEN** a `music-v*` tag triggers the release build
-- **THEN** the Windows job SHALL produce an installer executable and attach it
-  to the GitHub Release, in addition to the portable archive
+- **WHEN** a `music-v*` tag triggers the release build and the Store credentials
+  are configured
+- **THEN** the Windows job SHALL package the build as an MSIX whose version is the
+  release's `major.minor.patch` followed by `.0`, and SHALL submit it to the
+  Store under the configured product
 
-#### Scenario: Installation requires no elevation
+#### Scenario: The package carries the release build
 
-- **WHEN** the installer is run by a standard user
-- **THEN** it SHALL install without requesting administrator elevation, into a
-  per-user location
+- **WHEN** the MSIX is produced
+- **THEN** it SHALL wrap the Windows build made by the same job with the
+  production configuration, rather than a separate build without it
 
-#### Scenario: The application identity is stable across versions
+#### Scenario: A dry run submits nothing
 
-- **WHEN** an installer for a later version runs over an existing installation
-- **THEN** it SHALL upgrade that installation in place rather than creating a
-  second parallel one
+- **WHEN** the release workflow runs without a `music-v*` tag
+- **THEN** it SHALL still produce the MSIX, so a packaging regression fails the
+  job, and SHALL NOT submit anything to the Store
 
-#### Scenario: The install method is discoverable at runtime
+#### Scenario: Missing Store credentials on a tag
 
-- **WHEN** the installer completes
-- **THEN** it SHALL leave a marker in the installation directory identifying the
-  installation as installer-managed, so the running application can tell it
-  apart from a portable extraction
+- **WHEN** a `music-v*` tag runs without the Store credentials
+- **THEN** the Windows job SHALL fail rather than skip the Store submission
+  silently
 
-#### Scenario: Silent installation relaunches the application
+#### Scenario: No public unsigned download
 
-- **WHEN** the installer is run in silent mode
-- **THEN** it SHALL close a running instance, replace the files, and relaunch the
-  application without user interaction
+- **WHEN** a release is published
+- **THEN** no unsigned Windows executable or archive SHALL be attached to the
+  GitHub Release
 
 ### Requirement: Linux releases ship a Debian package
 
@@ -82,25 +82,6 @@ same generation.
 - **WHEN** a released Linux build is started on Ubuntu 22.04 or Debian 12
 - **THEN** it SHALL start, rather than fail on a missing system library version
 
-### Requirement: Windows binaries are code-signed
-
-The Windows application executable, its bundled libraries and the installer SHALL
-carry an Authenticode signature in the name of the publishing company, applied
-before the installer is hashed into the release manifest.
-
-#### Scenario: Signed release
-
-- **WHEN** a `music-v*` tag builds the Windows artifacts
-- **THEN** the installer and the application executable SHALL carry a valid
-  signature naming the publisher, and the installer's size and SHA-256 in the
-  manifest SHALL be those of the signed file
-
-#### Scenario: A dry run without signing material
-
-- **WHEN** the release workflow runs without the signing secrets
-- **THEN** it SHALL build unsigned artifacts, state that they are unsigned, and
-  SHALL NOT publish them
-
 ### Requirement: Every release publishes a signed update manifest
 
 The release pipeline SHALL produce a manifest describing the release — version,
@@ -110,9 +91,9 @@ only as a continuous-integration secret.
 
 #### Scenario: Manifest is produced and signed at release time
 
-- **WHEN** a `music-v*` tag build completes its Windows and Linux jobs
-- **THEN** the pipeline SHALL emit a manifest covering both targets, sign it, and
-  publish the signed envelope
+- **WHEN** a `music-v*` tag build completes its Linux job
+- **THEN** the pipeline SHALL emit a manifest covering the Linux target, sign
+  it, and publish the signed envelope
 
 #### Scenario: Checksums match the published artifacts
 

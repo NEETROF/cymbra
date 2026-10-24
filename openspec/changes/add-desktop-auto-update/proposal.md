@@ -1,6 +1,6 @@
 ## Why
 
-Windows and Linux ship outside any store, so nothing updates them. The release
+Windows and Linux ship outside any store, so nothing updates them, and nothing distributes them past a bare archive on GitHub Releases. The release
 pipeline publishes a bare `Compress-Archive` zip of the Flutter Release folder
 and a `tar.gz` of the Linux bundle
 ([music-release.yml](../../../.github/workflows/music-release.yml)); a user who installed
@@ -16,10 +16,7 @@ compromise of the hosting side, not just to a download button.
 
 ## What Changes
 
-- **Windows artifact becomes a per-user installer.** An Inno Setup `setup.exe`
-  installing into `%LocalAppData%\Programs\Cymbra` replaces the zip as the
-  primary download. Per-user is the whole point: an update can then run silently
-  with **no UAC prompt**. The portable zip stays published for users who want it.
+- **Windows ships through the Microsoft Store** (revised 2026-10-24: the owner will not pay for a code-signing certificate). The release builds an MSIX from the Flutter build and submits it to the Store, which re-signs it — no SmartScreen warning, no Smart App Control block, no certificate — and updates it. The site's download button uses the Store web installer, so a visitor never has to browse the Store. Company developer accounts are free since 2026-05. The app does not self-update on Windows. The portable zip is no longer offered to the public (unsigned, Smart App Control blocks it).
 - **Linux artifact becomes a `.deb` package.** Installed under `/opt/cymbra-music`
   with a desktop entry, as a Linux user expects to install software. It ships a
   small privileged update helper so the app can update itself through the
@@ -27,12 +24,10 @@ compromise of the hosting side, not just to a download button.
   no self-update). The Linux build moves to the oldest supported Ubuntu (22.04),
   so the binary also runs on Ubuntu 22.04 and Debian 12 — today's build on the
   latest Ubuntu does not, a defect the tarball already carries.
-- **The app checks for updates, downloads, verifies and installs.** A throttled
+- **On Linux, the app checks for updates, downloads, verifies and installs.** A throttled
   check on launch (once per 24 h) plus an on-demand check from settings; a
-  non-blocking prompt; download with progress; then the platform install path —
-  silent installer + relaunch on Windows, a password-confirmed package upgrade
-  + relaunch on Linux. Install layouts that cannot self-update (portable zip,
-  tarball) degrade to "a new version exists, here is the download
+  non-blocking prompt; download with progress; then a password-confirmed package
+  upgrade + relaunch. The tarball, which cannot self-update, degrades to "a new version exists, here is the download
   page" rather than failing.
 - **A signed update manifest, served by the backend.** A new public HTTP
   endpoint returns the manifest for a product/channel/OS/arch. The manifest is
@@ -45,12 +40,6 @@ compromise of the hosting side, not just to a download button.
   cacheable. `rollout_percent = 0` is the kill-switch.
 - **`min_supported_version` forces an update** when a client is too old to talk
   to the backend, via a blocking localized screen — not a raw error.
-- **Windows binaries are Authenticode-signed** (Microsoft Artifact Signing, in
-  the name of the publishing company). Unsigned, Windows 11's Smart App Control
-  blocks the installer and every update outright, with no "run anyway"; signing
-  also lets SmartScreen reputation carry from one release to the next. Signing
-  happens before the artifacts are hashed into the manifest.
-
 ## Capabilities
 
 ### New Capabilities
@@ -59,12 +48,11 @@ compromise of the hosting side, not just to a download button.
   staged rollout, pause, and minimum-supported-version policy. Platform, not
   Music: Cymbra Live (Tauri) will consume the same feed, and a product consumes
   the socle rather than redeclaring it.
-- `music-desktop-auto-update`: the in-app updater for Cymbra Music on Windows
-  and Linux — when it checks, what it verifies before executing anything, how it
+- `music-desktop-auto-update`: the in-app updater for Cymbra Music on Linux — when it checks, what it verifies before executing anything, how it
   installs per platform, how it degrades, and how it behaves in the UI.
 - `music-desktop-distribution`: the Windows and Linux release artifacts and how
-  they are produced and signed — signed per-user installer, `.deb` package, and
-  the signed manifest published alongside them.
+  they are produced and published — the Windows MSIX submitted to the Microsoft
+  Store, the Linux `.deb` and the signed manifest published alongside it.
 
 ### Modified Capabilities
 <!-- None. `runtime-feature-flags`, `backend-service` and
@@ -73,7 +61,7 @@ compromise of the hosting side, not just to a download button.
 
 ## Impact
 
-**Products.** Music: new (installer, `.deb`, in-app updater, settings entry,
+**Products.** Music: new (Store MSIX, `.deb`, Linux in-app updater, settings entry,
 localized strings). Platform/backend: new (public `/updates/*` router, admin
 ingest route, one table, one shared manifest crate). Live: nothing now — the
 feed is shaped so it can consume it later. Back-office and site: untouched;
@@ -83,29 +71,29 @@ rollout is driven by the CI ingest payload, a back-office screen is a follow-up.
 - `apps/music/lib/services/update/*` (service, installer seams, manifest
   verification), `apps/music/lib/state/*` (Riverpod notifier + a listener
   widget), settings entry, `l10n` strings (fr/en).
-- `apps/music/windows/installer/` (Inno Setup script), `apps/music/linux/deb/`
+- `apps/music/pubspec.yaml` (`msix` packaging config), `apps/music/linux/deb/`
   (package recipe: control file, `.desktop`, icon, polkit policy).
 - `backend/updates` (the module owns its HTTP surface; the server mounts it) + a
   new `crates/update-manifest` shared by the backend ingest, the CI signing
   binary and the Linux privileged update helper.
-- [music-release.yml](../../../.github/workflows/music-release.yml): signing and
-  packaging steps in the `windows` and `linux` jobs, plus a manifest job that
-  signs and publishes.
+- [music-release.yml](../../../.github/workflows/music-release.yml): MSIX
+  packaging and Store submission in the `windows` job, `.deb` packaging in the
+  `linux` job, plus a manifest job that signs and publishes the Linux release.
 
 **Ops.** `/updates/*` **must** be added to the Caddy allow-list
 ([Caddyfile:39](backend/deploy/Caddyfile:39)) — a path missing from the `@http`
 matcher falls through to tonic and answers `200` with an empty `grpc-status: 12`
 instead of the manifest, which would make the update check fail invisibly in
 production. GitHub Actions secrets hold the Ed25519 signing key, the ingest
-credential and the Artifact Signing service principal. One migration adds the
-releases table. Artifact Signing needs a paid Azure subscription and a completed
-identity validation of the company (1 to 20 business days) before the first
-signed release.
+credential and the Partner Center API credentials. One migration adds the
+releases table. The Store needs a (free) company developer account for the
+publisher, an app reservation and a first manual submission in Partner Center
+before CI can submit updates; each submission is certified in up to three
+business days.
 
 **Dependencies.** One Flutter package for Ed25519 verification; `ed25519-dalek`
 on the Rust side. No new runtime service.
 
 **Risk.** The updater executes downloaded code, so the whole design hangs on
 verify-before-execute (signature, then size, then SHA-256, then no-downgrade).
-The Inno `AppId` GUID becomes permanent the day the first installer ships:
-changing it later turns every update into a second parallel installation.
+On Linux the privileged helper is the piece to keep small and tested; on Windows the Store owns signing and updates.
