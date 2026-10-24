@@ -18,7 +18,9 @@
 //! Italian is a studied language served by its own analysis (analyser `1.0.0`,
 //! add-lingua-italian-analysis; `1.1.0` with its detection guard; `1.2.0` reading the apostrophe
 //! that stands for an accent; `1.3.0` reading a word standing alone in capitals as the acronym its
-//! pack lists, keep-lingua-italian-acronyms-and-names): its tokenisation pre-pass
+//! pack lists, keep-lingua-italian-acronyms-and-names; `1.4.0` with an Italian-specialist review's
+//! corrections, refine-lingua-italian-reading — more elided forms, the books' truncations, `mo'`
+//! and `dai` by their context, fifteen closed words): its tokenisation pre-pass
 //! (add-lingua-italian-tokenisation) — `l'uomo` is `lo` + `uomo`, `dell'acqua` `dello` + `acqua`, `c'è` `ci` + `è`, `nel` `in` + `il`
 //! sharing its span, `del` whole, `po'` `poco` — reading every word in NFC; its cascade, the
 //! pack's forms then the enclitic rule (`dirmelo` is `dire`, `vattene` `andare`, `eccolo`
@@ -55,8 +57,8 @@ use std::sync::OnceLock;
 use lingua_core::analysis::ITALIAN_ANALYZER_VERSION;
 use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::analysis::tokenize::{
-    ITALIAN_CONTRACTIONS, ITALIAN_ELIDED_PREPOSITIONS, ITALIAN_ELISIONS, ITALIAN_TRUNCATIONS,
-    tokenize,
+    ITALIAN_CONTRACTIONS, ITALIAN_ELIDED_PREPOSITIONS, ITALIAN_ELISIONS,
+    ITALIAN_TRUNCATED_PREPOSITIONS, ITALIAN_TRUNCATIONS, tokenize,
 };
 use support::italian::ITALIAN;
 use support::{PackSource, first_difference, testdata_pack};
@@ -337,7 +339,16 @@ fn what_the_baseline_shows_today() {
     }
     assert_eq!(written(&informale_json, "informale", "È"), ["E'"]);
     assert_eq!(written(&informale_json, "informale", "perché"), ["perche'"]);
-    assert_eq!(written(&informale_json, "informale", "è"), ["e'", "e'"]);
+    assert_eq!(
+        written(&informale_json, "informale", "è"),
+        ["e'", "e'", "è"]
+    );
+    // refine-lingua-italian-reading D1–D2: the line the review added reads `qual'è` as `quale` and
+    // `è`, and the web's `pò` as `poco` through the fixture's row.
+    for (surface, lemma) in [("quale", "quale"), ("pò", "poco")] {
+        assert!(has(&informale, surface, lemma), "{surface}: {informale:?}");
+    }
+    assert_eq!(written(&informale_json, "informale", "quale"), ["qual'"]);
     for unread in ["E", "e", "perche'", "piu", "citta"] {
         assert!(
             informale.iter().all(|(surface, _, _)| surface != unread),
@@ -391,6 +402,39 @@ fn what_the_baseline_shows_today() {
         flags,
         [("non", true), ("di", true), ("il", true), ("che", true)]
     );
+    // refine-lingua-italian-reading D6: the closed words the review added are flagged, in a phrase
+    // gloss — a page's tokens carry no flag.
+    for (phrase, expected) in [
+        (
+            "davanti alla porta",
+            &[
+                ("davanti", true),
+                ("a", true),
+                ("la", true),
+                ("porta", false),
+            ][..],
+        ),
+        (
+            "ossia il primo",
+            &[("ossia", true), ("il", true), ("primo", false)][..],
+        ),
+    ] {
+        let glossed: serde_json::Value =
+            serde_json::from_str(&engine.phrase_gloss(phrase, it()).expect("glossed"))
+                .expect("JSON");
+        let flags: Vec<(&str, bool)> = glossed["tokens"]
+            .as_array()
+            .expect("tokens")
+            .iter()
+            .map(|t| {
+                (
+                    t["surface"].as_str().expect("a surface"),
+                    t["function_word"].as_bool().expect("a flag"),
+                )
+            })
+            .collect();
+        assert_eq!(flags, expected, "{phrase}");
+    }
     // And a content word is none: `faro`, `marinaio`, `mare` keep their rows.
     let glossed = engine
         .phrase_gloss("Il vecchio marinaio chiuse le finestre del faro", it())
@@ -495,9 +539,11 @@ fn shared(page_json: &serde_json::Value, name: &str) -> Vec<(String, String, Str
 #[test]
 fn the_fixture_lists_every_word_the_pre_pass_writes() {
     // Each elided form of the pre-pass before a word of the fixture — `diss'` before `io` too —,
-    // each elided articulated preposition, each one split, the `di` family's six forms and each
-    // truncation, tokenised as Italian, give only forms of the fixture: no word the pre-pass
-    // writes shows unresolved for want of a form (change 9 checks the real tables).
+    // each elided articulated preposition, each one split, the `di` family's six forms, each
+    // truncation, each truncated articulated preposition before a word, and the words read by their
+    // context — `mò`, the verb `dai` (refine-lingua-italian-reading) —, tokenised as Italian, give
+    // only forms of the fixture: no word the pre-pass writes shows unresolved for want of a form
+    // (change 9 checks the real tables).
     let dir = PackSource::Testdata.manifest_dir("it-fr");
     let forms: std::collections::BTreeSet<String> = std::fs::read_to_string(dir.join("forms.tsv"))
         .expect("forms.tsv")
@@ -523,6 +569,10 @@ fn the_fixture_lists_every_word_the_pre_pass_writes() {
     for (written, _) in ITALIAN_TRUNCATIONS {
         line.push_str(&format!("{written}' "));
     }
+    for (written, _, _) in ITALIAN_TRUNCATED_PREPOSITIONS {
+        line.push_str(&format!("{written}' monti "));
+    }
+    line.push_str("a mo' di e mi dai");
     let tokens = tokenize(&line, StudiedLanguage::Italian, pack.lexicon());
     let read: Vec<String> = tokens.iter().map(|t| t.text.to_lowercase()).collect();
     let written = ITALIAN_ELISIONS
@@ -535,7 +585,13 @@ fn the_fixture_lists_every_word_the_pre_pass_writes() {
                 .flat_map(|&(_, read, article)| std::iter::once(read).chain(article)),
         )
         .chain(ITALIAN_CONTRACTIONS.iter().flat_map(|&(_, p, a)| [p, a]))
-        .chain(ITALIAN_TRUNCATIONS.iter().map(|&(_, read)| read));
+        .chain(ITALIAN_TRUNCATIONS.iter().map(|&(_, read)| read))
+        .chain(
+            ITALIAN_TRUNCATED_PREPOSITIONS
+                .iter()
+                .flat_map(|&(_, p, a)| [p, a]),
+        )
+        .chain(["mò", "dai"]);
     for word in written {
         assert!(read.iter().any(|r| r == word), "{word:?} in {read:?}");
     }

@@ -529,7 +529,11 @@ const FRENCH: &[&[&str]] = &[
 /// `qualsiasi` and `qualunque` by measurement (design, *Measured at implementation*): a
 /// determiner in each of MarkIT's test section's occurrences (2 of 2, 1 of 1; with UD
 /// Italian-PUD, 4 of 4 and 2 of 3, « una persona qualunque » the other). `certo` and `vario`
-/// are left out: adjectives with a meaning of their own, as French's `certain`.
+/// are left out: adjectives with a meaning of their own, as French's `certain`. An
+/// Italian-specialist review (refine-lingua-italian-reading D6) added *both*, `ambedue`,
+/// `entrambi` and `entrambe` (« entrambi i libri », « ambedue i figli »), before a noun with its
+/// article, and the quantifier `parecchio` with its forms (« parecchie volte »), as `molto`,
+/// `tanto`, `poco` and `troppo` are.
 const IT_DETERMINERS: &[&str] = &[
     "alcun",
     "alcuna",
@@ -540,6 +544,7 @@ const IT_DETERMINERS: &[&str] = &[
     "altre",
     "altri",
     "altro",
+    "ambedue",
     "ciascun",
     "ciascuna",
     "ciascuno",
@@ -553,6 +558,8 @@ const IT_DETERMINERS: &[&str] = &[
     "della",
     "delle",
     "dello",
+    "entrambe",
+    "entrambi",
     "gli",
     "i",
     "il",
@@ -576,6 +583,10 @@ const IT_DETERMINERS: &[&str] = &[
     "nostri",
     "nostro",
     "ogni",
+    "parecchi",
+    "parecchia",
+    "parecchie",
+    "parecchio",
     "poca",
     "poche",
     "pochi",
@@ -665,7 +676,10 @@ const IT_PRONOUNS: &[&str] = &[
 /// French measured `certain` out. Left out by measurement (design D6): `prima` — MarkIT's
 /// test section tags none of its 14 as a preposition, and has it introduce a phrase (« prima
 /// di ») in 5 of them (pooled: 19 of 49); 5 are the adjective « la prima volta » —, and `salvo`
-/// — its one MarkIT occurrence is the adjective « safe ».
+/// — its one MarkIT occurrence is the adjective « safe ». An Italian-specialist review
+/// (refine-lingua-italian-reading D6) added the prepositions of place `davanti` and `dietro`
+/// (« davanti alla porta », « dietro la casa »), as `sopra`, `sotto`, `dentro` and `fuori` are;
+/// they are also adverbs (« sta davanti »), the cost `sopra` and `fuori` already carry.
 const IT_PREPOSITIONS: &[&str] = &[
     "a",
     "ad",
@@ -674,8 +688,10 @@ const IT_PREPOSITIONS: &[&str] = &[
     "con",
     "contro",
     "da",
+    "davanti",
     "dentro",
     "di",
+    "dietro",
     "dopo",
     "durante",
     "eccetto",
@@ -703,11 +719,16 @@ const IT_PREPOSITIONS: &[&str] = &[
 /// Italian coordinating and subordinating conjunctions, `ed` and `od` before a vowel among
 /// them, and `dove` (« where »), as French lists `où` and Spanish `donde`: relative or
 /// interrogative in each of its occurrences (MarkIT's test section 6 of 6, pooled with UD
-/// Italian-PUD 24 of 24).
+/// Italian-PUD 24 of 24). An Italian-specialist review (refine-lingua-italian-reading D6) added
+/// `anziché`, `bensì`, `nonché`, `ossia`, `pertanto` and `qualora` (« anziché partire », « non
+/// oggi, bensì domani », « il pane nonché il vino », « qualora venisse »), conjunctions as
+/// `ovvero`, `perciò`, `quindi` and `affinché` are.
 const IT_CONJUNCTIONS: &[&str] = &[
     "affinché",
     "anzi",
+    "anziché",
     "benché",
+    "bensì",
     "che",
     "cioè",
     "come",
@@ -720,16 +741,20 @@ const IT_CONJUNCTIONS: &[&str] = &[
     "infatti",
     "ma",
     "mentre",
+    "nonché",
     "né",
     "o",
     "od",
     "oppure",
+    "ossia",
     "ovvero",
     "perché",
     "perciò",
+    "pertanto",
     "però",
     "poiché",
     "purché",
+    "qualora",
     "quando",
     "quindi",
     "se",
@@ -743,13 +768,18 @@ const IT_CONJUNCTIONS: &[&str] = &[
 /// `querer` and French's `vouloir`; and so is `stare`, the progressive's auxiliary (« sto
 /// parlando ») but also « to stay », as French leaves `aller` out — measured (design D6):
 /// MarkIT's test section tags 13 of its 24 as an auxiliary, short of the clear majority (two
-/// in three) that would have put it in (UD Italian-PUD: 23 of 28).
+/// in three) that would have put it in (UD Italian-PUD: 23 of 28). An Italian-specialist review
+/// (refine-lingua-italian-reading D6) confirmed it out: « sto bene », « stare a casa » are
+/// beginner vocabulary, and a French speaker must learn that Italian says « sto bene », never
+/// « sono bene » — greying `stare` would hide the very word to learn.
 const IT_AUXILIARIES_AND_MODALS: &[&str] = &["avere", "dovere", "essere", "potere"];
 
 /// Italian negation: `non`, `no` and `né`. `mai`, `più`, `neanche`, `nemmeno` and `neppure`
 /// are left out, as English's `never`, Spanish's `nunca` and French's `jamais`: adverbs with
 /// content of their own (« non più » is « no longer », « mai » « never »); so are `anche` and
-/// `ancora`.
+/// `ancora` — `anche`, *also*, named among the words left out since refine-lingua-italian-reading
+/// D6, the review confirming change 7's reasons for `volere`, `secondo`, `lungo`, `mai`, `più`,
+/// `anche` and `salvo`.
 const IT_NEGATION: &[&str] = &["no", "non", "né"];
 
 /// The six Italian tables (add-lingua-italian-analysis D3). Like Spanish's and French's, a
@@ -886,8 +916,9 @@ mod tests {
 
     #[test]
     fn spec_scenario_italian_words_that_look_closed_but_carry_meaning() {
-        // « più », « mai », « sto parlando », « voglio », « il secondo giorno », « molto tempo »:
-        // `stare` and `volere` as the pack files `sto` and `voglio`.
+        // « più », « mai », « anche », « sto bene », « sto parlando », « stare », « voglio », « il
+        // secondo giorno », « prima di tutto », « una mela », « molto tempo »: `stare` and `volere`
+        // as the pack files `sto` and `voglio` (widened by refine-lingua-italian-reading D6).
         for lemma in [
             "più", "mai", "neanche", "nemmeno", "neppure", "anche", "ancora", "stare", "volere",
             "secondo", "lungo", "prima", "salvo", "certo", "quanto", "cosa", "parlare", "giorno",
@@ -904,6 +935,60 @@ mod tests {
         // (apple), `vela` (sail), `tela` (cloth), `velo` (veil), `cene` (dinners).
         for lemma in ["mela", "vela", "tela", "velo", "telo", "cene", "mele"] {
             assert!(!is_function_word(lemma, IT), "{lemma:?}");
+        }
+    }
+
+    #[test]
+    fn spec_scenario_closed_words_an_italian_reader_s_review_added() {
+        // refine-lingua-italian-reading D6: « davanti alla porta », « dietro la casa », « entrambe
+        // le mani », « ambedue i figli », « parecchie volte », « anziché partire », « non oggi, bensì
+        // domani », « il pane nonché il vino », « ossia », « pertanto », « qualora venisse », with
+        // `entrambe` filed under `entrambi` and `parecchie` under `parecchio`.
+        assert_eq!(
+            italian_flags(&["davanti", "a", "la", "porta"]),
+            [true, true, true, false]
+        );
+        assert_eq!(
+            italian_flags(&["dietro", "la", "casa"]),
+            [true, true, false]
+        );
+        assert_eq!(
+            italian_flags(&["entrambi", "le", "mani"]),
+            [true, true, false]
+        );
+        assert_eq!(
+            italian_flags(&["ambedue", "i", "figli"]),
+            [true, true, false]
+        );
+        assert_eq!(italian_flags(&["parecchio", "volte"]), [true, false]);
+        assert_eq!(italian_flags(&["anziché", "partire"]), [true, false]);
+        assert_eq!(
+            italian_flags(&["non", "oggi", "bensì", "domani"]),
+            [true, false, true, false]
+        );
+        assert_eq!(
+            italian_flags(&["il", "pane", "nonché", "il", "vino"]),
+            [true, false, true, true, false]
+        );
+        assert_eq!(
+            italian_flags(&["ossia", "pertanto", "qualora", "venire"]),
+            [true, true, true, false]
+        );
+        // The inflected forms, for a pack that keeps one as a lemma of its own.
+        for lemma in ["entrambe", "parecchi", "parecchia", "parecchie"] {
+            assert!(is_function_word(lemma, IT), "{lemma:?}");
+        }
+        // `davanti` and `dietro` are prepositions, which the phrase gloss reads
+        // (choose-lingua-overlapping-expressions D2); the determiners and conjunctions are not.
+        assert!(is_preposition("davanti", IT) && is_preposition("dietro", IT));
+        for lemma in ["entrambi", "parecchio", "ossia", "bensì"] {
+            assert!(!is_preposition(lemma, IT), "{lemma:?}");
+        }
+        // Italian's alone: no other language flags them.
+        for language in [EN, StudiedLanguage::Spanish, FR] {
+            for lemma in ["davanti", "entrambi", "ossia", "pertanto"] {
+                assert!(!is_function_word(lemma, language), "{lemma:?} {language:?}");
+            }
         }
     }
 
@@ -994,6 +1079,13 @@ mod tests {
                     "troppo",
                     "qualsiasi",
                     "qualunque",
+                    "ambedue",
+                    "entrambe",
+                    "entrambi",
+                    "parecchi",
+                    "parecchia",
+                    "parecchie",
+                    "parecchio",
                 ][..],
             ),
             (
@@ -1039,6 +1131,8 @@ mod tests {
                     "tramite",
                     "malgrado",
                     "eccetto",
+                    "davanti",
+                    "dietro",
                 ][..],
             ),
             (
@@ -1075,6 +1169,12 @@ mod tests {
                     "ovvero",
                     "tuttavia",
                     "eppure",
+                    "anziché",
+                    "bensì",
+                    "nonché",
+                    "ossia",
+                    "pertanto",
+                    "qualora",
                 ][..],
             ),
             (

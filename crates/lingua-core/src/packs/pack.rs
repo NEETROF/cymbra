@@ -1360,9 +1360,10 @@ pub(crate) mod tests {
         }
         // Compared with Italian's own version, never another language's: an Italian pack at
         // another language's version is refused as built for another analyser generation —
-        // Spanish's; French's and English's are Italian's own string since
-        // keep-lingua-italian-acronyms-and-names, `1.3.0` —, and so is one built at `1.2.0`, before
-        // Italian's acronym rule, at `1.1.0`, before its accent apostrophe
+        // Spanish's; French's and English's, `1.3.0`, which was Italian's own string at
+        // keep-lingua-italian-acronyms-and-names, before refine-lingua-italian-reading's `1.4.0` —,
+        // and so is one built at `1.2.0`, before Italian's acronym rule, at `1.1.0`, before its
+        // accent apostrophe
         // (read-lingua-italian-unmarked-spellings), at `1.0.0`, before Italian's detection guard
         // (add-lingua-italian-detection-guard), at `0.2.0`, the version Italian had before its own
         // analysis, or by the baseline's tokeniser, at `0.1.0`, which keeps `l'uomo` whole.

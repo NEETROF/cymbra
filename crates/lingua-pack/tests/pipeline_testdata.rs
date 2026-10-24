@@ -144,7 +144,7 @@ fn the_italian_fixture_studies_italian_at_its_analyser_version() {
     // grammar). An Italian rule that bumps the version bumps the committed manifest with it
     // (add-lingua-italian-tokenisation: `0.2.0`; add-lingua-italian-analysis: `1.0.0`;
     // add-lingua-italian-detection-guard: `1.1.0`; read-lingua-italian-unmarked-spellings: `1.2.0`;
-    // keep-lingua-italian-acronyms-and-names: `1.3.0`).
+    // keep-lingua-italian-acronyms-and-names: `1.3.0`; refine-lingua-italian-reading: `1.4.0`).
     let dir = testdata_dir().parent().unwrap().join("it-fr");
     let inputs = inputs_from_dir(&dir).expect("read the it-fr fixture");
     assert!(inputs.readings.is_empty() && inputs.senses.is_empty());
@@ -441,7 +441,10 @@ fn the_fixtures_build_whole_as_recorded_and_split_by_their_pin() {
     // moves it once more, its manifest `1.1.0`; read-lingua-italian-unmarked-spellings D5 moves it,
     // the fixture gaining the spelling rows `perche` → `perché` and `cosi` → `così` and its manifest
     // `1.2.0`; keep-lingua-italian-acronyms-and-names D7 moves it, the fixture gaining the acronym
-    // row `NATO` → `NATO` and `nato` → `nascere` and its manifest `1.3.0`.
+    // row `NATO` → `NATO` and `nato` → `nascere` and its manifest `1.3.0`;
+    // refine-lingua-italian-reading D8 moves it, the fixture gaining the words the pre-pass now
+    // writes (`trenta`, `quale`, `glielo`, `ultima` … `quei`, `mò`), `pò` → `poco`, ten glosses and
+    // its manifest `1.4.0`.
     let root = testdata_dir().parent().unwrap().to_path_buf();
     for (pair, size, sha256) in [
         (
@@ -476,8 +479,8 @@ fn the_fixtures_build_whole_as_recorded_and_split_by_their_pin() {
         ),
         (
             "it-fr",
-            6010,
-            "58ad47dbf6a813a67cb0985ead4c88cd7b822643e8242a70fbf74678361f8cdd",
+            6482,
+            "cc88dad5f58586ebdb24bfaa29f156d0c31bd9f9a42c906138f8df9cc07efd61",
         ),
     ] {
         let inputs = inputs_from_dir(&root.join(pair)).unwrap_or_else(|e| panic!("{pair}: {e}"));

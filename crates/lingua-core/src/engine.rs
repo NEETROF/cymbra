@@ -42,7 +42,9 @@ use crate::analysis::pipeline::{
     AnalysedToken, DocumentAnalysis, alone_in_capitals, analyse_document, headword_reading,
     resolve_lemmas,
 };
-use crate::analysis::tokenize::{Token, is_elided, is_hyphen_join, tokenize, without_soft_hyphens};
+use crate::analysis::tokenize::{
+    Token, is_elided, is_hyphen_join, tokenize, tokenize_readings, without_soft_hyphens,
+};
 use crate::knowledge::level::CefrLevels;
 use crate::knowledge::state::KnowledgeState;
 use crate::packs::Pack;
@@ -1326,6 +1328,12 @@ pub struct WordGrammar {
 /// acronym in capitals, `CA` — and lowercased otherwise, as before; the written word's
 /// tokens are resolved as a page's, a word standing alone in capitals in it read as
 /// the acronym its pack lists (keep-lingua-french-acronyms-in-capitals D1, D6).
+///
+/// A written word Italian's pre-pass reads two ways by its context — `dai` the verb or
+/// `da` + `i`, `mo'` `modo` or `mò` — has none here: the card hands it alone, the end of
+/// the text after it. It is read the way that gives the card's dictionary form, and as it
+/// reads alone where neither does — `dai` and `da'` the verb, `mo'` `mò`
+/// ([`tokenize_readings`], refine-lingua-italian-reading D4).
 pub fn word_grammar(
     written: &str,
     lemma: &str,
@@ -1338,18 +1346,24 @@ pub fn word_grammar(
     } else {
         lemma.to_lowercase()
     };
-    let tokens = tokenize(written, studied, lexicon);
-    let alone = alone_in_capitals(written, &tokens, studied);
-    let piece = tokens
-        .iter()
-        .zip(alone)
-        .find(|(token, alone)| resolve_lemmas(token, *alone, studied, lexicon).0 == lemma)
-        .map(|(token, _)| token)
-        .or_else(|| tokens.first())
+    let readings = tokenize_readings(written, studied, lexicon);
+    let found = readings.iter().find_map(|tokens| {
+        let alone = alone_in_capitals(written, tokens, studied);
+        tokens
+            .iter()
+            .zip(alone)
+            .find(|(token, alone)| resolve_lemmas(token, *alone, studied, lexicon).0 == lemma)
+            .map(|(token, _)| (tokens, token))
+    });
+    let (tokens, piece) = match found {
+        Some((tokens, token)) => (tokens, Some(token)),
+        None => (&readings[0], readings[0].first()),
+    };
+    let piece = piece
         .map(|token| token.text.replace('\u{2019}', "'").to_lowercase())
         .unwrap_or_else(|| without_soft_hyphens(written).trim().to_lowercase());
     let pieces = if tokens.len() > 1 {
-        tokens.into_iter().map(|token| token.text).collect()
+        tokens.iter().map(|token| token.text.clone()).collect()
     } else {
         Vec::new()
     };
@@ -2381,7 +2395,7 @@ mod tests {
         let page = analyse_page(&blocks, IT, &pack, &KnowledgeState::new());
         assert!(page.analysable);
         assert_eq!(page.analyzer_version, ITALIAN_ANALYZER_VERSION);
-        assert_eq!(page.analyzer_version, "1.3.0");
+        assert_eq!(page.analyzer_version, "1.4.0");
         let class_of = |surface: &str| {
             page.tokens
                 .iter()
@@ -6767,6 +6781,64 @@ mod tests {
             word_grammar("Nato", "Nascere", IT, &pack).gloss.as_deref(),
             Some(NASCERE_GLOSS)
         );
+    }
+
+    /// A stand-in Italian pack for a word card on a word the pre-pass reads by its context
+    /// (refine-lingua-italian-reading D4): `dai` filed under *dare*, and a reading each for `dai`,
+    /// `modo` and `mò`, so that the reading a card answers shows which way the word was read.
+    fn italian_context_pack() -> Pack {
+        build_pack_with_grammar_for(
+            IT,
+            &[("dai", "dare"), ("è", "essere")],
+            &[
+                "da", "i", "dare", "modo", "mò", "mezzo", "a", "il", "essere",
+            ],
+            &[],
+            &[],
+            &[
+                ("dai", "dare", ITALIAN_SECOND_SINGULAR),
+                ("modo", "modo", "NOUN|Gender=Masc|Number=Sing"),
+                ("mò", "mò", "ADV"),
+            ],
+            &[],
+            &[],
+        )
+    }
+
+    const ITALIAN_SECOND_SINGULAR: &str =
+        "VERB|Mood=Ind|Number=Sing|Person=2|Tense=Pres|VerbForm=Fin";
+
+    #[test]
+    fn spec_scenario_a_word_card_on_a_word_read_by_its_context() {
+        // refine-lingua-italian-reading D4: the card hands the word alone, which ends the text; it
+        // is read the way that gives the card's dictionary form, else as it reads alone.
+        let pack = italian_context_pack();
+        let dai_da = word_grammar("dai", "da", IT, &pack);
+        assert_eq!(dai_da.pieces, ["da", "i"]);
+        assert!(dai_da.readings.is_empty() && dai_da.others.is_empty());
+        let dai_dare = word_grammar("dai", "dare", IT, &pack);
+        assert!(dai_dare.pieces.is_empty());
+        assert_eq!(ud(&dai_dare.readings), [ITALIAN_SECOND_SINGULAR]);
+        assert_eq!(word_grammar("Dai", "da", IT, &pack).pieces, ["Da", "i"]);
+        assert_eq!(word_grammar("da'", "da", IT, &pack).pieces, ["da", "i"]);
+        assert_eq!(
+            ud(&word_grammar("da’", "dare", IT, &pack).readings),
+            [ITALIAN_SECOND_SINGULAR]
+        );
+        // `i`, the other piece, asks for the preposition's reading too.
+        assert_eq!(word_grammar("dai", "i", IT, &pack).pieces, ["da", "i"]);
+        let modo = word_grammar("mo'", "modo", IT, &pack);
+        assert!(modo.pieces.is_empty());
+        assert_eq!(ud(&modo.readings), ["NOUN|Gender=Masc|Number=Sing"]);
+        assert_eq!(ud(&word_grammar("mo'", "mò", IT, &pack).readings), ["ADV"]);
+        // Neither reading gives `mezzo`: the word as it reads alone, `mò`, whose readings as
+        // *mezzo* are none.
+        let mezzo = word_grammar("mo'", "mezzo", IT, &pack);
+        assert!(mezzo.readings.is_empty() && mezzo.pieces.is_empty());
+        // And a card keyed by a dictionary form neither reading of `dai` gives reads the verb.
+        assert!(word_grammar("dai", "dalla", IT, &pack).pieces.is_empty());
+        // A contraction's card is as before.
+        assert_eq!(word_grammar("al", "a", IT, &pack).pieces, ["a", "il"]);
     }
 
     #[test]

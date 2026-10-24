@@ -93,8 +93,15 @@ In `../it/`, Italian's tables, written by it-fr's reduction:
   → *lo*, `un'` → *uno*, `quest'` → *questo*, `po'` → *poco*, `va'` → *andare*); the `di` family
   (`del`, `dello`, `della`, `dei`, `degli`, `delle`) are lemmas of their own, `dell'` → *dello*; the
   other articulated prepositions are neither forms nor ranks, `dai` excepted (a form of *dare*, the
-  truncation `da'`'s word, no rank); no plain word beginning with a piece is a form (`c'è`,
-  `dell'acqua`).
+  verb the pre-pass reads `dai` and `da'` as by their context, no rank); no plain word beginning
+  with a piece is a form (`c'è`, `dell'acqua`). Since refine-lingua-italian-reading (an
+  Italian-specialist review, its D2, D3 and D7), the pre-pass reads eighteen more elided pieces
+  (`trent'` → *trenta*, `qual'` → *quale*, `tant'`, `gliel'`, `prim'` → *primo*, `ultim'` →
+  *ultimo* …), `coll'` (`con` + `lo`, no form) and `degl'` (→ *degli*), and the books' truncations
+  `ca'` → *casa*, `de'` → `dei`, `que'` → *quello*; its truncated articulated prepositions `a'`,
+  `co'`, `da'`, `ne'` and `su'` are neither forms nor ranks, as `all'` is — the section's own `da'`
+  entry is read no more —; and `mò` (of `mo'`, by the word after it) is a word it writes. So
+  `trent'anni`, `qual'è` or `gliel'ho` are no forms, the pre-pass reading their pieces.
 - **One lemma per form (D5, M8).** A form whose own lemma entries are names alone reads as the other
   word (`bambini`, a surname → *bambino*); `roma`, which no other word reads, stays the city; every
   other form is left to `OVERRIDES` — the owner's `stato` and `stati` → *essere* (2026-10-23; « lo
@@ -102,7 +109,8 @@ In `../it/`, Italian's tables, written by it-fr's reduction:
   the form's own entry, the lemma's frequency, the alphabet.
 - **The apocopes** written without an apostrophe read as their word alone by a reviewed table
   (`APOCOPES`): `un` → *uno*, `buon` → *buono*, `nessun`, `alcun`, `ciascun`, `qualcun`, `bel` →
-  *bello*, `san` → *santo*, `gran` → *grande*, `quel` → *quello*, `tal` → *tale*, `qual` → *quale*.
+  *bello*, `san` → *santo*, `gran` → *grande*, `quel` → *quello*, `tal` → *tale*, `qual` → *quale*,
+  and `fin` → *fino* (« fin qui », refine-lingua-italian-reading D7).
 - **Acronyms in capitals (keep-lingua-italian-acronyms-and-names).** A reviewed table,
   `reduce_italian_acronyms.ACRONYMS`, the owner's decision row by row (2026-10-23: `NATO` and `USA`
   only; `FAI` and `AGI` too rare in the corpora, `TARI` already read as the tax): each written
@@ -119,10 +127,12 @@ In `../it/`, Italian's tables, written by it-fr's reduction:
   joins the table — never one carrying clitics, never moving a reading or a rank.
 - **The ranks (D6).** wordfreq's order, dense, the 60,000 first, over its words that are not only
   inflected forms; a word whose own form reads as another gives its rank to the next. wordfreq's
-  stems of the elided pieces (`l`, `d`, `gl`, `quest`, `dell`, …) and of the truncations (`po`,
-  `mo`, `be`) are no words, nor its tokens beginning with a piece, but the apocopes (read as their
-  words) and `cent`, the euro cent; a hyphenated word is ranked when MarkIT attests it, at the lower
-  of wordfreq's estimate and MarkIT's frequency.
+  stems of the elided pieces (`l`, `d`, `gl`, `quest`, `dell`, `trent`, `tant`, `coll`, …) and of
+  the truncations (`po`, `mo`, `be`) are no words, nor its tokens beginning with a piece, but the
+  apocopes (read as their words) and `cent`, the euro cent — and the truncations' stems that are
+  lemmas of their own with a rank (`de`, `ca`, `que`, and the prepositions' `a`, `co`, `ne`, `su`,
+  `da`), which wordfreq counts with the truncations' own uses; a hyphenated word is ranked when
+  MarkIT attests it, at the lower of wordfreq's estimate and MarkIT's frequency.
 
 ## Measured
 
