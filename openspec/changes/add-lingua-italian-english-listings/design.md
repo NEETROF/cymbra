@@ -151,8 +151,9 @@ text names no other audience. The texts kept for a release without fr-es are not
 
 Taken on `main` at `53da44cf4` (2026-10-25): it-en is 26,242,301 B, « 26.2 MB », so « 26.2 MB each »
 holds; its committed coverage is 91.3 / 84.2 / 75.8 %, under es-en's and fr-en's at each top (by 1.7,
-2.3 and 0.7 points against es-en, 2.6, 3.0 and 1.0 against fr-en), so the dictionary sentence is
-written; change 24 put it-en on the marks' first tier (94 of 97 correct, 3 % withheld), which answers
+2.3 and 0.7 points against es-en, 2.6, 3.0 and 1.0 against fr-en). By this rule the dictionary
+sentence would be written; **the owner decided on 2026-10-25 to leave it out** of both descriptions,
+the gap being 0.7 to 3.0 points only — as fr-en got none beside es-en; change 24 put it-en on the marks' first tier (94 of 97 correct, 3 % withheld), which answers
 change 25's Open Question 2: its translation is offered, marked, and every translation clause stays.
 
 ### D6 — The claims table
@@ -239,3 +240,8 @@ For the owner:
 4. **The review notes**: without an Italian step (recommended), or with one and two more cuts.
 5. **The Chrome Web Store's English screenshots**: unchanged (recommended), or the second capture moved
    to an Italian page.
+
+**Answered by the owner on 2026-10-25**: 1, the drafts as written, the subtitle `Spanish, French or
+Italian`; 2, `words` and `deck` give way; 3–5, as drafted (the voice kept, no Italian step for the
+reviewer, the English captures unchanged). And, beyond these, the dictionary sentence on Italian is
+left out of both descriptions (D5).

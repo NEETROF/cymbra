@@ -526,13 +526,13 @@ en-US word for word, es-MX es-ES. Each count is the text's length as App Store C
 The figures are `main`'s when they were written (change 26, D5;
 `apps/lingua-extension/STORE-LISTING.md`, _Italian for English speakers_, gives the bytes and the
 claims): it-en's served size, 26,242,301 B, « 26.2 MB » as the setting rounds it, so « 26.2 MB each »
-holds; its committed coverage, 91.3 / 84.2 / 75.8 %, under es-en's and fr-en's at each top, so the
-description says that Italian's dictionary is a little less complete (M6); its marks on the first
+holds; its committed coverage, 91.3 / 84.2 / 75.8 %, under es-en's and fr-en's at each top by 0.7 to
+3.0 points only, so the description says nothing of it, as of fr-en beside es-en (the owner's decision
+of 2026-10-25); its marks on the first
 tier (change 24: 94 of 97 right, 3 % withheld), so translation is offered, marked. Should change 25
 not offer it-en's translation, EXTENDED TRANSLATION reads « straight from Spanish or French » again
 and « What's New » loses « and extended translation turns your Italian selection straight into
-English, on your device »; should the published figures not stand under es-en's and fr-en's, the
-dictionary sentence on Italian goes.
+English, on your device ».
 
 ### Fields, en-US and en-GB
 
@@ -540,7 +540,7 @@ dictionary sentence on Italian goes.
 |---|---|---|
 | Subtitle | 30 | `Spanish, French or Italian` (26) |
 | Promotional text | 170 | 139 characters, below |
-| Description | 4000 | 3219 characters (3136 without the dictionary sentence on Italian), below |
+| Description | 4000 | 3136 characters, below |
 | Keywords | 100 | 96 characters (96 bytes), below |
 | What's New | 4000 | 437 characters (387 without the voice), below |
 
@@ -566,7 +566,7 @@ without `reading` 99.
 spanish,french,italian,vocabulary,reading,translation,extension,learn,CEFR,flashcards,dictionary
 ```
 
-### Description, en-US and en-GB (3219 / 4000)
+### Description, en-US and en-GB (3136 / 4000)
 
 Change 21's en-US text with Italian named wherever it says what an English speaker studies: the first
 sentence; step 3, as change 25's English activation page says it (`copy.js`, `en.step3`, its D6:
@@ -574,8 +574,9 @@ sentence; step 3, as change 25's English activation page says it (`copy.js`, `en
 level."); READ, the card's "past historic (passato remoto)" (change 18, pinned by
 `apps/lingua-extension/test/baseline/word-card-it-en.txt`); REVIEW, Italian's levels said estimated
 (`levels_estimated`, change 14), as the requirement asks of a text that names levels; EXTENDED
-TRANSLATION, straight from Italian, 26.2 MB each; the dictionary sentence and, after it, Italian's
-dictionary said a little less complete (M6); the last line. 3136 without that sentence on Italian.
+TRANSLATION, straight from Italian, 26.2 MB each; the dictionary sentence; the last line. Nothing
+says Italian's dictionary is less complete: it-en stands 0.7 to 3.0 points under es-en and fr-en,
+and the owner took that sentence out on 2026-10-25.
 
 ```
 Cymbra Lingua is a Safari extension that highlights, on the page you are reading, the Spanish, French or Italian words you don't know yet — without changing the layout. A pill shows how much of the text is familiar to you, counted from what you actually marked rather than guessed.
@@ -605,7 +606,7 @@ The dictionaries and the analysis and translation engines are in the app, and ev
 AN ACCOUNT, IF YOU WANT ONE
 Create a Cymbra account if — and only if — you want your words and cards on your other devices. Apart from the anonymous counts, that is the only thing that leaves your device, and you can erase it from the settings without deleting your account.
 
-How many Spanish, French and Italian words our dictionary explains in English: our figures are at cymbra.app/en/lingua. For Italian, the dictionary is a little less complete than for Spanish and French.
+How many Spanish, French and Italian words our dictionary explains in English: our figures are at cymbra.app/en/lingua.
 
 The interface is in English for English speakers, who learn Spanish, French and Italian, and in French for French speakers, who learn English, Spanish and Italian.
 ```
