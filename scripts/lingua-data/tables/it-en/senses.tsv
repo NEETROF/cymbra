@@ -1970,7 +1970,7 @@ arbitrario	ADJ:1
 arbitrato	NOUN:1
 arbitrio	NOUN:2
 arbitro	NOUN:2
-arbore	NOUN:1
+arbore	NOUN:1	PROPN:1
 arboreo	ADJ:1
 arborio	PROPN:1	NOUN:1
 arbusto	NOUN:1
@@ -2694,7 +2694,7 @@ auditore	PROPN:1
 auditorio	NOUN:1
 audizione	NOUN:1
 auge	NOUN:2
-augello	NOUN:1
+augello	NOUN:1	PROPN:1
 augurale	ADJ:2
 augurare	VERB:4
 augurato	ADJ:2
@@ -2712,7 +2712,7 @@ aureli	PROPN:1
 aurelia	PROPN:1	NOUN:1
 aureliano	ADJ:1
 aurelio	PROPN:1
-aureo	NOUN:1	ADJ:1
+aureo	ADJ:1	NOUN:1
 aureola	NOUN:3
 auricolare	ADJ:2	NOUN:1
 auriemma	PROPN:1
@@ -3010,7 +3010,7 @@ azzurro	ADJ:2	NOUN:3
 ba	INTJ:2
 baal	PROPN:1
 babbeo	ADJ:1	NOUN:1
-babbo	NOUN:1	ADJ:1
+babbo	NOUN:1	ADJ:1	PROPN:1
 babbuino	NOUN:1
 babele	NOUN:1	PROPN:1
 babila	PROPN:1
@@ -4266,7 +4266,7 @@ braga	NOUN:3
 bragadin	PROPN:1
 bragaglia	PROPN:1
 braghe	NOUN:1
-braida	NOUN:1
+braida	NOUN:1	PROPN:1
 braidense	ADJ:3	NOUN:2
 brainstorming	NOUN:1
 brama	NOUN:1
@@ -4311,7 +4311,7 @@ breganze	PROPN:2
 brema	PROPN:2
 brembo	PROPN:1
 breme	NOUN:1
-brenna	PROPN:1	NOUN:1
+brenna	PROPN:2	NOUN:1
 brennero	PROPN:1
 brenno	PROPN:2
 brenta	NOUN:1	PROPN:1
@@ -5023,7 +5023,7 @@ cannoniera	NOUN:2
 cannoniere	NOUN:2
 cannuccia	NOUN:1
 cannula	NOUN:1
-cano	ADJ:1
+cano	ADJ:1	PROPN:1
 canoa	NOUN:2
 canone	NOUN:4
 canonica	NOUN:1
@@ -5263,7 +5263,7 @@ caratterizzare	VERB:2
 caratterizzazione	NOUN:1
 caratura	NOUN:2
 caravaggio	PROPN:2
-caravella	NOUN:1
+caravella	NOUN:1	PROPN:1
 carboidrato	NOUN:1
 carbonara	NOUN:2
 carbonare	VERB:1
@@ -5436,7 +5436,7 @@ carta	NOUN:4
 cartaccia	NOUN:2
 cartaceo	ADJ:2
 cartagine	PROPN:1
-cartaginese	ADJ:1	NOUN:1
+cartaginese	ADJ:1	NOUN:1	PROPN:1
 cartapesta	NOUN:1
 carteggio	NOUN:1
 cartella	NOUN:5
@@ -5552,7 +5552,7 @@ cassettone	NOUN:2
 cassibile	PROPN:2
 cassiere	NOUN:3
 cassinese	ADJ:1	NOUN:1
-cassino	NOUN:1
+cassino	NOUN:1	PROPN:1
 cassio	PROPN:1	NOUN:1
 cassiopea	PROPN:1
 casso	ADJ:4	VERB:2	NOUN:2
@@ -5585,7 +5585,7 @@ castigare	VERB:3
 castigato	ADJ:1
 castiglia	PROPN:2
 castigliano	ADJ:1	NOUN:2
-castiglione	PROPN:1	NOUN:1
+castiglione	PROPN:2	NOUN:1
 castigo	NOUN:1
 casting	NOUN:1
 castione	PROPN:1
@@ -5711,7 +5711,7 @@ cavalcavia	NOUN:1
 cavalierato	NOUN:1
 cavaliere	NOUN:5
 cavalla	NOUN:1
-cavallaro	NOUN:1
+cavallaro	NOUN:1	PROPN:1
 cavalleresco	ADJ:2
 cavalleria	NOUN:3
 cavallerizza	NOUN:2
@@ -7106,7 +7106,7 @@ computerizzato	ADJ:1
 computo	NOUN:1
 comunale	ADJ:3	NOUN:1
 comunanza	NOUN:1
-comune	ADJ:2	NOUN:6
+comune	ADJ:2	NOUN:5	PROPN:1
 comunella	NOUN:2
 comunemente	ADV:3
 comunicando	NOUN:1
@@ -8543,7 +8543,7 @@ danzica	PROPN:1
 dappertutto	ADV:1
 dapprima	ADV:1
 dardanelli	PROPN:1
-dardano	PROPN:2	ADJ:1	NOUN:1
+dardano	PROPN:3	ADJ:1	NOUN:1
 dardo	NOUN:1
 dare	VERB:4	NOUN:1
 dario	PROPN:2
@@ -8980,7 +8980,7 @@ designato	ADJ:1	NOUN:1
 designazione	NOUN:2
 designer	NOUN:1
 desinenza	NOUN:2
-desio	NOUN:1
+desio	NOUN:1	PROPN:3
 desire	NOUN:1
 desistere	VERB:2
 desktop	NOUN:2
@@ -10132,7 +10132,7 @@ eclettico	ADJ:1	NOUN:1
 eclettismo	NOUN:2
 eclissi	NOUN:1
 eclittica	NOUN:1
-eco	NOUN:4
+eco	NOUN:4	PROPN:1
 ecocardiografia	NOUN:1
 ecocompatibile	ADJ:1
 ecografia	NOUN:1
@@ -10986,7 +10986,7 @@ esportare	VERB:1
 esportatore	ADJ:1	NOUN:1
 esportazione	NOUN:1
 espositivo	ADJ:2
-esposito	NOUN:1
+esposito	PROPN:1	NOUN:1
 espositore	ADJ:1	NOUN:2
 esposizione	NOUN:4
 esposto	ADJ:2	NOUN:2
@@ -11698,7 +11698,7 @@ ferri	NOUN:1
 ferrico	ADJ:1
 ferriera	NOUN:1
 ferrigno	ADJ:3
-ferro	NOUN:1
+ferro	NOUN:1	PROPN:1
 ferroso	ADJ:1
 ferrovia	NOUN:1
 ferroviaria	NOUN:1
@@ -11802,7 +11802,7 @@ ficino	PROPN:1
 fico	NOUN:2	ADJ:1
 fiction	NOUN:1
 fida	NOUN:2
-fidanza	NOUN:2
+fidanza	NOUN:2	PROPN:1
 fidanzamento	NOUN:1
 fidanzare	VERB:2
 fidanzata	NOUN:1
@@ -12483,7 +12483,7 @@ franzini	PROPN:1
 franzoni	PROPN:1
 frappè	NOUN:2
 frasca	NOUN:4
-frascati	NOUN:1
+frascati	NOUN:1	PROPN:1
 fraschini	PROPN:1
 frase	NOUN:4
 fraseggio	NOUN:1
@@ -12981,8 +12981,8 @@ gaudente	NOUN:1	ADJ:1
 gaudenzi	PROPN:1
 gaudenzio	PROPN:1
 gaudino	PROPN:1
-gaudio	NOUN:2
-gaudioso	ADJ:1
+gaudio	NOUN:2	PROPN:1
+gaudioso	ADJ:1	PROPN:2
 gavazzeni	PROPN:1
 gavetta	NOUN:2
 gavi	PROPN:1	NOUN:1
@@ -13996,7 +13996,7 @@ guaglione	NOUN:1
 guai	INTJ:1	NOUN:1
 guaina	NOUN:3
 guaio	NOUN:3
-guaita	NOUN:4	PROPN:1
+guaita	NOUN:4	PROPN:2
 gualandi	PROPN:1
 gualdo	NOUN:1
 gualtieri	PROPN:1
@@ -16277,7 +16277,7 @@ italianizzazione	NOUN:4
 italiano	ADJ:1	NOUN:2
 italico	ADJ:1
 italiota	NOUN:1
-italo	ADJ:1	NOUN:1
+italo	ADJ:1	NOUN:1	PROPN:1
 italoamericano	ADJ:1
 item	ADV:1	NOUN:2
 iter	NOUN:1
@@ -16533,7 +16533,7 @@ lanugine	NOUN:3
 lanza	PROPN:1
 lanzani	PROPN:1
 lanzetta	PROPN:1
-lanzo	NOUN:1
+lanzo	NOUN:1	PROPN:1
 lanzoni	PROPN:2
 lao	PROPN:1
 laocoonte	PROPN:1
@@ -16674,7 +16674,7 @@ laziale	ADJ:2	NOUN:3
 lazio	PROPN:2	ADJ:1
 lazo	NOUN:1
 lazzaretto	NOUN:2
-lazzaro	NOUN:1	PROPN:1
+lazzaro	NOUN:1	PROPN:3
 lazzarone	NOUN:2
 lazzati	PROPN:1
 lc	PROPN:1
@@ -17748,7 +17748,7 @@ manciata	NOUN:1
 mancina	NOUN:1
 mancino	ADJ:1	NOUN:1
 manciuria	PROPN:1
-manco	ADJ:2	ADV:2	NOUN:1
+manco	ADV:2	ADJ:2	NOUN:1
 mancuso	PROPN:1
 mandala	NOUN:1
 mandamento	NOUN:2
@@ -18681,7 +18681,7 @@ miani	PROPN:2
 miano	PROPN:2
 miao	NOUN:1	INTJ:1
 miastenia	NOUN:1
-mica	NOUN:3	ADV:5
+mica	ADV:5	NOUN:3
 micca	NOUN:2
 miccia	NOUN:1
 miccichè	PROPN:1
@@ -18746,7 +18746,7 @@ migliorare	VERB:3
 migliore	ADJ:2	NOUN:2
 miglioria	NOUN:1
 migliorini	PROPN:1
-mignano	NOUN:1
+mignano	NOUN:1	PROPN:1
 mignolo	NOUN:2
 mignon	ADJ:1
 mignone	PROPN:1	ADJ:1
@@ -18909,7 +18909,7 @@ miracolosamente	ADV:1
 miracoloso	ADJ:2
 miraggio	NOUN:1
 miraglia	PROPN:1
-mirando	ADJ:1
+mirando	ADJ:1	PROPN:2
 mirandola	PROPN:1
 mirare	VERB:2
 mirato	ADJ:1
@@ -19193,7 +19193,7 @@ monitor	NOUN:1
 monitoraggio	NOUN:1
 monitorare	VERB:1
 monitore	NOUN:7
-monna	NOUN:1	PROPN:1
+monna	NOUN:1	PROPN:2
 monnezza	NOUN:1
 mono	ADJ:2
 monoblocco	ADJ:1
@@ -19216,7 +19216,7 @@ monologo	NOUN:1
 monomarca	ADJ:1
 mononucleosi	NOUN:1
 monopattino	NOUN:1
-monopoli	NOUN:1
+monopoli	NOUN:1	PROPN:1
 monopolio	NOUN:1
 monopolista	NOUN:1
 monopolistico	ADJ:1
@@ -19975,7 +19975,7 @@ nieddu	PROPN:1
 niente	PRON:2	DET:1	ADV:2
 nientedimeno	ADV:2	INTJ:1
 nientemeno	ADV:3
-nievo	NOUN:2
+nievo	NOUN:2	PROPN:1
 nigella	NOUN:1
 niger	PROPN:2
 nigeria	PROPN:1
@@ -20005,7 +20005,7 @@ niro	PROPN:1
 nirvana	NOUN:1
 nisba	ADV:1
 nisida	PROPN:1
-niso	NOUN:2	PROPN:1
+niso	NOUN:2	PROPN:2
 nisseno	ADJ:1	NOUN:1
 nistagmo	NOUN:1
 nitidamente	ADV:2
@@ -20623,7 +20623,7 @@ opinione	NOUN:1
 opinionista	NOUN:2
 oplà	INTJ:2
 opossum	NOUN:1
-oppido	NOUN:1
+oppido	NOUN:1	PROPN:2
 oppio	NOUN:1
 oppo	PROPN:1
 opponente	ADJ:1	NOUN:1
@@ -20836,7 +20836,7 @@ ortolano	NOUN:2
 ortona	PROPN:2
 ortopedia	NOUN:1
 ortopedico	ADJ:1	NOUN:1
-orvieto	NOUN:1
+orvieto	NOUN:1	PROPN:1
 orzo	NOUN:1
 osaka	PROPN:2
 osanna	NOUN:1
@@ -23036,7 +23036,7 @@ portoferraio	PROPN:1
 portogallo	PROPN:1	NOUN:1
 portoghese	ADJ:1	NOUN:4
 portogruaro	PROPN:1
-portolano	NOUN:1
+portolano	NOUN:1	PROPN:1
 portoncino	NOUN:2
 portone	NOUN:2
 portoricano	ADJ:1
@@ -23511,7 +23511,7 @@ priore	NOUN:1
 prioritariamente	ADV:1
 prioritario	ADJ:2
 priorità	NOUN:2
-prisco	ADJ:1
+prisco	ADJ:1	PROPN:2
 prisma	NOUN:1
 priuli	PROPN:1
 privacy	NOUN:1
@@ -24250,7 +24250,7 @@ quintuplo	ADJ:1
 quinzio	PROPN:1
 quirico	PROPN:2
 quirinale	PROPN:2
-quirino	ADJ:1	PROPN:1
+quirino	ADJ:1	PROPN:2
 quivi	ADV:1
 quiz	NOUN:1
 quorum	NOUN:1
@@ -25031,7 +25031,7 @@ revolver	NOUN:2
 rey	PROPN:1
 reykjavik	PROPN:1
 rezia	PROPN:1
-rezza	NOUN:1
+rezza	NOUN:1	PROPN:1
 rezzo	NOUN:1
 rho	NOUN:1
 riabbracciare	VERB:2
@@ -26550,7 +26550,7 @@ sassolino	NOUN:1
 sassone	ADJ:1	NOUN:2
 sassonia	PROPN:2
 sassu	PROPN:1
-sassuolo	NOUN:1
+sassuolo	NOUN:1	PROPN:1
 satana	PROPN:1	NOUN:1
 satanico	ADJ:1
 satanismo	NOUN:1
@@ -27637,7 +27637,7 @@ sermoneta	PROPN:2
 sermonti	PROPN:1
 serotonina	NOUN:1
 serpa	NOUN:2
-serpe	NOUN:2
+serpe	NOUN:2	PROPN:1
 serpente	NOUN:1
 serpentina	NOUN:1
 serpentino	ADJ:2	NOUN:2
@@ -28605,7 +28605,7 @@ soprintendenza	NOUN:1
 sopruso	NOUN:1
 soqquadro	NOUN:1
 sor	NOUN:1
-sora	NOUN:1
+sora	NOUN:1	PROPN:2
 soranzo	PROPN:2
 sorbetto	NOUN:2
 sorbillo	PROPN:1
@@ -30230,7 +30230,7 @@ tannico	ADJ:1
 tannino	NOUN:1
 tantalo	NOUN:1	PROPN:1
 tantino	DET:1	PRON:1
-tanto	ADV:3	DET:2	PRON:1	SCONJ:2
+tanto	DET:3	ADV:2	PRON:1	SCONJ:2
 tantomeno	ADV:1	SCONJ:1
 tantra	NOUN:1
 tantrico	ADJ:1
@@ -30338,7 +30338,7 @@ taurianova	PROPN:1
 tauride	PROPN:1
 taurina	NOUN:1
 taurino	ADJ:1
-tauro	NOUN:3
+tauro	NOUN:3	PROPN:1
 tauromachia	NOUN:1
 tautologia	NOUN:1
 tav	PROPN:1
@@ -31908,7 +31908,7 @@ urbanistico	ADJ:3
 urbanizzato	ADJ:1
 urbanizzazione	NOUN:1
 urbano	ADJ:2	PROPN:1
-urbe	NOUN:1	PROPN:1
+urbe	NOUN:1	PROPN:2
 urbinate	ADJ:1	NOUN:1
 urbino	PROPN:1
 urca	INTJ:1
@@ -32130,7 +32130,7 @@ vaniglia	NOUN:1
 vanitoso	ADJ:1	NOUN:1
 vanità	NOUN:2
 vanna	PROPN:2
-vanni	NOUN:1
+vanni	NOUN:1	PROPN:1
 vannoni	PROPN:1
 vannucci	PROPN:1
 vano	ADJ:2	NOUN:2
@@ -32279,7 +32279,7 @@ velocista	NOUN:1
 velocità	NOUN:2
 velocizzare	VERB:1
 velodromo	NOUN:1
-veltro	NOUN:1
+veltro	NOUN:1	PROPN:1
 veltroni	PROPN:1
 vena	NOUN:6
 venafro	PROPN:2
@@ -33080,7 +33080,7 @@ zappare	VERB:5
 zappatore	NOUN:2
 zapping	NOUN:1
 zar	NOUN:2
-zara	PROPN:2	NOUN:2
+zara	PROPN:3	NOUN:2
 zarina	NOUN:1
 zarista	ADJ:1
 zarrillo	PROPN:1
