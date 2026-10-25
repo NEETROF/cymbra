@@ -1200,7 +1200,7 @@ class Legacy(unittest.TestCase):
             return f"sha256:{digest}\n".encode()
 
         committed = sorted(p.parent.name for p in (HERE / "tables").glob("*/pin.json"))
-        self.assertEqual(committed, ["en-es", "en-fr", "es-en", "es-fr", "fr-en", "fr-es", "it-en", "it-fr"])
+        self.assertEqual(committed, ["en-es", "en-fr", "es-en", "es-fr", "fr-en", "fr-es", "it-en", "it-es", "it-fr"])
         for pair in committed:
             pin = self.tables / pair / "pin.json"
             pin.parent.mkdir(parents=True)
@@ -1245,8 +1245,9 @@ class Legacy(unittest.TestCase):
                 len(raws),
                 f"{pair}: every asset of its records",
             )
-            # en-es, fr-en, fr-es and it-fr were born on the dumps: no extract of their own.
-            self.assertEqual("kaikki" in sources, pair not in ("en-es", "fr-en", "fr-es", "it-fr", "it-en"), f"{pair}: its legacy extract record")
+            # en-es, fr-en, fr-es, it-fr, it-en and it-es were born on the dumps: no extract of their own.
+            born_on_dumps = ("en-es", "fr-en", "fr-es", "it-fr", "it-en", "it-es")
+            self.assertEqual("kaikki" in sources, pair not in born_on_dumps, f"{pair}: its legacy extract record")
         self.assertEqual(
             sorted(p.name for p in (self.work / "es-en").iterdir() if p.suffix == ".jsonl"),
             ["kaikki-Spanish.jsonl", "kaikki-es-traductions-en.jsonl"],
@@ -2688,7 +2689,8 @@ class ItalianGlossedInSpanishSources(unittest.TestCase):
                 "it-en": {"en": ("kaikki-Italian.jsonl",), "it": ("kaikki-it-traductions-en.jsonl",)},
             },
         )
-        # Only it-es reads the files this change adds, and no committed pin names one.
+        # Only it-es reads the files this change adds, and no other committed pin names one: it-es's own,
+        # written by its first update (add-lingua-pack-it-es), records them all, Wikidata's under `wikidata`.
         added = {file for files in ps.DUMPS["it-es"].values() for file in files}
         for pair, reads in ps.DUMPS.items():
             if pair != "it-es":
@@ -2697,6 +2699,10 @@ class ItalianGlossedInSpanishSources(unittest.TestCase):
         self.assertTrue(pins)
         for pin in pins:
             recorded = {file for spec in ps.load(pin)["sources"].values() if isinstance(spec, dict) for file in spec.get("files") or {}}
+            if pin.parent.name == "it-es":
+                self.assertEqual(added & recorded, added)
+                self.assertIn("wikidata", ps.load(pin)["sources"])
+                continue
             self.assertFalse(added & recorded, pin.parent.name)
             self.assertNotIn("wikidata", ps.load(pin)["sources"], pin.parent.name)
 
@@ -3347,9 +3353,12 @@ class Record(unittest.TestCase):
         # among the references (add-lingua-french-forms-tables); fr-es, which reads tables/fr, after
         # it (add-lingua-pack-fr-es): fr-en's update brings it along. it-fr, Italian's reference, among
         # the references (add-lingua-italian-forms-tables D9); it-en, which reads tables/it, after it
-        # (add-lingua-pack-it-en): it-fr's update brings it along.
-        self.assertEqual(ps.pairs(HERE / "tables"), ["en-fr", "es-fr", "fr-en", "it-fr", "en-es", "es-en", "fr-es", "it-en"])
-        self.assertEqual(ps.pairs(HERE / "tables", after="it-fr"), ["it-fr", "it-en"])
+        # (add-lingua-pack-it-en): it-fr's update brings it along; it-es likewise (add-lingua-pack-it-es).
+        self.assertEqual(
+            ps.pairs(HERE / "tables"), ["en-fr", "es-fr", "fr-en", "it-fr", "en-es", "es-en", "fr-es", "it-en", "it-es"]
+        )
+        self.assertEqual(ps.pairs(HERE / "tables", after="it-fr"), ["it-fr", "it-en", "it-es"])
+        self.assertEqual(ps.pairs(HERE / "tables", after="it-es"), ["it-es"])
         self.assertEqual(ps.pairs(HERE / "tables", after="it-en"), ["it-en"])
         self.assertEqual(ps.pairs(HERE / "tables", after="fr-en"), ["fr-en", "fr-es"])
         self.assertEqual(ps.pairs(HERE / "tables", after="fr-es"), ["fr-es"])

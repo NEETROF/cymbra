@@ -883,7 +883,9 @@ pivot, **85.2 / 76.0 / 65.1 %** of the 5,000 / 10,000 / 20,000 commonest (31.7 /
 definitions alone; 66.9 / 53.9 / 40.8 before the pivot), less two points — **83.2 / 74.0 / 63.1**,
 settled by the owner on 2026-10-25, before the first committed measurement (D8, task 0.1). Measured
 again after the review's fixes (the Spanish section's parentheses kept, the pivot's Spanish words read
-as written): 85.2 / 76.1 / 65.1.
+as written): 85.2 / 76.1 / 65.1. **Committed** by the update of 2026.10.25 (`lingua-pack-update` run 40210737711,
+the release `lingua-pack-sources-it-es-2026.10.25`), byte for byte the forecast: 24,705 glosses, 1,165
+expressions, the pack 1,894,196 B, its base it-fr's (1,551,196 B), its layer 343,240 B.
 
 ## IT → ES: the sources it-es reads, the pivot among them
 

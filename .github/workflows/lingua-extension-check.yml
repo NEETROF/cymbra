@@ -158,9 +158,11 @@ jobs:
       # (add-lingua-italian-word-card D6). it-en (the Italian programme's change 22,
       # add-lingua-pack-it-en D9) freezes the Italian scenario glossed in English over the committed
       # tables/it/ and tables/it-en/, equal to it-fr's on the studied side; the English card's lines
-      # over it are pinned by test/word-card-it-en.spec.ts.
-      - name: Invariance baselines (en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr, it-en)
-        run: cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline --test fr_es_baseline --test italian_baseline --test it_en_baseline
+      # over it are pinned by test/word-card-it-en.spec.ts. it-es (change 27, add-lingua-pack-it-es D11)
+      # freezes it glossed in Spanish over tables/it/ and tables/it-es/, equal to it-fr's on the studied
+      # side; the Spanish card's lines over it are pinned by test/word-card-it-es.spec.ts.
+      - name: Invariance baselines (en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr, it-en, it-es)
+        run: cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline --test fr_es_baseline --test italian_baseline --test it_en_baseline --test it_es_baseline
       # What a pack studies does not depend on how it glosses (add-lingua-pack-lexical-layer):
       # a studied language's tables — its pinned tag pool, studied tables and dictionary words —
       # are kept once, in tables/<studied>/, and read by every pair of that language

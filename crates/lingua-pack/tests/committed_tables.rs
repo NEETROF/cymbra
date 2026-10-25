@@ -3481,8 +3481,197 @@ fn spec_scenario_it_en_is_not_shipped() {
 
 // it-es (add-lingua-pack-it-es, the Italian programme's change 27): Italian's thin reader pair, glossed in
 // Spanish from the Spanish and Italian Wiktionaries, Wikidata and a pivot of seven Wiktionaries' tables.
-// Its first update writes its folder whole (D1); no package lists it before change 30 (D11). The checks
-// of its committed tables — built to its pin, its credits — come with them.
+// Its first update wrote its folder whole (D1); no package lists it before change 30 (D11).
+
+/// it-es's pack, whole and as its base and layer, built once per test binary.
+fn it_es() -> &'static (Vec<u8>, SplitPack) {
+    static IT_ES: OnceLock<(Vec<u8>, SplitPack)> = OnceLock::new();
+    IT_ES.get_or_init(|| {
+        let inputs =
+            inputs_from_tables(&tables(), "it-es").unwrap_or_else(|e| panic!("it-es: {e}"));
+        build_whole_and_split(&inputs).unwrap_or_else(|e| panic!("split it-es: {e}"))
+    })
+}
+
+#[test]
+fn spec_scenario_italian_glossed_in_spanish() {
+    // Its folder holds exactly a pair's file set — its native side, pin and README —, its manifest
+    // studies Italian glossed in Spanish, and its studied side is tables/it, which it-fr writes. Its
+    // pin records its own pack and parts and — a reader pair's record — it-fr as the reference and
+    // the sha256 of each studied table it was built on, as committed; its rules are its own reducer,
+    // its pre-pass, its copy of fr-es's table rules, Italian's acronym rows and the Spanish edition's (D1, D4).
+    let mut own: Vec<String> = PAIR_SIDE.iter().map(|t| (*t).to_owned()).collect();
+    own.extend(["pin.json".to_owned(), "README.md".to_owned()]);
+    own.sort();
+    assert_eq!(files(&tables().join("it-es")), own, "it-es/");
+    let manifest = json(&tables().join("it-es/manifest.json"));
+    assert_eq!(manifest["meta"]["studied"], "it");
+    assert_eq!(manifest["meta"]["native"], "es");
+    let pairs = check_committed_tables(&tables()).unwrap_or_else(|e| panic!("{e}"));
+    assert!(pairs.iter().any(|p| p == "it-es"), "it-es is read");
+
+    let pin = json(&tables().join("it-es/pin.json"));
+    let (whole, split) = it_es();
+    assert_eq!(
+        pin["pack"]["sha256"],
+        sha256_hex(whole).as_str(),
+        "it-es: pin.json"
+    );
+    assert_eq!(pin["pack"]["size"], whole.len());
+    assert_eq!(pin["base"]["sha256"], sha256_hex(&split.base).as_str());
+    assert_eq!(pin["layer"]["sha256"], sha256_hex(&split.layer).as_str());
+    assert!(whole.len() < MAX_PACK_BYTES);
+    assert!(Pack::assemble(&split.base, &split.layer).is_ok());
+    // One base for Italian: it-es's is it-fr's, byte for byte.
+    assert_eq!(split.base, it_fr().1.base, "it-es ships it-fr's base");
+    assert_eq!(pin["studied"]["reference"], "it-fr");
+    for name in STUDIED_SIDE.iter().chain(&["lexical.tsv", "tags.tsv"]) {
+        let committed = std::fs::read(tables().join("it").join(name)).unwrap();
+        assert_eq!(
+            pin["studied"]["tables"][name],
+            sha256_hex(&committed).as_str(),
+            "it-es: it/{name}"
+        );
+    }
+    assert_eq!(
+        pin["reducer"]["files"],
+        serde_json::json!([
+            "reduce-it-es.py",
+            "reduce_common.py",
+            "reduce_edition_es.py",
+            "reduce_italian_acronyms.py",
+            "reduce_italian_es.py",
+            "reduce_spanish_tables.py"
+        ])
+    );
+    // Its own fetch of every file it reads (change 27a's D4), under its own release: the Spanish and
+    // Italian Wiktionaries, the seven Wiktionaries of the pivot and Wikidata's Lexemes; nothing pinned at
+    // a commit, no treebank.
+    let sources = pin["sources"].as_object().unwrap();
+    assert_eq!(
+        sources.keys().map(String::as_str).collect::<Vec<_>>(),
+        // In the map's order, the records' names sorted.
+        [
+            "kaikki-de",
+            "kaikki-en",
+            "kaikki-es",
+            "kaikki-fr",
+            "kaikki-it",
+            "kaikki-nl",
+            "kaikki-pl",
+            "kaikki-pt",
+            "kaikki-ru",
+            "wikidata",
+            "wordfreq"
+        ]
+    );
+    for (name, record) in sources.iter().filter(|(name, _)| *name != "wordfreq") {
+        assert!(
+            record["release"]
+                .as_str()
+                .unwrap()
+                .starts_with("lingua-pack-sources-it-es-"),
+            "{name}: it-es's own release"
+        );
+    }
+    assert_eq!(
+        sources["wikidata"]["files"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect::<Vec<_>>(),
+        ["wikidata-lexemes-it-es.jsonl"]
+    );
+    // A reader pair's pack carries a lexical table: its dictionary words are it-fr's.
+    assert!(section_of(&sections(whole), section::LEXICAL).is_some());
+    let pack = Pack::load(whole).unwrap();
+    assert_eq!(pack.pair().key(), "it-es");
+    assert_eq!(
+        pack.dictionary_words(),
+        Pack::load(&it_fr().0).unwrap().dictionary_words(),
+        "it-es's dictionary words are it-fr's"
+    );
+    // The acronym rows are glossed through their synonyms (D7), the only unranked lemmas it glosses.
+    let glossed = tsv(&tables().join("it-es/gloss.tsv"));
+    let ranked = tsv(&tables().join("it/freq.tsv"));
+    let rows = italian_acronyms();
+    assert!(
+        glossed.contains_key("USA"),
+        "USA glossed through its synonyms"
+    );
+    assert!(
+        glossed
+            .keys()
+            .all(|l| ranked.contains_key(l) || rows.contains(l)),
+        "an unranked lemma glossed"
+    );
+}
+
+#[test]
+fn spec_scenario_the_credits_of_it_es() {
+    // it-es's notice names both sides' sources — the Spanish and Italian Wiktionaries, Wikidata's
+    // Lexemes under CC0, the seven Wiktionaries of the pivot, and every source of Italian's studied
+    // tables: wordfreq, UD Italian-MarkIT, Morph-it! while it-fr keeps it, and the French Wiktionary's
+    // Italian section —, never UD Italian-PUD; its manifest says the levels are estimated, names
+    // Italian's analyser version and Wikidata's licence `Cc0`, never denied (D9). The pack carries both.
+    let notice = std::fs::read_to_string(tables().join("it-es/NOTICE")).unwrap();
+    let notice = notice.split_whitespace().collect::<Vec<_>>().join(" ");
+    for credit in [
+        "Spanish Wiktionary (eswiktionary), Italian section",
+        "Italian Wiktionary (itwiktionary)",
+        "Wikidata Lexemes",
+        "CC0 1.0",
+        "English (enwiktionary), French (frwiktionary), German (dewiktionary)",
+        "Portuguese (ptwiktionary), Russian (ruwiktionary), Polish (plwiktionary) and Dutch (nlwiktionary)",
+        "wordfreq",
+        "Robyn Speer",
+        "UD Italian-MarkIT",
+        "French Wiktionary (frwiktionary), Italian section",
+        "which lemmas the it-fr pack glosses",
+        "The levels are estimated, not taken from a CEFR list",
+    ] {
+        assert!(notice.contains(credit), "it-es/NOTICE names {credit:?}");
+    }
+    let it_fr_pin = json(&tables().join("it-fr/pin.json"));
+    assert_eq!(
+        it_fr_pin["sources"]
+            .as_object()
+            .unwrap()
+            .contains_key("morph-it"),
+        notice.contains("Morph-it!"),
+        "Morph-it! credited while it-fr pins it"
+    );
+    assert!(!notice.contains("PUD"), "PUD is a gate, never shipped");
+    let manifest = json(&tables().join("it-es/manifest.json"));
+    assert_eq!(manifest["meta"]["levels_estimated"], true);
+    assert_eq!(
+        manifest["meta"]["analyzer_version"],
+        lingua_core::analysis::ITALIAN_ANALYZER_VERSION
+    );
+    assert!(
+        manifest["sources"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s["name"] == "Wikidata" && s["licence"] == "Cc0"),
+        "Wikidata's CC0"
+    );
+    let pack = Pack::load(&it_es().0).unwrap();
+    assert!(pack.meta().levels_estimated);
+    for credit in [
+        "eswiktionary",
+        "itwiktionary",
+        "Wikidata",
+        "nlwiktionary",
+        "UD Italian-MarkIT",
+    ] {
+        assert!(
+            pack.notice().contains(credit),
+            "the pack's notice names {credit:?}"
+        );
+    }
+}
 
 #[test]
 fn spec_scenario_it_es_is_not_shipped() {

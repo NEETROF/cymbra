@@ -482,6 +482,23 @@ first run's tables, before the fixes: `gloss.tsv` `0745b641…`, `senses.tsv` `b
 1,894,353 B. The tables do not depend on
 the day; `pack_version`, the manifest and the pack's sha256 do, and so does any edit of it-es's rule files.
 
+### The committed tables (task 3.2) and the baseline (task 4.1)
+
+`lingua-pack-update`, mode `update`, pair `it-es`, `keep` empty, run 40210737711 on this branch, with the
+owner's go-ahead: it published `lingua-pack-sources-it-es-2026.10.25` (the twelve assets of *The bytes*)
+and committed `tables/it-es/` byte for byte the forecast after the review's fixes — `gloss.tsv`
+`0ab46596…`, `senses.tsv` `53e6e980…`, `mwe.tsv` `2cb47ffa…`, `NOTICE` `e9039b41…`, `manifest.json`
+`225222bb…`, the pack `c974efb0…` (1,894,196 B), its base it-fr's —, `tables/it/` unchanged. Coverage
+85.2 / 76.1 / 65.1 against the floor 83.2 / 74.0 / 63.1. Then, on the committed tables:
+`baseline/it-es.golden` (879 lines) blessed here, no workflow blessing a pair's first golden, and
+equal to it-fr's on the studied side (`the_golden_is_the_italian_one_on_the_studied_side`), the first
+card's shown gloss it-es's « Horizonte »; `cross_native.rs` reads the Italian corpus through it-fr's and
+it-es's packs alike but for the glosses, seeds, and lets a gloss the reader chose win; the Spanish card
+snapshot `test/baseline/word-card-it-es.txt` renders the 96 grammar and 49 phrase probes in Spanish
+(« tercera persona del singular del pretérito perfecto simple de indicativo de parlare »);
+`committed_tables.rs` holds the pack to its pin, whole and in parts, its credits and its not being
+listed; `tables/it-es/README.md` gives the coverage by source and the sample marked by source.
+
 ### Left for change 28
 
 Besides *Known data defects*, read in the forecast's 300 commonest rows and its sample — about 12 of the
