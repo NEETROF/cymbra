@@ -5,7 +5,8 @@ name: lingua-pack-update
 # generalise-lingua-pack-reducer, es→fr since add-lingua-spanish-forms-tables, fr→en — French's
 # reference pair, which writes tables/fr/ — since add-lingua-french-forms-tables, fr→es — which reads
 # tables/fr/ as committed — since add-lingua-pack-fr-es, it→fr — Italian's reference pair, which
-# writes tables/it/ — since add-lingua-italian-forms-tables).
+# writes tables/it/ — since add-lingua-italian-forms-tables, it→en — which reads tables/it/ as
+# committed, reduced after it-fr — since add-lingua-pack-it-en).
 #
 # Releases never read upstream: they build the pack from the tables committed under
 # scripts/lingua-data/tables/<pair>/ and its studied language's tables/<studied>/, and check it
@@ -79,7 +80,7 @@ on:
       pair:
         description: "The language pair whose tables to propose (a <studied>-<native> folder of scripts/lingua-data/tables); a studied language's reference brings the pairs that read it; all = every pair, mode reduce or dry."
         type: choice
-        options: [en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr, all]
+        options: [en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr, it-en, all]
         default: en-fr
       expect:
         description: "any = report what moved; identical = fail on any byte the rules were not meant to move (mode reduce only)."
@@ -103,8 +104,9 @@ permissions:
 # never propose the reader's folder on two branches at once: the `es` group for es-fr and es-en,
 # the `en` group for en-fr and en-es, the `fr` group for fr-en and fr-es, which reads tables/fr/
 # (add-lingua-french-forms-tables D10, add-lingua-pack-fr-es D10), the `it` group for it-fr, which
-# writes tables/it/, and the Italian pairs to come (add-lingua-italian-forms-tables D9). `all` (modes
-# reduce and dry) and the monthly dry run have a group each.
+# writes tables/it/, it-en, which reads it (add-lingua-pack-it-en D3), and the Italian pairs to come
+# (add-lingua-italian-forms-tables D9). `all` (modes reduce and dry) and the monthly dry run have a group
+# each.
 concurrency:
   group: lingua-pack-update-${{ startsWith(inputs.pair, 'es-') && 'es' || startsWith(inputs.pair, 'en-') && 'en' || startsWith(inputs.pair, 'fr-') && 'fr' || startsWith(inputs.pair, 'it-') && 'it' || inputs.pair || 'monthly' }}
   cancel-in-progress: false
@@ -198,8 +200,9 @@ jobs:
           failed=()
           for pair in "${pairs[@]}"; do
             studied="${pair%%-*}"
-            # A reference's first update has no folder of its own yet (`pairs --after`): it is
-            # reported against none, its tables proposed whole.
+            # A reference's first update has no folder of its own yet (`pairs --after`), nor a reader
+            # pair's (it-en's, add-lingua-pack-it-en): it is reported against none, its tables proposed
+            # whole.
             if [ -d "$tables/$pair" ]; then
               cp -r "$tables/$pair" "$RUNNER_TEMP/committed/$pair"
             else
