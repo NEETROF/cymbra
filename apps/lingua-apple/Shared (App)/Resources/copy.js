@@ -2,10 +2,11 @@
 // is Main.html's text byte for byte — the page keeps it in place, and
 // apps/lingua-extension/test/apple-activation-page.spec.ts holds the two equal. The English and
 // Spanish are drafts after it. Each table names every language its natives study in the shipped
-// pairs (enable-lingua-french D7), the French page included: English and Spanish for French natives
-// (en-fr, es-fr), Spanish and French for English natives (es-en, fr-en), English and French for
-// Spanish natives (en-es, fr-es). Its last step chooses the first language's level, then says where
-// another is ticked: the extension's settings, under its Language tab.
+// pairs (enable-lingua-french D7), the French page included: English, Spanish and Italian for French
+// natives (en-fr, es-fr, it-fr — Italian since enable-lingua-italian D7), Spanish and French for
+// English natives (es-en, fr-en), English and French for Spanish natives (en-es, fr-es). Its last
+// step chooses the first language's level, then says where another is ticked: the extension's
+// settings, under its Language tab.
 //
 // ViewController.swift sets window.linguaLanguage before the page loads — the extension's
 // interface language once the extension has run, the device's language before, among the
@@ -20,10 +21,10 @@
         fr: {
             iconAlt: "Icône Cymbra Lingua",
             title: "Cymbra Lingua",
-            lede: "Lis le web en anglais ou en espagnol : les mots que tu ne connais pas encore sont surlignés, directement dans Safari.",
+            lede: "Lis le web en anglais, en espagnol ou en italien : les mots que tu ne connais pas encore sont surlignés, directement dans Safari.",
             step1: "Ouvre <strong>Réglages → Apps → Safari → Extensions</strong>.",
             step2: "Active <strong>Cymbra Lingua</strong>, puis règle « Autres sites web » sur <strong>Autoriser</strong>.",
-            step3: "Dans Safari, ouvre l’extension depuis le <strong>menu de la barre d’adresse</strong> et choisis ton niveau d’anglais. Pour l’espagnol, coche-le dans les <strong>Réglages</strong> de l’extension, onglet <strong>Langue</strong>, puis choisis ton niveau d’espagnol.",
+            step3: "Dans Safari, ouvre l’extension depuis le <strong>menu de la barre d’adresse</strong> et choisis ton niveau d’anglais. Pour l’espagnol ou l’italien, coche-le dans les <strong>Réglages</strong> de l’extension, onglet <strong>Langue</strong>, puis choisis son niveau.",
             noteIos: "Recharge les onglets déjà ouverts pour qu’ils soient surlignés.",
             stateUnknown: "Active Cymbra Lingua dans les réglages de Safari, section Extensions.",
             stateOn: "Extension active. Tu peux la désactiver dans les réglages de Safari, section Extensions.",

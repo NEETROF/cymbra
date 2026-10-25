@@ -9,9 +9,9 @@ import { golden, pinned, pinnedBlock, probes } from "./word-card-french.ts";
 // crates/lingua-wasm/tests/baseline/it-fr.golden — the Italian baseline's 32, the card's 24 and the
 // 40 lemmas — is rendered with the interface in French through `src/i18n/fr/grammar.ts`, Italian
 // studied, in French school terms for Italian grammar, and every `phrase-gloss` probe as the
-// whole-selection card shows it (`word-card-french.ts`); the lines are held in a snapshot. No reader
-// sees them before change 20 (enable-lingua-italian) lists it-fr; the owner reads them first
-// (task 4.1: the French terms, the merges, the order). Re-blessed with
+// whole-selection card shows it (`word-card-french.ts`); the lines are held in a snapshot. French
+// readers see them since the Italian programme's change 20 (enable-lingua-italian) listed it-fr; the
+// owner reads them first (task 4.1: the French terms, the merges, the order). Re-blessed with
 // `yarn vitest run test/word-card-it-fr.spec.ts -u` when the golden is (`lingua-pack-update` does,
 // on its branch), and in the pull request that moves the wording, which says why.
 

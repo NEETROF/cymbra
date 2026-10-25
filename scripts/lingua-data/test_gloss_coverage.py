@@ -310,18 +310,32 @@ class OnePairTest(unittest.TestCase):
 
     def test_spec_scenario_it_fr_s_floor_holds(self) -> None:
         # On the committed tables, once they gloss: at least FLOORS' entry at every top, and published
-        # nowhere — no package lists it-fr before Italian is enabled (change 20). Until the update that
-        # commits its glosses, `gloss.tsv` is the empty file change 9 committed.
+        # once a package lists it-fr — enable-lingua-italian lists it, its tables at or above the floor
+        # (its D2, D8) —, nowhere before. Until the update that committed its glosses (change 16),
+        # `gloss.tsv` was the empty file change 9 committed.
         published = json.loads(coverage.SITE_DATA.read_text(encoding="utf-8"))
-        self.assertNotIn("it-fr", coverage.shipped_pairs())
-        self.assertNotIn("it-fr", published["glossed"])
         gloss = coverage.TABLES / "it-fr" / "gloss.tsv"
         if not gloss.is_file() or not gloss.stat().st_size:
+            self.assertNotIn("it-fr", coverage.shipped_pairs())
+            self.assertNotIn("it-fr", published["glossed"])
             return
         code, out, err = self.run_main(coverage.TABLES, "--pair", "it-fr")
         self.assertEqual((code, err), (0, ""))
         measured = json.loads(out)["glossed"]["it-fr"]
         for top, share, floor in zip(coverage.TOPS, measured, coverage.FLOORS["it-fr"]):
+            self.assertGreaterEqual(share, floor, f"the {top:,} commonest lemmas")
+        if "it-fr" in coverage.shipped_pairs():
+            self.assertEqual(published["glossed"]["it-fr"], measured)
+        else:
+            self.assertNotIn("it-fr", published["glossed"])
+
+    def test_it_fr_is_listed_and_published_once_listed(self) -> None:
+        # enable-lingua-italian D1, D8: packs.json lists it-fr last, and the site's file carries its
+        # committed figures, at or above FLOORS["it-fr"].
+        self.assertEqual(coverage.shipped_pairs()[-1], "it-fr")
+        published = json.loads(coverage.SITE_DATA.read_text(encoding="utf-8"))
+        self.assertIn("it-fr", published["glossed"])
+        for top, share, floor in zip(coverage.TOPS, published["glossed"]["it-fr"], coverage.FLOORS["it-fr"]):
             self.assertGreaterEqual(share, floor, f"the {top:,} commonest lemmas")
 
 
@@ -484,8 +498,11 @@ class ListedFloorsTest(unittest.TestCase):
 
     def test_every_listed_pair_with_a_floor_stands_at_or_above_it(self) -> None:
         listed = [pair for pair in coverage.shipped_pairs() if pair in coverage.FLOORS]
-        # es-en, en-es, fr-en and fr-es each have a floor; en-fr and es-fr, published before floors, none.
-        self.assertEqual(listed, [pair for pair in ["es-en", "en-es", "fr-en", "fr-es"] if pair in coverage.shipped_pairs()])
+        # es-en, en-es, fr-en, fr-es and it-fr (enable-lingua-italian D2) each have a floor; en-fr and
+        # es-fr, published before floors, none.
+        candidates = ["es-en", "en-es", "fr-en", "fr-es", "it-fr"]
+        self.assertEqual(listed, [pair for pair in candidates if pair in coverage.shipped_pairs()])
+        self.assertIn("it-fr", listed)
         self.assertEqual(self.under_floors(coverage.TABLES, coverage.PACKS), [])
 
     def test_spec_scenario_a_listed_pair_under_its_floor(self) -> None:

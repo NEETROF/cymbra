@@ -82,8 +82,10 @@ describe("relayTranslation", () => {
     expect(marks.map((m) => fr.slice(m.start, m.end))).toEqual(["maison"]);
   });
 
-  it("The shipped pairs today: en-fr and es-fr are marked, as before; es-en, en-es, fr-en and fr-es were listed ahead of their readers, and it-fr, it-en and it-es are, inert until the Italian programme's changes 20, 25 and 30 (routes-by-pair D4, matrix-marks D5, french-translation D7, it-fr-translation-marks D4, it-en-translation-marks D3, it-es-translation-marks D4)", () => {
+  it("The shipped pairs today: en-fr and es-fr are marked, as before; es-en, en-es, fr-en, fr-es and it-fr were listed ahead of their readers and ship marked since their packs are listed, and it-en and it-es are listed ahead of theirs, inert until the Italian programme's changes 25 and 30 (routes-by-pair D4, matrix-marks D5, french-translation D7, it-fr-translation-marks D4, it-en-translation-marks D3, it-es-translation-marks D4, enable-lingua-italian D5)", () => {
     expect(MARKED_PAIRS).toEqual(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en", "it-es"]);
+    // Every marked pair ships, except it-en and it-es, still inert until changes 25 and 30.
+    expect(MARKED_PAIRS.filter((pair) => !SHIPPED_PAIRS.includes(pair))).toEqual(["it-en", "it-es"]);
     // Keyed by pair, never by studied language: a language alone is not in the list.
     expect(MARKED_PAIRS).not.toContain("en");
     expect(MARKED_PAIRS).not.toContain("es");
@@ -168,7 +170,8 @@ describe("relayTranslation", () => {
       selection: { start: 7, end: 13 }, // « caduta »
       language: "it",
     };
-    expect(MARKED_PAIRS).toContain("it-fr"); // 93 of 97, 3 % withheld; inert until change 20 lists it-fr
+    expect(MARKED_PAIRS).toContain("it-fr"); // 93 of 97, 3 % withheld
+    expect(SHIPPED_PAIRS).toContain("it-fr"); // since enable-lingua-italian (D5)
     const result = await relayTranslation(access, request, pairOf(request.language, "fr"));
     expect(pairs).toEqual(["it-fr", "it-fr"]);
     expect(seen).toEqual([

@@ -682,6 +682,38 @@ describe("WasmAnalyzerPort packs", () => {
       expect(french.calls).toEqual([]);
     });
 
+    it("reads Italian through it-fr for a French reader alone: the Italian base and it-fr's layer on first need, refused to an English or Spanish reader before any fetch (enable-lingua-italian D3, D9)", async () => {
+      const SEVEN = ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr"];
+      const pack = (pair: string) => `ext://assets/packs/${pair}.lingua`;
+      const base = (studied: string) => `ext://assets/bases/${studied}.lingua`;
+
+      const french = packGlue();
+      const fr = new WasmAnalyzerPort(french.load, SEVEN, async () => "fr");
+      await fr.for("en").analyse(["The lighthouse"]);
+      expect(packs()).toEqual([base("en"), pack("en-fr")]);
+      await fr.for("it").analyse(["Il faro"]);
+      await fr.for("it").analyse(["La città"]);
+      // Italian's base and it-fr's layer, fetched once, after English's; no other pair of Italian.
+      expect(packs()).toEqual([base("en"), pack("en-fr"), base("it"), pack("it-fr")]);
+      expect(french.calls).toEqual([
+        ["analyse", ["en"]],
+        ["addParts", ["it"]],
+        ["analyse", ["it"]],
+        ["analyse", ["it"]],
+      ]);
+
+      for (const native of ["en", "es"] as const) {
+        fetched.length = 0;
+        const glue = packGlue();
+        const port = new WasmAnalyzerPort(glue.load, SEVEN, async () => native);
+        await expect(port.for("it").analyse(["Il faro"])).rejects.toThrow(
+          `no shipped pack studies "it" (shipped pairs: ${native === "en" ? "es-en, fr-en" : "en-es, fr-es"})`,
+        );
+        expect(packs()).toEqual([]);
+        expect(glue.calls).toEqual([]);
+      }
+    });
+
     it("answers the native language without fetching a pack", async () => {
       const glue = packGlue();
       const port = new WasmAnalyzerPort(glue.load, MIXED, async () => "en");

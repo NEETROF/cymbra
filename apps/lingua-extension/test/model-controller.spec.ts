@@ -16,6 +16,7 @@ const EN_FR = "en-fr/base-memory/2.0";
 const ES_EN = "es-en/base-memory/2.0";
 const EN_ES = "en-es/base-memory/2.1";
 const FR_EN = "fr-en/base-memory/2.0";
+const IT_EN = "it-en/base-memory/2.0";
 
 const files = (seed: string, sizes: [number, number, number]) => ({
   model: { path: `${seed}/m.gz`, size: sizes[0], unpacked: sizes[0] + 200, sha256: seed[0]!.repeat(64) },
@@ -811,6 +812,65 @@ describe("the committed catalogue: a reader of French downloads, keeps and loads
       twoModels: true,
     });
     expect(second.host.startDownload).toHaveBeenCalledWith([EN_ES, FR_EN]);
+  });
+
+  // enable-lingua-italian D5 and D6: Italian studied by readers of French, on the bundle's list. it-fr goes
+  // through it-en then en-fr; a reader of English, Spanish and Italian needs three models, which the
+  // engine holds two at a time — the memory of two.
+
+  it("A French-native reader of Italian alone: it-fr's route, it-en then en-fr, 51 994 773 bytes, two models' memory", async () => {
+    const italian = of(["it"], "fr");
+    expect(italian).toEqual(["it-fr"]);
+    const { controller, host, setting, downloaded } = setup({ pairs: italian, catalogue: async () => committed });
+    const status = await controller.enable();
+    expect(host.startDownload).toHaveBeenCalledWith([IT_EN, EN_FR]);
+    expect(status.cost).toEqual({
+      download: 26_242_301 + 25_752_472,
+      stored: 37_088_127 + 36_749_127,
+      twoModels: true,
+    });
+    expect(status.cost).toEqual({ download: 51_994_773, stored: 73_837_254, twoModels: true });
+    await downloaded();
+    expect(setting().state).toEqual({ phase: "ready", models: [IT_EN, EN_FR], pairs: ["it-fr"] });
+    expect(await controller.ready("it-fr")).toBe(true);
+    // Its English too: the same two models, en-fr once.
+    const both = of(["en", "it"], "fr");
+    expect(both).toEqual(["en-fr", "it-fr"]);
+    const second = setup({ pairs: both, catalogue: async () => committed });
+    expect((await second.controller.enable()).cost).toEqual({
+      download: 51_994_773,
+      stored: 73_837_254,
+      twoModels: true,
+    });
+    expect(second.host.startDownload).toHaveBeenCalledWith([EN_FR, IT_EN]);
+  });
+
+  it("A French-native reader of English, Spanish and Italian: en-fr, es-en and it-en, 78 235 825 bytes, two models' memory (enable-lingua-italian D6)", async () => {
+    const pairs = of(["en", "es", "it"], "fr");
+    expect(pairs).toEqual(["en-fr", "es-fr", "it-fr"]);
+    const { controller, host, setting, downloaded } = setup({ pairs, catalogue: async () => committed });
+    const status = await controller.enable();
+    expect(host.startDownload).toHaveBeenCalledWith([EN_FR, ES_EN, IT_EN]);
+    expect(status.cost).toEqual({
+      download: 25_752_472 + 26_241_052 + 26_242_301,
+      stored: 36_749_127 + 37_014_089 + 37_088_127,
+      twoModels: true,
+    });
+    expect(status.cost).toEqual({ download: 78_235_825, stored: 110_851_343, twoModels: true });
+    await downloaded();
+    expect(setting().state).toEqual({ phase: "ready", models: [EN_FR, ES_EN, IT_EN], pairs });
+    for (const pair of pairs) expect(await controller.ready(pair)).toBe(true);
+  });
+
+  it("A French-native reader who has not accepted Italian downloads nothing of it-en; no English or Spanish reader ever does (enable-lingua-italian D9)", async () => {
+    for (const pairs of [of(["en", "es"], "fr"), of(["es", "fr", "it"], "en"), of(["en", "fr", "it"], "es")]) {
+      const { controller, host } = setup({ pairs, catalogue: async () => committed });
+      await controller.enable();
+      expect(host.startDownload).toHaveBeenCalledOnce();
+      expect(host.startDownload.mock.calls[0]![0]).not.toContain(IT_EN);
+    }
+    expect(of(["it"], "en")).toEqual([]);
+    expect(of(["it"], "es")).toEqual([]);
   });
 
   it("A reader of the earlier pairs reads what they read before, on the bundle's list", async () => {

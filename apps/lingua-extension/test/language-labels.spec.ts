@@ -362,9 +362,34 @@ describe("Italian, for its voices (add-lingua-italian-read-aloud D3)", () => {
     ]);
   });
 
+  it("Italian studied by readers of French (enable-lingua-italian D3): every message in French — « Niveau d'italien estimé », its note, the borrowed sizes", () => {
+    expect(every("fr", "it")).toEqual({
+      languageName: "Italien",
+      levelScale: "CEFR",
+      levelTitle: "Niveau d'italien",
+      levelTitleEstimated: "Niveau d'italien estimé",
+      myLevelTitle: "Mon niveau d'italien",
+      myLevelTitleEstimated: "Mon niveau d'italien estimé",
+      estimatedLevelsNote:
+        "Niveaux estimés d'après la fréquence des mots, faute de liste CEFR libre de droits pour l'italien.",
+      borrowedTypicalNote: "repris de l'anglais, dont l'italien reprend les tailles de niveaux.",
+      levelName: "B1",
+      levelNameEstimated: "B1 (estimé)",
+      chooseLevelPrompt: "Choisis ton niveau d'italien",
+      noTextDetected: "Pas de texte italien détecté sur cette page.",
+      noTextInYourLanguages: "Pas de texte dans tes langues détecté sur cette page.",
+      noVoiceInstalled: "Aucune voix italienne n'est installée sur cet appareil. ",
+      windowsVoiceLanguage: "Italien (Italie)",
+      previewSentence: "Ecco come suoneranno le tue pagine quando Lingua le leggerà ad alta voce.",
+      levelQuestion: "Quel est ton niveau d'italien ?",
+    });
+    // A reader of English, Spanish and Italian is told of their languages, neutral.
+    expect(noTextDetected("fr", ["en", "es", "it"])).toBe(noTextDetected("fr", ["en", "es"]));
+  });
+
   it("holds the forms the level titles and the sentences take once Italian is studied", () => {
-    // Keyed by the studied language, the titles name Italian only from enable-lingua-italian
-    // (change 20): the templates are read here with the entry they will take.
+    // Keyed by the studied language, the titles name Italian since enable-lingua-italian: the
+    // catalogue's templates, read with the entry they take.
     const fr = frLanguages;
     const { italian: frIt } = fr;
     expect([

@@ -345,6 +345,45 @@ describe("the documents that re-read nothing", () => {
     r.session.detach();
   });
 
+  // enable-lingua-italian D3: a French speaker studying Spanish and Italian, it-fr listed, on a page read
+  // as Spanish — the word Spanish does not know is asked of Italian unless the page declares one of the
+  // neighbours Italian's guard keeps out.
+  it.each(["scn", "vec", "srd"])("A Sicilian, Venetian or Sardinian page (%s): no Italian card", async (lang) => {
+    const before = packs.shipped;
+    packs.shipped = [...before, "it-fr"];
+    try {
+      const r = await reader({ native: "fr", studied: ["es", "it"], documentLanguage: "es" });
+      const page = section("<p>Le verbe hablaba ou parlava se conjugue.</p>", lang);
+      await r.session.attach(page.host);
+      page.select("parlava");
+      await vi.waitFor(() => expect(r.shows.length).toBeGreaterThan(0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(r.asked.filter((a) => a.language === "it")).toEqual([]);
+      expect(r.shows.at(-1)!.readIn).toBeUndefined();
+      r.session.detach();
+    } finally {
+      packs.shipped = before;
+    }
+  });
+
+  it.each(["en", "es"])(
+    "A page declaring %s still asks Italian of a French speaker (enable-lingua-italian)",
+    async (lang) => {
+      const before = packs.shipped;
+      packs.shipped = [...before, "it-fr"];
+      try {
+        const r = await reader({ native: "fr", studied: ["es", "it"], documentLanguage: "es" });
+        const page = section("<p>Le verbe hablaba ou parlava se conjugue.</p>", lang);
+        await r.session.attach(page.host);
+        page.select("parlava");
+        await vi.waitFor(() => expect(r.asked.some((a) => a.language === "it")).toBe(true));
+        r.session.detach();
+      } finally {
+        packs.shipped = before;
+      }
+    },
+  );
+
   it("A French speaker's French page (not analysable): « demande » and hablaba keep their card", async () => {
     const r = await reader({ native: "fr", studied: ["en", "es"], documentLanguage: "en", analysable: false });
     const page = section("<p>Il demande si hablaba est espagnol.</p>", "fr");
@@ -411,8 +450,78 @@ describe("otherStudiedLanguages (D1, D7)", () => {
     expect(GUARDED.en).toBeUndefined();
   });
 
+  // enable-lingua-italian D3: Italian's row, the neighbours change 8's guard keeps as its implementation
+  // settled them (#1042) — Latin, Occitan and Romanian among them.
+  const italian = {
+    ...base,
+    languages: ["es", "it"] as StudiedLanguage[],
+    language: "es" as StudiedLanguage,
+    native: "fr" as NativeLanguage,
+  };
+
+  it("never reads Italian on a page declaring a neighbour Italian's guard keeps out (enable-lingua-italian)", () => {
+    expect(GUARDED.it).toEqual(["ca", "gl", "vec", "scn", "nap", "sc", "co", "fur", "la", "oc", "ro"]);
+    for (const declared of [
+      "scn",
+      "vec",
+      "srd",
+      "nap",
+      "fur",
+      "sc",
+      "co",
+      "cos",
+      "ca",
+      "cat",
+      "gl",
+      "glg",
+      "la",
+      "lat",
+      "oc",
+      "ro",
+      "ron",
+    ]) {
+      expect(otherStudiedLanguages({ ...italian, declared: [primaryLanguage(declared)] }), declared).toEqual([]);
+    }
+    // A page declaring English or Spanish, or nothing, still reads a card in Italian.
+    for (const declared of ["en", "es", "spa", null]) {
+      expect(otherStudiedLanguages({ ...italian, declared: [primaryLanguage(declared)] }), String(declared)).toEqual([
+        "it",
+      ]);
+    }
+    // Italian's neighbours are not Spanish's or French's: a Sicilian page still reads Spanish and French.
+    expect(
+      otherStudiedLanguages({
+        ...italian,
+        languages: ["it", "es", "en"] as StudiedLanguage[],
+        language: "it",
+        declared: ["scn"],
+      }),
+    ).toEqual(["es", "en"]);
+    // Nor are Spanish's and French's Italian's: a Galician page keeps Italian out, and Spanish too.
+    expect(
+      otherStudiedLanguages({
+        ...italian,
+        languages: ["en", "es", "it"] as StudiedLanguage[],
+        language: "en",
+        declared: ["gl"],
+      }),
+    ).toEqual([]);
+  });
+
   it("reads the guards' three-letter codes", () => {
     expect(["cat", "glg", "oci", "ron", "rum"].map(primaryLanguage)).toEqual(["ca", "gl", "oc", "ro", "ro"]);
+    // Sardinian's, Corsican's and Latin's (enable-lingua-italian D3); Venetian, Sicilian, Neapolitan and
+    // Friulian are three-letter codes of their own; French and Italian stay as declared.
+    expect(["srd", "cos", "lat", "vec", "scn", "nap", "fur"].map(primaryLanguage)).toEqual([
+      "sc",
+      "co",
+      "la",
+      "vec",
+      "scn",
+      "nap",
+      "fur",
+    ]);
+    expect(["fra", "ita"].map(primaryLanguage)).toEqual(["fra", "ita"]);
   });
 });
 

@@ -46,6 +46,8 @@ const DAY = 86_400_000;
 const COST = { download: 25_752_472, stored: 36_749_127 };
 /** The six pairs, French last: packs.json since enable-lingua-french. */
 const SIX = ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"];
+/** The seven pairs, Italian last: packs.json since enable-lingua-italian. */
+const SEVEN = [...SIX, "it-fr"];
 /** A language the reader added, whose model is still to download. */
 const missing = (total: number): ModelState => ({
   phase: "missing",
@@ -695,11 +697,12 @@ describe("the level blocks name the language in the interface language", () => {
     );
   });
 
-  /** Réglages of a reader of `native` studying `studied` on the six pairs, every level estimated but English's. */
+  /** Réglages of a reader of `native` studying `studied` on the six pairs (or `pairs`), every level estimated but English's. */
   async function mountWithFrench(
     interfaceLanguage: InterfaceLanguage,
     native: NativeLanguage,
     studied: StudiedLanguage[],
+    pairs: readonly string[] = SIX,
   ) {
     const fake = makeFakePort();
     fake.port.nativeLanguage = async () => native;
@@ -708,7 +711,7 @@ describe("the level blocks name the language in the interface language", () => {
     fake.port.levelsEstimated = async function (this: { language: string }) {
       return this.language !== "en";
     };
-    const r = await mountReglages(interfaceLanguage, { pairs: SIX }, fake);
+    const r = await mountReglages(interfaceLanguage, { pairs }, fake);
     await vi.waitFor(() => expect(r.container.querySelectorAll(".set-levels .set-block").length).toBe(studied.length));
     await settle();
     const titles = [...r.container.querySelectorAll<HTMLElement>(".set-levels .set-block > .set-label")].map(
@@ -749,6 +752,36 @@ describe("the level blocks name the language in the interface language", () => {
     expect(r.offered.map(([language]) => language)).toEqual(["en", "es"]);
     expect(r.levelTitles).toEqual(["Niveau d'anglais", "Niveau d'espagnol estimé"]);
   });
+
+  it("A French-native reader of English and Italian on the seven pairs: English, Spanish then Italian offered, « Niveau d'italien estimé » and its note (enable-lingua-italian D3)", async () => {
+    const r = await mountWithFrench("fr", "fr", ["en", "it"], SEVEN);
+    expect(r.offered).toEqual([
+      ["en", true],
+      ["es", false],
+      ["it", true],
+    ]);
+    expect(r.levelTitles).toEqual(["Niveau d'anglais", "Niveau d'italien estimé"]);
+    expect(r.block("Niveau d'italien estimé").querySelector(".set-estimate")?.textContent).toBe(
+      "Niveaux estimés d'après la fréquence des mots, faute de liste CEFR libre de droits pour l'italien.",
+    );
+  });
+
+  it("A French-native reader of English, Spanish and Italian: a level block for each, in the profile's order (enable-lingua-italian D3)", async () => {
+    const r = await mountWithFrench("fr", "fr", ["en", "es", "it"], SEVEN);
+    expect(r.offered.map(([language]) => language)).toEqual(["en", "es", "it"]);
+    expect(r.levelTitles).toEqual(["Niveau d'anglais", "Niveau d'espagnol estimé", "Niveau d'italien estimé"]);
+  });
+
+  it.each([
+    ["en", ["es", "fr"]],
+    ["es", ["en", "fr"]],
+  ] as const)(
+    "A %s-native reader on the seven pairs: never Italian, as before (enable-lingua-italian D9)",
+    async (native, studied) => {
+      const r = await mountWithFrench(native, native, [...studied], SEVEN);
+      expect(r.offered.map(([language]) => language)).toEqual(studied);
+    },
+  );
 
   it("Every reader today: the French titles and note, byte for byte", async () => {
     const r = await mountLevels(undefined);

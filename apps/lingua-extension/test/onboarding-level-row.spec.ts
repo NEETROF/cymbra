@@ -78,4 +78,16 @@ describe("onboarding — a language's level (add-lingua-spanish-levels)", () => 
       "Niveles estimados según la frecuencia de las palabras, a falta de una lista MCER de uso libre para el francés.",
     );
   });
+  it("asks Italian's level in French, its levels estimated (enable-lingua-italian D3)", async () => {
+    const row = mount("it", true);
+    expect(row.querySelector("h2")?.textContent).toBe("Quel est ton niveau d'italien ?");
+    expect(row.querySelector(".note")?.textContent).toBe(
+      "Niveaux estimés d'après la fréquence des mots, faute de liste CEFR libre de droits pour l'italien.",
+    );
+    row.querySelector<HTMLButtonElement>('button[data-lvl="B1"]')!.click();
+    await settle();
+    expect(row.querySelector(".confirm")?.textContent).toBe(
+      "Niveau enregistré : B1 (estimé). Tu peux fermer cet onglet et commencer à lire.",
+    );
+  });
 });

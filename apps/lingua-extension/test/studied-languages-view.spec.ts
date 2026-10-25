@@ -16,6 +16,8 @@ const BOTH = ["en-fr", "es-fr"];
 const SIX = ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"];
 /** fr-es under its floor: the list ending with fr-en (enable-lingua-french D2). */
 const FR_EN_ALONE = ["en-fr", "es-fr", "es-en", "en-es", "fr-en"];
+/** The seven pairs, Italian last: packs.json since enable-lingua-italian. */
+const SEVEN = [...SIX, "it-fr"];
 const settle = async (): Promise<void> => {
   for (let i = 0; i < 3; i++) await new Promise((resolve) => setTimeout(resolve, 0));
 };
@@ -158,13 +160,65 @@ describe("« Langues étudiées »", () => {
     expect(s.block.querySelector('input[data-language="fr"]')).toBeNull();
   });
 
-  it("offers on the bundle's list what each native language's pairs study (enable-lingua-french)", async () => {
-    expect(SHIPPED_PAIRS).toEqual(SIX);
+  it("offers on the bundle's list what each native language's pairs study (enable-lingua-italian)", async () => {
+    expect(SHIPPED_PAIRS).toEqual(SEVEN);
     const languages = async (native: NativeLanguage) =>
       offered((await mount(["en"], SHIPPED_PAIRS, native)).block).map(([language]) => language);
-    expect(await languages("fr")).toEqual(["en", "es"]);
+    expect(await languages("fr")).toEqual(["en", "es", "it"]);
     expect(await languages("en")).toEqual(["es", "fr"]);
     expect(await languages("es")).toEqual(["en", "fr"]);
+  });
+
+  // enable-lingua-italian D1, D3: Italian offered to a French speaker after English and Spanish, and to
+  // no English or Spanish speaker, whose native language has no pair of Italian.
+  it("offers a French speaker English, Spanish then Italian, and ticking Italian adds it after the others (enable-lingua-italian)", async () => {
+    const s = await mount(["en"], SEVEN);
+    expect(s.block.hidden).toBe(false);
+    expect(offered(s.block)).toEqual([
+      ["en", "Anglais"],
+      ["es", "Espagnol"],
+      ["it", "Italien"],
+    ]);
+    expect(s.box("en").checked).toBe(true);
+    expect(s.box("it").checked).toBe(false);
+    s.box("it").checked = true;
+    s.box("it").dispatchEvent(new Event("change"));
+    await settle();
+    expect(await s.port.studiedLanguages()).toEqual(["en", "it"]);
+    expect(s.persist).toHaveBeenCalledOnce();
+    // Then Spanish, after Italian: the profile keeps the order the boxes were ticked in.
+    s.box("es").checked = true;
+    s.box("es").dispatchEvent(new Event("change"));
+    await settle();
+    expect(await s.port.studiedLanguages()).toEqual(["en", "it", "es"]);
+    expect(s.block.querySelector('input[data-language="fr"]')).toBeNull();
+  });
+
+  it.each(["en", "es"] as const)(
+    "offers Italian to no %s speaker, in the interface of their language (enable-lingua-italian)",
+    async (native) => {
+      const s = await mount([native === "en" ? "es" : "en"], SEVEN, native, native);
+      expect(s.block.querySelector('input[data-language="it"]')).toBeNull();
+      expect(offered(s.block).map(([language]) => language)).toEqual(native === "en" ? ["es", "fr"] : ["en", "fr"]);
+    },
+  );
+
+  it("offers a French speaker the English, Spanish and Italian boxes in the English and Spanish interfaces too (enable-lingua-italian)", async () => {
+    expect(offered((await mount(["en"], SEVEN, "fr", "en")).block)).toEqual([
+      ["en", "English"],
+      ["es", "Spanish"],
+      ["it", "Italian"],
+    ]);
+    expect(offered((await mount(["en"], SEVEN, "fr", "es")).block)).toEqual([
+      ["en", "Inglés"],
+      ["es", "Español"],
+      ["it", "Italiano"],
+    ]);
+  });
+
+  it("offers a French speaker on the French list English and Spanish alone, as before (enable-lingua-french)", async () => {
+    const s = await mount(["en", "es"], SIX);
+    expect(s.block.querySelector('input[data-language="it"]')).toBeNull();
   });
 
   it("shows a French reader's boxes before the port answers, as before", () => {

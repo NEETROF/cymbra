@@ -101,9 +101,9 @@ export function pluralForms(forms: PluralForms): PluralForms {
  * The studied languages whose forms a card's grammar renderer names: French since
  * add-lingua-french-word-card (D1), ahead of the extension's `StudiedLanguage`, which change 52
  * (enable-lingua-french) widened: a French page's content says `fr` since. Italian since
- * add-lingua-italian-word-card (D1), ahead of `StudiedLanguage` too, which change 20
- * (enable-lingua-italian) widens: until then no card is opened on an Italian word, and the
- * renderers' Italian rows are driven by tests and the it-fr snapshot alone.
+ * add-lingua-italian-word-card (D1), ahead of `StudiedLanguage` too, which the Italian programme's
+ * change 20 (enable-lingua-italian) widened: an Italian page's content says `it` since, for a
+ * French-native reader. The two types are one set again; this one stays the renderers' key.
  */
 export type StudiedLanguageCode = "en" | "es" | "fr" | "it";
 
