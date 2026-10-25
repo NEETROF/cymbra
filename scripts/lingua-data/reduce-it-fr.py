@@ -70,8 +70,8 @@ it-fr's own rules — no shared, French-edition or treebank module is edited, so
   (`viti`), from a feminine noun's masculine row its form does not name (`signorini`), from a row of a
   table the readings set aside where the form's own entry names another ranked word (`avi`, `ava`), nor
   from a heading kaikki reads as a cell (« archaic »); `signor` and `od` among the apocopes, `usa`,
-  `dati`, `lega` and `prova` among the overrides (D11); and a reading set aside by name
-  (`READINGS_SET_ASIDE`: `fate`'s subjunctive, D12).
+  `dati`, `lega` and `prova` among the overrides (D11); and a reading set aside or read otherwise by name
+  (`READINGS_SET_ASIDE`: `fate`'s subjunctive out, `dati` a plural, D12).
 
 Italian's acronyms (keep-lingua-italian-acronyms-and-names D2, D6): Italian's analysis reads a word
 standing alone in capitals as written, and the reviewed table `ACRONYMS` of
@@ -2327,27 +2327,41 @@ def grammar_rows(readings, forms, ranks, overrides=OVERRIDES):
     return sorted(f"{form}\t{lemma}\t{tag}\t{mark}\n" for form, lemma, tag, mark in rows)
 
 
-# refine-lingua-it-fr-glosses D12 — a reading the section's tables give a form wrongly, set aside by name:
-# `(form, lemma, tag) → reason`. A row only where a table writes a cell wrongly and no rule of the readings
-# reads it out; the form's other readings stay, and the reduction fails on a row whose reading it does not
-# give (`without_readings_set_aside`). Editing it changes the rules' sha256, as for any rule.
+# refine-lingua-it-fr-glosses D12 — a reading the section gives a form wrongly, set aside or read otherwise by
+# name: `(form, lemma, tag) → (replacement tag or None, reason)`. A row only where a table writes a cell
+# wrongly, or an entry's head names the form wrongly, and no rule of the readings reads it right; the
+# form's other readings stay, a row with a replacement reads the reading as that tag — one of the pinned
+# pool's (`tables/it/tags.tsv`) —, and the reduction fails on a row whose reading it does not give
+# (`without_readings_set_aside`). Editing it changes the rules' sha256, as for any rule.
 READINGS_SET_ASIDE = {
+    ("dati", "dati", "NOUN|Gender=Masc|Number=Sing"): (
+        "NOUN|Gender=Masc|Number=Plur",
+        "« i dati », the data, the plural noun the owner's override row reads as a lemma of its own: the English "
+        "section heads it « data (plural of dato) » with no number, so its own entry gives the singular; fixed at "
+        "review (2026-10-25)",
+    ),
     ("fate", "fare", "VERB|Mood=Sub|Number=Plur|Person=2|Tense=Pres|VerbForm=Fin"): (
+        None,
         "fare's second and third tables list fàte beside facciàte in the present subjunctive's second person plural, "
-        "untagged; the subjunctive is facciate, and fate fare's present indicative and imperative alone"
+        "untagged; the subjunctive is facciate, and fate fare's present indicative and imperative alone",
     ),
 }
 
 
 def without_readings_set_aside(rows, table=READINGS_SET_ASIDE):
-    """`grammar.tsv`'s rows without the readings `table` names (D12), whatever their mark, and the rows of
-    `table` that name a reading the rows do not give, sorted — the reduction refuses them."""
+    """`grammar.tsv`'s rows with each reading `table` names (D12), whatever its mark, left out — or, where the
+    row gives a replacement, read as that tag with the same mark —, and the rows of `table` that name a
+    reading the rows do not give, sorted: the reduction refuses them. The rows come back in the order they
+    came, each replacement where its reading stood."""
     named = {key: False for key in table}
     kept = []
     for row in rows:
-        form, lemma, tag, _ = row.rstrip("\n").split("\t")
+        form, lemma, tag, mark = row.rstrip("\n").split("\t")
         if (form, lemma, tag) in named:
             named[(form, lemma, tag)] = True
+            replacement = table[(form, lemma, tag)][0]
+            if replacement is not None:
+                kept.append(f"{form}\t{lemma}\t{replacement}\t{mark}\n")
             continue
         kept.append(row)
     return kept, sorted(key for key, found in named.items() if not found)
@@ -3299,6 +3313,36 @@ CORRECTIONS = (
         "readers meet dirotto in « piovere a dirotto », to pour down",
         "https://fr.wiktionary.org/wiki/dirotto",
         True,
+    ),
+    # Fixed at review (2026-10-25): two senses that mislead a reader.
+    Correction(
+        "section",
+        "crypto",
+        "noun",
+        ("Variante de kripton (l’élément chimique Kr).",),
+        None,
+        "readers meet crypto as the cryptocurrency, never as the gas: D5 would lend it kripton's « Krypton (l’élément "
+        "chimique Kr) »; no sense of the section says « crypto-monnaie », so the entry goes",
+        "https://fr.wiktionary.org/wiki/crypto",
+    ),
+    Correction(
+        "section",
+        "cripto",
+        "noun",
+        ("Variante de kripton (l’élément chimique Kr).",),
+        None,
+        "as crypto: readers meet cripto as the cryptocurrency (« cripto e blockchain »), and no sense of the section "
+        "says so; the entry goes rather than lending « Krypton »",
+        "https://fr.wiktionary.org/wiki/cripto",
+    ),
+    Correction(
+        "section",
+        "stupidissimo",
+        "adj",
+        ("Superlatif de stupido : « très léger ».",),
+        ("Très stupide.",),
+        "a slip: the superlative of stupido is « très stupide », not « très léger » (the meaning of leggerissimo)",
+        "https://fr.wiktionary.org/wiki/stupidissimo",
     ),
     Correction(
         "section",

@@ -599,7 +599,7 @@ leaves it firing on nothing.
   renumbering alone — 29 lemmas leave (rule 1's 27, `signor`, `od`), `dati`, `prova`, `lega` and 26 at the
   cut join —; `grammar.tsv` in 62 forms, their own and `other` marks and `fate`'s subjunctive.
 
-**D14's figures**: coverage 89.4 / 82.0 / 73.4; 24,269 dictionary words; 8,302 levels, 19 joining and 19
+**D14's figures**: coverage 89.4 / 82.0 / 73.4; 24,269 dictionary words (24,267 after the review's round); 8,302 levels, 19 joining and 19
 leaving, 25 changing band; M8's cost 30 / 44 / 66. **UD Italian-PUD 99.27 / 91.37 / 99.90**, not 99.26 /
 91.35: the owner's `prova` row brings back its plural `prove` (2 words, unresolved before), as `lega`'s
 brings `leghe` back — +2 content words and +2 resolved beyond the design's count (`signor` +1, `lega` +1,
@@ -609,6 +609,28 @@ brings `leghe` back — +2 content words and +2 resolved beyond the design's cou
 list and no source glosses —, `main` holds 511; 12 are glossed again (the design's twelve), 5 leave the
 ranks (`signor`, `od`; `guardo`, `segui`, `nego` by rule 1), 494 are left.
 
-**Known, for the owner**: `dati`'s own reading is a masculine *singular* noun — the English section heads
-« data (plural of dato) » without a number, and no rule of the readings reads it otherwise; a row of
-`READINGS_SET_ASIDE` or a rule of change 13's could; the card shows « Données » beside it.
+**Dispatched** (`lingua-pack-update` run 40177647583, mode `reduce`, commit `a7ada5414`): the tables,
+the pin, the golden and the card equal the prediction byte for byte.
+
+**Fixed at review (2026-10-25)**, a second reduction:
+- **`dati`'s own reading is a plural.** The English section heads « data (plural of dato) » with no
+  number, so its own entry gave `dati` a masculine *singular* noun's reading. D12's list now lets a row
+  carry a replacement tag — the reading read as that tag, its mark kept —, and holds `dati` *dati*
+  `NOUN|Gender=Masc|Number=Sing` → `NOUN|Gender=Masc|Number=Plur`, a tag of the pinned pool, which stays
+  byte for byte.
+- **Two more corrections** (D10): `crypto` and `cripto`, whose only sense is « Variante de kripton
+  (l’élément chimique Kr) » — readers meet them as the cryptocurrency, and no sense of the section says
+  « crypto-monnaie » —, lose it rather than lend « Krypton »; `stupidissimo` « Superlatif de stupido :
+  « très léger » », the section's slip, reads « Très stupide ». Each is reported upstream.
+- **`vadi`**, which leaves the tables with rule 1, is a real word: the colloquial subjunctive of
+  *andare* (« che tu vadi »), which `andare`'s table does not list and the tables read before as the
+  plural of the obsolete noun `vado`, the ford — as `viti` leaves by rule 2.
+
+Predicted for the round (the owner's second dispatch), reduced locally as before at `pack_version`
+`2026.10.24+1cb6715`: the pack 2,645,721 B (`7c73fd30…`), its base 1,551,196 B (`b1301e06…`), its layer
+1,094,765 B (`274908f7…`); `tables/it/grammar.tsv` one line (`dati`'s plural), `lexical.tsv` −`cripto`
+−`crypto` (24,267), `tables/it-fr/gloss.tsv` and `senses.tsv` −`cripto` −`crypto`, `stupidissimo` « Très
+stupide » (32,739 glosses); `forms.tsv`, `freq.tsv`, `level.tsv`, `mwe.tsv`, `tags.tsv` and the NOTICE
+byte for byte; coverage 89.4 / 82.0 / 73.4; UD Italian-PUD 99.27 / 91.37 / 99.90, as before. The golden
+moves in its pack line and the two vocabulary estimates' universe (24,267 → 24,265, 24,266 → 24,264);
+the card does not move.

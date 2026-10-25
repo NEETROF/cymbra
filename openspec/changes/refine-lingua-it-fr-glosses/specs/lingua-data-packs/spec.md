@@ -171,18 +171,28 @@ names it, and it is removed.
 - **WHEN** `dati` is a lemma of its own, the section's only noun sense of `dati` is « Pluriel de dato. », which would lend `dato`'s « Donnée », and the list glosses `dati` « Données »
 - **THEN** the gloss of `dati` is « Données », as a noun's run
 
+#### Scenario: A sense that misleads a reader
+- **WHEN** the section's only sense of `crypto` is « Variante de kripton (l’élément chimique Kr). », which readers meet as the cryptocurrency, and the list removes it; and the section defines `stupidissimo` « Superlatif de stupido : « très léger ». », and the list glosses it « Très stupide »
+- **THEN** `crypto` is not glossed « Krypton (l’élément chimique Kr) », and the gloss of `stupidissimo` is « Très stupide »
+
 #### Scenario: The page corrected upstream
 - **WHEN** an update finds `volere`'s example no longer filed as senses
 - **THEN** the correction fires on nothing, and the update says so
 
 ### Requirement: Italian's readings set aside, by name, a reading the section's tables give a form wrongly
-Italian's reference reduction SHALL leave out of Italian's readings each reading a reviewed list names — the form, its lemma, the reading's tag and the reason —, and SHALL fail when a row names a reading the reduction does not give.
-The list holds a row only where the section's table writes a cell wrongly and no rule of the readings
-reads it out; the form's other readings stay. Editing the list re-pins it-fr alone.
+Italian's reference reduction SHALL leave out of Italian's readings each reading a reviewed list names — the form, its lemma, the reading's tag and the reason —, or read it as the reading the row gives, and SHALL fail when a row names a reading the reduction does not give.
+The list holds a row only where the section's table writes a cell wrongly, or an entry's head names a
+form wrongly, and no rule of the readings reads it right; a row's reading keeps its mark, a replacement
+is a tag of Italian's pinned pool, and the form's other readings stay. Editing the list re-pins it-fr
+alone.
 
 #### Scenario: An imperative read as a subjunctive
 - **WHEN** *fare*'s second and third tables in the section list `fàte` beside `facciàte` as the present subjunctive's second person plural, and the list names `fate`'s subjunctive reading
 - **THEN** `fate` reads as *fare*'s present indicative and imperative, second person plural, and as no subjunctive
+
+#### Scenario: A plural noun read as a singular
+- **WHEN** the English section heads `dati` « data (plural of dato) » with no number, so that its own entry gives `dati` a masculine singular noun's reading, and the list reads that reading as the masculine plural
+- **THEN** `dati` reads as a masculine plural noun, and its other readings — *dare*'s participle among them — stay
 
 #### Scenario: A row that finds nothing
 - **WHEN** a row of the list names a reading the reduction does not give

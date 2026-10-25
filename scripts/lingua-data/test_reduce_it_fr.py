@@ -3203,28 +3203,44 @@ class RefinedForms(unittest.TestCase):
         for table in (red.OVERRIDES, red.APOCOPES):
             for form, (lemma, reason) in table.items():
                 self.assertTrue(lemma and len(reason) > 30, form)
-        for (form, lemma, tag), reason in red.READINGS_SET_ASIDE.items():
+        for (form, lemma, tag), (replacement, reason) in red.READINGS_SET_ASIDE.items():
             self.assertTrue(len(reason) > 30, form)
-            self.assertEqual(red.parse_tag(tag)[0], "VERB")
+            # A replacement reads the reading in its own part of speech, another of its features.
+            if replacement is not None:
+                self.assertEqual(red.parse_tag(replacement)[0], red.parse_tag(tag)[0], form)
+                self.assertNotEqual(replacement, tag, form)
 
 
 class ReadingsSetAside(unittest.TestCase):
     """refine-lingua-it-fr-glosses D12: a reading the section's tables give a form wrongly, set aside by name."""
 
+    SUB = "VERB|Mood=Sub|Number=Plur|Person=2|Tense=Pres|VerbForm=Fin"
+    DATI = ["dati\tdare\tVERB|Gender=Masc|Number=Plur|Tense=Past|VerbForm=Part\tother\n", "dati\tdati\tNOUN|Gender=Masc|Number=Sing\t-\n"]
+
     def test_spec_scenario_an_imperative_read_as_a_subjunctive(self):
-        sub = "VERB|Mood=Sub|Number=Plur|Person=2|Tense=Pres|VerbForm=Fin"
         ind = "VERB|Mood=Ind|Number=Plur|Person=2|Tense=Pres|VerbForm=Fin"
         imp = "VERB|Mood=Imp|Number=Plur|Person=2|VerbForm=Fin"
-        rows = [f"fate\tfare\t{tag}\t-\n" for tag in (imp, ind, sub)] + ["fate\tfata\tNOUN|Gender=Fem|Number=Plur\tother\n"]
-        kept, unread = red.without_readings_set_aside(rows)
+        rows = [f"fate\tfare\t{tag}\t-\n" for tag in (imp, ind, self.SUB)] + ["fate\tfata\tNOUN|Gender=Fem|Number=Plur\tother\n"]
+        kept, unread = red.without_readings_set_aside(self.DATI + rows)
         self.assertEqual(unread, [])
-        self.assertEqual(kept, [rows[0], rows[1], rows[3]])
-        self.assertEqual(list(red.READINGS_SET_ASIDE), [("fate", "fare", sub)])
+        self.assertEqual(kept[2:], [rows[0], rows[1], rows[3]])
+        self.assertEqual(sorted(red.READINGS_SET_ASIDE), [("dati", "dati", "NOUN|Gender=Masc|Number=Sing"), ("fate", "fare", self.SUB)])
+
+    def test_spec_scenario_a_plural_noun_read_as_a_singular(self):
+        # « i dati »: the section's head names no number, so its own entry gives the singular; the row reads
+        # it as the plural, its mark kept, where it stood; the other readings stay.
+        kept, unread = red.without_readings_set_aside(self.DATI + ["fate\tfare\t" + self.SUB + "\t-\n"])
+        self.assertEqual(unread, [])
+        self.assertEqual(kept, [self.DATI[0], "dati\tdati\tNOUN|Gender=Masc|Number=Plur\t-\n"])
+        self.assertEqual(red.READINGS_SET_ASIDE[("dati", "dati", "NOUN|Gender=Masc|Number=Sing")][0], "NOUN|Gender=Masc|Number=Plur")
 
     def test_spec_scenario_a_row_that_finds_nothing(self):
         kept, unread = red.without_readings_set_aside(["fate\tfare\tVERB|Mood=Imp|Number=Plur|Person=2|VerbForm=Fin\t-\n"])
-        self.assertEqual(unread, [("fate", "fare", "VERB|Mood=Sub|Number=Plur|Person=2|Tense=Pres|VerbForm=Fin")])
+        self.assertEqual(unread, [("dati", "dati", "NOUN|Gender=Masc|Number=Sing"), ("fate", "fare", self.SUB)])
         self.assertEqual(len(kept), 1)
+        # A replacement row that finds nothing fails as a set-aside one does, and writes nothing.
+        kept, unread = red.without_readings_set_aside(self.DATI[:1], {("dati", "dati", "NOUN|Gender=Masc|Number=Sing"): ("NOUN|Gender=Masc|Number=Plur", "a reason")})
+        self.assertEqual((kept, unread), (self.DATI[:1], [("dati", "dati", "NOUN|Gender=Masc|Number=Sing")]))
 
 
 # — refine-lingua-it-fr-glosses (the Italian programme's change 17): it-fr's glosses refined (D2–D10) —
@@ -3353,6 +3369,11 @@ class RefinedSection(unittest.TestCase):
         fr_entry("dati", "noun", senses=[fr_link("dati", "noun", "Pluriel de dato.", "dato")], tags=("form-of", "masculine")),
         fr_entry("dato", "adj", "Donné."),
         fr_entry("dato", "noun", "Donnée."),
+        # D10, fixed at review: two senses that mislead a reader.
+        fr_entry("crypto", "noun", senses=[fr_alt("Variante de kripton (l’élément chimique Kr).", "kripton")]),
+        fr_entry("cripto", "noun", senses=[fr_alt("Variante de kripton (l’élément chimique Kr).", "kripton")]),
+        fr_entry("kripton", "noun", "Krypton (l’élément chimique Kr)."),
+        fr_entry("stupidissimo", "adj", senses=[fr_link("stupidissimo", "adj", "Superlatif de stupido : « très léger ».", "léger")]),
         # D10: words split after their elided piece, one no Italian.
         fr_entry("d’n’b", "noun", "Drum and bass."),
         fr_entry("d’altronde", "adv", "D’ailleurs."),
@@ -3365,7 +3386,7 @@ class RefinedSection(unittest.TestCase):
         "fra", "piacere", "subito", "lira", "come", "fino", "loro", "bibbia", "luna", "io", "qui", "mai", "lettere",
         "paro", "fora", "maio", "pochissimo", "ceneri", "vallo", "gemelli", "spezie", "regolo", "della", "degli",
         "pelle", "del", "sebbene", "vittoria", "ro", "matera", "bordeaux", "colonia", "piacenza", "trani", "che",
-        "volere", "dirotto", "dati",
+        "volere", "dirotto", "dati", "crypto", "cripto", "stupidissimo",
     ]
     RANKS = {lemma: rank for rank, lemma in enumerate(LEMMAS, 1)}
     # The forms table the example rule reads: `io`'s forms and the words of its examples.
@@ -3569,6 +3590,13 @@ class RefinedSection(unittest.TestCase):
     def test_spec_scenario_a_plural_noun_of_its_own(self):
         self.assertEqual((self.glosses["dati"], self.runs["dati"]), ("Données", [("NOUN", 1)]))
 
+    def test_spec_scenario_a_sense_that_misleads_a_reader(self):
+        # Fixed at review: `crypto` and `cripto` lend no « Krypton », their only entry gone; `stupidissimo`
+        # « Très stupide », not the section's « très léger ».
+        self.assertNotIn("crypto", self.glosses)
+        self.assertNotIn("cripto", self.glosses)
+        self.assertEqual((self.glosses["stupidissimo"], self.runs["stupidissimo"]), ("Très stupide", [("ADJ", 1)]))
+
     def test_the_corrections(self):
         # Every one fired; each names its source, its page and its reason.
         self.assertEqual(self.refined.fired, set(red.CORRECTIONS))
@@ -3633,7 +3661,7 @@ class RefinedReduction(unittest.TestCase):
     def test_a_reading_set_aside_that_finds_nothing_fails_the_reduction(self):
         # D12: a row naming a reading the reduction does not give.
         row = ("casa", "casa", "NOUN|Number=Plur")
-        with mock.patch.dict(red.READINGS_SET_ASIDE, {row: "a reading the tables do not give"}):
+        with mock.patch.dict(red.READINGS_SET_ASIDE, {row: (None, "a reading the tables do not give")}):
             with tempfile.TemporaryDirectory() as work:
                 self.reduction.write_work(work)
                 with self.assertRaises(SystemExit) as raised:
@@ -3652,7 +3680,8 @@ class RefinedReduction(unittest.TestCase):
         # interrogative to go before.
         self.assertIn(
             f"reduced it-fr: 1 of {len(red.CORRECTIONS)} corrections fired; fired on nothing, to remove: che (section, pron), "
-            "volere (section, verb), dirotto (section, adj), dati (section, noun)",
+            "volere (section, verb), dirotto (section, adj), crypto (section, noun), cripto (section, noun), "
+            "stupidissimo (section, adj), dati (section, noun)",
             report,
         )
         self.assertEqual(summary["corrections that fired on nothing"], [c for c in red.unfired(set()) if c != "che (section, conj)"])

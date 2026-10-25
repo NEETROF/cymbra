@@ -351,7 +351,9 @@ for it to be removed — and reported to the French Wiktionary: `che` gains the 
 que » and the conjunction « Que », read before its own entries (« Qui, que; Quoi; Que; Quel »);
 `volere` loses an example filed as three senses; `dirotto` gains the adjective « À verse (dans a
 dirotto) » (its participle lent `dirompere`'s « Écanguer »); `dati`, a lemma of its own by the owner's
-row, reads « Données », the plural.
+row, reads « Données », the plural; and, fixed at review, `crypto` and `cripto` lose « Variante de
+kripton (l’élément chimique Kr) » — readers meet them as the cryptocurrency, which no sense of the section
+names — and `stupidissimo` reads « Très stupide », not the section's « très léger ».
 
 **Italian's forms** (`../it/`, D11), judged on the dictionary's entries and MarkIT's training and
 development counts: a verb's person whose own entry holds no meaning — the verb's inflection written
@@ -366,25 +368,29 @@ ranked word (`avi`, `ava` → *avo*, `pozzi` → *pozzo*, `fuor` → *fuori*, `v
 heading kaikki reads as a cell gives a form (« archaic », « infinitive », « subjunctive » leave;
 `imperative` reads as *imperativo*, its own entry). `signor` and `od` join the apocopes; `usa` → *usare*
 and the owner's `dati`, `lega`, `prova` join the overrides. **The readings** (D12): `fate` reads no
-subjunctive (`READINGS_SET_ASIDE`, the reduction failing on a row it does not find).
+subjunctive, and `dati` reads as a masculine plural noun, not the singular its own entry's head gives
+(`READINGS_SET_ASIDE`, a row setting a reading aside or giving its replacement; the reduction fails on a
+row it does not find). `vadi` leaves the tables with `vado` (rule 1): the colloquial subjunctive of
+*andare* (« che tu vadi »), which *andare*'s table does not list, read before as the plural of the
+obsolete noun `vado`, the ford — as `viti` leaves by rule 2.
 
-**The figures**, reduced locally from the pinned sources as the update reduces them (Python 3.12 and
-`requirements-reduce.txt`; `main`'s rules first gave the committed tables byte for byte) at
-`pack_version` `2026.10.24+d85215a`:
+**The figures**, of the tables `lingua-pack-update` run 40177647583 wrote (mode `reduce`, `pack_version`
+`2026.10.24+d85215a`), equal to the local prediction, with the review's round (2026-10-25: `dati`'s
+plural reading, `crypto`, `cripto` and `stupidissimo`) predicted the same way at `2026.10.24+1cb6715`:
 - `forms.tsv` 129,610 → 129,629 lines: 58 forms change lemma, 10 leave, 29 join; `freq.tsv` moves by
   renumbering alone — 29 lemmas leave (`sto`, `vado`, `signor`, `sapete`, `speriamo`, `torno`, `guardo`,
   `incontra`, `od`, `segui` … `sieno`) and `dati` (259), `prova` (302), `lega` (709) and 26 lemmas at the
   cut join, the 60,000th (`modino`) at Zipf 2.06; `grammar.tsv` moves in 62 forms, its own and `other`
-  marks where a form changes lemma, and `fate`'s subjunctive;
-- 32,741 glosses (31,088 from the section, 278 from the Italian Wiktionary, 1,374 read backwards, the
+  marks where a form changes lemma, `fate`'s subjunctive and `dati`'s plural;
+- 32,739 glosses (31,086 from the section, 278 from the Italian Wiktionary, 1,374 read backwards, the
   `USA` row); coverage **89.4 / 82.0 / 73.4 %** against the floor 87.2 / 79.8 / 71.3; against change 16's
-  rows, 92 change (27 / 11 / 22 / 32), 59 in their first sense, 71 lemmas gain a gloss (`dati`, `prova`,
+  rows, 92 change (27 / 11 / 22 / 32), 59 in their first sense, 69 lemmas gain a gloss (`dati`, `prova`,
   `lega` among them) and 21 lose one (`trani`, `melano`, and the 19 that leave the ranks);
-- 18,293 expressions; 24,269 dictionary words (+69, −16); 8,302 levels, 19 joining (`dati`, `prova`,
+- 18,293 expressions; 24,267 dictionary words (+67, −16); 8,302 levels, 19 joining (`dati`, `prova`,
   `lega` A1; `lettere`, `terzi` A2; `bibbia`, `gemelli`, `pochissimo` B1; `rinascimento`, `corano` B2 …)
   and 19 leaving (`sto`, `vado` A1, `sapete`, `speriamo` A2 … and nine at C2's end), 25 changing band;
-- the pack 2,644,651 B (sha256 `26c51cc8…`), its base 1,551,202 B (`a2af1872…`), its layer 1,093,689 B
-  (`f9befdeb…`);
+- the pack 2,645,721 B (sha256 `7c73fd30…`), its base 1,551,196 B (`b1301e06…`), its layer 1,094,765 B
+  (`274908f7…`) — at `2026.10.24+d85215a`, before the review's round, 2,644,651 B (`26c51cc8…`);
 - UD Italian-PUD **99.27 / 91.37 / 99.90** (19,155 words, 8,909 content words, 985 auxiliaries; the gates
   hold), read after the rules: +5 content words — `signor` +1 (*signore*), `lega` +1, `prova` +2, and its
   plural `prove` +2 (no form before, *prova*'s again), `dati` −1 (PUD lemmatises its ten nouns *dato*,
@@ -401,9 +407,7 @@ Italian words among them, to contribute upstream: `ex`, `post`, `ok`, `web`, `be
 Italian's analysis's, in the programme's backlog —; the `di` retry's partitives and its 30 literal
 phrases, which stay offered; species named in common rows; a verb form's borrowed senses, read as its
 verb's (`assicurato` « Assurer, certifier, garantir »: the card names the verb, the owner's choice, D7);
-surnames glossed « Nom de famille » alone (`lexa`, `santangelo`), names, so no dictionary words; and
-`dati`'s own reading, a masculine *singular* noun — the English section heads « data (plural of dato) »
-without a number —, which no rule of the readings reads otherwise.
+and surnames glossed « Nom de famille » alone (`lexa`, `santangelo`), names, so no dictionary words.
 
 ## Measured
 
