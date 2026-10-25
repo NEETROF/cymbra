@@ -2373,14 +2373,30 @@ class AGlossIsWrittenInTheReadersLanguage(Entries):
         self.assertNotIn("maison", (self.dir / "en-es.jsonl").read_text(encoding="utf-8"))
         self.assertNotIn("casa", (self.dir / "en-fr.jsonl").read_text(encoding="utf-8"))
 
+    # The programme's I11 (the owner, 2026-10-22): it-es and es-it alone read seven Wiktionaries'
+    # tables as a pivot — an Italian and a Spanish word a person listed under one sense of a third
+    # language's entry —, because no source written for either pair reaches a shippable coverage
+    # (add-lingua-it-es-pivot-sources D2; change 27 modifies the main spec's requirement for it-es).
+    PIVOT_PAIRS = {"it-es", "es-it"}
+
     def test_every_translation_file_a_pair_reads_pairs_its_studied_and_native_languages(self):
         for pair, editions in ps.DUMPS.items():
             studied, native = pair.split("-")
             for edition, names in editions.items():
                 for name in names:
                     kind, lang, *into = ps.EDITIONS[edition]["files"][name]
-                    if kind == "translations":
+                    if kind in ("translations", "lexemes"):
+                        # A table, or Wikidata's lexemes (add-lingua-it-es-pivot-sources D3): the two
+                        # languages paired directly, by a sense or an item they share.
                         self.assertEqual({lang, *into}, {studied, native}, f"{pair}: {name}")
+                    elif kind == "pivot":
+                        self.assertIn(pair, self.PIVOT_PAIRS, f"{pair}: {name} is a pivot, which I11 allows it-es and es-it alone")
+                        self.assertEqual(set(into), {studied, native}, f"{pair}: {name}")
+                    elif lang == native:
+                        # The studied language's own Wiktionary defining the reader's words, read
+                        # backwards (it-es's `kaikki-it-Spagnolo.jsonl`, D3): the headword, written in
+                        # the reader's language, glosses the word its definition gives.
+                        self.assertEqual(edition, studied, f"{pair}: {name} holds entries of the reader's language")
                     else:
                         self.assertEqual(lang, studied, f"{pair}: {name} holds entries of the studied language")
 

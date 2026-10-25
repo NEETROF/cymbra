@@ -64,10 +64,13 @@ the dictionary words `lexical.tsv`) and `studied.json`, which names the language
 writes both sides into its work folder; `split` files them, and only the reference pair's reduction
 writes the studied folder. The reference's `pin.json` is the studied tables' provenance.
 
-kaikki is read at four addresses, one dump per Wiktionary edition (`EDITIONS`,
-migrate-lingua-pack-sources-to-raw-dumps D1): every file a pair reads of kaikki — a language's
-entries, or the translations an edition's entries list into one language — is derived from the
-dump of the edition that writes it, and `DUMPS[pair]` names the files the pair reads, by edition.
+kaikki is read at one address per Wiktionary edition (`EDITIONS`,
+migrate-lingua-pack-sources-to-raw-dumps D1) — nine since add-lingua-it-es-pivot-sources —, and
+Wikidata's Lexemes at one more, read as an edition of its own (D3): every file a pair reads of them
+— a language's entries, the translations an edition's entries list into one language, the
+translations into two languages it keeps together by sense (a pivot), or the lexeme pairs of two
+languages — is derived from the dump that writes it, and `DUMPS[pair]` names the files the pair
+reads, by edition.
 A dump is read once per run (D4): its edition's whole catalogue is derived at the first read, into
 `--editions E` (`work/editions/<edition>-<snapshot>/`), and a later pair of the run copies what it
 reads from there; the dump is deleted after its pass, and recorded in the pin by its address, its
@@ -212,9 +215,14 @@ ESDB = {
 # kaikki's dumps of whole Wiktionary editions (migrate-lingua-pack-sources-to-raw-dumps D1), the one
 # thing kaikki says it will keep serving: its per-language extracts are deprecated. Each edition's
 # **catalogue** is every file derivable from its dump that a pair of the programme reads: a file is
-# `("entries", lang)`, the entries of one language as the dump writes them, or `("translations",
-# lang, into)`, the entries of `lang` that list translations into `into`, cut down to those
-# (`derive`). A pair registers its reads in `DUMPS`; a change that needs a file the catalogue lacks
+# `("entries", lang)`, the entries of one language as the dump writes them, `("translations",
+# lang, into)`, the entries of `lang` that list translations into `into`, cut down to those, or
+# `("pivot", lang, *into)`, the translations an entry of `lang` lists into each language of `into`,
+# kept together by the sense their table names (`derive`; `pivot_groups`, add-lingua-it-es-pivot-
+# sources D2). Wikidata's Lexemes dump is read as an edition too (D3), its one kind `("lexemes",
+# lang, into)`: the pairs of a sense of `lang` and a sense of `into` that Wikidata links
+# (`lexeme_pairs`), its record in a pin named for Wikidata (`record`), not kaikki. A pair registers
+# its reads in `DUMPS`; a change that needs a file the catalogue lacks
 # adds it here, in the edition that writes it, and nowhere else. The existing names are kept — a
 # name is a reducer's input — and new ones carry their edition, in ASCII alone (`FILE_NAME`): GitHub
 # renames a release asset whose name holds another character on upload, so `fetch-pinned` would ask
@@ -237,6 +245,9 @@ EDITIONS = {
             "kaikki-en-traductions-es.jsonl": ("translations", "en", "es"),
             # Italian's studied side: its forms and their lemmas (add-lingua-italian-forms-tables D2).
             "kaikki-Italian.jsonl": ("entries", "it"),
+            # it-es's pivot (add-lingua-it-es-pivot-sources D2): the Italian and Spanish words the
+            # English entries' tables list, kept together by sense — its size measured at the first update.
+            "kaikki-en-pivot-it-es.jsonl": ("pivot", "en", "it", "es"),
         },
     },
     # The French Wiktionary: 736,590,407 B gzipped (regenerated 2026-10-02 00:10).
@@ -258,6 +269,8 @@ EDITIONS = {
             "kaikki-fr-Italien.jsonl": ("entries", "it"),
             # it-fr's inverted fallback: the French entries' Italian translations, read backwards (D2).
             "kaikki-fr-traductions-it.jsonl": ("translations", "fr", "it"),
+            # it-es's pivot (add-lingua-it-es-pivot-sources D2), from the French entries' tables.
+            "kaikki-fr-pivot-it-es.jsonl": ("pivot", "fr", "it", "es"),
         },
     },
     # The Spanish Wiktionary: 103,226,106 B gzipped (regenerated 2026-10-02 12:12).
@@ -272,6 +285,11 @@ EDITIONS = {
             "kaikki-es-traductions.jsonl": ("translations", "es", "fr"),
             # es-en's direct fallback, en-es's inverted one (add-lingua-pack-es-en D1).
             "kaikki-es-traductions-en.jsonl": ("translations", "es", "en"),
+            # it-es's glosses (add-lingua-it-es-pivot-sources D1): the Spanish Wiktionary's Italian
+            # section, whose definitions gloss first, and its Spanish entries' Italian translations,
+            # read backwards.
+            "kaikki-es-Italiano.jsonl": ("entries", "it"),
+            "kaikki-es-traductions-it.jsonl": ("translations", "es", "it"),
         },
     },
     # The Italian Wiktionary: 43,849,715 B gzipped (regenerated 2026-10-21) (add-lingua-pack-it-fr D3).
@@ -286,9 +304,56 @@ EDITIONS = {
             # it-en's fallback: the English translations its Italian entries list
             # (add-lingua-pack-it-en D2, D3) — 7,216,558 B, derived alike from the dumps of 2026-10-21 and 2026-10-24.
             "kaikki-it-traductions-en.jsonl": ("translations", "it", "en"),
+            # it-es's direct fallback: the Spanish translations its Italian entries list
+            # (add-lingua-it-es-pivot-sources D1).
+            "kaikki-it-traductions-es.jsonl": ("translations", "it", "es"),
+            # Its Spanish entries, which it-es reads backwards (D3) — es-it's definitions to come.
+            "kaikki-it-Spagnolo.jsonl": ("entries", "es"),
         },
     },
+    # The five other Wiktionaries of it-es's pivot (add-lingua-it-es-pivot-sources D2, the programme's
+    # I11), one file each: the Italian and Spanish words their own language's entries list, kept
+    # together by sense. Gzipped as read on 2026-10-22: the German 310,139,452 B, the Russian
+    # 308,932,290 B, the Polish 137,850,882 B, the Dutch 134,749,717 B, the Portuguese 37,273,122 B.
+    "de": {
+        "url": "https://kaikki.org/dewiktionary/raw-wiktextract-data.jsonl.gz",
+        "files": {"kaikki-de-pivot-it-es.jsonl": ("pivot", "de", "it", "es")},
+    },
+    "pt": {
+        "url": "https://kaikki.org/ptwiktionary/raw-wiktextract-data.jsonl.gz",
+        "files": {"kaikki-pt-pivot-it-es.jsonl": ("pivot", "pt", "it", "es")},
+    },
+    "ru": {
+        "url": "https://kaikki.org/ruwiktionary/raw-wiktextract-data.jsonl.gz",
+        "files": {"kaikki-ru-pivot-it-es.jsonl": ("pivot", "ru", "it", "es")},
+    },
+    "pl": {
+        "url": "https://kaikki.org/plwiktionary/raw-wiktextract-data.jsonl.gz",
+        "files": {"kaikki-pl-pivot-it-es.jsonl": ("pivot", "pl", "it", "es")},
+    },
+    "nl": {
+        "url": "https://kaikki.org/nlwiktionary/raw-wiktextract-data.jsonl.gz",
+        "files": {"kaikki-nl-pivot-it-es.jsonl": ("pivot", "nl", "it", "es")},
+    },
+    # Wikidata's Lexemes (add-lingua-it-es-pivot-sources D3), CC0, read as an edition of its own: the
+    # address serves the latest weekly dump (`wikidata-20261021-lexemes.json.gz` on 2026-10-25,
+    # 655,273,999 B gzipped; each kept about six weeks), recorded as kaikki's are — its Last-Modified,
+    # the sha256 and size of its decompressed bytes —, and never kept; its one file is published in
+    # the pair's release like any derived file. The dump is one JSON array, an entity a line, read by a
+    # reader of its own (`lexeme_pairs`). Its record in a pin is `wikidata`, not `kaikki-wikidata`.
+    "wikidata": {
+        "url": "https://dumps.wikimedia.org/wikidatawiki/entities/latest-lexemes.json.gz",
+        "record": "wikidata",
+        # Named beside the dump in the release notes (`dumps`), whose footer names Wiktionary's.
+        "licence": "CC0 1.0 (Wikidata)",
+        "files": {"wikidata-lexemes-it-es.jsonl": ("lexemes", "it", "es")},
+    },
 }
+# The Wikidata items naming the languages a lexeme file pairs (`("lexemes", lang, into)`): a lexeme
+# names its language by item, not by code — Italian Q652, Spanish Q1321.
+WIKIDATA_LANGUAGES = {"it": "Q652", "es": "Q1321"}
+# What each kind of derived file names after its kind: the languages it reads (`derive`).
+KINDS = {"entries": 1, "translations": 2, "pivot": 3, "lexemes": 2}
 # The files each pair reads of kaikki, by edition, in the order the pin records them (and the
 # release lists its assets): each edition the pair reads is one source record, `kaikki-<edition>`
 # (`source_name`). Each pair pins its own fetch, published under its own release — es-fr and es-en
@@ -346,6 +411,26 @@ DUMPS = {
     # translations the Italian Wiktionary's Italian entries list, the fallback (D2). No table read
     # backwards; Italian's studied side is tables/it/ as committed, it-fr's.
     "it-en": {"en": ("kaikki-Italian.jsonl",), "it": ("kaikki-it-traductions-en.jsonl",)},
+    # it-es (add-lingua-it-es-pivot-sources D4), read by change 27: the planned three — the Spanish
+    # Wiktionary's Italian section, whose definitions gloss first, and its Spanish entries' Italian
+    # translations, read backwards; the Italian Wiktionary's Spanish translations, the direct
+    # fallback (D1) —; the pivot of seven Wiktionaries' tables, every pair kept (D2) — the exception to
+    # M5 the programme's I11 records for this pair —; the Italian Wiktionary's Spanish section, read
+    # backwards, and Wikidata's Italian–Spanish lexeme pairs (D3). Italian's studied side is
+    # tables/it/ as committed: no English dump's Italian section. Nothing pinned at a commit. No pack
+    # reads these files before change 27 reduces it-es.
+    "it-es": {
+        "es": ("kaikki-es-Italiano.jsonl", "kaikki-es-traductions-it.jsonl"),
+        "it": ("kaikki-it-traductions-es.jsonl", "kaikki-it-Spagnolo.jsonl"),
+        "en": ("kaikki-en-pivot-it-es.jsonl",),
+        "fr": ("kaikki-fr-pivot-it-es.jsonl",),
+        "de": ("kaikki-de-pivot-it-es.jsonl",),
+        "pt": ("kaikki-pt-pivot-it-es.jsonl",),
+        "ru": ("kaikki-ru-pivot-it-es.jsonl",),
+        "pl": ("kaikki-pl-pivot-it-es.jsonl",),
+        "nl": ("kaikki-nl-pivot-it-es.jsonl",),
+        "wikidata": ("wikidata-lexemes-it-es.jsonl",),
+    },
 }
 # The source record of a pin written before the dumps: kaikki's per-language extract, kept whole as
 # a release asset (D5). Read as recorded, never written again.
@@ -725,6 +810,176 @@ def open_dump(dump: Path) -> io.TextIOWrapper:
     return dump_lines(dump_bytes(dump))
 
 
+def pivot_groups(entry: dict, into: tuple) -> list[dict]:
+    """An entry's translations into each language of `into`, kept together by the sense their
+    table names (add-lingua-it-es-pivot-sources D2): a group is the table's `sense`, else its
+    `sense_index`, else the sense the table sits under, else the whole entry — a translation naming
+    a sense and a number is grouped by both. One record per group, in the order the entry first
+    lists it: the entry's word and part of speech; `by`, what keys the group (`sense`,
+    `sense_index`, `under` — with `under`, the 1-based position of that sense —, or `entry`, the
+    table naming none); `sense` and `sense_index` where the table gives them (a number as text,
+    whichever way the edition writes it); `several_senses`, whether the entry has more than one
+    sense; and each language's words, each once, in the table's order. A group missing a language
+    gives nothing: a pair is two words a person listed under one sense, never one alone."""
+    senses = [sense for sense in entry.get("senses") or () if isinstance(sense, dict)]
+    tables = [(t, None) for t in entry.get("translations") or ()]
+    tables += [(t, n) for n, sense in enumerate(senses, 1) for t in sense.get("translations") or ()]
+    groups: dict = {}
+    for t, under in tables:
+        if not isinstance(t, dict) or t.get("lang_code") not in into or not t.get("word"):
+            continue
+        sense = t.get("sense") if isinstance(t.get("sense"), str) and t["sense"].strip() else None
+        index = t.get("sense_index")
+        index = str(index) if index not in (None, "", 0) else None
+        if sense is not None:
+            key = ("sense", sense, index)
+        elif index is not None:
+            key = ("sense_index", index)
+        elif under is not None:
+            key = ("under", under)
+        else:
+            key = ("entry",)
+        group = groups.get(key)
+        if group is None:
+            group = {"word": entry.get("word"), "pos": entry.get("pos"), "by": key[0]}
+            if sense is not None:
+                group["sense"] = sense
+            if index is not None:
+                group["sense_index"] = index
+            if key[0] == "under":
+                group["under"] = under
+            group["several_senses"] = len(senses) > 1
+            group.update({code: [] for code in into})
+            groups[key] = group
+        words = group[t["lang_code"]]
+        if t["word"] not in words:
+            words.append(t["word"])
+    return [group for group in groups.values() if all(group[code] for code in into)]
+
+
+def _statement_ids(claims, prop: str) -> list[str]:
+    """The ids a lexeme sense's statements of `prop` name — an item (`Q146`, P5137) or a sense
+    (`L7-S1`, P5972) —, in order; a deprecated statement, or one naming no value, names none.
+    The dump writes empty claims as `{}`; claims that are no map at all name nothing."""
+    if not isinstance(claims, dict):
+        return []
+    ids = []
+    for statement in claims.get(prop) or ():
+        if not isinstance(statement, dict) or statement.get("rank") == "deprecated":
+            continue
+        snak = statement.get("mainsnak")
+        if not isinstance(snak, dict) or snak.get("snaktype") != "value":
+            continue
+        value = (snak.get("datavalue") or {}).get("value")
+        if isinstance(value, dict) and isinstance(value.get("id"), str):
+            ids.append(value["id"])
+    return ids
+
+
+def _entity_order(entity_id: str) -> tuple:
+    """A Wikidata id in the order of its numbers: `L12-S3` → (12, 3), `Q146` → (146,)."""
+    return tuple(int(n) for n in re.findall(r"\d+", entity_id))
+
+
+def lexeme_pairs(lines, dump: Path, lang: str, into: str) -> list[dict]:
+    """The pairs of a sense of `lang` and a sense of `into` that Wikidata's Lexemes dump links
+    (add-lingua-it-es-pivot-sources D3), from its decompressed lines.
+
+    The dump is one JSON array, an entity a line: `[`, then each entity followed by « , » but the
+    last, then `]` — the comma stripped here, which the Wiktionary dumps' line reader would have
+    taken for a line that is no JSON and skipped. Only lexemes whose language is the item of `lang`
+    or of `into` (`WIKIDATA_LANGUAGES`) are parsed, and a pair needs both its lexemes, which the
+    dump may write in either order: every lexeme of the two languages is collected, then the pairs
+    are made. A line naming one of those items that is no JSON fails, naming the dump and the line,
+    and so does a dump holding no lexeme of either language, or pairing none by an item: a change of
+    the dump's format must not publish an empty file.
+
+    Three kinds of pair, `by`: `item`, a sense of each language naming the same item (P5137, *item
+    for this sense*), with the `item`; `translation`, a sense of one language naming a sense of the
+    other as its translation (P5972), either way, once; `gloss`, a sense of `lang` glossed in `into`,
+    its `into` side the gloss. Each side names the lexeme's lemma, its lexical category (the item of
+    its part of speech, `Q1084` a noun), the lexeme and the sense. In that order of kinds, each by its
+    senses' ids: the file does not move with the order the dump's shards are written in."""
+    wanted = {WIKIDATA_LANGUAGES[lang]: lang, WIKIDATA_LANGUAGES[into]: into}
+    marks = [f'"{item}"' for item in wanted]
+    lexemes: dict = {}  # lexeme id → (language, its side's lemma and category)
+    items: dict = {}  # item → language → [sense id]
+    links: list = []  # (sense id, the sense id it names as its translation)
+    glosses: list = []  # (sense id of `lang`, its gloss in `into`)
+    for number, line in enumerate(lines, 1):
+        text = line.strip()
+        if text.endswith(","):
+            text = text[:-1]
+        if not text.startswith("{") or not any(mark in text for mark in marks):
+            continue
+        try:
+            entity = json.loads(text)
+        except json.JSONDecodeError as why:
+            raise PinError(f"{dump}: line {number} is no JSON entity ({why}): nothing is derived from it") from None
+        code = wanted.get(entity.get("language")) if isinstance(entity, dict) else None
+        if code is None or entity.get("type") != "lexeme" or not isinstance(entity.get("id"), str):
+            continue
+        lemmas = entity.get("lemmas") if isinstance(entity.get("lemmas"), dict) else {}
+        lemma = lemmas.get(code) or next(iter(lemmas.values()), None)
+        side = {
+            "lemma": lemma.get("value") if isinstance(lemma, dict) else None,
+            "category": entity.get("lexicalCategory"),
+            "lexeme": entity["id"],
+        }
+        lexemes[entity["id"]] = (code, side)
+        for sense in entity.get("senses") or ():
+            if not isinstance(sense, dict) or not isinstance(sense.get("id"), str):
+                continue
+            for item in _statement_ids(sense.get("claims"), "P5137"):
+                listed = items.setdefault(item, {}).setdefault(code, [])
+                if sense["id"] not in listed:  # a sense stating one item twice is one pair
+                    listed.append(sense["id"])
+            links += [(sense["id"], target) for target in _statement_ids(sense.get("claims"), "P5972")]
+            gloss = sense.get("glosses").get(into) if isinstance(sense.get("glosses"), dict) else None
+            if code == lang and isinstance(gloss, dict) and isinstance(gloss.get("value"), str) and gloss["value"].strip():
+                glosses.append((sense["id"], gloss["value"]))
+    read = {code for code, _ in lexemes.values()}
+    if lang not in read or into not in read:
+        missing = " nor ".join(f"{code} ({item})" for item, code in wanted.items() if code not in read)
+        raise PinError(f"{dump}: holds no lexeme of {missing}: not the Lexemes dump's format? Nothing is derived from it")
+
+    def side(sense: str) -> dict:
+        return {**lexemes[sense.split("-")[0]][1], "sense": sense}
+
+    def language(sense: str):
+        found = lexemes.get(sense.split("-")[0])
+        return found[0] if found else None
+
+    def order(pair: dict) -> tuple:
+        return tuple(_entity_order(key) for key in (pair[lang]["sense"], pair[into].get("sense", ""), pair.get("item", "")))
+
+    by_item = [
+        {"by": "item", "item": item, lang: side(a), into: side(b)}
+        for item, senses in items.items()
+        for a in senses.get(lang, ())
+        for b in senses.get(into, ())
+    ]
+    # The research read 4,103 pairs of one item: none means the statements are no longer written
+    # as read here (a value without its `id`), and an empty file must not be published.
+    if not by_item:
+        raise PinError(
+            f"{dump}: pairs no sense of {lang} with a sense of {into} by an item (P5137): not the Lexemes "
+            "dump's format? Nothing is derived from it"
+        )
+    translated = set()
+    for source, target in links:
+        if (language(source), language(target)) == (lang, into):
+            translated.add((source, target))
+        elif (language(source), language(target)) == (into, lang):
+            translated.add((target, source))
+    by_translation = [{"by": "translation", lang: side(a), into: side(b)} for a, b in translated]
+    by_gloss = [{"by": "gloss", lang: side(a), into: {"gloss": text}} for a, text in glosses]
+    out = []
+    for kind in (by_item, by_translation, by_gloss):
+        out += sorted(kind, key=lambda pair: (*order(pair), json.dumps(pair, ensure_ascii=False, sort_keys=True)))
+    return out
+
+
 def derive(dump: Path, files: dict, work: Path) -> dict:
     """The files taken from an edition's dump (`EDITIONS`), in one pass, in the dump's order.
     Answers the dump's identity, measured in the same pass: the sha256 and size of its decompressed
@@ -734,7 +989,11 @@ def derive(dump: Path, files: dict, work: Path) -> dict:
     read a per-language extract. A `translations` file holds, per entry, its word, its part of
     speech and its translations into one language (the word, and the sense when the table names
     one), wherever the entry lists them (`translations_of`), as sorted JSON: the rest of the entry
-    is not read, and would weigh down the release. The dump is read gzipped or plain (`open_dump`).
+    is not read, and would weigh down the release. A `pivot` file holds, per entry, a record per
+    group of its translations into two languages, kept together by the sense their table names
+    (`pivot_groups`, add-lingua-it-es-pivot-sources D2), as sorted JSON. The dump is read gzipped or
+    plain (`open_dump`). A `lexemes` file is Wikidata's Lexemes dump's, read by a reader of its own
+    (`lexeme_pairs`, D3): an edition deriving one derives no other kind.
 
     Each file is written as `<name>.part` and renamed whole at the end, as `download` and the
     asset cache write theirs: a dump that cannot be read whole — a transfer cut short (the gzip
@@ -742,6 +1001,12 @@ def derive(dump: Path, files: dict, work: Path) -> dict:
     UTF-8 — is a `PinError` naming it, and leaves no derived file behind, partial or not, for an
     update to compress and publish as the snapshot's.
     """
+    for name, (kind, *langs) in files.items():
+        if KINDS.get(kind) != len(langs):
+            raise PinError(f"{name}: no file is derived as {(kind, *langs)!r} (the kinds: {', '.join(KINDS)})")
+    lexemes = [name for name, (kind, *_) in files.items() if kind == "lexemes"]
+    if lexemes and len(files) != 1:
+        raise PinError(f"{', '.join(files)}: a Lexemes dump derives one file, its lexeme pairs, and nothing else")
     # A line cannot belong to a file unless it names the languages that file reads, as the dump
     # writes them; most of a dump's millions of lines are then never parsed.
     marks = {
@@ -753,27 +1018,36 @@ def derive(dump: Path, files: dict, work: Path) -> dict:
     try:
         hashing = _Hashing(dump_bytes(dump))
         with dump_lines(hashing) as f:
-            for line in f:
-                if not any(all(mark in line for mark in need) for need in marks.values()):
-                    continue
-                try:
-                    entry = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                for name, (kind, lang, *into) in files.items():
-                    if entry.get("lang_code") != lang:
+            if lexemes:
+                ((name, (_, lang, into)),) = files.items()
+                for pair in lexeme_pairs(f, dump, lang, into):
+                    outs[name].write(json.dumps(pair, ensure_ascii=False, sort_keys=True) + "\n")
+            else:
+                for line in f:
+                    if not any(all(mark in line for mark in need) for need in marks.values()):
                         continue
-                    if kind == "entries":
-                        outs[name].write(line if line.endswith("\n") else line + "\n")
+                    try:
+                        entry = json.loads(line)
+                    except json.JSONDecodeError:
                         continue
-                    found = [
-                        {"word": t["word"], **({"sense": t["sense"]} if t.get("sense") else {})}
-                        for t in translations_of(entry)
-                        if t.get("lang_code") == into[0] and t.get("word")
-                    ]
-                    if found:
-                        cut = {"word": entry.get("word"), "pos": entry.get("pos"), "translations": found}
-                        outs[name].write(json.dumps(cut, ensure_ascii=False, sort_keys=True) + "\n")
+                    for name, (kind, lang, *into) in files.items():
+                        if entry.get("lang_code") != lang:
+                            continue
+                        if kind == "entries":
+                            outs[name].write(line if line.endswith("\n") else line + "\n")
+                            continue
+                        if kind == "pivot":
+                            for group in pivot_groups(entry, tuple(into)):
+                                outs[name].write(json.dumps(group, ensure_ascii=False, sort_keys=True) + "\n")
+                            continue
+                        found = [
+                            {"word": t["word"], **({"sense": t["sense"]} if t.get("sense") else {})}
+                            for t in translations_of(entry)
+                            if t.get("lang_code") == into[0] and t.get("word")
+                        ]
+                        if found:
+                            cut = {"word": entry.get("word"), "pos": entry.get("pos"), "translations": found}
+                            outs[name].write(json.dumps(cut, ensure_ascii=False, sort_keys=True) + "\n")
             whole = True
     except (EOFError, gzip.BadGzipFile, zlib.error, UnicodeDecodeError) as why:
         raise PinError(f"{dump}: cannot be read whole ({why}): nothing is derived from it") from why
@@ -896,8 +1170,10 @@ def pack_asset(raw: Path, asset: str, cache: Path | None) -> str:
 
 
 def source_name(edition: str) -> str:
-    """The pin's record of what a pair read of an edition's dump: `kaikki-en`, `kaikki-fr`, …"""
-    return f"kaikki-{edition}"
+    """The pin's record of what a pair read of an edition's dump: `kaikki-en`, `kaikki-fr`, …; for a
+    dump that is not kaikki's, the name its edition gives (`wikidata`, add-lingua-it-es-pivot-sources
+    D3)."""
+    return EDITIONS.get(edition, {}).get("record") or f"kaikki-{edition}"
 
 
 def check_registered(pair: str) -> None:
@@ -1201,6 +1477,17 @@ def fetch_live(
                 )
             raw = work / file
             shutil.copyfile(folder / file, raw)
+            # A pivot read empty is a format change, not a dictionary (add-lingua-it-es-pivot-sources
+            # D2): refused here, where the pair that reads it takes it, and not in `derive`, which
+            # writes a dump's whole catalogue whichever pair reads the dump — an empty French pivot
+            # must not fail en-fr's update.
+            kind, _, *into = EDITIONS[edition]["files"][file]
+            if kind == "pivot" and raw.stat().st_size == 0:
+                raise PinError(
+                    f"{pair} reads {file} of the {edition!r} edition, which {dumped['url']} derived empty: no "
+                    f"table lists words of {' and '.join(into)} under one sense — not the dump's format? Nothing "
+                    "is recorded"
+                )
             asset = file + ".zst"
             files[file] = {"asset": asset, "sha256": pack_asset(raw, asset, cache), "size": raw.stat().st_size}
         sources[source_name(edition)] = {
@@ -1424,7 +1711,9 @@ def dumps(record: dict, release: str | None = None) -> list[str]:
     per record: each edition's dump — its address, the date kaikki regenerated it, the sha256 and
     size of its decompressed bytes — and the files derived from it. A record written before the
     dumps is named as it is recorded: derived files without the dump's identity, or a per-language
-    extract kept whole."""
+    extract kept whole. A dump whose edition names a licence of its own (Wikidata's CC0) says so.
+    """
+    licences = {source_name(edition): spec.get("licence") for edition, spec in EDITIONS.items()}
     out = []
     for name, spec in released(record, release):
         url, regenerated = spec.get("url", "?"), spec.get("last_modified") or "on a date not recorded"
@@ -1443,7 +1732,8 @@ def dumps(record: dict, release: str | None = None) -> list[str]:
             )
         else:
             identity = "the dump's sha256 was not recorded (a pin written before the dumps were)"
-        out.append(f"- `{name}`: the dump {url}, regenerated {regenerated}; {identity}; derived: {derived}")
+        licence = f"; licence {licences[name]}" if licences.get(name) else ""
+        out.append(f"- `{name}`: the dump {url}, regenerated {regenerated}; {identity}; derived: {derived}{licence}")
     return out
 
 
