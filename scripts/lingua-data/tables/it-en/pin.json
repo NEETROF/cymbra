@@ -1,16 +1,16 @@
 {
   "snapshot": "2026.10.25",
   "pack": {
-    "sha256": "7c7a42e3464eff8fd5a2890690c133f3643d3a1564870f6d14e284f97dfaa99b",
-    "size": 2467844
+    "sha256": "da05f55422795bb5be8046cca550169c9c7798cd9aa84a965cbdc786f8a3151c",
+    "size": 2467552
   },
   "base": {
-    "sha256": "f8c7822871460da3196ff148633e39d660dfeecf1af261cda54d6199a58934a2",
-    "size": 1551534
+    "sha256": "b1301e06502f2a5cdd1a399a8935a7f2c491a4518f5027f177a33188a35c5ef5",
+    "size": 1551196
   },
   "layer": {
-    "sha256": "118836294e3b7661f0ab1aa7cae35ca658d28e87595bdfbbd5299bb23b7b84db",
-    "size": 916550
+    "sha256": "1fb9a931b13bdad8280058a81976e441436e50560c3045c3c5c106077f18ae2f",
+    "size": 916596
   },
   "reducer": {
     "sha256": "7f4aed6ba5fc0940e865cd7068371a3fd56519b7ee4df484b698afa77cb9302e",
@@ -25,11 +25,11 @@
   "studied": {
     "reference": "it-fr",
     "tables": {
-      "forms.tsv": "a9cada0deb342c0ec34d5575f289b752301772783527c98f630b5b6f7d2ede99",
-      "freq.tsv": "6dee7b4d12290a3ced927af91e3b5bdda8b2c6302f7b1ed1a2c1c06c7fadf909",
-      "grammar.tsv": "e9f309678c687dda254db41dde60e5ee0e3f8489e7b904e5faaf88460cb224ad",
-      "level.tsv": "67aff3f862700920053424dc89bbacc6522480f4e21703b2244c0e794b995fdd",
-      "lexical.tsv": "1d0572e8ee47be8f38971cd64fcc5721a3bacdb25610643032d86178b128e81f",
+      "forms.tsv": "6574f96ab514a95f3a08d2a8f3d61385ada7e4e348e002efc64fb56d060e0aeb",
+      "freq.tsv": "5fd1b58b0d658225365b4c7861ae12d39c2942cf3afab7d03a3d7e26f301ccad",
+      "grammar.tsv": "bc55964ad953897596cc1fea777c8852614c3019050ba8179e2d089ace7da0d7",
+      "level.tsv": "359242a608bf07c1d7ac8feeb9c99c1df7afd54d3577449f08bbe8cd2d7f554b",
+      "lexical.tsv": "4b303e8b5a08abcce7c6d39bb2017fb11f94fabf796d428dabc99a8d806ee8c3",
       "tags.tsv": "92b933c47ce5a78cd6a6c14c7a57d557e7dbbed0cc428bdacdb540c942221fb9"
     }
   },

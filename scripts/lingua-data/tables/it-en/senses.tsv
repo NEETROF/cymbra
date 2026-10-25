@@ -7460,7 +7460,6 @@ consolidamento	NOUN:1
 consolidare	VERB:1
 consolidato	ADJ:1
 consolle	NOUN:2
-consolo	PROPN:1
 consonante	ADJ:1	NOUN:1
 consonanza	NOUN:1
 consonni	PROPN:1
@@ -8558,6 +8557,7 @@ databile	ADJ:1
 datare	VERB:2
 datario	NOUN:2
 datazione	NOUN:1
+dati	NOUN:1
 dativo	ADJ:1	NOUN:1
 datore	NOUN:2
 dattero	NOUN:1
@@ -8973,7 +8973,6 @@ desiderabile	ADJ:2
 desiderare	VERB:1
 desiderato	ADJ:1	NOUN:1	PROPN:1
 desiderio	NOUN:1	PROPN:2
-desidero	NOUN:1
 desideroso	ADJ:2
 design	NOUN:1
 designare	VERB:1
@@ -12667,7 +12666,6 @@ fuffa	NOUN:2
 fuga	NOUN:4	PROPN:1
 fugace	ADJ:1
 fugare	VERB:2
-fugga	VERB:2
 fuggevole	ADJ:1
 fuggiasco	ADJ:1	NOUN:1
 fuggire	VERB:2
@@ -14023,7 +14021,6 @@ guardiamarina	NOUN:2
 guardiano	NOUN:2
 guardingo	ADJ:1
 guardiola	NOUN:3
-guardo	NOUN:3
 guardone	NOUN:1
 guardrail	NOUN:1
 guarducci	PROPN:1
@@ -14907,7 +14904,6 @@ incontenibile	ADJ:1
 incontestabile	ADJ:1
 incontinente	ADJ:1
 incontinenza	NOUN:1
-incontra	ADV:1
 incontrare	VERB:3
 incontrastato	ADJ:1
 incontro	ADV:1	NOUN:5
@@ -16711,6 +16707,7 @@ lecito	ADJ:2	NOUN:1
 led	NOUN:1
 ledere	VERB:2
 leena	NOUN:1
+lega	NOUN:4
 legale	ADJ:3	NOUN:1	PROPN:1
 legalità	NOUN:1
 legalizzare	VERB:2
@@ -17154,7 +17151,6 @@ loculo	NOUN:3
 locus	NOUN:1
 locusta	NOUN:1
 locuzione	NOUN:2
-loda	NOUN:1
 lodare	VERB:2
 lodato	ADJ:1	PROPN:1
 lode	NOUN:1
@@ -18349,6 +18345,7 @@ meditazione	NOUN:1
 mediterraneo	ADJ:2	PROPN:1
 medley	NOUN:1
 medoro	PROPN:1
+meduna	PROPN:1
 medusa	PROPN:1	NOUN:1
 meeting	NOUN:1
 mefistofele	PROPN:1	NOUN:1
@@ -18594,6 +18591,7 @@ metabolico	ADJ:1
 metabolismo	NOUN:1
 metabolita	NOUN:1
 metabolizzare	VERB:2
+metabolizzazione	NOUN:1
 metacarpo	NOUN:1
 metadone	NOUN:1
 metafisico	ADJ:1	NOUN:1
@@ -18620,6 +18618,7 @@ metatarso	NOUN:1
 metauro	PROPN:1
 metella	PROPN:1	NOUN:1
 metello	PROPN:1
+metempsicosi	NOUN:1
 meteo	ADJ:1	NOUN:1
 meteora	NOUN:1
 meteorico	ADJ:1
@@ -18634,6 +18633,7 @@ meticolosità	NOUN:1
 meticoloso	ADJ:1
 metile	NOUN:1
 metilene	NOUN:1
+metilico	ADJ:1
 metionina	NOUN:1
 metodicamente	ADV:1
 metodico	ADJ:1
@@ -19800,7 +19800,6 @@ negazionismo	NOUN:1
 negazionista	ADJ:1	NOUN:1
 negligente	ADJ:2
 negligenza	NOUN:2
-nego	NOUN:1
 negoziabile	ADJ:1
 negoziale	ADJ:1
 negoziante	NOUN:3
@@ -20359,7 +20358,6 @@ oculato	ADJ:2
 oculista	NOUN:1
 oculistica	NOUN:1
 oculo	NOUN:1
-od	SCONJ:1
 oddi	PROPN:1
 oddio	INTJ:2
 oddo	PROPN:1
@@ -20398,7 +20396,6 @@ officiante	ADJ:1	NOUN:1
 officiare	VERB:1
 officina	NOUN:2
 officinale	ADJ:1
-officio	NOUN:4
 offrire	VERB:1
 offuscamento	NOUN:3
 offuscare	VERB:3
@@ -23846,6 +23843,7 @@ prototipo	NOUN:1
 protratto	ADJ:2
 protrombina	NOUN:1
 protuberanza	NOUN:1
+prova	NOUN:7
 provare	VERB:6
 proveniente	ADJ:1
 provenienza	NOUN:1
@@ -26487,7 +26485,6 @@ sanzione	NOUN:2
 saona	PROPN:1
 sapa	NOUN:1
 sapere	VERB:7	NOUN:1
-sapete	VERB:1
 sapido	ADJ:1
 sapiente	ADJ:3	NOUN:1
 sapientemente	ADV:1
@@ -27084,7 +27081,6 @@ scogliera	NOUN:2
 scoglio	NOUN:3	PROPN:1
 scognamiglio	PROPN:1
 scoiattolo	NOUN:1
-scola	NOUN:3
 scolapasta	NOUN:1
 scolare	VERB:3
 scolaresca	NOUN:1
@@ -27501,7 +27497,6 @@ semita	ADJ:1	NOUN:2
 semitico	ADJ:1
 semitrasparente	ADJ:1
 semmai	ADV:2
-semo	VERB:2
 semola	NOUN:2
 semolino	NOUN:1
 semovente	ADJ:1
@@ -27979,7 +27974,6 @@ sido	NOUN:1
 sidone	PROPN:1
 sidro	NOUN:1
 siena	PROPN:2
-sieno	VERB:2
 siepe	NOUN:2
 siepi	NOUN:1
 siero	NOUN:2
@@ -28009,7 +28003,6 @@ significatività	NOUN:1
 significativo	ADJ:1
 significato	NOUN:2
 significazione	NOUN:1
-signor	NOUN:8
 signora	NOUN:6
 signoraggio	NOUN:1
 signore	NOUN:6	ADJ:2
@@ -29526,7 +29519,6 @@ stivaggio	NOUN:1
 stivale	NOUN:1	VERB:1	PROPN:1
 stivaletto	NOUN:1
 stizza	NOUN:1
-sto	VERB:8
 stocastico	ADJ:1
 stocazzo	INTJ:4
 stoccafisso	NOUN:2
@@ -31047,7 +31039,6 @@ tornielli	PROPN:1
 tornio	NOUN:1
 tornitore	NOUN:1
 tornitura	NOUN:2
-torno	PROPN:1
 toro	NOUN:6	PROPN:2
 torpediniera	NOUN:1
 torpedo	NOUN:1
@@ -32024,7 +32015,6 @@ vacillare	VERB:5
 vacuità	NOUN:1
 vacuo	ADJ:2	NOUN:1
 vademecum	NOUN:1
-vado	NOUN:4
 vaffanculo	INTJ:1
 vagabondaggio	NOUN:3
 vagabondare	VERB:1
