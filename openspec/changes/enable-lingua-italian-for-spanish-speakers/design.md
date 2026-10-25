@@ -135,7 +135,10 @@ goes through English:
 
 Change 20's requirement already reads « two models or more »; this change adds the two Spanish
 scenarios. If it-es's translation is not offered (D4), a Spanish reader's accepted Italian adds no
-model, and the scenarios' condition (« extended translation serves it ») is false.
+model, and the scenarios' condition (« extended translation serves it ») is false. **Measured at
+implementation** (2026-10-25, the committed catalogue): Italian alone 51,615,655 B, « Descarga 51,6 MB
+una vez »; the three 77,850,370 B, « Descarga 77,9 MB una vez » — the scenarios state both, as change
+25's state its English figures.
 
 ### D6 — The Spanish description and activation page
 
@@ -158,6 +161,10 @@ resaltadas, porcentaje honesto. Sin conexión y privado. » (109). Said the same
 |---|---|
 | `lede` | « Lee la web en inglés, en francés o en italiano: las palabras que todavía no conoces aparecen resaltadas, directamente en Safari. » |
 | `step3` | « En Safari, abre la extensión desde el <strong>menú de la barra de direcciones</strong> y elige tu nivel de inglés. Para el francés o el italiano, márcalo en los <strong>Ajustes</strong> de la extensión, pestaña <strong>Idioma</strong>, y luego elige su nivel. » |
+
+**The owner's answer (OQ1, 2026-10-25)**: the third draft, « La web en inglés, francés o italiano:
+palabras desconocidas resaltadas, porcentaje honesto. Sin conexión. » (105), and the page's `lede` and
+`step3` as drafted.
 
 The page grows by three words (the lede two, step 3 one). Change 40 watched the iOS page's scroll, so the dogfood reads it on
 an iPhone. The French and English pages do not move; `test/apple-activation-page.spec.ts` follows (the
@@ -311,6 +318,11 @@ The list's requirement follows the branch:
 
 *Guided activation* is not shared: change 45 does not touch it.
 
+**As implemented (2026-10-25)**: it-es first (OQ4, en-it being stage 3 and not built). The list's and
+the memory sentence's blocks are re-copied from change 25 as it stands on its branch (with its
+measured figures), only D12's clauses differing; `enable-lingua-italian-speakers` is dropped from
+`archiveAfter`, and change 45 re-copies this change's blocks when it lists en-it.
+
 **Against changes 50 and 54** (Italian speakers learning French and Spanish), which extend this change's
 list, memory and *Guided activation* blocks: the same rule holds, whichever is implemented later
 re-copying the earlier's blocks and naming it in `archiveAfter`; and it-es is appended at the end of
@@ -361,3 +373,8 @@ For the owner:
 5. **The release** (D11): on its own, TestFlight first. Recommended.
 6. **Reading pivot glosses before listing** (D10): a sample of about fifty, read by the owner or by an
    agent reading Italian and Spanish, its findings fixed in change 28 or here. Recommended.
+
+The owner's answers (2026-10-25): 1, the third draft and the page as drafted (D6); 2, settled by change
+29's figures — 94.7 % correct, 5 % withheld, first tier: marked; 3, change 28 merged (#1070) before the
+list; 4, it-es first (D13); 5, open; 6, done — a specialist read the it-es glosses twice (change 27's
+review, change 28's gloss-diff review), the top 300 now 0 wrong.

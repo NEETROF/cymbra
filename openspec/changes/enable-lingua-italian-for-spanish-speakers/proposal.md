@@ -32,9 +32,9 @@ y privado. »), is 119 characters, over Apple's 112.
   - Italian alone needs it-en and en-es (≈ 51.6–51.7 MB);
   - English, French and Italian need en-es, fr-en and it-en (≈ 77.8–77.9 MB).
 - **The Spanish description and activation page** (D6):
-  - recommended description: « La web en inglés, francés o italiano: palabras nuevas resaltadas,
-    porcentaje honesto. Sin conexión y privado. » (109);
-  - the page's `lede` and `step3` name Italian;
+  - the description the owner chose (2026-10-25): « La web en inglés, francés o italiano: palabras
+    desconocidas resaltadas, porcentaje honesto. Sin conexión. » (105);
+  - the page's `lede` and `step3` name Italian, as drafted;
   - the owner reads them (M9).
 - **The published coverage** (D7): it feeds the site's Lingua pages and Spanish home card,
   data-driven, and the fixtures are refreshed. The requirements that listing it-es would make false (the
@@ -58,15 +58,16 @@ None.
 
 - `lingua-data-packs`: RENAMED change 27's *it-es is committed beside Italian's studied tables, held to a
   coverage floor, and not shipped* to « …, and shipped once Italian is enabled for Spanish speakers ».
-  MODIFIED *The shipped pairs are one list* (held by `enable-lingua-italian-speakers`):
-  - the list gains it-es, by its floor, en-it and it-es in the order `packs.json` first listed them;
+  MODIFIED *The shipped pairs are one list* (held by `enable-lingua-italian-for-english-speakers`, it-es
+  listed before en-it, D13):
+  - the list gains it-es, by its floor, after it-en (en-it not yet listed, D13);
   - *Building the listed packs*, *A list widened too early* and *French for English speakers alone*
     name it;
   - *No Italian for Spanish speakers* holds while no listed pair studies Italian glossed in Spanish;
   - *Spanish speakers learning Italian* is added.
 - `lingua-browser-extension`: ADDED *Italian is studied by readers of Spanish*.
 - `lingua-translation`: MODIFIED *The setting's memory follows the models the reader's pairs need*
-  (held by `enable-lingua-italian-speakers`): two Spanish scenarios added.
+  (held by `enable-lingua-italian-for-english-speakers`, D13): two Spanish scenarios added.
 - `lingua-apple-app`: MODIFIED *Guided activation* (held by `enable-lingua-italian-for-english-speakers`):
   *Spanish speakers without fr-es* holds while neither fr-es nor it-es is listed; *Italian for a
   Spanish speaker* added.
