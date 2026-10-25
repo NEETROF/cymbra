@@ -506,6 +506,9 @@ describe("Italian studied: it-fr beside the six pairs (change: add-lingua-italia
     );
   });
 
+  // One order on every page (the requirement's « the page's readers' pairs first »): the readers'
+  // studied languages, then the other readers'. Italian is French speakers' alone, so it follows
+  // Spanish on the French page and French on the English one.
   it("English and Spanish: Italian named in their sentences, for French speakers, never offered to their readers", () => {
     const en = linguaPageText("en", seven, noDiscord);
     expect(en.heroNote).toContain(" Also for French speakers learning English, Spanish or Italian: the interface and the translations are in French.");

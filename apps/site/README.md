@@ -74,8 +74,11 @@ appends one sentence to the click card and one to the level card naming, togethe
 studied languages of the shipped pairs that have the property, the page's readers' first —
 « En espagnol et en français, la carte nomme aussi le temps et le genre », "For Spanish and
 French, the levels are estimated…", « En francés y en español… » on `/es/lingua` once fr-es
-ships, « En espagnol, en italien et en français… » once it-fr does. A shipped pair whose
-studied language the table does not describe fails the build. The
+ships, « En espagnol, en italien et en français… » once it-fr does, and "In Spanish, French
+and Italian…" on `/en/lingua`. One rule orders both: the page's readers' studied languages first, in
+`packs.json`'s order, then the other readers' in the site's language order — so Italian, which only
+French speakers study, comes before French on the French page and after it on the English one. A
+shipped pair whose studied language the table does not describe fails the build. The
 scale is named as the extension's interface names it — « CEFR » in French and English, « MCER »
 in Spanish (M19).
 
