@@ -48,12 +48,15 @@ Change 28 (refine-lingua-it-es-glosses) reads the rows again, by it-es's own rul
   (D5b, 17 items), a verb's words off another verb's form in the pivot (D10b, 53);
 - the rows (`refine_rows`), in this order: a feminine's own word for its lent masculine (D4, 5 rows),
   Wikidata's lone items (D2f, 99), taxa (D9a, 23), a rare first word (D6a, Zipf under 2.0, 837),
-  agreement across the sources, each of the pivot's tables a source (D2, 1,485), the missing adverb
-  or preposition and MarkIT's order (D3, 2 and 9), long lists cut (D7a, 11), repeats (D9b, 42 rows and
-  1 expression); then the reviewed tables: `FIRST_RUN` (20 rows), `CORRECTIONS` (22) and `DI_FAMILY`
-  (6), every gloss a person wrote in `BY_A_PERSON`.
+  agreement across the sources, each of the pivot's tables a source (D2, 1,483), a learned suffix's
+  cognate it displaces kept after (D2g, round 2: 9), a rule's foreign items out (D5c, round 2: 154), the
+  missing adverb or preposition and MarkIT's order (D3, 2 and 9), long lists cut (D7a, 11) by the
+  sources giving their items (D7c, round 2), repeats (D9b, 42 rows and 1 expression); then the reviewed
+  tables: `FIRST_RUN` (20 rows), `CORRECTIONS` (44) and `DI_FAMILY` (6), every gloss a person wrote in
+  `BY_A_PERSON`.
 
-Together, 2,087 rows read otherwise than change 27 wrote them, 2,033 in their first sense.
+Together, 2,092 rows read otherwise than change 27 wrote them; round 2 reads 191 of round 1's rows
+otherwise.
 
 Inputs: `tables/it/forms.tsv`, `freq.tsv` and `grammar.tsv` (`--studied`, the committed studied
 folder); the sources above, in `--work` (`pack_sources.py DUMPS["it-es"]`), and UD Italian-MarkIT's

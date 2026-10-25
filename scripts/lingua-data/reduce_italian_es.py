@@ -48,13 +48,17 @@ measured alone on the committed tables (its design's *Measured*):
   `dati` « Datos, facto »).
 - **The rows** (`refine_rows`), in this order: a feminine's own word (D4: 5 rows, `ragazza` « Chica,
   muchacha, niña »); Wikidata's lone items (D2f: 99, `don` « Don… »); taxa (D9a: 23, `cavallo`
-  « Caballo »); a rare first word (D6a: 837, `rapidamente` « Rápidamente… »); agreement (D2: 1,485,
-  `caso` « Caso », `andare` « Ir, andar »); the missing adverb or preposition (D3b: 2, `spesso` « A
+  « Caballo »); a rare first word (D6a: 837, `rapidamente` « Rápidamente… »); agreement (D2: 1,483,
+  `caso` « Caso », `andare` « Ir, andar »), keeping a learned suffix's cognate it displaces (D2g, round
+  2: 9 rows, `insufficienza` « …; Insuficiencia »); a foreign item a rule brought in out (D5c, round 2:
+  154 rows, `marmo` without « alioj »); the missing adverb or preposition (D3b: 2, `spesso` « A
   menudo…; Gordo ») and MarkIT's order (D3a: 9, `ancora` « Todavía; Ancla »), through fr-en's
-  `commonest_first` over MarkIT's counts, imported as written; long lists cut (D7a: 11, `inoltre`);
-  repeats (D9b: 42 rows and 1 expression, `persona` « Persona (ser humano) »).
-- **The reviewed tables**: `FIRST_RUN` (20 rows), `CORRECTIONS` (22 rows) and `DI_FAMILY` (6 rows), which
-  the rules never move; every gloss a person wrote is in `BY_A_PERSON` (tasks 0.1, 0.2, 0.4).
+  `commonest_first` over MarkIT's counts, imported as written; long lists cut (D7a: 11, `inoltre`), their
+  items first ordered by the sources giving them (D7c, round 2: `talvolta` « A veces… »); repeats (D9b:
+  42 rows and 1 expression, `persona` « Persona (ser humano) »).
+- **The reviewed tables**: `FIRST_RUN` (20 rows), `CORRECTIONS` (44 rows, 22 of round 2) and `DI_FAMILY`
+  (6 rows), which the rules never move; every gloss a person wrote is in `BY_A_PERSON` (tasks 0.1, 0.2,
+  0.4); round 2's rows write a source's words alone (task 0.5).
 """
 
 import collections
@@ -654,9 +658,12 @@ REFINED = (
     "taxa",  # D9a
     "rare first words",  # D6a
     "agreement",  # D2
+    "cognates kept",  # D2g (round 2)
+    "foreign items",  # D5c (round 2)
     "missing adverb or preposition",  # D3b
     "markit order",  # D3a
     "long lists",  # D7a
+    "lists by use",  # D7c (round 2)
     "repeats",  # D9b
     "reviewed rows",  # D11, D12
 )
@@ -972,12 +979,70 @@ RARE_BELOW = 2.0
 LIST_MIN = 8
 # …keeps its first three.
 LIST_KEPT = 3
+# D2g (round 2): a displaced first word is kept when it is the lemma's cognate (`cognate`) and Spanish
+# writes it at least this often (Zipf).
+COGNATE_COMMON = 3.0
+# …a cognate: a lemma of a learned suffix (`LEARNED_SUFFIXES`), written as Spanish writes that suffix,
+# and the word, both without accents, at most this normalised edit distance apart.
+COGNATE_DISTANCE = 0.2
+# The learned suffixes, Italian's and Spanish's (D2g): words formed with them are rarely false friends,
+# unlike verbs and short words (`mirare` « apuntar », not « mirar »; `balla`, `accudire`, `contestare`).
+LEARNED_SUFFIXES = (
+    ("zione", "ción"),
+    ("sione", "sión"),
+    ("enza", "encia"),
+    ("anza", "ancia"),
+    ("ità", "idad"),
+    ("mente", "mente"),
+    ("abile", "able"),
+    ("ibile", "ible"),
+)
+_DOUBLED = re.compile(r"([b-df-hj-np-tv-z])\1")
+# D5c (round 2): an item Spanish does not write (Zipf 0), or writes under this while another language
+# writes it at least `NOT_SPANISH_ELSEWHERE`, is no Spanish word.
+FOREIGN_BELOW = 1.5
 # D9a: a taxon's name opening a sense: « (Equus caballus) Caballo ».
 _TAXON = re.compile(r"^\([A-Z][a-z]+(?: [a-z]+)+\)\s+")
 
 
 def _plain(word):
     return "".join(c for c in unicodedata.normalize("NFD", word) if unicodedata.category(c) != "Mn")
+
+
+def as_spanish(lemma):
+    """An Italian lemma of a learned suffix written as Spanish writes it (D2g): its suffix Spanish's,
+    its doubled consonants single (`insufficienza` → `insuficiencia`, `appartenenza` →
+    `apartenencia`); None for a lemma of no learned suffix."""
+    for italian_, spanish_ in LEARNED_SUFFIXES:
+        if lemma.endswith(italian_) and len(lemma) > len(italian_) + 2:
+            return _DOUBLED.sub(r"\1", lemma[: -len(italian_)]) + spanish_
+    return None
+
+
+def _distance(a, b):
+    """Levenshtein's distance between two words."""
+    previous = list(range(len(b) + 1))
+    for i, x in enumerate(a, 1):
+        current = [i]
+        for j, y in enumerate(b, 1):
+            current.append(min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + (x != y)))
+        previous = current
+    return previous[-1]
+
+
+def cognate(lemma, word):
+    """Whether a Spanish word is the cognate of a lemma of a learned suffix (D2g): one word ending as
+    Spanish writes the suffix, accent included, at most `COGNATE_DISTANCE` from the lemma written as
+    Spanish writes it (`as_spanish`), both without accents, over the longer."""
+    expected = as_spanish(lemma)
+    word = word.lower()
+    if expected is None or " " in word:
+        return False
+    suffix = next(spanish_ for italian_, spanish_ in LEARNED_SUFFIXES if lemma.endswith(italian_))
+    if not word.endswith(suffix):
+        return False
+    a, b = _plain(expected), _plain(word)
+    return _distance(a, b) / max(len(a), len(b)) <= COGNATE_DISTANCE
 
 
 class Row:
@@ -1015,7 +1080,7 @@ def pivot_tables(pivot, lemma, word):
     return len(found)
 
 
-def agreement(row, current):
+def agreement(row, current, zipf=None, rules=RULES):
     """D2: the row opens on the word its sources agree on — when the word most sources open on is opened
     on by two or more, by more than open on the row's first word, and given by more sources than it; or
     when the row's first word is given by its own source alone and another word of the row's part of
@@ -1056,6 +1121,10 @@ def agreement(row, current):
             rest = senses
             if all(support[w] <= 1 for w in words_of(senses[0][1])):
                 rest = senses[1:]
+                # D2g (round 2): the lemma's common cognate stays, as a sense of its own after the lead.
+                if "cognates kept" in rules and zipf is not None and cognate(row.lemma, first) and zipf(first, "es") >= COGNATE_COMMON:
+                    item = split_items(senses[0][1])[0].strip()
+                    rest = [(senses[0][0], _capital(item))] + rest
             moved = [lead] + [x for x in rest if words_of(x[1]) != words_of(lead[1])]
             return joined(grouped(moved)[:MOST_SENSES])
     return None
@@ -1175,9 +1244,12 @@ def markit_order(lemma, current, counts):
     return joined([senses[k] for k in order])
 
 
-def long_lists_cut(current):
+def long_lists_cut(current, row=None, zipf=None):
     """D7a: a sense of at least `LIST_MIN` items, three quarters of them of at most four words and none
-    ending a sentence, keeps its first `LIST_KEPT` (`inoltre` « Además, adicionalmente, allende »)."""
+    ending a sentence, keeps its first `LIST_KEPT` (`inoltre` « Además, adicionalmente, allende »);
+    D7c (round 2), given the row's sources and wordfreq: its items first ordered by the sources giving
+    them (`Row.support`), then by Spanish frequency, the list's order breaking ties (`talvolta` « A
+    veces, de vez en cuando… », `gratis` without « de bóbilis »)."""
     senses = senses_of(*current)
     out = []
     for upos, sense in senses:
@@ -1187,7 +1259,47 @@ def long_lists_cut(current):
             and sum(len(p.split()) <= 4 for p in parts) >= 0.75 * len(parts)
             and not any(". " in p for p in parts)
         ):
-            out.append((upos, ", ".join([_capital(parts[0].strip())] + [p.strip() for p in parts[1:LIST_KEPT]])))
+            parts = [p.strip() for p in parts]
+            if row is not None and zipf is not None:
+                parts = [_lower(parts[0])] + parts[1:]
+                parts = sorted(parts, key=lambda p: (-row.support[word_of(p)], -zipf(word_of(p), "es")))
+            out.append((upos, ", ".join([_capital(parts[0])] + parts[1:LIST_KEPT])))
+        else:
+            out.append((upos, sense))
+    return joined(out) if out != senses else None
+
+
+def foreign(item, zipf):
+    """D5c (round 2): an item Spanish does not write — wordfreq knows it not at all — or writes rarely
+    (`FOREIGN_BELOW`) while another language writes it often (`NOT_SPANISH_ELSEWHERE`), unless
+    `ITALIAN_ALIKE` names it: « America ispanica », « afogarse », « alioj », « multinational »."""
+    word = word_of(item)
+    if not word or word in ITALIAN_ALIKE:
+        return False
+    spanish_ = zipf(word, "es")
+    if spanish_ == 0:
+        return True
+    return spanish_ < FOREIGN_BELOW and max(zipf(word, language) for language in NOT_SPANISH_LANGUAGES) >= NOT_SPANISH_ELSEWHERE
+
+
+def without_foreign_items(current, native, zipf):
+    """D5c (round 2): after agreement, the items that are no Spanish word (`foreign`) go from a sense the
+    row rules brought into the row — a sense not among the row's own as `native_side` wrote it
+    (`native`) —, never a sense's last item (`criterio` « Criterio, sabiduría », not « …,
+    criteriómetro »; `marmo` without « alioj »)."""
+    senses = senses_of(*current)
+    own = set(native)
+    out = []
+    for upos, sense in senses:
+        if sense in own:
+            out.append((upos, sense))
+            continue
+        parts = split_items(sense)
+        kept = [p for p in parts if not foreign(p, zipf)]
+        if kept and kept != parts:
+            if kept[0] != parts[0]:
+                kept[0] = _capital(kept[0].strip())
+            out.append((upos, ", ".join(kept)))
         else:
             out.append((upos, sense))
     return joined(out) if out != senses else None
@@ -1296,6 +1408,7 @@ _IT = "https://it.wiktionary.org/wiki/{}"
 _EN = "https://en.wiktionary.org/wiki/{}"
 _WD = "https://www.wikidata.org/wiki/Special:Search?search={}&ns146=1"
 _PERSON = "written by a person"
+_ROUND_2 = "round 2, the specialist's review, the owner's (2026-10-25)"
 
 CORRECTIONS = (
     # The 300 commonest.
@@ -1404,6 +1517,105 @@ CORRECTIONS = (
         "pivot", "ognuno", "PRON", "Todo, cada, cada una", (("PRON", "Cada uno"),),
         f"« Cada uno » {_PERSON} (task 0.4): the pronoun, « each one »", "https://pl.wiktionary.org/wiki/każdy",
     ),
+    # Round 2 (task 0.5, the owner's, 2026-10-25): the specialist's review of the gloss diff, every word a
+    # source's. The cognate a rule cannot keep, or should open the row on (D2g).
+    Correction(
+        "inverted", "appartenenza", "NOUN", "Pertenencia", (("NOUN", "Pertenencia, membresía, afiliación"),),
+        f"D2 opens it on the pivot's « Membresía »; the cognate leads — {_ROUND_2}", _ES.format("pertenencia"),
+    ),
+    Correction(
+        "inverted", "cattura", "NOUN", "Captura", (("NOUN", "Captura, detención, arresto"),),
+        f"D2 opens it on the pivot's « Detención »; the cognate leads — {_ROUND_2}", _ES.format("captura"),
+    ),
+    Correction(
+        "direct", "evidentemente", "ADV", "Evidentemente",
+        (("ADV", "Evidentemente, obviamente"), ("ADV", "Por lo visto, a ojos vistas")),
+        f"D2 opens it on the pivot's « A ojos vistas »; the cognate leads — {_ROUND_2}", _EN.format("evidently"),
+    ),
+    Correction(
+        "inverted", "percorso", "NOUN", "Recorrido", (("NOUN", "Ruta, camino, vía"), ("NOUN", "Recorrido")),
+        f"D2 drops the Spanish tables' « Recorrido », no learned suffix's cognate (D2g) — {_ROUND_2}", _ES.format("recorrido"),
+    ),
+    Correction(
+        "definitions", "incitare", "VERB", "Incitar", (("VERB", "Excitar, espolear, llevar a"), ("VERB", "Incitar")),
+        f"D2 drops the section's « Incitar », a verb's cognate D2g does not read — {_ROUND_2}", _ES.format("incitare"),
+    ),
+    Correction(
+        "direct", "incarico", "NOUN", "Encargo, incumbencia", (("NOUN", "Cargo, puesto"), ("NOUN", "Encargo")),
+        f"D2 drops the Italian Wiktionary's « Encargo », no learned suffix's cognate (D2g) — {_ROUND_2}", _IT.format("incarico"),
+    ),
+    Correction(
+        "pivot", "insufficienza", "NOUN", "Falta, carencia, cero",
+        (("NOUN", "Falta, carencia"), ("NOUN", "Insuficiencia"), ("NOUN", "Superficialidad")),
+        f"« cero », a Polish table's (lufa, the grade); D2g keeps « Insuficiencia » — {_ROUND_2}", "https://pl.wiktionary.org/wiki/lufa",
+    ),
+    Correction(
+        "direct", "inaccessibile", "ADJ", "Inaccesible", (("ADJ", "Inaccesible, inasequible"),),
+        f"D2 opens it on the pivot's « Inaccessible, inpenetrable », which D5c takes out; the cognate leads — {_ROUND_2}",
+        _IT.format("inaccessibile"),
+    ),
+    Correction(
+        "pivot", "autista", "NOUN", "Conductor, autista, chófer", (("NOUN", "Conductor, chófer"),),
+        f"« autista » is Spanish for autistic: the English autist's table — {_ROUND_2}", _EN.format("autist"),
+    ),
+    # Rows the specialist read wrong or partly right, opened on a source's words.
+    Correction(
+        "definitions", "fermo", "ADJ", "Quieto, inmóvil", (("ADJ", "Quieto, parado, inmóvil"), ("ADJ", "Firme")),
+        f"D2 opens it on « Firme »; still first, the Italian Wiktionary's « parado » — {_ROUND_2}", _ES.format("fermo"),
+    ),
+    Correction(
+        "definitions", "chissà", "ADV", "Quién sabe", (("ADV", "Quién sabe"), ("ADV", "Tal vez")),
+        f"D2 opens it on « Tal vez (posiblemente) » and the list — {_ROUND_2}", _ES.format("chissà"),
+    ),
+    Correction(
+        "pivot", "riportare", "VERB", "Ir por, ir a por, conseguir", (("VERB", "Devolver, traer"), ("VERB", "Referir")),
+        f"« Ir por… » is the English retrieve's; the section's « Devolver », the pivot's « traer », « referir » — {_ROUND_2}",
+        _EN.format("retrieve"),
+    ),
+    Correction(
+        "pivot", "galera", "NOUN", "Galera, cárcel, trullo", (("NOUN", "Cárcel, trullo"), ("NOUN", "Galera")),
+        f"the prison first, the ship after — {_ROUND_2}", _EN.format("galley"),
+    ),
+    Correction(
+        "pivot", "alimenti", "NOUN", "Manutención, alimentos, pensión alimenticia",
+        (("NOUN", "Alimentos, comida"), ("NOUN", "Pensión alimenticia")),
+        f"the English alimony's first; food first, the allowance after — {_ROUND_2}", _EN.format("alimony"),
+    ),
+    Correction(
+        "pivot", "richiamare", "VERB", "Reprochar, reprender, amonestar",
+        (("VERB", "Llamar nuevamente"), ("VERB", "Reprender, amonestar")),
+        f"the section's « Llamar nuevamente » first, the rebuke after — {_ROUND_2}", _EN.format("rebuke"),
+    ),
+    Correction(
+        "pivot", "sportello", "NOUN", "Puerta, panel, postigo", (("NOUN", "Ventanilla, taquilla"), ("NOUN", "Puerta")),
+        f"the Italian Wiktionary's counter first, the door after — {_ROUND_2}", _EN.format("door"),
+    ),
+    Correction(
+        "spanish section", "conto", "NOUN", "Cálculo", (("NOUN", "Cuenta"), ("NOUN", "Cálculo")),
+        f"the bill, the account first: the pivot's « Cuenta » — {_ROUND_2}", _IT.format("cálculo"),
+    ),
+    Correction(
+        "definitions", "strada", "NOUN", "Camino", (("NOUN", "Calle, carretera, camino"),),
+        f"the street first: the Spanish tables' « calle, carretera » — {_ROUND_2}", _ES.format("strada"),
+    ),
+    Correction(
+        "definitions", "ormai", "ADV", "Todavía, ya",
+        (("ADV", "Ya"), ("ADV", "Por ahora (ahora, en el tiempo actual)"), ("ADV", "Casi")),
+        f"« todavía », the opposite of *ormai* — {_ROUND_2}", _ES.format("ormai"),
+    ),
+    Correction(
+        "pivot", "ricerca", "NOUN", "Búsqueda, investigación, pesquisa", (("NOUN", "Búsqueda"), ("NOUN", "Investigación")),
+        f"the search and the research, two senses — {_ROUND_2}", _EN.format("search"),
+    ),
+    Correction(
+        "pivot", "loro", "DET", "Su, sus, suyo",
+        (("PRON", "Ellos, ellas"), ("PRON", "Ustedes"), ("DET", "Su, sus")),
+        f"the possessive, MarkIT's commonest reading (34 against 15), after the pronoun — {_ROUND_2}", _EN.format("their"),
+    ),
+    Correction(
+        "inverted", "via", "NOUN", "Camino, calle, cañón", (("NOUN", "Camino, calle"),),
+        f"« cañón », another sense's word — {_ROUND_2}", _ES.format("cañón"),
+    ),
 )  # fmt: skip
 
 # D11's `DI_FAMILY`: the contractions of `di` and the article, read whatever the sources give, each as
@@ -1500,16 +1712,18 @@ def refine_rows(glosses, runs, glossed_by, ranks, *, record, readings, zipf, piv
         if lemma not in ranks or lemma not in glossed_by:
             continue
         current = (glosses[lemma], runs[lemma])
+        native = [s for _, s in senses_of(*current)]
         row = Row(lemma, glossed_by[lemma], pivot)
         passes = (
             ("feminine's own word", False, lambda c: feminine_s_own_word(row, c, record, readings)),
             ("wikidata's lone items", True, lambda c: lone_wikidata_items(row)),
             ("taxa", False, without_taxa),
             ("rare first words", True, lambda c: rare_first_word(row, c, zipf)),
-            ("agreement", True, lambda c: agreement(row, c)),
+            ("agreement", True, lambda c: agreement(row, c, zipf, rules)),
+            ("foreign items", False, lambda c: without_foreign_items(c, native, zipf)),
             ("missing adverb or preposition", True, lambda c: missing_adverb_or_preposition(row, c, by_word)),
             ("markit order", True, lambda c: markit_order(lemma, c, counts or {})),
-            ("long lists", False, long_lists_cut),
+            ("long lists", False, lambda c: long_lists_cut(c, row, zipf) if "lists by use" in rules else long_lists_cut(c)),
             ("repeats", False, without_repeats),
         )
         for name, holds, rule in passes:

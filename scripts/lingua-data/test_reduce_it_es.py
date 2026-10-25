@@ -1264,12 +1264,12 @@ class TheReviewedTables(Change28):
         self.assertIn("CORRECTIONS the (pivot)", unfired)
         self.assertIn("FIRST_RUN posto", unfired, "a FIRST_RUN row whose lemma is not glossed")
         work, *_ = self.reduce()
-        self.assertIn("change 28's reviewed rows: 20 of FIRST_RUN, 22 of CORRECTIONS, 6 of DI_FAMILY; rows that found nothing", self.report)
+        self.assertIn("change 28's reviewed rows: 20 of FIRST_RUN, 44 of CORRECTIONS, 6 of DI_FAMILY; rows that found nothing", self.report)
         self.assertIn("CORRECTIONS the (pivot)", self.report)
 
     def test_every_reviewed_row_names_its_reason_and_its_page(self):
         self.assertEqual(len(italian.FIRST_RUN), 20)
-        self.assertEqual(len(italian.CORRECTIONS), 22)
+        self.assertEqual(len(italian.CORRECTIONS), 44)
         for lemma, row in italian.FIRST_RUN.items():
             self.assertIn(row.source, italian.SOURCES, lemma)
             self.assertTrue(row.reason, lemma)
@@ -1320,12 +1320,121 @@ class TheReviewedTables(Change28):
         self.assertFalse([u for u in unfired if u.split(" ")[1] in rows])
 
 
+INSUFFICIENZA = {
+    "definitions": ("Insuficiencia; Superficialidad", [("NOUN", 2)]),
+    "pivot": ("Falta, carencia, cero", [("NOUN", 1)]),
+}
+INSUFFICIENZA_PIVOT = {"NOUN": {"falta": 2, "carencia": 2, "cero": 1, "insuficiencia": 1, "escasez": 1}}
+TALVOLTA = {
+    "definitions": (
+        "A la de veces, a las de veces, a las veces, a tiempos, a veces, de cuando en cuando, de tiempo en tiempo, de vez "
+        "en cuando, en ocasiones u ocasionalmente",
+        [("ADV", 1)],
+    ),
+    "inverted": ("De vez en cuando", [("X", 1)]),
+    "pivot": ("A veces, de vez en cuando, a la de veces", [("ADV", 1)]),
+}
+TALVOLTA_PIVOT = {"ADV": {"a veces": 6, "de vez en cuando": 3, "a la de veces": 1}}
+
+
+class RoundTwo(Change28):
+    """Change 28's round 2 (the specialist's review of the gloss diff, the owner's, 2026-10-25): D2g, D5c,
+    D7c and the reviewed rows that follow it."""
+
+    ZIPF = staticmethod(
+        _zipf(
+            {
+                ("insuficiencia", "es"): 3.64,
+                ("falta", "es"): 5.44,
+                ("mármol", "es"): 3.8,
+                ("sepulcro", "es"): 3.48,
+                ("multinational", "es"): 1.44,
+                ("multinational", "en"): 3.56,
+                ("multinacional", "es"): 3.9,
+                ("a veces", "es"): 5.66,
+                ("de vez en cuando", "es"): 5.83,
+                ("de cuando en cuando", "es"): 5.97,
+                ("a la de veces", "es"): 5.65,
+            }
+        )
+    )
+
+    def test_a_learned_suffix_s_cognate(self):
+        self.assertEqual(italian.as_spanish("insufficienza"), "insuficiencia")
+        self.assertEqual(italian.as_spanish("appartenenza"), "apartenencia")
+        self.assertEqual(italian.as_spanish("peculiarità"), "peculiaridad")
+        self.assertIsNone(italian.as_spanish("mirare"), "a verb: no learned suffix")
+        self.assertTrue(italian.cognate("insufficienza", "Insuficiencia"))
+        self.assertTrue(italian.cognate("appartenenza", "pertenencia"))
+        self.assertTrue(italian.cognate("evidentemente", "evidentemente"))
+        self.assertTrue(italian.cognate("prestazione", "prestación"))
+        self.assertFalse(italian.cognate("impressione", "impresion"), "the suffix's accent")
+        self.assertFalse(italian.cognate("convenzione", "convenio"))
+        self.assertFalse(italian.cognate("mirare", "mirar"), "a false friend's verb")
+        self.assertFalse(italian.cognate("insufficienza", "falta de suficiencia"))
+
+    def test_a_displaced_cognate_stays(self):
+        # D2g: agreement opens `insufficienza` on the pivot's « Falta », the section's « Insuficiencia »,
+        # common and its cognate, stays after it.
+        row = _row("insufficienza", INSUFFICIENZA, INSUFFICIENZA_PIVOT)
+        current = INSUFFICIENZA["definitions"]
+        self.assertEqual(
+            italian.agreement(row, current, self.ZIPF),
+            ("Falta, carencia, cero; Insuficiencia; Superficialidad", [("NOUN", 3)]),
+        )
+        without = tuple(r for r in italian.RULES if r != "cognates kept")
+        self.assertEqual(italian.agreement(row, current, self.ZIPF, without), ("Falta, carencia, cero; Superficialidad", [("NOUN", 2)]))
+        rare = _zipf({("falta", "es"): 5.44, ("insuficiencia", "es"): 2.0})
+        self.assertEqual(italian.agreement(row, current, rare)[0], "Falta, carencia, cero; Superficialidad", "a rare cognate goes")
+
+    def test_a_foreign_item_a_rule_brought(self):
+        # D5c: the pivot's « alioj » (Esperanto) and « multinational » go from a sense a rule brought in; the
+        # row's own senses as `native_side` wrote them, and a sense's last item, stay.
+        self.assertEqual(
+            italian.without_foreign_items(("Mármol, sepulcro, alioj", [("NOUN", 1)]), ["Marmol"], self.ZIPF),
+            ("Mármol, sepulcro", [("NOUN", 1)]),
+        )
+        self.assertEqual(
+            italian.without_foreign_items(("Multinational, multinacional", [("ADJ", 1)]), [], self.ZIPF),
+            ("Multinacional", [("ADJ", 1)]),
+        )
+        self.assertIsNone(italian.without_foreign_items(("Mármol, sepulcro, alioj", [("NOUN", 1)]), ["Mármol, sepulcro, alioj"], self.ZIPF))
+        self.assertIsNone(italian.without_foreign_items(("Alioj", [("NOUN", 1)]), [], self.ZIPF), "a sense's last item")
+        self.assertFalse(italian.foreign("friulano", _zipf({("friulano", "it"): 3.1})), "ITALIAN_ALIKE")
+
+    def test_a_list_cut_by_use(self):
+        # D7c: `talvolta`'s thirteen items, by the sources giving them, then by Spanish frequency.
+        row = _row("talvolta", TALVOLTA, TALVOLTA_PIVOT)
+        self.assertEqual(
+            italian.long_lists_cut(TALVOLTA["definitions"], row, self.ZIPF), ("A veces, de vez en cuando, a la de veces", [("ADV", 1)])
+        )
+        self.assertEqual(italian.long_lists_cut(TALVOLTA["definitions"]), ("A la de veces, a las de veces, a las veces", [("ADV", 1)]))
+
+    def test_the_round_s_reviewed_rows(self):
+        glosses, runs, unfired = self.rows(
+            {
+                "autista": {"inverted": ("Busero", [("NOUN", 1)]), "pivot": ("Conductor, autista, chófer", [("NOUN", 1)])},
+                "loro": {
+                    "definitions": ("Ellos, ellas; Ustedes", [("PRON", 2)]),
+                    "pivot": ("Su, sus, suyo; Ellas, ellos, les; Ustedes", [("DET", 1), ("PRON", 1), ("NOUN", 1)]),
+                },
+                "cattura": {"inverted": ("Captura", [("NOUN", 1)]), "pivot": ("Detención, arresto", [("NOUN", 1)])},
+            }
+        )
+        self.assertEqual(glosses["autista"], "Conductor, chófer", "« autista » is Spanish for autistic")
+        self.assertEqual((glosses["loro"], runs["loro"]), ("Ellos, ellas; Ustedes; Su, sus", [("PRON", 2), ("DET", 1)]))
+        self.assertEqual(glosses["cattura"], "Captura, detención, arresto")
+        round_two = [row for row in italian.CORRECTIONS if "round 2" in row.reason]
+        self.assertEqual(len(round_two), 22)
+        self.assertFalse({row.headword for row in round_two} & set(italian.BY_A_PERSON), "every word a source's")
+
+
 class TheRulesAlone(Change28):
     """Change 28's task 1.1: each rule named, and the committed rows written byte for byte when none fires."""
 
     def test_each_rule_is_named(self):
         self.assertEqual(italian.RULES, italian.PRE_PASS + italian.REFINED)
-        self.assertEqual(len(set(italian.REFINED)), 16)
+        self.assertEqual(len(set(italian.REFINED)), 19)
         self.assertEqual(italian.SOURCES, it_es.SOURCES)
 
     def test_no_rule_firing_writes_the_rows_as_before(self):
