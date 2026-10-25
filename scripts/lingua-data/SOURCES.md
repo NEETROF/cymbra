@@ -595,8 +595,9 @@ and Italian's estimated levels (`tables/it/level.tsv`, add-lingua-italian-levels
 add-lingua-pack-it-fr (change 16) it also writes it-fr's French glosses, sense runs and expressions and
 Italian's dictionary words (*IT → FR: Italian glossed in French*, below), which the levels go to; the
 owner's `lingua-pack-update` dispatch of 2026-10-24 (run 40130354122, mode `update`, `keep: en`)
-committed them. No package carries it-fr (`packs.json` is unchanged, change 20 lists it); the Italian
-baseline runs over these tables since, its fixture (`testdata/it-fr/`) before. Its reducer loads `reduce_common.py`,
+committed them. Packages carry it-fr since the Italian programme's change 20 (enable-lingua-italian)
+listed it in `packs.json`, its tables above their floor; the Italian baseline runs over these tables
+since, its fixture (`testdata/it-fr/`) before. Its reducer loads `reduce_common.py`,
 `reduce_edition_fr.py` (the French Wiktionary's rules, as es-fr's), `reduce_italian_treebank.py`,
 MarkIT's counts, and `reduce_italian_acronyms.py`, Italian's acronym table
 (keep-lingua-italian-acronyms-and-names), two rule modules of its own that a later Italian pair may
