@@ -577,12 +577,28 @@ Measured on 2026-10-25 by the reduction itself — `build.sh --reduce it-en` ove
   notes out, 2,628 proper nouns' entries left with no sense, 8 names read through the name they point
   at, Massa kept by `TOWNS_KEPT`; 24 rows opened by MarkIT, 362 on a meaning not outdated, 26 by the
   table; 72 glosses and 13 expressions taking « etc. »; 5 of 5 corrections fired.
-- **The pack** 2,461,309 B (6,243 B less), its base it-fr's byte for byte (1,551,196 B), its layer
-  910,353 B, at `pack_version` `2026.10.25+380fa9f.442fd70`.
-- **`parmigiano`**, a 26th row of `FIRST_RUN` the owner approved on 2026-10-25 from the gloss diff: D2b
-  opened it on « the dialect of Emilian spoken in Parma », its adjective being marked archaic; it opens
-  on « parmesan cheese ». It was among the rows that change already, in its first sense, so no count
-  moves.
+- **The pack** of the first round 2,461,309 B, at `pack_version` `2026.10.25+380fa9f.442fd70`;
+  `parmigiano`, a 26th row of `FIRST_RUN` the owner approved from the gloss diff, opens on « parmesan
+  cheese » (D2b opened it on the dialect), and no count moved.
+- **Round 2, the specialist's review** (the owner's, 2026-10-25; *Settled by the owner*), reduced the same
+  way: **1,536 rows** change against `main` (132 / 298 / 583 / 523), **341 in their first sense** (43 / 29
+  / 93 / 176), no lemma gained or lost, 19 expressions, coverage 91.3 / 84.2 / 75.8 %. Against the first
+  round, 60 rows: the fifteen rows of the table (`tanto`, `tratta`, `costa`, `mica`, `manco`, `mona`,
+  `alma`, `domino`, `giostra`, `ara`, `augurare`, `losco`, `aureo`, `giullare`, `galeotto`); `comune`
+  keeping the Paris Commune; the five towns of `TOWNS_KEPT`; and 39 rows — 16 of the 20,000: `ferro`,
+  `eco`, `italo`, `babbo`, `castiglione`, `esposito`, `zara`, `lazzaro`, `sora`, `vanni`, `tauro`,
+  `desio`, `mirando`, `prisco`, `gaudio`, `fidanza` — keeping their names' notes because every lowercase
+  meaning is tagged. Read from the tags, as decided, the rule keeps « a surname » beside `ferro` « iron »
+  (tagged rare), `eco` « echo » (literary) and `babbo` « dad » (regional); `lucio` (tagged Tuscany,
+  colloquial) and `caruso` (« baby » untagged), which the review named, are not marked so and lose
+  theirs. Of the first round's 435 changed rows of the 5,000, ten move again: the five table rows
+  (`tanto`, `tratta`, `costa`, `mica`, `manco`), `comune`, and `ferro`, `eco`, `italo`, `babbo` by the
+  rule for marked rows. `tratta`'s eight senses hold « trafficking, trade » and « stretch, section (of a
+  route) », not « draft », which its archaic senses push past the bound. The report: 40 rows opened by
+  the table, 361 on a meaning not outdated, 2,333 surnames', 181 given names' and 107 places' notes out,
+  6 towns kept by `TOWNS_KEPT`, 6 of 6 corrections fired. The pack 2,461,617 B (5,935 B less than
+  `main`'s), its base it-fr's byte for byte, its layer 910,661 B, at `pack_version`
+  `2026.10.25+8d3fcaf.442fd70`.
 - **How it is built**: the rules read a headword's entries in `reduce_italian_en.HeadwordPass`, run by
   `read_as_italian` after change 22's rules, so each can be measured alone (`RULES`); `FIRST_RUN` and
   `TOWNS_KEPT` live in `reduce_italian_en.py`, `CORRECTIONS` in `reduce-it-en.py` — the section's applied
