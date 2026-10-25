@@ -36,14 +36,37 @@ definitions), each read through fr-es's table rules copied into `reduce_spanish_
 own (D4): no letter, no word with a grave accent or « ° », no Italian word given as Spanish but
 `ITALIAN_ALIKE`'s, each Spanish word listed once across the Italian word's parts of speech.
 
+Change 28 (refine-lingua-it-es-glosses) reads the rows again, by it-es's own rules in
+`reduce_italian_es.py` (each named in its `RULES`, measured alone on the committed tables — the design's
+*Measured*, rows changed of the 1,000 / 5,000 / 20,000 commonest and past them):
+
+- the section (`refine_section`): heraldic senses out (D6b, 8 senses), a surname's note off a common word
+  a table glosses (D8, 7 rows), a given name read as its Spanish name (D7b, « Pablo (nombre de pila) »,
+  127 senses in 104 rows);
+- the tables (`refine_tables`): the Italian Wiktionary's translations under a verb form's sense that no
+  other source gives (D10a, 85), words that are not Spanish (D5a, 303 items, 40 rows), places' labels
+  (D5b, 17 items), a verb's words off another verb's form in the pivot (D10b, 53);
+- the rows (`refine_rows`), in this order: a feminine's own word for its lent masculine (D4, 5 rows),
+  Wikidata's lone items (D2f, 99), taxa (D9a, 23), a rare first word (D6a, Zipf under 2.0, 837),
+  agreement across the sources, each of the pivot's tables a source (D2, 1,485), the missing adverb
+  or preposition and MarkIT's order (D3, 2 and 9), long lists cut (D7a, 11), repeats (D9b, 42 rows and
+  1 expression); then the reviewed tables: `FIRST_RUN` (20 rows), `CORRECTIONS` (22) and `DI_FAMILY`
+  (6), every gloss a person wrote in `BY_A_PERSON`.
+
+Together, 2,087 rows read otherwise than change 27 wrote them, 2,033 in their first sense.
+
 Inputs: `tables/it/forms.tsv`, `freq.tsv` and `grammar.tsv` (`--studied`, the committed studied
-folder); the sources above, in `--work` (`pack_sources.py DUMPS["it-es"]`). Outputs, in `--work`:
+folder); the sources above, in `--work` (`pack_sources.py DUMPS["it-es"]`), and UD Italian-MarkIT's
+training and development sections (`it_markit-ud-train.conllu`, `it_markit-ud-dev.conllu`,
+`pack_sources.py PINNED["it-es"]`), read for a row's parts of speech alone. Outputs, in `--work`:
 `gloss.tsv`, `senses.tsv`, `mwe.tsv`, `NOTICE` and `manifest.json`; and `measures.json`, what the
 reduction measures of its glosses for the update's report, which no table holds (D9).
 
 The pair's rule digest is this file, `reduce_italian_es.py` and `reduce_spanish_tables.py` (D4),
-`reduce_italian_acronyms.py` (change 11's rows), `reduce_common.py` and `reduce_edition_es.py`: no other
-pair's reducer is loaded. A change to it-fr's rules reaches this pair through the committed tables
+`reduce_italian_acronyms.py` (change 11's rows), `reduce_common.py` and `reduce_edition_es.py`, and since
+change 28 fr-en's treebank rule (`reduce_french_treebank.py`) and MarkIT's counts
+(`reduce_italian_treebank.py`), imported as it-fr and it-en import them: no other pair's reducer is
+loaded. A change to it-fr's rules reaches this pair through the committed tables
 (`pack_sources.py check-reducer`).
 """
 
@@ -60,7 +83,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import reduce_common as common  # noqa: E402 — the rules every pair shares
 import reduce_edition_es as spanish  # noqa: E402 — the Spanish Wiktionary's rules: it-es's glosses are Spanish
 import reduce_italian_acronyms as acronyms  # noqa: E402 — Italian's acronym rows (keep-lingua-italian-acronyms-and-names)
-import reduce_italian_es as italian  # noqa: E402 — it-es's own pre-pass (D4)
+import reduce_italian_es as italian  # noqa: E402 — it-es's own pre-pass (D4) and change 28's rules
+import reduce_italian_treebank as treebank  # noqa: E402 — UD Italian-MarkIT's counts, a row's parts of speech (change 28's D3)
 import reduce_spanish_tables as tables  # noqa: E402 — fr-es's table rules, copied (D4)
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -76,12 +100,18 @@ WIKIDATA = "wikidata-lexemes-it-es.jsonl"
 SPANISH_SECTION = "kaikki-it-Spagnolo.jsonl"
 # The pivot's editions, in the order `DUMPS["it-es"]` names them.
 PIVOT = {edition: f"kaikki-{edition}-pivot-it-es.jsonl" for edition in ("en", "fr", "de", "pt", "ru", "pl", "nl")}
+# UD Italian-MarkIT's training and development sections, read for a row's parts of speech (change 28's
+# D3; pack_sources.py PINNED["it-es"]), never its test section (`reduce_italian_treebank.held_out`).
+MARKIT = ("it_markit-ud-train.conllu", "it_markit-ud-dev.conllu")
 # What the native side writes beside its sources, as it reads them — no table.
 SECTION_STRAIGHT = "kaikki-es-Italiano-straight.jsonl"
 SECTION_FUNCTION_WORDS = "kaikki-es-Italiano-function-words.jsonl"
 SECTION_WORDS = "kaikki-es-Italiano-words.jsonl"
 SECTION_MEANINGS = "kaikki-es-Italiano-meanings.jsonl"
 SECTION_READ = "kaikki-es-Italiano-read.jsonl"
+SECTION_REFINED = "kaikki-es-Italiano-refined.jsonl"
+DIRECT_FORMS = "kaikki-it-traductions-es-forms.jsonl"
+DIRECT_FORMS_READ = "kaikki-it-traductions-es-forms-read.jsonl"
 DIRECT_READ = "kaikki-it-traductions-es-read.jsonl"
 INVERTED_READ = "kaikki-es-traductions-it-read.jsonl"
 
@@ -141,6 +171,22 @@ def read_studied(studied, max_lemmas, rows=None):
 def read_forms(studied):
     """The committed forms: `form → lemma`, for the split words: a form is looked up whole."""
     return dict(read_table(os.path.join(studied, "forms.tsv")))
+
+
+def read_lemmas(studied):
+    """The committed forms that are their own lemma, for D5b's place labels."""
+    return {form for form, lemma in read_table(os.path.join(studied, "forms.tsv")) if form == lemma}
+
+
+def read_verb_forms(studied):
+    """The forms Italian's readings give as another lemma's verb (`grammar.tsv`), for D10b."""
+    out = set()
+    with open(os.path.join(studied, "grammar.tsv"), encoding="utf-8") as f:
+        for line in f:
+            columns = line.rstrip("\n").split("\t")
+            if len(columns) >= 3 and columns[0] != columns[1] and columns[2].startswith("VERB"):
+                out.add(columns[0])
+    return out
 
 
 def straight_headwords(src, dst):
@@ -722,15 +768,18 @@ def manifest(pack_version):
     }
 
 
-def reduce(work, studied, max_lemmas, pack_version, *, zipf, report=print):
+def reduce(work, studied, max_lemmas, pack_version, *, zipf, report=print, rules=italian.RULES):
     """The reduction over the raw sources in `work`, its tables written there: answers what the report
-    prints, as a dict, for the measurement. `zipf(word, language)` is wordfreq's Zipf frequency."""
-    needed = (SECTION, DIRECT, INVERTED, WIKIDATA, SPANISH_SECTION, *PIVOT.values())
+    prints, as a dict, for the measurement. `zipf(word, language)` is wordfreq's Zipf frequency; `rules`
+    names the rules that run (`reduce_italian_es.RULES`, all by default: the design's measurements turn
+    each on alone)."""
+    needed = (SECTION, DIRECT, INVERTED, WIKIDATA, SPANISH_SECTION, *PIVOT.values(), *MARKIT)
     absent = [name for name in needed if not os.path.isfile(os.path.join(work, name))]
     if absent:
         raise SystemExit(
             f"it-es: {', '.join(os.path.join(work, name) for name in absent)} missing: it-es's glosses read the "
-            "files pack_sources.py DUMPS['it-es'] names"
+            "files pack_sources.py DUMPS['it-es'] names, and a row's parts of speech UD Italian-MarkIT's "
+            "training and development sections (pack_sources.py PINNED['it-es'])"
         )
     ranks = read_studied(studied, max_lemmas)
     forms = read_forms(studied)
@@ -759,8 +808,30 @@ def reduce(work, studied, max_lemmas, pack_version, *, zipf, report=print):
     section = common.without_letter_senses(section, os.path.join(work, SECTION_WORDS), edition=EDITION)
     section = spanish.read_as_meanings(section, os.path.join(work, SECTION_MEANINGS))
     tabled = frozenset(direct) | frozenset(inverted)
-    section, read_stats = italian.read_section(section, os.path.join(work, SECTION_READ), tabled=tabled)
+    section, read_stats = italian.read_section(section, os.path.join(work, SECTION_READ), tabled=tabled, rules=rules)
     stats.update(read_stats)
+
+    # Change 28 (refine-lingua-it-es-glosses): the section's rules (D6b, D7b, D8; D4's record), against
+    # the words a table-shaped source glosses as read; the Italian Wiktionary's translations under a verb
+    # form's sense that no other source gives (D10a), read again; then every table's (D5a, D5b, D10b).
+    table_shaped = {"direct": direct, "inverted": inverted, "wikidata links": links, "wikidata items": items, "spanish section": spanish_section, "pivot": pivot_table}
+    glossed_somewhere = frozenset().union(*table_shaped.values())
+    section, record = italian.refine_section(
+        section, os.path.join(work, SECTION_REFINED), readings=readings, tabled=glossed_somewhere, rules=rules, stats=stats
+    )
+    if "verb forms" in rules:
+        others = collections.defaultdict(set)
+        for name, table in table_shaped.items():
+            if name != "direct":
+                for word, by_pos in table.items():
+                    for natives in by_pos.values():
+                        others[word] |= {native.lower() for native in natives}
+        kept = italian.without_verb_forms_translations(os.path.join(work, DIRECT), os.path.join(work, DIRECT_FORMS), others, stats)
+        table_shaped["direct"] = read_translated(kept, os.path.join(work, DIRECT_FORMS_READ), inverted=False, readings=readings, zipf=zipf)
+    table_shaped = italian.refine_tables(
+        table_shaped, readings=readings, zipf=zipf, lemmas=read_lemmas(studied), verb_forms=read_verb_forms(studied), rules=rules, stats=stats
+    )
+    direct, inverted, links, items, spanish_section, pivot_table = table_shaped.values()
 
     by_frequency = common.by_native_frequency(frequency)
     sources = [
@@ -772,6 +843,13 @@ def reduce(work, studied, max_lemmas, pack_version, *, zipf, report=print):
         ("pivot", pivot_table, list),
     ]
     glosses, runs, expressions, steps = native_side(section, ranks, sources)
+    # Change 28's rows: agreement, parts of speech, rare and lent words, lists, repeats, and the reviewed
+    # tables (D2-D4, D6a, D7a, D9, D11, D12).
+    counts = treebank.markit_pos_counts([os.path.join(work, name) for name in MARKIT])
+    glossed_by = italian.source_glosses(glosses, runs, steps, sources, ranks)
+    reviewed_unfired = italian.refine_rows(
+        glosses, runs, glossed_by, ranks, record=record, readings=readings, zipf=zipf, pivot=pivot, counts=counts, rules=rules, stats=stats
+    )
     # The words Italian's pre-pass splits, after the headwords with a space: the section's, then the two
     # tables' (D6); and the entries of the acronym rows' synonyms, whatever their part of speech (D7).
     split, row_entries = italian.section_words(section, forms, row_words())
@@ -779,6 +857,8 @@ def reduce(work, studied, max_lemmas, pack_version, *, zipf, report=print):
     with_space = len(expressions)
     expressions.update(split)
     expressions.update(split_table)
+    if "repeats" in rules:
+        italian.without_expression_repeats(expressions, stats)
     glossed_acronyms = acronym_glosses(glosses, expressions, row_entries)
     for acronym, (gloss, gloss_runs) in glossed_acronyms.items():
         glosses[acronym], runs[acronym] = gloss, gloss_runs
@@ -815,6 +895,7 @@ def reduce(work, studied, max_lemmas, pack_version, *, zipf, report=print):
         "pivot groups": dict(pivot.groups),
         "acronym glosses": {acronym: gloss for acronym, (gloss, _) in glossed_acronyms.items()},
         "function words unfired": missed,
+        "reviewed rows unfired": reviewed_unfired,
     }
     report(
         f"reduced it-es: lemmas={len(ranks)} (Italian's committed tables) glosses={len(glosses)} ("
@@ -842,6 +923,11 @@ def reduce(work, studied, max_lemmas, pack_version, *, zipf, report=print):
     report(
         f"reduced it-es: {len(italian.FUNCTION_WORDS) - len(missed)} of {len(italian.FUNCTION_WORDS)} function words fired"
         + (f"; rows that found nothing, to remove: {', '.join(missed)}" if missed else "")
+    )
+    report(
+        f"reduced it-es: change 28's reviewed rows: {len(italian.FIRST_RUN)} of FIRST_RUN, {len(italian.CORRECTIONS)} of "
+        f"CORRECTIONS, {len(italian.DI_FAMILY)} of DI_FAMILY"
+        + (f"; rows that found nothing, to read again: {', '.join(reviewed_unfired)}" if reviewed_unfired else ", every row fired")
     )
     for lemma, rank, source, gloss in measured["sample"]:
         report(f"reduced it-es: sample: {rank}\t{lemma}\t{source}\t{gloss}")

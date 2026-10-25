@@ -4016,5 +4016,76 @@ class ItEnGlossesRefined(Entries):
             self.assertNotIn("refine-lingua-it-en-glosses", text, name)
 
 
+
+class ItEsGlossesRefined(Entries):
+    """refine-lingua-it-es-glosses: it-es's own rules, in its reducer and its own module, and fr-en's
+    treebank rule and MarkIT's counts imported as it-fr and it-en import them (D1)."""
+
+    # The rules change 27 committed it-es's tables with (add-lingua-pack-it-es, its pin on 2026-10-25).
+    CHANGE_27_RULES = "8327a6c88e09b4730dac423e551e6d76efc7a5d6ff751b4dcf7502236c87dd3c"
+
+    def test_spec_scenario_nothing_else_moves(self):
+        # it-es's rule digest moves — from change 27's — and names the two treebank modules; en-fr's,
+        # es-fr's, es-en's, en-es's, fr-en's, fr-es's, it-fr's and it-en's do not: no shared, Spanish-edition,
+        # acronym, Spanish-table or treebank module is edited, and every other committed pin records the
+        # rules it was reduced with.
+        pairs = ("en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en", "it-es")
+        for pair in pairs[:-1]:
+            self.assertEqual(
+                ps.rules_sha256(Path(_HERE) / f"reduce-{pair}.py"),
+                ps.get(ps.load(Path(_HERE) / "tables" / pair / "pin.json"), "reducer.sha256"),
+                pair,
+            )
+        self.assertNotEqual(ps.rules_sha256(Path(_HERE) / "reduce-it-es.py"), self.CHANGE_27_RULES)
+        self.assertEqual(
+            [p.name for p in ps.rule_files(Path(_HERE) / "reduce-it-es.py")],
+            [
+                "reduce-it-es.py",
+                "reduce_common.py",
+                "reduce_edition_es.py",
+                "reduce_french_treebank.py",
+                "reduce_italian_acronyms.py",
+                "reduce_italian_es.py",
+                "reduce_italian_treebank.py",
+                "reduce_spanish_tables.py",
+            ],
+        )
+        copy = self.dir / "rules"
+        copy.mkdir()
+        for path in Path(_HERE).glob("reduce[-_]*.py"):
+            (copy / path.name).write_bytes(path.read_bytes())
+        before = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
+        for name, old, new, moved in (
+            # D6a in it-es's own module, D3's sections in its reducer: it-es alone.
+            ("reduce_italian_es.py", "RARE_BELOW = 2.0\n", "RARE_BELOW = 1.5\n", ("it-es",)),
+            ("reduce-it-es.py", 'MARKIT = ("it_markit-ud-train.conllu", "it_markit-ud-dev.conllu")', 'MARKIT = ("it_markit-ud-train.conllu",)', ("it-es",)),
+            # MarkIT's counts: it-fr, it-en and it-es together.
+            ("reduce_italian_treebank.py", 'HELD_OUT_SUFFIX = "-ud-test.conllu"', 'HELD_OUT_SUFFIX = "-ud-held.conllu"', ("it-fr", "it-en", "it-es")),
+            # fr-en's treebank rule: fr-en, fr-es, it-fr, it-en and it-es together.
+            ("reduce_french_treebank.py", "TREEBANK_RATIO = 2\n", "TREEBANK_RATIO = 3\n", ("fr-en", "fr-es", "it-fr", "it-en", "it-es")),
+        ):
+            rules = copy / name
+            text = rules.read_text(encoding="utf-8")
+            self.assertIn(old, text)
+            rules.write_text(text.replace(old, new), encoding="utf-8")
+            after = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
+            for pair in moved:
+                self.assertNotEqual(after[pair], before[pair], f"{name}: {new}")
+            self.assertEqual({p: after[p] for p in pairs if p not in moved}, {p: before[p] for p in pairs if p not in moved}, new)
+            before = after
+        # Neither the shared rules, the Spanish edition's, Italian's acronym table, fr-es's copied table
+        # rules nor the treebanks' modules carry a rule of this change.
+        for name in (
+            "reduce_common.py",
+            "reduce_edition_es.py",
+            "reduce_italian_acronyms.py",
+            "reduce_spanish_tables.py",
+            "reduce_french_treebank.py",
+            "reduce_italian_treebank.py",
+        ):
+            text = (Path(_HERE) / name).read_text(encoding="utf-8")
+            self.assertNotIn("refine-lingua-it-es-glosses", text, name)
+
+
 if __name__ == "__main__":
     unittest.main()
