@@ -1,8 +1,39 @@
 # Design — refine-lingua-it-es-glosses
 
-*Work in progress: this file holds, first, the criteria this change measures its rules by, committed
-before any figure of a rule of this change was read (as change 27's D8 did). The measurements and the
-decisions follow in a later commit.*
+## Context
+
+See proposal.md (Why). What exists, on `main` at `16da30a05` (change 27, #1068; its tables committed
+by the owner's update of 2026.10.25, run 40210737711):
+
+| Where | What |
+|---|---|
+| `reduce-it-es.py` | it-es's reducer: the native side alone, against `tables/it/` as committed — the Spanish Wiktionary's Italian section (`straight_headwords` → `italian.function_words` → `common.without_letter_senses` → `spanish.read_as_meanings` → `italian.read_section`), then `native_side`: the section's definitions, then each table-shaped source in D2's order (`common.fallback_glosses`), the first that glosses a lemma glossing it whole; the split words, the acronym rows |
+| `reduce_italian_es.py` | it-es's own pre-pass (change 27's D4): names and acronyms, pointers, carried meanings, notes, `FUNCTION_WORDS` (11 rows, `ne`'s adverb « De allí, de ahí » the one a person wrote), `ITALIAN_ALIKE`, the Spanish section's notes, marked words, split words |
+| `reduce_spanish_tables.py` | fr-es's table rules copied, every fr-es global a parameter, imported by it-es alone: not edited here |
+| `reduce_common.py`, `reduce_edition_es.py`, `reduce_italian_acronyms.py` | The shared rules, the Spanish edition's (en-es's, fr-es's and it-es's digests) and Italian's acronym rows (it-fr's, it-en's and it-es's): not edited here |
+| `reduce_french_treebank.py`, `reduce_italian_treebank.py` | fr-en's order rule (`commonest_first`) and MarkIT's counts (`markit_pos_counts`), which it-fr imports (change 17's D2) and change 23 imports for it-en: imported here unchanged |
+| `tables/it-es/` | 24,705 glossed lemmas (definitions 3,973; the Italian Wiktionary's translations 3,582; the Spanish tables read backwards 2,996; Wikidata's links 14, its items 738; the Spanish section 1,148; the pivot 12,253; `USA`); 1,165 expressions; coverage **85.2 / 76.1 / 65.1 %** against `FLOORS["it-es"]` 83.2 / 74.0 / 63.1; the pack 1,894,196 B, its layer 343,240 B |
+| `tables/it/` | Italian's studied side, it-fr's, read as committed; no rule here writes it |
+| The requirement this change touches | Change 27's *Italian is glossed in Spanish from the Spanish Wiktionary's Italian section, the two Wiktionaries' tables, Wikidata and a pivot*, open, held by `add-lingua-pack-it-es` alone |
+| The lists for this change | Change 27's *Known data defects* and *Left for change 28* (its design), its README's *Known defects, for change 28*; the specialist review of the committed tables (2026-10-25: 11 systematic issues, the wrong rows of the 300 commonest, error rates by band and by source, with `sources.json` and `allsources.json`, which this design reproduced byte for byte) |
+
+## Goals / Non-Goals
+
+**Goals:**
+- it-es's glosses open on the Spanish word an Italian word's commonest use calls for, before change 30
+  lists it-es — by rules of it-es's own modules, each measured alone on the committed tables and kept
+  only where it reads better (the criteria below), and a short reviewed table for what no rule reaches.
+- Every item of the lists above decided: a rule, a reviewed row, left with its reason, or put to the
+  owner in plain words with examples (tasks group 0).
+
+**Non-Goals:**
+- Any byte of `tables/it/` or of the eight other pairs (en-fr, es-fr, es-en, en-es, fr-en, fr-es,
+  it-fr, it-en): no rule of `reduce_common.py`, `reduce_edition_es.py`, `reduce_italian_acronyms.py`,
+  `reduce_spanish_tables.py` or the treebank modules is edited (D1).
+- A new source beyond MarkIT's two sections, which it-fr already pins (D1).
+- The coverage floor: `FLOORS["it-es"]` stays 83.2 / 74.0 / 63.1.
+- The Spanish edition's own gaps, which fr-es and en-es share (« Contracción de… », « _(n) »): a
+  follow-up of that edition (change 27's *Known data defects*).
 
 ## How this was measured
 
@@ -65,3 +96,410 @@ change's inputs, read before: they are the list, not a measurement of a rule.
   and the rows read « partly right » fewer than now (11 %). The 301–5,000 and 5,001–20,000 bands judged
   wrong by the review read no worse. A target missed is reported with the rows that miss it, not met by
   lowering a criterion.
+
+**The data.** it-es's pinned release, `lingua-pack-sources-it-es-2026.10.25`, fetched by
+`pack_sources.py fetch-pinned` into a scratch folder (every asset checked by the sha256 its pin
+records), and MarkIT's training and development sections at `e210079d` (`4f6fc342…`, `633b6186…`,
+it-fr's pin); read as data, by scripts outside the repository, with Python 3.12 and wordfreq 3.1.1
+(`requirements-reduce.txt`), whose bundled lists — Spanish, and English, French, Portuguese, Italian
+and German for D5 — are the pinned package. `reduce-it-es.py` as committed, run over those bytes, gives
+`gloss.tsv`, `senses.tsv`, `mwe.tsv` and the `NOTICE` byte for byte, and each source's gloss of every
+lemma exactly as the review's `allsources.json`.
+
+**The prototype.** A scratch copy of the reducer with each rule as a switch: the section's rules after
+`italian.read_section`, the table rules on the six table-shaped sources before `native_side`, the row
+rules after it, in this order — D4, D2's Wikidata items, D9's taxa, D6, D2, D3, D7's cap, D9's repeats,
+then the reviewed tables (D11, D12). Every figure below is re-measured by the real reduction at
+implementation (task 3.2).
+
+**Reading.** Every changed row of the 1,000 commonest, and in each of 1,001–5,000 and 5,001–20,000
+every changed row or 60 drawn by the seed 20261025, as the criteria say; a rule's variants read the
+same way. The reader is an agent (Claude), not a native speaker: its readings decide which variant is
+kept, and the owner's specialist reads the gloss diff of the implementation (task 4.1).
+
+## Measured
+
+**The classes, on the committed tables**, and what this design does:
+
+| # | Class (the review's issue) | Ranked rows | Examples | Decision |
+|---|---|---|---|---|
+| 1 | The first source wins against agreement (1) | 1,485 rows its rule reorders (105 / 312 / 597 / 471) | `rumore` « Rumor » (four sources say « Ruido »), `accordo` « Acorde », `caso` « Azar », `andare` « Andar », `corso` « Cambio », `periodo` « Menstruación », `unico` « Simple » | D2 |
+| 2 | A rare part of speech first, or the common one missing (2) | 9 rows MarkIT reorders, 2 it fills | `ancora` « Ancla; Todavía », `secondo`, `perché`; `spesso` « Gordo » without « a menudo », `verso` « Sentido » without « hacia » | D3 |
+| 3 | A feminine pointer lends the masculine (3) | 5 rows | `ragazza` « Chico, muchacho, cabro; Novio, pololo », `nonna` « Abuelo », `zia` « Tío… », `attrice` « Actor » | D4 (and D2) |
+| 4 | Words that are not Spanish; place names read as words (4) | 303 table words in 40 rows; 17 place labels in 3 rows | `evidente` « Evident », `obbedire` « Obéir », `battere` « …, battre, taper », `transitorio` « Temporaneo, effimero »; `ladro` « Ladrón, chorizo, Spagna » | D5 |
+| 5 | Rare, heraldic or regional first words (5) | 837 rows a commoner word opens; 8 heraldic senses in 5 rows | `rapidamente` « Aquejadamente », `pulizia` « Limpiadura », `panchina` « Cadiera », `cellulare` « Movíl », `caos` « Sindiós », `controllo` « Aprobanza »; `nudo` « …; Dicho de un mueble heráldico… » | D6 |
+| 6 | False friends (6) | — (each a case of class 1 or 5) | `andare`, `rumore`, `caldo` « Cálido », `colpo` « Brazada », `cancellare`, `nominare` fixed by D2; `subito` « Súbito » by D12; `stipendio`, `tasso` left (task 0.2) | D2, D12, task 0.2 |
+| 7 | Definitions and dumps instead of translations; given names (7) | 11 list senses capped; 125 given names' senses in 102 rows | `inoltre` (166 characters), `talvolta`, `gratis`, `ergo`; `paolo` « Nombre de pila de varón, equivalente del español Pablo » | D7 |
+| 8 | A name's note alone on a common word (8) | 7 rows; 128 rows of the 20,000 hold names' notes alone (change 27 counted 136) | `senatore` « Apellido », `rocca`, `genovese`, `signorile` | D8, D7 |
+| 9 | Duplicate senses; a taxon before the meaning (9) | 32 rows, 1 expression; 23 taxa | `persona` « Persona (ser humano); Persona », `islandese` « Islandés, Islandés », `d'accordo` « De acuerdo; De acuerdo, vale »; `cavallo` « (Equus caballus) Caballo » | D9 |
+| 10 | Verb forms inside other rows (10) | 10 rows | `faccia` « Cara, haga, hagas », `dati` « Datos, facto; Sea », `salvo` « …; Salvarse » | D10 |
+| 11 | The `di` family (11) | 6 rows, 3 unglossed | `del` « Algo, un tanto, algún tanto; Para; Del », `della` « Contracción de la preposición di y el artículo la »; `dei`, `degli`, `delle` none | D11 |
+| 12 | Wikidata's lone items (change 27's list) | 99 rows | `don` « D. », `domestico` « Gato », `carcere` « Penal », `registro` « Idioma » | D2f |
+| 13 | What no rule reaches among the 300 commonest | 17 rows | `a` « En (cuando…) », `ci`, `te` « La, lo, te », `cui` « Quien », `posto` « En », `nulla` « Ninguna cosa, ni flores, naranjas », `subito`, `solo` « Único », `bene` « Aristocrático », `the` « Té » | D12 |
+
+**Each rule alone**, against the committed rows (rows changed among the ranks 1–1,000 / 1,001–5,000 /
+5,001–20,000 / beyond, rows whose first sense changes, lemmas gained or lost; the coverage moves only
+where named); *rejected* variants in italics, each read as the criteria say:
+
+| Rule | Rows changed | First sense | Gained / lost | Read (better / worse) | Examples |
+|---|---|---|---|---|---|
+| D2, agreement, the pivot's tables counted, Wikidata's lone items aside | 1,485 (105 / 312 / 597 / 471) | 1,485 | — | top 1,000: about 70 better, 2 worse (`voglia` « Lunar, deseo… », `ognuno` « Cada, todo… »), none of the 300; samples of 60: 40 / 1 (`riportare` « Ir por… »), 40 / 2 (`pompino`, `esponente` « Superíndice, exponente ») | `caso` « Caso », `accordo` « Acuerdo; Acorde », `andare` « Ir, andar », `rumore` « Ruido; Rumor », `corso` « Curso, transcurso, materia », `periodo`, `unico`, `paese` « País, estado, nación; Pueblo », `ormai` « Ya, todavía; … », `controllo` « Control », `europeo` « Europeo », `commissione` « Comisión… », `spiegare` « Explicar » |
+| *D2 counting a source's parts of speech apart* | 690 (73 / 175 / 264 / 178) | 690 | — | 3 of the 300 worse | `male` « Malamente, mal », `piano` « Grave, paroxítono, llano; … », `sotto` « Abajo; Bajo » |
+| *D2 with the winner of any part of speech* | 624 (70 / 156 / 229 / 169) | 624 | — | 1 of the 300 worse | `insieme` « Conjunto » (« together » read as « set ») |
+| *D2 without the pivot's tables counted* | 602 (68 / 145 / 226 / 163) | 602 | — | passes, 926 fewer rows, most of them better with the tables counted | leaves `corso`, `periodo`, `unico`, `commissione`, `europeo`, `colpo` |
+| D2f, Wikidata's lone items, alone | 99 (1 / 19 / 45 / 34) | 99 | — | 1,001–5,000: 19 read, 0 worse; 5,001–20,000: 45 read, 0 worse | `don` « Don, padre, doña », `domestico` « Doméstico… », `carcere` « Cárcel, prisión, presidio », `registro` « Registro… » |
+| *D2f yielding to any next source* | 138 (2 / 22 / 64 / 50) | 138 | — | `web` « Www », `nottata` « Pernoctación », `suonatore` « Trompeta » | — |
+| D3a, MarkIT's order for a function word's row | 9 (9 / 0 / 0 / 0) | 9 | — | 8 better or no worse; `uno` opens on a form note (D12 removes the note) | `ancora` « Todavía; Ancla », `perché` « Porque; … », `quando`, `secondo` « Según; Segundo », `su` « Encima de; Sobre… », `proprio` « Muy, realmente; … » |
+| D3b, a missing adverb or preposition filled | 2 (2 / 0 / 0 / 0) | 2 | — | both better | `spesso` « A menudo, frecuentemente, con frecuencia; Gordo », `verso` « Hacia; Sentido » |
+| *D3b for every missing function part of speech* | 17 (17 / 0 / 0 / 0) | 16 | — | 6 better, 5 worse | `più` « Ya; Más », `dopo` « Detrás de… », `però` « No obstante, ahora… », `loro` « Su, sus, suyo; … » |
+| D4, a feminine's own word for its lent masculine | 5 (2 / 2 / 1 / 0) | 5 | — | 5 better | `ragazza` « Chica, muchacha, niña », `pratica` « Práctica », `nonna` « Abuela », `zia` « Tía », `diplomatica` |
+| *D4, the pointer lending nothing* | 12 (3 / 4 / 5 / 0) | 12 | `comunicativa` lost | 2 worse in 1,001–20,000 | `porca` « Caballón, camellón », `fanciulla` « Guaina; Jovencito » |
+| D5a, words that are not Spanish | 40 (0 / 3 / 22 / 15) | 37 | — | none worse | `evidente` « Evidente », `obbedire` « Acatar », `specializzazione` « Especialización », `emblematico` « Emblemático », `transitorio`, `manubrio` |
+| *D5a with the other languages' threshold at 2.5, or Spanish's at 1.5* | 56 / 75 | 52 / 69 | 3 / 6 lost | barred: `ancorato`, `congeniale`, `friulano` lose their only gloss | — |
+| D5b, place names as labels | 3 (0 / 2 / 1 / 0) | 3 | — | better | `ladro` « Ladrón, chorizo, chorro », `assunzione` « Empleo » |
+| *D5b on a list's first word too* | 12 | 12 | 8 lost | barred | `gesù` « Jesús », `giacomo` « Santiago » |
+| D6a, a rare first word, Spanish Zipf under 2.0 | 837 (3 / 45 / 246 / 543) | 837 | — | top 1,000: 3 better; 1,001–5,000: none worse; 5,001–20,000: 3 worse in 60 (`turbare` « Preocupar… », `fulcro` « Toque », `espellere` « Desterrar ») | `rapidamente` « Rápidamente, deprisa, velozmente », `pulizia` « Limpieza… », `cellulare` « Celular », `panchina` « Banco », `soffrire` « Sufrir, padecer, soportar », `tranquillamente` |
+| *D6a at 1.5 (the review's) / 1.0* | 458 / 256 | 458 / 256 | — | pass, fewer better rows | — |
+| D6b, the section's heraldic senses | 5 (2 / 3 / 0 / 0) | 0 | — | no worse | `nudo` « Desnudo », `torta` « Pastel (o similar) » |
+| D7a, a list of eight items or more cut at three | 11 (4 / 3 / 4 / 0) | 5 | — | no worse | `inoltre` « Además, adicionalmente, allende », `talvolta`, `ergo`, `gratis` |
+| *D7a at five items, in the section* | 69 (17 / 20 / 21 / 11) | 40 | — | `sì` loses « sí », `rete` cut inside a description | — |
+| D7b, a given name read as its Spanish name | 102 (8 / 35 / 40 / 19) | 101 | — | better | `paolo` « Pablo (nombre de pila) », `maria` « María (nombre de pila) » |
+| D8, a surname's note off a common word another source glosses | 7 (0 / 4 / 1 / 2) | 6 | — | better | `senatore` « Senador », `genovese` « Genovés… », `signorile` « Elegante », `rocca` « Rueca » |
+| *D8 for given names, or where nothing else glosses* | 26 / 14 | 26 / 13 | 14 / 7 lost | barred | `francesco`, `luigi`; `esposito`, `sorrentino` |
+| D9a, a taxon's name before the meaning | 23 (0 / 8 / 8 / 7) | 22 | — | better | `cavallo` « Caballo », `gatto` « Gato » |
+| D9b, repeats | 32 (7 / 13 / 9 / 3) | 2 | — | no worse; 1 expression | `persona` « Persona (ser humano) », `islandese` « Islandés », `d'accordo` « De acuerdo, vale » |
+| *D9b merging two senses equal once their parentheses are out* | 36 | 2 | — | worse | `firma` loses « Firma (empresa) », `su` « Sobre (un sujeto o tópico) »; `vicolo cieco` loses « Callejón sin salida » |
+| D10, verb forms | 10 (2 / 3 / 3 / 2) | 4 | — | no worse | `faccia` « Cara », `dati` « Datos, facto », `salvo` without « Salvarse », `schiacciata` « Mate, machaque, pan árabe » |
+| *D10 without its guards* | 54 | 30 | 14 lost | barred | `studio` « Atelier », `tuo` « Tu », `generalizzato`, `ire` lose their gloss |
+| D11, the `di` family | 5 (5 / 0 / 0 / 0) | 5 | `dei`, `degli`, `delle` gained | better | `del` « Del », `della` « De la » |
+| D12, `FIRST_RUN` and `CORRECTIONS` | 17 (17 / 0 / 0 / 0) | 15 | `the` lost | better | `bene` « Bien (excelentemente); … », `posto` « Lugar, sitio, puesto », `cui` « Que; Cuyo » |
+| *A function word's pivot words of one table out* | 8 | 8 | 5 lost | barred; `ci`, `te`, `ti` untouched | `alquanto`, `noialtri` lose their gloss |
+
+**Together**: **2,066 rows change** (145 / 384 / 776 / 761), **2,018 in their first sense** (137 / 368 /
+760 / 753); `dei`, `degli` and `delle` gain a gloss, `the` loses « Té »; 2 expressions change
+(`d'accordo` « De acuerdo, vale », `cumino tedesco` « Alcaravea »). Coverage **85.3 / 76.1 / 65.1 %**
+(85.2 / 76.1 / 65.1 now), against the floor **83.2 / 74.0 / 63.1**. Prototype tables: `gloss.tsv`
+`8d5940ef…`, `senses.tsv` `1e6d7d26…`, `mwe.tsv` `f0965ef2…` (re-measured at implementation).
+
+**The target, on the review's judged rows** (its tally, the same rows read again on the prototype's
+tables, by this design's reader):
+
+| Band | Wrong before | Wrong after | Partly right before | Partly right after |
+|---|---|---|---|---|
+| The 300 commonest (292 glossed before, 294 after) | 25, **8.6 %** | 0, **0 %** | 33, 11.3 % | 10, **3.4 %** (`da`, `vi`, `oltre`, `pure`, `seguito`, `piano`, `strada`, `conto`, `tratta`, `avanti`) |
+| 301–5,000 (the review's sample) | 7 | 3 (`mark`, `tag`, `decina`) | 13 | no worse |
+| 5,001–20,000 (the review's sample) | 2 | 2 (`trad`, `frodo`) | 10 | no worse |
+
+Of the 25 wrong rows of the 300, rules fix 15 — `del`, `della` (D11), `ancora` (D3a), `caso`, `qualche`,
+`andare`, `accordo`, `corso`, `periodo`, `unico`, `ormai` (D2), `verso`, `spesso` (D3b), `qualsiasi`
+(D6a), `ragazza` (D4) — and the three unglossed `di` forms read (D11); `FIRST_RUN` and `CORRECTIONS` the
+other ten (`a`, `ci`, `solo`, `cui`, `bene`, `te`, `contro`, `posto`, `nulla`, `subito`). The target
+(at most 3 %) is met on these rows as this reader reads them; the specialist's reading of the gloss diff
+confirms it or names what misses (task 4.1).
+
+## Decisions
+
+### D1 — Every rule is it-es's, in its two modules; MarkIT joins it-es's pin
+
+The rules extend `reduce_italian_es.py` (the section's rules, the table rules, the row rules and the
+reviewed tables) and `reduce-it-es.py` (the order of the passes, each source's gloss of every lemma kept
+for D2, the expressions' repeats). D3 calls `reduce_french_treebank.commonest_first` over
+`reduce_italian_treebank.markit_pos_counts`, imported as written, as it-fr and change 23's it-en import
+them: both join it-es's rule digest, and editing either would re-pin fr-en, fr-es, it-fr, it-en and
+it-es together. `reduce_common.py`, `reduce_edition_es.py`, `reduce_italian_acronyms.py` and
+`reduce_spanish_tables.py` are not edited, so en-es, fr-es, es-en, fr-en, it-fr and it-en keep their
+digests, tables and packs (`test_reduce_editions.py`).
+
+**One file outside it-es's two modules is edited**: `pack_sources.py`, whose `PINNED["it-es"]` gains
+`ITALIAN_MARKIT`, the two sections it-fr's pin names — as change 23 adds them to `PINNED["it-en"]` and
+fr-es's refinement added UD French-GSD to `PINNED["fr-es"]`. It is in no pair's rule digest. **it-es's
+`pin.json` gains the two `sources` entries by hand in the same commit**, it-fr's url and sha256
+(`4f6fc342…`, `633b6186…`): `fetch_pinned` raises `PinError` on a `PINNED` source the pin does not
+record. The checks that name it-es's sources follow in that commit: `test_pack_sources.py` and
+`committed_tables.rs`'s list of it-es's source keys. wordfreq's English, French, Portuguese, Italian and
+German lists (D5) are part of the pinned wordfreq 3.1.1, already in it-es's pin: no source is added for
+them.
+
+### D2 — A lone first word yields to the word its sources agree on
+
+it-es reads seven sources; `native_side` lets the first that glosses a lemma gloss it whole, so a word
+one table gives (`caso` « Azar », the Spanish tables read backwards) hides the word four others give.
+
+- **a. Support.** A Spanish word's support for a lemma is the number of D2's sources whose gloss of the
+  lemma holds it — items split at « , » and at « o »/« u » between short items, parentheses out, case
+  folded —, **each of the pivot's tables counting as a source** (the pivot already orders its words so,
+  change 27's D3). *Rejected — the pivot as one source*: 926 rows fewer, most of them better with the
+  tables counted (`corso`, `periodo`, `unico`, `commissione`, `europeo`, `colpo` « Golpe »).
+- **b. When a row yields.** When the word most sources open on is opened on by at least two sources,
+  by more than open on the row's first word, and is given by more sources than it (`andare`: four open
+  on « Ir », one on « Andar »); or when the row's first word is given by its own source alone and
+  another word by two or more (`qualche` « Poca » → « Algún »). Ties go to the earlier source in D2's
+  order, then to the word's place there.
+- **c. Its part of speech.** The winner must be a word some source gives in the part of speech the
+  row opens on, its support counted across every part of speech (the sources label one word
+  differently: the section's possessives are adjectives). *Rejected*: support counted by part of speech
+  (`male` « Malamente, mal », `piano` « Grave, paroxítono… », `sotto` « Abajo »); a winner of any part
+  of speech (`insieme` « Conjunto »).
+- **d. Where it goes.** The sense holding the winner opens the row, the winner first in it; a winner the
+  row lacks brings the sense of the earliest source holding it, and the row's first sense goes only when
+  none of its words another source gives; within eight senses.
+- **e. Reviewed rows stay.** A row `FUNCTION_WORDS`, `FIRST_RUN`, `CORRECTIONS` or the `di` family
+  writes is never moved by D2, D3 or D6 (`ne`'s « De allí, de ahí »).
+- **f. Wikidata's lone items.** A row Wikidata's lexemes of one item gloss (P5137, 20 % wrong in the
+  review), whose first word no other source gives, takes the gloss of the next source whose first word
+  two sources give (`don` « D. » → « Don », `domestico` « Gato » → « Doméstico »). *Rejected — the
+  next source whatever it says*: `web` « Www », `nottata` « Pernoctación ».
+
+**1,485 rows** (105 / 312 / 597 / 471) and 99 by D2f. The worse rows read — `voglia` « Lunar, deseo,
+anhelo » (« voglia » is also a birthmark), `ognuno` « Cada, todo, cada una », `riportare` « Ir por… »,
+`pompino`, `esponente` « Superíndice, exponente » — are within the criteria's ratio, none of the 300.
+
+### D3 — Parts of speech: MarkIT's order, and the missing adverb or preposition
+
+- **a. MarkIT's order**, it-fr's D2 and change 23's D2a as written: fr-en's rule (`ADP`, `DET`, `PRON`,
+  `CCONJ`, `SCONJ`, `PART`, `ADV`; at least 10 and twice the row's first; never a proper noun first; no
+  content word moved ahead of another), a reviewed row held (D2e: `ne`). **9 rows, all of the 1,000**:
+  `ancora` « Todavía; Ancla », `perché` « Porque; Para que; Por qué », `quando` « Cuando; Cuándo »,
+  `come`, `su` « Encima de; Sobre… », `secondo` « Según; Segundo », `proprio` « Muy, realmente; … »,
+  `quale`, and `uno`, which opens on « Forma de un antes de «s impura»… », a note the reviewed table
+  removes (D12).
+- **b. A missing adverb or preposition.** A row holding only content parts of speech, for a word
+  MarkIT reads at least ten times and twice as often as an adverb or a preposition, gains the first
+  sense of that part of speech from the next source, when two sources give its first word, ahead of
+  the row's own senses: `spesso` « A menudo, frecuentemente, con frecuencia; Gordo », `verso` « Hacia;
+  Sentido ». **2 rows.** *Rejected — any missing function part of speech*: 17 rows, 5 worse, where a
+  source tags the word otherwise than UD does (`più` « Ya; Más », `dopo` « Detrás de, en pos de; … »,
+  `però` « No obstante, ahora… », `loro` « Su, sus, suyo; … », against it-fr's and it-en's row);
+  determiners the Spanish edition writes as adjectives (`suo`, `ogni`) excluded.
+
+### D4 — A feminine's own word for its lent masculine
+
+The Spanish section heads many feminine nouns « Forma del femenino singular de X », which the shared
+rules follow to X's gloss: `ragazza` « Chico, muchacho, cabro; Novio, pololo ». For a word Italian's
+readings make a noun, whose section entries hold no meaning of their own, the lent gloss gives way to
+the next source's, **when its first word is the lent word's feminine** (« chico » → « chica »,
+« abuelo » → « abuela », « tío » → « tía ») and two sources give it. **5 rows**: `ragazza` « Chica,
+muchacha, niña », `pratica` « Práctica », `nonna` « Abuela », `zia` « Tía », `diplomatica`. `amica`
+« Amiga; Amigo » and `attrice` « Actriz; Actor » come from D2. *Rejected — the pointer lending nothing*:
+`porca` « Caballón, camellón », `fanciulla` « Guaina; Jovencito », and `comunicativa` loses its gloss.
+fr-en's owner settled that a female equivalent is no word's meaning (its Q3): here the lent word is
+replaced by the feminine a source writes, never by a word written for it.
+
+### D5 — Words that are not Spanish, and place names read as words
+
+- **a.** A one-word item of a table-shaped source whose Spanish Zipf frequency is under 1 while its
+  English, French, Portuguese, Italian or German one is at least 3 is left out, unless `ITALIAN_ALIKE`
+  names it: **303 words, 40 rows**, none worse — `evidente` « Evidente », `obbedire` « Acatar »,
+  `specializzazione` « Especialización », `battere` without « battre », `emblematico`, `transitorio`,
+  `manubrio`, `trascurabile` without « negligible ». *Rejected*: the other languages' threshold at 2.5,
+  or Spanish's at 1.5 — `ancorato`, `sessa`, `congeniale`, `friulano` lose their only gloss.
+- **b.** A capitalised word that follows another in the Italian Wiktionary's or the Spanish tables'
+  list, and that Italian's tables keep as a name (a lemma with no reading), is a label, not a word:
+  `ladro` and `rapinatore` « Ladrón, chorizo, chorro » (« Spagna » out), `assunzione` « Empleo ».
+  **17 words, 3 rows.** *Rejected — on a list's first word too*: `gesù` « Jesús », `giacomo`
+  « Santiago » lose their gloss.
+- The section's definitions are not read so: `svezia` « Suécia » is left (D13).
+
+### D6 — Rare and heraldic first words
+
+- **a.** A row whose first word's Spanish Zipf frequency is under **2.0** opens on the first commoner
+  word of its first sense, or else on the first sense of its part of speech of the next source whose
+  first word is commoner: **837 rows** (3 / 45 / 246 / 543) — `rapidamente` « Rápidamente, deprisa,
+  velozmente », `pulizia` « Limpieza, pulcritud, higiene », `cellulare` « Celular », `panchina`
+  « Banco », `controllo` « Control », `qualsiasi` « Cualquier, posible, cualquiera », `soffrire`
+  « Sufrir, padecer, soportar », `autista` « Conductor, autista, chófer ». 2.0 kept over the review's
+  1.5 (458 rows) and 1.0 (256), each passing, as the criteria keep the passing variant with the most
+  better rows; its three worse rows read (`turbare` « Preocupar, conmocionar, confundir », `fulcro`
+  « Toque », `espellere` « Desterrar ») are past rank 5,000.
+- **b.** A sense the section files under heraldry goes: 8 senses, 5 rows, no first sense moved
+  (`nudo` « Desnudo », `torta` « Pastel (o similar) »). Heraldic words a table gives (`volto`
+  « Contornado », which two sources give) are left (D13, task 0.2).
+- Regional words (`cabro`, `pololo`) are not a class a rule reads: they go with the rows that carry them
+  (`ragazza`, D4).
+
+### D7 — Long lists and given names
+
+- **a.** A sense of at least eight items, three quarters of them of at most four words and none ending a
+  sentence, keeps its first three: **11 rows** — `inoltre` « Además, adicionalmente, allende »,
+  `talvolta`, `gratis`, `ergo`, `dunque`, `abilità`. *Rejected — five items, in the section*: `sì`
+  loses « sí », `rete` is cut inside a description. Wikidata's Spanish glosses of Italian senses, which
+  change 27 handed over for a shorter cap, hold two senses over 150 characters among the 20,000
+  (`nobel`, `nebulosa`): left, the card pages them (D13).
+- **b.** A given name's note « Nombre de pila de varón, equivalente del español Pablo » reads « Pablo
+  (nombre de pila) »: **125 senses, 102 rows** (`maria`, `francesco`, `giovanni`, `paolo`).
+
+### D8 — A surname's note off a common word
+
+A proper noun's « Apellido… » keeps off a word Italian's readings give a common reading, **where
+another source glosses the word**, which then glosses it: **7 rows** — `senatore` « Senador », `rocca`
+« Rueca », `genovese` « Genovés, genovese; Genovesa », `signorile` « Elegante », `giordano`. The
+review's wording — « when it-en or it-fr has a common sense » — reads another pair's committed tables,
+which the criteria bar; Italian's readings are it-es's own input and say the same of these words.
+*Rejected*: given names too (`francesco`, `luigi` lose their gloss); a surname with nothing else to say
+the word (`esposito`, `sorrentino` would lose their only gloss — it-en's D6 keeps a row of names).
+**Change 27's names-only rows**: 128 rows of the 20,000 hold only names' notes on the committed tables
+(change 27 counted 136 its own way); after D7b and D8, 48 do — 36 surnames alone (`berlusconi`,
+`ferrari`), 12 given names the section gives no equivalent (`riccardo`, `enzo`, `italo`).
+
+### D9 — Taxa and repeats
+
+- **a.** A taxon's name opening a sense goes (« (Equus caballus) Caballo » → « Caballo »): 23 rows.
+- **b.** Within a part of speech, a sense equal to another once their parentheses are out goes when it
+  has none (`persona` « Persona (ser humano) », `inferno` « Infierno »), and so does a sense with no
+  parenthesis whose every item another sense says (`capo` without the second « Jefe »); an item
+  repeated in a sense goes (`islandese` « Islandés »); an expression's sense that only opens another goes
+  (`d'accordo` « De acuerdo, vale »). **32 rows, 1 expression.** *Rejected*: merging two senses that
+  differ by their parentheses (`firma` « Firma (leyenda); Firma (empresa) », `su`), and an expression's
+  sense contained in another (`vicolo cieco` would keep only its figurative sense).
+
+### D10 — Verb forms inside other rows
+
+- **a.** A translation the Italian Wiktionary files under a verb form's sense (« 1ª persona singolare
+  del congiuntivo presente di fare »), which no other source gives the word, is left out: `faccia`
+  « Cara ». 85 translations.
+- **b.** The pivot's verb sense for a word Italian reads only as another verb's form and as no verb of
+  its own, unless it is the row's only part of speech: `dati` « Datos, facto », `salvo` without
+  « Salvarse ». **10 rows together**, none worse. *Rejected*: (a) without its guard (`studio` « Atelier »,
+  `tuo` « Tu », `vostro` « Tu; Vuestro »: a possessive's « seconda persona singolare » and a verb form's
+  « estudio » the noun shares); (b) for every word with no verb reading (`sodo` loses « Duro »,
+  `fantoccio`; two better for one worse in 5,001–20,000) or from every table (`generalizzato`,
+  `unificato` lose their gloss). `efficiente` « …; Efecto, producir » (a Polish translation split into
+  its words) is left (D13).
+
+### D11 — The `di` family, a reviewed table
+
+`DI_FAMILY`, keyed by headword, glosses the contractions of `di` and the article whatever the sources
+give, each row with its reason; the reduction fails on a row whose headword is no ranked lemma:
+
+| Row | Gloss | Words from |
+|---|---|---|
+| `del` | « Del » | the pivot (`del`'s third sense) |
+| `dello` | « Del » | the pivot, as committed: kept so the family reads alike |
+| `della` | « De la » | **written by a person**: the section describes it (« Contracción de la preposición di y el artículo la »), no source glosses it |
+| `dei` | « De los » | **written by a person**: unglossed since change 27's split-translation filter |
+| `degli` | « De los » | **written by a person**: idem |
+| `delle` | « De las » | **written by a person**: idem |
+
+As it-fr's `DI_FAMILY` reads the family through its link, and change 27's `ne` « De allí, de ahí »:
+each row a person wrote is marked so in the code, and approved by the owner (task 0.1).
+
+### D12 — `FIRST_RUN` and `CORRECTIONS`
+
+**`FIRST_RUN`** (it-es's shape): for a row of the 300 commonest the rules open on a wrong word, the
+source and the sense the row opens on — a sense of a source D2 reads for the word, never a word written
+for it —, and whether the row's other senses stay; the reduction fails on a row whose sense the source
+no longer writes. **11 rows**:
+
+| Row | Opens on | Source | Others | Reason |
+|---|---|---|---|---|
+| `bene` | « Bien (excelentemente) » | the section | kept | the adjective « Aristocrático, noble » first; MarkIT reads too few adverbs (8) |
+| `solo` | « Sólo, solamente, únicamente » | the pivot | kept (« Único ») | the adverb's agreed word is the pivot's alone |
+| `contro` | « Contra » | the pivot | dropped | « Versus, en vez de, en contra; …; Por, contrario, conta » |
+| `posto` | « Lugar, sitio, puesto » | the pivot | dropped | « En », a slip two sources share (the Italian Wiktionary's translations and its Spanish section) |
+| `nulla` | « Nada, vacío, nihilidad » | the pivot | dropped | « Ninguna cosa, ni flores, naranjas », a translation split into its words |
+| `subito` | « Inmediatamente, enseguida, ahora mismo » | the pivot | dropped | « Súbito », a false friend (*subito* is also *subire*'s participle) |
+| `ci` | « Nos, nosotros, ahí » | the pivot | dropped | « …; De esto, aquí, por allí; Ce; No, hay » |
+| `che` | « Que » | the section | kept | « Qué » first; the relative and the conjunction are the common uses |
+| `sotto` | « Bajo, debajo de, so » | the pivot | kept | D2 opens it on the adverb « Abajo »; the preposition is MarkIT's (10 against 1) but no row sense of it |
+| `ora` | « Ahora » | the Spanish tables read backwards | kept (« Hora ») | the noun « Hora » alone; MarkIT reads 6 adverbs, too few |
+| `ma` | « Pero, mas, sino » | the pivot | dropped | « Mas o pero; Indicador emocional o enfático » |
+
+**`CORRECTIONS`** (it-fr's and change 23's shape: the source, the headword, its part of speech, the
+source's text, the corrected text or none, the reason, the page reported upstream; a correction firing
+on nothing is named by the update's summary line). **6 rows**:
+
+| Row | Source text | Corrected | Reason |
+|---|---|---|---|
+| `a` | the section's « En (cuando se trata de un concepto más que un lugar físico). » | « A; En (…) » | **« A » written by a person**: no source glosses a one-letter word |
+| `te` | the pivot's « La, lo, te » | « Ti, te » | **« ti » written by a person**: the stressed pronoun after a preposition (« per te ») |
+| `ti` | the pivot's « Te, ti, la » | « Te, ti » | « la », a clitic table's word |
+| `cui` | the Spanish tables' « Quien » | « Que; Cuyo » | the relative's words, the Spanish section's and the pivot's |
+| `uno` | the section's « Forma de un antes de «s impura»… » | none | a note on the form, which D3a would open the row on |
+| `the` | the pivot's « Té » (Russian « чай ») | none | the English article on Italian pages; it-en leaves `the` unglossed too (change 23's D9) |
+
+Hand-written glosses, all of this change: `a`'s « A », `te`'s « ti », and D11's four rows — six, put
+to the owner (task 0.1).
+
+### D13 — Measured and left
+
+- **The partly right rows of the 300** (10): `da` « De, a, cerca; … », `vi` « Os, los, las; Aquí, por
+  allí, para allá », `oltre` « Además, más », `pure` « Hasta », `seguito`, `piano` « Llano, plano; … »
+  (it-en's row opens it on the floor), `strada` « Camino », `conto` « Cálculo », `tratta`, `avanti`: no
+  rule reaches them without moving right rows, and each opens on a right word or a near one.
+- **Wrong rows past the 300**, outside the criteria's reviewed rows: `decina` « Década » (two sources),
+  `mark` « Mark », `tag` « Chapa », `trad` « Maletero », `frodo` « Fraude », `stipendio` « Estipendio »,
+  `tasso` « Tejón, tejo », `volto` « Contornado », `aderenza` « Tractor », `svezia` « Suécia »,
+  `efficiente` « …; Efecto, producir », `salsa` « Salsa, greve, gravy » — task 0.2.
+- **A function word's pivot words given by one table**: measured as a rule and rejected (`alquanto`,
+  `noialtri`, `siffatto` lose their gloss; `ci`, `te`, `ti` untouched, their wrong words coming from many
+  tables).
+- **Wikidata's long glosses** (`nobel` 276 characters, `nebulosa` 151): 2 rows of the 20,000.
+- **The pivot's homographs, participles and last words** (`sparato` « Bragueta », `restringere`
+  « Restringir, reducir, eliminar », `soddisfatto` « …, qué bueno »): a rule cannot tell them from a
+  right word; `sino` and `braccia` are no ranked lemmas on the committed tables.
+- **The Spanish edition's gaps**, fr-es's and en-es's too: a follow-up of that edition.
+
+### D14 — it-es re-reduced at its pin; what moves and what cannot
+
+One dispatch (`lingua-pack-update`, mode `reduce`, it-es), started by the programme's coordinator on
+the implementation branch, from the pinned release `lingua-pack-sources-it-es-2026.10.25` and MarkIT's
+two sections, which it-es's pin records from the commit that adds them (D1). The pin keeps its
+snapshot and its sources byte for byte; its rule digest moves (`reduce-it-es.py`, `reduce_italian_es.py`,
+and the two treebank modules joining it), with `pack_version`, the pack and the layer; the base is
+it-fr's. `gloss_coverage.py --pair it-es` passes the floor: predicted 85.3 / 76.1 / 65.1.
+
+**What may move, and nothing else**: `tables/it-es/gloss.tsv`, `senses.tsv`, `mwe.tsv`,
+`manifest.json`, `pin.json`, `README.md`; `SOURCES.md`; `it-es.golden` and `word-card-it-es.txt` (D15).
+**What does not**: `tables/it/`, the eight other pairs' tables, pins, packs, goldens and snapshots; the
+shared modules; the extension's source; Italian's analyser version.
+
+### D15 — The golden and the card, read probe by probe
+
+The update workflow re-blesses `it-es.golden` and `word-card-it-es.txt` itself in its bless step
+(`lingua-pack-update.yml`: `LINGUA_BLESS=1 cargo test … --test it_es_baseline` and the cards'
+`yarn vitest run … test/word-card-it-es.spec.ts … -u`), so nothing is blessed a second time: the pull
+request lists every moved probe and line with its rule, for the owner's approval. The studied side
+still equals it-fr's golden (`the_golden_is_the_italian_one_on_the_studied_side`); `cross_native`
+passes unblessed.
+
+### D16 — Order
+
+| Change | Relation |
+|---|---|
+| 27 `add-lingua-pack-it-es` | before: its first requirement is MODIFIED here, so this change archives after it |
+| 23 `refine-lingua-it-en-glosses` | either side: both add MarkIT to a pair's `PINNED` entry and edit `test_pack_sources.py`; whichever merges second rebases those lines |
+| 29 `measure-lingua-it-es-translation-marks` | either side: its tier reads the engine's column alone |
+| 30 `enable-lingua-italian-for-spanish-speakers` | after: it lists it-es once this change has merged; its `archiveAfter` already names this change |
+
+## Questions for the owner
+
+Two, in tasks group 0, each with a recommendation: the six glosses a person wrote (0.1), and the wrong
+rows past the 300 commonest that only a reviewed row reaches (0.2). Decided here, so not asked: every
+rule and its variant (the criteria), the precedents (fr-en's Q2, Q3, Q5; it-en's D6 on names), the 17
+reviewed rows of the 300 whose words a source writes.
+
+## Risks / Trade-offs
+
+- **[Agreement moves many rows]** → 1,485 rows, read as the criteria say; the specialist reads every
+  changed row of the 5,000 in the gloss diff before the owner approves it (task 4.1).
+- **[The pivot's tables counted as sources]** → they are the pivot's own order (change 27's D3); a word
+  many tables give for a function word can still be wrong (`ci`, `te`): those rows are reviewed.
+- **[wordfreq's thresholds]** → measured in variants; a word left out by D5 or moved by D6 is listed in
+  the pull request among the changed rows.
+- **[Hand-written glosses]** → six, marked in the code and the pull request, approved by the owner.
+- **[A pin gains a source]** → MarkIT's two files are it-fr's, at the same commit and sha256s, read for
+  counts alone.
+
+## Migration Plan
+
+No reader holds an it-es pack before change 30: nothing to migrate. The tables arrive by the dispatch
+(D14); rollback is a revert of the tables, the pin and the golden.
+
+## Effort
+
+3.5–5 ideal days, against the programme's 2–3.5 (49b): the rules D2–D10 in `reduce_italian_es.py`
+with their tests 1.5–2 (agreement and its pivot counts the largest); `FIRST_RUN`, `CORRECTIONS`,
+`DI_FAMILY`, MarkIT's pin entries and the checks naming it-es's sources 0.5–0.75; the dispatch, the
+README, `SOURCES.md` and the measurements 0.75–1; the golden's and card's listing and the specialist's
+review 0.5–1; the owner's reading 0.25. Eleven classes of the review, against change 23's seven, and the
+agreement across seven sources account for the difference.
