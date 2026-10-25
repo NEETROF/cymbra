@@ -519,6 +519,63 @@ request lists every moved probe and line with its rule, for the owner's approval
 still equals it-fr's golden (`the_golden_is_the_italian_one_on_the_studied_side`); `cross_native`
 passes unblessed.
 
+### D17 — Round 2: the specialist's review of the gloss diff
+
+An Italian–Spanish specialist read the gloss diff of the first reduction (task 4.1): no blocker, the 300
+commonest 0 wrong and 14 partly right, and 12 minor regressions among the 5,000 commonest. The owner chose
+on 2026-10-25 to fix them in the same pull request (task 0.5). Each rule is measured alone against the first
+round's tables and with the rest, by the criteria above; every reviewed row writes a source's words.
+
+- **D2g — a displaced cognate stays.** When agreement drops a row's first sense (D2d), its first word
+  stays, as a sense of its own after the winner's, if it is the cognate of a lemma of a learned suffix
+  (`LEARNED_SUFFIXES`: `-zione` « -ción », `-sione` « -sión », `-enza` « -encia », `-anza` « -ancia », `-ità`
+  « -idad », `-mente`, `-abile` « -able », `-ibile` « -ible ») — the word ends as Spanish writes the
+  suffix, accent included, and is at most 0.2 of the longer word in edit distance from the lemma written
+  so, its doubled consonants single, accents out — and Spanish writes it at Zipf 3 or more. **9 rows** (0 /
+  3 / 4 / 2), none worse: `insufficienza` « …; Insuficiencia », `appartenenza`, `prestazione`
+  « …; Prestación », `peculiarità`, `indiscutibile`, `detestabile`. *Rejected — any cognate*, an edit
+  distance of 0.25 on the whole word, verbs and short words included: 51 rows, a third worse, the false
+  friends agreement had rightly moved coming back (`sfruttare` « Disfrutar », `mirare` « Mirar »,
+  `accudire` « Acudir », `contestare` « Contestar », `balla` « Bala », `cabina` « Cabaña »). The cognates
+  no learned suffix forms (`percorso` « Recorrido », `incitare` « Incitar », `incarico` « Encargo »), and
+  those that should lead (`appartenenza`, `cattura`, `evidentemente`, `inaccessibile`), are reviewed
+  rows.
+- **D5c — a foreign item a rule brought in.** After agreement, an item of a sense the row rules brought
+  into the row (a sense the row did not hold as `native_side` wrote it) goes when Spanish does not write
+  it (Zipf 0) or writes it under 1.5 while English, French, Portuguese, Italian or German writes it at 3
+  or more, `ITALIAN_ALIKE` aside; a sense's last item stays. **154 rows** (0 / 7 / 40 / 107): « America
+  ispanica », « afogarse », « alioj », « multinational », « criteriómetro », « alfrombra », « inpenetrable »
+  out; in 5,001–20,000, 2 worse in 40 read (`alemanno` loses « Alemánico », `longobardo` « Longobardo »).
+  *Rejected — every sense of every row*: 1,134 rows, the section's own rare words out with the junk
+  (`smussare` loses « Achaflanar », its right word).
+- **D7c — a list cut by use.** D7a's items are ordered by the sources giving each (`Row.support`, each of
+  the pivot's tables a source), then by Spanish Zipf frequency, the list's order breaking ties, before the
+  cut at three: **11 rows**, the same as D7a's (4 / 3 / 4 / 0): `talvolta` « A veces, de vez en cuando, a
+  la de veces », `però` « …; No obstante, aunque, sin embargo », `dunque` « …; Por consiguiente, por lo
+  tanto, pues », `gratis` « …; Gratis, de balde, de gracia », `ergo` « Por lo tanto, por consiguiente,
+  ergo », `abilità` « Habilidad, capacidad, mano; … ». *Rejected — Spanish frequency alone*, as D6a reads
+  it: wordfreq rates a phrase of common words high whatever it says (`a la de veces` 5.65 against `a
+  veces` 5.66, `de arriba` 5.07 over `gratis` 4.88), so `gratis` would open its list on « Por nada, de
+  arriba ».
+- **`CORRECTIONS`, 22 more rows**, every word a source's (the class of task 0.2): the cognates that lead —
+  `appartenenza` « Pertenencia, membresía, afiliación », `cattura` « Captura, detención, arresto »,
+  `evidentemente` « Evidentemente, obviamente; Por lo visto, a ojos vistas », `inaccessibile`
+  « Inaccesible, inasequible » —; those no rule keeps — `percorso` « Ruta, camino, vía; Recorrido »,
+  `incitare` « Excitar, espolear, llevar a; Incitar », `incarico` « Cargo, puesto; Encargo » —;
+  `insufficienza` « Falta, carencia; Insuficiencia; Superficialidad » (« cero », a Polish table's);
+  `autista` « Conductor, chófer » (« autista » is Spanish for autistic); and the specialist's rows —
+  `fermo` « Quieto, parado, inmóvil; Firme », `chissà` « Quién sabe; Tal vez », `riportare` « Devolver,
+  traer; Referir », `galera` « Cárcel, trullo; Galera », `alimenti` « Alimentos, comida; Pensión
+  alimenticia », `richiamare` « Llamar nuevamente; Reprender, amonestar », `sportello` « Ventanilla,
+  taquilla; Puerta », `conto` « Cuenta; Cálculo », `strada` « Calle, carretera, camino », `ormai` « Ya;
+  Por ahora (…); Casi », `ricerca` « Búsqueda; Investigación », `loro` « Ellos, ellas; Ustedes; Su, sus »,
+  `via` « Camino, calle ». Three words the review asked for no source gives — `riportare`'s « traer de
+  vuelta », `richiamare`'s « volver a llamar » and « atraer »: their rows hold the sources' « traer » and
+  « Llamar nuevamente », and the three go back to the owner (task 0.6).
+- **Together**, against the first round: **191 rows** (11 / 22 / 49 / 109), 171 in their first sense; no
+  lemma gained or lost; coverage 85.2 / 76.1 / 65.1 %. The 300 commonest: 9 rows move (`da`, `loro`, `via`,
+  `però`, `inoltre`, `strada`, `conto`, `ricerca`, `ormai`), none worse — still 0 wrong.
+
 ### D16 — Order
 
 | Change | Relation |
@@ -550,6 +607,10 @@ Answered by Guillaume on 2026-10-25, each as recommended (tasks 0.1–0.4):
 - **Q4, three words no source gives** (D12, task 0.4): (a) — `tessera` « Tarjeta, carné »,
   `cancellato` « Cancelado, borrado », `ognuno` « Cada uno », three `CORRECTIONS` rows, each written by a
   person and marked so, as the seven above.
+- **Q5, round 2: the specialist's review of the gloss diff** (D17, task 0.5): fix its 12 minor
+  regressions in this pull request, before merging — a cognate agreement displaces kept (D2g), lists cut
+  by use (D7c), foreign items a rule brings out (D5c), and reviewed rows of the sources' words (22
+  `CORRECTIONS` rows); a word no source gives goes back to the owner (task 0.6), not written.
 
 Decided here, so not asked: every rule and its variant (the criteria), the precedents (fr-en's Q2, Q3,
 Q5; it-en's D6 on names), the 15 reviewed rows of the 300 whose words a source writes (all of D12's
