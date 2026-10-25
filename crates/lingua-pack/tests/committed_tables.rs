@@ -3334,14 +3334,18 @@ fn spec_scenario_italian_s_first_reader_pair() {
             "it-en: it/{name}"
         );
     }
+    // Since change 23 (refine-lingua-it-en-glosses D1), its rules hold fr-en's treebank rule and
+    // MarkIT's counts too, which it-fr imports as well.
     assert_eq!(
         pin["reducer"]["files"],
         serde_json::json!([
             "reduce-it-en.py",
             "reduce_common.py",
             "reduce_edition_en.py",
+            "reduce_french_treebank.py",
             "reduce_italian_acronyms.py",
-            "reduce_italian_en.py"
+            "reduce_italian_en.py",
+            "reduce_italian_treebank.py"
         ])
     );
     // Its own fetch of the English Wiktionary's Italian section and the Italian Wiktionary's
