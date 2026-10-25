@@ -35,4 +35,4 @@
 
 ## 6. Owner
 
-- [ ] 6.1 [manual] The owner reads the coverage, the sample by source, the golden and the card snapshot, and approves the reduction's pull request.
+- [x] 6.1 [manual] The owner reads the coverage, the sample by source, the golden and the card snapshot, and approves the reduction's pull request. Done 2026-10-25: the owner approved the reduction (« J'approuve ») on the coverage, the sample and the change-23 list of first senses.
