@@ -11,7 +11,8 @@
 // `trapped: true`, with no translation and no mark: the reader would get no translation. A
 // fragment that traps twice leaves the sentence's own tagged marks unreconciled, as relay.ts shows
 // them — so does an empty fragment, which is not asked (relay.ts asks none either): `alone` is ""
-// for it, null for one that trapped twice. Either way the next request gets a clean engine, built
+// for it, null for one that trapped twice; a fragment the route translates as nothing is "" too, and
+// reconcileMarks leaves the marks as they are. Either way the next request gets a clean engine, built
 // when it is asked. The native language a pair's route translates into is read here too
 // (`nativeOfRoute`), so the harness's reading of the catalogue is tested, and so are the
 // experiment's tables (`readGlossTables`): read only when the pair's gloss table holds a gloss.
