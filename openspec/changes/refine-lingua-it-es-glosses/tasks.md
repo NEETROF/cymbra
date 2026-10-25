@@ -59,6 +59,6 @@ committed before its figures, and by the precedents already settled.
 
 - [x] 6.1 The rules, each in `RULES`, measured alone against the first round and with the rest: D2g (`cognate`, `as_spanish`, `LEARNED_SUFFIXES`, in `agreement`), D5c (`without_foreign_items`, after agreement, on the senses the row rules brought), D7c (`long_lists_cut` ordering by `Row.support`, then Zipf). Tests: *A displaced cognate* (`insufficienza`), *A false friend displaced*, *A foreign item agreement brings* (`marmo`), *A list cut by use* (`talvolta`).
 - [x] 6.2 `CORRECTIONS`: 22 rows of round 2, every word a source's, each with its reason and page; a test listing them, none written by a person.
-- [ ] 6.3 [coordinator-dispatched] `lingua-pack-update` in mode `reduce` for it-es on `impl/refine-lingua-it-es-glosses-r2`; the golden and the card re-blessed by it once.
-- [ ] 6.4 On the side branch: the figures, the README, `SOURCES.md` and `committed_tables.rs` after the round-2 tables; every row that changes against the first round listed in the pull request.
+- [x] 6.3 [coordinator-dispatched] `lingua-pack-update` in mode `reduce` for it-es on `impl/refine-lingua-it-es-glosses-r2`; the golden and the card re-blessed by it once.
+- [x] 6.4 On the side branch: the figures, the README, `SOURCES.md` and `committed_tables.rs` after the round-2 tables; every row that changes against the first round listed in the pull request.
 - [ ] 6.5 [manual] The round-2 gloss diff read by the owner.

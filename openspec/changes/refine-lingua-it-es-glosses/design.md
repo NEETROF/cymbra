@@ -699,3 +699,14 @@ write byte for byte:
   writes its sense is named on the report line, and so is a `FIRST_RUN` row the reduction never reaches.
   The update's sample names a row of the `di` family's table `DI_FAMILY`. `committed_tables.rs` reads the
   pin's sources sorted (`serde_json`), so it holds their names, and their order from the pin's text.
+- **Round 2** (D17), reduced the same way on `impl/refine-lingua-it-es-glosses-r2`: against the first
+  round's committed tables, **191 rows** (11 / 22 / 49 / 109), 171 in their first sense; no lemma gained or
+  lost, no expression moved; coverage 85.2 / 76.1 / 65.1 %. Each rule alone against round 1: D2g 9 rows
+  (0 / 3 / 4 / 2), D5c 154 (0 / 7 / 40 / 107), D7c 11 (4 / 3 / 4 / 0), all moving no first word but D5c's
+  and D7c's lists. Of the 300 commonest, 9 rows move (`da`, `loro`, `via`, `però`, `inoltre`, `strada`,
+  `conto`, `ricerca`, `ormai`), none worse: still 0 wrong. Against change 27: **2,092 rows** (154 / 396 /
+  780 / 762), 2,033 in their first sense. The report: 20 of 20 rows of `FIRST_RUN`, 44 of 44 of
+  `CORRECTIONS`, 6 of 6 of `DI_FAMILY` fired. The pack 1,896,498 B, its base it-fr's, its layer
+  345,542 B, at `pack_version` `2026.10.25+5cfe31f.442fd70`. The golden moves in 14 probes against round
+  1 (`da` « De, por, en; … », `conto` « Cuenta; Cálculo », `via` « Camino, calle », `autista`, `loro`'s
+  possessive), the card in 2 lines out and 3 in.
