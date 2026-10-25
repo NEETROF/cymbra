@@ -11,8 +11,9 @@
 /// The longest sentence sent, in characters — the extension refuses longer ones too.
 pub const MAX_SENTENCE_CHARS: usize = 1_000;
 
-/// The languages a pair is made of (the language matrix): any two different ones.
-pub const LANGUAGES: [&str; 3] = ["en", "fr", "es"];
+/// The languages a pair is made of (the language matrix): any two different ones. Italian
+/// since enable-lingua-italian (D5), deployed before the extension that studies it.
+pub const LANGUAGES: [&str; 4] = ["en", "fr", "es", "it"];
 
 /// The instruction every provider gets. Fixed, so the prompt's prefix never changes; the
 /// selection is marked in the source, and the provider names the words that render it, as a
@@ -67,6 +68,7 @@ fn language_name(code: &str) -> &'static str {
     match code {
         "fr" => "French",
         "es" => "Spanish",
+        "it" => "Italian",
         _ => "English",
     }
 }
@@ -257,6 +259,37 @@ mod tests {
             user_prompt(&c),
             "Source: Use ‹b›bold‹/b› to stress <b>putting off</b>. → Spanish"
         );
+    }
+
+    #[test]
+    fn italian_is_one_of_the_languages_both_ways() {
+        // enable-lingua-italian D5: an Italian sentence read by a French speaker, and the other way.
+        let s = "Mi ha preso in giro per tutta la cena.";
+        let (a, b) = utf16_of(s, "preso in giro");
+        let c = check(s, a, b, "it", "fr").unwrap();
+        assert_eq!(c.pair(), "it-fr");
+        assert_eq!(
+            user_prompt(&c),
+            "Source: Mi ha <b>preso in giro</b> per tutta la cena. → French"
+        );
+        let s = "Il s'est moqué de moi pendant tout le dîner.";
+        let (a, b) = utf16_of(s, "moqué de moi");
+        let c = check(s, a, b, "fr", "it").unwrap();
+        assert_eq!(c.pair(), "fr-it");
+        assert_eq!(
+            user_prompt(&c),
+            "Source: Il s'est <b>moqué de moi</b> pendant tout le dîner. → Italian"
+        );
+        // Every pair of the four languages, and none of a language twice or outside them.
+        for source in LANGUAGES {
+            for target in LANGUAGES {
+                let result = check(s, a, b, source, target);
+                assert_eq!(result.is_ok(), source != target, "{source}-{target}");
+            }
+        }
+        assert_eq!(check(s, a, b, "it", "it"), Err(Refusal::BadPair));
+        assert_eq!(check(s, a, b, "it", "de"), Err(Refusal::BadPair));
+        assert_eq!(check(s, a, b, "ita", "fr"), Err(Refusal::BadPair));
     }
 
     fn checked() -> Checked {
