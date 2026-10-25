@@ -857,10 +857,89 @@ unchanged: 33,199 glosses (17 lemmas left the ranks — `vado`, `sto`, `signor`,
 `dati`, `lega`, `prova` …), coverage 91.3 / 84.2 / 75.8 %, the pack 2,467,552 B, its base it-fr's new one
 (1,551,196 B), its layer 916,596 B.
 
+## IT → ES: the sources it-es reads, the pivot among them
+
+Registered, derived and pinned by add-lingua-it-es-pivot-sources (change 27a of
+`docs/lingua/italian-programme.md`), before it-es has a reducer: change 27 (`add-lingua-pack-it-es`)
+reads them into it-es's glosses, its order, filters, floor and credits its own (D6). Until then no
+pack, table or other pair reads them, and no committed pin names them. it-es measured 57.8 / 46.8 /
+35.0 % of the 5,000 / 10,000 / 20,000 commonest Italian lemmas glossed with its three planned sources,
+about 25 points under fr-es; on 2026-10-22 (I4, I11, #1004) the owner chose the full pivot, every pair
+kept, with Wikidata's lexemes and the Italian Wiktionary's Spanish section: **84.8 / 76.3 / 65.8**
+together on the study's ranking (strict 79.1 / 69.6 / 58.6). `DUMPS["it-es"]` reads, by edition:
+
+| File | Dump (`EDITIONS`) | Kind | Licence | What change 27 reads it for |
+|---|---|---|---|---|
+| `kaikki-es-Italiano.jsonl` | the Spanish Wiktionary (`es`) | Italian entries | CC BY-SA 4.0 + GFDL | the definitions, which gloss first (D1) |
+| `kaikki-es-traductions-it.jsonl` | the Spanish Wiktionary | Spanish entries' Italian translations | CC BY-SA 4.0 + GFDL | read backwards (D1) |
+| `kaikki-it-traductions-es.jsonl` | the Italian Wiktionary (`it`) | Italian entries' Spanish translations | CC BY-SA 4.0 + GFDL | the direct fallback (D1) |
+| `kaikki-it-Spagnolo.jsonl` | the Italian Wiktionary | Spanish entries | CC BY-SA 4.0 + GFDL | read backwards: the first gloss of each sense that is not a form, on a lowercase entry that is no name or character, split on « , » and « ; » into at most three parts of at most two words (D3); es-it's definitions to come |
+| `kaikki-<edition>-pivot-it-es.jsonl`, one each | the English (`en`), French (`fr`), German (`de`), Portuguese (`pt`), Russian (`ru`), Polish (`pl`) and Dutch (`nl`) Wiktionaries | the pivot (`("pivot", <edition>, "it", "es")`) | CC BY-SA 4.0 + GFDL | an Italian and a Spanish word listed under one sense of a table (D2) |
+| `wikidata-lexemes-it-es.jsonl` | Wikidata's Lexemes (`wikidata`) | lexeme pairs (`("lexemes", "it", "es")`) | **CC0 1.0** | an Italian and a Spanish sense linked by Wikidata (D3) |
+
+**The pivot** (D2, `pack_sources.pivot_groups`). For each entry of the edition's own language, its
+Italian and Spanish translations are grouped by the table's `sense`, else its `sense_index`, else the
+sense the table sits under, else the whole entry; one record per group: the entry's `word` and `pos`,
+`by` — what keyed the group: `sense`, `sense_index`, `under` (with `under`, that sense's 1-based
+position) or `entry`, the table naming none —, `sense` and `sense_index` where the table gives them
+(a number written as text, whichever way the edition writes it; a translation giving both is grouped
+by both), `several_senses`, and the `it` and `es` words, each once, in the table's order. A group
+with the words of one language alone gives nothing. A file of translations per language would drop
+`sense_index` and lose the entry: the Polish tables, keyed by a sense number alone (16,498 of 16,503
+rows), would collapse to one group per entry. Of the research's 175,556 pivot rows, 50,392 (28.7 %)
+name no sense — French 25,568, Russian 13,475, Portuguese 10,147, Dutch 1,197 —, 14,044 of them on
+entries of several senses, and 166 French tables are « Traductions à trier suivant le sens »: kept
+under the entry, marked so, for change 27 to decide (D6.5). The pivot's errors cluster on homographs
+and participles (`sparato` « Bragueta », `sino` « Seno », `braccia` « Braza »). Derived, one file per
+edition: about 7.8, 5.8, 4.8, 3.0, 2.0, 1.5 and 1.0 MB (English, German, French, Russian, Polish,
+Portuguese, Dutch).
+
+**Wikidata's Lexemes, an edition of its own** (D3). `EDITIONS["wikidata"]` reads
+`https://dumps.wikimedia.org/wikidatawiki/entities/latest-lexemes.json.gz`, the latest weekly dump
+(`wikidata-20261021-lexemes.json.gz`, 655,273,999 B gzipped, on 2026-10-22 and 2026-10-25; each kept
+about six weeks), recorded in the pin as a kaikki dump is — its address, its `Last-Modified`, the
+sha256 and size of its decompressed bytes — under the record `wikidata`, not `kaikki-wikidata`, and
+never kept. The dump is one JSON array, an entity a line ending in « , » but the last, which the
+Wiktionary dumps' line reader would skip silently; its own reader (`pack_sources.lexeme_pairs`)
+strips the comma, parses the Italian (`Q652`) and Spanish (`Q1321`) lexemes alone, collects them
+all, then writes the pairs: `by` `item`, an Italian and a Spanish sense naming the same item (P5137),
+with the `item`; `translation`, a translation link between the two (P5972, either way, once);
+`gloss`, a Spanish gloss of an Italian sense. Each side names the lemma, the lexical category (an
+item: `Q1084` a noun), the lexeme and the sense; a deprecated statement names nothing. The pairs are
+sorted by their senses' ids, so the file does not move with the order the dump's shards are written
+in. A dump holding no Italian or no Spanish lexeme, or a line naming either language that is no
+JSON, fails the update rather than publish an empty file. The research read 2,904 Italian words in
+4,103 pairs of one item, 193 translation links and 8 glosses. Published zstd-compressed in it-es's
+own sources release, like every derived file; a re-reduction reads it from there, checked by its
+sha256, and fetches no Lexemes dump. The release notes name its licence beside the dump (`dumps`).
+
+**The pivot's exception (I11).** M5 glosses a word with words a person wrote, never pivoted through a
+third language. For it-es and es-it alone, because no source written directly for either pair reaches
+a shippable coverage — Wikidata and the Italian Wiktionary's Spanish section together 65.3 / 53.2 /
+40.5 —, the owner made the exception on 2026-10-22: each Italian and Spanish word is still one a person
+wrote, their pairing inferred from a shared sense, entry or item, never machine-translated. Change 27
+modifies the main spec's *A gloss is in the reader's language, written by a person* for it-es (D6.9).
+Apertium's dictionary (GPL-2.0-only) and the Open Multilingual Wordnet (a pivot through English
+synsets, its Spanish side partly machine-built, its Italian licence ambiguous) were researched and not
+taken.
+
+**The cost** (D5). An it-es update fetches, besides the Spanish and Italian dumps of its planned
+sources, the seven pivot editions' — the English (2.98 GB), the French (0.74 GB) and the five others
+(0.93 GB: German 310,139,452 B, Russian 308,932,290 B, Polish 137,850,882 B, Dutch 134,749,717 B,
+Portuguese 37,273,122 B), about 4.65 GB gzipped — and the Lexemes dump (0.66 GB): **about 5.3 GB of
+dumps per it-es update**, none cached (`read_edition` fetches each once per run); a re-reduction from
+the pin reads the derived files from the release. Once it-es has tables, the monthly dry run of every
+pair reads these dumps too. Since a dump's whole catalogue is derived at its first read, every
+English- and French-dump derivation writes one more file, the pivot (7.8 and 4.8 MB), every
+Spanish-dump derivation the Spanish Wiktionary's Italian section, and every Italian-dump derivation
+two more files; no other pair's `DUMPS` names any of them, so no other pin moves.
+
 ## The editions' dumps
 
-kaikki is read at **one address per Wiktionary edition** — the English, French and Spanish ones, and
-the Italian one since add-lingua-pack-it-fr —
+kaikki is read at **one address per Wiktionary edition** — the English, French and Spanish ones,
+the Italian one since add-lingua-pack-it-fr, and the German, Portuguese, Russian, Polish and Dutch
+ones since add-lingua-it-es-pivot-sources, for it-es's pivot alone, beside Wikidata's Lexemes dump,
+read as an edition of its own (*IT → ES* above) —
 (migrate-lingua-pack-sources-to-raw-dumps, change 38 of `docs/lingua/language-matrix-programme.md`):
 kaikki has marked its per-language files deprecated and keeps its dumps of whole editions. Every file
 a pair reads of kaikki is derived from the dump of the edition that writes it, in one pass per
@@ -1284,7 +1363,7 @@ their seven tables, `tags.tsv` and NOTICE byte for byte; only `pack_version` (`2
 
 ## Allowed vs denied licences
 
-- **Allowed** (commercial use OK): permissive (ESDB/SCOWL and WordNet), CC BY, CC BY-SA (the derived tables are published, satisfying share-alike).
+- **Allowed** (commercial use OK): permissive (ESDB/SCOWL and WordNet), CC0 (Wikidata's Lexemes, read by it-es since add-lingua-it-es-pivot-sources; the builder's `Licence` has no CC0 variant yet — change 27 adds one or uses `Permissive`), CC BY, CC BY-SA (the derived tables are published, satisfying share-alike).
 - **Denied** (never enter a pack): **GPL / AGPL** (viral — e.g. Apertium, FreeLing dictionaries), **any non-commercial** (CC BY-NC-*, e.g. Lemlat, LatMor, SUBTLEX-ESP as distributed, UD Italian-ISDT).
 
 The denylist is code, not just prose: `lingua_pack::licence::is_denied` fails the build on `Gpl`/`Agpl`/`NonCommercial`, and the build also fails if a source is missing from the `NOTICE`.

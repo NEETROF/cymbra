@@ -549,7 +549,7 @@ class Editions(unittest.TestCase):
         self.assertEqual(dumped["url"], "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz")
         self.assertEqual((dumped["fetched"], dumped["last_modified"]), ("2026-10-08", "Sat, 03 Oct 2026 08:24:38 GMT"))
         self.assertIn(f"note: kaikki-en: {len(self.served[ps.EDITIONS['en']['url']]):,} B as served, fetched in ", self.notes)
-        self.assertIn(f"{len(raw):,} B decompressed, its catalogue (4 files) derived in ", self.notes)
+        self.assertIn(f"{len(raw):,} B decompressed, its catalogue (5 files) derived in ", self.notes)
         self.assertEqual(ps.load(self.tables / "es-en" / "pin.json"), record)
 
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
@@ -583,11 +583,12 @@ class Editions(unittest.TestCase):
         )
 
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
-    def test_spec_scenario_the_french_edition_s_catalogue_derives_six_files_in_one_pass(self):
+    def test_spec_scenario_the_french_edition_s_catalogue_derives_seven_files_in_one_pass(self):
         # add-lingua-fr-en-translated-expressions D6: fr-en's English translations join the French
         # edition's catalogue; add-lingua-pack-it-fr D3: it-fr's Italian section and Italian
-        # translations too — six files, derived in the one pass any pair's first read makes, whichever
-        # pair reads it (the cost D3 records: every French-dump derivation writes the Italian section).
+        # translations too; add-lingua-it-es-pivot-sources D2: it-es's pivot — seven files, derived in
+        # the one pass any pair's first read makes, whichever pair reads it (the cost D3 records: every
+        # French-dump derivation writes the Italian section).
         import unittest.mock as mock
 
         self.assertEqual(
@@ -599,14 +600,20 @@ class Editions(unittest.TestCase):
                 "kaikki-fr-traductions-en.jsonl": ("translations", "fr", "en"),
                 "kaikki-fr-Italien.jsonl": ("entries", "it"),
                 "kaikki-fr-traductions-it.jsonl": ("translations", "fr", "it"),
+                "kaikki-fr-pivot-it-es.jsonl": ("pivot", "fr", "it", "es"),
             },
         )
         with mock.patch.object(ps, "derive", wraps=ps.derive) as derive:
             self.update("en-fr")
             self.notes_en_fr = self.notes
         self.assertEqual(derive.call_count, 1)
-        self.assertIn("its catalogue (6 files) derived in ", self.notes)
+        self.assertIn("its catalogue (7 files) derived in ", self.notes)
         folder = self.editions / "fr-2026.10.08"
+        # `maison`'s table names no sense: its Italian and Spanish words, kept under the whole entry.
+        self.assertEqual(
+            json.loads((folder / "kaikki-fr-pivot-it-es.jsonl").read_text(encoding="utf-8")),
+            {"word": "maison", "pos": "noun", "by": "entry", "several_senses": False, "it": ["casa"], "es": ["casa"]},
+        )
         self.assertEqual(
             (folder / "kaikki-fr-traductions-it.jsonl").read_text(encoding="utf-8"),
             '{"pos": "noun", "translations": [{"word": "casa"}], "word": "maison"}\n',
@@ -1348,8 +1355,16 @@ class DumpsOnly(unittest.TestCase):
                 "es": "https://kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz",
                 # The Italian Wiktionary, it-fr's direct fallback (add-lingua-pack-it-fr D3).
                 "it": "https://kaikki.org/itwiktionary/raw-wiktextract-data.jsonl.gz",
+                # The five other Wiktionaries of it-es's pivot (add-lingua-it-es-pivot-sources D2).
+                "de": "https://kaikki.org/dewiktionary/raw-wiktextract-data.jsonl.gz",
+                "pt": "https://kaikki.org/ptwiktionary/raw-wiktextract-data.jsonl.gz",
+                "ru": "https://kaikki.org/ruwiktionary/raw-wiktextract-data.jsonl.gz",
+                "pl": "https://kaikki.org/plwiktionary/raw-wiktextract-data.jsonl.gz",
+                "nl": "https://kaikki.org/nlwiktionary/raw-wiktextract-data.jsonl.gz",
+                # Wikidata's Lexemes, the latest weekly dump (D3).
+                "wikidata": "https://dumps.wikimedia.org/wikidatawiki/entities/latest-lexemes.json.gz",
             },
-            "four addresses, one dump per edition",
+            "ten addresses, one dump per edition",
         )
         self.assertEqual(
             ps.DUMPS["en-es"],
@@ -1412,13 +1427,16 @@ class DumpsOnly(unittest.TestCase):
             "kaikki-fr-traductions-it.jsonl": ("translations", "fr", "it"),
         })
         self.assertEqual(catalogue("it-fr", "it"), {"kaikki-it-traductions-fr.jsonl": ("translations", "it", "fr")})
-        # The Italian Wiktionary's catalogue holds it-fr's file and it-en's (add-lingua-pack-it-en D3):
-        # en-it's and fr-it's sections join it with the pairs that read them.
+        # The Italian Wiktionary's catalogue holds it-fr's file, it-en's (add-lingua-pack-it-en D3) and
+        # it-es's two (add-lingua-it-es-pivot-sources D1, D3): en-it's and fr-it's sections join it with
+        # the pairs that read them.
         self.assertEqual(
             ps.EDITIONS["it"]["files"],
             {
                 "kaikki-it-traductions-fr.jsonl": ("translations", "it", "fr"),
                 "kaikki-it-traductions-en.jsonl": ("translations", "it", "en"),
+                "kaikki-it-traductions-es.jsonl": ("translations", "it", "es"),
+                "kaikki-it-Spagnolo.jsonl": ("entries", "es"),
             },
         )
         pinned = ps.PINNED["it-fr"]
@@ -1758,10 +1776,17 @@ class FrenchReference(unittest.TestCase):
         ps.check_registered("fr-en")
         # The English edition's catalogue: fr-en derives nothing new, and its French translations,
         # which no pair reads, are no longer derived (add-lingua-pack-fr-en D3). Its Italian section
-        # is it-fr's (add-lingua-italian-forms-tables D2).
+        # is it-fr's (add-lingua-italian-forms-tables D2), its pivot it-es's (add-lingua-it-es-pivot-
+        # sources D2).
         self.assertEqual(
             sorted(ps.EDITIONS["en"]["files"]),
-            ["kaikki-French.jsonl", "kaikki-Italian.jsonl", "kaikki-Spanish.jsonl", "kaikki-en-traductions-es.jsonl"],
+            [
+                "kaikki-French.jsonl",
+                "kaikki-Italian.jsonl",
+                "kaikki-Spanish.jsonl",
+                "kaikki-en-pivot-it-es.jsonl",
+                "kaikki-en-traductions-es.jsonl",
+            ],
         )
         # GSD's training and development sections at a commit — never its test section, which the
         # measurement holds out (D9).
@@ -2154,6 +2179,571 @@ class FrenchGlossedInSpanish(unittest.TestCase):
         for name in (*self.FILES, "fr_gsd-ud-train.conllu", "fr_gsd-ud-dev.conllu"):
             self.assertTrue((self.work / name).is_file(), name)
         self.assertEqual(self.pin.read_bytes(), pinned, "the record stands")
+
+
+def lexeme_dump(entities):
+    """Wikidata's Lexemes dump as served: one JSON array, an entity a line, compact and ASCII-escaped
+    as Wikibase writes it — `[`, each entity followed by « , » but the last, then `]` —, gzipped."""
+    lines = [json.dumps(e, separators=(",", ":")) for e in entities]
+    return gzip.compress(("[\n" + ",\n".join(lines) + "\n]\n").encode())
+
+
+def statement(prop, value, datatype, rank="normal"):
+    """A sense's statement as the dump writes it: an item (P5137) or a sense (P5972) for value."""
+    kind = "item" if datatype == "wikibase-item" else "sense"
+    datavalue = {"entity-type": kind, "id": value, **({"numeric-id": int(value[1:])} if kind == "item" else {})}
+    return {
+        "mainsnak": {
+            "snaktype": "value",
+            "property": prop,
+            "hash": "0" * 40,
+            "datavalue": {"value": datavalue, "type": "wikibase-entityid"},
+            "datatype": datatype,
+        },
+        "type": "statement",
+        "id": f"{value}$00000000-0000-0000-0000-000000000000",
+        "rank": rank,
+    }
+
+
+def lexeme(number, lang, language, lemma, category, senses):
+    """A lexeme as the dump writes it, its own claims and forms empty (`[]`, Wikibase's empty map)."""
+    return {
+        "pageid": 54_000_000 + number,
+        "ns": 146,
+        "title": f"Lexeme:L{number}",
+        "lastrevid": 2_000_000_000 + number,
+        "modified": "2026-10-20T10:00:00Z",
+        "type": "lexeme",
+        "id": f"L{number}",
+        "lemmas": {lang: {"language": lang, "value": lemma}},
+        "lexicalCategory": category,
+        "language": language,
+        "claims": [],
+        "forms": [],
+        "senses": senses,
+    }
+
+
+# Three lexemes: Italian `gatto` — its first sense naming the item Q146 (cat), the Spanish sense
+# as its translation, and glossed in Spanish; its second with no statement (`[]`) but a deprecated
+# one —, French `chat` of the same item, and Spanish `gato`, last in the array (no comma), naming
+# the item and the Italian sense back.
+GATTO = lexeme(
+    100,
+    "it",
+    "Q652",
+    "gatto",
+    "Q1084",
+    [
+        {
+            "id": "L100-S1",
+            "glosses": {
+                "it": {"language": "it", "value": "felino domestico"},
+                "es": {"language": "es", "value": "gato doméstico"},
+            },
+            "claims": {
+                "P5137": [statement("P5137", "Q146", "wikibase-item")],
+                "P5972": [statement("P5972", "L300-S1", "wikibase-sense")],
+            },
+        },
+        {
+            "id": "L100-S2",
+            "glosses": {"it": {"language": "it", "value": "persona furba"}},
+            "claims": {"P5137": [statement("P5137", "Q146", "wikibase-item", rank="deprecated")]},
+        },
+        {"id": "L100-S3", "glosses": {"it": {"language": "it", "value": "gioco"}}, "claims": []},
+    ],
+)
+CHAT = lexeme(
+    200,
+    "fr",
+    "Q150",
+    "chat",
+    "Q1084",
+    [{"id": "L200-S1", "glosses": {"fr": {"language": "fr", "value": "félin"}}, "claims": {"P5137": [statement("P5137", "Q146", "wikibase-item")]}}],
+)
+GATO = lexeme(
+    300,
+    "es",
+    "Q1321",
+    "gato",
+    "Q1084",
+    [
+        {
+            "id": "L300-S1",
+            "glosses": {"es": {"language": "es", "value": "felino doméstico"}},
+            "claims": {
+                "P5137": [statement("P5137", "Q146", "wikibase-item")],
+                "P5972": [statement("P5972", "L100-S1", "wikibase-sense")],
+            },
+        }
+    ],
+)
+GATTO_SIDE = {"lemma": "gatto", "category": "Q1084", "lexeme": "L100", "sense": "L100-S1"}
+GATO_SIDE = {"lemma": "gato", "category": "Q1084", "lexeme": "L300", "sense": "L300-S1"}
+LEXEME_PAIRS = [
+    {"by": "item", "item": "Q146", "it": GATTO_SIDE, "es": GATO_SIDE},
+    {"by": "translation", "it": GATTO_SIDE, "es": GATO_SIDE},
+    {"by": "gloss", "it": GATTO_SIDE, "es": {"gloss": "gato doméstico"}},
+]
+
+
+class Pivot(unittest.TestCase):
+    """it-es's pivot (add-lingua-it-es-pivot-sources D2): an edition's entries of its own language,
+    their Italian and Spanish translations kept together by the sense their table names."""
+
+    FILES = {"p.jsonl": ("pivot", "en", "it", "es")}
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.work = Path(self._tmp.name)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def derive(self, entries, files=None):
+        dump = self.work / "dump.jsonl.gz"
+        dump.write_bytes(gz(entries))
+        files = files or self.FILES
+        ps.derive(dump, files, self.work)
+        name = next(iter(files))
+        return [json.loads(line) for line in (self.work / name).read_text(encoding="utf-8").splitlines()]
+
+    def test_spec_scenario_a_table_s_sense_keeps_its_words_together(self):
+        # An English homograph's two tables: each sense's Italian and Spanish words together, the
+        # other sense's apart; a word the page lists twice kept once; a French word not read.
+        window = {
+            "word": "window",
+            "lang_code": "en",
+            "pos": "noun",
+            "senses": [{"glosses": ["An opening in a wall."]}, {"glosses": ["A period of time."]}],
+            "translations": [
+                {"lang_code": "it", "word": "finestra", "sense": "opening for light"},
+                {"lang_code": "fr", "word": "fenêtre", "sense": "opening for light"},
+                {"lang_code": "es", "word": "ventana", "sense": "opening for light"},
+                {"lang_code": "it", "word": "intervallo", "sense": "period of time"},
+                {"lang_code": "es", "word": "intervalo", "sense": "period of time"},
+                {"lang_code": "es", "word": "plazo", "sense": "period of time"},
+                {"lang_code": "es", "word": "ventana", "sense": "opening for light"},
+            ],
+        }
+        self.assertEqual(
+            self.derive([window]),
+            [
+                {
+                    "word": "window",
+                    "pos": "noun",
+                    "by": "sense",
+                    "sense": "opening for light",
+                    "several_senses": True,
+                    "it": ["finestra"],
+                    "es": ["ventana"],
+                },
+                {
+                    "word": "window",
+                    "pos": "noun",
+                    "by": "sense",
+                    "sense": "period of time",
+                    "several_senses": True,
+                    "it": ["intervallo"],
+                    "es": ["intervalo", "plazo"],
+                },
+            ],
+        )
+        line = (self.work / "p.jsonl").read_text(encoding="utf-8").splitlines()[0]
+        self.assertEqual(line, json.dumps(json.loads(line), ensure_ascii=False, sort_keys=True), "sorted JSON, as derived files are")
+
+    def test_spec_scenario_a_table_without_both_languages(self):
+        # A sense whose table lists an Italian word and no Spanish one gives nothing; the entry's other
+        # sense, with both, is kept.
+        bank = {
+            "word": "bank",
+            "lang_code": "en",
+            "pos": "noun",
+            "translations": [
+                {"lang_code": "it", "word": "riva", "sense": "edge of a river"},
+                {"lang_code": "fr", "word": "rive", "sense": "edge of a river"},
+                {"lang_code": "it", "word": "banca", "sense": "financial institution"},
+                {"lang_code": "es", "word": "banco", "sense": "financial institution"},
+            ],
+        }
+        spanish_only = {"word": "orange", "lang_code": "en", "pos": "adj", "translations": [{"lang_code": "es", "word": "naranja"}]}
+        out = self.derive([bank, spanish_only])
+        self.assertEqual([(row["sense"], row["it"], row["es"]) for row in out], [("financial institution", ["banca"], ["banco"])])
+
+    def test_spec_scenario_a_table_numbering_its_senses_only(self):
+        # The Polish Wiktionary keys its tables by sense numbers alone: each number's words kept
+        # apart from the other's. A number the edition writes as an integer (the French one's) is
+        # text in the file, whichever way the edition writes it.
+        zamek = {
+            "word": "zamek",
+            "lang_code": "pl",
+            "pos": "noun",
+            "senses": [{"glosses": ["budowla"]}, {"glosses": ["mechanizm"]}],
+            "translations": [
+                {"lang_code": "it", "word": "castello", "sense_index": "1.1"},
+                {"lang_code": "es", "word": "castillo", "sense_index": "1.1"},
+                {"lang_code": "it", "word": "serratura", "sense_index": "1.2"},
+                {"lang_code": "es", "word": "cerradura", "sense_index": "1.2"},
+            ],
+        }
+        out = self.derive([zamek], {"pl.jsonl": ("pivot", "pl", "it", "es")})
+        self.assertEqual(
+            [(row["by"], row["sense_index"], row["it"], row["es"]) for row in out],
+            [("sense_index", "1.1", ["castello"], ["castillo"]), ("sense_index", "1.2", ["serratura"], ["cerradura"])],
+        )
+        self.assertNotIn("sense", out[0])
+        self.assertTrue(out[0]["several_senses"])
+        # A label and a number: kept by both, both written.
+        maison = {
+            "word": "maison",
+            "lang_code": "fr",
+            "pos": "noun",
+            "translations": [
+                {"lang_code": "it", "word": "casa", "sense": "Bâtiment", "sense_index": 1},
+                {"lang_code": "es", "word": "casa", "sense": "Bâtiment", "sense_index": 1},
+            ],
+        }
+        out = self.derive([maison], {"fr.jsonl": ("pivot", "fr", "it", "es")})
+        self.assertEqual(
+            out,
+            [{"word": "maison", "pos": "noun", "by": "sense", "sense": "Bâtiment", "sense_index": "1", "several_senses": False, "it": ["casa"], "es": ["casa"]}],
+        )
+
+    def test_spec_scenario_a_table_naming_no_sense(self):
+        # A French entry's table naming no sense: its words kept under the whole entry, marked so,
+        # with whether the entry has more than one sense for change 27 to decide on.
+        maison = {
+            "word": "maison",
+            "lang_code": "fr",
+            "pos": "noun",
+            "senses": [{"glosses": ["Bâtiment."]}, {"glosses": ["Famille."]}],
+            "translations": [
+                {"lang_code": "it", "word": "casa"},
+                {"lang_code": "es", "word": "casa"},
+                {"lang_code": "es", "word": "hogar"},
+                {"lang_code": "en", "word": "house"},
+            ],
+        }
+        self.assertEqual(
+            self.derive([maison], {"fr.jsonl": ("pivot", "fr", "it", "es")}),
+            [{"word": "maison", "pos": "noun", "by": "entry", "several_senses": True, "it": ["casa"], "es": ["casa", "hogar"]}],
+        )
+
+    def test_a_table_nested_under_a_sense_is_kept_by_that_sense(self):
+        # A table the dump writes under a sense, naming none: grouped by the sense it sits under (its
+        # position), each sense's words apart; a table under a sense that names its own sense is kept
+        # by that name.
+        house = {
+            "word": "house",
+            "lang_code": "en",
+            "pos": "noun",
+            "senses": [
+                {
+                    "glosses": ["A dwelling."],
+                    "translations": [{"lang_code": "it", "word": "casa"}, {"lang_code": "es", "word": "casa"}],
+                },
+                {
+                    "glosses": ["A dynasty."],
+                    "translations": [
+                        {"lang_code": "it", "word": "casata"},
+                        {"lang_code": "es", "word": "linaje"},
+                        {"lang_code": "it", "word": "teatro", "sense": "audience"},
+                        {"lang_code": "es", "word": "público", "sense": "audience"},
+                    ],
+                },
+            ],
+        }
+        self.assertEqual(
+            [(row["by"], row.get("under"), row.get("sense"), row["it"], row["es"]) for row in self.derive([house])],
+            [
+                ("under", 1, None, ["casa"], ["casa"]),
+                ("under", 2, None, ["casata"], ["linaje"]),
+                ("sense", None, "audience", ["teatro"], ["público"]),
+            ],
+        )
+
+    def test_an_entry_of_another_language_gives_nothing(self):
+        # The English Wiktionary's Italian entry `casa` lists Spanish and Italian words too: the pivot
+        # reads the edition's own language's entries alone.
+        casa = {
+            "word": "casa",
+            "lang_code": "it",
+            "pos": "noun",
+            "translations": [{"lang_code": "it", "word": "casa"}, {"lang_code": "es", "word": "casa"}],
+        }
+        self.assertEqual(self.derive([casa]), [])
+        self.assertEqual((self.work / "p.jsonl").read_bytes(), b"", "the file is written, empty")
+
+    def test_an_unknown_kind_or_a_lexeme_file_beside_others_is_refused(self):
+        dump = self.work / "dump.jsonl.gz"
+        dump.write_bytes(gz([]))
+        with self.assertRaisesRegex(ps.PinError, r"p\.jsonl: no file is derived as \('pivot', 'en', 'it'\)"):
+            ps.derive(dump, {"p.jsonl": ("pivot", "en", "it")}, self.work)
+        with self.assertRaisesRegex(ps.PinError, r"no file is derived as \('glosses', 'en'\)"):
+            ps.derive(dump, {"g.jsonl": ("glosses", "en")}, self.work)
+        with self.assertRaisesRegex(ps.PinError, r"a Lexemes dump derives one file"):
+            ps.derive(dump, {"l.jsonl": ("lexemes", "it", "es"), "e.jsonl": ("entries", "it")}, self.work)
+        self.assertEqual(sorted(p.name for p in self.work.iterdir()), ["dump.jsonl.gz"], "nothing written")
+
+
+class WikidataLexemes(unittest.TestCase):
+    """Wikidata's Lexemes dump read as an edition of its own (add-lingua-it-es-pivot-sources D3):
+    one JSON array, an entity a line, ending in « , » — a reader of its own, its pairs made once
+    every Italian and Spanish lexeme is read."""
+
+    FILES = {"wikidata-lexemes-it-es.jsonl": ("lexemes", "it", "es")}
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.work = Path(self._tmp.name)
+        self.dump = self.work / "wikidata.json.gz"
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_three_lexemes_in_the_dump_s_array_give_their_pairs(self):
+        # The fixture is the dump's real shape: the Italian lexeme on a line ending with « , », the
+        # Spanish one last, with none. Each kind of pair once — the translation both senses state, the
+        # deprecated statement and the French lexeme of the same item none; an empty file fails this.
+        self.dump.write_bytes(lexeme_dump([GATTO, CHAT, GATO]))
+        text = gzip.decompress(self.dump.read_bytes()).decode()
+        self.assertTrue(text.startswith("[\n{") and text.endswith("}\n]\n") and "},\n{" in text, text[:40])
+        self.assertIn("\\u00e9", text, "the dump escapes what is not ASCII")
+        identity = ps.derive(self.dump, self.FILES, self.work)
+        derived = (self.work / "wikidata-lexemes-it-es.jsonl").read_text(encoding="utf-8")
+        self.assertEqual([json.loads(line) for line in derived.splitlines()], LEXEME_PAIRS)
+        self.assertEqual(derived, "".join(json.dumps(p, ensure_ascii=False, sort_keys=True) + "\n" for p in LEXEME_PAIRS))
+        self.assertEqual(identity, {"sha256": hashlib.sha256(text.encode()).hexdigest(), "size": len(text.encode())})
+        # The Wiktionary dumps' line reader would have read nothing of it: the comma ends the lines.
+        ps.derive(self.dump, {"e.jsonl": ("entries", "it")}, self.work)
+        self.assertEqual((self.work / "e.jsonl").read_bytes(), b"")
+        # The dump's order does not move the file: its shards may be written in another.
+        self.dump.write_bytes(lexeme_dump([GATO, CHAT, GATTO]))
+        ps.derive(self.dump, self.FILES, self.work)
+        self.assertEqual((self.work / "wikidata-lexemes-it-es.jsonl").read_text(encoding="utf-8"), derived)
+
+    def test_a_dump_of_another_format_is_refused_rather_than_derived_empty(self):
+        # A dump with no Spanish lexeme (or written another way, so that none is read), or a line
+        # naming a language's item that is no JSON: refused, naming the dump, nothing left behind.
+        self.dump.write_bytes(lexeme_dump([GATTO, CHAT]))
+        with self.assertRaisesRegex(ps.PinError, r"wikidata\.json\.gz: holds no lexeme of es \(Q1321\)"):
+            ps.derive(self.dump, self.FILES, self.work)
+        pretty = "[\n" + json.dumps(GATTO, indent=1) + ",\n" + json.dumps(GATO, indent=1) + "\n]\n"
+        self.dump.write_bytes(gzip.compress(pretty.encode()))
+        with self.assertRaisesRegex(ps.PinError, r"holds no lexeme of it \(Q652\) nor es \(Q1321\)"):
+            ps.derive(self.dump, self.FILES, self.work)
+        broken = "[\n" + json.dumps(GATTO, separators=(",", ":"))[:-1] + ",\n" + json.dumps(GATO) + "\n]\n"
+        self.dump.write_bytes(gzip.compress(broken.encode()))
+        with self.assertRaisesRegex(ps.PinError, r"wikidata\.json\.gz: line 2 is no JSON entity"):
+            ps.derive(self.dump, self.FILES, self.work)
+        self.assertEqual(sorted(p.name for p in self.work.iterdir()), ["wikidata.json.gz"], "no derived file, no .part")
+
+    def test_the_record_is_named_for_wikidata(self):
+        self.assertEqual(ps.source_name("wikidata"), "wikidata")
+        self.assertEqual(ps.source_name("de"), "kaikki-de")
+        self.assertEqual(ps.EDITIONS["wikidata"]["files"], self.FILES)
+        self.assertEqual(ps.WIKIDATA_LANGUAGES, {"it": "Q652", "es": "Q1321"})
+
+
+class ItalianGlossedInSpanishSources(unittest.TestCase):
+    """it-es's sources (add-lingua-it-es-pivot-sources D1–D4), registered and pinned before change 27
+    reads them: an update derives and publishes them under it-es's own release, and a re-reduction
+    reads them from there, no dump fetched."""
+
+    PIVOT_EDITIONS = ("en", "fr", "de", "pt", "ru", "pl", "nl")
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.pin = self.root / "tables" / "it-es" / "pin.json"
+        self.work = self.root / "work" / "it-es"
+        self.cache = self.root / "work" / "cache"
+        self.released = self.root / "released"
+        self.released.mkdir()
+        self.served = {
+            ps.EDITIONS["es"]["url"]: gz(
+                [
+                    {"word": "casa", "lang_code": "it", "pos": "noun", "senses": [{"glosses": ["Vivienda."]}]},
+                    {"word": "casa", "lang_code": "es", "pos": "noun", "translations": [{"lang_code": "it", "word": "casa"}]},
+                ]
+            ),
+            ps.EDITIONS["it"]["url"]: gz(
+                [
+                    {"word": "casa", "lang_code": "it", "pos": "noun", "translations": [{"lang_code": "es", "word": "vivienda"}]},
+                    {"word": "casa", "lang_code": "es", "pos": "noun", "senses": [{"glosses": ["abitazione"]}]},
+                ]
+            ),
+            ps.EDITIONS["wikidata"]["url"]: lexeme_dump([GATTO, CHAT, GATO]),
+        }
+        for edition in self.PIVOT_EDITIONS:
+            self.served[ps.EDITIONS[edition]["url"]] = gz(
+                [
+                    {
+                        "word": f"window-{edition}",
+                        "lang_code": edition,
+                        "pos": "noun",
+                        "translations": [
+                            {"lang_code": "it", "word": "finestra", "sense_index": "1"},
+                            {"lang_code": "es", "word": "ventana", "sense_index": "1"},
+                        ],
+                    }
+                ]
+            )
+        self.fetched = []
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def fetch(self, url, dest, compressed=False):
+        self.fetched.append(url)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        if url in self.served:
+            dest.write_bytes(self.served[url])
+            return {"last-modified": "Wed, 21 Oct 2026 03:55:34 GMT"}
+        tag, asset = url.rsplit("/", 2)[-2:]
+        shutil.copy(self.released / tag / asset, dest)
+        return {}
+
+    def test_it_es_registers_every_file_it_reads_and_nothing_else_moves(self):
+        # D4: the planned three (D1), the Italian Wiktionary's Spanish section (D3), the seven pivot
+        # files (D2), Wikidata's lexeme pairs (D3) — each in its edition's catalogue.
+        self.assertEqual(
+            ps.DUMPS["it-es"],
+            {
+                "es": ("kaikki-es-Italiano.jsonl", "kaikki-es-traductions-it.jsonl"),
+                "it": ("kaikki-it-traductions-es.jsonl", "kaikki-it-Spagnolo.jsonl"),
+                **{edition: (f"kaikki-{edition}-pivot-it-es.jsonl",) for edition in self.PIVOT_EDITIONS},
+                "wikidata": ("wikidata-lexemes-it-es.jsonl",),
+            },
+        )
+        ps.check_registered("it-es")
+        self.assertEqual(
+            catalogue("it-es", "es"),
+            {"kaikki-es-Italiano.jsonl": ("entries", "it"), "kaikki-es-traductions-it.jsonl": ("translations", "es", "it")},
+        )
+        self.assertEqual(
+            catalogue("it-es", "it"),
+            {"kaikki-it-traductions-es.jsonl": ("translations", "it", "es"), "kaikki-it-Spagnolo.jsonl": ("entries", "es")},
+        )
+        for edition in self.PIVOT_EDITIONS:
+            self.assertEqual(catalogue("it-es", edition), {f"kaikki-{edition}-pivot-it-es.jsonl": ("pivot", edition, "it", "es")})
+        for edition in ("de", "pt", "ru", "pl", "nl"):
+            self.assertEqual(list(ps.EDITIONS[edition]["files"]), [f"kaikki-{edition}-pivot-it-es.jsonl"], "one file each")
+        self.assertEqual(catalogue("it-es", "wikidata"), {"wikidata-lexemes-it-es.jsonl": ("lexemes", "it", "es")})
+        self.assertNotIn("it-es", ps.PINNED)
+        self.assertNotIn("it-es", ps.ESDB)
+        self.assertEqual(ps.DUMPS["it-es"]["en"], ("kaikki-en-pivot-it-es.jsonl",), "no English dump's Italian section")
+        # Every other pair reads what it read before.
+        self.assertEqual(
+            {pair: files for pair, files in ps.DUMPS.items() if pair != "it-es"},
+            {
+                "en-fr": {"fr": ("kaikki-Anglais.jsonl",)},
+                "es-fr": {
+                    "en": ("kaikki-Spanish.jsonl",),
+                    "fr": ("kaikki-fr-Espagnol.jsonl", "kaikki-fr-traductions.jsonl"),
+                    "es": ("kaikki-es-traductions.jsonl",),
+                },
+                "es-en": {"en": ("kaikki-Spanish.jsonl",), "es": ("kaikki-es-traductions-en.jsonl",)},
+                "en-es": {"es": ("kaikki-es-English.jsonl", "kaikki-es-traductions-en.jsonl"), "en": ("kaikki-en-traductions-es.jsonl",)},
+                "fr-en": {"en": ("kaikki-French.jsonl",), "fr": ("kaikki-fr-traductions-en.jsonl",)},
+                "fr-es": {"es": ("kaikki-es-Frances.jsonl", "kaikki-es-traductions.jsonl"), "fr": ("kaikki-fr-traductions.jsonl",)},
+                "it-fr": {
+                    "en": ("kaikki-Italian.jsonl",),
+                    "fr": ("kaikki-fr-Italien.jsonl", "kaikki-fr-traductions-it.jsonl"),
+                    "it": ("kaikki-it-traductions-fr.jsonl",),
+                },
+                "it-en": {"en": ("kaikki-Italian.jsonl",), "it": ("kaikki-it-traductions-en.jsonl",)},
+            },
+        )
+        # Only it-es reads the files this change adds, and no committed pin names one.
+        added = {file for files in ps.DUMPS["it-es"].values() for file in files}
+        for pair, reads in ps.DUMPS.items():
+            if pair != "it-es":
+                self.assertFalse(added & {file for files in reads.values() for file in files}, pair)
+        pins = sorted((HERE / "tables").glob("*/pin.json"))
+        self.assertTrue(pins)
+        for pin in pins:
+            recorded = {file for spec in ps.load(pin)["sources"].values() if isinstance(spec, dict) for file in spec.get("files") or {}}
+            self.assertFalse(added & recorded, pin.parent.name)
+            self.assertNotIn("wikidata", ps.load(pin)["sources"], pin.parent.name)
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_spec_scenario_the_lexemes_on_a_re_reduction(self):
+        # it-es's update derives every file from the ten dumps, publishes them under its own release
+        # and records the Lexemes dump as Wikidata's; reduced again from its pin, the files are read
+        # from the release, checked by sha256, and no dump is fetched.
+        import unittest.mock as mock
+
+        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ), contextlib.redirect_stderr(io.StringIO()):
+            record = ps.fetch_live(self.pin, self.work, "2026.10.25", fetch=self.fetch, today=datetime.date(2026, 10, 25), cache=self.cache)
+        sources = record["sources"]
+        self.assertEqual(
+            list(sources),
+            [*(ps.source_name(e) for e in ("es", "it", *self.PIVOT_EDITIONS)), "wikidata", "wordfreq"],
+            "one record per edition, in DUMPS order; no kaikki-wikidata",
+        )
+        self.assertEqual(sorted(self.fetched), sorted(self.served), "the ten dumps, each once")
+        own = ps.release_tag("it-es", "2026.10.25")
+        wikidata = sources["wikidata"]
+        self.assertEqual(wikidata["release"], own)
+        self.assertEqual(wikidata["url"], "https://dumps.wikimedia.org/wikidatawiki/entities/latest-lexemes.json.gz")
+        self.assertEqual(wikidata["last_modified"], "Wed, 21 Oct 2026 03:55:34 GMT")
+        lexemes = gzip.decompress(self.served[wikidata["url"]])
+        self.assertEqual(
+            wikidata["dump"],
+            {"sha256": hashlib.sha256(lexemes).hexdigest(), "size": len(lexemes), "compressed_size": len(self.served[wikidata["url"]])},
+        )
+        self.assertEqual(list(wikidata["files"]), ["wikidata-lexemes-it-es.jsonl"])
+        pairs = [json.loads(line) for line in (self.work / "wikidata-lexemes-it-es.jsonl").read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(pairs, LEXEME_PAIRS)
+        self.assertEqual(
+            json.loads((self.work / "kaikki-pl-pivot-it-es.jsonl").read_text(encoding="utf-8")),
+            {"word": "window-pl", "pos": "noun", "by": "sense_index", "sense_index": "1", "several_senses": False, "it": ["finestra"], "es": ["ventana"]},
+        )
+        self.assertEqual(
+            json.loads((self.work / "kaikki-it-Spagnolo.jsonl").read_text(encoding="utf-8")),
+            {"word": "casa", "lang_code": "es", "pos": "noun", "senses": [{"glosses": ["abitazione"]}]},
+        )
+        self.assertEqual(
+            ps.assets(record, own),
+            [f"{file}.zst" for files in ps.DUMPS["it-es"].values() for file in files],
+            "every derived file in it-es's own release, no dump",
+        )
+        notes = ps.dumps(record, own)
+        self.assertEqual(len(notes), 10)
+        self.assertEqual(
+            notes[-1],
+            f"- `wikidata`: the dump {wikidata['url']}, regenerated Wed, 21 Oct 2026 03:55:34 GMT; decompressed sha256 "
+            f"{wikidata['dump']['sha256']}, {len(lexemes):,} B ({len(self.served[wikidata['url']]):,} B as served); derived: "
+            "`wikidata-lexemes-it-es.jsonl`; licence CC0 1.0 (Wikidata)",
+        )
+        self.assertNotIn("licence", notes[0], "a kaikki dump's line as before")
+        (self.released / own).mkdir()
+        for asset in ps.assets(record, own):
+            shutil.copy(self.work / asset, self.released / own / asset)
+        # Reduced again on another machine: the release read, no dump.
+        shutil.rmtree(self.root / "work")
+        self.fetched.clear()
+        pinned = self.pin.read_bytes()
+        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
+            ps.fetch_pinned(self.pin, self.work, fetch=self.fetch, cache=self.cache)
+        self.assertEqual(self.fetched, [ps.release_url(own, asset) for asset in ps.assets(record, own)])
+        self.assertFalse(set(self.fetched) & set(self.served), "no dump fetched")
+        self.assertEqual(
+            [json.loads(line) for line in (self.work / "wikidata-lexemes-it-es.jsonl").read_text(encoding="utf-8").splitlines()],
+            LEXEME_PAIRS,
+        )
+        self.assertEqual(self.pin.read_bytes(), pinned, "the record stands")
+        # Other bytes under the lexeme file's name are refused, naming Wikidata's record.
+        subprocess.run(
+            ["zstd", "-q", "-f", "-o", str(self.released / own / "wikidata-lexemes-it-es.jsonl.zst"), "-"], input=b"{}\n", check=True
+        )
+        shutil.rmtree(self.cache)
+        with self.assertRaisesRegex(ps.PinError, r"wikidata: wikidata-lexemes-it-es\.jsonl decompresses to sha256"):
+            with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
+                ps.fetch_pinned(self.pin, self.work, fetch=self.fetch, cache=self.cache)
 
 
 class ReaderPair(unittest.TestCase):
@@ -2980,10 +3570,12 @@ class Split(unittest.TestCase):
             self.assertEqual(ps.main(["pairs", "--tables", str(self.tables), "--after", "it-en"]), 0)
         self.assertEqual(out.getvalue(), "it-en\n")
         # A pair no registry names is none: its update would read nothing.
-        self.assertNotIn("it-es", ps.DUMPS)
-        with self.assertRaisesRegex(ps.PinError, "it-es is no pair of"):
-            ps.pairs(self.tables, after="it-es")
-        # Its reference's update does not bring it along before its folder is there.
+        self.assertNotIn("it-de", ps.DUMPS)
+        with self.assertRaisesRegex(ps.PinError, "it-de is no pair of"):
+            ps.pairs(self.tables, after="it-de")
+        # it-es, registered before its reducer (add-lingua-it-es-pivot-sources D4), is named alone too.
+        self.assertEqual(ps.pairs(self.tables, after="it-es"), ["it-es"])
+        # Its reference's update does not bring a reader along before its folder is there.
         self.assertEqual(ps.pairs(self.tables, after="it-fr"), ["it-fr"])
 
     def test_pairs_come_references_first_and_a_reference_brings_its_readers(self):
