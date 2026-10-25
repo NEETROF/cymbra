@@ -53,15 +53,16 @@ which the dispatched reduction is to match byte for byte. -->
   after the definitions. The pivot's lemmas by edition — each counted under every edition a table of
   which gives a Spanish word its gloss shows: English 8,518, German 4,738, French 4,060, Russian 3,403,
   Polish 3,362, Portuguese 1,595, Dutch 649.
-- **Change 28 reads 2,087 rows otherwise** than change 27 wrote them — 149 of the 1,000 commonest,
-  396 of the next 4,000, 780 of the next 15,000, 762 past them —, **2,033 in their first sense**;
+- **Change 28 reads 2,092 rows otherwise** than change 27 wrote them — 154 of the 1,000 commonest,
+  396 of the next 4,000, 780 of the next 15,000, 762 past them —, **2,033 in their first sense**
+  (191 of round 1's rows read otherwise after the specialist's review, round 2);
   `dei`, `degli` and `delle` gain a gloss, `the`, `tag` and `trad` lose a wrong one; two expressions
   change (`d'accordo` « De acuerdo, vale », `cumino tedesco` « Alcaravea »). The coverage does not move.
 - **Dictionary words are it-fr's**: 3,286 lemmas it-es glosses are no dictionary word of Italian, and
   2,848 dictionary words have no Spanish gloss, so the pack carries a lexical section, and the vocabulary
   estimate counts the same words as it-fr's.
-- **The pack is 1,897,366 B**, 36.2 % of the 5 MiB budget: Italian's base, 1,551,196 B, byte for byte
-  it-fr's, and it-es's layer, 346,410 B.
+- **The pack is 1,896,498 B**, 36.2 % of the 5 MiB budget: Italian's base, 1,551,196 B, byte for byte
+  it-fr's, and it-es's layer, 345,542 B.
 
 ## Its sources
 
@@ -119,13 +120,23 @@ the next 4,000, of the next 15,000 and past them):
   andar », `rumore` « Ruido; Rumor », `corso` « Curso… ») —; the missing adverb (D3b: 2 rows, `spesso`
   « A menudo…; Gordo ») and MarkIT's order for a function word's row (D3a: 9 rows, `ancora` « Todavía; … »,
   `perché` « Porque; … »), fr-en's `commonest_first` over MarkIT's counts, imported as it-fr and it-en
-  import them; long lists cut at three (D7a: 11 rows, `inoltre` « Además, adicionalmente, allende »);
-  repeats (D9b: 42 rows and `d'accordo`, `persona` « Persona (ser humano) »).
+  import them; long lists cut at three (D7a: 11 rows), their items first ordered by the sources giving
+  them, then by Spanish frequency (D7c, round 2: `talvolta` « A veces, de vez en cuando, a la de veces »,
+  `gratis` without « de bóbilis »); repeats (D9b: 42 rows and `d'accordo`, `persona` « Persona (ser
+  humano) »).
+- **Round 2**, after the specialist's review of the gloss diff (the owner's, 2026-10-25): a first word
+  agreement displaces stays after the lead when it is the cognate of a lemma of a learned suffix
+  (`-zione`, `-enza`, `-ità`, `-mente`, `-abile`, …) and common in Spanish (D2g: 9 rows, `insufficienza`
+  « …; Insuficiencia », `prestazione` « …; Prestación »); an item that is no Spanish word goes from a sense
+  a rule brought into the row, never its last (D5c: 154 rows, `marmo` « Mármol, sepulcro », not « …,
+  alioj », `afferrare` without « America ispanica »).
 - **The reviewed tables**, which no rule moves: `DI_FAMILY` (D11: `del` « Del », `della` « De la »,
   `dei` and `degli` « De los », `delle` « De las »), `FIRST_RUN` (D12: 20 rows open on a sense a source
   gives, `posto` « Lugar, sitio, puesto », `subito` « Inmediatamente… », `stipendio` « Sueldo ») and
-  `CORRECTIONS` (D12: 22 rows, `a` « A; En (…) », `cui` « Que; Cuyo », `porca` « Cerda; Caballón,
-  camellón », `the`, `tag` and `trad` unglossed): 45 rows (28 / 13 / 3 / 1). **Ten glosses are written
+  `CORRECTIONS` (D12: 44 rows, `a` « A; En (…) », `cui` « Que; Cuyo », `porca` « Cerda; Caballón,
+  camellón », `the`, `tag` and `trad` unglossed; round 2's 22, every word a source's: `cattura`
+  « Captura, detención, arresto », `autista` « Conductor, chófer », `strada` « Calle, carretera, camino »,
+  `loro` « Ellos, ellas; Ustedes; Su, sus », …). **Ten glosses are written
   by a person**, marked so in the code (`BY_A_PERSON`) and approved by the owner on 2026-10-25: `della`,
   `dei`, `degli`, `delle`, `a`'s « A », `te`'s « ti », `svezia` « Suecia » (tasks 0.1, 0.2), and
   `tessera` « Tarjeta, carné », `cancellato` « Cancelado, borrado », `ognuno` « Cada uno » (task 0.4);
@@ -148,7 +159,7 @@ Long glosses are cut here.
 | 215 | `trovare` | definitions | Encontrar |
 | 314 | `sopra` | pivot (en: above (prep), « in or to a higher place ») | Sobre, encima de, por encima; Súper, pero que muy, sumamente; Sobre algo, alto |
 | 561 | `discorso` | direct | Discurso, mensaje, oración |
-| 618 | `dunque` | definitions | Entonces (después); Consecuentemente (así); Por consiguiente, así (así que), así siendo |
+| 618 | `dunque` | definitions | Entonces (después); Consecuentemente (así); Por consiguiente, por lo tanto, pues |
 | 735 | `est` | inverted | Este |
 | 818 | `rispondere` | definitions | Responder |
 | 941 | `bravo` | definitions | Bueno, bravo, hábil; De buen conducto. (Usado antes de sustantivos.); Ducho, experto, hábil, habilidoso; Obediente; Bravo, gallardo, valeroso, valiente; Fier… |
@@ -269,6 +280,9 @@ specialist to confirm on the gloss diff. What it left, and why:
 - **Wikidata's long glosses** (`nobel`, `nebulosa`): the card pages them.
 - **The Spanish edition's gaps** (« Contracción de… », « _(n) »), which fr-es and en-es share: a
   follow-up of that edition, not of it-es's rules.
+- **Three words no source gives**, which the specialist asked for: `riportare`'s « traer de vuelta »,
+  `richiamare`'s « volver a llamar » and « atraer ». The rows hold the sources' « Devolver, traer;
+  Referir » and « Llamar nuevamente; Reprender, amonestar »; the words are the owner's to write or not.
 - **A function word's pivot words a table alone gives** (`ci`, `te`, `ti` from many tables): measured as
   a rule and rejected; the commonest are reviewed rows.
 

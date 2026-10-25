@@ -996,19 +996,27 @@ together.
   proposal's review —; the reduction fails on a row whose sense the source no longer writes;
 - **`CORRECTIONS`** (D12), it-fr's reviewed shape for it-es, each keyed by the source, the headword, its
   part of speech and the source's sense as the pinned file writes it, with the page it is reported to —
-  one that finds nothing is named on the reduction's report line, to be removed —: 22 rows; the glosses
+  one that finds nothing is named on the reduction's report line, to be removed —: 44 rows, 22 of them
+  round 2's (the specialist's review of the gloss diff, every word a source's: the cognates that lead or
+  that no rule keeps, `autista` without « autista », Spanish for autistic, `insufficienza` without the
+  Polish table's « cero », and the specialist's rows, each reported to the page whose table or entry
+  wrote the source's text); the glosses
   a person wrote among them, approved by the owner on 2026-10-25 and marked so (`BY_A_PERSON`): `a`'s
   « A » and `te`'s « ti » (task 0.1), `svezia` « Suecia » (task 0.2), and `tessera` « Tarjeta, carné »,
   `cancellato` « Cancelado, borrado », `ognuno` « Cada uno » (task 0.4); `the`, `tag` and `trad` left
-  unglossed.
+  unglossed;
+- **round 2** (D17, the owner's, 2026-10-25): a first word agreement displaces stays after the lead when
+  it is the cognate of a lemma of a learned suffix and Spanish writes it at Zipf 3 or more (D2g); an item
+  that is no Spanish word goes from a sense a rule brought into the row (D5c); a long list's items are
+  ordered by the sources giving them, then by Spanish frequency, before the cut (D7c).
 
 **Predicted at implementation** (2026-10-25, reduced locally by `build.sh --reduce it-es` from it-es's
 pinned sources — the release `lingua-pack-sources-it-es-2026.10.25` and MarkIT at `e210079d` —, Python
-3.12 and `requirements-reduce.txt`): 2,087 rows of `gloss.tsv` change (149 / 396 / 780 / 762 of the
-1,000 / 5,000 / 20,000 commonest and beyond), 2,033 in their first sense; `dei`, `degli` and `delle`
-gained, `the`, `tag` and `trad` lost; 2 expressions; coverage 85.2 / 76.1 / 65.1 %, as before; the pack
-1,897,366 B (sha256 `8f66d766…`), its base it-fr's, byte for byte (1,551,196 B), its layer 346,410 B
-(`ec7a6d34…`), at `pack_version` `2026.10.25+3c957aa.442fd70`. Only it-es re-pins: `tables/it/` and the
+3.12 and `requirements-reduce.txt`), with round 2: 2,092 rows of `gloss.tsv` change (154 / 396 / 780 /
+762 of the 1,000 / 5,000 / 20,000 commonest and beyond), 2,033 in their first sense; `dei`, `degli` and
+`delle` gained, `the`, `tag` and `trad` lost; 2 expressions; coverage 85.2 / 76.1 / 65.1 %, as before;
+the pack 1,896,498 B (sha256 `87c19186…`), its base it-fr's, byte for byte (1,551,196 B), its layer
+345,542 B (`5a617579…`), at `pack_version` `2026.10.25+5cfe31f.442fd70`. Only it-es re-pins: `tables/it/` and the
 eight other pairs' tables, pins and packs do not move.
 
 ## IT → ES: the sources it-es reads, the pivot among them
