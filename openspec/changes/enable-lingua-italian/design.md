@@ -338,26 +338,40 @@ this branch with the real packs, on test accounts, in the French interface:
 4. Read-aloud, change 15's checklist (its task 4.1): Alice on macOS and iOS, Google's Italian voice
    on Chrome, Android's on Firefox for Android, an installed Windows Italian voice on Chrome for
    Windows if one is at hand; « l' » heard with its word, « è » heard as the verb.
-5. A Catalan, a Galician, a Sicilian and a Venetian page: not read as Italian (change 8); a word
-   card on a page declaring `scn` not read in Italian (D3).
-6. « Traduction étendue »: the download and « environ 340 Mo » with Italian alone and with English,
-   Spanish and Italian; it-en downloaded once; Italian selections translated, marked if it-fr is
-   listed in `MARKED_PAIRS`; the worker's memory with Spanish and Italian studied, read from the
-   browser's task manager and on the iPhone; absent on Firefox for Android. On an account granted
-   it, « Traduction en ligne » on an Italian sentence, once the backend is deployed (D5).
+5. Neighbour pages, not read as Italian (change 8), the riskiest first — Corsican (83.2 % of its
+   blocks read as Italian without the guard, 57.9 % with it) and Neapolitan (71.3 %, 27.8 %), then
+   Sicilian (66.4 % with it) and Venetian, and a Latin or a Romanian page —, and a Catalan and a
+   Galician page. A word card on a page declaring `scn` is not read in Italian (D3): on a Sicilian
+   Wikipedia page, with Spanish and Italian ticked, a selected word's card never says « Mot
+   italien ».
+6. « Traduction étendue », on every target, Firefox for Android included (the engine ships there):
+   the download and « environ 340 Mo » with Italian alone (52,0 Mo) and with English, Spanish and
+   Italian (78,2 Mo); it-en downloaded once; Italian selections translated and marked (it-fr is in
+   `MARKED_PAIRS`); the worker's memory with Spanish and Italian studied, read from the browser's
+   task manager, on the iPhone and on the 4 GB tablet; on Firefox for Android, the cold start and a
+   frozen tab that comes back. On an account granted it, « Traduction en ligne » on an Italian
+   sentence, once the backend is deployed (D5).
 7. An English- and a Spanish-native install: Italian never offered; no Italian base fetched (the
    network panel).
 8. A French-native install of the last store release, updated in place by this build: nothing
    asked, nothing moved; Italian offered, not added.
 9. Sync: an Italian card captured on one French-native device shows on a second of the same account;
    an English-native device of the account pulls no Italian card; the day's statistic stored under
-   `it`.
-10. On Chrome (macOS), after step 1's reader has Italian cards: the previous store release loaded in
-    place of this build (D4) starts and keeps reading English — a reader of Italian alone too —, and
-    this build reloaded finds the Italian cards.
+   `it`. A device still on the previous release gets no Italian card and shows no error, then gets
+   them once updated.
+10. On Chrome (macOS), after step 1's reader has Italian cards: the previous store release — the one
+    that reads backup schema 4 — loaded in place of this build (D4) starts and keeps reading English
+    — a reader of Italian alone too —, and Réglages › Langue and Statistiques open in it; this build
+    reloaded finds the Italian cards, Italian still ticked with its level.
 11. The library: an Italian EPUB shelved under Italian.
-12. The host app's activation page on the iPhone and the Mac, the device in French: Italian named,
-    step 3 followed as written to Italian's level; an Italian card reviewed in the app (#925).
+12. The host app, the device in French: on the iPhone, the activation page names Italian and its step
+    3, followed as written, reaches Italian's level; on the Mac, which has no step 3, the lede names
+    Italian. In the app, an Italian card reviewed (#925), Statistiques with Italian, and the review's
+    translation fallback on an Italian card.
+13. « Traduction étendue » already on for English and Spanish, then Italian ticked: only it-en's
+    26,2 Mo to download, the setting's text moving to 78,2 Mo; Italian unticked, it-en deleted.
+14. Three studied languages (English, Spanish, Italian) in one session on Safari for iOS and Firefox
+    for Android: the pill and the popup follow the page's language, and no page reloads in a loop.
 
 The owner runs it on their devices, with Claude where a session can drive the browser; the findings
 go to the pull request.
