@@ -956,6 +956,61 @@ as written): 85.2 / 76.1 / 65.1. **Committed** by the update of 2026.10.25 (`lin
 the release `lingua-pack-sources-it-es-2026.10.25`), byte for byte the forecast: 24,705 glosses, 1,165
 expressions, the pack 1,894,196 B, its base it-fr's (1,551,196 B), its layer 343,240 B.
 
+### IT → ES: it-es's glosses refined (refine-lingua-it-es-glosses)
+
+Change 28 of `docs/lingua/italian-programme.md`: rules of it-es's own modules (`reduce_italian_es.py`,
+`reduce-it-es.py`), each measured alone against change 27's committed rows, no shared, Spanish-edition,
+acronym, Spanish-table or treebank module edited, so that only it-es re-pins. Its rule digest gains
+fr-en's treebank rule (`reduce_french_treebank.py`) and MarkIT's counts (`reduce_italian_treebank.py`),
+imported as it-fr and it-en import them: an edit of either re-pins fr-en, fr-es, it-fr, it-en and it-es
+together.
+
+- **one more source, at a commit** (D1): UD Italian-MarkIT's training and development sections, the files
+  it-fr's pin records (`PINNED["it-es"]` names `ITALIAN_MARKIT`; it-es's `pin.json` records them by hand,
+  it-fr's url and sha256, `4f6fc342…` and `633b6186…`), read through `held_out` for a row's parts of
+  speech and for nothing else; CC BY 4.0, which it-es's notice already credits for the studied side. Its
+  test section and UD Italian-PUD are never read;
+- **agreement** (D2): a row whose first word its own source alone gives, or that fewer sources open on
+  than another word, opens on the word its sources agree on — each of the pivot's tables a source, a
+  word's support counted across its parts of speech, the second trigger's winner one some source gives
+  in the row's part of speech —; a row Wikidata's lexemes of one item alone gloss takes the next source
+  whose first word two sources give;
+- **parts of speech** (D3): a function word's row opens on MarkIT's commonest part of speech (fr-en's
+  `commonest_first`, at least 10 and twice the row's first); a row of nouns, adjectives and verbs alone
+  gains the adverb or preposition MarkIT reads, from the next source whose first word two sources give;
+- **Spanish words** (D4, D5, D6, D10): a feminine's own word for the masculine its pointer lends; no word
+  that is not Spanish (wordfreq: under 1 in Spanish, at least 3 in English, French, Portuguese, Italian
+  or German, `ITALIAN_ALIKE` kept); no place's label after another word in the two Wiktionaries'
+  tables; a first word rarer than Zipf 2.0 yields to a commoner one; the section's heraldic senses out;
+  no translation under a verb form's sense that no other source gives, and none of the pivot's verb
+  words for another verb's form;
+- **notes and repeats** (D7, D8, D9): a list of eight items or more cut at three; a given name's note read
+  « Pablo (nombre de pila) » (the owner's short form, task 0.3); a surname's note off a common word a
+  table glosses; taxa and repeated senses out, and an expression's sense that only opens another;
+- **`DI_FAMILY`** (D11): `del` and `dello` « Del » (the pivot's), `della` « De la », `dei` and `degli`
+  « De los », `delle` « De las », the last four written by a person (task 0.1), each to be suggested to
+  the Spanish Wiktionary (https://es.wiktionary.org/wiki/della and the pages of `dei`, `degli`, `delle`);
+- **`FIRST_RUN`** (D12): 20 rows open on a sense a source gives the word — `bene`, `solo`, `contro`,
+  `posto`, `nulla`, `subito`, `ci`, `che`, `sotto`, `ora`, `ma`; the owner's `stipendio`, `volto`,
+  `decina`, `aderenza` (task 0.2); `entrambi`, `bravo`, `costume`, `alunna`, `voglia`, added after the
+  proposal's review —; the reduction fails on a row whose sense the source no longer writes;
+- **`CORRECTIONS`** (D12), it-fr's reviewed shape for it-es, each keyed by the source, the headword, its
+  part of speech and the source's sense as the pinned file writes it, with the page it is reported to —
+  one that finds nothing is named on the reduction's report line, to be removed —: 22 rows; the glosses
+  a person wrote among them, approved by the owner on 2026-10-25 and marked so (`BY_A_PERSON`): `a`'s
+  « A » and `te`'s « ti » (task 0.1), `svezia` « Suecia » (task 0.2), and `tessera` « Tarjeta, carné »,
+  `cancellato` « Cancelado, borrado », `ognuno` « Cada uno » (task 0.4); `the`, `tag` and `trad` left
+  unglossed.
+
+**Predicted at implementation** (2026-10-25, reduced locally by `build.sh --reduce it-es` from it-es's
+pinned sources — the release `lingua-pack-sources-it-es-2026.10.25` and MarkIT at `e210079d` —, Python
+3.12 and `requirements-reduce.txt`): 2,087 rows of `gloss.tsv` change (149 / 396 / 780 / 762 of the
+1,000 / 5,000 / 20,000 commonest and beyond), 2,033 in their first sense; `dei`, `degli` and `delle`
+gained, `the`, `tag` and `trad` lost; 2 expressions; coverage 85.2 / 76.1 / 65.1 %, as before; the pack
+1,897,366 B (sha256 `8f66d766…`), its base it-fr's, byte for byte (1,551,196 B), its layer 346,410 B
+(`ec7a6d34…`), at `pack_version` `2026.10.25+3c957aa.442fd70`. Only it-es re-pins: `tables/it/` and the
+eight other pairs' tables, pins and packs do not move.
+
 ## IT → ES: the sources it-es reads, the pivot among them
 
 Registered, derived and pinned by add-lingua-it-es-pivot-sources (change 27a of
