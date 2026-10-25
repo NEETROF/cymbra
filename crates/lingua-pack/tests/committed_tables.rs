@@ -3570,14 +3570,18 @@ fn spec_scenario_italian_glossed_in_spanish() {
             "it-es: it/{name}"
         );
     }
+    // Since change 28 (refine-lingua-it-es-glosses D1), its rules hold fr-en's treebank rule and
+    // MarkIT's counts too, which it-fr and it-en import as well.
     assert_eq!(
         pin["reducer"]["files"],
         serde_json::json!([
             "reduce-it-es.py",
             "reduce_common.py",
             "reduce_edition_es.py",
+            "reduce_french_treebank.py",
             "reduce_italian_acronyms.py",
             "reduce_italian_es.py",
+            "reduce_italian_treebank.py",
             "reduce_spanish_tables.py"
         ])
     );
@@ -3747,6 +3751,66 @@ fn spec_scenario_the_credits_of_it_es() {
             "the pack's notice names {credit:?}"
         );
     }
+}
+
+#[test]
+fn spec_scenario_it_es_s_glosses_refined() {
+    // Change 28 (refine-lingua-it-es-glosses): the committed rows open on the word their sources agree
+    // on (D2, D3), the `di` family reads through its reviewed table (D11), `FIRST_RUN` and `CORRECTIONS`
+    // write their rows (D12), the glosses a person wrote among them (tasks 0.1, 0.2, 0.4).
+    let glossed = tsv(&tables().join("it-es/gloss.tsv"));
+    let senses = tsv(&tables().join("it-es/senses.tsv"));
+    let mwe = tsv(&tables().join("it-es/mwe.tsv"));
+    for (lemma, gloss) in [
+        ("del", "Del"),
+        ("dello", "Del"),
+        ("della", "De la"),
+        ("dei", "De los"),
+        ("degli", "De los"),
+        ("delle", "De las"),
+        ("posto", "Lugar, sitio, puesto"),
+        (
+            "a",
+            "A; En (cuando se trata de un concepto más que un lugar físico)",
+        ),
+        ("te", "Ti, te"),
+        ("cui", "Que; Cuyo"),
+        ("porca", "Cerda; Caballón, camellón"),
+        ("svezia", "Suecia"),
+        ("tessera", "Tarjeta, carné"),
+        ("cancellato", "Cancelado, borrado"),
+        ("ognuno", "Cada uno"),
+        ("caso", "Caso"),
+        ("ragazza", "Chica, muchacha, niña; Novia"),
+        ("paolo", "Pablo (nombre de pila)"),
+        ("cavallo", "Caballo"),
+        ("persona", "Persona (ser humano)"),
+        ("evidente", "Evidente"),
+        ("faccia", "Cara"),
+    ] {
+        assert_eq!(glossed[lemma], gloss, "it-es: {lemma}");
+    }
+    for (lemma, first) in [
+        ("andare", "Ir, andar"),
+        ("ancora", "Todavía"),
+        ("spesso", "A menudo, frecuentemente, con frecuencia"),
+        ("rapidamente", "Rápidamente"),
+        ("don", "Don"),
+        ("inoltre", "Además, adicionalmente, allende"),
+    ] {
+        assert!(
+            glossed[lemma].starts_with(first),
+            "it-es: {lemma} opens on {first:?}, not {:?}",
+            glossed[lemma]
+        );
+    }
+    for lemma in ["del", "dello", "della", "dei", "degli", "delle"] {
+        assert_eq!(senses[lemma], "ADP:1", "it-es: {lemma} is a preposition");
+    }
+    for lemma in ["the", "tag", "trad"] {
+        assert!(!glossed.contains_key(lemma), "it-es: {lemma} unglossed");
+    }
+    assert_eq!(mwe["d'accordo"], "De acuerdo, vale");
 }
 
 #[test]
