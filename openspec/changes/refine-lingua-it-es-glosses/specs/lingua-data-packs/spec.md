@@ -23,8 +23,8 @@ training and development sections at the commit and sha256s it-fr's pin records,
 counts alone. A row holding only nouns, verbs or adjectives, for a word MarkIT reads at least ten times and
 twice as often as an adverb or a preposition, gains that part of speech's first sense from the next source
 that gives one, when two sources give its first word, ahead of the row's own senses.
-The reviewed table, `FIRST_RUN`, holds a row only for a word of the 300 commonest the rules open on a
-wrong word, each with its reason: the source, the sense the row opens on — a sense that source gives the
+The reviewed table, `FIRST_RUN`, holds a row only for a word the rules open on a wrong word — of the 300
+commonest, or settled by the owner —, each with its reason: the source, the sense the row opens on — a sense that source gives the
 word, never a word written for it — and whether the row's other senses stay; the reduction fails on a row
 whose sense the source no longer writes. A row `FUNCTION_WORDS`, `FIRST_RUN`, the `di` family's table or
 `CORRECTIONS` writes is never moved by agreement, by the treebank or by the rare-word rule. These are
@@ -107,9 +107,9 @@ sources give.
 - **WHEN** the section's `ragazza` only points at `ragazzo`, whose gloss « Chico, muchacho » it lends, and two sources give `ragazza` « Chica »
 - **THEN** the gloss of `ragazza` is « Chica, muchacha, niña »
 
-#### Scenario: A lent masculine the sources give no feminine of
-- **WHEN** the section's `porca` lends `porco`'s « cerdo », and the sources give `porca` « Caballón »
-- **THEN** the gloss of `porca` keeps the lent sense
+#### Scenario: A lent masculine no other source glosses
+- **WHEN** the section's `comunicativa`, a noun in Italian's readings, only points at `comunicativo`, whose « Comunicativo » it lends, and no other source glosses `comunicativa`
+- **THEN** the gloss of `comunicativa` keeps « Comunicativo »
 
 #### Scenario: A verb form inside a noun's row
 - **WHEN** the Italian Wiktionary lists among `faccia`'s translations « haga » and « hagas » under the senses « persona singolare del congiuntivo presente di fare », which no other source gives `faccia`
@@ -122,11 +122,12 @@ sources give.
 ### Requirement: it-es's glosses hold no name's note, list or repeat a common word does not need
 The it-es reduction SHALL keep a surname's note off a word Italian's readings give a common reading when another source glosses the word; SHALL read a given name's note as the Spanish name it names; SHALL cut a list of eight items or more to its first three; and SHALL leave out a taxon's name before a meaning, a sense repeated within a part of speech, and an expression's sense that only opens another.
 A surname's note is a proper noun's sense opening on « Apellido »; a word whose only gloss it is keeps it.
-A given name's note « Nombre de pila de varón, equivalente del español Pablo » reads « Pablo (nombre de
-pila) ». A list is cut when three quarters of its items hold at most four words and none ends a sentence.
+A given name's note « Nombre de pila de varón, equivalente del español Pablo », or its wording without
+« de pila », reads « Pablo (nombre de pila) ». A list is cut when three quarters of its items hold at most four words and none ends a sentence.
 A sense equal to another of its part of speech once their parentheses are out goes when it has none, and
 so does a sense with no parenthesis whose every item another sense of its part of speech says; two senses
-that differ by their parentheses both stay.
+that differ by their parentheses both stay. A sense with no parenthesis equal to an earlier sense of any
+part of speech, once « ¡ », « ! », « ¿ » and « ? » are out too, goes.
 
 #### Scenario: A surname's note off a common word
 - **WHEN** the section's only sense of `senatore` is the proper noun's « Apellido », Italian's readings make `senatore` a noun, and Wikidata gives it « Senador »
@@ -137,8 +138,8 @@ that differ by their parentheses both stay.
 - **THEN** the gloss of `esposito` keeps « Apellido italiano »
 
 #### Scenario: A given name
-- **WHEN** the section glosses `paolo` « Nombre de pila de varón, equivalente del español Pablo »
-- **THEN** the gloss of `paolo` is « Pablo (nombre de pila) »
+- **WHEN** the section glosses `paolo` « Nombre de pila de varón, equivalente del español Pablo », and `giuseppe` « Nombre de varón, equivalente del español José »
+- **THEN** the gloss of `paolo` is « Pablo (nombre de pila) », and that of `giuseppe` « José (nombre de pila) »
 
 #### Scenario: A list cut
 - **WHEN** the section glosses `inoltre` with a sense of thirteen items, « Además, adicionalmente, allende, a mayor abundamiento, … »
@@ -157,7 +158,7 @@ that differ by their parentheses both stay.
 - **THEN** the expression's gloss is « De acuerdo, vale »
 
 ### Requirement: it-es glosses the `di` family and corrects, by name, what its sources write
-The it-es reduction SHALL gloss `del`, `dello`, `della`, `dei`, `degli` and `delle` from a reviewed table, and SHALL correct, by a reviewed list, what a source writes wrongly; a gloss no source writes SHALL be marked in its table as written by a person, with its reason, and approved by the owner.
+The it-es reduction SHALL gloss `del`, `dello`, `della`, `dei`, `degli` and `delle` from a reviewed table, and SHALL correct, by a reviewed list, what a source writes wrongly, with a source's words where one gives them; a gloss no source writes SHALL be marked in its table as written by a person, with its reason, and approved by the owner.
 The `di` family's table is keyed by headword and replaces whatever the sources give the six words; the
 reduction fails on a row whose headword is no ranked lemma. `CORRECTIONS` is it-fr's shape: each entry the
 source, the headword, its part of speech, the source's text as the pinned file writes it, the corrected
@@ -171,6 +172,10 @@ finds nothing.
 #### Scenario: A form no source glosses
 - **WHEN** no source glosses `dei`
 - **THEN** the gloss of `dei` is « De los », marked as written by a person
+
+#### Scenario: A lent sense a source's word restores
+- **WHEN** agreement opens `porca` on the direct table's « Caballón, camellón », dropping the lent « cerdo », and the pivot gives `porca` « cerda »
+- **THEN** the gloss of `porca` is « Cerda; Caballón, camellón », the correction's words the sources'
 
 #### Scenario: A word taken for another language's
 - **WHEN** the pivot glosses `the`, the English article on Italian pages, « Té »

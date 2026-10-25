@@ -46,25 +46,29 @@ fr-en's treebank rule and MarkIT's counts are imported unchanged, as it-fr impor
   source (`spesso` « A menudo…; Gordo », `verso` « Hacia; Sentido »). MarkIT joins it-es's pin.
 - **Words read as their sources mean them** (D4–D6, D10): a feminine's own word for its lent masculine
   (5 rows: `ragazza` « Chica, muchacha, niña »); words that are not Spanish, by wordfreq across five
-  languages (303 words, 40 rows), and place names as labels (`ladro`); a rare first word yields to a
+  languages (168 distinct words, 40 rows), and place names as labels (`ladro`); a rare first word yields to a
   commoner one (837 rows: `rapidamente` « Rápidamente… »), heraldic senses out; verb forms off other rows
   (`faccia` « Cara », `dati` « Datos, facto »).
 - **Notes and repeats** (D7–D9): lists of eight items or more cut at three (`inoltre`); given names read
-  as their Spanish name (`paolo` « Pablo (nombre de pila) », 102 rows); a surname's note off a common word
+  as their Spanish name (`paolo` « Pablo (nombre de pila) », 104 rows, the short form the owner's choice); a surname's note off a common word
   another source glosses (`senatore` « Senador »); taxa and repeated senses out (`cavallo` « Caballo »,
   `persona`, `d'accordo` « De acuerdo, vale »).
 - **The `di` family** (D11): a reviewed table, `del` « Del », `della` « De la », `dei` and `degli` « De
   los », `delle` « De las » — four written by a person, marked so.
-- **`FIRST_RUN` and `CORRECTIONS`** (D12): 11 rows of the 300 opened on a sense a source gives (`posto`
-  « Lugar, sitio, puesto », `subito` « Inmediatamente… », `bene`, `solo`, `che` « Que; Qué »), 6
-  corrections (`a` « A; En (…) » and `te` « Ti, te », each with one word a person wrote; `cui` « Que;
-  Cuyo »; `the` unglossed, as it-en leaves it).
-- **Measured and left** (D13): ten partly right rows of the 300 (`vi`, `oltre`, `conto`), the wrong rows
-  past the 300 no rule reaches (task 0.2), the pivot's homographs, the Spanish edition's gaps.
+- **`FIRST_RUN` and `CORRECTIONS`** (D12): 20 rows opened on a sense a source gives and 19 corrections
+  — 17 of the 300 (`posto` « Lugar, sitio, puesto », `subito` « Inmediatamente… », `bene`, `solo`,
+  `che` « Que; Qué »; `a` « A; En (…) » and `te` « Ti, te », each with one word a person wrote; `cui`
+  « Que; Cuyo »; `the` unglossed, as it-en leaves it), 10 the owner settled past the 300 (`stipendio`
+  « Sueldo », `decina` « Decena », `svezia` « Suecia », written by a person), 12 of the same class added
+  after the review of this proposal (`porca` « Cerda; … », `entrambi` « Ambos », `presa` « Toma,
+  captura », `ragazza`'s « Novia »).
+- **Measured and left** (D13): ten partly right rows of the 300 (`vi`, `oltre`, `conto`), three rows a
+  person's word would fix (`tessera`, `cancellato`, `ognuno`: task 0.4, open), `mark` and `frodo`, the
+  pivot's homographs, the Spanish edition's gaps.
 - **One re-reduction** (D14): a dispatch (`lingua-pack-update`, mode `reduce`, it-es) at it-es's pin, to
   which the implementation's first commit adds MarkIT's two sections by hand; together the rules change
-  **2,066 rows** (145 / 384 / 776 / 761), 2,018 in their first sense, `dei`, `degli`, `delle` gained,
-  `the` lost; coverage **85.3 / 76.1 / 65.1 %**; on the review's judged rows the 300 commonest read
+  **2,085 rows** (149 / 394 / 780 / 762), 2,031 in their first sense, `dei`, `degli`, `delle` gained,
+  `the`, `tag`, `trad` lost; coverage **85.2 / 76.1 / 65.1 %**; on the review's judged rows the 300 commonest read
   wrong **0 %** (from 8.6 %) and partly right 3.4 % (from 11 %), as this design's reader reads them, for
   the specialist to confirm; Italian's studied tables, the eight other pairs and the PUD gates byte for
   byte; `it-es.golden` and the Spanish card re-blessed once by the update workflow (D15).
@@ -113,6 +117,8 @@ None.
 - **Order.** After change 27 (on `main`, its requirement still open), whose requirement this change
   modifies; before change 30; either side of change 23, which edits the same lines of
   `pack_sources.py`'s `PINNED` for it-en.
-- **The owner's**: two questions (tasks 0.1, 0.2); the gloss diff after the specialist's review, the
-  golden's and the card's moved lines (task 4.1).
-- **Effort**: 3.5–5 ideal days (design, *Effort*), against the programme's 2–3.5.
+- **The owner's**: three questions answered on 2026-10-25, each as recommended — the six glosses a
+  person writes, the ten rows past the 300, the short form of given names (tasks 0.1–0.3) —, one open,
+  three words no source gives (0.4); the gloss diff after the specialist's review, the golden's and the
+  card's moved lines (task 4.1).
+- **Effort**: 3.75–5.25 ideal days (design, *Effort*), against the programme's 2–3.5.
