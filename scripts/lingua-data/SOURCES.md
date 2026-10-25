@@ -857,6 +857,32 @@ unchanged: 33,199 glosses (17 lemmas left the ranks — `vado`, `sto`, `signor`,
 `dati`, `lega`, `prova` …), coverage 91.3 / 84.2 / 75.8 %, the pack 2,467,552 B, its base it-fr's new one
 (1,551,196 B), its layer 916,596 B.
 
+## IT → ES: Italian glossed in Spanish
+
+Reduced by `reduce-it-es.py` (add-lingua-pack-it-es, change 27 of `docs/lingua/italian-programme.md`):
+it-es is Italian's **thin** reader pair, Spanish speakers studying Italian. Like it-en, it reads
+Italian's studied side — `tables/it/`, which it-fr's reduction writes — as committed and computes
+nothing of it, and writes its native side alone; its pin records the studied tables it read. Its rule
+digest is `reduce-it-es.py`, `reduce_common.py`, `reduce_edition_es.py`, `reduce_italian_acronyms.py`,
+`reduce_italian_es.py` (it-es's own pre-pass) and `reduce_spanish_tables.py` (fr-es's table rules
+copied, every fr-es global a parameter, so that fr-es's and en-es's digests do not move; they adopt the
+module at their next re-pin): an edit of either of the last two re-pins it-es alone, an edit of the
+Spanish edition en-es, fr-es and it-es. No package carries it-es (change 30 lists it). Its first update
+writes its folder whole: the pull request that registers it carries none.
+
+| Table | Source | Licence | What we keep |
+|---|---|---|---|
+| `tables/it-es/gloss.tsv`, `senses.tsv` | **kaikki.org**: the Spanish Wiktionary's (`eswiktionary`) Italian section (`kaikki-es-Italiano.jsonl`); the Italian Wiktionary's (`itwiktionary`) Spanish translations (`kaikki-it-traductions-es.jsonl`); the Spanish Wiktionary's Spanish entries' Italian translations, read backwards (`kaikki-es-traductions-it.jsonl`); **Wikidata's Lexemes** (`wikidata-lexemes-it-es.jsonl`); the Italian Wiktionary's Spanish section, read backwards (`kaikki-it-Spagnolo.jsonl`); the **pivot** of the English, French, German, Portuguese, Russian, Polish and Dutch Wiktionaries' tables (`kaikki-<edition>-pivot-it-es.jsonl`) | CC BY-SA 4.0 + GFDL; Wikidata **CC0 1.0** | in this order (D2), each source for what the ones before leave out: up to eight whole senses of the section, read through the Spanish edition's pre-passes and it-es's own (`reduce_italian_es.py`, D4: names and acronyms off common words and a name's note off a word a table glosses, a worded pointer lending its word to a headword with no meaning of its own, a pointer's meaning after a colon, sense links, superscripts and stray subscripts out, a reviewed list of function words); then at most three Spanish words per part of speech from each table-shaped source — the Italian Wiktionary's table in its order, the Spanish tables read backwards commonest first, Wikidata's translation links and Spanish glosses, then its lexemes of one item, the Spanish section read backwards commonest first, then the pivot by the tables and the editions giving each word —, every one read through fr-es's table rules and it-es's: no letter, no word with a grave accent or « ° », no Italian word given as Spanish but `ITALIAN_ALIKE`'s, each Spanish word listed once across the Italian word's parts of speech. The pivot reads a table named by a sense or a sense number, or a one-sense entry whole, never a table left to sort, no name, abbreviation, symbol, letter or affix, no capitalised word but an acronym of at most six letters (a German noun's headword aside), and no translation its extract split into its words (the Polish and Russian ones) |
+| `tables/it-es/mwe.tsv` | the section and the two Wiktionaries' tables | CC BY-SA 4.0 + GFDL | the section's headwords with a space, then the two tables', then the words Italian's pre-pass splits (D6); never the pivot |
+| the acronym rows' glosses (`USA`) | it-es's own glosses of the rows' synonyms (`reduce_italian_acronyms.acronym_gloss`) | — | D7 |
+| `NOTICE`, `manifest.json` | both sides' sources: the Spanish and Italian Wiktionaries, Wikidata's Lexemes (CC0, `Cc0` in the manifest), the seven Wiktionaries of the pivot, wordfreq; for the studied side, everything it-fr's notice credits | — | the attribution stack; the manifest says the levels are estimated and names Italian's analyser version |
+
+**Coverage** is held to `gloss_coverage.FLOORS["it-es"]` by the extension check's `reduce` job: the
+study's figures on change 9's committed ranks with every source in D2's order, D4's pre-pass and D3's
+pivot, **85.2 / 76.0 / 65.1 %** of the 5,000 / 10,000 / 20,000 commonest (31.7 / 22.6 / 15.1 from the
+definitions alone; 66.9 / 53.9 / 40.8 before the pivot), less two points — **83.2 / 74.0 / 63.1**,
+proposed for the owner to settle before the first committed measurement (D8, task 0.1).
+
 ## IT → ES: the sources it-es reads, the pivot among them
 
 Registered, derived and pinned by add-lingua-it-es-pivot-sources (change 27a of
@@ -1311,7 +1337,7 @@ edition (generalise-lingua-gloss-reducer):
 |---|---|---|---|
 | `reduce_edition_fr.py` | French (frwiktionary) | en-fr, es-fr | Today's rules, unchanged: the form-of wordings (« Pluriel de », « Forme de », also read for en-fr's own forms), « Présent », « Graphie » for expressions, the pointers and placeholders (« → voir », « Définition manquante ou à compléter »), a coordinator left hanging (« ou », « et »), a letter's name; a gloss of translation-table words opens on a capital |
 | `reduce_edition_en.py` | English (enwiktionary) | es-en | Senses tagged `form-of` or `alt-of`, naming their word in `form_of` or `alt_of`; untagged « plural of », « inflection of », « alternative form of », « synonym of », « only used in », « see »; no placeholder (an undefined sense has no gloss, tagged `no-gloss`, and is left out); a letter's name; glosses stay in lower case, as the edition writes a foreign word's senses. Its senses read as meanings before the shared rules read them (`read_as_meanings`, refine-lingua-es-en-glosses): a sense nested under a label or a pointer by its own gloss; a shortened or respelled form (« apocopic form of », « pronunciation spelling of »…, an untagged one a pointer too) by the meaning it carries or its target's senses, a pronoun's case form by its meaning; a place's name after a function word spelled like it; the edition's descriptions in lower case, one ellipsis, curly double quotes, no numbered sense, nothing after a line break. Two settings, es-en's alone and off until the owner picks them: long parentheses (M20, `LONG_PARENTHESIS` as `EN.long_parenthesis`, 0 keeps them) and the merging of a word's same-part-of-speech etymologies before the round-robin (`MERGE_SAME_POS_ETYMOLOGIES`, a pre-pass `reduce-es-en.py` runs) |
-| `reduce_edition_es.py` | Spanish (eswiktionary) | en-es, fr-es | Untagged « Forma del plural de », « Grafía obsoleta de », « Participio pasado del verbo (to) read », a tense or a person followed by « de » or « del » — the « de » is required, so « Femenino. » stays a meaning; sense-link subscripts taken out whole — one, a range or two (« dejar₉ », « Madrid₁₋₂ », « bottom₉ o ₁₀ »), after a lower-case letter, the word's period or a stray space, never after a capital (« C₄H₁₀ » keeps its digits) nor a preposition (« similar a ₁ » names one of the entry's senses) — and « Véase también »; a letter's name. Its notes to its readers (refine-lingua-en-es-glosses): a maintenance template (« ^([cita requerida]) »), a disambiguation note (« [sentido del sustantivo] »), a reference to numbered senses (« (definiciones [1,2]) »), the expansion notice, and a usage note after the meaning, a sentence opening on a closed list (« A veces », « Usado », « Se dice »…), a second sentence that carries the meaning kept. Its senses read in their order before the shared rules read them (`read_as_meanings`, a pre-pass en-es and fr-es run): the senses it marks obsolete or outdated after the others, nothing left out; one ellipsis « … », straight double quotes paired « » (`typography`, which en-es and fr-es also apply to the translation tables' words) |
+| `reduce_edition_es.py` | Spanish (eswiktionary) | en-es, fr-es, it-es | Untagged « Forma del plural de », « Grafía obsoleta de », « Participio pasado del verbo (to) read », a tense or a person followed by « de » or « del » — the « de » is required, so « Femenino. » stays a meaning; sense-link subscripts taken out whole — one, a range or two (« dejar₉ », « Madrid₁₋₂ », « bottom₉ o ₁₀ »), after a lower-case letter, the word's period or a stray space, never after a capital (« C₄H₁₀ » keeps its digits) nor a preposition (« similar a ₁ » names one of the entry's senses) — and « Véase también »; a letter's name. Its notes to its readers (refine-lingua-en-es-glosses): a maintenance template (« ^([cita requerida]) »), a disambiguation note (« [sentido del sustantivo] »), a reference to numbered senses (« (definiciones [1,2]) »), the expansion notice, and a usage note after the meaning, a sentence opening on a closed list (« A veces », « Usado », « Se dice »…), a second sentence that carries the meaning kept. Its senses read in their order before the shared rules read them (`read_as_meanings`, a pre-pass en-es and fr-es run): the senses it marks obsolete or outdated after the others, nothing left out; one ellipsis « … », straight double quotes paired « » (`typography`, which en-es and fr-es also apply to the translation tables' words) |
 
 Each module's docstring holds the census its rules come from, measured on the data es-fr pins. The
 French-native pairs' reducers bind the French edition; `reduce_common.py` imports no edition, so a
@@ -1329,7 +1355,9 @@ reducer and every `reduce_*.py` module importing it loads, read from `sys.module
 `reduce-it-fr.py`, `reduce_common.py`, `reduce_italian_acronyms.py` (Italian's acronym table,
 keep-lingua-italian-acronyms-and-names) and `reduce_italian_treebank.py`, and it-en's `reduce-it-en.py`,
 `reduce_common.py`, `reduce_edition_en.py`, `reduce_italian_acronyms.py` and `reduce_italian_en.py`
-(add-lingua-pack-it-en D4). Editing the English edition re-pins es-en, fr-en and it-en alone, the Spanish edition en-es and fr-es alone, either French module (the treebank's,
+(add-lingua-pack-it-en D4), and it-es's `reduce-it-es.py`, `reduce_common.py`, `reduce_edition_es.py`,
+`reduce_italian_acronyms.py`, `reduce_italian_es.py` and `reduce_spanish_tables.py` (add-lingua-pack-it-es
+D4). Editing the English edition re-pins es-en, fr-en and it-en alone, the Spanish edition en-es, fr-es and it-es alone, either French module (the treebank's,
 the acronyms') fr-en and fr-es alone (each pair's own rules, such as en-es's and fr-es's passes over their section, live in
 its reducer); editing `reduce_common.py` re-pins every pair. `check-reducer` fails, naming the module, when a
 reducer loads a rule module its record does not name, and tests refuse a `reduce_*` import a
@@ -1366,7 +1394,7 @@ their seven tables, `tags.tsv` and NOTICE byte for byte; only `pack_version` (`2
 
 ## Allowed vs denied licences
 
-- **Allowed** (commercial use OK): permissive (ESDB/SCOWL and WordNet), CC0 (Wikidata's Lexemes, read by it-es since add-lingua-it-es-pivot-sources; the builder's `Licence` has no CC0 variant yet — change 27 adds one or uses `Permissive`), CC BY, CC BY-SA (the derived tables are published, satisfying share-alike).
+- **Allowed** (commercial use OK): permissive (ESDB/SCOWL and WordNet), CC0 (Wikidata's Lexemes, read by it-es since add-lingua-it-es-pivot-sources; the builder's `Licence::Cc0`, never denied, since add-lingua-pack-it-es D9), CC BY, CC BY-SA (the derived tables are published, satisfying share-alike).
 - **Denied** (never enter a pack): **GPL / AGPL** (viral — e.g. Apertium, FreeLing dictionaries), **any non-commercial** (CC BY-NC-*, e.g. Lemlat, LatMor, SUBTLEX-ESP as distributed, UD Italian-ISDT).
 
 The denylist is code, not just prose: `lingua_pack::licence::is_denied` fails the build on `Gpl`/`Agpl`/`NonCommercial`, and the build also fails if a source is missing from the `NOTICE`.

@@ -3478,3 +3478,31 @@ fn spec_scenario_it_en_is_not_shipped() {
         "a fixture of it-en before a package lists it"
     );
 }
+
+// it-es (add-lingua-pack-it-es, the Italian programme's change 27): Italian's thin reader pair, glossed in
+// Spanish from the Spanish and Italian Wiktionaries, Wikidata and a pivot of seven Wiktionaries' tables.
+// Its first update writes its folder whole (D1); no package lists it before change 30 (D11). The checks
+// of its committed tables — built to its pin, its credits — come with them.
+
+#[test]
+fn spec_scenario_it_es_is_not_shipped() {
+    // No package lists it-es while the list of shipped pairs does not name it (D11): change 30 lists it,
+    // with its `testdata/it-es/`, which nothing builds before.
+    let packs = json(
+        &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../apps/lingua-extension/packs.json"),
+    );
+    if packs["pairs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|p| p == "it-es")
+    {
+        return;
+    }
+    assert!(
+        !PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../scripts/lingua-data/testdata/it-es")
+            .exists(),
+        "a fixture of it-es before a package lists it"
+    );
+}

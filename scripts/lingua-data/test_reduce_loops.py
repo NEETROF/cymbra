@@ -673,7 +673,7 @@ class Loops(unittest.TestCase):
     def test_a_french_dispatch_runs_in_the_fr_group(self):
         workflow = WORKFLOWS / "lingua-pack-update.yml"
         text = workflow.read_text(encoding="utf-8")
-        self.assertIn("options: [en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr, it-en, all]", text)
+        self.assertIn("options: [en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr, it-en, it-es, all]", text)
         groups = {pair: concurrency_group(workflow, pair) for pair in ("en-fr", "en-es", "es-fr", "es-en", "fr-en", "fr-es", "all", "")}
         self.assertEqual(
             groups,
@@ -761,10 +761,77 @@ class Loops(unittest.TestCase):
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertEqual(self.built()[-2:], ["reduce es-en", "reduce it-en"])
 
+    def test_spec_scenario_it_es_s_first_update(self):
+        """it-es (add-lingua-pack-it-es D1): registered, reduced after it-fr, its first update writing its
+        folder whole — the pull request carries none."""
+        self.italian_before_its_first_update()
+        (self.tables / "it-fr").mkdir()
+        (self.tables / "it-fr" / "pin.json").write_text("{}\n")
+        # Before its first update, it-es is no pair of any run.
+        done = self.reduce_job()
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertNotIn("reduce it-es", self.built())
+        self.log.unlink()
+        # Dispatched, its update runs with no folder of its own: reduced alone, reported against none,
+        # its raw sources kept for the release step.
+        done = self.update("update", "it-es")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(self.built(), ["update it-es"])
+        self.assertEqual(self.kept_work(), ["it-es"])
+        self.assertEqual(list((self.temp / "committed" / "it-es").iterdir()), [], "reported against no tables")
+        self.log.unlink()
+        # Once committed, it-fr's update brings it along, reduced again from its own pin, after it-fr.
+        (self.tables / "it-es").mkdir()
+        (self.tables / "it-es" / "pin.json").write_text("{}\n")
+        shutil.rmtree(self.temp / "committed")
+        done = self.update("update", "it-fr")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(self.built(), ["update it-fr", "reduce it-es"])
+
+    def test_spec_scenario_it_es_s_release_names_wikidata_and_cc0(self):
+        # it-es's release holds a file derived from Wikidata's Lexemes dump (change 27a's review): its
+        # notes name Wikidata's data in their header and its CC0 in the licence footer, beside the dump's
+        # own line; a release of kaikki's files alone names neither.
+        log = self.gh()
+        release = "lingua-pack-sources-it-es-2026.10.25"
+        wikidata = self.dumped(release, ["wikidata-lexemes-it-es.jsonl"])
+        wikidata.update(url="https://dumps.wikimedia.org/wikidatawiki/entities/latest-lexemes.json.gz")
+        (self.tables / "it-es").mkdir()
+        self.pin(
+            "it-es",
+            {
+                "snapshot": "2026.10.25",
+                "sources": {
+                    "kaikki-es": self.dumped(release, ["kaikki-es-Italiano.jsonl"]),
+                    "wikidata": wikidata,
+                    "wordfreq": {"version": "3.1.1"},
+                },
+            },
+        )
+        done = self.release("it-es")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        created = [line for line in log.read_text().splitlines() if line.startswith("release create")]
+        self.assertIn("scripts/lingua-data/work/it-es/wikidata-lexemes-it-es.jsonl.zst", created[0])
+        notes = (self.temp / "notes.md").read_text()
+        self.assertIn("The kaikki.org data and Wikidata data read for Cymbra Lingua's it-es data pack", notes)
+        self.assertIn("pair derives from kaikki's dumps of whole Wiktionary editions, and from Wikidata's Lexemes dump.", notes)
+        self.assertIn("- `wikidata`: the dump https://dumps.wikimedia.org/wikidatawiki/entities/latest-lexemes.json.gz", notes)
+        self.assertIn("; licence CC0 1.0 (Wikidata)\n", notes)
+        self.assertIn("Licence: Wiktionary content, CC BY-SA 4.0 and GFDL", notes)
+        self.assertIn("Wikidata's Lexemes: CC0 1.0 (public domain)", notes)
+        # A release of kaikki's files alone.
+        self.pin("it-es", {"snapshot": "2026.10.25", "sources": {"kaikki-es": self.dumped(release, ["kaikki-es-Italiano.jsonl"])}})
+        done = self.release("it-es")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        notes = (self.temp / "notes.md").read_text()
+        self.assertNotIn("Wikidata", notes)
+        self.assertIn("The kaikki.org data read for Cymbra Lingua's it-es data pack", notes)
+
     def test_an_italian_dispatch_runs_in_the_it_group(self):
         workflow = WORKFLOWS / "lingua-pack-update.yml"
         self.assertEqual(concurrency_group(workflow, "it-fr"), "lingua-pack-update-it")
         self.assertEqual(concurrency_group(workflow, "it-en"), "lingua-pack-update-it")
+        self.assertEqual(concurrency_group(workflow, "it-es"), "lingua-pack-update-it")
 
     # — lingua-extension-check, the `check` job's build of every pair —
 

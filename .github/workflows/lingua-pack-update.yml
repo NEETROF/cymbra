@@ -6,7 +6,9 @@ name: lingua-pack-update
 # reference pair, which writes tables/fr/ — since add-lingua-french-forms-tables, fr→es — which reads
 # tables/fr/ as committed — since add-lingua-pack-fr-es, it→fr — Italian's reference pair, which
 # writes tables/it/ — since add-lingua-italian-forms-tables, it→en — which reads tables/it/ as
-# committed, reduced after it-fr — since add-lingua-pack-it-en).
+# committed, reduced after it-fr — since add-lingua-pack-it-en, it→es — which reads it too, reduced
+# after it-fr, its sources the Spanish and Italian Wiktionaries, Wikidata's Lexemes and seven
+# Wiktionaries' tables as a pivot — since add-lingua-pack-it-es).
 #
 # Releases never read upstream: they build the pack from the tables committed under
 # scripts/lingua-data/tables/<pair>/ and its studied language's tables/<studied>/, and check it
@@ -80,7 +82,7 @@ on:
       pair:
         description: "The language pair whose tables to propose (a <studied>-<native> folder of scripts/lingua-data/tables); a studied language's reference brings the pairs that read it; all = every pair, mode reduce or dry."
         type: choice
-        options: [en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr, it-en, all]
+        options: [en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr, it-en, it-es, all]
         default: en-fr
       expect:
         description: "any = report what moved; identical = fail on any byte the rules were not meant to move (mode reduce only)."
@@ -104,8 +106,8 @@ permissions:
 # never propose the reader's folder on two branches at once: the `es` group for es-fr and es-en,
 # the `en` group for en-fr and en-es, the `fr` group for fr-en and fr-es, which reads tables/fr/
 # (add-lingua-french-forms-tables D10, add-lingua-pack-fr-es D10), the `it` group for it-fr, which
-# writes tables/it/, it-en, which reads it (add-lingua-pack-it-en D3), and the Italian pairs to come
-# (add-lingua-italian-forms-tables D9). `all` (modes reduce and dry) and the monthly dry run have a group
+# writes tables/it/, it-en and it-es, which read it (add-lingua-pack-it-en D3, add-lingua-pack-it-es
+# D1), and the Italian pairs to come (add-lingua-italian-forms-tables D9). `all` (modes reduce and dry) and the monthly dry run have a group
 # each.
 concurrency:
   group: lingua-pack-update-${{ startsWith(inputs.pair, 'es-') && 'es' || startsWith(inputs.pair, 'en-') && 'en' || startsWith(inputs.pair, 'fr-') && 'fr' || startsWith(inputs.pair, 'it-') && 'it' || inputs.pair || 'monthly' }}
@@ -344,18 +346,29 @@ jobs:
             echo "::error::$PAIR's pin.json names no asset under $tag: the update fetched nothing of its own."
             exit 1
           fi
+          # Wikidata's Lexemes (it-es's, add-lingua-it-es-pivot-sources D3) are no kaikki data, and CC0: the
+          # header and the licence footer name them when the release holds a file derived from them
+          # (add-lingua-pack-it-es, change 27a's review).
+          lexemes_data=""
+          lexemes_dump=""
+          lexemes_licence=""
+          if printf '%s\n' "$dumps" | grep -q '^- `wikidata`:'; then
+            lexemes_data=" and Wikidata data"
+            lexemes_dump=", and from Wikidata's Lexemes dump"
+            lexemes_licence=" Wikidata's Lexemes: CC0 1.0 (public domain) — https://www.wikidata.org/wiki/Wikidata:Lexicographical_data."
+          fi
           cat > "$RUNNER_TEMP/notes.md" <<EOF
-          The kaikki.org data read for Cymbra Lingua's $PAIR data pack, as it was on $SNAPSHOT: the files the
-          pair derives from kaikki's dumps of whole Wiktionary editions. The dumps are not kept — the
+          The kaikki.org data$lexemes_data read for Cymbra Lingua's $PAIR data pack, as it was on $SNAPSHOT: the files the
+          pair derives from kaikki's dumps of whole Wiktionary editions$lexemes_dump. The dumps are not kept — the
           English edition's alone is above the 2 GiB a release asset may weigh — and each is named here by its
-          address, the date kaikki regenerated it and the sha256 of its decompressed bytes:
+          address, the date it was regenerated and the sha256 of its decompressed bytes:
 
           $dumps
 
           The assets are the pack's raw sources, kept because upstream regenerates them every day. Each is
           zstd-compressed; decompressed, its sha256 is in \`scripts/lingua-data/tables/$PAIR/pin.json\`.
 
-          Licence: Wiktionary content, CC BY-SA 4.0 and GFDL — https://kaikki.org, https://www.wiktionary.org.
+          Licence: Wiktionary content, CC BY-SA 4.0 and GFDL — https://kaikki.org, https://www.wiktionary.org.$lexemes_licence
           EOF
           gh release create "$tag" "${files[@]}" --target "$GITHUB_SHA" \
             --title "Lingua pack sources $PAIR $SNAPSHOT" --notes-file "$RUNNER_TEMP/notes.md" --latest=false

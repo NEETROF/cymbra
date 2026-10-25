@@ -24,6 +24,7 @@ import json
 import os
 import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -679,7 +680,14 @@ class TheReducer(Fixture):
     def test_main_reads_its_arguments(self):
         work = self.work()
         argv = ["reduce-it-es.py", "--work", str(work), "--studied", str(self.studied()), "--built-at", "2026-10-25", "--pack-version", "test"]
-        with mock.patch.object(sys, "argv", argv), contextlib.redirect_stderr(io.StringIO()) as err:
+        # wordfreq, doubled: the unit tests run without the reducer's dependencies.
+        wordfreq = types.ModuleType("wordfreq")
+        wordfreq.zipf_frequency = zipf
+        with (
+            mock.patch.object(sys, "argv", argv),
+            mock.patch.dict(sys.modules, {"wordfreq": wordfreq}),
+            contextlib.redirect_stderr(io.StringIO()) as err,
+        ):
             it_es.main()
         self.assertIn("reduced it-es: lemmas=45", err.getvalue())
 

@@ -20,7 +20,8 @@ it fails under the pair's floor — the share each of the three tops must reach,
 `--floor` given (add-lingua-pack-es-en D6: es-en is held to es-fr's published figures by the reduce
 job, before it ships and is published; add-lingua-pack-en-es D3: en-es to a floor the owner sets;
 add-lingua-pack-fr-en D4: fr-en likewise; add-lingua-pack-fr-es D8: fr-es, fixed before it was
-measured; add-lingua-pack-it-fr D7: it-fr, the same way; add-lingua-pack-it-en D7: it-en too).
+measured; add-lingua-pack-it-fr D7: it-fr, the same way; add-lingua-pack-it-en D7: it-en too;
+add-lingua-pack-it-es D8: it-es, the thin pair the programme's I4 names).
 """
 
 from __future__ import annotations
@@ -62,6 +63,11 @@ TOPS = (5_000, 10_000, 20_000)
 # the Italian Wiktionary's translations and D4's pre-pass (91.3 / 84.2 / 75.7 %, reduced from the bytes
 # its first update reads, 2026-10-25) less two points — proposed; the owner settles it (task 0.1) before
 # the measurement whose tables are committed, never lowered after it.
+# it-es (add-lingua-pack-it-es D8, the programme's I4): the same rule, the study's figures on change 9's
+# committed ranks with every source in D2's order, D4's pre-pass and D3's pivot (85.2 / 76.0 / 65.1 %,
+# reduced from the bytes its first update would read, 2026-10-25) less two points — proposed, awaiting
+# the owner, who settles it (task 0.1) before the measurement whose tables are committed, never lowered
+# after it.
 FLOORS = {
     "es-en": (87.6, 77.2, 63.7),
     "en-es": (91.4, 83.2, 69.9),
@@ -69,6 +75,7 @@ FLOORS = {
     "fr-es": (81.4, 68.8, 54.5),
     "it-fr": (87.2, 79.8, 71.3),
     "it-en": (89.3, 82.2, 73.7),
+    "it-es": (83.2, 74.0, 63.1),
 }
 
 
