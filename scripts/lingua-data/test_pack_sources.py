@@ -1412,9 +1412,15 @@ class DumpsOnly(unittest.TestCase):
             "kaikki-fr-traductions-it.jsonl": ("translations", "fr", "it"),
         })
         self.assertEqual(catalogue("it-fr", "it"), {"kaikki-it-traductions-fr.jsonl": ("translations", "it", "fr")})
-        # The Italian Wiktionary's catalogue holds it-fr's file alone: en-it's and fr-it's sections
-        # join it with the pairs that read them.
-        self.assertEqual(ps.EDITIONS["it"]["files"], {"kaikki-it-traductions-fr.jsonl": ("translations", "it", "fr")})
+        # The Italian Wiktionary's catalogue holds it-fr's file and it-en's (add-lingua-pack-it-en D3):
+        # en-it's and fr-it's sections join it with the pairs that read them.
+        self.assertEqual(
+            ps.EDITIONS["it"]["files"],
+            {
+                "kaikki-it-traductions-fr.jsonl": ("translations", "it", "fr"),
+                "kaikki-it-traductions-en.jsonl": ("translations", "it", "en"),
+            },
+        )
         pinned = ps.PINNED["it-fr"]
         self.assertEqual(list(pinned), ["markit-train", "markit-dev", "morph-it"])
         commit = "e210079df0aea331ec1dcaa90648d815ce94c3ce"
@@ -1450,6 +1456,24 @@ class DumpsOnly(unittest.TestCase):
             "D1), fr-en's treebank rule (refine-lingua-it-fr-glosses D1), Italian's acronym table "
             "(keep-lingua-italian-acronyms-and-names) and MarkIT's",
         )
+
+    def test_spec_scenario_italian_s_first_reader_pair_registers_what_it_reads(self):
+        # it-en (add-lingua-pack-it-en D2, D3): the English Wiktionary's Italian section — the file
+        # Italian's forms come from, pinned by it-en's own fetch, as fr-en pins its own — and the English
+        # translations the Italian Wiktionary's Italian entries list, its fallback, a new file of the
+        # Italian edition's catalogue. No table read backwards: the English Wiktionary's Italian
+        # translations are in no catalogue. Nothing pinned at a commit: Italian's studied side is
+        # tables/it/ as committed, it-fr's.
+        self.assertEqual(ps.DUMPS["it-en"], {"en": ("kaikki-Italian.jsonl",), "it": ("kaikki-it-traductions-en.jsonl",)})
+        ps.check_registered("it-en")
+        self.assertEqual(catalogue("it-en", "en"), {"kaikki-Italian.jsonl": ("entries", "it")})
+        self.assertEqual(catalogue("it-en", "it"), {"kaikki-it-traductions-en.jsonl": ("translations", "it", "en")})
+        backwards = "kaikki-en-traductions-it.jsonl"
+        self.assertFalse([e for e, spec in ps.EDITIONS.items() if backwards in spec["files"]], backwards)
+        self.assertNotIn("it-en", ps.PINNED)
+        self.assertNotIn("it-en", ps.ESDB)
+        # it-en and it-fr read the same section, each pinning its own fetch (add-lingua-pack-es-en D2).
+        self.assertEqual(ps.DUMPS["it-en"]["en"], ps.DUMPS["it-fr"]["en"])
 
     def test_a_source_pinned_at_a_release_carries_the_sha256_its_bytes_must_have(self):
         # Morph-it! is pinned at a release asset of the repository's own, which can be deleted or
@@ -2933,6 +2957,29 @@ class Split(unittest.TestCase):
         # A reader pair already there comes along.
         (self.tables / "it-en").mkdir()
         self.assertEqual(ps.pairs(self.tables, after="it-fr"), ["it-fr", "it-en"])
+
+    def test_a_reader_pair_s_first_update_needs_no_folder_of_its_own(self):
+        # it-en's first update (add-lingua-pack-it-en): registered, its studied folder naming it-fr,
+        # whose tables are committed, and no folder of its own yet — the update writes it whole. Named,
+        # it is the update's pair alone; in the list of every pair it is none.
+        ps.split(self.work, self.tables, "es-fr")
+        (self.tables / "it").mkdir()
+        (self.tables / "it" / "studied.json").write_text('{"reference": "it-fr"}\n')
+        (self.tables / "it" / "tags.tsv").write_text("NOUN\n")
+        with self.assertRaisesRegex(ps.PinError, "it-en is no pair of"):
+            ps.pairs(self.tables, after="it-en")  # no reference's tables to read yet
+        (self.tables / "it-fr").mkdir()
+        self.assertEqual(ps.pairs(self.tables), ["es-fr", "it-fr"])
+        self.assertEqual(ps.pairs(self.tables, after="it-en"), ["it-en"])
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(ps.main(["pairs", "--tables", str(self.tables), "--after", "it-en"]), 0)
+        self.assertEqual(out.getvalue(), "it-en\n")
+        # A pair no registry names is none: its update would read nothing.
+        self.assertNotIn("it-es", ps.DUMPS)
+        with self.assertRaisesRegex(ps.PinError, "it-es is no pair of"):
+            ps.pairs(self.tables, after="it-es")
+        # Its reference's update does not bring it along before its folder is there.
+        self.assertEqual(ps.pairs(self.tables, after="it-fr"), ["it-fr"])
 
     def test_pairs_come_references_first_and_a_reference_brings_its_readers(self):
         for pair in ("en-fr", "es-en", "es-fr", "en-es"):

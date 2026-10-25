@@ -283,6 +283,9 @@ EDITIONS = {
         "files": {
             # it-fr's direct fallback: the French translations its Italian entries list (D2).
             "kaikki-it-traductions-fr.jsonl": ("translations", "it", "fr"),
+            # it-en's fallback: the English translations its Italian entries list
+            # (add-lingua-pack-it-en D2, D3) — 7,216,558 B, derived alike from the dumps of 2026-10-21 and 2026-10-24.
+            "kaikki-it-traductions-en.jsonl": ("translations", "it", "en"),
         },
     },
 }
@@ -338,6 +341,11 @@ DUMPS = {
         "fr": ("kaikki-fr-Italien.jsonl", "kaikki-fr-traductions-it.jsonl"),
         "it": ("kaikki-it-traductions-fr.jsonl",),
     },
+    # The English Wiktionary's Italian section, read for its English glosses — the file Italian's
+    # forms come from, pinned by it-en's own fetch (add-lingua-pack-it-en D3) — and the English
+    # translations the Italian Wiktionary's Italian entries list, the fallback (D2). No table read
+    # backwards; Italian's studied side is tables/it/ as committed, it-fr's.
+    "it-en": {"en": ("kaikki-Italian.jsonl",), "it": ("kaikki-it-traductions-en.jsonl",)},
 }
 # The source record of a pin written before the dumps: kaikki's per-language extract, kept whole as
 # a release asset (D5). Read as recorded, never written again.
@@ -493,7 +501,10 @@ def pairs(tables: Path, after: str | None = None) -> list[str]:
     A reference's first update (add-lingua-italian-forms-tables D9): its studied folder, committed
     by hand with the inputs no reducer writes, names it, and its own folder is not written yet — the
     update writes it whole. Named by `after`, it is that update's pair; it is no pair of the list
-    otherwise, having no tables to reduce again or check."""
+    otherwise, having no tables to reduce again or check. A reader pair's first update
+    (add-lingua-pack-it-en): a pair registered in `DUMPS`, with no folder yet, whose studied folder
+    names another pair, whose tables are there — it reads that folder as committed and writes its own
+    whole —, named by `after`, is that update's pair alone, and no pair of the list otherwise."""
     names = [folder.name for folder in folders(tables) if is_pair(folder)]
     if not names:
         raise PinError(f"{tables} holds no pair (a folder named <studied>-<native>)")
@@ -503,6 +514,8 @@ def pairs(tables: Path, after: str | None = None) -> list[str]:
         return ordered
     if after not in names and is_pair_name(after) and reference_of(tables / studied_of(after)) == after:
         return [after, *(n for n in ordered if studied_of(n) == studied_of(after))]
+    if after not in names and after in DUMPS and reference_of(tables / studied_of(after)) in set(names) - {after}:
+        return [after]
     if after not in names:
         raise PinError(f"{after} is no pair of {tables} ({', '.join(ordered)})")
     if refs.get(studied_of(after)) != after:
