@@ -923,7 +923,7 @@ inglés, en tu dispositivo » (373).
 | Description | 4000 | 3617 characters (3576 with the meanings' sentence as it is), below |
 | Keywords | 100 | 90 characters (94 bytes), below |
 | What's New | 4000 | 485 characters (430 without the voice), below |
-| Support URL | — | not recorded in this file (_Fields_: `/es/soporte/` or `/en/support/`, the owner's choice): Open Question 7 |
+| Support URL | — | `https://cymbra.app/es/soporte/`, the owner's choice of 2026-10-25 (Open Question 7; `apps/site/src/pages/es/soporte.md`) |
 
 The subtitle names three languages: « … mientras lees » no longer fits (`Inglés, francés o italiano
 mientras lees` is 40), so it goes, as the fr-FR subtitle's « en lisant » went for Italian (change 21,
@@ -936,8 +936,8 @@ D3) and the en-US one's « as you read » (change 26).
 ### Keywords, es-ES and es-MX (90 / 100; 94 bytes)
 
 With `italiano,` added the list would be 103 bytes. So `aprender`, the most general, gives way, as
-`words` did in English (change 26) — Open Question 2, recommended; the alternative, `tarjetas`
-giving way, is 94 bytes too: `inglés,francés,italiano,vocabulario,lectura,traducción,extensión,aprender,MCER,diccionario`.
+`words` did in English (change 26) — the owner's answer to Open Question 2 on 2026-10-25; the alternative, `tarjetas`
+giving way, was 94 bytes too: `inglés,francés,italiano,vocabulario,lectura,traducción,extensión,aprender,MCER,diccionario`.
 
 ```
 inglés,francés,italiano,vocabulario,lectura,traducción,extensión,MCER,tarjetas,diccionario
@@ -953,7 +953,7 @@ elige su nivel. »); LEER, the card's « pretérito perfecto simple de indicativ
 Italian nouns; REPASAR, Italian's levels said estimated (`levels_estimated`, change 14), as the
 requirement asks of a text that names levels; TRADUCCIÓN AMPLIADA, Italian through English and its
 sizes; the dictionary sentence, it-es's coverage being under en-es's at each top; the last line. The
-meanings' sentence names Wikidata (D6's option a, recommended, Open Question 5: +41); kept as it is
+meanings' sentence names Wikidata (D6's option a, the owner's answer to Open Question 5 on 2026-10-25: +41); kept as it is
 (option c), « Los significados proceden del Wikcionario, escritos por personas… », the text is 3576.
 
 ```
@@ -996,9 +996,9 @@ New — the release that ships French_); the rest of its notes is written with t
 « What's New ». The voice is change 15's (`PREFERRED_REGIONS.it`), « Lectura en voz alta » the
 Spanish catalogue's (`readAloud`, `src/i18n/es/settings.ts`), the estimated levels change 14's, the
 route through English change 2's. With the voice clause, as changes 21's and 26's paragraphs
-(recommended, Open Question 3); without it, « La lectura en voz alta lo lee con una voz de Italia, y
+(Open Question 3, settled on 2026-10-25 as the owner chose for changes 21 and 26); without it, « La lectura en voz alta lo lee con una voz de Italia, y
 la traducción ampliada » reads « La traducción ampliada » (430). fr-es's « , escrito por personas »
-is left out pending Open Question 5 (+22 if kept: 507). If change 30 does not offer it-es's
+is left out, the owner's choice of 2026-10-25 with Open Question 5 (+22 if kept: 507). If change 30 does not offer it-es's
 translation, the last clause goes (373). The French and English notes say nothing of it-es: their
 readers' languages do not move.
 
@@ -1025,7 +1025,7 @@ ticks it in step 6's box. Every step, the deletion path, every external service 
 still there. Pasted with change 30's submission; a submission before it pastes change 26's (or change
 21's) block.
 
-The alternative (Open Question 4): "Purpose & audience" compacted to « Readers study English, Spanish,
+The alternative, not taken (Open Question 4, settled on 2026-10-25 for D4's cuts): "Purpose & audience" compacted to « Readers study English, Spanish,
 French or Italian, other than their own. » (−32) — which over-claims for Italian speakers, as the
 sentence change 46 accepted already does —, the route « French to Spanish and Italian to French or
 Spanish chain two » (+11), the credits as above (+28) and step 4's cut (−12), the purpose kept:

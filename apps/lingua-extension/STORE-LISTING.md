@@ -842,16 +842,15 @@ The figures are `main`'s when the texts were written (change 31, D5; `main` at `
 **es** — for Spanish speakers, who study English, French and Italian: change 30 commits it to
 `_locales/es/messages.json` in the pull request that lists it-es, not before, and `yarn check:version`
 fails it once it-es is listed. Change 25's shape, « La web en inglés, francés o italiano: palabras
-desconocidas resaltadas, porcentaje honesto. Sin conexión y privado. », is 115 characters, over the
-112; change 30's recommended draft (its D6 and Open Question 1, the owner's words, M9), 109
-characters:
+desconocidas resaltadas, porcentaje honesto. Sin conexión y privado. », is 115 characters, over the 112. The owner chose on 2026-10-25 (change 30's Open Question 1) the draft that keeps
+« desconocidas » and drops « y privado », 105 characters:
 
-> La web en inglés, francés o italiano: palabras nuevas resaltadas, porcentaje honesto. Sin conexión y privado.
+> La web en inglés, francés o italiano: palabras desconocidas resaltadas, porcentaje honesto. Sin conexión.
 
-Should the owner choose one of change 30's other drafts — « Lee inglés, francés e italiano en la
-web: palabras desconocidas resaltadas, porcentaje honesto. Sin conexión. » (109) or « La web en
-inglés, francés o italiano: palabras desconocidas resaltadas, porcentaje honesto. Sin conexión. »
-(105) — or other words, this quote follows what change 30 commits. The French and English summaries
+Change 30's other drafts were « La web en inglés, francés o italiano: palabras nuevas resaltadas,
+porcentaje honesto. Sin conexión y privado. » (109) and « Lee inglés, francés e italiano en la web:
+palabras desconocidas resaltadas, porcentaje honesto. Sin conexión. » (109); should change 30 commit
+other words, this quote follows what it commits. The French and English summaries
 do not move with it-es: what their readers study is unchanged.
 
 ### ES, with Italian for Spanish speakers (3,604 / 16,000 characters)
@@ -862,8 +861,8 @@ Change 26's **ES, with fr-es** with Italian named wherever it says what a Spanis
 indicativo» » (change 18, pinned by `test/baseline/word-card-it-es.txt`), and the gender of Italian
 nouns; the levels, Italian's estimated; the translation, Italian through English, and its sizes; the
 dictionary sentence. « Elige en los Ajustes los idiomas que estudias… » and the last two lines do not
-move. The meanings' sentence names Wikidata (D6's option a, the recommended answer to Open Question
-5, +41): « Los significados proceden del Wikcionario y, para el italiano, también de Wikidata,
+move. The meanings' sentence names Wikidata (D6's option a, the owner's answer to Open Question 5 on
+2026-10-25, +41): « Los significados proceden del Wikcionario y, para el italiano, también de Wikidata,
 escritos por personas… »; kept as it is (option c), the text is 3,563.
 
 Cymbra Lingua resalta, en la misma página que estás leyendo, las palabras en inglés, en francés o en
@@ -1023,7 +1022,7 @@ once change 30 lists it-es after it-en in `packs.json` (D6):
 
 Italian for Spanish speakers adds no capture to the browser stores (D7): the `es` set is at the Chrome
 Web Store's cap of five, its second capture on a French page; moving it to an Italian page would need
-Italian capture fixtures and move the site's Spanish alt text (change 31's Open Question 6). The App
+Italian capture fixtures and move the site's Spanish alt text (change 31's Open Question 6, the owner keeping the set unchanged on 2026-10-25). The App
 Store's es-ES set gains one on an Italian page (`apps/lingua-apple/STORE-LISTING.md`).
 
 ### The dashboards' languages: Italian for Spanish speakers (change 30's submission)
