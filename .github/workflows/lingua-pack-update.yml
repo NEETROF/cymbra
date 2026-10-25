@@ -378,7 +378,7 @@ jobs:
           git switch -c "$branch"
           # The invariance baselines follow the dictionary (docs/lingua/spanish-programme.md,
           # docs/lingua/language-matrix-programme.md): re-blessed here, so the pull request shows
-          # what the update changes in English and Spanish output. All seven, whatever the pair:
+          # what the update changes in English and Spanish output. All eight, whatever the pair:
           # the Spanish ladder borrows English's figures from the en-fr pack, es-en's golden
           # moves with es-fr's studied tables (change 23) and en-es's with en-fr's (change 24).
           # Once, whatever the pairs.
@@ -388,18 +388,20 @@ jobs:
           # with en-es (its `beside en-es` line). And the Italian one (add-lingua-italian-baseline
           # D9): it runs over the committed it-fr tables since add-lingua-pack-it-fr, so an it-fr
           # update moves it, and its engine holds the real en-fr pack beside, so an en-fr update
-          # moves its `beside en-fr` line.
-          LINGUA_BLESS=1 cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline --test fr_es_baseline --test italian_baseline
+          # moves its `beside en-fr` line. And it-en's (add-lingua-pack-it-en D9), which moves with
+          # it-en and with Italian's studied tables.
+          LINGUA_BLESS=1 cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline --test fr_es_baseline --test italian_baseline --test it_en_baseline
           # The extension's snapshots follow them (add-lingua-english-card-wording D2, D4,
           # add-lingua-spanish-card-wording D2): the English card's lines over the es-en golden's
           # grammar probes, the Spanish card's over the en-es golden's, the French card's in
           # English and in Spanish over the fr-en and fr-es goldens' grammar and phrase probes
           # (add-lingua-french-word-card D9), the Italian card's in French over the it-fr golden's
-          # (add-lingua-italian-word-card D6), and the selection card's rows over the committed
+          # (add-lingua-italian-word-card D6) and in English over the it-en golden's
+          # (add-lingua-pack-it-en D9), and the selection card's rows over the committed
           # French glosses. `-u` after the files: vitest's `-u, --update [type]` takes an optional
           # value, so `-u <file>` would read the first file as that value and run the others
           # alone, leaving the first snapshot as it was.
-          (cd apps/lingua-extension && yarn vitest run test/word-card-es-en.spec.ts test/word-card-en-es.spec.ts test/word-card-fr-en.spec.ts test/word-card-fr-es.spec.ts test/word-card-it-fr.spec.ts test/row-gloss-tables.spec.ts -u)
+          (cd apps/lingua-extension && yarn vitest run test/word-card-es-en.spec.ts test/word-card-en-es.spec.ts test/word-card-fr-en.spec.ts test/word-card-fr-es.spec.ts test/word-card-it-fr.spec.ts test/word-card-it-en.spec.ts test/row-gloss-tables.spec.ts -u)
           # The site's coverage figures follow the tables (add-site-lingua-spanish-pages D3).
           python scripts/lingua-data/gloss_coverage.py --write
           if [ "$EXPECT" = identical ]; then

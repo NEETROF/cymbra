@@ -1193,7 +1193,7 @@ class Legacy(unittest.TestCase):
             return f"sha256:{digest}\n".encode()
 
         committed = sorted(p.parent.name for p in (HERE / "tables").glob("*/pin.json"))
-        self.assertEqual(committed, ["en-es", "en-fr", "es-en", "es-fr", "fr-en", "fr-es", "it-fr"])
+        self.assertEqual(committed, ["en-es", "en-fr", "es-en", "es-fr", "fr-en", "fr-es", "it-en", "it-fr"])
         for pair in committed:
             pin = self.tables / pair / "pin.json"
             pin.parent.mkdir(parents=True)
@@ -1239,7 +1239,7 @@ class Legacy(unittest.TestCase):
                 f"{pair}: every asset of its records",
             )
             # en-es, fr-en, fr-es and it-fr were born on the dumps: no extract of their own.
-            self.assertEqual("kaikki" in sources, pair not in ("en-es", "fr-en", "fr-es", "it-fr"), f"{pair}: its legacy extract record")
+            self.assertEqual("kaikki" in sources, pair not in ("en-es", "fr-en", "fr-es", "it-fr", "it-en"), f"{pair}: its legacy extract record")
         self.assertEqual(
             sorted(p.name for p in (self.work / "es-en").iterdir() if p.suffix == ".jsonl"),
             ["kaikki-Spanish.jsonl", "kaikki-es-traductions-en.jsonl"],
@@ -2696,9 +2696,11 @@ class Record(unittest.TestCase):
         # en-es, which reads tables/en, after en-fr (add-lingua-pack-en-es); fr-en, French's reference,
         # among the references (add-lingua-french-forms-tables); fr-es, which reads tables/fr, after
         # it (add-lingua-pack-fr-es): fr-en's update brings it along. it-fr, Italian's reference, among
-        # the references (add-lingua-italian-forms-tables D9).
-        self.assertEqual(ps.pairs(HERE / "tables"), ["en-fr", "es-fr", "fr-en", "it-fr", "en-es", "es-en", "fr-es"])
-        self.assertEqual(ps.pairs(HERE / "tables", after="it-fr"), ["it-fr"])
+        # the references (add-lingua-italian-forms-tables D9); it-en, which reads tables/it, after it
+        # (add-lingua-pack-it-en): it-fr's update brings it along.
+        self.assertEqual(ps.pairs(HERE / "tables"), ["en-fr", "es-fr", "fr-en", "it-fr", "en-es", "es-en", "fr-es", "it-en"])
+        self.assertEqual(ps.pairs(HERE / "tables", after="it-fr"), ["it-fr", "it-en"])
+        self.assertEqual(ps.pairs(HERE / "tables", after="it-en"), ["it-en"])
         self.assertEqual(ps.pairs(HERE / "tables", after="fr-en"), ["fr-en", "fr-es"])
         self.assertEqual(ps.pairs(HERE / "tables", after="fr-es"), ["fr-es"])
         self.assertEqual(ps.pairs(HERE / "tables", after="es-fr"), ["es-fr", "es-en"])
