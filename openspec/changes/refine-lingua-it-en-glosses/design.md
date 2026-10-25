@@ -460,12 +460,14 @@ The three questions of tasks group 0, answered by Guillaume on 2026-10-25, each 
   row opening on its first sense the page does not mark archaic, obsolete, dated or historical — and the
   19 rows of `FIRST_RUN` as proposed. Six rows were added after that answer, on the review of #1065
   (`dì`, `contrastare`, `contea`, `pro`, `parlamento`, `ce`: D2b and D3 opened them on a lesser sense);
-  the owner approves them with the gloss diff at implementation.
+  the owner approves them with the gloss diff at implementation. **Approved by the owner on
+  2026-10-25**: the six rows, the table's 25 rows in all.
 - **Q2, names, given names and towns beside common words** (D6): (a), the notes taken off common words,
   Massa and Andria kept. The review of #1065 then narrowed the rule without changing that answer: a row
   holding only names keeps its surname (`garibaldi`, `clinton`), a town opening its row stays — so Andria
   is kept by the rule and `TOWNS_KEPT` holds Massa alone —, and « city » means the place itself. One
   consequence to read: towns a common word opens (`cassino`, `piombino`, `faenza`, `sora`) still go.
+  **Approved by the owner on 2026-10-25**: these towns go, as planned.
 - **Q3, four feminine words** (D5): (a), `amica` « friend », `bambina` « girl, little girl », `compagna`
   « companion, partner », `spagnola` « Spaniard » by `CORRECTIONS`, each suggested upstream.
 

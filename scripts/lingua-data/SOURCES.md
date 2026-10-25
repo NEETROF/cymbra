@@ -820,9 +820,11 @@ it reads Italian's studied side — `tables/it/`, which it-fr's reduction writes
 computes nothing of it, and writes its native side alone; its pin records the studied tables it read,
 so an it-fr reduction that moves one fails it-en's checks until it-en is reduced again (`pairs --after
 it-fr` brings it along). Its rule digest is `reduce-it-en.py`, `reduce_common.py`,
-`reduce_edition_en.py`, `reduce_italian_acronyms.py` and `reduce_italian_en.py`, it-en's own pre-pass:
-an edit of either of the last two re-pins it-en alone among the pairs glossed in English, an edit of
-the English edition es-en, fr-en and it-en. No package carries it-en (`packs.json` is unchanged, change
+`reduce_edition_en.py`, `reduce_italian_acronyms.py` and `reduce_italian_en.py`, it-en's own pre-pass —
+and, since change 23, the two treebank modules it-fr imports too, `reduce_french_treebank.py` and
+`reduce_italian_treebank.py` —: an edit of it-en's reducer or pre-pass re-pins it-en alone among the
+pairs glossed in English, an edit of the English edition es-en, fr-en and it-en, an edit of a treebank
+module it-en with the pairs that import it. No package carries it-en (`packs.json` is unchanged, change
 25 lists it). Its first update writes its folder whole: the pull request that registers it carries
 none (`pairs --after it-en` names a registered reader pair whose reference's tables are committed).
 
@@ -856,6 +858,65 @@ pinned sources after change 17 (refine-lingua-it-fr-glosses) moved Italian's stu
 unchanged: 33,199 glosses (17 lemmas left the ranks — `vado`, `sto`, `signor`, `od` … —, 7 joined —
 `dati`, `lega`, `prova` …), coverage 91.3 / 84.2 / 75.8 %, the pack 2,467,552 B, its base it-fr's new one
 (1,551,196 B), its layer 916,596 B.
+
+### IT → EN: it-en's glosses refined (refine-lingua-it-en-glosses)
+
+Change 23 of `docs/lingua/italian-programme.md`: rules of it-en's own modules (`reduce_italian_en.py`,
+`reduce-it-en.py`), each measured alone against change 22's committed rows, no shared, English-edition,
+acronym or treebank module edited, so that only it-en re-pins. A pass of `read_as_italian` reads each
+headword's entries together (`HeadwordPass`), every case of it, a row the rules reorder written where its
+first entry stood and every other entry as its line was:
+
+- **one more source, at a commit** (D1): UD Italian-MarkIT's training and development sections, the files
+  it-fr's pin records (`PINNED["it-en"]` names `ITALIAN_MARKIT`; it-en's `pin.json` records them by hand,
+  it-fr's url and sha256, `4f6fc342…` and `633b6186…`), read through `held_out` for the part of speech a
+  function word's row opens on and for nothing else; CC BY 4.0, which it-en's notice already credits for
+  the studied side. Its test section and UD Italian-PUD are never read;
+- **a row's order** (D2): a function word's row opens on the part of speech MarkIT reads it as at least
+  10 times and twice as often as the section's first — fr-en's rule
+  (`reduce_french_treebank.commonest_first`) over `reduce_italian_treebank.markit_pos_counts`, imported
+  as it-fr imports them —; a row opening on a meaning the section marks archaic, obsolete, dated or
+  historical opens on its first meaning that is not; **`FIRST_RUN`**, a reviewed table keyed by the
+  headword's case, a part of speech and the sense the row opens on (a sense the section nests under
+  another read by its own text), opens 25 rows on the sense it names — `come`, `loro`, `bene`, `gente`,
+  `piano`, `forte`, `partito`, `squadra`, `presto`, `valore`, `testo`, `usato`, `morire`, `medio`,
+  `prego`, `stazione`, `tratta`, `signore`, `compagno`, and `dì`, `contrastare`, `contea`, `pro`,
+  `parlamento`, `ce`, approved by the owner on 2026-10-25 —; the reduction fails on a row whose sense it
+  does not find;
+- **pointers** (D3): a labelled form or spelling (« Marche, Milan, Rome, and Venice form of di »,
+  « proscribed spelling of ché »), a clitic compound — its meaning after its closing full stop read where
+  it writes one —, a truncation and an untagged alternative form are pointers to their word; a pointer to
+  a word of one or two letters lends that word's meanings of its part of speech after the row's own,
+  within the eight-sense bound, none tagged regional, dialectal or outdated, none the row says already;
+- **carried meanings** (D4): a meaning nested under a degree's wording, a degree's and a clipping's carried
+  meaning wherever they stand, a plural's beside another part of speech;
+- **names' notes** (D6): a surname's note off a row whose word holds a common meaning, a given name's off
+  a row a common word opens, a town's, a comune's, a village's, a hamlet's, a frazione's or a
+  municipality's off a common word unless the row opens on it, the place is a city or a capital itself,
+  or a town and province — and **`TOWNS_KEPT`**, the owner's (2026-10-25): `massa`, the capital of
+  Massa-Carrara, which the section calls a town alone;
+- **the page's notes and typography** (D7): `lo`'s usage note read by its last clause, a list marker
+  out, a quoted opener read as its meaning, « etc » with its period;
+- **`CORRECTIONS`** (D8), it-fr's reviewed shape for it-en, each keyed by the source, the headword, its
+  part of speech and its texts as the pinned files write them — one that finds nothing is named on the
+  reduction's report line, to be removed —: the Italian Wiktionary's `all'antica` loses « anshent », a
+  jocular spelling (to report at https://it.wiktionary.org/wiki/all%27antica); and, the owner's answer
+  (task 0.3), four feminine nouns whose « female equivalent of » pointer lends nothing gain the person's
+  meaning in a source's words, read before the section's own senses, each suggested to the English
+  Wiktionary: `amica` « friend » (`amico`'s first sense; https://en.wiktionary.org/wiki/amica#Italian),
+  `bambina` « girl, little girl » (https://en.wiktionary.org/wiki/bambina#Italian) and `compagna`
+  « companion, partner » (https://en.wiktionary.org/wiki/compagna#Italian), the Italian Wiktionary's
+  translations, and `spagnola` « Spaniard » (the noun `spagnolo`'s;
+  https://en.wiktionary.org/wiki/spagnola#Italian).
+
+**Predicted at implementation** (2026-10-25, reduced locally by `build.sh --reduce it-en` from it-en's
+pinned sources — the release `lingua-pack-sources-it-en-2026.10.25` and MarkIT at `e210079d` —, Python
+3.12 and `requirements-reduce.txt`): 1,581 rows of `gloss.tsv` change (133 / 302 / 601 / 545 of the
+1,000 / 5,000 / 20,000 commonest and beyond), 345 in their first sense, no lemma gained or lost — the
+design's 1,578 and 341, and the four corrections on top —; 19 expressions; coverage 91.3 / 84.2 / 75.8 %,
+as before; the pack 2,461,303 B (sha256 `b52a046f…`), its base it-fr's, byte for byte (1,551,196 B), its
+layer 910,347 B (`86ca8627…`), at `pack_version` `2026.10.25+15b6fb2.442fd70`. Only it-en re-pins:
+`tables/it/` and the seven other pairs' tables, pins and packs do not move.
 
 ## IT → ES: Italian glossed in Spanish
 
