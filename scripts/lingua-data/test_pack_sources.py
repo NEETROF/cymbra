@@ -1481,15 +1481,17 @@ class DumpsOnly(unittest.TestCase):
         # Italian's forms come from, pinned by it-en's own fetch, as fr-en pins its own — and the English
         # translations the Italian Wiktionary's Italian entries list, its fallback, a new file of the
         # Italian edition's catalogue. No table read backwards: the English Wiktionary's Italian
-        # translations are in no catalogue. Nothing pinned at a commit: Italian's studied side is
-        # tables/it/ as committed, it-fr's.
+        # translations are in no catalogue. Italian's studied side is tables/it/ as committed, it-fr's;
+        # pinned at a commit, MarkIT's two sections alone, it-fr's, read for the part of speech a function
+        # word's row opens on (refine-lingua-it-en-glosses D1), as fr-es pins fr-en's UD French-GSD.
         self.assertEqual(ps.DUMPS["it-en"], {"en": ("kaikki-Italian.jsonl",), "it": ("kaikki-it-traductions-en.jsonl",)})
         ps.check_registered("it-en")
         self.assertEqual(catalogue("it-en", "en"), {"kaikki-Italian.jsonl": ("entries", "it")})
         self.assertEqual(catalogue("it-en", "it"), {"kaikki-it-traductions-en.jsonl": ("translations", "it", "en")})
         backwards = "kaikki-en-traductions-it.jsonl"
         self.assertFalse([e for e, spec in ps.EDITIONS.items() if backwards in spec["files"]], backwards)
-        self.assertNotIn("it-en", ps.PINNED)
+        self.assertEqual(ps.PINNED["it-en"], {name: ps.PINNED["it-fr"][name] for name in ("markit-train", "markit-dev")})
+        self.assertEqual(ps.PINNED["it-en"], ps.ITALIAN_MARKIT)
         self.assertNotIn("it-en", ps.ESDB)
         # it-en and it-fr read the same section, each pinning its own fetch (add-lingua-pack-es-en D2).
         self.assertEqual(ps.DUMPS["it-en"]["en"], ps.DUMPS["it-fr"]["en"])
