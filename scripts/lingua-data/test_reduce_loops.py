@@ -673,7 +673,7 @@ class Loops(unittest.TestCase):
     def test_a_french_dispatch_runs_in_the_fr_group(self):
         workflow = WORKFLOWS / "lingua-pack-update.yml"
         text = workflow.read_text(encoding="utf-8")
-        self.assertIn("options: [en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr, all]", text)
+        self.assertIn("options: [en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr, it-en, all]", text)
         groups = {pair: concurrency_group(workflow, pair) for pair in ("en-fr", "en-es", "es-fr", "es-en", "fr-en", "fr-es", "all", "")}
         self.assertEqual(
             groups,
@@ -723,6 +723,43 @@ class Loops(unittest.TestCase):
         self.assertEqual(sorted(reports), ["it", "it-fr"])
         self.assertIn(f"report {self.temp}/committed/it-fr scripts/lingua-data/tables/it-fr ", reports["it-fr"])
         self.assertIn("'forms.tsv': 'casa\\tcasa'", reports["it"])
+
+    def test_spec_scenario_it_en_s_first_update(self):
+        """it-en (add-lingua-pack-it-en D3): registered, reduced after it-fr, its first update writing its
+        folder whole — the pull request carries none."""
+        self.italian_before_its_first_update()
+        (self.tables / "it-fr").mkdir()
+        (self.tables / "it-fr" / "pin.json").write_text("{}\n")
+        # Before its first update, it-en is no pair of any run, it-fr's update brings nothing along.
+        done = self.reduce_job()
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertNotIn("reduce it-en", self.built())
+        self.log.unlink()
+        done = self.update("update", "it-fr")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(self.built(), ["update it-fr"])
+        self.log.unlink()
+        # Dispatched, its update runs with no folder of its own: reduced alone, reported against none,
+        # its raw sources kept for the release step.
+        shutil.rmtree(self.temp / "committed")
+        shutil.rmtree(self.data / "work")
+        done = self.update("update", "it-en")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(self.built(), ["update it-en"])
+        self.assertEqual(self.kept_work(), ["it-en"])
+        self.assertEqual(list((self.temp / "committed" / "it-en").iterdir()), [], "reported against no tables")
+        self.log.unlink()
+        # Once committed, it-fr's update brings it along, reduced again from its own pin, after it-fr —
+        # and every pair's runs reduce it after the references.
+        (self.tables / "it-en").mkdir()
+        (self.tables / "it-en" / "pin.json").write_text("{}\n")
+        done = self.update("update", "it-fr")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(self.built(), ["update it-fr", "reduce it-en"])
+        self.log.unlink()
+        done = self.reduce_job()
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(self.built()[-2:], ["reduce es-en", "reduce it-en"])
 
     def test_an_italian_dispatch_runs_in_the_it_group(self):
         workflow = WORKFLOWS / "lingua-pack-update.yml"
