@@ -89,12 +89,12 @@ None.
 - `lingua-data-packs`: ADDED — *Italian is glossed in French from the French Wiktionary's Italian
   section and the translation tables* and *it-fr is committed at its studied tables' snapshot, held
   to a coverage floor, and the Italian baseline runs on it*. Change 11's acronym requirement and
-  change 12's expression requirements are implemented here, not modified; both changes archive after
-  this one (their `.openspec.yaml` gains it in this pull request, as their tasks ask). This change
+  change 12's expression requirements are implemented here, not modified; change 12 archives after
+  this one (its `.openspec.yaml` gains it in this pull request, as its task asks), and change 11,
+  which first did too, archives before it since 2026-10-25 (that edge closed a cycle with change 14:
+  change 11's design, *The archive order*). This change
   archives after changes 5 and 9, after change 24c whose rule it reads, and after the fr-en and
-  fr-es changes whose shape and floor rule it follows. Changes 13 and 14 are not named: each archives
-  after change 11, which archives after this one (16 → 13 → 11 → 16, 16 → 14 → 11 → 16), so this
-  change archives before them anyway.
+  fr-es changes whose shape and floor rule it follows. Change 14 is in its `archiveAfter` (its requirement is named here); change 13 is not named.
 
 ## Impact
 

@@ -195,7 +195,7 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 1 | 14 | `add-lingua-italian-levels` (I8): the estimated ladder | 1.5–3 | 46 | Proposal merged ([#985](https://github.com/NEETROF/cymbra/pull/985)); implemented ([#1048](https://github.com/NEETROF/cymbra/pull/1048)): 8,302 levels estimated, it-fr reduced again (run 40076411096) |
 | 1 | 15 | `add-lingua-italian-read-aloud`: it-IT and it-CH voices | 1–2 | 47 | Proposal merged ([#986](https://github.com/NEETROF/cymbra/pull/986)); implemented ([#1050](https://github.com/NEETROF/cymbra/pull/1050)); the on-device checks wait for change 20's dogfood |
 | 1 | 16 | `add-lingua-pack-it-fr`: the French Wiktionary's Italian section; coverage committed; the dictionary words, which narrow change 14's levels | 3–5 | 48 | Proposal merged ([#987](https://github.com/NEETROF/cymbra/pull/987)); implemented ([#1054](https://github.com/NEETROF/cymbra/pull/1054)): 32,691 glosses, coverage 89.2 / 81.8 / 73.3 against the floor 87.2 / 79.8 / 71.3 (run 40130354122) |
-| 1 | 17 | `refine-lingua-it-fr-glosses`: change 16's *Known data defects* | 2–3.5 | 48b | Waits for change 16's committed it-fr tables: its defects are measured on them |
+| 1 | 17 | `refine-lingua-it-fr-glosses`: change 16's *Known data defects*, measured on its committed tables — MarkIT's order for a function word's row, names, notes and examples kept off common words, pointers read, the `di` family, `CORRECTIONS` (`che`, `dirotto`), the forms and readings changes 9, 11 and 13 left (`sto`, `vado`, `viti`, `usa`, `fate`), and the four requirements of changes 9, 11 and 16 it modifies | 3–4.5 | 48b | Proposal ([#1056](https://github.com/NEETROF/cymbra/pull/1056)); the owner's answers given on 2026-10-25 (`dato` stays *dare*, `dati` its own lemma glossed « Données »); the archive-order cycle 11 → 16 → 14 → 11 broken there |
 | 1 | 18 | `add-lingua-italian-word-card`: readings and tense names of an Italian word, in French, English and Spanish | 3.5–6 | 51 | Proposal merged ([#988](https://github.com/NEETROF/cymbra/pull/988)); implemented ([#1055](https://github.com/NEETROF/cymbra/pull/1055)) |
 | 1 | 19 | `measure-lingua-it-fr-translation-marks` | 1–2 | 26, 50 | Proposal merged ([#990](https://github.com/NEETROF/cymbra/pull/990)); implemented ([#1039](https://github.com/NEETROF/cymbra/pull/1039)): 93 of 97 correct, 3 % withheld, 89 of 97 strict — on the first tier, listed in `MARKED_PAIRS`, inert until row 20 |
 | 1 | 20 | `enable-lingua-italian` (it-fr): packs.json, the five targets, the owner's go-ahead | 4–7.5 | 52 | Proposal merged ([#992](https://github.com/NEETROF/cymbra/pull/992)); its dogfood runs change 15's on-device checklist (`add-lingua-italian-read-aloud` D7, task 4.1, not run there): the measured cases — the card of `l'` in « L'uomo » heard « L'uomo », « dell'acqua », `a` of « al » heard « al », « po' » and « da' » as written, « perche' » heard « perché », `c'` of « non c'e' problema » heard « c'è », « E' vero » heard « È. », « è » heard « è. », « E » heard « E. »; since change 11a, « de' », « que' », « Ca' », « mo' » (`modo` and `mò`), « a' », « co' », « su' », both `in` and `i` of « ne' campi », « da' » as the verb (« mi da' una mano ») and as the preposition (« da' primi suoi anni »), « trent'anni », « qual'è »; the capitals « A », « I », « O » heard « A. », « I. », « O. » (a non-Apple voice may read the stop as an initial's), and « A' » of « A' piedi » heard « A'. »; « l'8 marzo » heard « l'otto marzo »; and a lone « é » / « É », left without its stop — a decision for this dogfood: speak « è. » / « È. » (the label unchanged) if Alice names the letter — heard with Alice on macOS and iOS, with Google's voice on Chrome, Android's on Firefox for Android, and an installed Windows Italian voice on Chrome for Windows; Réglages: Alice automatic and the Eloquence voices under « Autres voix » on Chrome for macOS, « — Italie » for Firefox for Android's voices, the no-voice sentence and « Italien (Italie) » on Chrome for Windows |
@@ -237,11 +237,21 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 5 Wording | 55 | `refine-lingua-italian-wording`: the corrections dogfood brings, in every language | 1.5–3 | 54 | Waits for the dogfood passes' findings |
 | 5 | 56 | `amend-lingua-youtube-captions-italian`: an in-place amendment of the two open YouTube changes (`add-lingua-youtube-captions`, `add-lingua-youtube-caption-translation`), as the matrix's #904 and the Spanish programme's #674 did — Italian captions kept out (Scope), the mode offered to an Italian speaker who studies English, YouTube's translation into Italian, Italian copy and privacy annex where they exist; if YouTube ships before change 45, change 45's dogfood checks the Italian caption mode, and change 46's Italian description names it; the main spec's `lingua-privacy` three-language sentence is unassigned, left to the next change that touches it | 0.5–1 | 57 | Done ([#1031](https://github.com/NEETROF/cymbra/pull/1031)) |
 
-**Size.** 58 changes, 148.25–266 ideal days: stage 0 7.75–12.75, stage 1 53.5–94, stage 2 26.5–48,
+**Size.** 58 changes, 149.25–267 ideal days: stage 0 7.75–12.75, stage 1 54.5–95, stage 2 26.5–48,
 stage 3 35–62, stage 4 23.5–45.25, stage 5 2–4. Stage 0 and 1 together — the split, then Italian
-for today's French-speaking readers — are 61–107. The matrix programme's 57 changes were estimated at 175–311; its French stage
+for today's French-speaking readers — are 62–108. The matrix programme's 57 changes were estimated at 175–311; its French stage
 merged in two calendar days of bursts. The calendar here is set the same way: by reviews, dogfood,
 the model host's deploys and the store submissions, not by the volume of code.
+
+## Backlog
+
+Not yet a change of the programme; each is to be proposed, or dropped, by the owner.
+
+- **Italian's analysis, from change 17's measurement** (`refine-lingua-it-fr-glosses`, its D13): a
+  capital after a title's abbreviation read as a capital in mid-sentence (« Dott. Esposito », « Prof.
+  Ferrari », which the names rule cannot set aside today); the press's acronyms written as words
+  (« la Nato », « gli Usa »: 5 and 1 in change 11's corpora); two acronyms joined by a one-letter word
+  (« tra USA e NATO »); « dai retta » and « da' retta » read as the verb, so that `dare retta` matches.
 
 ## Rules every change of the programme follows
 
