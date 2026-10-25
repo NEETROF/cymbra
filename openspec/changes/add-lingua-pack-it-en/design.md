@@ -483,7 +483,8 @@ predicted tables by an Italian–English reading of the 300 commonest rows and o
   Venice form of di »; `el` (842) « archaic, regional, and Rome form of il »; `minimo` (950) « superlative
   degree of piccolo », untagged; `ce` (198) « reinforcing particle, “do” ».
 - **A pointer that lends nothing**: `vado` (451) « ford; dyer's woad… », where it-fr reads *andare*'s
-  « aller » (Italian's forms: change 17); the feminine nouns whose « female equivalent of X » lends
+  « aller » — settled by change 17's forms, which read `vado` as *andare*'s since (*The re-reduction
+  after change 17*, below); the feminine nouns whose « female equivalent of X » lends
   nothing beside another sense — 73 such senses among the 20,000 —, the harmful ones `amica` (881)
   « girlfriend » alone, `bambina` (1,481) « babe », `compagna` (2,815) « wife, spouse », `spagnola`
   (2,546) « Spanish influenza; … », `svizzera` (1,450) « Switzerland; hamburger », `fiorentina` (3,247)
@@ -496,3 +497,17 @@ predicted tables by an Italian–English reading of the 300 commonest rows and o
   glosses a French expression in fr-en, while fr-en's expressions read the French Wiktionary's English
   translations since add-lingua-fr-en-translated-expressions (D6); the contradiction is inherited from
   `add-lingua-pack-fr-en`, copied whole as D11 asks, and is that requirement's holder's to settle.
+
+### The re-reduction after change 17
+
+Change 17 (`refine-lingua-it-fr-glosses`, #1062) moved Italian's studied tables after it-en's update of
+2026-10-25 (run 40183685031, the prediction byte for byte) committed it-en's: its pin no longer named the
+studied tables it was built on, so it-en is reduced again from the same pinned sources (mode `reduce`), its
+rules unchanged (`7f4aed6…`). Predicted locally: 17 lemmas leave the ranks — `vado`, `sto`, `sapete`,
+`signor`, `od` and twelve rarer, now forms of their words — and 7 join (`dati`, `lega`, `prova`, and four
+past the 59,970th); no other row moves, nor any expression. 33,199 glosses (33,004 from the section);
+coverage 91.3 / 84.2 / **75.8** %; `gloss.tsv` `12651f9d…`, `senses.tsv` `d3f2b48a…`, `mwe.tsv` and `NOTICE`
+unchanged; `pack_version` `2026.10.25+7f4aed6.442fd70`; the pack 2,467,552 B (`da05f554…`), its base
+1,551,196 B — it-fr's new base, `b1301e06…` —, its layer 916,596 B. The golden moves in seven probes (the
+pack line, two pages' analyses, the vocabulary estimates, the card export and the backup); the English
+card's snapshot does not move.

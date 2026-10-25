@@ -28,9 +28,10 @@ In this folder:
 
 ## What is in them
 
-<!-- Measured on the committed tables of the update of 2026-10-25 (run 40183685031), byte for byte the implementation's prediction. -->
+<!-- Measured on the tables reduced again from the pinned sources of the update of 2026-10-25 (run
+40183685031) after change 17 (refine-lingua-it-fr-glosses) moved Italian's studied tables. -->
 
-- **English glosses for 33,209 lemmas** of Italian's 60,000 — 33,014 from the English Wiktionary's
+- **English glosses for 33,199 lemmas** of Italian's 60,000 — 33,004 from the English Wiktionary's
   Italian section, 194 from the Italian Wiktionary's translations, and `USA`, glossed through its
   synonyms (`America`, `Stati Uniti`) — and **9,831 expressions**: 8,542 headwords with a space from
   the section, 1,194 from the Italian Wiktionary, and 95 words Italian's pre-pass splits (93 from the
@@ -45,15 +46,18 @@ In this folder:
   |---|---|---|---|
   | top 5,000 | 90.9 % | 91.3 % | 89.3 % |
   | top 10,000 | 83.8 % | 84.2 % | 82.2 % |
-  | top 20,000 | 75.3 % | 75.7 % | 73.7 % |
+  | top 20,000 | 75.3 % | 75.8 % | 73.7 % |
   | all 60,000 | — | 55.3 % | — |
 
-  Of the 8,423 lemmas glossed among the 10,000 commonest, 0.5 % (45) come from the Italian Wiktionary.
-- **Dictionary words are it-fr's**: 9,627 lemmas it-en glosses are no dictionary word of Italian (4,524
-  of them glossed by a proper noun's senses alone), and 634 dictionary words have no English gloss, so
+  Of the 8,425 lemmas glossed among the 10,000 commonest, 0.5 % (45) come from the Italian Wiktionary.
+- **Dictionary words are it-fr's**: 9,568 lemmas it-en glosses are no dictionary word of Italian (4,523
+  of them glossed by a proper noun's senses alone), and 636 dictionary words have no English gloss, so
   the pack carries a lexical section, and the vocabulary estimate counts the same words as it-fr's.
-- **The pack is 2,467,844 B**, 47.1 % of the 5 MiB budget: Italian's base, 1,551,534 B, byte for byte
-  it-fr's, and it-en's layer, 916,550 B.
+- **The pack is 2,467,552 B**, 47.1 % of the 5 MiB budget: Italian's base, 1,551,196 B, byte for byte
+  it-fr's, and it-en's layer, 916,596 B.
+- **Reduced again after change 17**, whose forms moved Italian's studied tables: 17 lemmas left the
+  ranks — `vado`, `sto`, `sapete`, `signor`, `od` among them, now forms of their words — and 7 joined
+  (`dati`, `lega`, `prova`, and four past the 59,970th); no other row moved.
 
 ## Its sources
 
@@ -104,105 +108,105 @@ section, « it wikt » the Italian Wiktionary's translations. Long glosses are c
 | Rank | Lemma | Source | Gloss |
 |---:|---|---|---|
 | 47 | `degli` | section | of the, from the |
-| 213 | `dare` | section | to give (to transfer the possession/holding of something to someone else); to yield, to bear, to produce, to … |
-| 312 | `sociale` | section | social, societal; partnership, company, form, corporate; society, social issues (social issues); social activ… |
+| 213 | `piano` | section | plane; of any of the popes named Pius, Pian; flat, level; plain; slowly; carefully; a surname; floor, storey … |
+| 312 | `regione` | section | region, area, zone, district; region (Italian administrative unit and local government); region |
 | 558 | `chiedere` | section | to ask (for); to ask, request; to ask [with di ‘about (someone)’] |
 | 612 | `signore` | section | lord (ruler); Mister or Sir; master; Lord, God; used to address a lover: beloved; used to address a man: sir … |
-| 725 | `santa` | section | Saint; saint; Saint (before a name of a saint or in place names, as Santa ) |
-| 806 | `disposizione` | section | disposal; disposition, arrangement, placing; order, direction, instruction, regulation, provision; gift, (nat… |
-| 946 | `fenomeno` | section | phenomenon |
-| 956 | `specialmente` | section | especially, particularly, mainly |
-| 1015 | `frattempo` | section | meantime |
+| 725 | `provare` | section | to try, to try out, to test; to try, to attempt; to feel, to experience; to prove, to demonstrate, to show; t… |
+| 806 | `discussione` | section | discussion; argument; quarrel |
+| 946 | `europeo` | section | European |
+| 956 | `signora` | section | lady; Mrs, Lady; a title of address for women, madam (ladies is used for the plural); madam (ladies is used f… |
+| 1015 | `elettorale` | section | election, electoral; ballot, polling |
 | 1032 | `inferiore` | section | inferior |
 | 1245 | `esistenza` | section | existence; life |
 | 1285 | `pianeta` | section | planet; chasuble, vestment |
 | 1290 | `sensazione` | section | sensation, feeling |
 | 1359 | `biglietto` | section | ticket; card; note, slip; billet; note, banknote, bill; a surname |
-| 1459 | `elemento` | section | element |
-| 1466 | `ossia` | section | that is, to be precise (used to introduce a clarification or explanation); or rather |
-| 1988 | `probabilità` | section | probability, likelihood, odds, chance |
-| 2269 | `destro` | section | clever, able, dexterous; right, right-hand; right, just; favourable/favorable; right; right foot; members of … |
-| 2409 | `home` | section | home (initial position of various computing objects) |
-| 2757 | `fallo` | section | fault, error; phallus; any member of the Phallus taxonomic genus; foul; compound of fa', the second-person si… |
-| 2799 | `vienna` | section | Vienna (the capital city of Austria); Vienna (a state of Austria) |
-| 3018 | `visibilità` | section | visibility |
-| 3062 | `sconosciuto` | section | unknown, unfamiliar, unidentified, unexplored, obscure; unknown person, stranger, random |
-| 3237 | `cosiddetto` | section | so-called |
-| 3338 | `accadere` | section | to happen |
-| 3393 | `uovo` | section | egg |
-| 4242 | `domestica` | section | maid, servant |
-| 4327 | `impulso` | section | impulse, drive, urge, boost; impulse, pulse, also archaic for momentum |
-| 4516 | `tranquillità` | section | calm, peace, stillness, tranquillity, calmness |
-| 4778 | `studioso` | section | studious; scholar, scientist |
-| 4832 | `ironico` | section | ironic, ironical |
-| 5135 | `indifferenza` | section | indifference |
-| 5189 | `baseball` | section | baseball |
-| 5603 | `adeguatamente` | section | adequately; suitably |
-| 5647 | `lavorativo` | section | work, working; tillable, arable |
-| 5663 | `oliva` | section | olive (fruit); olive (color) |
-| 5778 | `vacca` | section | cow; whore, slut |
-| 6152 | `telecomunicazioni` | section | telecommunications |
-| 6217 | `pecora` | section | sheep (animal); ewe; its meat (raw or cooked), its skin or its fur; tame, meek animal; sheep (shy, gullible p… |
-| 6390 | `etiopia` | section | Ethiopia (a country in East Africa) |
-| 6520 | `irregolarità` | section | irregularity |
-| 6833 | `lirica` | section | lyric; lyric poetry; opera |
-| 6854 | `reporter` | section | reporter (journalist) |
-| 7461 | `diamine` | section | an expression of wonder, impatience or irritation |
-| 7557 | `balletto` | section | ballet; ballet music; dance troupe, corps de ballet |
-| 7691 | `ergo` | section | ergo |
-| 7906 | `soda` | section | parts of certain plants high in mineral salts the ashes in particular of which were used in glassmaking; soda… |
-| 8239 | `insicurezza` | section | insecurity; uncertainty |
-| 8731 | `clamoroso` | section | resounding, sensational |
-| 9066 | `purgatorio` | section | purgatory; Purgatory |
-| 9380 | `abisso` | section | abyss, gulf; a surname |
-| 9492 | `tosto` | section | at once, immediately; swift, rapid, hurried; hard, tough, firm, hard-boiled, hardheaded, resistant, persisten… |
-| 9565 | `into` | section | inside |
-| 9645 | `zii` | section | uncles; uncle and aunt or aunt and uncle; uncles and aunts |
-| 9732 | `nuca` | section | nape, back of the neck |
-| 9736 | `pensionato` | section | hostel; pensioner |
-| 9744 | `processato` | section | processed |
-| 9954 | `concessionario` | section | concessionary; agent; dealer |
-| 10234 | `bingo` | section | bingo (game); bingo! |
-| 10257 | `dogma` | section | dogma |
-| 10464 | `movente` | section | motive (That which incites to action, especially a crime) |
-| 10918 | `otranto` | section | a town in the province of Lecce, Apulia, Italy; a surname transferred from the place name |
-| 10997 | `ambulante` | section | travelling/traveling, itinerant; mobile (library); peddler |
-| 11038 | `duraturo` | section | lasting, abiding, enduring, durable |
-| 11450 | `siri` | section | a surname originating as a patronymic |
-| 11547 | `interezza` | section | entirety, wholeness, oneness |
-| 11669 | `certosa` | section | Carthusian monastery, charterhouse |
-| 12249 | `rimorchio` | section | tow, towage, towing; trailer (of a car) |
-| 12642 | `posare` | section | to put or lay down; to direct, to turn; to calm down, to placate; to lay or rest; to pose; to rest |
-| 13130 | `frascati` | section | Frascati (wine); a town in Rome, Italy |
-| 13186 | `picchio` | section | woodpecker; rap, tap, knock; continuous, frequent beating or banging; rapping, tapping, knocking; a surname |
-| 13255 | `attivismo` | section | activism |
-| 13438 | `virile` | section | virile |
-| 13804 | `urgentemente` | section | urgently |
-| 14298 | `lao` | section | a river in Calabria |
-| 14364 | `sigismondo` | section | a male given name, equivalent to English Sigismund |
-| 14926 | `plutarco` | section | Plutarch |
-| 15006 | `battente` | section | heavy (of rain); beating, palpitating (of a heart); shutter (of a window); sash (of a window); leaf (panel of… |
-| 15016 | `brusca` | section | scrubbing brush; straw; scorch (desiccation of the apex of a leaf or shoot); stubble or dried-up twig; a flex… |
-| 15390 | `vallone` | section | Walloon; Walloon (person); Walloon (language); deep valley; a surname |
-| 15749 | `olmo` | section | elm (Ulmus); field elm (Ulmus minor); wood from those trees |
-| 16026 | `sudcoreano` | section | South Korean |
-| 16179 | `olivo` | section | olive tree, olive |
-| 16440 | `scotta` | section | sheet; whey |
-| 17593 | `soccombere` | section | to succumb, to give way |
-| 17604 | `sterco` | section | dung |
-| 17667 | `cassone` | section | cofferdam, caisson, pontoon; skip (for waste), dumpster; truck dumping / tipping body |
-| 17905 | `confiscato` | section | confiscated |
-| 18153 | `elettromagnetico` | section | electromagnetic |
-| 18223 | `montella` | section | a town in the province of Avellino, Campania, Italy; a surname transferred from the place name |
-| 18298 | `sonetto` | section | sonnet |
-| 18386 | `concistoro` | section | consistory |
-| 18504 | `pietanza` | section | piety, a feeling of compassion; dish, course (of a meal) |
-| 18670 | `gastrica` | section | gastric |
-| 18717 | `messinese` | section | of, from or relating to Messina; native or inhabitant of Messina |
-| 18788 | `sapientemente` | section | learnedly |
-| 19070 | `sunto` | section | summary, abstract, resumé epitome |
-| 19294 | `razionalizzare` | section | to rationalize |
-| 19683 | `discriminante` | section | decisive; discriminating; extenuating; extenuating circumstance |
+| 1459 | `ferma` | section | service, draft; ferme générale (a system of outsourced tax collection in France prior to the French Revolutio… |
+| 1466 | `paga` | section | pay; payer; wages; reward, recompense; bounty |
+| 1987 | `ricchezza` | section | richness, wealth |
+| 2269 | `essenziale` | section | essential, fundamental, main, crucial, basic; essential; terse (of style etc.); the essential thing, the kern… |
+| 2409 | `leggenda` | section | legend (myth, and explanatory inscription); old wives' tale |
+| 2756 | `giornalismo` | section | journalism |
+| 2799 | `apparire` | section | to appear; to seem, to look; to grow |
+| 3019 | `alimentazione` | section | nutrition, nourishment, diet, feeding; feed, fuel, power, supply |
+| 3062 | `sottolineare` | section | to underline, underscore; to emphasize, point out, underline, stress, remark |
+| 3236 | `difficilmente` | section | hardly, with difficulty, unlikely (adjective) |
+| 3337 | `ancona` | section | Ancona (a province of Marche, Italy); Ancona (a port city and comune, the capital of the province of Ancona a… |
+| 3392 | `volante` | section | flying; loose (of a page); freelance; steering wheel (of a car); Italian police car; a surname |
+| 4240 | `faro` | section | lighthouse; headlight, headlamp; Capo Peloro, Faro Point (the historical demarcation between the Two Sicilies… |
+| 4329 | `lombardo` | section | Lombard; a surname originating as an ethnonym |
+| 4514 | `versato` | section | versed, practiced |
+| 4777 | `terrorista` | section | terrorist, terroristic (relating to or engaging in terrorism); terrorist (one who uses violence to further po… |
+| 4831 | `mattarella` | section | a surname |
+| 5134 | `litigare` | section | to quarrel, to fight, to argue [with con ‘with someone’]; to fight [with per ‘over a legal case, an inheritan… |
+| 5187 | `concorrente` | section | concurrent; competing; competitor; contestant |
+| 5602 | `bonifica` | section | reclamation |
+| 5647 | `meritato` | section | deserved, merited |
+| 5662 | `pontefice` | section | pontiff |
+| 5777 | `allontanare` | section | to move away, pull away, push away; to spread out, to scatter; to send away, take away; to avert, avoid; to d… |
+| 6152 | `vecchiaia` | section | old age |
+| 6215 | `rancore` | section | rancour, resentment, grudge |
+| 6387 | `grosseto` | section | Grosseto (a town and province of Italy) |
+| 6518 | `manipolazione` | section | manipulation; rigging (of an election etc.) |
+| 6831 | `melissa` | section | lemon balm; a female given name, equivalent to English Melissa |
+| 6850 | `scavare` | section | to dig; to excavate; to bore; to hollow out |
+| 7458 | `fata` | section | fairy (mythical creature) |
+| 7554 | `cavità` | section | hollow, cavity; cavity |
+| 7687 | `fida` | section | a tax on cultivated land; safe-conduct |
+| 7902 | `tagliando` | section | coupon, voucher; service |
+| 8241 | `naufragio` | section | a shipwreck, a wreck; a wreck, a failure |
+| 8728 | `contadina` | section | the name of a particular dance, danced in a circle by only men; the music that accompanies that dance |
+| 9064 | `rubinetto` | section | tap (UK), faucet (US); any similar device used to regulate the flow of a fluid |
+| 9375 | `alterazione` | section | alteration, modification, change (especially for the worse); degradation |
+| 9488 | `affettuoso` | section | affectionate, fond, loving; a surname transferred from the nickname |
+| 9565 | `mancia` | section | tip (in a restaurant, etc.) |
+| 9640 | `adottando` | section | who is to be adopted |
+| 9728 | `potenziare` | section | to strengthen, develop, improve, enhance, empower; to potentiate |
+| 9732 | `premiare` | section | to give or award a prize (to); to reward |
+| 9739 | `richiedente` | section | applicant; suitor; wooer |
+| 9949 | `distrarre` | section | to pull apart; to turn away, to divert (e.g. one's gaze); to distract (a person, one's attention, one's mind,… |
+| 10228 | `castelnuovo` | section | a surname |
+| 10262 | `governante` | section | governing, ruling; governess; government leader; housekeeper |
+| 10458 | `osseo` | section | bone, bony |
+| 10913 | `pipa` | section | pipe; a wank |
+| 10991 | `armonica` | section | armonica, glass harmonica; harmonica, mouth organ |
+| 11035 | `fruizione` | section | fruition, use, enjoyment; account |
+| 11445 | `stucco` | section | stucco; putty; bas-relief |
+| 11545 | `lucifero` | section | Lucifer; bearing or giving off light; name for the planet Venus as the morningstar, daystar |
+| 11664 | `conegliano` | section | Conegliano (a town in Veneto, Italy) |
+| 12244 | `sassonia` | section | Saxony (a state of modern Germany, located in the east, far from historical Saxon lands); Saxony (a historica… |
+| 12639 | `ruotare` | section | to rotate, to revolve; to circle (of a bird or airplane) |
+| 13126 | `guarnigione` | section | the act of decorating or adorning; garrison (troops stationed at a permanent military post); garrison (perman… |
+| 13181 | `punteggiatura` | section | punctuation; dotting, speckling, dots |
+| 13252 | `boicottaggio` | section | boycott |
+| 13437 | `amalia` | section | a female given name |
+| 13800 | `zambia` | section | Zambia (a country in Southern Africa) |
+| 14295 | `messinscena` | section | mise en scène; dramatization, stunt |
+| 14363 | `titanio` | section | of or pertaining to the Titans, Titanic; titanium |
+| 14926 | `riluttanza` | section | reluctance, unwillingness |
+| 15007 | `cameraman` | section | cameraman |
+| 15012 | `centrifuga` | section | centrifuge; spin dryer |
+| 15391 | `alpe` | section | alp |
+| 15744 | `parvenza` | section | semblance; opinion |
+| 16023 | `trentenne` | section | thirty-year-old |
+| 16176 | `perforazione` | section | perforation; drilling |
+| 16445 | `trambusto` | section | turmoil, fuss, ado |
+| 17588 | `sterco` | section | dung |
+| 17600 | `trepidazione` | section | anxiety, trepidation |
+| 17663 | `connettore` | section | connector |
+| 17900 | `depurazione` | section | purification |
+| 18150 | `fiuto` | section | smell (the sense of smell); nose (intuition) |
+| 18221 | `oligarchia` | section | oligarchy |
+| 18303 | `tonico` | section | tonic; toner (to stimulate the skin) |
+| 18382 | `debora` | section | Deborah (biblical character); a female given name |
+| 18498 | `purificare` | section | to purify |
+| 18674 | `intransigente` | section | intransigent, strict |
+| 18718 | `orio` | section | a surname transferred from the place name |
+| 18783 | `sgombrare` | section | to vacate or evacuate; to clear the way; to move out (of a residence) |
+| 19066 | `trentuno` | section | thirty-one; a surname |
+| 19293 | `schienale` | section | back, backrest (of a seat); saddle (of meat) |
+| 19683 | `frattanto` | section | meanwhile; in the meantime |
 
 ## Known defects, for change 23
 

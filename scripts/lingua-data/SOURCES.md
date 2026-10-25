@@ -849,7 +849,13 @@ the section, 194 from the Italian Wiktionary, the `USA` row —; 9,831 expressio
 with a space, 1,194 of the Italian Wiktionary, 93 + 2 split words); the section as read: 506 pointers
 read as their meaning, 36 acronym senses and 19 names' entries set aside, 6 Greek letters' senses out,
 557 notes taken out and 1 sense that was only a note, 42 entries left with no sense, 18 glosses
-repeating a sense. The pack 2,467,844 B, its base 1,551,534 B (it-fr's), its layer 916,550 B.
+repeating a sense. The pack 2,467,844 B, its base 1,551,534 B (it-fr's), its layer 916,550 B. **Committed**
+by the update of 2026.10.25 (`lingua-pack-update` run 40183685031, the release
+`lingua-pack-sources-it-en-2026.10.25`), byte for byte the prediction. **Reduced again** from the same
+pinned sources after change 17 (refine-lingua-it-fr-glosses) moved Italian's studied tables, its rules
+unchanged: 33,199 glosses (17 lemmas left the ranks — `vado`, `sto`, `signor`, `od` … —, 7 joined —
+`dati`, `lega`, `prova` …), coverage 91.3 / 84.2 / 75.8 %, the pack 2,467,552 B, its base it-fr's new one
+(1,551,196 B), its layer 916,596 B.
 
 ## The editions' dumps
 
