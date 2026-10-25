@@ -185,7 +185,7 @@ describe("the six pairs: a row per pair, in a box that scrolls on its own (chang
     expect(rowHeaders(english)).toEqual(["Spanish → English", "English → French", "Spanish → French", "English → Spanish"]);
   });
 
-  it("fr-en and fr-es shipping beside them (change 52), then it-fr (enable-lingua-italian) and it-en (enable-lingua-italian-for-english-speakers): eight rows in the box, each native's pairs together — the fixtures' table", async () => {
+  it("fr-en and fr-es shipping beside them (change 52), then it-fr (enable-lingua-italian), it-en (enable-lingua-italian-for-english-speakers) and it-es (enable-lingua-italian-for-spanish-speakers): nine rows in the box, each native's pairs together — the fixtures' table", async () => {
     shipTheFixtures();
     const french = await render(FrenchPage);
     expect(main(french)).toContain('<div class="table-scroll">');
@@ -198,6 +198,7 @@ describe("the six pairs: a row per pair, in a box that scrolls on its own (chang
       "Italien → anglais",
       "Anglais → espagnol",
       "Français → espagnol",
+      "Italien → espagnol",
     ]);
     const english = await render(EnglishPage);
     expect(main(english)).toContain('<div class="table-scroll">');
@@ -210,6 +211,7 @@ describe("the six pairs: a row per pair, in a box that scrolls on its own (chang
       "Italian → French",
       "English → Spanish",
       "French → Spanish",
+      "Italian → Spanish",
     ]);
   });
 });
