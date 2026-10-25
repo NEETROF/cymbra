@@ -626,8 +626,8 @@ write byte for byte:
 - **The golden and the card**, as the update workflow's bless step re-blesses them (D15), listed in the
   pull request for the owner (task 4.1): `it-es.golden` moves in 75 of its 239 probes (its `pack` line and
   the glosses of 82 lemmas: `andare` « Ir, andar », `ancora` « Todavía; De nuevo; Ancla », `del` « Del »,
-  `a` « A; En (…) », `subito` « Inmediatamente… », `the` unglossed, …), `word-card-it-es.txt` in 101 lines;
-  no other baseline moves.
+  `a` « A; En (…) », `subito` « Inmediatamente… », `the` unglossed, …), `word-card-it-es.txt` in 53 lines
+  out and 48 in; no other baseline moves.
 - **How it is built**: the three passes are `reduce_italian_es.refine_section` (after `read_section`),
   `refine_tables` with `without_verb_forms_translations` (the Italian Wiktionary's translations read again
   after D10a) and `refine_rows` (after `native_side`, on each source's gloss of a lemma,
