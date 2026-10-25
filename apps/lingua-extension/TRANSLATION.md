@@ -49,20 +49,20 @@ taken again.
   reads both languages from the key and refuses a route that does not start from the one or end in
   the other.
 
-| Route   | Models, in order                                                        | Pair shipped?                                               |
-| ------- | ----------------------------------------------------------------------- | ----------------------------------------------------------- |
-| `en-fr` | `en-fr/base-memory/2.0`                                                 | yes                                                         |
-| `es-fr` | `es-en/base-memory/2.0`, then `en-fr/base-memory/2.0` — through English | yes                                                         |
-| `es-en` | `es-en/base-memory/2.0`                                                 | yes, since change 34 (English speakers)                     |
-| `en-es` | `en-es/base-memory/2.1`                                                 | yes, since change 35 (Spanish speakers)                     |
-| `fr-en` | `fr-en/base-memory/2.0`                                                 | yes, since change 52 (French studied)                       |
-| `fr-es` | `fr-en/base-memory/2.0`, then `en-es/base-memory/2.1` — through English | yes, since change 52 (French studied)                       |
-| `it-en` | `it-en/base-memory/2.0`                                                 | not yet: the Italian programme's row 25                     |
-| `en-it` | `en-it/base-memory/2.1`                                                 | not yet: the Italian programme's row 45                     |
-| `it-fr` | `it-en/base-memory/2.0`, then `en-fr/base-memory/2.0` — through English | yes, since the Italian programme's row 20 (Italian studied) |
-| `it-es` | `it-en/base-memory/2.0`, then `en-es/base-memory/2.1` — through English | not yet: the Italian programme's row 30                     |
-| `fr-it` | `fr-en/base-memory/2.0`, then `en-it/base-memory/2.1` — through English | not yet: the Italian programme's row 50                     |
-| `es-it` | `es-en/base-memory/2.0`, then `en-it/base-memory/2.1` — through English | not yet: the Italian programme's row 54                     |
+| Route   | Models, in order                                                        | Pair shipped?                                                |
+| ------- | ----------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `en-fr` | `en-fr/base-memory/2.0`                                                 | yes                                                          |
+| `es-fr` | `es-en/base-memory/2.0`, then `en-fr/base-memory/2.0` — through English | yes                                                          |
+| `es-en` | `es-en/base-memory/2.0`                                                 | yes, since change 34 (English speakers)                      |
+| `en-es` | `en-es/base-memory/2.1`                                                 | yes, since change 35 (Spanish speakers)                      |
+| `fr-en` | `fr-en/base-memory/2.0`                                                 | yes, since change 52 (French studied)                        |
+| `fr-es` | `fr-en/base-memory/2.0`, then `en-es/base-memory/2.1` — through English | yes, since change 52 (French studied)                        |
+| `it-en` | `it-en/base-memory/2.0`                                                 | yes, since the Italian programme's row 25 (English speakers) |
+| `en-it` | `en-it/base-memory/2.1`                                                 | not yet: the Italian programme's row 45                      |
+| `it-fr` | `it-en/base-memory/2.0`, then `en-fr/base-memory/2.0` — through English | yes, since the Italian programme's row 20 (Italian studied)  |
+| `it-es` | `it-en/base-memory/2.0`, then `en-es/base-memory/2.1` — through English | not yet: the Italian programme's row 30                      |
+| `fr-it` | `fr-en/base-memory/2.0`, then `en-it/base-memory/2.1` — through English | not yet: the Italian programme's row 50                      |
+| `es-it` | `es-en/base-memory/2.0`, then `en-it/base-memory/2.1` — through English | not yet: the Italian programme's row 54                      |
 
 English and Spanish are translated into each other directly, one model each
 (`add-lingua-translation-matrix-models`). Mozilla publishes no fr↔es model. en-es is pinned at
@@ -160,7 +160,7 @@ until row 20 (`enable-lingua-italian`) listed it-fr in `packs.json`, marked sinc
 on the same selections through its one model and judged in English (row 24,
 `measure-lingua-it-en-translation-marks`): 94 of its 97 shown marks correct (92 of 97 with its
 doubtful lines counted wrong), 3 % withheld, on the first tier — listed ahead of its readers too,
-inert until row 25 (`enable-lingua-italian-for-english-speakers`) lists it-en. it-es is measured on
+inert until row 25 (`enable-lingua-italian-for-english-speakers`) listed it-en, marked since. it-es is measured on
 the same selections through it-en then en-es and judged in Spanish (row 29,
 `measure-lingua-it-es-translation-marks`): 90 of its 95 shown marks correct (86 of 95 with its
 doubtful lines counted wrong), 5 % withheld, on the first tier — a blind second judge agreed on every

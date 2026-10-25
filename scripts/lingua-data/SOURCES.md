@@ -825,8 +825,8 @@ it-fr` brings it along). Its rule digest is `reduce-it-en.py`, `reduce_common.py
 and, since change 23, the two treebank modules it-fr imports too, `reduce_french_treebank.py` and
 `reduce_italian_treebank.py` —: an edit of it-en's reducer or pre-pass re-pins it-en alone among the
 pairs glossed in English, an edit of the English edition es-en, fr-en and it-en, an edit of a treebank
-module it-en with the pairs that import it. No package carries it-en (`packs.json` is unchanged, change
-25 lists it). Its first update writes its folder whole: the pull request that registers it carries
+module it-en with the pairs that import it. Packages carry it-en since the Italian programme's change
+25 (enable-lingua-italian-for-english-speakers) listed it in `packs.json`, its tables above their floor. Its first update writes its folder whole: the pull request that registers it carries
 none (`pairs --after it-en` names a registered reader pair whose reference's tables are committed).
 
 | Table | Source | Licence | What we keep |
