@@ -5,8 +5,9 @@ English, for English speakers studying Italian — the first reader pair of Ital
 (add-lingua-pack-it-en, change 22 of `docs/lingua/italian-programme.md`). They are committed so that
 every build makes the same pack with no download, and so that a change to the dictionary is a pull
 request whose diff shows it. No extension package carries the pack: `apps/lingua-extension/packs.json`
-does not list it-en until Italian is enabled for English speakers (change 25), after its refinement
-(change 23, `refine-lingua-it-en-glosses`).
+does not list it-en until Italian is enabled for English speakers (change 25). Its glosses are refined by
+change 23 (`refine-lingua-it-en-glosses`), so that a row reads an Italian word's meanings in the order
+Italian uses them.
 
 This folder holds what belongs to it-en alone: its English glosses, its expressions, the parts of
 speech of their senses, its notice, manifest and pin. Italian's own tables — its forms, ranks,
@@ -29,7 +30,8 @@ In this folder:
 ## What is in them
 
 <!-- Measured on the tables reduced again from the pinned sources of the update of 2026-10-25 (run
-40183685031) after change 17 (refine-lingua-it-fr-glosses) moved Italian's studied tables. -->
+40183685031) with change 23's rules (refine-lingua-it-en-glosses), after change 17
+(refine-lingua-it-fr-glosses) moved Italian's studied tables. -->
 
 - **English glosses for 33,199 lemmas** of Italian's 60,000 — 33,004 from the English Wiktionary's
   Italian section, 194 from the Italian Wiktionary's translations, and `USA`, glossed through its
@@ -50,11 +52,14 @@ In this folder:
   | all 60,000 | — | 55.3 % | — |
 
   Of the 8,425 lemmas glossed among the 10,000 commonest, 0.5 % (45) come from the Italian Wiktionary.
-- **Dictionary words are it-fr's**: 9,568 lemmas it-en glosses are no dictionary word of Italian (4,523
-  of them glossed by a proper noun's senses alone), and 636 dictionary words have no English gloss, so
+- **Dictionary words are it-fr's**: 9,568 lemmas it-en glosses are no dictionary word of Italian, 4,490
+  lemmas are glossed by a proper noun's senses alone, and 636 dictionary words have no English gloss, so
   the pack carries a lexical section, and the vocabulary estimate counts the same words as it-fr's.
-- **The pack is 2,467,552 B**, 47.1 % of the 5 MiB budget: Italian's base, 1,551,196 B, byte for byte
-  it-fr's, and it-en's layer, 916,596 B.
+- **The pack is 2,461,303 B**, 46.9 % of the 5 MiB budget: Italian's base, 1,551,196 B, byte for byte
+  it-fr's, and it-en's layer, 910,347 B.
+- **Refined by change 23** (*How the section is read*): 1,581 rows read otherwise — 133 of the 1,000
+  commonest, 302 of the next 4,000, 601 of the next 15,000, 545 beyond —, 345 of them in their first
+  sense; 19 expressions; no lemma gains or loses a gloss, and the coverage does not move.
 - **Reduced again after change 17**, whose forms moved Italian's studied tables: 17 lemmas left the
   ranks — `vado`, `sto`, `sapete`, `signor`, `od` among them, now forms of their words — and 7 joined
   (`dati`, `lega`, `prova`, and four past the 59,970th); no other row moved.
@@ -70,6 +75,9 @@ In this folder:
   words its Italian entries list, derived from kaikki's dump of the whole edition — the dump it-fr
   derives its French translations from — and kept as an asset of it-en's own release. They gloss what
   the English Wiktionary leaves out, at most three words per part of speech.
+- **UD Italian-MarkIT's training and development sections**, the files it-fr's pin records, at the same
+  commit and sha256s (CC BY 4.0): read for the part of speech a function word's row opens on, and for
+  nothing else (change 23's D1). Its test section and UD Italian-PUD are never read.
 - No table read backwards: the English Wiktionary's English entries' Italian translations would add
   24 rows among the 5,000 commonest, about 6 of them wrong (`etc` « cub », `cv` « hp »). No pivot, no
   machine translation: a word neither source glosses has no gloss.
@@ -95,6 +103,38 @@ edits neither the English edition's rules nor the shared ones:
 - **The page's notes out**: « (all senses) », « (in all senses) », « (all meanings) », « See
   Category:… », « Same as entry above ».
 
+Then change 23's rules (`refine-lingua-it-en-glosses`, in the same module), reading a headword's entries
+together — every case of it —, each measured alone on change 22's tables (rows changed by band of the
+1,000 / 5,000 / 20,000 commonest and beyond):
+
+- **The row's order**: a function word's row opens on the part of speech MarkIT reads it as — fr-en's
+  rule, as it-fr reads it — (16 rows, all of the 1,000: `su` « on, upon… », `solo` « only, just »,
+  `spesso` « often »); a row opening on a meaning the section marks archaic, obsolete, dated or
+  historical opens on its first meaning that is not (173 rows: `polizia` « police; polity »,
+  `università`, `ufficio`, `prodotto`); and a reviewed table, `FIRST_RUN`, opens 25 rows on the sense it
+  names (`bene` « well », `gente` « people », `testo` « text (writing) », `piano` « floor, storey » with
+  « plan » back, `parlamento` « parliament », `ce` « us »; `come` held at « how »).
+- **Pointers**: the wordings the English edition does not know are pointers (`che` without « proscribed
+  spelling of ché », `aprile` « April », `itria` « otter »); a pointer to a word of one or two letters
+  lends that word's meanings after the row's own, within the eight-sense bound (`de` → *di*, `el` « he;
+  the », `eo` « I », `se` gaining *si*'s reflexive, `ne` *in*'s « in ») — 26 rows.
+- **Carried meanings**: a meaning nested under a degree's wording (31 rows: `minimo` « minimum, (the)
+  least… », `minore` « less; shorter… »), a degree's and a clipping's wherever they stand (`più` « more;
+  anymore… », `auto` « car; bus; … »), a plural's beside another part of speech (`guai` « woe!;
+  trouble »).
+- **Names' notes**: a surname's note goes from a row whose word holds a common meaning (`musica`
+  « music », `marzo` « March (the month) »; `garibaldi` and `mattarella`, names alone, keep theirs), a given name's
+  from a row a common word opens (`delfino`; `alice` and `francesco`, which open on the name, keep it), a
+  town's from a common word unless the row opens on it, the place is a city or a capital itself, or a
+  town and province (`noto`, `russo`, `cassino`; `cervia`, `andria`, `fermo` keep theirs); `massa` keeps
+  Massa by the reviewed list `TOWNS_KEPT` — 1,260 rows.
+- **The page's notes and typography**: `lo` « the; him; it, this or that thing », « etc » with its period
+  (71 rows, 13 expressions), a list marker out, `mar` « sea (used in poetry…) ».
+- **`CORRECTIONS`**, by name: `all'antica` « ancient, antique », without the Italian Wiktionary's jocular
+  « anshent »; and, the owner's, `amica` « friend; girlfriend », `bambina` « girl, little girl; babe »,
+  `compagna` « companion, partner; … », `spagnola` « Spaniard; … », the person's meaning their « female
+  equivalent of » pointer does not lend.
+
 After the shared rules, a sense repeating an earlier one of the same word word for word is shown once
 (`ex` « ex, former »); a name's sense written with a capital stays beside a common word's (`cancro`
 « Cancer; cancer »).
@@ -108,10 +148,10 @@ section, « it wikt » the Italian Wiktionary's translations. Long glosses are c
 | Rank | Lemma | Source | Gloss |
 |---:|---|---|---|
 | 47 | `degli` | section | of the, from the |
-| 213 | `piano` | section | plane; of any of the popes named Pius, Pian; flat, level; plain; slowly; carefully; a surname; floor, storey … |
+| 213 | `piano` | section | floor, storey (of a building); plan, tactic, stratagem, scheme, plot; plane; of any of the popes named Pius, … |
 | 312 | `regione` | section | region, area, zone, district; region (Italian administrative unit and local government); region |
 | 558 | `chiedere` | section | to ask (for); to ask, request; to ask [with di ‘about (someone)’] |
-| 612 | `signore` | section | lord (ruler); Mister or Sir; master; Lord, God; used to address a lover: beloved; used to address a man: sir … |
+| 612 | `signore` | section | Mister or Sir; Lord, God; lord (ruler); master; used to address a lover: beloved; used to address a man: sir … |
 | 725 | `provare` | section | to try, to try out, to test; to try, to attempt; to feel, to experience; to prove, to demonstrate, to show; t… |
 | 806 | `discussione` | section | discussion; argument; quarrel |
 | 946 | `europeo` | section | European |
@@ -121,7 +161,7 @@ section, « it wikt » the Italian Wiktionary's translations. Long glosses are c
 | 1245 | `esistenza` | section | existence; life |
 | 1285 | `pianeta` | section | planet; chasuble, vestment |
 | 1290 | `sensazione` | section | sensation, feeling |
-| 1359 | `biglietto` | section | ticket; card; note, slip; billet; note, banknote, bill; a surname |
+| 1359 | `biglietto` | section | ticket; card; note, slip; billet; note, banknote, bill |
 | 1459 | `ferma` | section | service, draft; ferme générale (a system of outsourced tax collection in France prior to the French Revolutio… |
 | 1466 | `paga` | section | pay; payer; wages; reward, recompense; bounty |
 | 1987 | `ricchezza` | section | richness, wealth |
@@ -133,9 +173,9 @@ section, « it wikt » the Italian Wiktionary's translations. Long glosses are c
 | 3062 | `sottolineare` | section | to underline, underscore; to emphasize, point out, underline, stress, remark |
 | 3236 | `difficilmente` | section | hardly, with difficulty, unlikely (adjective) |
 | 3337 | `ancona` | section | Ancona (a province of Marche, Italy); Ancona (a port city and comune, the capital of the province of Ancona a… |
-| 3392 | `volante` | section | flying; loose (of a page); freelance; steering wheel (of a car); Italian police car; a surname |
+| 3392 | `volante` | section | flying; loose (of a page); freelance; steering wheel (of a car); Italian police car |
 | 4240 | `faro` | section | lighthouse; headlight, headlamp; Capo Peloro, Faro Point (the historical demarcation between the Two Sicilies… |
-| 4329 | `lombardo` | section | Lombard; a surname originating as an ethnonym |
+| 4329 | `lombardo` | section | Lombard |
 | 4514 | `versato` | section | versed, practiced |
 | 4777 | `terrorista` | section | terrorist, terroristic (relating to or engaging in terrorism); terrorist (one who uses violence to further po… |
 | 4831 | `mattarella` | section | a surname |
@@ -149,7 +189,7 @@ section, « it wikt » the Italian Wiktionary's translations. Long glosses are c
 | 6215 | `rancore` | section | rancour, resentment, grudge |
 | 6387 | `grosseto` | section | Grosseto (a town and province of Italy) |
 | 6518 | `manipolazione` | section | manipulation; rigging (of an election etc.) |
-| 6831 | `melissa` | section | lemon balm; a female given name, equivalent to English Melissa |
+| 6831 | `melissa` | section | lemon balm |
 | 6850 | `scavare` | section | to dig; to excavate; to bore; to hollow out |
 | 7458 | `fata` | section | fairy (mythical creature) |
 | 7554 | `cavità` | section | hollow, cavity; cavity |
@@ -159,7 +199,7 @@ section, « it wikt » the Italian Wiktionary's translations. Long glosses are c
 | 8728 | `contadina` | section | the name of a particular dance, danced in a circle by only men; the music that accompanies that dance |
 | 9064 | `rubinetto` | section | tap (UK), faucet (US); any similar device used to regulate the flow of a fluid |
 | 9375 | `alterazione` | section | alteration, modification, change (especially for the worse); degradation |
-| 9488 | `affettuoso` | section | affectionate, fond, loving; a surname transferred from the nickname |
+| 9488 | `affettuoso` | section | affectionate, fond, loving |
 | 9565 | `mancia` | section | tip (in a restaurant, etc.) |
 | 9640 | `adottando` | section | who is to be adopted |
 | 9728 | `potenziare` | section | to strengthen, develop, improve, enhance, empower; to potentiate |
@@ -170,14 +210,14 @@ section, « it wikt » the Italian Wiktionary's translations. Long glosses are c
 | 10262 | `governante` | section | governing, ruling; governess; government leader; housekeeper |
 | 10458 | `osseo` | section | bone, bony |
 | 10913 | `pipa` | section | pipe; a wank |
-| 10991 | `armonica` | section | armonica, glass harmonica; harmonica, mouth organ |
+| 10991 | `armonica` | section | harmonica, mouth organ; armonica, glass harmonica |
 | 11035 | `fruizione` | section | fruition, use, enjoyment; account |
 | 11445 | `stucco` | section | stucco; putty; bas-relief |
 | 11545 | `lucifero` | section | Lucifer; bearing or giving off light; name for the planet Venus as the morningstar, daystar |
 | 11664 | `conegliano` | section | Conegliano (a town in Veneto, Italy) |
 | 12244 | `sassonia` | section | Saxony (a state of modern Germany, located in the east, far from historical Saxon lands); Saxony (a historica… |
 | 12639 | `ruotare` | section | to rotate, to revolve; to circle (of a bird or airplane) |
-| 13126 | `guarnigione` | section | the act of decorating or adorning; garrison (troops stationed at a permanent military post); garrison (perman… |
+| 13126 | `guarnigione` | section | garrison (troops stationed at a permanent military post); the act of decorating or adorning; garrison (perman… |
 | 13181 | `punteggiatura` | section | punctuation; dotting, speckling, dots |
 | 13252 | `boicottaggio` | section | boycott |
 | 13437 | `amalia` | section | a female given name |
@@ -204,20 +244,41 @@ section, « it wikt » the Italian Wiktionary's translations. Long glosses are c
 | 18674 | `intransigente` | section | intransigent, strict |
 | 18718 | `orio` | section | a surname transferred from the place name |
 | 18783 | `sgombrare` | section | to vacate or evacuate; to clear the way; to move out (of a residence) |
-| 19066 | `trentuno` | section | thirty-one; a surname |
+| 19066 | `trentuno` | section | thirty-one |
 | 19293 | `schienale` | section | back, backrest (of a seat); saddle (of meat) |
 | 19683 | `frattanto` | section | meanwhile; in the meantime |
 
-## Known defects, for change 23
+## Known defects
 
-`refine-lingua-it-en-glosses`, after these tables: pointer wordings the English edition does not know
-(« proscribed spelling of » in `che`, rank 3; « Old Italian form of »; « compound of … with … » in
-`aprile`, `fallo`); a sense order the page's etymologies set (`auto` « auto (genre of dramatic
-literature) » before the car; `testo`, `polizia`, `università`, `piano` opening on an old or rare
-sense); names' and communes' runs after a common word's (1,121 rows of the 20,000 hold « a surname »);
-bracketed construction and auxiliary notes (82 rows); « etc » without its period (31); the species
-among the expressions; a contraction's or a plural's carried meaning beside a word's own senses
-(`guai` « trouble », `mura` « wall », left unread by the narrowing above).
+Fixed by change 23 (`refine-lingua-it-en-glosses`): the pointer wordings the English edition does not
+know (`che`, `de`, `el`, `aprile`), the order the page's entries and etymologies set (`auto`, `testo`,
+`polizia`, `università`, `piano`), names' and towns' notes after a common word's senses, « etc »
+without its period, `lo`'s usage note, a plural's carried meaning beside another part of speech
+(`guai`).
+
+Left, each with its reason (the change's design, D9):
+
+- **Bracketed constructions and auxiliary notes** (`chiedere` « to ask [with di ‘about (someone)’] »,
+  154 ranked rows): they say which preposition or auxiliary a verb's meaning takes, which the card says
+  nowhere else.
+- **`USA`** opens on the supercontinent, by the shared acronym table's order: reordering it edits
+  `reduce_italian_acronyms.py`, which it-fr imports too (the programme's backlog).
+- **A description heading nested senses** (`grande` « of greater physical dimensions or numerosity »),
+  most of them a meaning (`fare` « to make »).
+- **Offensive senses unlabelled** (`negro`): the card shows no label.
+- **Names opening a row** (`svizzera` « Switzerland; hamburger », `francesco`, `alice`), accepted until a
+  card reads the token's capital.
+- **A « female equivalent of » beside another sense** lends nothing (106 ranked rows): lending the
+  masculine's senses would read `signora` « lord (ruler) »; the owner added the person's meaning to four
+  by name.
+- **`the`**, the English article in Italian text, unglossed; **`mei`** and **`meo`** read *meare*'s « to
+  filter through ».
+- **Species among the expressions**: a rule cannot tell a rare sense from the plant or animal a word
+  names.
+
+The owner's (2026-10-25): the 25 rows of `FIRST_RUN`; Massa kept by `TOWNS_KEPT`, and the towns a common
+word precedes going (`cassino`, `piombino`, `faenza`, `sora`); the four corrections of `amica`,
+`bambina`, `compagna` and `spagnola`.
 
 ## How it changes
 
