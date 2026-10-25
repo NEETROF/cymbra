@@ -10,9 +10,9 @@ row: causa — Causa
 row: sciopero — Huelga, plante
 ### phrase-gloss Non so se riuscirò a farcela da solo
 row: sapere — Saber
-row: riuscire — Salir de nuevo
+row: riuscire — Lograr, salir, resultar
 row: fare — Hacer
-row: solo — Único
+row: solo — Sólo, solamente, únicamente
 ### phrase-gloss fare colazione
 row: fare — Hacer
 row: colazione — Desayuno
@@ -45,7 +45,7 @@ row: errore — Error, yerro, falta
 row: pane — Pan
 row: uovo — Huevo
 ### phrase-gloss nel cassetto
-row: cassetto — Caset
+row: cassetto — Cajón
 ### phrase-gloss Nel mezzo del cammin
 row: mezzo — Medio
 row: cammino — Camino
@@ -53,9 +53,9 @@ row: cammino — Camino
 row: cane — Perro
 ### phrase-gloss dirmelo subito
 row: dire — Decir
-row: subito — Súbito
+row: subito — Inmediatamente, enseguida, ahora mismo
 ### phrase-gloss vattene
-row: andare — Andar
+row: andare — Ir, andar
 ### phrase-gloss eccolo di nuovo
 row: ecco — He aquí
 row: di nuovo — De nuevo
@@ -72,15 +72,15 @@ row: città — Ciudad
 row: più — Más
 row: lontano — Lejos
 ### phrase-gloss I paesi della NATO
-row: paese — Pueblo
+row: paese — País, estado, nación
 ### phrase-gloss Dai, andiamo!
 row: dare — Dar
-row: andare — Andar
+row: andare — Ir, andar
 ### phrase-gloss mi dai una mano?
 row: dare — Dar
 row: mano — Mano
 ### phrase-gloss a mo' di esempio
-row: modo — Suerte, modo
+row: modo — Modo, suerte
 row: esempio — Ejemplo
 ### phrase-gloss Lorenzo de' Medici
 row: medico — Médico, doctor
@@ -93,7 +93,7 @@ row: fare — Hacer
 ### phrase-gloss gliel'ho detto
 row: dire — Decir
 ### phrase-gloss davanti alla porta
-row: portare — Portar, llevar
+row: portare — Llevar, portar
 ### phrase-gloss ossia il primo
 row: primo — Primero
 ### phrase-gloss non di il che
@@ -121,9 +121,9 @@ row: pena — Pena
 ### phrase-gloss d'accordo
 expression: d'accordo
 page 1/1:
-  [—] De acuerdo; De acuerdo, vale
+  [—] De acuerdo, vale
 ### phrase-gloss The lighthouse stood
-row: the — Té
+rows: (none)
 ### phrase-gloss El faro se alzaba
 row: faro — Faro
 ### phrase-gloss Le phare se dressait
@@ -195,13 +195,13 @@ row: Haber
 ### word-grammar andò andare
 grammar: tercera persona del singular del pretérito perfecto simple de indicativo de andare
 page 1/1:
-  [verbo] Andar
-row: Andar
+  [verbo] Ir, andar
+row: Ir, andar
 ### word-grammar va andare
 grammar: tercera persona del singular del presente de indicativo y segunda persona del singular del imperativo de andare
 page 1/1:
-  [verbo] Andar
-row: Andar
+  [verbo] Ir, andar
+row: Ir, andar
 ### word-grammar fa fare
 grammar: tercera persona del singular del presente de indicativo y segunda persona del singular del imperativo de fare
 page 1/1:
@@ -216,8 +216,8 @@ row: Decir
 grammar: tercera persona del singular del presente de indicativo y segunda persona del singular del imperativo de portare
 grammar: también puede ser el participio pasado femenino de porgere
 page 1/1:
-  [verbo] Portar, llevar
-row: Portar, llevar
+  [verbo] Llevar, portar
+row: Llevar, portar
 ### word-grammar porta porta
 gloss: (none)
 ### word-grammar legge leggere
@@ -248,15 +248,13 @@ page 1/1:
 row: Vida
 ### word-grammar del del
 page 1/1:
-  [pronombre] Algo, un tanto, algún tanto
-  [preposición] Para
-  [determinante] Del
-row: Algo, un tanto, algún tanto
+  [preposición] Del
+row: Del
 ### word-grammar al a
 grammar: «al» = a + il
 page 1/1:
-  [preposición] En (cuando se trata de un concepto más que un lugar físico)
-row: En (cuando se trata de un concepto más que un lugar físico)
+  [preposición] A; En (cuando se trata de un concepto más que un lugar físico)
+row: A
 ### word-grammar l'uomo uomo
 grammar: «l'uomo» = lo + uomo
 page 1/1:
@@ -277,8 +275,8 @@ page 1/1:
 row: Decir
 ### word-grammar vattene andare
 page 1/1:
-  [verbo] Andar
-row: Andar
+  [verbo] Ir, andar
+row: Ir, andar
 ### word-grammar NATO NATO
 gloss: (none)
 ### word-grammar dai dare
@@ -289,8 +287,8 @@ row: Dar
 ### word-grammar dai da
 grammar: «dai» = da + i
 page 1/1:
-  [preposición] A, cerca, de, dentro, en, para, por o según; Como, desde o en casa de
-row: A, cerca, de, dentro, en, para, por o según
+  [preposición] De, por, en; Como, desde o en casa de
+row: De, por, en
 ### word-grammar mo' mò
 gloss: (none)
 ### word-grammar parlo parlare
@@ -395,7 +393,7 @@ row: Rojo
 grammar: plural y masculino y femenino plural de grande
 page 1/1:
   [adjetivo] Grande. (Dicho de tamaño.); Grande. (Dicho de cantidades.); Alto. (Dicho de tamaño.); Amplio; Largo
-  [sustantivo] Adulto; Grande; Persona influyente
+  [sustantivo] Adulto; Persona influyente
 row: Grande. (Dicho de tamaño.)
 ### word-grammar tali tale
 grammar: también puede ser el masculino plural de talo
@@ -421,14 +419,14 @@ page 1/1:
 row: De
 ### word-grammar che che
 page 1/1:
-  [pronombre] Qué; Que
-row: Qué
+  [pronombre] Que; Qué
+row: Que
 ### word-grammar come come
 grammar: también puede ser el femenino plural de coma
 page 1/1:
-  [pronombre] Cómo
   [adverbio] Como, de la manera
-row: Cómo
+  [pronombre] Cómo
+row: Como, de la manera
 ### word-grammar lo lo
 page 1/1:
   [determinante] El
@@ -446,14 +444,12 @@ row: Este
 ### word-grammar ci ci
 page 1/1:
   [pronombre] Nos, nosotros, ahí
-  [adverbio] De esto, aquí, por allí
-  [sustantivo] Ce
-  [—] No, hay
 row: Nos, nosotros, ahí
 ### word-grammar solo solo
 page 1/1:
+  [adverbio] Sólo, solamente, únicamente
   [adjetivo] Único
-row: Único
+row: Sólo, solamente, únicamente
 ### word-grammar essere essere
 page 1/1:
   [sustantivo masculino] Ser
@@ -487,6 +483,7 @@ row: Antes
 ### word-grammar loro loro
 page 1/1:
   [pronombre] Ellos, ellas; Ustedes
+  [determinante] Su, sus
 row: Ellos, ellas
 ### word-grammar dopo dopo
 page 1/1:
@@ -495,7 +492,6 @@ row: Después, luego
 ### word-grammar uno uno
 page 1/1:
   [numeral] Uno
-  [determinante] Forma de un antes de «s impura» (la que va seguida de consonante)
   [pronombre] Uno (referencia a persona de identidad desconocida, indefinida o irrelevante)
 row: Uno
 ### word-grammar ne ne
@@ -514,9 +510,10 @@ row: Ese, aquel
 ### word-grammar ancora ancora
 grammar: también puede ser la tercera persona del singular del presente de indicativo y la segunda persona del singular del imperativo de ancorare
 page 1/1:
-  [sustantivo femenino] Ancla
   [adverbio] Todavía
-row: Ancla
+  [—] De nuevo
+  [sustantivo femenino] Ancla
+row: Todavía
 ### word-grammar molto molto
 page 1/1:
   [adverbio] Muy, bastante
@@ -524,12 +521,13 @@ page 1/1:
 row: Muy, bastante
 ### word-grammar mai mai
 page 1/1:
-  [adverbio] Jamás o nunca; Siempre
-row: Jamás o nunca
+  [adverbio] Nunca, jamás; Siempre
+row: Nunca, jamás
 ### word-grammar ora ora
 page 1/1:
+  [adverbio] Ahora
   [sustantivo femenino] Hora
-row: Hora
+row: Ahora
 ### word-grammar quanto quanto
 page 1/1:
   [pronombre] Cuanto
@@ -544,27 +542,26 @@ page 1/1:
 row: Por consiguiente, después, por lo tanto
 ### word-grammar secondo secondo
 page 1/1:
-  [numeral] Segundo
   [preposición] Según
-row: Segundo
+  [numeral] Segundo
+row: Según
 ### word-grammar proprio proprio
 page 1/2:
+  [adverbio] Muy, realmente; Justo, mismo
   [adjetivo] Propio, suyo, tuyo o mío (dependiendo de quién sea el poseedor y quién hable)
 page 2/2:
   [adjetivo] Peculiar, particular, suyo, tuyo o mío (dependiendo de quién hable y sobre quién lo haga)
-  [adverbio] Muy, realmente; Justo, mismo
-row: Propio, suyo, tuyo o mío (dependiendo de quién sea el poseedor y quién hable)
+row: Muy, realmente
 ### word-grammar altro altro
 page 1/1:
   [pronombre] Otro
 row: Otro
 ### word-grammar bene bene
 page 1/1:
-  [adjetivo] Aristocrático, noble
   [adverbio] Bien (excelentemente); Correctamente, propiamente; Atentamente, con cuidado
-  [interjección] Bien
+  [adjetivo] Aristocrático, noble
   [sustantivo masculino] Bien (moralidad); Bien (obyecto); Bien (beneficio)
-row: Aristocrático, noble
+row: Bien (excelentemente)
 ### word-grammar vi vi
 page 1/1:
   [pronombre] Os, los, las
@@ -576,14 +573,13 @@ page 1/1:
 row: Aquí
 ### word-grammar stesso stesso
 page 1/1:
-  [adjetivo] Igual, mismo; Mismo. (Reflexivo.)
-  [pronombre] Mismo
+  [adjetivo] Mismo, igual; Mismo. (Reflexivo.)
   [adverbio] A pesar de todo, aun así, de todos modos, igualmente
-row: Igual, mismo
+row: Mismo, igual
 ### word-grammar grande grande
 page 1/1:
   [adjetivo] Grande. (Dicho de tamaño.); Grande. (Dicho de cantidades.); Alto. (Dicho de tamaño.); Amplio; Largo
-  [sustantivo] Adulto; Grande; Persona influyente
+  [sustantivo] Adulto; Persona influyente
 row: Grande. (Dicho de tamaño.)
 ### word-grammar fine fine
 grammar: también puede ser el femenino plural de fino

@@ -2611,6 +2611,8 @@ class ItalianGlossedInSpanishSources(unittest.TestCase):
             ),
             ps.EDITIONS["wikidata"]["url"]: lexeme_dump([GATTO, CHAT, GATO]),
         }
+        # MarkIT's two sections, pinned at a commit since change 28 (refine-lingua-it-es-glosses D1).
+        self.served.update({spec["url"]: f"{name} bytes\n".encode() for name, spec in ps.PINNED["it-es"].items()})
         for edition in self.PIVOT_EDITIONS:
             self.served[ps.EDITIONS[edition]["url"]] = gz(
                 [
@@ -2666,7 +2668,10 @@ class ItalianGlossedInSpanishSources(unittest.TestCase):
         for edition in ("de", "pt", "ru", "pl", "nl"):
             self.assertEqual(list(ps.EDITIONS[edition]["files"]), [f"kaikki-{edition}-pivot-it-es.jsonl"], "one file each")
         self.assertEqual(catalogue("it-es", "wikidata"), {"wikidata-lexemes-it-es.jsonl": ("lexemes", "it", "es")})
-        self.assertNotIn("it-es", ps.PINNED)
+        # Pinned at a commit, MarkIT's two sections alone, it-fr's, read for a row's parts of speech
+        # (refine-lingua-it-es-glosses D1, D3), as it-en pins them.
+        self.assertEqual(ps.PINNED["it-es"], {name: ps.PINNED["it-fr"][name] for name in ("markit-train", "markit-dev")})
+        self.assertEqual(ps.PINNED["it-es"], ps.ITALIAN_MARKIT)
         self.assertNotIn("it-es", ps.ESDB)
         self.assertEqual(ps.DUMPS["it-es"]["en"], ("kaikki-en-pivot-it-es.jsonl",), "no English dump's Italian section")
         # Every other pair reads what it read before.
@@ -2749,10 +2754,10 @@ class ItalianGlossedInSpanishSources(unittest.TestCase):
         sources = record["sources"]
         self.assertEqual(
             list(sources),
-            [*(ps.source_name(e) for e in ("es", "it", *self.PIVOT_EDITIONS)), "wikidata", "wordfreq"],
-            "one record per edition, in DUMPS order; no kaikki-wikidata",
+            ["markit-train", "markit-dev", *(ps.source_name(e) for e in ("es", "it", *self.PIVOT_EDITIONS)), "wikidata", "wordfreq"],
+            "MarkIT's sections, then one record per edition, in DUMPS order; no kaikki-wikidata",
         )
-        self.assertEqual(sorted(self.fetched), sorted(self.served), "the ten dumps, each once")
+        self.assertEqual(sorted(self.fetched), sorted(self.served), "the ten dumps and MarkIT's two sections, each once")
         own = ps.release_tag("it-es", "2026.10.25")
         wikidata = sources["wikidata"]
         self.assertEqual(wikidata["release"], own)
@@ -2797,8 +2802,12 @@ class ItalianGlossedInSpanishSources(unittest.TestCase):
         pinned = self.pin.read_bytes()
         with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
             ps.fetch_pinned(self.pin, self.work, fetch=self.fetch, cache=self.cache)
-        self.assertEqual(self.fetched, [ps.release_url(own, asset) for asset in ps.assets(record, own)])
-        self.assertFalse(set(self.fetched) & set(self.served), "no dump fetched")
+        self.assertEqual(
+            self.fetched,
+            [*(spec["url"] for spec in ps.PINNED["it-es"].values()), *(ps.release_url(own, asset) for asset in ps.assets(record, own))],
+        )
+        dumps = set(self.served) - {spec["url"] for spec in ps.PINNED["it-es"].values()}
+        self.assertFalse(set(self.fetched) & dumps, "no dump fetched, MarkIT's sections at their commit alone")
         self.assertEqual(
             [json.loads(line) for line in (self.work / "wikidata-lexemes-it-es.jsonl").read_text(encoding="utf-8").splitlines()],
             LEXEME_PAIRS,

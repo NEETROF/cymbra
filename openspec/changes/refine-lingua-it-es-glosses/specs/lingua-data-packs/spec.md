@@ -9,11 +9,14 @@ the gloss's items split at a comma and at « o » or « u » between short items
 their case folded —, each of the pivot's translation tables counting as a source. A row yields when the
 word most sources open on is opened on by at least two of them, by more than open on the row's first word,
 and is held by more sources than that word; or when the row's first word is held by its own source alone
-and another word by two or more. The word that wins is one some source gives in the part of speech the
-row opens on; ties go to the earlier source in the order of *Italian is glossed in Spanish…*, then to
-the word's place there. The sense holding the winner opens the row, the winner first in it; a winner the
+and another word, one some source gives in the part of speech the row opens on, by two or more. Ties go to
+the earlier source in the order of *Italian is glossed in Spanish…*, then to the word's place there. The sense holding the winner opens the row, the winner first in it; a winner the
 row lacks brings the sense of the earliest source holding it, and the row's first sense goes only when
-none of its words another source gives; a row keeps at most eight senses. A row Wikidata's lexemes of one
+none of its words another source gives — but the row's first word stays, as a sense of its own after the
+winner's, when it is the cognate of a lemma of a learned suffix (`-zione`, `-sione`, `-enza`, `-anza`,
+`-ità`, `-mente`, `-abile`, `-ibile`: the word ends as Spanish writes the suffix, accent included, and is at
+most 0.2 of its length in edit distance from the lemma written so, accents out) and its Spanish Zipf
+frequency is at least 3; a row keeps at most eight senses. A row Wikidata's lexemes of one
 item gloss, whose first word no other source gives, takes the gloss of the next source whose first word
 two sources give.
 The function words' parts of speech the treebank may move first are `ADP`, `DET`, `PRON`, `CCONJ`,
@@ -83,13 +86,28 @@ Spanish Zipf frequency is under 2 opens on the first commoner word of its first 
 sense of its part of speech of the next source whose first word is commoner. A translation the Italian
 Wiktionary files under a verb form's sense, which no other source gives the word, is left out; so is the
 pivot's verb sense for a word Italian reads only as another verb's form and as no verb of its own, unless it
-is the row's only part of speech. A feminine noun the section points at its masculine, with no meaning of
+is the row's only part of speech. Once a row's sources agree, an item of a sense the row rules brought into
+the row — no sense of the row as the sources first glossed it — goes when Spanish does not write it (a Zipf
+frequency of 0) or writes it under 1.5 while another of those languages writes it at least 3, unless the
+reviewed list names it; a sense's last item stays. A feminine noun the section points at its masculine, with no meaning of
 its own, takes the next source's gloss when that gloss opens on the lent word's feminine, which two
 sources give.
+
+#### Scenario: A displaced cognate
+- **WHEN** agreement opens `insufficienza` on the pivot's « Falta, carencia », and the section's first word « Insuficiencia » is the lemma's cognate, which Spanish writes at a Zipf frequency of 3.6
+- **THEN** the gloss of `insufficienza` keeps « Insuficiencia » as a sense after « Falta, carencia »
+
+#### Scenario: A false friend displaced
+- **WHEN** agreement opens `mirare` on « Apuntar », and the row's first word « Mirar » is a verb's cognate, which no learned suffix forms
+- **THEN** « Mirar » is not kept
 
 #### Scenario: A word that is not Spanish
 - **WHEN** the Italian Wiktionary's translations give `evidente` « Evident » and the Spanish tables read backwards « Evidente »
 - **THEN** the gloss of `evidente` is « Evidente »
+
+#### Scenario: A foreign item agreement brings
+- **WHEN** agreement opens `marmo` on the pivot's « Mármol, sepulcro, alioj », and Spanish does not write « alioj »
+- **THEN** the gloss of `marmo` is « Mármol, sepulcro »
 
 #### Scenario: A word Spanish writes alike
 - **WHEN** a table gives `friulano` « Friulano », which the reviewed list names a Spanish word too
@@ -123,7 +141,9 @@ sources give.
 The it-es reduction SHALL keep a surname's note off a word Italian's readings give a common reading when another source glosses the word; SHALL read a given name's note as the Spanish name it names; SHALL cut a list of eight items or more to its first three; and SHALL leave out a taxon's name before a meaning, a sense repeated within a part of speech, and an expression's sense that only opens another.
 A surname's note is a proper noun's sense opening on « Apellido »; a word whose only gloss it is keeps it.
 A given name's note « Nombre de pila de varón, equivalente del español Pablo », or its wording without
-« de pila », reads « Pablo (nombre de pila) ». A list is cut when three quarters of its items hold at most four words and none ends a sentence.
+« de pila », reads « Pablo (nombre de pila) ». A list is cut when three quarters of its items hold at most four words and none ends a sentence,
+its items first ordered by the number of sources giving each — each of the pivot's tables a source —, then
+by their Spanish Zipf frequency, the list's order breaking ties.
 A sense equal to another of its part of speech once their parentheses are out goes when it has none, and
 so does a sense with no parenthesis whose every item another sense of its part of speech says; two senses
 that differ by their parentheses both stay. A sense with no parenthesis equal to an earlier sense of any
@@ -144,6 +164,10 @@ part of speech, once « ¡ », « ! », « ¿ » and « ? » are out too, goes.
 #### Scenario: A list cut
 - **WHEN** the section glosses `inoltre` with a sense of thirteen items, « Además, adicionalmente, allende, a mayor abundamiento, … »
 - **THEN** the sense reads « Además, adicionalmente, allende »
+
+#### Scenario: A list cut by use
+- **WHEN** the section glosses `talvolta` with « A la de veces, a las de veces, a las veces, a tiempos, a veces, … », and the pivot's tables and the Spanish tables read backwards give « a veces » and « de vez en cuando »
+- **THEN** the sense reads « A veces, de vez en cuando, a la de veces »
 
 #### Scenario: A taxon before the meaning
 - **WHEN** the section glosses `cavallo` « (Equus caballus) Caballo »

@@ -3570,20 +3570,25 @@ fn spec_scenario_italian_glossed_in_spanish() {
             "it-es: it/{name}"
         );
     }
+    // Since change 28 (refine-lingua-it-es-glosses D1), its rules hold fr-en's treebank rule and
+    // MarkIT's counts too, which it-fr and it-en import as well.
     assert_eq!(
         pin["reducer"]["files"],
         serde_json::json!([
             "reduce-it-es.py",
             "reduce_common.py",
             "reduce_edition_es.py",
+            "reduce_french_treebank.py",
             "reduce_italian_acronyms.py",
             "reduce_italian_es.py",
+            "reduce_italian_treebank.py",
             "reduce_spanish_tables.py"
         ])
     );
     // Its own fetch of every file it reads (change 27a's D4), under its own release: the Spanish and
-    // Italian Wiktionaries, the seven Wiktionaries of the pivot and Wikidata's Lexemes; nothing pinned at
-    // a commit, no treebank.
+    // Italian Wiktionaries, the seven Wiktionaries of the pivot and Wikidata's Lexemes; pinned at a
+    // commit, MarkIT's training and development sections, it-fr's, read for a row's parts of speech
+    // alone (refine-lingua-it-es-glosses D1), and no held-out treebank.
     let sources = pin["sources"].as_object().unwrap();
     assert_eq!(
         sources.keys().map(String::as_str).collect::<Vec<_>>(),
@@ -3598,11 +3603,49 @@ fn spec_scenario_italian_glossed_in_spanish() {
             "kaikki-pl",
             "kaikki-pt",
             "kaikki-ru",
+            "markit-dev",
+            "markit-train",
             "wikidata",
             "wordfreq"
         ]
     );
-    for (name, record) in sources.iter().filter(|(name, _)| *name != "wordfreq") {
+    // In the order the pin writes them, its pinned sources first, as `fetch_pinned` reads them.
+    let written = std::fs::read_to_string(tables().join("it-es/pin.json")).unwrap();
+    let at = |name: &str| {
+        written
+            .find(&format!("\"{name}\": {{"))
+            .unwrap_or_else(|| panic!("it-es/pin.json records {name}"))
+    };
+    let order = [
+        "markit-train",
+        "markit-dev",
+        "kaikki-es",
+        "kaikki-it",
+        "kaikki-en",
+        "kaikki-fr",
+        "kaikki-de",
+        "kaikki-pt",
+        "kaikki-ru",
+        "kaikki-pl",
+        "kaikki-nl",
+        "wikidata",
+        "wordfreq",
+    ];
+    assert!(
+        order.windows(2).all(|pair| at(pair[0]) < at(pair[1])),
+        "it-es/pin.json writes its sources in the order {order:?}"
+    );
+    let it_fr_pin = json(&tables().join("it-fr/pin.json"));
+    for name in ["markit-train", "markit-dev"] {
+        assert_eq!(
+            sources[name], it_fr_pin["sources"][name],
+            "{name}: it-fr's commit and sha256"
+        );
+    }
+    for (name, record) in sources
+        .iter()
+        .filter(|(name, _)| *name != "wordfreq" && !name.starts_with("markit-"))
+    {
         assert!(
             record["release"]
                 .as_str()
@@ -3708,6 +3751,78 @@ fn spec_scenario_the_credits_of_it_es() {
             "the pack's notice names {credit:?}"
         );
     }
+}
+
+#[test]
+fn spec_scenario_it_es_s_glosses_refined() {
+    // Change 28 (refine-lingua-it-es-glosses): the committed rows open on the word their sources agree
+    // on (D2, D3), the `di` family reads through its reviewed table (D11), `FIRST_RUN` and `CORRECTIONS`
+    // write their rows (D12), the glosses a person wrote among them (tasks 0.1, 0.2, 0.4).
+    let glossed = tsv(&tables().join("it-es/gloss.tsv"));
+    let senses = tsv(&tables().join("it-es/senses.tsv"));
+    let mwe = tsv(&tables().join("it-es/mwe.tsv"));
+    for (lemma, gloss) in [
+        ("del", "Del"),
+        ("dello", "Del"),
+        ("della", "De la"),
+        ("dei", "De los"),
+        ("degli", "De los"),
+        ("delle", "De las"),
+        ("posto", "Lugar, sitio, puesto"),
+        (
+            "a",
+            "A; En (cuando se trata de un concepto más que un lugar físico)",
+        ),
+        ("te", "Ti, te"),
+        ("cui", "Que; Cuyo"),
+        ("porca", "Cerda; Caballón, camellón"),
+        ("svezia", "Suecia"),
+        ("tessera", "Tarjeta, carné"),
+        ("cancellato", "Cancelado, borrado"),
+        ("ognuno", "Cada uno"),
+        ("caso", "Caso"),
+        ("ragazza", "Chica, muchacha, niña; Novia"),
+        ("paolo", "Pablo (nombre de pila)"),
+        ("cavallo", "Caballo"),
+        ("persona", "Persona (ser humano)"),
+        ("evidente", "Evidente"),
+        ("faccia", "Cara"),
+        // Round 2 (D17): a displaced cognate kept, a foreign item out, the reviewed rows.
+        (
+            "insufficienza",
+            "Falta, carencia; Insuficiencia; Superficialidad",
+        ),
+        ("prestazione", "Rendimiento, hazaña, proeza; Prestación"),
+        ("marmo", "Mármol, sepulcro"),
+        ("cattura", "Captura, detención, arresto"),
+        ("autista", "Conductor, chófer"),
+        ("loro", "Ellos, ellas; Ustedes; Su, sus"),
+        ("strada", "Calle, carretera, camino"),
+    ] {
+        assert_eq!(glossed[lemma], gloss, "it-es: {lemma}");
+    }
+    for (lemma, first) in [
+        ("andare", "Ir, andar"),
+        ("ancora", "Todavía"),
+        ("spesso", "A menudo, frecuentemente, con frecuencia"),
+        ("rapidamente", "Rápidamente"),
+        ("don", "Don"),
+        ("inoltre", "Además, "),
+        ("talvolta", "A veces, de vez en cuando"),
+    ] {
+        assert!(
+            glossed[lemma].starts_with(first),
+            "it-es: {lemma} opens on {first:?}, not {:?}",
+            glossed[lemma]
+        );
+    }
+    for lemma in ["del", "dello", "della", "dei", "degli", "delle"] {
+        assert_eq!(senses[lemma], "ADP:1", "it-es: {lemma} is a preposition");
+    }
+    for lemma in ["the", "tag", "trad"] {
+        assert!(!glossed.contains_key(lemma), "it-es: {lemma} unglossed");
+    }
+    assert_eq!(mwe["d'accordo"], "De acuerdo, vale");
 }
 
 #[test]
