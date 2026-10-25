@@ -55,8 +55,8 @@ In this folder:
 - **Dictionary words are it-fr's**: 9,568 lemmas it-en glosses are no dictionary word of Italian, 4,490
   lemmas are glossed by a proper noun's senses alone, and 636 dictionary words have no English gloss, so
   the pack carries a lexical section, and the vocabulary estimate counts the same words as it-fr's.
-- **The pack is 2,461,303 B**, 46.9 % of the 5 MiB budget: Italian's base, 1,551,196 B, byte for byte
-  it-fr's, and it-en's layer, 910,347 B.
+- **The pack is 2,461,309 B**, 46.9 % of the 5 MiB budget: Italian's base, 1,551,196 B, byte for byte
+  it-fr's, and it-en's layer, 910,353 B.
 - **Refined by change 23** (*How the section is read*): 1,581 rows read otherwise — 133 of the 1,000
   commonest, 302 of the next 4,000, 601 of the next 15,000, 545 beyond —, 345 of them in their first
   sense; 19 expressions; no lemma gains or loses a gloss, and the coverage does not move.
@@ -111,9 +111,10 @@ together — every case of it —, each measured alone on change 22's tables (ro
   rule, as it-fr reads it — (16 rows, all of the 1,000: `su` « on, upon… », `solo` « only, just »,
   `spesso` « often »); a row opening on a meaning the section marks archaic, obsolete, dated or
   historical opens on its first meaning that is not (173 rows: `polizia` « police; polity »,
-  `università`, `ufficio`, `prodotto`); and a reviewed table, `FIRST_RUN`, opens 25 rows on the sense it
+  `università`, `ufficio`, `prodotto`); and a reviewed table, `FIRST_RUN`, opens 26 rows on the sense it
   names (`bene` « well », `gente` « people », `testo` « text (writing) », `piano` « floor, storey » with
-  « plan » back, `parlamento` « parliament », `ce` « us »; `come` held at « how »).
+  « plan » back, `parlamento` « parliament », `ce` « us », `parmigiano` « parmesan cheese »; `come` held
+  at « how »).
 - **Pointers**: the wordings the English edition does not know are pointers (`che` without « proscribed
   spelling of ché », `aprile` « April », `itria` « otter »); a pointer to a word of one or two letters
   lends that word's meanings after the row's own, within the eight-sense bound (`de` → *di*, `el` « he;
@@ -276,7 +277,7 @@ Left, each with its reason (the change's design, D9):
 - **Species among the expressions**: a rule cannot tell a rare sense from the plant or animal a word
   names.
 
-The owner's (2026-10-25): the 25 rows of `FIRST_RUN`; Massa kept by `TOWNS_KEPT`, and the towns a common
+The owner's (2026-10-25): the 26 rows of `FIRST_RUN`; Massa kept by `TOWNS_KEPT`, and the towns a common
 word precedes going (`cassino`, `piombino`, `faenza`, `sora`); the four corrections of `amica`,
 `bambina`, `compagna` and `spagnola`.
 

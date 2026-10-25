@@ -522,8 +522,9 @@ Measured on 2026-10-25 by the reduction itself — `build.sh --reduce it-en` ove
   the 1,578 already (its surname's note goes); `amica`, `bambina` and `spagnola` join them. 19
   expressions; the 435 changed rows of the 5,000 commonest are listed in the pull request, each with the
   rules that change it alone.
-- **Each rule alone**, as *Measured* gives it: D2a 16 rows (15 first senses), D2b 173, D2c 19 (17 / 2;
-  `ce`'s row needs D3's lending, and the reduction fails on it when the table runs without D3), D3 26
+- **Each rule alone**, as *Measured* gives it: D2a 16 rows (15 first senses), D2b 173, D2c 20 with
+  `parmigiano`, the 26th row (17 / 2 / 1; `ce`'s row needs D3's lending, and the reduction fails on it
+  when the table runs without D3), D3 26
   (10), D4a 31, D4b 5, D4c 7 (5), D4d 2 (1), D6 1,260 (57), D7's article note 1, D7 and D8 72 (31), D5's
   corrections 4. Two readings move: `a cazzo`'s « poorly » is D4c's — its clipping —, not D2b's, which
   alone reorders four expressions (`a vanvera`, `stare a bada`, `botta segreta`, `cahier de doléances`);
@@ -534,10 +535,14 @@ Measured on 2026-10-25 by the reduction itself — `build.sh --reduce it-en` ove
   (`vendesi`); 34 pointers to a short word lending its meanings; 184 meanings nested under a degree read,
   10 degrees', 9 clippings' and 6 plurals' meanings; 2,381 surnames', 192 given names' and 119 places'
   notes out, 2,628 proper nouns' entries left with no sense, 8 names read through the name they point
-  at, Massa kept by `TOWNS_KEPT`; 24 rows opened by MarkIT, 362 on a meaning not outdated, 25 by the
+  at, Massa kept by `TOWNS_KEPT`; 24 rows opened by MarkIT, 362 on a meaning not outdated, 26 by the
   table; 72 glosses and 13 expressions taking « etc. »; 5 of 5 corrections fired.
-- **The pack** 2,461,303 B (6,249 B less), its base it-fr's byte for byte (1,551,196 B), its layer
-  910,347 B, at `pack_version` `2026.10.25+15b6fb2.442fd70`.
+- **The pack** 2,461,309 B (6,243 B less), its base it-fr's byte for byte (1,551,196 B), its layer
+  910,353 B, at `pack_version` `2026.10.25+380fa9f.442fd70`.
+- **`parmigiano`**, a 26th row of `FIRST_RUN` the owner approved on 2026-10-25 from the gloss diff: D2b
+  opened it on « the dialect of Emilian spoken in Parma », its adjective being marked archaic; it opens
+  on « parmesan cheese ». It was among the rows that change already, in its first sense, so no count
+  moves.
 - **How it is built**: the rules read a headword's entries in `reduce_italian_en.HeadwordPass`, run by
   `read_as_italian` after change 22's rules, so each can be measured alone (`RULES`); `FIRST_RUN` and
   `TOWNS_KEPT` live in `reduce_italian_en.py`, `CORRECTIONS` in `reduce-it-en.py` — the section's applied
