@@ -10,10 +10,10 @@
 //
 // Usage: node --experimental-strip-types tool/measure_marks.mjs --pair <pair> [--models <assembled-site-dir>]
 //   The pair is one the catalogue routes and the corpus holds selections of: en-fr, es-fr, es-en,
-//   en-es, fr-en, fr-es, and it-fr through it-en then en-fr (measure-lingua-it-fr-translation-marks).
-//   it-en and it-es are measured on the same Italian selections by their own rows, and a pair glossed
-//   in Italian once tool/marks/stop-words.mjs holds Italian's. The corpus is the pair's studied
-//   language's, and the gloss experiment's stop words are its native language's, read from the
+//   en-es, fr-en, fr-es, it-fr through it-en then en-fr (measure-lingua-it-fr-translation-marks), and
+//   it-en through its one model, on the same Italian selections (measure-lingua-it-en-translation-marks).
+//   it-es is measured on them by its own row, and a pair glossed in Italian once
+//   tool/marks/stop-words.mjs holds Italian's. The corpus is the pair's studied language's, and the gloss experiment's stop words are its native language's, read from the
 //   route's last model (tool/marks/stop-words.mjs). The experiment reads the pair's gloss table only
 //   when it holds a gloss (add-lingua-french-translation D6). The models come from that directory
 //   (tool/assemble_model_site.mjs) or, without it, from the catalogue's host; every file is checked

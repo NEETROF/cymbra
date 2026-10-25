@@ -152,7 +152,11 @@ ahead of their readers, inert until changes 34 and 35 shipped them, and fr-en an
 change 52 shipped them. it-fr is measured through it-en then en-fr on the Italian selections and
 judged in French (the Italian programme's row 19, `measure-lingua-it-fr-translation-marks`): 93 of
 its 97 shown marks correct (89 of 97 with its doubtful lines counted wrong), 3 % withheld, on the first tier — listed ahead of its readers, inert
-until row 20 (`enable-lingua-italian`) lists it-fr in `packs.json`. Rows 24, 29, 38, 49 and 53
+until row 20 (`enable-lingua-italian`) lists it-fr in `packs.json`. it-en is measured on the same
+selections through its one model and judged in English (row 24,
+`measure-lingua-it-en-translation-marks`): 94 of its 97 shown marks correct (92 of 97 with its
+doubtful lines counted wrong), 3 % withheld, on the first tier — listed ahead of its readers too,
+inert until row 25 (`enable-lingua-italian-for-english-speakers`) lists it-en. Rows 29, 38, 49 and 53
 measure the other Italian pairs through their routes before they ship.
 
 It is bundled, so the reviewed package decides what is accepted; the host only serves bytes. The
@@ -438,6 +442,13 @@ nothing here, and a trap on another input still costs the reader one respawn.
 The marks measurement of row 19 (`tool/measure_marks.mjs --pair it-fr`, the same day, machine,
 engine and models) asked every Italian selection twice through one engine: no request trapped, and
 `tool/marks/README.md` lists no trapped selection.
+
+The marks measurement of row 24 (`tool/measure_marks.mjs --pair it-en`, 2026-10-25, the same machine
+and engine, the six models assembled again from Mozilla's registry by `tool/assemble_model_site.mjs`,
+every pin held) asked every Italian selection twice through the it-en model soaked above, in one
+engine: no request trapped — as the soak found, isolated and in one instance —, every fragment was
+reconciled, and `tool/marks/README.md` lists no trapped selection. Its marks, judged in English: 94
+of 97 shown correct, 3 % withheld; two runs gave the same results byte for byte.
 
 ## What never happens
 

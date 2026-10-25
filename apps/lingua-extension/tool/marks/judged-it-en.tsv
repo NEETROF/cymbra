@@ -1,0 +1,101 @@
+k	id	word	upos	engine_marks	engine	engine_reason	gloss_marks	gloss	gloss_reason
+0	n01001011	parte	NOUN		withheld	no mark (« gran parte della » → « much of »)			
+1	n01004009	insegnare	VERB	teaching	correct				
+2	n01010042	volta	NOUN	Once	correct	« Una volta » → « Once », an expression's rendering			
+3	n01016014	società	NOUN	company	correct				
+4	n01019005	esperti	NOUN	experts	correct				
+5	n01022016	cresciuti	VERB	grew	correct	« sono cresciuti » → « grew », a compound past rendered as a simple one			
+6	n01025045	corso	NOUN	Throughout	correct	« Nel corso » → « Throughout », an expression's rendering			
+7	n01029011	originaria	ADJ	originally	correct	the engine tagged « originally from »; the fragment's own translation trimmed it to « originally »			
+8	n01033021	ricercatori	NOUN	researchers	correct				
+9	n01036020	fossero	VERB	to be	correct	« ci fossero » → « there to be »: the mark carries « to », not « there »			
+10	n01041018	medici	NOUN	Doctors	correct				
+11	n01045035	giudice	NOUN	judge	correct				
+12	n01050014	livelli	NOUN	levels	correct				
+13	n01054011	pubblicate	VERB	posted	correct	« sono state pubblicate » → « were posted »: the mark on the participle's rendering			
+14	n01059008	discordanza	NOUN	discord	correct	doubtful: « discordanza » (a mismatch) rendered « discord », a loose rendering the mark follows			
+15	n01063011	maggiore	ADJ	biggest	correct				
+16	n01066093	trascuratezza	NOUN	neglect	correct				
+17	n01070017	commentato	VERB	commented	correct	« ha commentato » → « commented », a compound past rendered as a simple one			
+18	n01074020	gioco	NOUN	play	correct				
+19	n01078025	nazista	ADJ	Nazi	correct				
+20	n01084008	coppia	NOUN	pair	correct	doubtful: « coppia » (a couple) rendered « pair », a loose rendering the mark follows			
+21	n01087005	sostenere	VERB	argue	correct				
+22	n01091013	migliore	NOUN	best	correct	« Nel migliore dei casi » → « At best », an expression's rendering			
+23	n01094014	mercati	NOUN	markets	correct				
+24	n01097098	fermata	NOUN	stop	correct				
+25	n01102006	detto	VERB	told	correct	« Ha detto » → « He told »: the mark on « told », without the subject the model adds			
+26	n01107006	richieste	NOUN	claims	correct	« richieste di risarcimento » → « claims for compensation »			
+27	n01110008	identiche	ADJ	identical	correct				
+28	n01114025	adulti	NOUN	adults	correct				
+29	n01118003	cadere	VERB	Drop	correct	« Fa' cadere » → « Drop », an expression's rendering			
+30	n01121032	volta	NOUN	time	correct				
+31	n01127089	scelta	VERB	chose	correct	« l'ho scelta » → « I chose her »: the mark on « chose »			
+32	n01130003	punto	NOUN	point	correct	« punto di partenza » → « starting point »: « point » renders « punto »			
+33	n01134015	riconosciuto	VERB	credited	correct	« Gli viene riconosciuto » → « He is credited »			
+34	n01138026	episodi	NOUN	episodes	correct				
+35	n01142008	incredibile	ADJ	incredible	correct				
+36	n01145028	volontari	NOUN	volunteers	correct				
+37	n01149027	vidi	VERB	I saw	correct	carries « I », the subject the model adds			
+38	w01003056	isole	NOUN		withheld	no mark (« isole » → « islands », unmarked)			
+39	w01007004	limitato	ADJ	limited	correct				
+40	w01010046	stato	NOUN	state	correct				
+41	w01016070	esempio	NOUN	example	correct				
+42	w01020018	causa	NOUN	Due	correct	« A causa di » → « Due to », an expression's rendering			
+43	w01025085	importanti	ADJ	important	correct				
+44	w01028069	reazione	NOUN	reaction	correct				
+45	w01031015	tende	VERB	tends	correct				
+46	w01035081	realtà	NOUN	fact	correct	« In realtà » → « In fact », an expression's rendering			
+47	w01038044	indigeni	ADJ	indigenous	correct				
+48	w01042055	temporali	NOUN	Thunderstorms	correct				
+49	w01046056	governo	NOUN	government	correct				
+50	w01050067	caduta	NOUN	fall	correct				
+51	w01053015	esatto	ADJ	exact	correct				
+52	w01058009	battaglia	NOUN	battle	correct	the engine tagged « in »; the fragment's own translation moved the mark to « battle »			
+53	w01063048	rappresentavano	VERB	represented	correct				
+54	w01066040	capodanno	NOUN	New Year	correct	« capodanno » → « New Year », the whole compound (« cinese » → « Chinese »)			
+55	w01070031	astronomico	ADJ	astronomical	correct				
+56	w01072079	secolo	NOUN	century	correct				
+57	w01075039	comprendono	VERB	who	wrong	marks « who » instead of « understand », « comprendono » rendered in the wrong sense			
+58	w01080129	seguito	NOUN	later	correct	« in seguito » → « later », an expression's rendering			
+59	w01085004	buoni	ADJ	good	correct				
+60	w01089040	tempo	NOUN	time	correct	« A quel tempo » → « At that time »			
+61	w01095090	riguarda	VERB		withheld	no mark (« Per quanto riguarda » → « As for »)			
+62	w01099012	spiegazioni	NOUN	The explanations	correct				
+63	w01102020	paramilitari	ADJ	paramilitary	correct				
+64	w01106073	quota	NOUN	altitude	correct				
+65	w01111089	conobbe	VERB	met	correct				
+66	w01115023	recensioni	NOUN	reviews	correct				
+67	w01119059	simili	ADJ	similar	correct				
+68	w01125036	ore	NOUN	hours	correct				
+69	w01130099	rilasciò	VERB	released	correct				
+70	w01133014	sceneggiatore	NOUN	screenwriter	correct				
+71	w01136029	stereotipata	ADJ	stereotypical	correct				
+72	w01140032	metodo	NOUN	method	correct				
+73	w01143037	interpreta	VERB	he played	correct	carries « he », the subject the model adds; « interpreta », a historic present, rendered « played »			
+74	w01147122	agosto	NOUN	August	correct				
+75	n02002007	agenti	NOUN	Officers	correct				
+76	n02027007	agenti	NOUN	agents	correct				
+77	n02038007	procede	VERB	proceeds	correct	« procede » rendered « proceeds »; the rest of the translation is poor (« a tentoni » → « to stir »)			
+78	n02048002	sveglia	NOUN	alarm	wrong	marks « alarm » alone, half of « alarm clock »			
+79	n02073024	nemiche	ADJ	enemy	correct				
+80	n03001007	differenza	NOUN	Unlike	correct	« A differenza di » → « Unlike », an expression's rendering			
+81	n03005025	accusò	VERB	accused	correct				
+82	n03008011	sgoccioli	NOUN	its	wrong	marks « its » alone, a function word (a possessive the model added), not « infarest », « sgoccioli »'s garbled rendering			
+83	n04003043	canzone	NOUN	song	correct				
+84	n04007018	nota	NOUN	note	correct				
+85	n05001005	rappresenta	VERB	represents	correct				
+86	n05003022	unico	NOUN	only one	correct	« l'unico » → « the only one »			
+87	n05008012	preoccupato	ADJ	concerned	correct				
+88	w02003037	chiostro	NOUN	cloister	correct				
+89	w02006081	vincere	VERB	win	correct				
+90	w02009002	rigore	NOUN	rigor	correct				
+91	w02014013	ultimi	ADJ	last	correct				
+92	w02017061	tracce	NOUN	Traces	correct				
+93	w03003039	capitanata	VERB	captained	correct				
+94	w03007039	commercio	NOUN	Trade	correct				
+95	w04001027	inferiore	ADJ	lower	correct				
+96	w04004051	parte	NOUN	part of	correct	the mark carries « of »			
+97	w04010027	incontrano	VERB	meet	correct	« si incontrano » → « meet »			
+98	w05003012	sospensione	NOUN	suspension	correct				
+99	w05006058	esterne	ADJ	external	correct				
