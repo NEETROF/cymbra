@@ -140,8 +140,24 @@ cards the rows from this change on — without them in `lexical.tsv`, change 7's
 « NATO » aside as a name (a form capitalised mid-sentence, never in lowercase, no dictionary word).
 Change 16, which writes it-fr's glosses and the dictionary words: the rows' gloss (D3) and
 `lexical.tsv` as `dictionary_words ∪ ACRONYMS` (D5), by this change's requirements. The programme's row stays 11: the rule, the table and the
-version chain (`1.2.0` → `1.3.0`) are stage 1's order, the data lands with change 16, and this
-change archives after 16 and 17.
+version chain (`1.2.0` → `1.3.0`) are stage 1's order, and the data lands with change 16. This
+change archives **before** changes 16 and 17, not after them (see *The archive order*, below).
+
+### The archive order (2026-10-25)
+
+This change first listed change 16 (`add-lingua-pack-it-fr`) in its `archiveAfter`, so that it would
+archive once its data had landed, and planned to add change 17. That edge closed a cycle no change
+could leave — this change → 16 → `add-lingua-italian-levels` (14) → this change —, found by change
+20's implementation: none of the three could archive, nor anything waiting on them (changes 17 and
+20). The edge carried no mechanical need. All three changes only ADD requirements (this change's
+MODIFIED block is French's acronym requirement, which neither of the others touches); this change's
+spec names no requirement of 16 or 14, while 16's names two of this change's (*Italian's acronyms are
+a reviewed table, glossed through their entry's expansions or synonyms*, *Italian's dictionary words
+leave its names out*) and 14's (*Italian's estimated levels*), so the text runs the other way: 16
+archives after this change, through 14. And change 17 (`refine-lingua-it-fr-glosses`) MODIFIES
+*Italian's acronyms are a reviewed table, …*, so it must archive after this change, never before.
+The edge is dropped (refine-lingua-it-fr-glosses's pull request); a change archived before its data
+lands only moves its requirements into the main spec, which the archive does whatever the order.
 
 ### D7 — Version, fixture, golden
 

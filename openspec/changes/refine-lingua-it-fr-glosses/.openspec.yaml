@@ -1,0 +1,8 @@
+schema: spec-driven
+created: 2026-10-25
+archiveAfter:
+  - add-lingua-pack-it-fr
+  - add-lingua-italian-forms-tables
+  - add-lingua-italian-grammar-tables
+  - keep-lingua-italian-acronyms-and-names
+  - add-lingua-italian-levels

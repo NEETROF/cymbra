@@ -60,7 +60,8 @@ French and Spanish have and Italian does not yet:
   table, the builder, the forms rows and the rows in `tables/it/lexical.tsv` (change 9's is empty;
   without them a page would set « NATO » aside as a name); change 16, which writes it-fr's glosses
   and dictionary words, glosses the rows by D3 and writes `lexical.tsv` as the dictionary words plus
-  the rows (D5). This change archives after 16 and 17.
+  the rows (D5). This change archives before 16 and 17, which name and modify its requirements
+  (design, *The archive order*).
 - **Italian's analyser version bumps** (`1.2.0` → `1.3.0`); the Italian golden re-blessed on its
   version line and the two probes added (the `notizie` page writes `ONU`, `RAI`, `PIL`, `UE`, none a
   row).
