@@ -139,11 +139,13 @@ added the French examples, before fr-en and fr-es were run, and moved no verdict
 measure-lingua-it-fr-translation-marks D3 added the Italian examples below, taken from the corpus,
 before it-fr was run, and moved no verdict; measure-lingua-it-en-translation-marks D2 added their
 English counterparts, anchored on verdicts already committed, before it-en was run, and moved no
-verdict), and a pair is judged in its **native language** — French for en-fr, es-fr and it-fr,
-English for es-en, fr-en and it-en, Spanish for en-es and fr-es. Through English, fr-es's mark
-crosses two alignments, as es-fr's does, and so does it-fr's, it-en then en-fr: it is judged against
-the rendering the reader sees, in the pair's native language, whatever the English one in between.
-it-en's mark crosses one, the it-en model's alone: Italian is judged in English as French is (fr-en).
+verdict; measure-lingua-it-es-translation-marks D3 added their Spanish counterparts, before it-es was
+run, and moved no verdict), and a pair is judged in its **native language** — French for en-fr, es-fr
+and it-fr, English for es-en, fr-en and it-en, Spanish for en-es, fr-es and it-es. Through English,
+fr-es's mark crosses two alignments, as es-fr's does, and so do it-fr's, it-en then en-fr, and
+it-es's, it-en then en-es: each is judged against the rendering the reader sees, in the pair's native
+language, whatever the English one in between. it-en's mark crosses one, the it-en model's alone:
+Italian is judged in English as French is (fr-en).
 
 - **Correct:**
   - the marks cover the rendering, in the pair's native language, of the selected word in that
@@ -208,6 +210,67 @@ written before it-en was run.
   nemiche » → « the two enemy factions »: a mark on « enemy » (or « hostile », « rival ») is correct,
   on « two » it is not, as es-en's k 79 was judged; step 71 « stereotipata » → « stereotypical » or
   « stereotyped ».
+
+**Italian selections, through English, judged in Spanish** (measure-lingua-it-es-translation-marks
+D3): the rules above, with these examples from the same Italian steps, written before it-es was run.
+it-es goes through it-en then en-es, as fr-es goes through fr-en then en-es. Each line is read against
+three references: it-fr's verdict and it-en's verdict on the same selection, and `results-en-es.jsonl`'s
+Spanish for the English sentence — a reference on idiom only, which holds only where the Italian word
+means what the English one does (not on the 34 steps where the Italian selection is another word, nor
+on 2 « volta », 32 « punto di partenza », 54 « capodanno », 70 « sceneggiatore », 82 « agli
+sgoccioli », 98 « sospensione »). A verdict departing from both it-fr's and it-en's gives its reason.
+
+- **A word the route leaves untranslated:** a mark on a word left in English or copied through from
+  Italian is wrong (« left in English », « left in Italian »), unless Spanish uses the word too (a
+  loanword such as « Premium »); a subject pronoun the route adds, marked alone, is wrong.
+- **A compound past rendered by one Spanish preterite** (steps 5, 13, 17, 25, 31): 5 « aumentaron »,
+  « crecieron »; 13 « publicaron », « se publicaron », « fueron publicadas »; 17 « comentó »; 25
+  « dijo », « Le dijo », « declaró »; 31 « elegí », « la elegí » — and a Spanish compound past, with or
+  without its « ha » — are correct; « ha », « han », « fueron », « se » or « Le » alone, or an added
+  « Él » or « Yo » alone, is not (en-es k 13, 17, 25 correct; es-en k 25 « he » wrong).
+- **The passato remoto, the same rule:** 37 « vi », 65 « conoció », 69 « lanzó » or « publicó », 81
+  « acusó »; the tense never decides (fr-es k 65 « conoce » counted correct).
+- **A word after an articulated preposition** (6, 22, 82, 91): step 6 « Nel corso della storia »:
+  « curso », « el curso », « transcurso » or « A lo largo (de) » is correct, « En », « A » or « lo »
+  alone, or « historia », is not; 22 « Nel migliore dei casi »: « mejor » or « A lo sumo », not « En »,
+  « el » or « casos »; 82 « agli sgoccioli »: « (en las) últimas », « últimos coletazos » or « camino
+  (de salir) », not « en », « las » or « está »; 91 « degli ultimi »: « (los) últimos », not « de los »
+  or « sus » (fr-es k 6, 91; en-es k 82 « camino »).
+- **A word before a fused « della / del / dei / dell' »** (0, 3, 11, 16, 40, 50, 51, 55, 63, 74, 76,
+  87, 96, 98): the mark may carry the « de (la) » or « del » beside it, never only that, never the next
+  noun — 0 « parte » or « gran parte », not « transición » or « de la » (a withheld is likely, as
+  fr-en's and fr-es's k 0); 3 « compañía », « empresa » or « sociedad », not « surcoreana »; 50
+  « caída », not « dinastía »; 96 « parte(s) » (before « dell' »), not « del »; 76 « (los) agentes »,
+  not « del ».
+- **A word after an elided piece:** step 86 « l'unico nel Governo »: « único » or « el único », not
+  « el » alone or « Gobierno » (a withheld is likely, es-en k 86); step 29, after the truncation
+  « Fa' »: « caer », « Deja caer », « Suelta » or « Tira », not « Deja » alone or « micrófono »
+  (fr-es k 29).
+- **A clitic beside the selected verb** (9, 31, 33, 97): 9 « ci fossero »: « hubiera », « hubiese »,
+  « haya » or « existieran », not « le gustaría » or « que » alone; 33 « Gli viene riconosciuto »:
+  « atribuye », « reconoce » or « Se le atribuye », not « Se », « le » or « Se le » alone, nor
+  « mérito »; 97 « si incontrano »: « se conocieron », « se reunieron » or « se encuentran », never
+  « se » alone (en-es and fr-es k 97); a Spanish enclitic (« enseñarlo ») is one word.
+- **An Italian « si »:** step 61's selection is « riguarda », beside an impersonal « si considera »:
+  « En cuanto a », « En lo que respecta (a) » or « Con respecto a » is correct, « (se) considera » is
+  not; the « se » Spanish adds to a passive is carried with the verb, never marked alone.
+- **Gender and number never decide:** 79 « enemigas », « enemigos » or « rivales », not « dos »
+  (es-en's « two » and es-fr's « deux » were wrong); 71 « estereotipada »; 93 « capitaneado » or
+  « comandado » (fr-es k 93); 27 « idénticos »; 67 « similar(es) »; 96 « partes »; 59 « buenos » or
+  « bien », not « resultados »; 15 « principal » or « mayor », not « su » alone (fr-en k 15).
+- **One Italian word, a Spanish compound or expression:** 54 the whole « Año Nuevo » (en-es's « Nuevo »
+  alone, judged correct there, does not carry over); 78 « despertador » or « alarma »; 83 « canción »,
+  not « de éxito »; 57 « conforman » or « constituyen », not « que »; 77 « avanza » or « anda »; 89
+  « ganar » or « vencer », not « pudo » alone; and the expressions — 58 « luego », 42 « Debido a », 80
+  « A diferencia », 46 « En realidad » or « De hecho » (« actualmente » doubtful), 60 « momento », 30
+  « vez » or « la última vez » (« la » or « última » alone is wrong, fr-es k 30), 2 « Una vez ».
+- **A loose rendering the mark follows:** correct, flagged doubtful — en-es's k 18, 70 and 77 as a
+  class, not as verdicts. The Italian words differ from the English ones there, so 70 « guionista »
+  (« sceneggiatore ») and 98 « suspensión » (« sospensione ») are expected plainly correct.
+
+A doubtful it-es line says so in `engine_reason`; where counting the doubtful lines wrong would take
+it-es below the first tier, they are committed `wrong` with their reason, so the committed figures are
+the strict ones wherever it matters (measure-lingua-it-es-translation-marks D4).
 
 One judge reads a pair, as the shipped pairs were judged; a doubtful line says so in
 `engine_reason`, and the owner may re-judge any line in the pull request — the figures are
