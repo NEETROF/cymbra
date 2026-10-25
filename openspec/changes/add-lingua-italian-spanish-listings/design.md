@@ -395,3 +395,21 @@ For the owner:
    to an Italian page.
 7. **The es-ES and es-MX Support URL**: the listing file does not record it. Which page it names, as
    change 46 asks for it-IT.
+
+**Settled by the owner on 2026-10-25.**
+- **1, the drafts** (D2–D4): as written.
+- **2, the keywords**: `aprender` gives way.
+- **3, « What's New »**: with the voice clause (485), as for changes 21 and 26; « , escrito por personas »
+  left out.
+- **4, the review notes**: D4's cuts (3,970).
+- **5, provenance**: (a), Wikidata named — « Los significados proceden del Wikcionario y, para el
+  italiano, también de Wikidata, escritos por personas, nunca por una traducción automática. » The site's
+  three `glossesOrigin` sentences follow when change 30 lands: they are static, and would name Wikidata
+  before it-es is listed if they landed earlier.
+- **6, the Chrome Web Store's Spanish screenshots**: unchanged.
+- **7, the es-ES and es-MX Support URL**: `https://cymbra.app/es/soporte/` (`apps/site/src/pages/es/soporte.md`).
+- And, for change 30 (its Open Question 1): the Spanish summary « La web en inglés, francés o italiano:
+  palabras desconocidas resaltadas, porcentaje honesto. Sin conexión. » (105), which the extension file's
+  section quotes; the activation page keeps its drafted `lede` and step 3.
+
+Nothing counted moves: every answer is the draft the files already carried, but the summary's quote.
