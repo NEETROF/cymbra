@@ -81,7 +81,7 @@ k	id	word	upos	engine_marks	engine	engine_reason	gloss_marks	gloss	gloss_reason
 79	n02073024	nemiche	ADJ	enemy	correct				
 80	n03001007	differenza	NOUN	Unlike	correct	« A differenza di » → « Unlike », an expression's rendering			
 81	n03005025	accusò	VERB	accused	correct				
-82	n03008011	sgoccioli	NOUN	its	wrong	marks « its » alone, a function word (« agli »'s article), not « infarest », « sgoccioli »'s garbled rendering			
+82	n03008011	sgoccioli	NOUN	its	wrong	marks « its » alone, a function word (a possessive the model added), not « infarest », « sgoccioli »'s garbled rendering			
 83	n04003043	canzone	NOUN	song	correct				
 84	n04007018	nota	NOUN	note	correct				
 85	n05001005	rappresenta	VERB	represents	correct				

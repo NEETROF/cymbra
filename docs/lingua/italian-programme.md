@@ -202,7 +202,7 @@ in ideal days, min–max, by analogy with the measured change of the matrix prog
 | 1 | 21 | `add-lingua-italian-listings`: the French listings and the site's French Lingua pages name Italian | 1.5–3 | 53 | Proposal merged ([#993](https://github.com/NEETROF/cymbra/pull/993)) |
 | 2 Italian studied: it-en, it-es | 22 | `add-lingua-pack-it-en`: the English Wiktionary's Italian section | 3–5 | 48 | Proposal merged ([#995](https://github.com/NEETROF/cymbra/pull/995)) |
 | 2 | 23 | `refine-lingua-it-en-glosses` | 2–3.5 | 48b | Waits for change 22's committed it-en tables: its defects are measured on them |
-| 2 | 24 | `measure-lingua-it-en-translation-marks` | 1–2 | 26 | Proposal merged ([#996](https://github.com/NEETROF/cymbra/pull/996)) |
+| 2 | 24 | `measure-lingua-it-en-translation-marks` | 1–2 | 26 | Proposal merged ([#996](https://github.com/NEETROF/cymbra/pull/996)); implemented ([#1064](https://github.com/NEETROF/cymbra/pull/1064)): 94 of 97 correct, 3 % withheld, 92 of 97 strict — on the first tier, listed in `MARKED_PAIRS`, inert until row 25 |
 | 2 | 25 | `enable-lingua-italian-for-english-speakers` (it-en) | 4–7.5 | 34 | Proposal merged ([#999](https://github.com/NEETROF/cymbra/pull/999)) |
 | 2 | 26 | `add-lingua-italian-english-listings` | 1.5–3 | 36 | Proposal merged ([#1000](https://github.com/NEETROF/cymbra/pull/1000)) |
 | 2 | 27a | `add-lingua-it-es-pivot-sources` (I4, I11): seven Wiktionaries' translation tables kept by sense for a pivot, the Italian Wiktionary's Spanish section, Wikidata Lexemes — derived and pinned | 2.5–4 | — | Proposal merged ([#1005](https://github.com/NEETROF/cymbra/pull/1005)) |

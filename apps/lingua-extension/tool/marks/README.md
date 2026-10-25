@@ -229,24 +229,24 @@ D4). en-fr and es-fr were measured on 2026-10-05, judged in French; es-en and en
 (measure-lingua-it-fr-translation-marks), judged in French; it-en on 2026-10-25
 (measure-lingua-it-en-translation-marks), judged in English — one judge each.
 
-|                                      | Correct (of shown marks) | Withheld | D2                                                                             |
-| ------------------------------------ | ------------------------ | -------- | ------------------------------------------------------------------------------ |
-| **es-fr, engine (pivot es→en→fr)**   | **89 / 90 — 98.9 %**     | **10 %** | **First tier: marked**                                                         |
-| en-fr, engine                        | 96 / 97 — 99.0 %         | 3 %      | (reference; the study found 83 / 87)                                           |
-| **es-en, engine, judged in English** | **94 / 96 — 97.9 %**     | **4 %**  | **First tier: marked (shipped since change 34)**                               |
-| **en-es, engine, judged in Spanish** | **96 / 96 — 100 %**      | **4 %**  | **First tier: marked (shipped since change 35)**                               |
-| **fr-en, engine, judged in English** | **95 / 96 — 99.0 %**     | **4 %**  | **First tier: marked (shipped since change 52)**                               |
-| **fr-es, engine (pivot fr→en→es)**   | **90 / 91 — 98.9 %**     | **9 %**  | **First tier: marked (shipped since change 52)**                               |
-| **it-fr, engine (pivot it→en→fr)**   | **93 / 97 — 95.9 %**     | **3 %**  | **First tier: marked (listed, inert until the Italian programme's change 20)** |
-| **it-en, engine, judged in English** | **94 / 97 — 96.9 %**     | **3 %**  | **First tier: marked (listed, inert until the Italian programme's change 25)** |
-| es-fr, gloss-located (experiment)    | 76 / 78 — 97.4 %         | 22 %     | —                                                                              |
-| en-fr, gloss-located (experiment)    | 76 / 79 — 96.2 %         | 21 %     | —                                                                              |
-| es-en, gloss-located (experiment)    | 75 / 78 — 96.2 %         | 22 %     | —                                                                              |
-| en-es, gloss-located (experiment)    | —                        | —        | left empty: no `tables/en-es/gloss.tsv` yet (22)                               |
-| fr-en, gloss-located (experiment)    | —                        | —        | left empty: no French gloss table yet (48)                                     |
-| fr-es, gloss-located (experiment)    | —                        | —        | left empty: no French gloss table yet (49)                                     |
-| it-fr, gloss-located (experiment)    | —                        | —        | left empty: no `tables/it-fr/gloss.tsv` yet (the Italian programme's 16)       |
-| it-en, gloss-located (experiment)    | —                        | —        | left empty: no `tables/it-en/gloss.tsv` yet (the Italian programme's 22)       |
+|                                      | Correct (of shown marks) | Withheld | D2                                                                              |
+| ------------------------------------ | ------------------------ | -------- | ------------------------------------------------------------------------------- |
+| **es-fr, engine (pivot es→en→fr)**   | **89 / 90 — 98.9 %**     | **10 %** | **First tier: marked**                                                          |
+| en-fr, engine                        | 96 / 97 — 99.0 %         | 3 %      | (reference; the study found 83 / 87)                                            |
+| **es-en, engine, judged in English** | **94 / 96 — 97.9 %**     | **4 %**  | **First tier: marked (shipped since change 34)**                                |
+| **en-es, engine, judged in Spanish** | **96 / 96 — 100 %**      | **4 %**  | **First tier: marked (shipped since change 35)**                                |
+| **fr-en, engine, judged in English** | **95 / 96 — 99.0 %**     | **4 %**  | **First tier: marked (shipped since change 52)**                                |
+| **fr-es, engine (pivot fr→en→es)**   | **90 / 91 — 98.9 %**     | **9 %**  | **First tier: marked (shipped since change 52)**                                |
+| **it-fr, engine (pivot it→en→fr)**   | **93 / 97 — 95.9 %**     | **3 %**  | **First tier: marked (listed, inert until the Italian programme's change 20)**  |
+| **it-en, engine, judged in English** | **94 / 97 — 96.9 %**     | **3 %**  | **First tier: marked (listed, inert until the Italian programme's change 25)**  |
+| es-fr, gloss-located (experiment)    | 76 / 78 — 97.4 %         | 22 %     | —                                                                               |
+| en-fr, gloss-located (experiment)    | 76 / 79 — 96.2 %         | 21 %     | —                                                                               |
+| es-en, gloss-located (experiment)    | 75 / 78 — 96.2 %         | 22 %     | —                                                                               |
+| en-es, gloss-located (experiment)    | —                        | —        | left empty: no `tables/en-es/gloss.tsv` yet (22)                                |
+| fr-en, gloss-located (experiment)    | —                        | —        | left empty: no French gloss table yet (48)                                      |
+| fr-es, gloss-located (experiment)    | —                        | —        | left empty: no French gloss table yet (49)                                      |
+| it-fr, gloss-located (experiment)    | —                        | —        | left empty: no `tables/it-fr/gloss.tsv` at the run (the Italian programme's 16) |
+| it-en, gloss-located (experiment)    | —                        | —        | left empty: no `tables/it-en/gloss.tsv` yet (the Italian programme's 22)        |
 
 What these numbers say:
 
@@ -315,7 +315,7 @@ What these numbers say:
   `k`: « comprendono », rendered « understand » in the wrong sense, marked « who » (k 57, as it-fr's
   « qui » and en-fr's « make » were); « sveglia » marked « alarm » alone, half of « alarm clock »
   (k 78); and « agli sgoccioli », rendered « in its infarest » — a garbled non-word —, marked « its »
-  alone, the article, not the rendering (k 82). Its three withheld: « gran parte della » → « much of »
+  alone, a possessive the model added, not the rendering (k 82). Its three withheld: « gran parte della » → « much of »
   (k 0), « isole » → « islands » unmarked (k 38) and « Per quanto riguarda » → « As for » (k 61).
 - **The criteria's Italian cases in English** (Judging): the subject the model adds is left out on
   « told » (k 25) and carried by « I saw » (k 37) and « he played » (k 73); the compound pasts are

@@ -19,4 +19,4 @@ Implemented once changes 2 and 19 are: it-en in the catalogue, the Italian selec
 ## 4. Gates
 
 - [x] 4.1 Every other pair's results and judgments byte for byte — `git diff --stat origin/main -- apps/lingua-extension/tool/marks/corpus.json 'apps/lingua-extension/tool/marks/results-*' 'apps/lingua-extension/tool/marks/judged-*' ':!*it-en*'` prints nothing; in `apps/lingua-extension`: `yarn lint`, `yarn format:check`, `yarn typecheck`, `yarn test`, `yarn build`, `yarn check:variants`.
-- [ ] 4.2 `openspec validate measure-lingua-it-en-translation-marks --strict` passes; `python3 scripts/openspec_archive_order.py measure-lingua-it-en-translation-marks` names its prerequisites; `docs/lingua/italian-programme.md` row 24's status names this change's pull requests.
+- [x] 4.2 `openspec validate measure-lingua-it-en-translation-marks --strict` passes; `python3 scripts/openspec_archive_order.py measure-lingua-it-en-translation-marks` names its prerequisites; `docs/lingua/italian-programme.md` row 24's status names this change's pull requests.
