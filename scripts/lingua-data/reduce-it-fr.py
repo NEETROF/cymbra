@@ -49,6 +49,30 @@ common words, a gloss filed as a link read as a gloss); its expressions add the 
 pre-pass splits (`split_word`); Italian's dictionary words are its glossed lemmas less its names, plus
 the acronym rows, glossed through their synonyms (`acronym_glosses`), and the levels go to them.
 
+it-fr's glosses and Italian's forms refined (refine-lingua-it-fr-glosses, the programme's change 17), by
+it-fr's own rules — no shared, French-edition or treebank module is edited, so only it-fr re-pins (D1):
+- the section as read is refined after change 16's reading (`refine_section`, `refine_headword`): a
+  function word's row opens on the part of speech UD Italian-MarkIT reads it as, fr-en's rule
+  (`reduce_french_treebank.commonest_first`, imported as fr-es imports it), and a reviewed table orders
+  what MarkIT cannot (`FIRST_RUN`: `come`, `fino`, `gente`, `loro`, `pure`; D2, 14 rows of the 1,000); a
+  name's sense a common entry repeats is the common entry's (D3, 12 rows: `bibbia`, `corano`), and a
+  function word's or an adverb's row holds no name (D4, 5: `io`, `qui`); a pointer the shared rules
+  cannot follow is read — by its text, an alternative form not marked outdated, a quoted meaning (D5,
+  27 rows, 56 lemmas gained: `lettere`, `paro`, `pochissimo`) —, and a noun's pointer lends beside a
+  name or an outdated sense (D6, 3: `gemelli`, `spezie`); the `di` family's links and « Article contracté
+  souvent traduit par X » read as glosses, an article's usage note out (D8, 10: `della` « De la », `del`
+  « Du »); a commune's note is set aside as change 16's notes are (D9, 14: `vittoria`, `ro`;
+  `COMMUNES_KEPT`); an Italian example joined to its French by a dash goes, the sources' slips are
+  corrected by name (`CORRECTIONS`: `che`, `volere`, `dirotto`, `dati`), and a split word that is no
+  Italian is no expression (D10: `c'hwerty`, `d'n'b`);
+- Italian's forms: a verb's person whose own entry holds no meaning reads as its verb (`no_meaning`,
+  `Lexicon.drop_inflection_lemmas`: `sto`, `vado`, `sapete`), never through a plural of a plural
+  (`viti`), from a feminine noun's masculine row its form does not name (`signorini`), from a row of a
+  table the readings set aside where the form's own entry names another ranked word (`avi`, `ava`), nor
+  from a heading kaikki reads as a cell (« archaic »); `signor` and `od` among the apocopes, `usa`,
+  `dati`, `lega` and `prova` among the overrides (D11); and a reading set aside by name
+  (`READINGS_SET_ASIDE`: `fate`'s subjunctive, D12).
+
 Italian's acronyms (keep-lingua-italian-acronyms-and-names D2, D6): Italian's analysis reads a word
 standing alone in capitals as written, and the reviewed table `ACRONYMS` of
 `reduce_italian_acronyms.py`, a rule module every pair glossing Italian imports, is what it finds —
@@ -124,6 +148,7 @@ import unicodedata
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import reduce_common as common  # noqa: E402 — the rules every pair shares
 import reduce_edition_fr as french  # noqa: E402 — the French Wiktionary's rules: it-fr's glosses are French
+import reduce_french_treebank as french_treebank  # noqa: E402 — fr-en's row order (refine-lingua-it-fr-glosses D2)
 import reduce_italian_acronyms as acronyms  # noqa: E402 — Italian's acronym table (keep-lingua-italian-acronyms-and-names)
 import reduce_italian_treebank as treebank  # noqa: E402 — UD Italian-MarkIT's counts (D2, D5, D6)
 
@@ -188,6 +213,18 @@ _MARKERS = frozenset({"m", "f", "n", "c", "p", "s", "mf", "pl", "sg", "mpl", "fp
 # the verb's, the adverb's (`ecco`'s) and the interjection's (« vattene! », go away!). A noun or an
 # adjective spelled like one (`fallo`, the foul) stands.
 _CLITIC_POS = frozenset({"verb", "adv", "intj"})
+# refine-lingua-it-fr-glosses D11, rule 1 — a form's own entry counts only by a meaning when a verb's table
+# gives it as a person of a mood: what is no meaning there is that verb's inflection written without its
+# tag (« second-person singular present indicative/imperative of finire », `sapete`'s « (you) know »,
+# kaikki's raw tag « of sapere »), an ellipsis (`sto`: « ellipsis of sto bene »), or another part of
+# speech's pointer the section marks with one of these tags (`vado`: « alternative form of guado »,
+# obsolete, poetic). Never a function word's homograph (`contra`, `ei`, `isso`), a contraction (`cogli`,
+# `trai`), a form the section heads as an acronym (`tari`, the tax) or one another word reads as its
+# inflection (`dee`, the plural of `dea`).
+_OUTDATED_POINTER = frozenset({"obsolete", "archaic", "literary", "poetic", "dated", "colloquial"})
+_FUNCTION_WORDS = frozenset({"prep", "conj", "pron", "det", "article", "particle"})
+_WRITTEN_OF = re.compile(rf"\bof ([{_LETTERS}']+)(?:,? (?:and|or) ([{_LETTERS}']+))?\W*$", re.IGNORECASE)
+_RAW_OF = re.compile(rf"^of ([{_LETTERS}']+)$", re.IGNORECASE)
 
 # Change 6's closed tables (add-lingua-italian-tokenisation D3–D5; lingua-core's
 # `ITALIAN_ELISIONS`, `ITALIAN_ELIDED_PREPOSITIONS`, `ITALIAN_CONTRACTIONS`, `ITALIAN_TRUNCATIONS`,
@@ -349,10 +386,15 @@ APOCOPES = {
     "fin": ("fino", "fino before a word (« fin qui », « fin da »); also the elided piece fin'"),
     "gran": ("grande", "grande before a consonant (« un gran numero »)"),
     "nessun": ("nessuno", "nessuno before a noun (« nessun dubbio »); also the elided piece nessun'"),
+    # refine-lingua-it-fr-glosses D11: the euphonic `od`, which the section glosses only as « Variante de o », too
+    # short a word to lend (`ed` and `ad`, glossed as words, « et », « À, dans sa forme euphonique », stay lemmas).
+    "od": ("o", "the euphonic o before a vowel (« od altro »), which the section reads only as « Variante de o »"),
     "qual": ("quale", "quale before a vowel or a consonant (« qual è »)"),
     "qualcun": ("qualcuno", "qualcuno before altro (« qualcun altro »); also the elided piece qualcun'"),
     "quel": ("quello", "quello before a consonant (« quel giorno »)"),
     "san": ("santo", "santo before a consonant (« San Marco »); its own entry, the Greek letter, would win"),
+    # refine-lingua-it-fr-glosses D11: an apocope the section reads only as « Variante de signore » (`Sig.`).
+    "signor": ("signore", "signore before a name (« il signor Rossi »); the section reads it only as « Variante de signore »"),
     "tal": ("tale", "tale before a noun (« tal modo »)"),
     "un": ("uno", "the article before a vowel or a consonant (« un uomo »); also the elided piece un'"),
 }
@@ -413,6 +455,30 @@ OVERRIDES = {
         "the feminine of bianco (« la casa bianca »); the section's noun entry (the cue ball) and MarkIT's one "
         "count, a proper noun's, would read it as the noun, and the names rule leaves a form with a common "
         "reading of its own to D5",
+    ),
+    # refine-lingua-it-fr-glosses D11: a clear error, and the owner's rows of 2026-10-25 (tasks 0.5, 0.6). Each
+    # reads every verb form it shares as its row's word; `dato` has no row: « mi ha dato » is the very common
+    # participle of dare (MarkIT 9 against 3), which the noun « donnée » would misread in conversation.
+    "usa": (
+        "usare",
+        "the third person and the imperative of usare (« usa il telefono »), which the adjective uso's literary "
+        "feminine and MarkIT's one count, lemmatised usa, would take: a clear error",
+    ),
+    "dati": (
+        "dati",
+        "« i dati », the data, the plural noun as a lemma of its own (the English section heads it « data (plural of "
+        "dato) »), glossed « Données »: a row cannot read it as dato while dato reads as dare, and « sono stati dati » "
+        "then reads as the noun; the owner's decision of 2026-10-25, UD Italian-PUD one word lower its accepted cost",
+    ),
+    "lega": (
+        "lega",
+        "la lega, the league (« la Lega »), whose plural leghe comes back; MarkIT's one count is legare's; the owner's "
+        "decision of 2026-10-25",
+    ),
+    "prova": (
+        "prova",
+        "una prova, a test or a proof (« a prova di »), not provare's third person; MarkIT reads it 3 times as the verb "
+        "and once as the noun; the owner's decision of 2026-10-25",
     ),
 }
 
@@ -622,6 +688,36 @@ def _is_compound(sense):
     return gloss.startswith("combined form of")
 
 
+def no_meaning(sense, pos):
+    """What a sense that is no form-of is, for refine-lingua-it-fr-glosses D11's rule 1: `()` when it is no
+    meaning wherever its word is a person of a verb's table — an ellipsis, or another part of speech's
+    pointer marked obsolete, archaic, literary, poetic, dated or colloquial (`_OUTDATED_POINTER`) —; the
+    verbs it names when it is a verb's inflection written without its tag (« … indicative/imperative of
+    finire », « (you) know » with the raw tag « of sapere »), no meaning only where one of them is a verb
+    whose table gives the word as a person; None when it is a meaning."""
+    tags = set(sense.get("tags") or ())
+    if "ellipsis" in tags:
+        return ()
+    if pos != "verb":
+        if (sense.get("alt_of") or sense.get("form_of")) and tags & _OUTDATED_POINTER:
+            return ()
+        return None
+    named = _WRITTEN_OF.search(((sense.get("glosses") or [""])[0] or "").strip())
+    verbs = {nfc_lower(v) for v in (named.groups() if named else ()) if v}
+    for raw in sense.get("raw_tags") or ():
+        found = _RAW_OF.match(str(raw).strip())
+        if found:
+            verbs.add(nfc_lower(found.group(1)))
+    return frozenset(verbs) if verbs else None
+
+
+def _masculine_row(tags, genders):
+    """A feminine noun's masculine row, singular or plural (`signorina`: `signorino`, `signorini`), as
+    the readings read it (`read_readings`): refine-lingua-it-fr-glosses D11's rule 3 gives it no form
+    either, unless the form's own entry names the noun (`echi`, *eco*'s)."""
+    return "masculine" in tags and ("plural" not in tags or bool(genders and "Masc" not in genders))
+
+
 class Survey:
     """What the reading of the forms needs to know of the whole section first (a first pass):
 
@@ -740,6 +836,22 @@ class Lexicon:
         self._meaning = set()
         self._web_entries = collections.defaultdict(list)
         self._web_listed = collections.defaultdict(list)
+        # refine-lingua-it-fr-glosses D11. Rule 1: the verbs whose table gives a form as a person of a mood
+        # (`finite`); the words a lemma entry holding rule 1's no-meanings alone makes a lemma, with that
+        # entry's parts of speech, and the verbs its inflections written without their tag name; the words
+        # holding a meaning, and those rule 1 never reads (a function word's homograph, a contraction, an
+        # acronym's headword); the forms it read as their verb. Rule 2: the nouns' plurals. Rule 4: the
+        # links a table the readings set aside gives (`_dialect_rows`), and those another table gives.
+        self.finite = collections.defaultdict(set)
+        self._inflection_lemmas = collections.defaultdict(set)
+        self._written_of = collections.defaultdict(list)
+        self._meant = set()
+        self._kept_apart = set()
+        self.inflections_read = []
+        self.noun_plurals = set()
+        self._plurals_of = set()
+        self.dialect_links = set()
+        self._table_links = set()
 
     def link(self, form, word, pos):
         self.candidates[form].add(word)
@@ -777,8 +889,8 @@ class Lexicon:
             self.poses[word].add(pos)
         # A name's rows are no forms of a word (D3): its demonyms, its other spellings.
         if pos != "name":
-            for form in self._rows(entry, word, (word,)):
-                self.link(form, word, pos)
+            self._read_own_entry(entry, word, pos, senses)
+            self._read_rows(entry, word, pos)
         for sense in senses:
             for target in _form_targets(sense):
                 target = nfc_lower(target)
@@ -795,6 +907,103 @@ class Lexicon:
                     self.link(word, web_spelling(target), pos)
                 elif is_form(target) and target not in PIECES:
                     self.link(word, target, pos)
+
+    def _read_own_entry(self, entry, word, pos, senses):
+        """What refine-lingua-it-fr-glosses D11 needs of a word's own entry, a name's aside: rule 1's —
+        whether it holds a meaning, or, a lemma entry, only no-meanings (`no_meaning`) and the verbs its
+        inflections written without their tag name; whether the word is one rule 1 never reads —, and
+        rule 2's: whether it is a noun's plural."""
+        raw = unicodedata.normalize("NFC", (entry.get("word") or "").strip())
+        if (
+            pos in _FUNCTION_WORDS
+            or pos == "contraction"
+            or any("contraction" in (s.get("tags") or ()) for s in senses)
+            or (len(raw) > 1 and raw.isupper())
+        ):
+            self._kept_apart.add(word)
+        if pos == "noun":
+            for sense in senses:
+                if _is_form_of(sense) and "plural" in (sense.get("tags") or ()):
+                    self.noun_plurals.add(word)
+                    self._plurals_of.update((word, nfc_lower(t)) for t in _form_targets(sense))
+        meanings = [s for s in senses if not _is_form_of(s)]
+        if not senses or not meanings:
+            return
+        kinds = [no_meaning(s, pos) for s in meanings]
+        if any(kind is None for kind in kinds):
+            self._meant.add(word)
+            return
+        self._inflection_lemmas[word].add(pos)
+        self._written_of[word].extend(kind for kind in kinds if kind)
+
+    def _read_rows(self, entry, word, pos):
+        """A lemma's rows linked to it as forms (D3; refine-lingua-it-fr-glosses D11): never a feminine
+        noun's masculine row its form's own entry does not name (rule 3); a verb's rows recorded by the
+        table they come from — one the readings set aside (`_dialect_rows`) or another (rule 4) — and
+        each person of a mood its table gives (rule 1)."""
+        dialect = _dialect_rows(entry.get("forms") or ()) if pos == "verb" else set()
+        genders = noun_genders(entry)[0] if pos == "noun" else ()
+        for i, form, tags in self._table_rows(entry, word, (word,)):
+            if pos == "noun" and _masculine_row(tags, genders) and word not in self.survey.form_links.get(form, ()):
+                self.stats["a feminine noun's masculine rows, no form"] += 1
+                continue
+            self.link(form, word, pos)
+            if pos == "noun" and "plural" in tags:
+                self._plurals_of.add((form, word))
+            if pos == "verb":
+                (self.dialect_links if i in dialect else self._table_links).add((form, word))
+                if any(features.get("VerbForm") == "Fin" for features in verb_features(tags)):
+                    self.finite[form].add(word)
+
+    def drop_inflection_lemmas(self):
+        """refine-lingua-it-fr-glosses D11, rule 1: a word a verb's table gives as a person of a mood, whose
+        own entries, a name's aside, hold no meaning but rule 1's no-meanings, is no lemma of its own: it
+        reads as its verb (`sto` → *stare*, `vado` → *andare*, `sapete` → *sapere*) — unless rule 1 never
+        reads it, an inflection written without its tag names no verb whose table gives it, or another
+        word reads it as its inflection (a candidate that is neither one of those verbs nor, along a verb's
+        link, a form of one — `parse`, the participle `parso`'s feminine plural —: `dee`, *dea*'s plural;
+        `este`, `mei`, *meo*'s). A name's entry keeps it a lemma, which the names rule then reads
+        (`name_or_word`)."""
+        for word, poses in sorted(self._inflection_lemmas.items()):
+            verbs = self.finite.get(word)
+            if word in self._meant or word in self._kept_apart or not verbs:
+                continue
+            if not all(named & verbs for named in self._written_of.get(word, ())):
+                continue
+            others = {
+                c
+                for c in self.candidates.get(word, ())
+                if c != word
+                and c not in verbs
+                and not ("verb" in self.links.get(word, {}).get(c, ()) and self.survey.form_links.get(c, set()) & verbs)
+            }
+            if others:
+                continue
+            names = self.poses.get(word, set()) & {"name"}
+            self.links.get(word, {}).get(word, set()).difference_update(poses)
+            if names:
+                self.poses[word] = names
+            else:
+                self.lemmas.discard(word)
+                self.poses.pop(word, None)
+                self.candidates[word].discard(word)
+                self.links.get(word, {}).pop(word, None)
+            self.inflections_read.append(word)
+            self.stats["verb forms whose own entry holds no meaning, read as their verb"] += 1
+
+    def plural_links(self, form, candidate):
+        """Whether `form` is `candidate`'s plural — by its own noun entry or `candidate`'s table — and
+        `candidate` itself a noun's plural (rule 2): a plural of a plural."""
+        return (form, candidate) in self._plurals_of and candidate in self.noun_plurals
+
+    def dialect_only(self):
+        """The `(form, verb)` links only a table the readings set aside gives (rule 4): neither another
+        table nor the form's own entry (`cresi`, credere's obsolete past historic by its own entry too)."""
+        return {
+            (form, verb)
+            for form, verb in self.dialect_links - self._table_links
+            if verb not in self.survey.form_links.get(form, ())
+        }
 
     def _record_boundary(self, entry, word):
         """What `web_boundary` needs of one entry: each sense's kind (`_sense_kind`), whether the entry
@@ -962,22 +1171,34 @@ class Lexicon:
         return form
 
     def _rows(self, entry, word, owners):
-        """The inflections an entry lists that are forms of its word (D3): never the bookkeeping, a
-        doubtful row, a derived word's row, a word that is no form, a piece or a split contraction, nor
-        a gender or number marker but the word's own; each written as Italian writes it."""
-        for row in entry.get("forms") or ():
+        """The inflections an entry lists that are forms of its word (`_table_rows`), each form alone."""
+        for _, form, _ in self._table_rows(entry, word, owners):
+            yield form
+
+    def _table_rows(self, entry, word, owners):
+        """The inflections an entry lists that are forms of its word (D3), as `(index, form, tags)`:
+        never the bookkeeping, a doubtful row, a derived word's row, a word that is no form, a piece or a
+        split contraction, nor a gender or number marker but the word's own, nor a row whose form is one
+        of the tags its table's rows carry — a heading kaikki reads as a cell (*essere*'s « archaic »,
+        « subjunctive »: refine-lingua-it-fr-glosses D11, rule 4); each written as Italian writes it."""
+        rows = entry.get("forms") or ()
+        headings = {tag for row in rows for tag in row.get("tags") or ()}
+        for i, row in enumerate(rows):
             tags = set(row.get("tags") or ())
             if tags & _BOOKKEEPING or tags & _DOUBTFUL or tags & _DERIVED:
                 continue
             text = nfc_lower(row.get("form"))
             if not text or " " in text:
                 continue
+            if text in headings:
+                self.stats["a table's headings, no form"] += 1
+                continue
             form = self._written(text, owners)
             if not is_form(form) or form in PIECES or (form in CONTRACTIONS and form != DAI):
                 continue
             if form in _MARKERS and form != word:
                 continue
-            yield form
+            yield i, form, tags
 
 
 def read_kaikki(path, survey=None, spellings=None, readings=None):
@@ -991,6 +1212,7 @@ def read_kaikki(path, survey=None, spellings=None, readings=None):
         lexicon.read(entry)
         if readings is not None:
             read_readings(entry, readings, survey, spellings)
+    lexicon.drop_inflection_lemmas()
     lexicon.drop_clitic_rows()
     lexicon.drop_spelling_rows()
     return lexicon
@@ -1241,11 +1463,15 @@ def follow(word, pos, links, poses, choose, overrides=OVERRIDES):
     return choose(word, along) if along else word
 
 
-def reach(form, options, links, step):
+def reach(form, options, links, step, plurals=None):
     """A form's lemmas (D3): each candidate followed along the part of speech of the entry linking the
     form to it; `creduta`, the feminine of the participle `creduto` (a verb entry), itself the past
     participle of *credere*, reaches *credere*. The form's own entry, and a candidate no entry links
-    it to (`del`), stand as they are. `step(word, pos)` is `follow` over the lexicon."""
+    it to (`del`), stand as they are; and so does a noun's plural's candidate that is itself a noun's
+    plural (`plurals`: `(form, candidate)` → whether the form is the candidate's plural, and the
+    candidate a plural, refine-lingua-it-fr-glosses D11, rule 2): `viti`, the plural of `vite`, itself
+    *vita*'s plural, reaches no *vita*; `faccie`, a misspelling of the plural `facce`, still reaches
+    *faccia*. `step(word, pos)` is `follow` over the lexicon."""
     reached = set()
     for candidate in options:
         linked = links.get(form, {}).get(candidate, set())
@@ -1253,6 +1479,9 @@ def reach(form, options, links, step):
             reached.add(candidate)
             continue
         for pos in linked:
+            if pos == "noun" and plurals is not None and plurals(form, candidate):
+                reached.add(candidate)
+                continue
             word = candidate
             for _ in range(_FOLLOW_STEPS):
                 nxt = step(word, pos)
@@ -1302,11 +1531,18 @@ def forms_for(lexicon, step, ranks, counts, frequency, overrides=OVERRIDES):
     entries read the compound), so it is a form only where another word's row lists it (`fatti`,
     the plural of `fatto`)."""
     forms = {}
+    dialect = lexicon.dialect_only()
     for form, options in lexicon.candidates.items():
         if form in CONTRACTIONS and form != DAI:
             continue
-        options = reach(form, options, lexicon.links, step)
-        lemma = choose_lemma(form, {o for o in options if o in ranks}, counts, lexicon.lemmas, frequency, overrides)
+        ranked = {o for o in reach(form, options, lexicon.links, step, lexicon.plural_links) if o in ranks}
+        lemma = choose_lemma(form, ranked, counts, lexicon.lemmas, frequency, overrides)
+        if (form, lemma) in dialect and form not in overrides:
+            # refine-lingua-it-fr-glosses D11, rule 4: a row of a table the readings set aside does not
+            # outrank the form's own entry naming another ranked word (`avi`, `ava` → *avo*).
+            named = {w for w in lexicon.survey.form_links.get(form, ()) if w in ranks and w != lemma}
+            if named:
+                lemma = choose_lemma(form, named, counts, lexicon.lemmas, frequency, overrides)
         if lemma is None:
             continue
         if lemma == form or frequency(form) > 0:
@@ -2091,6 +2327,32 @@ def grammar_rows(readings, forms, ranks, overrides=OVERRIDES):
     return sorted(f"{form}\t{lemma}\t{tag}\t{mark}\n" for form, lemma, tag, mark in rows)
 
 
+# refine-lingua-it-fr-glosses D12 — a reading the section's tables give a form wrongly, set aside by name:
+# `(form, lemma, tag) → reason`. A row only where a table writes a cell wrongly and no rule of the readings
+# reads it out; the form's other readings stay, and the reduction fails on a row whose reading it does not
+# give (`without_readings_set_aside`). Editing it changes the rules' sha256, as for any rule.
+READINGS_SET_ASIDE = {
+    ("fate", "fare", "VERB|Mood=Sub|Number=Plur|Person=2|Tense=Pres|VerbForm=Fin"): (
+        "fare's second and third tables list fàte beside facciàte in the present subjunctive's second person plural, "
+        "untagged; the subjunctive is facciate, and fate fare's present indicative and imperative alone"
+    ),
+}
+
+
+def without_readings_set_aside(rows, table=READINGS_SET_ASIDE):
+    """`grammar.tsv`'s rows without the readings `table` names (D12), whatever their mark, and the rows of
+    `table` that name a reading the rows do not give, sorted — the reduction refuses them."""
+    named = {key: False for key in table}
+    kept = []
+    for row in rows:
+        form, lemma, tag, _ = row.rstrip("\n").split("\t")
+        if (form, lemma, tag) in named:
+            named[(form, lemma, tag)] = True
+            continue
+        kept.append(row)
+    return kept, sorted(key for key, found in named.items() if not found)
+
+
 def _carried(rows, sources):
     """`rows` with each spelling of `sources` (spelling → the forms whose readings it carries) carrying
     those forms' rows, re-keyed, and none of its own."""
@@ -2268,7 +2530,7 @@ def decisions(forms, lexicon, step, counts, frequency, overrides=OVERRIDES):
     reaches several (`porta`: *porta* and *portare*, MarkIT's counts deciding)."""
     decided = collections.Counter()
     for form in forms:
-        options = reach(form, lexicon.candidates.get(form, set()), lexicon.links, step)
+        options = reach(form, lexicon.candidates.get(form, set()), lexicon.links, step, lexicon.plural_links)
         if len(options) > 1:
             decided[decided_by(form, options, counts, lexicon.lemmas, frequency, overrides)] += 1
     return decided
@@ -2757,9 +3019,30 @@ class SectionReading:
         return self.unheaded(targets) and (not lowercase or not self.glossed_otherwise(key))
 
 
-def section_as_read(src, dst, stats=None):
+def section_as_read(src, dst, stats=None, counts=None, forms=None, refined=None):
     """The French Wiktionary's Italian section as it-fr reads it, written to `dst` — a pre-pass the
-    shared rules then read, in two passes over `src` (`SectionReading`, then the rewrite):
+    shared rules then read: change 16's reading (`read_section`: letters out, names and acronyms kept
+    off common words, links read as glosses, kaikki's leaks read out), then change 17's refinement of
+    it (`refine_section`, refine-lingua-it-fr-glosses D2–D10: a row's order by MarkIT and the reviewed
+    `FIRST_RUN`, names a common word does not need, pointers read, the `di` family, communes, the
+    Italian example, `CORRECTIONS`). `counts` are MarkIT's parts of speech
+    (`reduce_italian_treebank.markit_pos_counts`), None to keep the section's order but the reviewed
+    table's; `forms` the forms table (`form → lemma`), which the example rule reads, None to leave
+    examples as they are; `refined` (a `Refinement`), when given, records what the reviewed lists
+    found. The intermediate file is removed. Answers `dst`."""
+    stats = stats if stats is not None else collections.Counter()
+    first = f"{dst}.change-16"
+    read_section(src, first, stats)
+    try:
+        refine_section(first, dst, stats, refined or Refinement(counts, forms))
+    finally:
+        os.remove(first)
+    return dst
+
+
+def read_section(src, dst, stats=None):
+    """The French Wiktionary's Italian section as change 16 reads it, written to `dst`, in two passes
+    over `src` (`SectionReading`, then the rewrite):
 
     - **Letters out** (es-fr's `without_letter_senses`): an entry of the `character` part of speech,
       and a sense naming a letter (`FR.letter`): `te` « Te, vingtième lettre de l'alphabet
@@ -2850,6 +3133,632 @@ def section_as_read(src, dst, stats=None):
     return dst
 
 
+# — it-fr's glosses refined (refine-lingua-it-fr-glosses, the Italian programme's change 17) —
+#
+# Change 16's reading leaves rows that read wrong — the wrong sense first, a name a common word does
+# not need, a pointer the shared rules cannot follow, an article's usage note, a commune, an example,
+# a source's slip — and change 16's review listed them for this change, « measured on the committed
+# tables ». Each rule below is it-fr's own, read after change 16's (`refine_section`), never a shared
+# or a French-edition module's, so that no other pair moves (D1); each was measured alone against the
+# committed rows, a class counted in ranked lemmas by band (1–1,000, 1,001–5,000, 5,001–20,000,
+# beyond), and kept only where every row it changes among the 5,000 commonest reads right or no worse
+# and those of 5,001–20,000 read right in a majority (the design's *Measured*, criteria written
+# before the figures). The census, against the committed rows: D2 14 rows (all of the 1,000), D3 12,
+# D4 5, D5 27 rows and 56 lemmas gained, D6 3, D8 10, D9 14 (`trani`, `melano` lost), D10's example 1
+# — 88 rows, 57 lemmas gained; and four corrections (`CORRECTIONS`) and three split words on top.
+
+# D2 — the reviewed table: a row the treebank's rule does not move, or moves wrongly, opened on the
+# entries of the headword's case and part of speech the row names, ahead of the treebank's rule (a
+# row moves entries only, never adds or removes a sense). Settled by the owner on 2026-10-25 (task
+# 0.1); the reduction fails on a row whose word has no such entry (`Refinement.first_runs`). Editing
+# it changes the rules' sha256, as for any rule.
+FIRST_RUN = {
+    "come": (
+        "lowercase",
+        "ADV",
+        "« Comme » first: MarkIT reads come 39 times as a subordinating conjunction and 16 as an adverb, so the "
+        "treebank's rule would open it on « Dès que », worse — held against the treebank",
+    ),
+    "fino": (
+        "lowercase",
+        "ADP",
+        "« Jusque » (until) before « Fin » (thin): MarkIT reads fino 8 times, as an adverb, a part of speech the row "
+        "has not",
+    ),
+    "gente": (
+        "lowercase",
+        "NOUN",
+        "« Gens » (people) before « Gentil, fin », an old literary adjective: MarkIT reads gente 12 times as a noun "
+        "and never as an adjective, but the treebank's rule moves no content word",
+    ),
+    "loro": (
+        "lowercase",
+        "PRON",
+        "« Ils, elles, eux » before the courtesy Loro: both entries are pronouns, the capitalised one first, so a "
+        "part of speech alone cannot order them",
+    ),
+    "pure": ("lowercase", "ADV", "« Aussi » (also) before « Pure »: MarkIT reads pure 3 times, too few for its rule"),
+}
+_FIRST_RUN_CASES = frozenset({"lowercase", "capitalised"})
+
+# D3, D4 — the parts of speech of a word whose row holds no proper noun's sense (D4): fr-en's function
+# words (`le`, `on`), an articulated preposition (kaikki's `contraction`), and the adverbs, added after
+# reading fr-en's count (`qui` « Riri », `qua` « Loulou », `oltre`, `anzi`) — a widening recorded as such.
+_FUNCTION_POS = frozenset({"prep", "conj", "pron", "det", "article", "particle", "contraction", "adv"})
+
+# D5, D6 — what marks a sense outdated: an alternative form so marked is not followed (`fora`, `maio`),
+# and an outdated sense does not keep a plural from lending (`spezie`).
+_OLD = frozenset({"archaic", "obsolete", "dated"})
+# D5 — an untagged pointer naming its word in its text (« Pluriel de lettera. », « Variante désuète de
+# così. »): the word after its last « de », « du » or « d' », when it is the whole remainder.
+_TEXT_TARGET = re.compile(r"^.*?\b(?:de|du|d['’])\s*([a-zàèéìíîòóùú'’-]+)\s*\.?\s*$", re.IGNORECASE)
+# D5 — a superlative's or a plural's pointer writing its meaning in « » (« Superlatif de poco : « très
+# peu ». », « Pluriel de cenere (« cendre »). »): the quoted text is the sense. Only these two
+# wordings: a clitic compound's « (« le ») » names a pronoun (`vallo`).
+_QUOTED_MEANING = re.compile(r"^(?:superlatif|pluriel)\b[^«]*«\s*([^»]+?)\s*»", re.IGNORECASE)
+
+# D8 — an article read through its translation (« Article contracté souvent traduit par De la. »), the
+# usage note after it left out; and a usage note, « Note d'usage » to the sense's end with a dash
+# before it, out of a determiner's or a preposition's sense, which Italian's tokenisation and the
+# card's readings already carry (`del`, `degli`, `cogli`); another part of speech's note stays, a
+# reader's (`sebbene` « Quoique. Note d'usage : suivi d'un verbe au subjonctif »).
+_TRANSLATED_BY = re.compile(r"^article contracté souvent traduit par (.+?)\.?(?:\s+Note d[’']usage\b.*)?$", re.IGNORECASE)
+_USAGE_NOTE = re.compile(r"\s*[—–-]?\s*Note d[’']usage\b.*$")
+_NOTE_POS = frozenset({"article", "det", "prep", "contraction"})
+
+# D9 — a proper noun's sense designating its place a commune right after its name (« Vittoria, commune
+# et ville… », « Ro (commune italienne… », « Lana, commune du Pays basque… »), the word « commune »
+# alone deciding: a name's note, kept off a word with a lowercase entry as change 16's notes are —
+# unless the sense names the place a chef-lieu or a capital too (`bordeaux`), or names it something
+# else first (`colonia` « Cologne, ville, commune… », which the pattern does not read), or one of the
+# headword's proper nouns' senses is, or ends on, « province autour de cette ville » (a provincial
+# capital: `brindisi`, `foggia`, `matera`), or the reviewed list keeps it.
+_COMMUNE = re.compile(r"^[^,(]*(?:,\s*|\(\s*)commune\b", re.IGNORECASE)
+_MORE_THAN_A_COMMUNE = re.compile(r"chef-lieu|capitale", re.IGNORECASE)
+_PROVINCE = re.compile(r"province autour de cette ville\.?\s*$", re.IGNORECASE)
+# D9 — the communes a reviewed list keeps beside their word: provincial capitals whose province the
+# section does not give, which the rule would take (settled by the owner on 2026-10-25, task 0.3, option
+# (a)). Editing it changes the rules' sha256, as for any rule.
+COMMUNES_KEPT = {
+    "cesena": "Cesena, a provincial capital (Forlì-Cesena) whose province the section does not give: without the row, "
+    "cesena reads « Grive litorne » alone",
+    "piacenza": "Plaisance, a provincial capital whose province the section does not give: without the row, piacenza "
+    "loses its city",
+}
+
+# D10 — an Italian example and its French translation filed as one sense (« io sono in Francia. — moi,
+# je suis en France »): a sense whose text before « — » ends a sentence, holds a form of the headword,
+# is at least `_EXAMPLE_SHARE` forms of the tables and holds none of these French-only words. `mai`'s
+# « Jamais, en nul temps. — Note d'usage… » and `toccata`'s « … — orgue, clavecin… » are no examples.
+_FRENCH_ONLY = frozenset(
+    "pour avec dans sur est les des du une et je nous vous ils elles ce cette qui pas au aux sont été".split()
+)
+_EXAMPLE_WORD = re.compile(r"[a-zàâäçéèêëîïôöùûüœ']+")
+_EXAMPLE_SHARE = 0.6
+
+# D10 — the sources' slips, corrected by name (fr-es's `CORRECTIONS`, for it-fr): each keyed by the source
+# (`section`, the French Wiktionary's Italian section), the headword as written, its part of speech and
+# its senses' texts as the pinned file writes them, with the corrected texts or None (the entry goes),
+# the reason, and the page it is reported to. A correction replaces the senses of the entry whose texts
+# are exactly `text`: a corrected text the source writes keeps that sense as written, any other is a
+# meaning of its own. One that `added` writes a new entry of its part of speech, read before the
+# section's own entries of the word — so the row's order and the round-robin keep it in front unless
+# the treebank or the table says otherwise —, when the word's entries of that part of speech read
+# `text`, in order (none: `()`). A correction that finds nothing is named by the reduction's report,
+# and removed (`unfired`). The owner reads each (tasks 0.4, 0.6, 2026-10-25). Editing the list changes
+# the rules' sha256, as for any rule.
+Correction = collections.namedtuple(
+    "Correction", "source headword pos text corrected reason report added", defaults=(False,)
+)
+
+CORRECTIONS = (
+    Correction(
+        "section",
+        "che",
+        "pron",
+        ("Quoi.",),
+        ("Qui, que.",),
+        "the relative pronoun is missing: the section gives che only the interrogative « Quoi », though MarkIT reads che "
+        "700 times as a pronoun; « qui, que » are the French tables' own words for it",
+        "https://fr.wiktionary.org/wiki/che",
+        True,
+    ),
+    Correction(
+        "section",
+        "che",
+        "conj",
+        (),
+        ("Que.",),
+        "the conjunction is missing: the section gives che no conjunction, though MarkIT reads che 406 times as one and "
+        "the French tables list che under « que »",
+        "https://fr.wiktionary.org/wiki/che",
+        True,
+    ),
+    Correction(
+        "section",
+        "volere",
+        "verb",
+        (
+            "Vouloir.",
+            "Volerci, falloir.",
+            "Il faut dix heures pour aller à Brindisi.",
+            "Ci vuole un uovo per la torta.",
+            "Il faut un œuf pour le gâteau.",
+        ),
+        ("Vouloir.", "Volerci, falloir."),
+        "two examples and a translation of « volerci » filed as three senses, with no marker and no dash",
+        "https://fr.wiktionary.org/wiki/volere",
+    ),
+    Correction(
+        "section",
+        "dirotto",
+        "adj",
+        (),
+        ("À verse (dans a dirotto).",),
+        "the section has no adjective: its participle pointer lends dirompere's « Écanguer » (to scutch flax), while "
+        "readers meet dirotto in « piovere a dirotto », to pour down",
+        "https://fr.wiktionary.org/wiki/dirotto",
+        True,
+    ),
+    Correction(
+        "section",
+        "dati",
+        "noun",
+        ("Pluriel de dato.",),
+        ("Données.",),
+        "« i dati », a lemma of its own by the owner's row (OVERRIDES), are « les données »: the pointer would lend "
+        "dato's singular « Donnée », one given fact; the section glosses its other plural nouns of their own in the "
+        "plural (forbici « Ciseaux »)",
+        "https://fr.wiktionary.org/wiki/dati",
+    ),
+)
+
+
+def unfired(fired):
+    """The corrections that fired on nothing (D10): each, as the report names it — the page was
+    corrected, or the entry is gone, and the correction is to be removed."""
+    return [f"{c.headword} ({c.source}, {c.pos})" for c in CORRECTIONS if c not in fired]
+
+
+class Refinement:
+    """What `refine_section` reads besides a headword's own entries, and what it records:
+
+    - `counts`: MarkIT's parts of speech (`reduce_italian_treebank.markit_pos_counts`), D2's evidence,
+      or None to keep the section's order but the reviewed table's;
+    - `forms`: the forms table (`form → lemma`), the example rule's (D10);
+    - `requests`, `lent`: the words a pointer lends its senses from beside a name or an old sense
+      (D6), `(word, part of speech)`, and their senses once read;
+    - `fired`, `first_runs`, `kept`: the corrections that fired, the `FIRST_RUN` rows that found their
+      entries, the `COMMUNES_KEPT` rows that kept a commune;
+    - `stats`: what each rule did, the section's report."""
+
+    def __init__(self, counts=None, forms=None):
+        self.counts = counts
+        self.forms = forms or {}
+        self.requests = set()
+        self.lent = {}
+        self.fired = set()
+        self.first_runs = set()
+        self.kept = set()
+        self.stats = collections.Counter()
+        self._of_lemma = None
+
+    def forms_of(self, word):
+        """The forms the tables read as `word`, and `word` itself (D10)."""
+        if self._of_lemma is None:
+            self._of_lemma = collections.defaultdict(set)
+            for form, lemma in self.forms.items():
+                self._of_lemma[lemma].add(form)
+        return self._of_lemma.get(word, set()) | {word}
+
+
+def _capitalised(entry):
+    word = straight(entry.get("word"))
+    return word != word.lower()
+
+
+def _senses(entry):
+    senses = entry.get("senses")
+    return senses if isinstance(senses, list) else []
+
+
+def _tags(sense):
+    return set(sense.get("tags") or ()) if isinstance(sense, dict) else set()
+
+
+def _a_meaning(sense):
+    """Whether a sense holds a meaning as the shared rules read it: a text that is no pointer."""
+    text = _gloss_text(sense)
+    return bool(text) and not common._is_form_of(sense, text, edition=EDITION)
+
+
+def _a_pointer(sense):
+    """Whether a sense only points at another word, as the shared rules read it."""
+    text = _gloss_text(sense)
+    return bool(text) and common._is_form_of(sense, text, edition=EDITION)
+
+
+def _as_meaning(sense, text=None):
+    """A sense read as a meaning: its pointer fields and tags out, its text `text` when given."""
+    out = {k: v for k, v in sense.items() if k not in ("form_of", "alt_of")}
+    tags = [t for t in sense.get("tags") or () if t not in ("form-of", "alt-of")]
+    if tags:
+        out["tags"] = tags
+    else:
+        out.pop("tags", None)
+    return _with_text(out, text) if text is not None else out
+
+
+def _capitalised_first(text):
+    return text[:1].upper() + text[1:]
+
+
+def _pointer_read(sense):
+    """D5: a pointer the shared rules cannot follow, read — `(sense, what)`, `what` None when nothing
+    was read. A superlative's or a plural's quoted meaning is the sense (`pochissimo` « Très peu »,
+    `ceneri` « Cendre »); a pointer naming no word in kaikki's fields is given the word its text names
+    (« Pluriel de lettera. »), or its `alt_of`'s word unless the sense is marked obsolete, archaic or
+    dated (« Variante de paio. »; not `fora`, `maio`), as a `form_of` the shared rules lend through."""
+    text = _gloss_text(sense)
+    if not text:
+        return sense, None
+    quoted = _QUOTED_MEANING.match(text)
+    if quoted:
+        return _as_meaning(sense, _capitalised_first(quoted.group(1))), "quoted meanings read"
+    if sense.get("form_of") or not _a_pointer(sense):
+        return sense, None
+    if sense.get("alt_of"):
+        if _tags(sense) & _OLD:
+            return sense, None
+        ref = sense["alt_of"][0]
+        target, what = (ref.get("word") if isinstance(ref, dict) else None), "alternative forms read as pointers"
+    elif "«" in text:
+        return sense, None
+    else:
+        named = _TEXT_TARGET.match(text)
+        target, what = (named.group(1) if named else None), "pointers named by their text"
+    if not target:
+        return sense, None
+    tags = list(sense.get("tags") or ())
+    return {**sense, "form_of": [{"word": target}], "tags": tags if "form-of" in tags else [*tags, "form-of"]}, what
+
+
+def _article_read(entry, key, glossed_otherwise, stats):
+    """D8: the `di` family's links read as glosses whatever their target (`dei`'s contraction,
+    `dello`'s); « Article contracté souvent traduit par X » read « X » where the word has no other
+    glossed sense (`della` « De la », `degli` « Des », `cogli` « Avec les »; not `pelle`); a usage
+    note out of a determiner's or a preposition's sense (`del` « Du »). `entry` itself when nothing
+    moves."""
+    senses, changed = [], False
+    for sense in _senses(entry):
+        if not isinstance(sense, dict):
+            senses.append(sense)
+            continue
+        text = _gloss_text(sense)
+        translated = _TRANSLATED_BY.match(text) if text else None
+        if translated and not glossed_otherwise:
+            sense = _as_meaning(sense, _capitalised_first(translated.group(1).strip()))
+            stats["articles read through their translation"] += 1
+            changed = True
+        elif key in DI_FAMILY and sense.get("form_of"):
+            sense = _as_meaning(sense)
+            stats["the di family's links read as glosses"] += 1
+            changed = True
+        text = _gloss_text(sense)
+        if entry.get("pos") in _NOTE_POS and text and _USAGE_NOTE.search(text):
+            sense = _with_text(sense, _USAGE_NOTE.sub("", text).strip())
+            stats["usage notes out of an article's or a preposition's sense"] += 1
+            changed = True
+        senses.append(sense)
+    return {**entry, "senses": senses} if changed else entry
+
+
+def italian_example(text, word, refined):
+    """D10: whether a sense is an Italian example and its French translation joined by a dash — its
+    text before « — » ends a sentence, holds a form of `word`, is at least `_EXAMPLE_SHARE` forms of the
+    tables (`refined.forms`) and holds no French-only word (`_FRENCH_ONLY`)."""
+    if " — " not in text:
+        return False
+    before = text.split(" — ", 1)[0].strip()
+    words = _EXAMPLE_WORD.findall(before.lower().replace("’", "'"))
+    if not words or before[-1:] not in ".?!" or set(words) & _FRENCH_ONLY:
+        return False
+    if sum(1 for w in words if w in refined.forms) / len(words) < _EXAMPLE_SHARE:
+        return False
+    return bool(set(words) & refined.forms_of(word))
+
+
+def _entry_read(entry, key, glossed_otherwise, refined, stats):
+    """One entry through D5, D8 and D10's example rule, or None when it is left with no sense."""
+    senses, changed = [], False
+    for sense in _senses(entry):
+        if not isinstance(sense, dict):
+            senses.append(sense)
+            continue
+        if italian_example(_gloss_text(sense), key, refined):
+            stats["examples with their translation"] += 1
+            changed = True
+            continue
+        read, what = _pointer_read(sense)
+        if what is not None:
+            stats[what] += 1
+            changed = True
+        senses.append(read)
+    if changed:
+        if not senses:
+            return None
+        entry = {**entry, "senses": senses}
+    return _article_read(entry, key, glossed_otherwise, stats)
+
+
+def _corrected(entries, refined, final):
+    """D10's `CORRECTIONS` over a headword's entries: each entry a correction names by its texts
+    replaced or left out, and the entries the additions write, first, in the list's order."""
+    added, out = [], []
+    for correction in CORRECTIONS:
+        if not correction.added or correction.source != "section":
+            continue
+        ofpos = [e for e in entries if straight(e.get("word")) == correction.headword and e.get("pos") == correction.pos]
+        if not any(straight(e.get("word")) == correction.headword for e in entries):
+            continue
+        if tuple(_gloss_text(s) for e in ofpos for s in _senses(e)) != correction.text:
+            continue
+        if final:
+            refined.fired.add(correction)
+            refined.stats["corrections"] += 1
+        senses = [{"glosses": [text]} for text in correction.corrected or ()]
+        if senses:
+            added.append(
+                {"word": correction.headword, "lang_code": "it", "lang": "Italien", "pos": correction.pos, "senses": senses}
+            )
+    for entry in entries:
+        for correction in CORRECTIONS:
+            if correction.added or correction.source != "section":
+                continue
+            if straight(entry.get("word")) != correction.headword or entry.get("pos") != correction.pos:
+                continue
+            if tuple(_gloss_text(s) for s in _senses(entry)) != correction.text:
+                continue
+            if final:
+                refined.fired.add(correction)
+                refined.stats["corrections"] += 1
+            if correction.corrected is None:
+                entry = None
+            else:
+                by_text = {_gloss_text(s): s for s in _senses(entry)}
+                entry = {**entry, "senses": [by_text.get(text) or {"glosses": [text]} for text in correction.corrected]}
+            break
+        if entry is not None:
+            out.append(entry)
+    return added + out
+
+
+def _communes_read(key, entries, refined, stats):
+    """D9: a proper noun's sense naming its place a commune right after its name (`_COMMUNE`) left out
+    of a word with a lowercase entry of its own, as change 16's notes are, but a chef-lieu's or a
+    capital's, a provincial capital's (`_PROVINCE`) and a commune the reviewed list keeps
+    (`COMMUNES_KEPT`); a proper noun's entry left with no sense goes."""
+    if not any(not _capitalised(e) and e.get("pos") != "name" for e in entries):
+        return entries
+    names = [e for e in entries if _capitalised(e) and e.get("pos") == "name"]
+    if not names or any(_PROVINCE.search(_gloss_text(s)) for e in names for s in _senses(e)):
+        return entries
+
+    def commune(sense):
+        text = _gloss_text(sense)
+        return bool(_COMMUNE.match(text)) and not _MORE_THAN_A_COMMUNE.search(text)
+
+    if not any(commune(s) for e in names for s in _senses(e)):
+        return entries
+    if key in COMMUNES_KEPT:
+        refined.kept.add(key)
+        stats["communes kept by the reviewed list"] += 1
+        return entries
+    out = []
+    for entry in entries:
+        if any(entry is name for name in names):
+            kept = [s for s in _senses(entry) if not commune(s)]
+            stats["communes' notes set aside"] += len(_senses(entry)) - len(kept)
+            if not kept:
+                continue
+            if len(kept) != len(_senses(entry)):
+                entry = {**entry, "senses": kept}
+        out.append(entry)
+    return out
+
+
+def _names_read(entries, stats):
+    """D3, D4: a proper noun's sense a lowercase entry of a common part of speech gives word for word
+    (up to case and its closing period) left out of the proper noun's entry, so that the common
+    entry's run carries it (`bibbia`, `rinascimento`, `corano`); and a proper noun's entry of a
+    capitalised headword, no acronym, left out when every lowercase entry of the word is a function
+    word's or an adverb's (`_FUNCTION_POS`: `io`, `qui`, `qua`, `oltre`, `anzi`)."""
+    lower = [e for e in entries if not _capitalised(e)]
+    repeated = {_bare_text(_gloss_text(s)) for e in lower if e.get("pos") != "name" for s in _senses(e) if _a_meaning(s)}
+    function = bool(lower) and all(e.get("pos") in _FUNCTION_POS for e in lower if _senses(e))
+    out = []
+    for entry in entries:
+        if _capitalised(entry) and entry.get("pos") == "name":
+            if function and not common._acronym(straight(entry.get("word"))):
+                stats["names under a function word or an adverb"] += 1
+                continue
+            if repeated:
+                kept = [s for s in _senses(entry) if _bare_text(_gloss_text(s)) not in repeated]
+                stats["names a common entry repeats"] += len(_senses(entry)) - len(kept)
+                if not kept:
+                    continue
+                if len(kept) != len(_senses(entry)):
+                    entry = {**entry, "senses": kept}
+        out.append(entry)
+    return out
+
+
+def _base(sense):
+    """The word a sense's `form_of` names first, as the shared rules key it (lowercased)."""
+    ref = (sense.get("form_of") or [{}])[0]
+    return straight(ref.get("word") if isinstance(ref, dict) else "").lower()
+
+
+def _lent_read(entries, refined, final, stats):
+    """D6: a noun's or an adjective's pointers given their word's senses — its lowercase entries of that
+    part of speech, none archaic, obsolete or dated — when the word's every other sense is a capitalised
+    entry's or so marked, the lent entries first (`gemelli` « Jumeau; Gémeaux…; Bouton de manchette »,
+    `spezie` « Épice…; Espèce », `arme`). A verb form's pointer lends nothing beside a name (`regolo`).
+    Before the lenders are read (`final` false), the words asked for are recorded."""
+    lower = [e for e in entries if not _capitalised(e)]
+    pointers = [(e, s) for e in lower for s in _senses(e) if _a_pointer(s) and s.get("form_of")]
+    if not pointers or any(e.get("pos") not in ("noun", "adj") for e, _ in pointers):
+        return entries
+    if any(_a_meaning(s) and not _tags(s) & _OLD for e in lower for s in _senses(e)):
+        return entries
+    if not any(_a_meaning(s) and (_capitalised(e) or _tags(s) & _OLD) for e in entries for s in _senses(e)):
+        return entries
+    if not final:
+        refined.requests.update((_base(s), e.get("pos")) for e, s in pointers)
+        return entries
+    stats["pointers lending beside a name or an old sense"] += 1
+    lent, rest = [], []
+    for entry in entries:
+        if _capitalised(entry) or not any(s.get("form_of") for s in _senses(entry)):
+            rest.append(entry)
+            continue
+        senses = []
+        for sense in _senses(entry):
+            senses.extend(refined.lent.get((_base(sense), entry.get("pos")), []) if sense.get("form_of") else [sense])
+        lent.append({**entry, "senses": senses})
+    return lent + rest
+
+
+def _ordered(key, entries, refined, final, stats):
+    """D2: the order of a headword's entries — a `FIRST_RUN` row's case and part of speech first, the
+    others in their order; else fr-en's rule over MarkIT (`reduce_french_treebank.commonest_first`):
+    a function word's row, or one the section opens on a proper noun, opens on the part of speech
+    MarkIT reads it as at least 10 times and twice as often as the section's first, never a proper
+    noun; a noun, a verb or an adjective as the section writes it."""
+    if key in FIRST_RUN:
+        case, upos, _ = FIRST_RUN[key]
+        hit = [
+            e
+            for e in entries
+            if _capitalised(e) == (case == "capitalised")
+            and common.kaikki_upos(e.get("pos") or "", key, studied=IT) == upos
+        ]
+        if hit and final:
+            refined.first_runs.add(key)
+        moved = hit + [e for e in entries if not any(e is h for h in hit)]
+        if [id(e) for e in moved] != [id(e) for e in entries]:
+            stats["rows opened by the reviewed table"] += 1
+        return moved
+    if refined.counts is None or len(entries) < 2:
+        return entries
+    upos = [common.kaikki_upos(e.get("pos") or "", key, studied=IT) for e in entries]
+    first = next((u for e, u in zip(entries, upos) if not common._acronym(straight(e.get("word")))), upos[0])
+    order = french_treebank.commonest_first(french_treebank.word_key(key), upos, first, refined.counts)
+    if order is None:
+        return entries
+    stats["rows opened by MarkIT's commonest part of speech"] += 1
+    return [entries[k] for k in order]
+
+
+def refine_headword(key, entries, refined, final=True):
+    """A headword's entries — every case of it — as change 17 reads them: `CORRECTIONS` first; then
+    each entry through D5 (pointers), D8 (the `di` family, usage notes) and D10's example rule; then
+    the headword's through D9 (communes), D3 and D4 (names), D6 (pointers lending beside a name) and
+    D2 (the row's order). An entry left with no sense goes. `final` false records D6's lenders and
+    counts nothing: the first of `refine_section`'s two readings."""
+    stats = refined.stats if final else collections.Counter()
+    entries = _corrected(entries, refined, final)
+    glossed_otherwise = any(
+        _a_meaning(s) and not _TRANSLATED_BY.match(_gloss_text(s))
+        for e in entries
+        for s in _senses(e)
+        if isinstance(s, dict)
+    )
+    read = []
+    for entry in entries:
+        entry = _entry_read(entry, key, glossed_otherwise, refined, stats)
+        if entry is not None:
+            read.append(entry)
+    read = _communes_read(key, read, refined, stats)
+    read = _names_read(read, stats)
+    read = _lent_read(read, refined, final, stats)
+    read = _ordered(key, read, refined, final, stats)
+    out = []
+    for entry in read:
+        if isinstance(entry.get("senses"), list) and not entry["senses"]:
+            stats["entries left with no sense, change 17"] += 1
+            continue
+        out.append(entry)
+    return out
+
+
+def _one_word(entry):
+    """A headword as `refine_section` groups it — lowercased, the typographic apostrophe read as `'`
+    — when it is one word, else None: a multi-word headword's entries are read one by one."""
+    key = straight(entry.get("word")).lower()
+    return key if key and " " not in key else None
+
+
+def refine_section(src, dst, stats, refined):
+    """The section as change 16 reads it (`src`), refined by change 17's rules (`refine_headword`),
+    written to `dst`: a one-word headword's entries — every case of it — read together and written
+    where its first entry stood, any other entry alone; an entry it does not change is written as its
+    line was. Four passes over `src`: the headwords with two entries or more; those entries, and the
+    words D6 lends from; their senses; the rewrite."""
+    refined.stats = stats
+    seen, several = set(), set()
+    for entry in _entries(src):
+        key = _one_word(entry)
+        if key is not None:
+            (several if key in seen else seen).add(key)
+    del seen
+    groups = collections.defaultdict(list)
+    for line, entry in _lines(src):
+        key = _one_word(entry)
+        if key in several:
+            groups[key].append((line, entry))
+        else:
+            refine_headword(key or straight(entry.get("word")).lower(), [entry], refined, final=False)
+    for key, members in groups.items():
+        refine_headword(key, [entry for _, entry in members], refined, final=False)
+    if refined.requests:
+        for entry in _entries(src):
+            key = straight(entry.get("word")).lower()
+            if _capitalised(entry) or (key, entry.get("pos")) not in refined.requests:
+                continue
+            refined.lent.setdefault((key, entry.get("pos")), []).extend(
+                s for s in _senses(entry) if isinstance(s, dict) and _a_meaning(s) and not _tags(s) & _OLD
+            )
+    written = set()
+    with open(dst, "w", encoding="utf-8") as out:
+        for line, entry in _lines(src):
+            key = _one_word(entry)
+            if key in several:
+                if key in written:
+                    continue
+                written.add(key)
+                members = groups[key]
+            else:
+                members = [(line, entry)]
+            lines = {id(e): text for text, e in members}
+            for kept in refine_headword(key or straight(entry.get("word")).lower(), [e for _, e in members], refined):
+                out.write(lines.get(id(kept)) or json.dumps(kept, ensure_ascii=False) + "\n")
+    return dst
+
+
+def _lines(path):
+    """Each line of a section as read that is a JSON object, with its entry (`read_section` writes no
+    other)."""
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(entry, dict):
+                yield (line if line.endswith("\n") else line + "\n"), entry
+
+
 def straight_translations(src, dst, *, inverted):
     """A translation file (`pack_sources.derive`) with its Italian words read as Italian is written
     (D2): the typographic apostrophe as `'`, in NFC — the entry's word in the Italian Wiktionary's own
@@ -2930,14 +3839,25 @@ def without_repeated_senses(glosses, runs):
     return moved
 
 
+# A word split after its elided piece that is no Italian (refine-lingua-it-fr-glosses D10): a letter
+# Italian writes only in loans after the piece, or a second apostrophe (`c'hwerty`, `l'wha`, `d'n'b`;
+# `d'antan`, French and harmless, stays).
+_NO_ITALIAN_AFTER_A_PIECE = re.compile(r"[jkwxy']")
+
+
 def split_word(word, forms):
     """Whether `word` is one word Italian's pre-pass splits into two tokens or more (D6): no space,
     an Italian token beginning with an elided piece (`d'accordo`, `all'improvviso`, `c'è`,
     `senz'altro`), which the pre-pass splits there (`_ELIDED_START`), and no form of the tables — a
     form is looked up whole. An articulated preposition written whole (`alla`) is none: its pieces
     are a preposition and an article, which a key writes as the page does (change 12's D2), and
-    offered alone it would answer every « alla » with « à la »."""
-    return " " not in word and bool(_TOKEN.fullmatch(word)) and bool(_ELIDED_START.match(word)) and word not in forms
+    offered alone it would answer every « alla » with « à la ». Nor is a word whose letters after the
+    piece hold `j`, `k`, `w`, `x` or `y`, or a second apostrophe (refine-lingua-it-fr-glosses D10:
+    `c'hwerty`, `d'n'b`)."""
+    if " " in word or not _TOKEN.fullmatch(word) or word in forms:
+        return False
+    piece = _ELIDED_START.match(word)
+    return bool(piece) and not _NO_ITALIAN_AFTER_A_PIECE.search(word[piece.end() - 1 :])
 
 
 def section_words(path, forms, wanted):
@@ -3234,7 +4154,15 @@ def reduce(
     common.write(work, "forms.tsv", "".join(f"{f}\t{l}\n" for f, l in sorted(written.items())))
     # The readings of the forms and ranks just chosen (add-lingua-italian-grammar-tables D1): the
     # acronym rows, capitalised headwords, carry none (D5).
-    grammar = spelling_rows(grammar_rows(readings, forms, ranks), forms, spellings)
+    # A reading the section's tables give a form wrongly, set aside by name before any spelling carries it
+    # (refine-lingua-it-fr-glosses D12).
+    read, unread = without_readings_set_aside(grammar_rows(readings, forms, ranks))
+    if unread:
+        raise SystemExit(
+            f"it-fr: {len(unread)} row(s) of READINGS_SET_ASIDE name a reading the tables do not give: "
+            + ", ".join(" ".join(row) for row in unread)
+        )
+    grammar = spelling_rows(read, forms, spellings)
     common.write(work, "grammar.tsv", "".join(grammar))
     common.write(work, "freq.tsv", "".join(f"{l}\t{r}\n" for l, r in sorted(ranks.items(), key=lambda kv: (kv[1], kv[0]))))
     # it-fr's native side (add-lingua-pack-it-fr), after the studied side, keyed by the lemmas just
@@ -3242,7 +4170,17 @@ def reduce(
     # Wiktionary's French translations in the table's order, then the French tables read backwards,
     # commonest French word first (D2).
     stats = collections.Counter()
-    section = section_as_read(os.path.join(work, SECTION), os.path.join(work, SECTION_READ), stats)
+    # Change 17's refinement (refine-lingua-it-fr-glosses): a row's order read over MarkIT's parts of
+    # speech (D2), the example rule over the forms just chosen (D10); the reviewed lists checked after.
+    refined = Refinement(treebank.markit_pos_counts([os.path.join(work, name) for name in MARKIT]), forms)
+    section = section_as_read(os.path.join(work, SECTION), os.path.join(work, SECTION_READ), stats, refined=refined)
+    missed_runs = sorted(set(FIRST_RUN) - refined.first_runs)
+    if missed_runs:
+        raise SystemExit(
+            f"it-fr: {len(missed_runs)} row(s) of FIRST_RUN name an entry the section does not give: "
+            + ", ".join(f"{word} ({FIRST_RUN[word][0]} {FIRST_RUN[word][1]})" for word in missed_runs)
+        )
+    missed_corrections = unfired(refined.fired)
     direct = common.read_translations(
         straight_translations(os.path.join(work, DIRECT), os.path.join(work, DIRECT_READ), inverted=False),
         inverted=False,
@@ -3313,6 +4251,7 @@ def reduce(
         "morph-it top lemmas": by_lemma.most_common(10),
         "m8": {top: len(nouns) for top, nouns in m8_cost(forms, ranks, lexicon, top_n).items()},
         "read": dict(lexicon.stats),
+        "verb forms read as their verb": sorted(lexicon.inflections_read),
         "dictionary spellings": dict(spellings),
         "dictionary spellings kept apart": dict(kept),
         "foreign readings": alien,
@@ -3333,6 +4272,9 @@ def reduce(
             "split words, the tables": len(split_tables),
         },
         "section as read": dict(stats),
+        "corrections fired": len(CORRECTIONS) - len(missed_corrections),
+        "corrections that fired on nothing": missed_corrections,
+        "communes kept": sorted(refined.kept),
         "acronym glosses": {acronym: gloss for acronym, (gloss, _) in glossed_acronyms.items()},
         "dictionary words": len(words),
         "names": len(set(glosses) - set(words)),
@@ -3368,6 +4310,11 @@ def reduce(
         + ", ".join(f"{n} {what}" for what, n in sorted(stats.items()))
     )
     report(
+        f"reduced it-fr: {summary['corrections fired']} of {len(CORRECTIONS)} corrections fired"
+        + (f"; fired on nothing, to remove: {', '.join(missed_corrections)}" if missed_corrections else "")
+        + f"; communes kept by the reviewed list: {', '.join(summary['communes kept']) or 'none'}"
+    )
+    report(
         f"reduced it-fr: dictionary words={len(words)} ({summary['names']} glossed as names alone; the acronym rows "
         + ", ".join(f"{a} « {g} »" for a, g in summary["acronym glosses"].items())
         + ")"
@@ -3381,6 +4328,10 @@ def reduce(
     if morph_it is not None:
         report(f"reduced it-fr: Morph-it! added {len(added)} form(s) under {len(by_lemma)} lemma(s)")
     report("reduced it-fr: read " + ", ".join(f"{n} {what}" for what, n in sorted(lexicon.stats.items())))
+    report(
+        f"reduced it-fr: verb forms whose own entry holds no meaning, read as their verb={len(lexicon.inflections_read)}: "
+        + ", ".join(sorted(lexicon.inflections_read))
+    )
     for line in spellings_report(spellings, kept):
         report(f"reduced it-fr: {line}")
     report(

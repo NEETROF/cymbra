@@ -329,6 +329,7 @@ def section(entries=ENTRIES):
     lexicon = red.Lexicon(survey)
     for e in entries:
         lexicon.read(e)
+    lexicon.drop_inflection_lemmas()
     lexicon.drop_clitic_rows()
     return lexicon
 
@@ -631,7 +632,11 @@ class OneLemma(unittest.TestCase):
 
     def test_the_owner_s_overrides_decide_first(self):
         # stato and stati read as essere (the owner, 2026-10-23), bianca as bianco; each row says why.
-        self.assertEqual({form: lemma for form, (lemma, _) in red.OVERRIDES.items()}, {"stato": "essere", "stati": "essere", "bianca": "bianco"})
+        self.assertEqual(
+            {form: lemma for form, (lemma, _) in red.OVERRIDES.items()},
+            # refine-lingua-it-fr-glosses D11: a clear error and the owner's three rows; no `dato` row.
+            {"stato": "essere", "stati": "essere", "bianca": "bianco", "usa": "usare", "dati": "dati", "lega": "lega", "prova": "prova"},
+        )
         self.assertTrue(all(len(reason) > 40 for _, reason in red.OVERRIDES.values()))
         self.assertEqual(self.forms["stato"], "essere")
         self.assertEqual(self.forms["stati"], "essere")
@@ -1218,7 +1223,16 @@ class Reduction(unittest.TestCase):
     def setUp(self):
         # Italian's acronym rows are the section's real headwords, which this small section has only
         # where a test writes them (keep-lingua-italian-acronyms-and-names D2).
-        for table, rows in ((red.WEB_SPELLINGS, self.WEB), (red.OWNER_EXCEPTIONS, {}), (red.acronyms.ACRONYMS, {})):
+        # refine-lingua-it-fr-glosses: the reviewed table of a row's order and the readings' list name the
+        # section's real words, which this small section has only where a test writes them.
+        tables = (
+            (red.WEB_SPELLINGS, self.WEB),
+            (red.OWNER_EXCEPTIONS, {}),
+            (red.acronyms.ACRONYMS, {}),
+            (red.FIRST_RUN, {}),
+            (red.READINGS_SET_ASIDE, {}),
+        )
+        for table, rows in tables:
             patch = mock.patch.dict(table, rows, clear=True)
             patch.start()
             self.addCleanup(patch.stop)
@@ -2623,9 +2637,9 @@ class NativeSide(unittest.TestCase):
         self.assertIsNone(red.source_of("missing", self.steps))
 
     def test_spec_scenario_a_gloss_read_as_a_link(self):
-        # `del` « Du. », a link to the French « Du », which no Italian entry heads: a gloss, with its
-        # usage note; the hamlet `Del` kept off it (D5).
-        self.assertEqual(self.glosses["del"], "Du. Note d’usage : devant une consonne")
+        # `del` « Du. », a link to the French « Du », which no Italian entry heads: a gloss — its usage
+        # note out since refine-lingua-it-fr-glosses D8; the hamlet `Del` kept off it (D5).
+        self.assertEqual(self.glosses["del"], "Du")
         self.assertNotIn("hameau", self.glosses["del"])
         # `storie`: « Pluriel de storia » is an inflection by its text, whatever its target: still a
         # form, its pointer naming « Pluriel », which lends nothing.
@@ -2636,15 +2650,17 @@ class NativeSide(unittest.TestCase):
         self.assertEqual(self.split["c'è"], "Il y a")
 
     def test_spec_scenario_a_link_to_a_lowercase_word_beside_a_gloss(self):
-        # `degli`, glossed by nothing else: its link is its gloss.
-        self.assertEqual(self.glosses["degli"], "Article contracté souvent traduit par des")
+        # `degli`, glossed by nothing else: its link is its gloss, read through its translation since
+        # refine-lingua-it-fr-glosses D8.
+        self.assertEqual(self.glosses["degli"], "Des")
         # `pelle`: its own senses alone, the article's link left a form.
         self.assertEqual(self.glosses["pelle"], "Peau; Fourrure, peau, pelage, poil d’animal")
         self.assertEqual(self.runs["pelle"], [("NOUN", 2)])
-        # The exact spelling: `della` links the Italian `la`, whose entry holds a meaning: a form; the
-        # tables gloss it.
-        self.assertEqual(self.glosses["della"], "Des, de la")
-        self.assertIn("della", self.steps["inverted"])
+        # The exact spelling: `della` links the Italian `la`, whose entry holds a meaning: a form for D4 —
+        # the `di` family's link read as its translation since refine-lingua-it-fr-glosses D8, not the
+        # tables' « Des, de la ».
+        self.assertEqual(self.glosses["della"], "De la")
+        self.assertIn("della", self.steps["definitions"])
         # `te`'s link names `toi`, whose entry is a form alone: no Italian word heads it, so the link
         # glosses `te` (the review) — not the tables' « Te ».
         self.assertEqual(self.glosses["te"], "Toi : pronom disjoint de la deuxième personne du singulier")
@@ -2877,6 +2893,774 @@ class NativeSideReduced(unittest.TestCase):
         self.assertIn("Italian Wiktionary (itwiktionary)", notice)
         self.assertEqual(manifest["meta"]["licences"][0], "kaikki / enwiktionary, frwiktionary, itwiktionary (CC BY-SA 4.0 + GFDL)")
         self.assertEqual(set(measured), {"top", "glossed", "share", "direct", "inverted", "coverage", "by source", "sample"})
+
+
+# — refine-lingua-it-fr-glosses (the Italian programme's change 17): Italian's forms and readings (D11, D12) —
+
+FIRST_PLURAL = ["first-person", "indicative", "plural", "present"]
+SECOND_PLURAL = ["indicative", "plural", "present", "second-person"]
+# The English section's entries as kaikki writes them, for D11's four rules and its reviewed rows.
+REFINED_ENTRIES = [
+    # Rule 1: a verb's person whose own entry holds no meaning reads as its verb — an ellipsis (`sto`),
+    # another part of speech's pointer marked obsolete and poetic (`vado`), the verb's inflection written
+    # without its tag (`sapete`, kaikki's raw tag « of sapere »).
+    entry("stare", pos="verb", forms=[*TABLE_HEAD, ("stò", PRESENT_1S), ("stà", PRESENT_3S)]),
+    form_of("sto", "stare", tags=("first-person", "form-of", "indicative", "present", "singular")),
+    entry(
+        "sto",
+        pos="phrase",
+        senses=[
+            {
+                "glosses": ["ellipsis of sto bene (“I'm fine”)"],
+                "tags": ["abbreviation", "alt-of", "colloquial", "ellipsis"],
+                "alt_of": [{"word": "sto bene", "extra": "I'm fine"}],
+            }
+        ],
+    ),
+    entry("andare", pos="verb", forms=[*TABLE_HEAD, ("vàdo", PRESENT_1S)]),
+    form_of("vado", "andare", tags=("first-person", "form-of", "indicative", "present", "singular")),
+    entry(
+        "vado",
+        senses=[
+            {
+                "glosses": ["alternative form of guado"],
+                "tags": ["alt-of", "alternative", "literary", "masculine", "obsolete", "poetic"],
+                "alt_of": [{"word": "guado"}],
+            }
+        ],
+    ),
+    entry("guado"),
+    entry("sapere", pos="verb", forms=[*TABLE_HEAD, ("sapéte", SECOND_PLURAL)]),
+    entry(
+        "sapete",
+        pos="verb",
+        senses=[{"glosses": ["(you) know"], "tags": [*SECOND_PLURAL, "singular"], "raw_tags": ["of sapere"]}],
+    ),
+    # … and what it leaves: another word's inflection (`dee`, dea's plural), a contraction (`cogli`), a
+    # function word's homograph (`contra`), a form the section heads as an acronym (`tari`), a participle
+    # (`elisa`) and an alternative infinitive (`cagare`), which no table gives as a person.
+    entry("dovere", pos="verb", forms=[*TABLE_HEAD, ("dèe", PRESENT_3S)]),
+    entry("dea", forms=[("dee", ["plural"])]),
+    form_of("dee", "dea", pos="noun", tags=("feminine", "form-of", "plural")),
+    entry(
+        "dee",
+        pos="verb",
+        senses=[
+            {
+                "glosses": ["alternative form of deve, third-person singular present indicative of dovere"],
+                "tags": ["alt-of", "alternative", "archaic", "poetic"],
+                "alt_of": [{"word": "deve"}],
+            }
+        ],
+    ),
+    entry("cogliere", pos="verb", forms=[*TABLE_HEAD, ("còlgo", PRESENT_1S), ("cògli", ["imperative", "second-person", "singular"])]),
+    alt_of("cogli", "con gli", pos="contraction", tags=("abbreviation", "alt-of", "contraction", "dated")),
+    form_of("cogli", "cogliere", tags=("form-of", "imperative", "second-person", "singular")),
+    entry("contrare", pos="verb", forms=[*TABLE_HEAD, ("cóntra", PRESENT_3S)]),
+    alt_of("contra", "contro", pos="prep", tags=("alt-of", "alternative", "archaic")),
+    form_of("contra", "contrare", tags=("form-of", "indicative", "present", "singular", "third-person")),
+    entry("contro", pos="prep"),
+    entry("tarare", pos="verb", forms=[*TABLE_HEAD, ("tàri", ["indicative", "present", "second-person", "singular"])]),
+    form_of("tari", "tarare", tags=("form-of", "indicative", "present", "second-person", "singular")),
+    entry("TARI", senses=[{"glosses": ["abbreviation of tassa sui rifiuti"], "tags": ["abbreviation", "alt-of"], "alt_of": [{"word": "tassa sui rifiuti"}]}]),
+    entry("elidere", pos="verb", forms=[*TABLE_HEAD, ("elìso", PARTICIPLE)]),
+    entry("eliso", pos="verb", forms=[("elisa", ["feminine"])], senses=[{"tags": ["form-of", "participle", "past"], "form_of": [{"word": "elidere"}]}]),
+    entry("elisa", pos="verb", senses=[{"glosses": ["elided"], "tags": ["feminine"]}]),
+    # `mei`: meare's person, and meo's plural along an adjective's link — another word's.
+    entry("meare", pos="verb", forms=[*TABLE_HEAD, ("mèi", ["indicative", "present", "second-person", "singular"])]),
+    form_of("mei", "meare", tags=("form-of", "indicative", "present", "second-person", "singular")),
+    form_of("mei", "meo", pos="adj", tags=("form-of", "masculine", "plural")),
+    alt_of("mei", "meglio", pos="adv", tags=("alt-of", "alternative", "archaic")),
+    entry("meo", pos="adj", senses=[{"glosses": ["Old Italian form of mio"]}]),
+    entry("cacare", pos="verb", forms=[*TABLE_HEAD, ("càco", PRESENT_1S)]),
+    entry("cagare", pos="verb", forms=[*TABLE_HEAD], senses=[{"glosses": ["alternative form of cacare"], "tags": ["alt-of", "alternative"], "alt_of": [{"word": "cacare"}]}]),
+    # Rule 2: no form of a form through a noun's plural (`viti` → `vite` → *vita*), but through its own
+    # table's row (`crochi` → *croco*) or a feminine (`maestre` → `maestra` → *maestro*).
+    entry("vita", forms=[("vite", ["plural"])], senses=[{"glosses": ["life"], "tags": ["feminine"]}]),
+    entry("vite", forms=[("viti", ["plural"])], senses=[{"glosses": ["vine"], "tags": ["feminine"]}]),
+    form_of("vite", "vita", pos="noun", tags=("feminine", "form-of", "plural")),
+    form_of("viti", "vite", pos="noun", tags=("feminine", "form-of", "plural")),
+    entry("croco", forms=[("crochi", ["plural"])], senses=[{"glosses": ["crocus"], "tags": ["masculine"]}]),
+    entry("croce", forms=[("croci", ["plural"])], senses=[{"glosses": ["cross"], "tags": ["feminine"]}]),
+    form_of("croci", "croce", pos="noun", tags=("feminine", "form-of", "plural")),
+    entry("crochi", senses=[{"glosses": ["plural of croco crocuses, croci"], "tags": ["form-of", "masculine", "plural"], "form_of": [{"word": "croco crocuses"}, {"word": "croci"}]}]),
+    entry("faccia", forms=[("facce", ["plural"])], senses=[{"glosses": ["face"], "tags": ["feminine"]}]),
+    form_of("facce", "faccia", pos="noun", tags=("feminine", "form-of", "plural")),
+    form_of("faccie", "facce", pos="noun", tags=("form-of", "misspelling")),
+    entry("maestro", forms=[("maestra", ["feminine"])], senses=[{"glosses": ["master"], "tags": ["masculine"]}]),
+    form_of("maestra", "maestro", pos="noun", tags=("feminine", "form-of")),
+    form_of("maestre", "maestra", pos="noun", tags=("feminine", "form-of", "plural")),
+    # Rule 3: a feminine noun's masculine row (`signorina`'s `signorini`), unless the form's own entry
+    # names the noun (`echi`, *eco*'s).
+    headed(
+        entry("signorina", forms=[("signorine", ["plural"]), ("signorino", ["masculine"]), ("signorini", ["masculine", "plural"])], senses=[{"glosses": ["miss"], "tags": ["feminine"]}]),
+        **{"1": "f"},
+    ),
+    headed(entry("signorino", forms=[("signorini", ["plural"])], senses=[{"glosses": ["young master"], "tags": ["masculine"]}]), **{"1": "m"}),
+    form_of("signorini", "signorino", pos="noun", tags=("form-of", "masculine", "plural")),
+    headed(entry("eco", forms=[("echi", ["masculine", "plural"])], senses=[{"glosses": ["echo"]}]), **{"1": "f,m<l:colloquial>"}),
+    form_of("echi", "eco", pos="noun", tags=("form-of", "masculine", "plural")),
+    # Rule 4: *avere*'s Classical Roman Dialect table (no first person plural in -iamo) gives `avi` and
+    # `ava`, which their own entries name *avo*'s; *essere*'s gives `son`, whose own entry names `sono`, no
+    # ranked word; `ate`'s names *avere* itself. *essere*'s usage notes write headings as cells.
+    entry(
+        "avere",
+        pos="verb",
+        forms=[
+            *TABLE_HEAD,
+            ("abbiàmo", FIRST_PLURAL),
+            ("àte", SECOND_PLURAL),
+            ("regular", ["table-tags"]),
+            ("avémo", FIRST_PLURAL),
+            ("àvi", ["indicative", "present", "second-person", "singular"]),
+            ("àva", PRESENT_3S),
+            ("àmo", FIRST_PLURAL),
+            ("crési", ["first-person", "historic", "past", "singular"]),
+        ],
+    ),
+    # `cresi`: the dialect's row, and its own entries naming *creso* and *credere*'s obsolete past historic.
+    entry("creso", forms=[("cresi", ["plural"])], senses=[{"glosses": ["rich man"], "tags": ["masculine"]}]),
+    form_of("cresi", "creso", pos="noun", tags=("form-of", "masculine", "plural")),
+    form_of("cresi", "avere", tags=("first-person", "form-of", "historic", "obsolete", "past", "singular")),
+    # … where the dialect's verb is not the one chosen, nothing moves: `amo`, the hook and amare's person.
+    entry("amo", senses=[{"glosses": ["fishhook"], "tags": ["masculine"]}]),
+    entry("amare", pos="verb", forms=[*TABLE_HEAD, ("àmo", PRESENT_1S)]),
+    form_of("amo", "amare", tags=("first-person", "form-of", "indicative", "present", "singular")),
+    entry("avo", forms=[("avi", ["plural"]), ("ava", ["feminine"])], senses=[{"glosses": ["ancestor"], "tags": ["masculine"]}]),
+    form_of("avi", "avo", pos="noun", tags=("form-of", "masculine", "plural")),
+    form_of("ava", "avo", pos="noun", tags=("feminine", "form-of")),
+    form_of("ate", "avere", tags=("form-of", "indicative", "plural", "present", "second-person")),
+    entry(
+        "essere",
+        pos="verb",
+        forms=[
+            *TABLE_HEAD,
+            ("siàmo", FIRST_PLURAL),
+            ("sóno", PRESENT_1S),
+            ("regular", ["table-tags"]),
+            ("semo", FIRST_PLURAL),
+            ("són", PRESENT_1S),
+            ("no-table-tags", ["table-tags"]),
+            ("archaic", []),
+            ("subjunctive", []),
+            ("fósse", ["imperfect", "singular", "subjunctive", "third-person", "archaic"]),
+        ],
+    ),
+    form_of("sono", "essere", tags=("first-person", "form-of", "indicative", "present", "singular")),
+    alt_of("son", "sono", pos="verb", tags=("abbreviation", "alt-of", "apocopic")),
+    # The reviewed rows: the apocope `signor` and the euphonic `od`; `usa` → *usare*; `dati` → *dati*,
+    # the plural noun of its own, while `dato` stays *dare*'s.
+    headed(entry("signore", forms=[("signori", ["plural"])], senses=[{"glosses": ["gentleman"], "tags": ["masculine"]}]), **{"1": "m"}),
+    alt_of("signor", "signore", pos="noun", tags=("abbreviation", "alt-of", "apocopic", "masculine")),
+    entry("o", pos="conj"),
+    entry("od", pos="conj", senses=[{"glosses": ["or (used before a vowel for euphony instead of o)"]}]),
+    entry("uso", pos="adj", forms=[("usa", ["feminine"])]),
+    entry("usare", pos="verb", forms=[*TABLE_HEAD, ("ùsa", PRESENT_3S)]),
+    form_of("usa", "uso", pos="adj", tags=("feminine", "form-of", "singular")),
+    form_of("usa", "usare", tags=("form-of", "indicative", "present", "singular", "third-person")),
+    entry("dare", pos="verb", forms=[*TABLE_HEAD, ("dàto", PARTICIPLE), ("dàti", ["masculine", "participle", "past", "plural"])]),
+    entry("dato", forms=[("dati", ["plural"])], senses=[{"glosses": ["datum"], "tags": ["masculine"]}]),
+    form_of("dato", "dare", tags=("form-of", "participle", "past")),
+    entry("dati", senses=[{"glosses": ["data (plural of dato)"], "tags": ["masculine"]}]),
+    form_of("dati", "dato", tags=("form-of", "masculine", "participle", "plural")),
+]
+REFINED_TOP = [
+    "essere", "avere", "stare", "andare", "sapere", "dovere", "dare", "dato", "dati", "sto", "vado", "sapete", "usa",
+    "usare", "uso", "signore", "signor", "o", "od", "vita", "vite", "viti", "croce", "croci", "croco", "crochi", "maestro",
+    "maestra", "maestre", "signorina", "signorino", "signorini", "eco", "echi", "avo", "avi", "ava", "ate", "son", "sono",
+    "dea", "dee", "cogliere", "cogli", "contrare", "contra", "contro", "tarare", "tari", "elidere", "elisa", "cacare", "cagare",
+    "guado", "amo", "amare", "faccia", "facce", "faccie", "mei", "meo", "meare", "creso", "cresi",
+]
+REFINED_FREQUENCY = {word: 7.0 - i * 0.05 for i, word in enumerate(REFINED_TOP)}
+# MarkIT's counts, doubled: `dato` read as dare, as MarkIT reads it 9 times against 3, and `vite` as vita.
+REFINED_COUNTS = collections.Counter({("dato", "dare"): 9, ("dato", "dato"): 3, ("vite", "vita"): 2})
+
+
+def refined_forms(entries=REFINED_ENTRIES, counts=REFINED_COUNTS):
+    """The forms and ranks over `entries` as the reduction reads them (rules 1 to 4, the reviewed rows)."""
+    lexicon = section(entries)
+    red.name_or_word(lexicon.candidates, lexicon.poses, lambda w: REFINED_FREQUENCY.get(w, 0.0))
+    red.own_words(lexicon)
+    red.read_apocopes(lexicon)
+    frequency = lambda w: REFINED_FREQUENCY.get(w, 0.0)  # noqa: E731
+    forms, ranks, step = red.reduce_forms(lexicon, counts, {}, frequency, lambda n: REFINED_TOP[:n], 200)
+    return lexicon, forms, ranks, step
+
+
+class RefinedForms(unittest.TestCase):
+    """refine-lingua-it-fr-glosses D11: a form's own entry counts only by a meaning, no chain through a plural,
+    a feminine noun's masculine row and the tables the readings set aside, the reviewed rows; D12: a reading
+    set aside by name."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.lexicon, cls.forms, cls.ranks, cls.step = refined_forms()
+
+    def test_spec_scenario_a_verb_s_first_person_read_as_its_verb(self):
+        # `vado`: its noun is « alternative form of guado », obsolete and poetic; `sapete` only « (you)
+        # know », sapere's inflection written without its tag; `sto` beside an ellipsis.
+        self.assertEqual((self.forms["vado"], self.forms["sapete"], self.forms["sto"]), ("andare", "sapere", "stare"))
+        for word in ("vado", "sapete", "sto"):
+            self.assertNotIn(word, self.ranks, word)
+            self.assertNotIn(word, self.lexicon.lemmas, word)
+        self.assertEqual(sorted(self.lexicon.inflections_read), ["sapete", "sto", "vado"])
+        self.assertEqual(self.lexicon.stats["verb forms whose own entry holds no meaning, read as their verb"], 3)
+
+    def test_spec_scenario_what_the_own_entry_rule_leaves(self):
+        # `dee`, also dea's plural; `cogli`, a contraction; `contra`, a preposition's homograph; `tari`,
+        # which the section heads as an acronym; `elisa`, a participle's feminine; `cagare`, an
+        # alternative infinitive: each keeps the reading the other rules give it.
+        self.assertIn("dee", self.lexicon.lemmas)
+        self.assertEqual(self.forms["dee"], "dee")
+        # `mei`, meare's person, also meo's plural along an adjective's link.
+        self.assertIn("mei", self.lexicon.lemmas)
+        self.assertEqual(self.forms["mei"], "mei")
+        for word in ("cogli", "contra", "tari", "elisa", "cagare"):
+            self.assertIn(word, self.lexicon.lemmas, word)
+            self.assertIn(word, self.lexicon.candidates[word], word)
+        self.assertNotIn("elisa", self.lexicon.finite)
+        self.assertEqual(self.forms["elisa"], "elisa")
+
+    def test_no_meaning(self):
+        # An ellipsis, another part of speech's pointer marked outdated, a verb's inflection written without
+        # its tag (the verbs named); a meaning.
+        self.assertEqual(red.no_meaning({"glosses": ["ellipsis of sto bene"], "tags": ["ellipsis"]}, "phrase"), ())
+        self.assertEqual(red.no_meaning({"glosses": ["x"], "tags": ["archaic"], "alt_of": [{"word": "ruota"}]}, "noun"), ())
+        self.assertIsNone(red.no_meaning({"glosses": ["x"], "tags": ["rare"], "alt_of": [{"word": "sanguigna"}]}, "noun"))
+        self.assertEqual(
+            red.no_meaning({"glosses": ["first-person plural present present subjunctive/imperative of compiere and compire"]}, "verb"),
+            frozenset({"compiere", "compire"}),
+        )
+        self.assertEqual(red.no_meaning({"glosses": ["(you) know"], "raw_tags": ["of sapere"]}, "verb"), frozenset({"sapere"}))
+        self.assertIsNone(red.no_meaning({"glosses": ["to know"]}, "verb"))
+        self.assertIsNone(red.no_meaning({"glosses": ["league"]}, "noun"))
+
+    def test_spec_scenario_no_chain_through_a_plural(self):
+        # `viti` reaches `vite`, itself a noun's plural, and no *vita*: no ranked lemma, so no form.
+        self.assertNotIn("viti", self.forms)
+        self.assertTrue(self.lexicon.plural_links("viti", "vite"))
+        # `crochi`'s own entry names croco too: a plural of a word that is no plural.
+        self.assertFalse(self.lexicon.plural_links("crochi", "croco"))
+        # A spelling of a plural is no plural of it: `faccie` reaches *faccia*.
+        self.assertEqual(self.forms["faccie"], "faccia")
+        # `crochi`: through `croci`, croce's plural, no *croce*; *croco*'s own row reads it.
+        self.assertEqual(self.forms["crochi"], "croco")
+
+    def test_spec_scenario_a_chain_through_a_feminine(self):
+        self.assertEqual(self.forms["maestre"], "maestro")
+
+    def test_spec_scenario_a_feminine_noun_s_masculine_row(self):
+        self.assertEqual(self.forms["signorini"], "signorino")
+        self.assertNotIn("signorina", self.lexicon.candidates["signorini"])
+        # `echi`'s own entry names *eco*: its row stays.
+        self.assertEqual(self.forms["echi"], "eco")
+        self.assertIn("eco", self.lexicon.candidates["echi"])
+        self.assertTrue(red._masculine_row({"masculine", "plural"}, ("Fem",)))
+        self.assertTrue(red._masculine_row({"masculine"}, ("Masc", "Fem")))
+        self.assertFalse(red._masculine_row({"masculine", "plural"}, ("Fem", "Masc")))
+        self.assertFalse(red._masculine_row({"feminine", "plural"}, ("Fem",)))
+
+    def test_spec_scenario_the_dialect_s_table(self):
+        # `avi` and `ava`: the dialect's rows of *avere* do not outrank their own entries naming *avo*.
+        self.assertEqual((self.forms["avi"], self.forms["ava"]), ("avo", "avo"))
+        self.assertIn(("avi", "avere"), self.lexicon.dialect_only())
+        # `son`: its own entry names `sono`, no ranked word: still *essere*'s. `ate` names *avere* itself.
+        self.assertEqual((self.forms["son"], self.forms["ate"]), ("essere", "avere"))
+        # `amo`: the dialect's *avere* is not the lemma chosen — the hook, its own entry, is.
+        self.assertIn(("amo", "avere"), self.lexicon.dialect_only())
+        self.assertEqual(self.forms["amo"], "amo")
+        # `cresi`: its own entry names the dialect's verb too — no row of the dialect's alone.
+        self.assertNotIn(("cresi", "avere"), self.lexicon.dialect_only())
+        self.assertEqual(self.forms["cresi"], "avere")
+
+    def test_spec_scenario_a_table_s_tag_is_no_form(self):
+        for word in ("archaic", "subjunctive"):
+            self.assertNotIn(word, self.forms, word)
+            self.assertNotIn(word, self.lexicon.candidates, word)
+        self.assertEqual(self.lexicon.stats["a table's headings, no form"], 2)
+
+    def test_spec_scenario_an_override_row(self):
+        self.assertEqual(self.forms["usa"], "usare")
+        self.assertIn("uso", self.lexicon.candidates["usa"])
+        self.assertEqual(red.decided_by("usa", {"uso", "usare"}, REFINED_COUNTS, self.lexicon.lemmas, lambda w: REFINED_FREQUENCY.get(w, 0.0)), "override")
+
+    def test_spec_scenario_a_plural_noun_of_its_own(self):
+        # `dati` → *dati*, ranked, its own form read as itself; `dato` still *dare*'s, MarkIT 9 against 3.
+        self.assertEqual(self.forms["dati"], "dati")
+        self.assertIn("dati", self.ranks)
+        self.assertEqual(self.forms["dato"], "dare")
+        self.assertNotIn("dato", red.OVERRIDES)
+        self.assertNotIn("dato", self.ranks)
+
+    def test_spec_scenario_an_apocope_and_a_euphonic_form(self):
+        self.assertEqual((self.forms["signor"], self.forms["od"]), ("signore", "o"))
+        for word in ("signor", "od"):
+            self.assertNotIn(word, self.ranks, word)
+            self.assertNotIn(word, self.lexicon.lemmas, word)
+        self.assertEqual(list(red.APOCOPES), sorted(red.APOCOPES), "kept sorted")
+
+    def test_the_reviewed_rows_hold_their_reasons(self):
+        for table in (red.OVERRIDES, red.APOCOPES):
+            for form, (lemma, reason) in table.items():
+                self.assertTrue(lemma and len(reason) > 30, form)
+        for (form, lemma, tag), reason in red.READINGS_SET_ASIDE.items():
+            self.assertTrue(len(reason) > 30, form)
+            self.assertEqual(red.parse_tag(tag)[0], "VERB")
+
+
+class ReadingsSetAside(unittest.TestCase):
+    """refine-lingua-it-fr-glosses D12: a reading the section's tables give a form wrongly, set aside by name."""
+
+    def test_spec_scenario_an_imperative_read_as_a_subjunctive(self):
+        sub = "VERB|Mood=Sub|Number=Plur|Person=2|Tense=Pres|VerbForm=Fin"
+        ind = "VERB|Mood=Ind|Number=Plur|Person=2|Tense=Pres|VerbForm=Fin"
+        imp = "VERB|Mood=Imp|Number=Plur|Person=2|VerbForm=Fin"
+        rows = [f"fate\tfare\t{tag}\t-\n" for tag in (imp, ind, sub)] + ["fate\tfata\tNOUN|Gender=Fem|Number=Plur\tother\n"]
+        kept, unread = red.without_readings_set_aside(rows)
+        self.assertEqual(unread, [])
+        self.assertEqual(kept, [rows[0], rows[1], rows[3]])
+        self.assertEqual(list(red.READINGS_SET_ASIDE), [("fate", "fare", sub)])
+
+    def test_spec_scenario_a_row_that_finds_nothing(self):
+        kept, unread = red.without_readings_set_aside(["fate\tfare\tVERB|Mood=Imp|Number=Plur|Person=2|VerbForm=Fin\t-\n"])
+        self.assertEqual(unread, [("fate", "fare", "VERB|Mood=Sub|Number=Plur|Person=2|Tense=Pres|VerbForm=Fin")])
+        self.assertEqual(len(kept), 1)
+
+
+# — refine-lingua-it-fr-glosses (the Italian programme's change 17): it-fr's glosses refined (D2–D10) —
+
+
+def fr_alt(text, *targets, tags=("alt-of",)):
+    """A sense kaikki files as an alternative form of `targets` (`paro` « Variante de paio. »)."""
+    return {"glosses": [text], "tags": list(tags), "alt_of": [{"word": t} for t in targets]}
+
+
+class RefinedSection(unittest.TestCase):
+    """refine-lingua-it-fr-glosses D2–D10, over a small French Wiktionary's Italian section shaped as kaikki
+    writes it — the senses quoted are the section's —, MarkIT's parts of speech doubled and a small forms
+    table."""
+
+    SECTION = [
+        # D2: MarkIT's order for a function word; a content word as the section writes it; too little
+        # evidence; a row the section opens on a proper noun, whose proper noun never comes first.
+        fr_entry("fra", "noun", "Frère."),
+        fr_entry("fra", "prep", "Entre, durant."),
+        fr_entry("piacere", "verb", "Plaire."),
+        fr_entry("piacere", "noun", "Plaisir."),
+        fr_entry("subito", "adj", "Immédiat, instantané."),
+        fr_entry("subito", "adv", "Aussitôt."),
+        fr_entry("Lira", "name", "Lyre (constellation)."),
+        fr_entry("lira", "noun", "Lire (monnaie)."),
+        # D2: the reviewed table — held against the treebank, a part of speech MarkIT does not read, two
+        # entries of one part of speech.
+        fr_entry("come", "adv", "Comme.", "Comment forme interrogative."),
+        fr_entry("come", "conj", "Dès que.", "Que dans une comparaison"),
+        fr_entry("fino", "adj", "Fin."),
+        fr_entry("fino", "prep", "Jusque."),
+        fr_entry("Loro", "pron", "Pronom de la troisième personne du pluriel, utilisé pour la politesse (équivalent au vouvoiement)."),
+        fr_entry("loro", "pron", "Ils, elles, eux."),
+        fr_entry("loro", "adj", "Leur."),
+        # D3: a name's sense its common entry repeats; D4: a pronoun's and an adverb's homograph names.
+        fr_entry("Bibbia", "name", senses=[{"glosses": ["Bible."], "tags": ["Biblical"]}]),
+        fr_entry("bibbia", "noun", senses=[{"glosses": ["Bible."], "tags": ["Biblical"]}]),
+        fr_entry("luna", "noun", "Lune."),
+        fr_entry("Luna", "name", "Lune, satellite de la Terre."),
+        fr_entry(
+            "io",
+            "pron",
+            "Pronom de la première personne du singulier.",
+            "io sono in Francia. — moi, je suis en France.",
+            "Pago io o paghi tu ? — je paie ou tu paies ?",
+            "io pago. — c’est moi qui paie.",
+        ),
+        fr_entry("Io", "name", "Io, fille d’Inachus, maîtresse de Zeus.", "Io, satellite naturel de la planète Jupiter."),
+        fr_entry("qui", "adv", "Ici."),
+        fr_entry("Qui", "name", "Riri."),
+        fr_entry("mai", "adv", "Jamais, en nul temps. — Note d’usage : Se rencontre combiné avec la particule négative non."),
+        # D5: an untagged plural, an alternative form, an obsolete one, a superlative's and a plural's
+        # quoted meaning, a clitic compound's pronoun.
+        fr_entry("lettere", "noun", "Pluriel de lettera.", tags=("feminine", "form-of")),
+        fr_entry("lettera", "noun", "Lettre."),
+        fr_entry("paro", "noun", senses=[fr_alt("Variante de paio.", "paio")]),
+        fr_entry("paio", "noun", "Paire."),
+        fr_entry("fora", "adv", senses=[fr_alt("Variante de fuori.", "fuori", tags=("alt-of", "obsolete"))]),
+        fr_entry("fuori", "adv", "Dehors."),
+        fr_entry("maio", "adj", senses=[fr_alt("Variante de maggio.", "maggio", tags=("alt-of", "obsolete"))]),
+        fr_entry("maggio", "noun", "Mai."),
+        fr_entry("pochissimo", "adj", senses=[fr_link("pochissimo", "adj", "Superlatif de poco : « très peu ».", "peu")]),
+        fr_entry("ceneri", "noun", senses=[fr_link("ceneri", "noun", "Pluriel de cenere (« cendre »).", "cendre")]),
+        fr_entry("cenere", "noun", "Cendre, résidu de la combustion."),
+        fr_entry(
+            "vallo",
+            "verb",
+            senses=[fr_link("vallo", "verb", "Agglutination de la deuxième personne du singulier de l’impératif présent du verbe andare avec le pronom personnel masculin singulier lo (« le »).", "lo", tags=("enclitic", "form-of"))],
+        ),
+        fr_entry("lo", "article", "Le."),
+        # D6: a plural kept from lending by a constellation, by an archaic sense; a verb form's pointer beside
+        # a name.
+        fr_entry("gemelli", "adj", senses=[fr_link("gemelli", "adj", "Masculin pluriel de gemello.", "gemello")]),
+        fr_entry("gemelli", "noun", senses=[fr_link("gemelli", "noun", "Pluriel de gemello.", "gemello")]),
+        fr_entry("Gemelli", "name", "Gémeaux (constellation et signe zodiacal)."),
+        fr_entry("gemello", "adj", "Jumeau."),
+        fr_entry("gemello", "noun", "Jumeau.", "Bouton de manchette."),
+        fr_entry("spezie", "noun", senses=[{"glosses": ["Espèce"], "tags": ["archaic"]}]),
+        fr_entry("spezie", "noun", senses=[fr_link("spezie", "noun", "Pluriel de spezia.", "spezia")]),
+        fr_entry("spezia", "noun", "Épice, condiment végétal."),
+        fr_entry("regolo", "verb", senses=[fr_link("regolo", "verb", "Première personne du singulier de l’indicatif présent de regolare.", "regolare")]),
+        fr_entry("Regolo", "name", "Constellation de la Règle."),
+        fr_entry("regolare", "verb", "Régler."),
+        # D8: the `di` family read through their translations, a word with a gloss of its own, the usage
+        # notes.
+        fr_entry("della", "article", senses=[fr_link("della", "article", "Article contracté souvent traduit par De la.", "la")]),
+        fr_entry("la", "article", "La."),
+        fr_entry("degli", "article", senses=[{"glosses": ["Article contracté souvent traduit par des. Note d’usage : il s’emploie alternativement à dei devant les consonnes impures : s, gn, pn, ps, x, z."]}]),
+        fr_entry("pelle", "noun", "Peau."),
+        fr_entry("pelle", "article", senses=[fr_link("pelle", "article", "Article contracté souvent traduit par pour les.", "les")]),
+        fr_entry("del", "article", "Du. Note d’usage : il s’utilise devant un mot commençant par une consonne."),
+        fr_entry("sebbene", "conj", "Quoique. Note d’usage : suivi d’un verbe au subjonctif."),
+        # D9: communes written otherwise, a provincial capital, cities named more than a commune, a commune
+        # the reviewed list keeps, a name alone.
+        fr_entry("vittoria", "noun", "Victoire."),
+        fr_entry("Vittoria", "name", "Vittoria, commune et ville du libre consortium municipal de Raguse dans la région de Sicile en Italie."),
+        fr_entry("ro", "noun", "Rhô."),
+        fr_entry("Ro", "name", "Ro (commune italienne de la province de Ferrare, dans la région d’Émilie-Romagne."),
+        fr_entry("matera", "noun", senses=[{"glosses": ["Matière."], "tags": ["archaic"]}]),
+        fr_entry("Matera", "name", "Matera, commune et ville de la région de la Basilicate en Italie.", "Province autour de cette ville."),
+        fr_entry("bordeaux", "noun", "Bordeaux, vin de la région de Bordeaux."),
+        fr_entry("Bordeaux", "name", "Bordeaux, commune, ville et chef-lieu de département français, situé dans le département de la Gironde."),
+        fr_entry("colonia", "noun", "Colonie."),
+        fr_entry("Colonia", "name", "Cologne, ville, commune, arrondissement et district d’Allemagne."),
+        fr_entry("Piacenza", "name", "Plaisance, commune italienne."),
+        fr_entry("piacenza", "noun", "plaisance, agrément."),
+        fr_entry("trani", "verb", senses=[fr_link("trani", "verb", "Deuxième personne du singulier de l’indicatif présent de tranare.", "tranare")]),
+        fr_entry("Trani", "name", "Trani, commune et ville de la province de Barletta-Andria-Trani dans la région des Pouilles en Italie."),
+        # D10: the corrections — a meaning the section misses, an example filed as senses, a participle's lent
+        # meaning, a plural noun of its own.
+        fr_entry("che", "pron", senses=[{"glosses": ["Quoi."]}], tags=("interrogative",)),
+        fr_entry("che", "adj", senses=[{"glosses": ["Quel."]}], tags=("interrogative",)),
+        fr_entry(
+            "volere",
+            "verb",
+            "Vouloir.",
+            "Volerci, falloir.",
+            "Il faut dix heures pour aller à Brindisi.",
+            "Ci vuole un uovo per la torta.",
+            "Il faut un œuf pour le gâteau.",
+        ),
+        fr_entry("dirotto", "verb", senses=[fr_link("dirotto", "verb", "Participe passé de dirompere.", "dirompere")]),
+        fr_entry("dirompere", "verb", "Écanguer."),
+        fr_entry("dati", "adj", senses=[fr_link("dati", "adj", "Masculin pluriel de dato.", "dato")]),
+        fr_entry("dati", "noun", senses=[fr_link("dati", "noun", "Pluriel de dato.", "dato")], tags=("form-of", "masculine")),
+        fr_entry("dato", "adj", "Donné."),
+        fr_entry("dato", "noun", "Donnée."),
+        # D10: words split after their elided piece, one no Italian.
+        fr_entry("d’n’b", "noun", "Drum and bass."),
+        fr_entry("d’altronde", "adv", "D’ailleurs."),
+    ]
+    INVERTED = [
+        translations("qwerty", "noun", "c’hwerty"),
+        translations("d'accord", "adv", "d’accordo"),
+    ]
+    LEMMAS = [
+        "fra", "piacere", "subito", "lira", "come", "fino", "loro", "bibbia", "luna", "io", "qui", "mai", "lettere",
+        "paro", "fora", "maio", "pochissimo", "ceneri", "vallo", "gemelli", "spezie", "regolo", "della", "degli",
+        "pelle", "del", "sebbene", "vittoria", "ro", "matera", "bordeaux", "colonia", "piacenza", "trani", "che",
+        "volere", "dirotto", "dati",
+    ]
+    RANKS = {lemma: rank for rank, lemma in enumerate(LEMMAS, 1)}
+    # The forms table the example rule reads: `io`'s forms and the words of its examples.
+    FORMS = {
+        **{lemma: lemma for lemma in LEMMAS},
+        **{w: w for w in ("sono", "in", "francia", "pago", "o", "paghi", "tu", "essere", "pagare")},
+        "sono": "essere", "pago": "pagare", "paghi": "pagare", "me": "io",
+    }
+    # MarkIT's parts of speech, doubled (`reduce_italian_treebank.markit_pos_counts`): `fra` 13 prepositions,
+    # `piacere` more often a noun, `subito` 3 adverbs, `come` 39 conjunctions against 16 adverbs, `fino` 8
+    # adverbs, `pure` 3; `lira` read as a proper noun.
+    COUNTS = collections.Counter(
+        {
+            ("fra", "ADP"): 13,
+            ("piacere", "NOUN"): 20,
+            ("piacere", "VERB"): 5,
+            ("subito", "ADV"): 3,
+            ("come", "SCONJ"): 39,
+            ("come", "ADV"): 16,
+            ("fino", "ADV"): 8,
+            ("lira", "PROPN"): 30,
+            ("che", "PRON"): 700,
+            ("che", "SCONJ"): 406,
+        }
+    )
+
+    @classmethod
+    def setUpClass(cls):
+        tmp = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(tmp.cleanup)
+        work = tmp.name
+        write_native(work, cls.SECTION, [], cls.INVERTED)
+        cls.stats = collections.Counter()
+        cls.refined = red.Refinement(cls.COUNTS, cls.FORMS)
+        cls.section = red.section_as_read(
+            os.path.join(work, red.SECTION), os.path.join(work, red.SECTION_READ), cls.stats, refined=cls.refined
+        )
+        inverted = red.common.read_translations(
+            red.straight_translations(os.path.join(work, red.INVERTED), os.path.join(work, red.INVERTED_READ), inverted=True),
+            inverted=True,
+            studied=red.IT,
+        )
+        cls.sources = [({}, list), (inverted, red.common.by_native_frequency(lambda w: 0.0))]
+        cls.glosses, cls.runs, cls.expressions, cls.steps = red.native_side(cls.section, cls.RANKS, cls.sources)
+        red.without_repeated_senses(cls.glosses, cls.runs)
+        cls.split, _ = red.section_words(cls.section, cls.FORMS, set())
+        cls.split_tables = red.table_split_words(cls.sources, cls.FORMS, cls.split)
+        cls.words = red.french.dictionary_words(cls.glosses, cls.runs)
+        with open(cls.section, encoding="utf-8") as f:
+            cls.read = [json.loads(line) for line in f]
+        cls.left = os.listdir(work)
+
+    def test_spec_scenario_a_function_word_s_commonest_part_of_speech(self):
+        self.assertEqual(self.glosses["fra"], "Entre, durant; Frère")
+        self.assertEqual(self.runs["fra"], [("ADP", 1), ("NOUN", 1)])
+
+    def test_spec_scenario_a_content_word_keeps_the_section_s_order(self):
+        self.assertEqual(self.glosses["piacere"], "Plaire; Plaisir")
+
+    def test_spec_scenario_too_little_evidence(self):
+        self.assertEqual(self.glosses["subito"], "Immédiat, instantané; Aussitôt")
+
+    def test_a_proper_noun_never_first(self):
+        # `lira` opens on `Lira`; MarkIT reads lira as a proper noun: no other part of speech is promoted.
+        self.assertEqual(self.glosses["lira"], "Lyre (constellation); Lire (monnaie)")
+
+    def test_a_fixed_token_counts_for_none(self):
+        sample = (
+            "1\tfra\tfra\tADP\t_\t_\t2\tcase\t_\t_\n"
+            "2\tpoco\tpoco\tADV\t_\t_\t0\troot\t_\t_\n"
+            "3\tfra\tfra\tADP\t_\t_\t2\tfixed\t_\t_\n"
+        )
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "it_markit-ud-train.conllu")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(sample)
+            counts = treebank.markit_pos_counts([path])
+        self.assertEqual(counts[("fra", "ADP")], 1)
+
+    def test_spec_scenario_a_row_the_table_holds_against_the_treebank(self):
+        self.assertTrue(self.glosses["come"].startswith("Comme; "), self.glosses["come"])
+        self.assertIsNotNone(red.french_treebank.commonest_first("come", ["ADV", "SCONJ"], "ADV", self.COUNTS))
+
+    def test_spec_scenario_a_row_the_reviewed_table_orders(self):
+        self.assertEqual(self.glosses["fino"], "Jusque; Fin")
+
+    def test_spec_scenario_two_entries_of_one_part_of_speech(self):
+        self.assertTrue(self.glosses["loro"].startswith("Ils, elles, eux; "), self.glosses["loro"])
+        self.assertEqual(self.runs["loro"], [("PRON", 2), ("ADJ", 1)])
+
+    def test_the_reviewed_table(self):
+        # Each row a case, a part of speech and a reason; the rows that found their entries recorded.
+        self.assertEqual(sorted(red.FIRST_RUN), ["come", "fino", "gente", "loro", "pure"])
+        for word, (case, upos, reason) in red.FIRST_RUN.items():
+            self.assertIn(case, red._FIRST_RUN_CASES, word)
+            self.assertIn(upos, {"ADV", "ADP", "NOUN", "PRON"}, word)
+            self.assertGreater(len(reason), 30, word)
+        self.assertEqual(self.refined.first_runs, {"come", "fino", "loro"})
+        self.assertEqual(self.stats["rows opened by the reviewed table"], 2)
+        self.assertEqual(self.stats["rows opened by MarkIT's commonest part of speech"], 1)
+
+    def test_spec_scenario_a_common_word_its_name_repeats(self):
+        self.assertEqual((self.glosses["bibbia"], self.runs["bibbia"]), ("Bible", [("NOUN", 1)]))
+        self.assertIn("bibbia", self.words)
+        # A proper noun's sense the common entry does not repeat stays.
+        self.assertEqual(self.glosses["luna"], "Lune; Lune, satellite de la Terre")
+
+    def test_spec_scenario_a_pronoun_s_and_an_adverb_s_homograph_names(self):
+        self.assertNotIn("Io,", self.glosses["io"])
+        self.assertEqual(self.glosses["qui"], "Ici")
+        self.assertEqual(self.stats["names under a function word or an adverb"], 2)
+
+    def test_spec_scenario_an_example_and_its_translation(self):
+        self.assertEqual(self.glosses["io"], "Pronom de la première personne du singulier")
+        self.assertEqual(self.stats["examples with their translation"], 3)
+        refined = red.Refinement(None, self.FORMS)
+        self.assertTrue(red.italian_example("io pago. — c’est moi qui paie.", "io", refined))
+        # A French sentence before the dash, or no form of the headword in it, is no example.
+        self.assertFalse(red.italian_example("Je paie. — je paie.", "io", refined))
+        self.assertFalse(red.italian_example("tu paghi. — tu paies.", "io", refined))
+        # No forms table: the rule reads nothing.
+        self.assertFalse(red.italian_example("io pago. — c’est moi qui paie.", "io", red.Refinement()))
+
+    def test_spec_scenario_a_note_after_a_dash(self):
+        self.assertEqual(self.glosses["mai"], "Jamais, en nul temps. — Note d’usage : Se rencontre combiné avec la particule négative non")
+
+    def test_spec_scenario_a_plural_the_source_does_not_tag(self):
+        self.assertEqual(self.glosses["lettere"], "Lettre")
+
+    def test_spec_scenario_an_alternative_form(self):
+        self.assertEqual(self.glosses["paro"], "Paire")
+
+    def test_spec_scenario_an_obsolete_alternative_form(self):
+        self.assertNotIn("fora", self.glosses)
+        self.assertNotIn("maio", self.glosses)
+
+    def test_spec_scenario_a_superlative_s_meaning(self):
+        self.assertEqual(self.glosses["pochissimo"], "Très peu")
+        self.assertEqual(self.glosses["ceneri"], "Cendre")
+
+    def test_spec_scenario_a_clitic_compound_s_pronoun(self):
+        self.assertNotEqual(self.glosses.get("vallo"), "Le")
+
+    def test_spec_scenario_a_plural_kept_from_lending_by_a_constellation(self):
+        self.assertEqual(self.glosses["gemelli"], "Jumeau; Gémeaux (constellation et signe zodiacal); Bouton de manchette")
+        self.assertIn("gemelli", self.words)
+
+    def test_spec_scenario_an_archaic_sense_beside_a_plural(self):
+        self.assertEqual(self.glosses["spezie"], "Épice, condiment végétal; Espèce")
+
+    def test_a_verb_form_s_pointer_lends_nothing_beside_a_name(self):
+        self.assertEqual(self.glosses["regolo"], "Constellation de la Règle")
+        self.assertEqual(self.stats["pointers lending beside a name or an old sense"], 2)
+
+    def test_spec_scenario_an_article_read_through_its_translation(self):
+        self.assertEqual(self.glosses["della"], "De la")
+        self.assertEqual(self.glosses["degli"], "Des")
+
+    def test_spec_scenario_a_word_with_a_gloss_of_its_own(self):
+        self.assertEqual(self.glosses["pelle"], "Peau")
+
+    def test_spec_scenario_an_article_s_usage_note(self):
+        self.assertEqual(self.glosses["del"], "Du")
+
+    def test_spec_scenario_a_conjunction_s_usage_note(self):
+        self.assertEqual(self.glosses["sebbene"], "Quoique. Note d’usage : suivi d’un verbe au subjonctif")
+
+    def test_spec_scenario_a_commune_written_otherwise(self):
+        self.assertEqual((self.glosses["vittoria"], self.glosses["ro"]), ("Victoire", "Rhô"))
+
+    def test_spec_scenario_a_provincial_capital(self):
+        self.assertEqual(
+            self.glosses["matera"],
+            "Matière; Matera, commune et ville de la région de la Basilicate en Italie; Province autour de cette ville",
+        )
+
+    def test_spec_scenario_a_city_named_more_than_a_commune(self):
+        self.assertIn("chef-lieu", self.glosses["bordeaux"])
+        self.assertIn("Cologne", self.glosses["colonia"])
+
+    def test_spec_scenario_a_commune_the_reviewed_list_keeps(self):
+        self.assertEqual(self.glosses["piacenza"], "Plaisance, commune italienne; plaisance, agrément")
+        self.assertEqual(self.refined.kept, {"piacenza"})
+        self.assertEqual(sorted(red.COMMUNES_KEPT), ["cesena", "piacenza"])
+
+    def test_a_name_alone_left_with_no_gloss(self):
+        # `trani`: a verb form's pointer and a commune alone — the town set aside, no gloss left.
+        self.assertNotIn("trani", self.glosses)
+        self.assertEqual(self.stats["communes' notes set aside"], 3)
+
+    def test_spec_scenario_a_meaning_the_section_misses(self):
+        self.assertEqual(self.glosses["che"], "Qui, que; Quoi; Que; Quel")
+        self.assertEqual(self.runs["che"], [("PRON", 2), ("SCONJ", 1), ("ADJ", 1)])
+
+    def test_spec_scenario_an_example_filed_as_senses(self):
+        self.assertEqual(self.glosses["volere"], "Vouloir; Volerci, falloir")
+
+    def test_spec_scenario_a_participle_s_lent_meaning_corrected(self):
+        self.assertEqual((self.glosses["dirotto"], self.runs["dirotto"]), ("À verse (dans a dirotto)", [("ADJ", 1)]))
+
+    def test_spec_scenario_a_plural_noun_of_its_own(self):
+        self.assertEqual((self.glosses["dati"], self.runs["dati"]), ("Données", [("NOUN", 1)]))
+
+    def test_the_corrections(self):
+        # Every one fired; each names its source, its page and its reason.
+        self.assertEqual(self.refined.fired, set(red.CORRECTIONS))
+        self.assertEqual(red.unfired(self.refined.fired), [])
+        for correction in red.CORRECTIONS:
+            self.assertEqual(correction.source, "section")
+            self.assertTrue(correction.report.startswith("https://fr.wiktionary.org/wiki/"), correction)
+            self.assertGreater(len(correction.reason), 30, correction)
+            for text in correction.corrected or ():
+                self.assertEqual(red.read_sense({"glosses": [text]}), ({"glosses": [text]}, None), text)
+        added = [e for e in self.read if e["word"] == "che"]
+        self.assertEqual([e["pos"] for e in added], ["pron", "conj", "pron", "adj"])
+
+    def test_spec_scenario_the_page_corrected_upstream(self):
+        # `volere`'s examples no longer filed as senses: the correction fires on nothing, and says so.
+        section = [fr_entry("volere", "verb", "Vouloir.", "Volerci, falloir.")]
+        with tempfile.TemporaryDirectory() as work:
+            write_native(work, section)
+            refined = red.Refinement()
+            red.section_as_read(os.path.join(work, red.SECTION), os.path.join(work, red.SECTION_READ), refined=refined)
+        self.assertIn("volere (section, verb)", red.unfired(refined.fired))
+
+    def test_spec_scenario_a_split_word_that_is_no_italian(self):
+        self.assertNotIn("d'n'b", self.split)
+        self.assertNotIn("c'hwerty", self.split_tables)
+        self.assertIn("d'altronde", self.split)
+        self.assertIn("d'accordo", self.split_tables)
+        for word in ("c'hwerty", "l'wha", "d'n'b", "l'xeno", "d'jazz", "l'kappa"):
+            self.assertFalse(red.split_word(word, {}), word)
+        for word in ("d'accordo", "d'antan", "all'improvviso"):
+            self.assertTrue(red.split_word(word, {}), word)
+
+    def test_the_section_as_read_writes_what_it_does_not_change(self):
+        # An entry no rule changes is written as its line was, where it stood; the intermediate file goes.
+        casa_like = next(e for e in self.read if e["word"] == "luna")
+        self.assertEqual(casa_like, self.SECTION[self.SECTION.index(fr_entry("luna", "noun", "Lune."))])
+        self.assertEqual(sorted(self.left), sorted([red.SECTION, red.DIRECT, red.INVERTED, red.SECTION_READ, red.INVERTED_READ]))
+        # A headword's entries — every case of it — written together where its first stood.
+        words = [e["word"] for e in self.read]
+        self.assertEqual(words[words.index("fra") : words.index("fra") + 2], ["fra", "fra"])
+        self.assertEqual([e["pos"] for e in self.read if e["word"] == "fra"], ["prep", "noun"])
+
+
+class RefinedReduction(unittest.TestCase):
+    """refine-lingua-it-fr-glosses end to end: the reviewed lists checked, the report."""
+
+    def setUp(self):
+        self.reduction = Reduction()
+        self.reduction.setUp()
+        self.addCleanup(self.reduction.doCleanups)
+
+    def test_a_first_run_row_naming_no_entry_fails_the_reduction(self):
+        # D2: the reduction fails on a row of the reviewed table whose word has no such entry.
+        with mock.patch.dict(red.FIRST_RUN, {"casa": ("lowercase", "ADV", "a row naming an entry the section does not give")}):
+            with tempfile.TemporaryDirectory() as work:
+                self.reduction.write_work(work)
+                with self.assertRaises(SystemExit) as raised:
+                    self.reduction.run_reduction(work, None)
+        self.assertIn("FIRST_RUN", str(raised.exception))
+        self.assertIn("casa (lowercase ADV)", str(raised.exception))
+
+    def test_a_reading_set_aside_that_finds_nothing_fails_the_reduction(self):
+        # D12: a row naming a reading the reduction does not give.
+        row = ("casa", "casa", "NOUN|Number=Plur")
+        with mock.patch.dict(red.READINGS_SET_ASIDE, {row: "a reading the tables do not give"}):
+            with tempfile.TemporaryDirectory() as work:
+                self.reduction.write_work(work)
+                with self.assertRaises(SystemExit) as raised:
+                    self.reduction.run_reduction(work, None)
+        self.assertIn("READINGS_SET_ASIDE", str(raised.exception))
+        self.assertIn("casa casa NOUN|Number=Plur", str(raised.exception))
+
+    def test_the_report(self):
+        # The corrections that fired on nothing named, to remove (D10); the « decided by » counts and M8's
+        # cost printed as before (D11); the verb forms rule 1 read as their verb.
+        with tempfile.TemporaryDirectory() as work:
+            self.reduction.write_work(work)
+            summary, lines = self.reduction.run_reduction(work, None)
+        report = "\n".join(lines)
+        # This section's `che` is a noun alone: the conjunction is added, the relative pronoun finds no
+        # interrogative to go before.
+        self.assertIn(
+            f"reduced it-fr: 1 of {len(red.CORRECTIONS)} corrections fired; fired on nothing, to remove: che (section, pron), "
+            "volere (section, verb), dirotto (section, adj), dati (section, noun)",
+            report,
+        )
+        self.assertEqual(summary["corrections that fired on nothing"], [c for c in red.unfired(set()) if c != "che (section, conj)"])
+        self.assertIn("reduced it-fr: one lemma per form, the forms reaching several: ", report)
+        self.assertIn("by override", report)
+        self.assertIn("reduced it-fr: M8's cost, dictionary nouns read as a verb among wordfreq's 1,000 / 2,000 / 5,000: ", report)
+        self.assertIn("reduced it-fr: verb forms whose own entry holds no meaning, read as their verb=", report)
+        self.assertEqual(summary["communes kept"], [])
 
 
 if __name__ == "__main__":

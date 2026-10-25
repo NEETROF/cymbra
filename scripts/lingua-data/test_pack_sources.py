@@ -1442,11 +1442,13 @@ class DumpsOnly(unittest.TestCase):
                 "reduce-it-fr.py",
                 "reduce_common.py",
                 "reduce_edition_fr.py",
+                "reduce_french_treebank.py",
                 "reduce_italian_acronyms.py",
                 "reduce_italian_treebank.py",
             ],
             "it-fr loads the shared rules, the French Wiktionary's (its glosses are French, add-lingua-pack-it-fr "
-            "D1), Italian's acronym table (keep-lingua-italian-acronyms-and-names) and MarkIT's",
+            "D1), fr-en's treebank rule (refine-lingua-it-fr-glosses D1), Italian's acronym table "
+            "(keep-lingua-italian-acronyms-and-names) and MarkIT's",
         )
 
     def test_a_source_pinned_at_a_release_carries_the_sha256_its_bytes_must_have(self):
