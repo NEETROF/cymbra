@@ -332,6 +332,20 @@ fn spec_scenario_an_imperative_read_as_a_subjunctive() {
 }
 
 #[test]
+fn spec_scenario_a_plural_noun_read_as_a_singular() {
+    // refine-lingua-it-fr-glosses D12, fixed at review: the English section heads `dati` « data (plural of
+    // dato) » with no number, so its own entry gave a masculine singular noun; the reviewed list reads it
+    // as the plural, and its other readings stay.
+    let card = Card::of("dati", "dati");
+    assert_eq!(card.readings, owned(&["NOUN|Gender=Masc|Number=Plur"]));
+    assert!(
+        card.others.iter().any(|(lemma, readings)| lemma == "dare"
+            && readings == &owned(&["VERB|Gender=Masc|Number=Plur|Tense=Past|VerbForm=Part"])),
+        "{card:?}"
+    );
+}
+
+#[test]
 fn spec_scenario_a_verb_s_first_person_read_as_its_verb() {
     // refine-lingua-it-fr-glosses D11, rule 1: `sto`, beside an ellipsis, and `vado`, beside an obsolete
     // noun, are their verbs' first persons; `sapete`, its own entry sapere's inflection written without
