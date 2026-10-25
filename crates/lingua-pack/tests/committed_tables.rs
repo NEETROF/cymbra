@@ -3787,6 +3787,17 @@ fn spec_scenario_it_es_s_glosses_refined() {
         ("persona", "Persona (ser humano)"),
         ("evidente", "Evidente"),
         ("faccia", "Cara"),
+        // Round 2 (D17): a displaced cognate kept, a foreign item out, the reviewed rows.
+        (
+            "insufficienza",
+            "Falta, carencia; Insuficiencia; Superficialidad",
+        ),
+        ("prestazione", "Rendimiento, hazaña, proeza; Prestación"),
+        ("marmo", "Mármol, sepulcro"),
+        ("cattura", "Captura, detención, arresto"),
+        ("autista", "Conductor, chófer"),
+        ("loro", "Ellos, ellas; Ustedes; Su, sus"),
+        ("strada", "Calle, carretera, camino"),
     ] {
         assert_eq!(glossed[lemma], gloss, "it-es: {lemma}");
     }
@@ -3796,7 +3807,8 @@ fn spec_scenario_it_es_s_glosses_refined() {
         ("spesso", "A menudo, frecuentemente, con frecuencia"),
         ("rapidamente", "Rápidamente"),
         ("don", "Don"),
-        ("inoltre", "Además, adicionalmente, allende"),
+        ("inoltre", "Además, "),
+        ("talvolta", "A veces, de vez en cuando"),
     ] {
         assert!(
             glossed[lemma].starts_with(first),
