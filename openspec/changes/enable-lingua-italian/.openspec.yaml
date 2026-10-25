@@ -11,6 +11,7 @@ archiveAfter:
   - add-lingua-italian-baseline
   - add-lingua-italian-tokenisation
   - add-lingua-italian-analysis
+  - refine-lingua-italian-reading
   - add-lingua-italian-detection-guard
   - add-lingua-italian-forms-tables
   - read-lingua-italian-unmarked-spellings

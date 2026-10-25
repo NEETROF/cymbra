@@ -24,7 +24,7 @@ The extension SHALL know Italian as a studied language, as it knows English, Spa
 ## MODIFIED Requirements
 
 ### Requirement: No word is read in a language whose guard keeps the document's language out
-A word card SHALL NOT be read in Spanish when the document declares Catalan, Galician or Occitan, SHALL NOT be read in French when the document declares Catalan, Occitan or Romanian, and SHALL NOT be read in Italian when the document declares one of the neighbours Italian's guard keeps — Catalan, Galician and the regional languages of Italy and Corsica it names —, the languages the detection guards keep out of those languages, in their two- or three-letter codes. Such a card SHALL be the one it was before the requirement *A word the document's language does not know is read in another studied language*.
+A word card SHALL NOT be read in Spanish when the document declares Catalan, Galician or Occitan, SHALL NOT be read in French when the document declares Catalan, Occitan or Romanian, and SHALL NOT be read in Italian when the document declares one of the neighbours Italian's guard keeps — Catalan, Galician, the regional languages of Italy and Corsica it names, Latin, Occitan and Romanian —, the languages the detection guards keep out of those languages, in their two- or three-letter codes. Such a card SHALL be the one it was before the requirement *A word the document's language does not know is read in another studied language*.
 
 #### Scenario: A Catalan page
 - **WHEN** a reader who studies Spanish and French selects `arribar` on a page that declares `ca`
