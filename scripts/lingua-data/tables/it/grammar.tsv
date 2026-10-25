@@ -33205,7 +33205,7 @@ dati	datare	VERB|Mood=Ind|Number=Sing|Person=2|Tense=Pres|VerbForm=Fin	other
 dati	datare	VERB|Mood=Sub|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	other
 dati	datare	VERB|Mood=Sub|Number=Sing|Person=2|Tense=Pres|VerbForm=Fin	other
 dati	datare	VERB|Mood=Sub|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	other
-dati	dati	NOUN|Gender=Masc|Number=Sing	-
+dati	dati	NOUN|Gender=Masc|Number=Plur	-
 dativi	dativo	ADJ|Gender=Masc|Number=Plur	-
 dativi	dativo	NOUN|Gender=Masc|Number=Plur	-
 dativo	dativo	ADJ|Gender=Masc|Number=Sing	-
