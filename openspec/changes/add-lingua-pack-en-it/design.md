@@ -164,6 +164,39 @@ figures (91.4 against 91.4). The gap is contractions and names, not
 dictionary words (*Context*), so en-it's floor is its own, as every pair's is. The reduce job's floor
 step runs `--pair en-it`.
 
+**Criteria and method, written before any en-it figure of the implementation was read (2026-10-26), and
+committed before the study ran:**
+
+- *The bytes.* The sources are the three files `DUMPS["en-it"]` names, derived by `pack_sources.py`'s
+  own update path (`fetch_live` → `read_edition` → `derive`, run locally into a scratch folder with
+  Python 3.12 and `requirements-reduce.txt`) from the dumps kaikki serves on the day of the study — the
+  bytes the dispatch's sources release, `lingua-pack-sources-en-it-<snapshot>`, would hold if run that
+  day. Each dump is recorded by its address, Last-Modified, the sha256 and size of its decompressed bytes
+  and its size as served, and each derived file by its sha256, its size and its asset's size, for the
+  owner to approve the release. A dump cached by an earlier run is used only when its sha256 is the one
+  the served dump's record gives. A dump regenerated before the dispatch moves the figures a little; the
+  study is not re-run for it unless the owner asks.
+- *The study.* The coverage of `tables/en/freq.tsv` as committed on `main` — the 5,000 / 10,000 / 20,000
+  commonest, as `gloss_coverage.measure` counts them — by `gloss.tsv` exactly as `reduce-en-it.py` writes
+  it, with `build.sh`'s `--max-lemmas` (40,000) and every source in D2's order with change 35's rules.
+  Also measured, from the same reduction: the coverage after each source (cumulative), loose and strict
+  (*Context*); the glossed lemmas by source; the table share (D9); English's dictionary words glossed at
+  each top; the expressions by source (D5); and the figures beside the proposal's (91.4 / 82.7 / 70.3),
+  a difference above 0.3 at a top explained.
+- *The floor proposed.* Each of the three figures less 2.0 points, to one decimal — never rounded up,
+  never moved after the figures are read — marked proposed until the owner settles it. A defect fixed
+  afterwards re-runs the study, both measurements are reported, and the floor proposed is the later
+  one's, less two.
+- *What may be fixed before the dispatch.* Only a departure from D1–D5 — `reduce-en-it.py` reading
+  otherwise than en-es's readers with D3's two substitutions, or than change 35's rules as merged —, in
+  en-it's own files. No rule is added: a wrong row no rule of D1–D5 tells from a right one, or a class of
+  D10, goes to change 37.
+- *The sample.* 100 glossed lemmas of the 20,000 commonest, drawn by it-fr's, it-en's and it-es's seed
+  (20261024), each marked by its source (definition, pointer, direct table, inverted table); read for
+  the owner, not graded against a target.
+- *Not committed before the dispatch*: `tables/en-it/`, the forecast tables included; every committed
+  pair's tables, pins and goldens unchanged.
+
 ### D7 — The sources registered
 
 - `EDITIONS["en"]` gains `kaikki-en-traductions-it.jsonl` (`("translations", "en", "it")`); no earlier
