@@ -716,7 +716,7 @@ alimentare	VERB:1
 alimentari	NOUN:1
 alimentatore	X:1
 alimentazione	NOUN:1
-alimenti	NOUN:1
+alimenti	NOUN:2
 alimento	NOUN:1
 alinea	NOUN:1
 aliquota	NOUN:1
@@ -5516,7 +5516,7 @@ continuatore	NOUN:1
 continuazione	NOUN:1
 continuità	NOUN:1
 continuo	ADJ:1	NOUN:1
-conto	NOUN:1
+conto	NOUN:2
 contorno	NOUN:1
 contorto	ADJ:1
 contrabbandare	VERB:1
@@ -6637,7 +6637,7 @@ determinazione	NOUN:2
 determinismo	NOUN:1
 deterministico	ADJ:1
 detersivo	ADJ:1
-detestabile	ADJ:1
+detestabile	ADJ:2
 detestare	VERB:1
 detonare	VERB:1
 detonatore	NOUN:1
@@ -8356,7 +8356,7 @@ eventualità	NOUN:1
 eventualmente	ADP:1	ADV:1
 eversivo	ADJ:1
 evidente	ADJ:1
-evidentemente	ADV:1
+evidentemente	ADV:2
 evidenziare	VERB:1
 evidenziatore	NOUN:1
 evincere	VERB:1
@@ -9561,7 +9561,7 @@ galena	NOUN:1
 galeno	PROPN:1
 galeone	NOUN:1
 galeotto	NOUN:1
-galera	NOUN:1
+galera	NOUN:2
 galileo	ADJ:1
 galiziano	ADJ:1
 galla	NOUN:1
@@ -10973,7 +10973,7 @@ incarcerare	VERB:1
 incarcerazione	NOUN:1
 incaricare	VERB:1
 incaricato	X:1	NOUN:1
-incarico	NOUN:1
+incarico	NOUN:2
 incarnare	VERB:1
 incarnazione	NOUN:1
 incartare	VERB:1
@@ -11014,7 +11014,7 @@ inchiostro	NOUN:1
 inciampare	VERB:1
 inciampo	NOUN:1
 incidentale	ADJ:1
-incidentalmente	ADV:1
+incidentalmente	ADV:2
 incidente	NOUN:1
 incidenza	NOUN:1
 incidere	VERB:1
@@ -11025,7 +11025,7 @@ incisivo	ADJ:1	NOUN:1
 inciso	NOUN:1	X:1
 incisore	NOUN:1
 incitamento	NOUN:1
-incitare	VERB:1
+incitare	VERB:2
 incitazione	NOUN:1
 inciucio	NOUN:1
 inclemente	ADJ:1
@@ -11210,7 +11210,7 @@ indiscrezione	NOUN:1
 indiscriminatamente	ADV:1
 indiscriminato	ADJ:1
 indiscusso	ADJ:1
-indiscutibile	ADJ:1
+indiscutibile	ADJ:2
 indiscutibilmente	ADJ:1	ADV:1
 indispensabile	ADJ:1
 indisponente	NOUN:1
@@ -11662,7 +11662,7 @@ instradamento	NOUN:1
 insubordinazione	NOUN:1
 insuccesso	NOUN:1
 insufficiente	ADJ:1
-insufficienza	NOUN:2
+insufficienza	NOUN:3
 insulare	ADJ:1
 insulina	NOUN:1
 insulso	ADJ:1
@@ -12900,7 +12900,7 @@ lordo	NOUN:1	ADJ:1
 lorena	PROPN:2
 lorenzi	PROPN:1
 lori	NOUN:1
-loro	PRON:2
+loro	PRON:2	DET:1
 losanga	NOUN:1
 losco	ADJ:1
 loto	NOUN:1
@@ -16134,7 +16134,7 @@ pecorina	NOUN:1
 pecorino	NOUN:1
 peculato	NOUN:1
 peculiare	ADJ:1
-peculiarità	NOUN:1
+peculiarità	NOUN:2
 pecuniario	ADJ:1
 pedaggio	NOUN:1
 pedagogia	NOUN:1
@@ -16285,7 +16285,7 @@ perché	SCONJ:2	ADV:1
 perciò	ADV:1
 percorrere	VERB:1
 percorribile	ADJ:1
-percorso	NOUN:1
+percorso	NOUN:2
 percussione	NOUN:1
 percussore	NOUN:1
 perdente	NOUN:1
@@ -17332,7 +17332,7 @@ prestante	ADJ:1
 prestanza	NOUN:1
 prestare	VERB:1
 prestatore	NOUN:1
-prestazione	NOUN:1
+prestazione	NOUN:2
 prestigiatore	NOUN:1
 prestigio	NOUN:1
 prestigioso	ADJ:1
@@ -18683,7 +18683,7 @@ riccio	NOUN:1
 ricciolo	NOUN:1
 ricco	ADJ:1
 riccone	NOUN:1
-ricerca	NOUN:1
+ricerca	NOUN:2
 ricercare	VERB:2
 ricercato	ADJ:1
 ricercatore	NOUN:1
@@ -18702,7 +18702,7 @@ ricevitore	NOUN:1
 ricevitoria	NOUN:1
 ricevuta	NOUN:1
 ricezione	NOUN:1
-richiamare	VERB:1
+richiamare	VERB:2
 richiamo	NOUN:1
 richiedente	NOUN:1	ADJ:1
 richiedere	VERB:4
@@ -21725,7 +21725,7 @@ sporgenza	NOUN:1
 sporgere	VERB:1
 sport	NOUN:1
 sporta	NOUN:1
-sportello	NOUN:1
+sportello	NOUN:2
 sportivamente	ADV:1
 sportività	NOUN:1
 sportivo	ADJ:2

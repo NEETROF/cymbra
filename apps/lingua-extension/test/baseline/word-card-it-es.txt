@@ -287,8 +287,8 @@ row: Dar
 ### word-grammar dai da
 grammar: «dai» = da + i
 page 1/1:
-  [preposición] De, a, cerca; Como, desde o en casa de
-row: De, a, cerca
+  [preposición] De, por, en; Como, desde o en casa de
+row: De, por, en
 ### word-grammar mo' mò
 gloss: (none)
 ### word-grammar parlo parlare
@@ -483,6 +483,7 @@ row: Antes
 ### word-grammar loro loro
 page 1/1:
   [pronombre] Ellos, ellas; Ustedes
+  [determinante] Su, sus
 row: Ellos, ellas
 ### word-grammar dopo dopo
 page 1/1:
