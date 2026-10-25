@@ -75,7 +75,10 @@ An English reader of Italian alone needs one model: "about 200 MB", the download
 An English reader of Spanish, French and Italian needs three (es-en, fr-en, it-en), held two at a time:
 "about 340 MB", the download their sum (es-en 26,241,052 B and fr-en 26,234,715 B today; it-en's from
 the catalogue, ≈ 26.2–26.3 MB by change 20's estimate, so ≈ 78.7–78.8 MB). Change 20's requirement already reads
-« two models or more »; this change adds the two English scenarios.
+« two models or more »; this change adds the two English scenarios. **Measured at implementation**
+(2026-10-25, the committed catalogue): it-en 26,242,301 B, "Downloads 26.2 MB once"; the three
+78,718,068 B, "Downloads 78.7 MB once" — the scenarios state both, as change 20's state its French
+figures.
 
 ### D6 — The English description and activation page
 
