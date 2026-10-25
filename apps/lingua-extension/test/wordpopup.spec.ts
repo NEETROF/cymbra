@@ -355,6 +355,50 @@ describe("an Italian word's card, for readers of English (enable-lingua-italian-
   });
 });
 
+describe("an Italian word's card, for readers of Spanish (enable-lingua-italian-for-spanish-speakers D3)", () => {
+  /** The card of « parlò » (parlare), in the passato remoto, in the Spanish interface. */
+  const italian = () => {
+    const card = createCard(undefined, "es");
+    card.show(
+      content({
+        language: "it",
+        headword: "parlare",
+        surface: "parlò",
+        gloss: "hablar",
+        sentence: "Parlò troppo in fretta.",
+        grammar: {
+          gloss: null,
+          senses: [],
+          readings: [
+            { pos: "VERB", features: { Mood: "Ind", Number: "Sing", Person: "3", Tense: "Past", VerbForm: "Fin" } },
+          ],
+          others: [],
+          pieces: [],
+        },
+      }),
+      () => {},
+    );
+    return card.el;
+  };
+
+  it("the lines are Spanish, the tense named « pretérito perfecto simple de indicativo », every Italian word in them marked as Italian", () => {
+    const el = italian();
+    expect(el.querySelector(".headword")?.getAttribute("lang")).toBe("it");
+    const marked = [...el.querySelectorAll("[lang]")].filter((node) => node !== el);
+    expect(marked.length).toBeGreaterThan(1);
+    expect(marked.map((node) => [node.textContent, node.getAttribute("lang")])).toEqual(
+      expect.arrayContaining([
+        ["parlare", "it"],
+        ["parlò", "it"],
+      ]),
+    );
+    expect(marked.every((node) => node.getAttribute("lang") === "it")).toBe(true);
+    expect(el.querySelector(".grammar-line")?.textContent).toBe(
+      "tercera persona del singular del pretérito perfecto simple de indicativo de parlare",
+    );
+  });
+});
+
 describe("a card that waits for the engine", () => {
   it("shows a pending card with the headword, the kind line and a waiting line, but no action", () => {
     const card = createCard();

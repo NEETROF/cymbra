@@ -293,6 +293,46 @@ fn the_it_en_fixture_is_the_italian_fixture_glossed_in_english() {
 }
 
 #[test]
+fn the_it_es_fixture_is_the_italian_fixture_glossed_in_spanish() {
+    // enable-lingua-italian-for-spanish-speakers D1: hand-written in the it-fr fixture's layout, its
+    // Italian forms, ranks, levels and pin byte for byte, its words and expressions glossed in
+    // Spanish, stamped with Italian's analyser version as committed, so that `yarn gen:pack` builds
+    // it-es once the list names it — its base the it-fr fixture's, which `gen_pack.sh` requires.
+    let root = testdata_dir().parent().unwrap().to_path_buf();
+    for table in ["forms.tsv", "freq.tsv", "level.tsv", "tags.tsv"] {
+        assert_eq!(
+            std::fs::read(root.join("it-es").join(table)).unwrap(),
+            std::fs::read(root.join("it-fr").join(table)).unwrap(),
+            "{table}"
+        );
+    }
+    let italian = inputs_from_dir(&root.join("it-fr")).expect("read the it-fr fixture");
+    let inputs = inputs_from_dir(&root.join("it-es")).expect("read the it-es fixture");
+    assert_eq!(inputs.form_lemma, italian.form_lemma);
+    assert_eq!(inputs.ranks, italian.ranks);
+    assert_eq!(inputs.levels, italian.levels);
+    assert_eq!(inputs.tag_pool, italian.tag_pool);
+    assert_eq!(inputs.meta.analyzer_version, italian.meta.analyzer_version);
+    assert_eq!(inputs.meta.levels_estimated, italian.meta.levels_estimated);
+    let lemmas =
+        |glosses: &[(String, String)]| glosses.iter().map(|(l, _)| l.clone()).collect::<Vec<_>>();
+    assert_eq!(lemmas(&inputs.glosses), lemmas(&italian.glosses));
+    assert_eq!(lemmas(&inputs.expressions), lemmas(&italian.expressions));
+    assert!(inputs.readings.is_empty() && inputs.senses.is_empty());
+    assert!(inputs.meta.pack_version.contains("fixture"));
+    let bytes = build_pack(&inputs).expect("build");
+    assert!(bytes.len() < MAX_PACK_BYTES);
+    let pack = Pack::load(&bytes).expect("the core loads it at Italian's version");
+    assert_eq!(pack.studied(), StudiedLanguage::Italian);
+    assert_eq!(pack.meta().analyzer_version, ITALIAN_ANALYZER_VERSION);
+    assert_eq!(pack.meta().pair_key(), "it-es");
+    assert_eq!(pack.lexicon().lemma_of("è"), Some("essere"));
+    assert_eq!(pack.gloss("città"), Some("ciudad"));
+    assert_eq!(pack.gloss("essere"), Some("ser, estar"));
+    assert!(pack.notice().contains("hand-written"));
+}
+
+#[test]
 fn pipeline_reads_the_optional_expression_table() {
     let inputs = inputs_from_dir(&testdata_dir()).expect("read testdata");
     // `mwe.tsv` reaches the builder as the reducer wrote it, spellings and all:
@@ -519,6 +559,8 @@ fn the_fixtures_build_whole_as_recorded_and_split_by_their_pin() {
     // `pack_version` `0.0.2-fixture`, at no new analyser version.
     // enable-lingua-italian-for-english-speakers D1 adds it-en's, the it-fr fixture glossed in
     // English, born with the same pin.
+    // enable-lingua-italian-for-spanish-speakers D1 adds it-es's, the it-fr fixture glossed in
+    // Spanish, born with the same pin.
     let root = testdata_dir().parent().unwrap().to_path_buf();
     for (pair, size, sha256) in [
         (
@@ -560,6 +602,11 @@ fn the_fixtures_build_whole_as_recorded_and_split_by_their_pin() {
             "it-en",
             7221,
             "f5bfe8334dbdd1474e65cc748192a5b93cf7fda6aa5dec2f03180dd247cb971e",
+        ),
+        (
+            "it-es",
+            7112,
+            "d1bf4b65a2f071e24ea32558622e0f643e44cbfb535ca1e0bef3b83c53439e2a",
         ),
     ] {
         let inputs = inputs_from_dir(&root.join(pair)).unwrap_or_else(|e| panic!("{pair}: {e}"));

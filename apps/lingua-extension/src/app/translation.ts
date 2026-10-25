@@ -84,8 +84,8 @@ export interface AppTranslation {
  * paired with the native one. A language no listed pair of the reader's native language studies is
  * left out: Italian, which the core knows and the catalogue routes for every pair, is offered and
  * fetched through it-fr for a French-native reader since enable-lingua-italian, through it-en for an
- * English-native one since enable-lingua-italian-for-english-speakers, and never for a Spanish-native
- * one.
+ * English-native one since enable-lingua-italian-for-english-speakers, and through it-es for a
+ * Spanish-native one since enable-lingua-italian-for-spanish-speakers.
  */
 export async function appPairs(
   port: Pick<LinguaPort, "studiedLanguages" | "nativeLanguage">,
