@@ -23,7 +23,8 @@ message TranslateRequest {
   // The selection, as UTF-16 offsets into `sentence` (as the extension counts them).
   uint32 selection_start = 2;
   uint32 selection_end = 3;
-  // The document's language and the reader's native language (`en` | `fr` | `es`).
+  // The document's language (`en` | `fr` | `es` | `it`) and the reader's native language
+  // (`en` | `fr` | `es`).
   string source_language = 4;
   string target_language = 5;
 }
