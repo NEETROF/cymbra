@@ -387,6 +387,30 @@ describe("Italian, for its voices (add-lingua-italian-read-aloud D3)", () => {
     expect(noTextDetected("fr", ["en", "es", "it"])).toBe(noTextDetected("fr", ["en", "es"]));
   });
 
+  it('Italian studied by readers of English (enable-lingua-italian-for-english-speakers D3): every message in English — "Estimated Italian level", its note, the borrowed sizes', () => {
+    expect(every("en", "it")).toEqual({
+      languageName: "Italian",
+      levelScale: "CEFR",
+      levelTitle: "Italian level",
+      levelTitleEstimated: "Estimated Italian level",
+      myLevelTitle: "My Italian level",
+      myLevelTitleEstimated: "My estimated Italian level",
+      estimatedLevelsNote: "Levels estimated from word frequency, as no freely licensed CEFR list exists for Italian.",
+      borrowedTypicalNote: "taken from English, whose level sizes Italian borrows.",
+      levelName: "B1",
+      levelNameEstimated: "B1 (estimated)",
+      chooseLevelPrompt: "Choose your Italian level",
+      noTextDetected: "No Italian text found on this page.",
+      noTextInYourLanguages: "No text in your languages found on this page.",
+      noVoiceInstalled: "No Italian voice is installed on this device. ",
+      windowsVoiceLanguage: "Italian (Italy)",
+      previewSentence: "Ecco come suoneranno le tue pagine quando Lingua le leggerà ad alta voce.",
+      levelQuestion: "What's your Italian level?",
+    });
+    // A reader of Spanish, French and Italian is told of their languages, neutral.
+    expect(noTextDetected("en", ["es", "fr", "it"])).toBe(noTextDetected("en", ["es", "fr"]));
+  });
+
   it("holds the forms the level titles and the sentences take once Italian is studied", () => {
     // Keyed by the studied language, the titles name Italian since enable-lingua-italian: the
     // catalogue's templates, read with the entry they take.

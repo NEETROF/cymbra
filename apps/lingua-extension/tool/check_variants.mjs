@@ -330,11 +330,12 @@ for (const target of ["chromium", "firefox", "safari"]) {
 // enable-lingua-spanish, then Spanish glossed in English for English speakers since
 // enable-lingua-english-speakers, then English glossed in Spanish for Spanish speakers since
 // enable-lingua-spanish-speakers, then French glossed in English and in Spanish since
-// enable-lingua-french, then Italian glossed in French since enable-lingua-italian — each last, so
-// that every native language keeps its default pair. The list and this constant agree on purpose:
+// enable-lingua-french, then Italian glossed in French since enable-lingua-italian, then Italian
+// glossed in English since enable-lingua-italian-for-english-speakers — each last, so that every
+// native language keeps its default pair. The list and this constant agree on purpose:
 // shipping another language, or dropping one, takes two edits in one pull request, one of them in
 // this gate.
-const SHIPPED_PAIRS = ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr"];
+const SHIPPED_PAIRS = ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en"];
 const pairs = shippedPairs();
 expect(
   JSON.stringify(pairs) === JSON.stringify(SHIPPED_PAIRS),

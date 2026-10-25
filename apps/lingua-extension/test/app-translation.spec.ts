@@ -271,7 +271,10 @@ describe("the app's pairs (add-lingua-italian-baseline, task 7.1)", () => {
     expect(view).toMatchObject({ phase: "offer", pairs: ["en-fr"] });
   });
 
-  it("follow it-fr for a French-native reader of Italian once it is listed, and no English or Spanish reader's (enable-lingua-italian D5, D9)", async () => {
+  /** enable-lingua-italian's list: it-fr the one pair studying Italian. */
+  const ITALIAN = [...FRENCH, "it-fr"];
+
+  it("follow it-fr for a French-native reader of Italian once it is listed, and no English or Spanish reader's on its list (enable-lingua-italian D5, D9)", async () => {
     expect(SHIPPED_PAIRS).toContain("it-fr");
     expect(await appPairs(port(["it", "en"], "fr"))).toEqual(["it-fr", "en-fr"]);
     expect(await appPairs(port(["it"], "fr"))).toEqual(["it-fr"]);
@@ -281,7 +284,9 @@ describe("the app's pairs (add-lingua-italian-baseline, task 7.1)", () => {
     ]);
     for (const native of ["en", "es"]) {
       for (const studied of [["it"], ["it", "en"], ["es", "it"], ["en", "es", "fr", "it"]]) {
-        const pairs = await appPairs(port(studied, native));
+        // On enable-lingua-italian's list; since enable-lingua-italian-for-english-speakers, an English
+        // reader's Italian follows it-en (below), a Spanish reader's still nothing.
+        const pairs = await appPairs(port(studied, native), native === "en" ? ITALIAN : SHIPPED_PAIRS);
         const where = `${native}: ${studied.join(",")}`;
         expect(
           pairs.every((pair) => SHIPPED_PAIRS.includes(pair)),
@@ -304,5 +309,15 @@ describe("the app's pairs (add-lingua-italian-baseline, task 7.1)", () => {
     const s = setup({ pairs: () => appPairs(port(["it", "en"], "fr")), catalogue: async () => committed });
     const view = (await openAppTranslation(s.deps)).view();
     expect(view).toMatchObject({ phase: "offer", pairs: ["it-fr", "en-fr"] });
+  });
+
+  it("follow it-en for an English-native reader of Italian once it is listed, its one model (enable-lingua-italian-for-english-speakers D4, D8)", async () => {
+    expect(SHIPPED_PAIRS).toContain("it-en");
+    expect(await appPairs(port(["es", "it"], "en"))).toEqual(["es-en", "it-en"]);
+    expect(await appPairs(port(["it"], "en"))).toEqual(["it-en"]);
+    expect(modelsFor(committed, await appPairs(port(["it"], "en"))).map((m) => m.version)).toEqual([IT_EN]);
+    const s = setup({ pairs: () => appPairs(port(["es", "it"], "en")), catalogue: async () => committed });
+    const view = (await openAppTranslation(s.deps)).view();
+    expect(view).toMatchObject({ phase: "offer", pairs: ["es-en", "it-en"] });
   });
 });

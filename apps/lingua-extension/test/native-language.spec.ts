@@ -174,6 +174,20 @@ describe("the studied languages of a reader who chooses (D2)", () => {
     expect(studiedForNative(["es"], "fr", ["en-fr"])).toEqual(["en"]);
   });
 
+  it("A French-native reader of Italian who switches to English keeps Italian, through it-en once it is listed (enable-lingua-italian-for-english-speakers D8)", () => {
+    /** enable-lingua-italian's list, it-fr the one pair of Italian, and the eight pairs after it-en. */
+    const SEVEN = [...ALL, "fr-en", "fr-es", "it-fr"];
+    const EIGHT = [...SEVEN, "it-en"];
+    // Before it-en: Italian dropped, no English-glossed pair studying it.
+    expect(studiedForNative(["en", "it"], "en", SEVEN)).toEqual(["es"]);
+    expect(studiedForNative(["it", "es"], "en", SEVEN)).toEqual(["es"]);
+    // Once it-en is listed: Italian kept, in the reader's order; English, now native, dropped.
+    expect(studiedForNative(["en", "it"], "en", EIGHT)).toEqual(["it"]);
+    expect(studiedForNative(["it", "es"], "en", EIGHT)).toEqual(["it", "es"]);
+    // A Spanish native still has no pair of Italian.
+    expect(studiedForNative(["it", "en"], "es", EIGHT)).toEqual(["en"]);
+  });
+
   it("A native language with no pair: refused", () => {
     expect(studiedForNative(["en"], "es", MIXED)).toBeNull();
     expect(studiedForNative(["en"], "de", MIXED)).toBeNull();
