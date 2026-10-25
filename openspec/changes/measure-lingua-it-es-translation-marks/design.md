@@ -150,6 +150,33 @@ The documents follow:
 - the comment above `MARKED_PAIRS`;
 - programme row 29.
 
+### D6 — The MODIFIED block, as change 38 stands (decided at implementation)
+
+At implementation, on main at `e63e7d7f4`, change 38 (`measure-lingua-en-it-translation-marks`) is
+proposed, not implemented. Its block is still the latest holder of the requirement: no archived
+spec and no other in-flight change holds a later one but changes 39 and 40 (fr-it, es-it), which copy
+this change's. The block is therefore copied as change 38 stands, the way change 24 copied change 19's
+while change 19 was open (#1064):
+- this change's requirement and scenarios equal change 38's word for word, and add one, *An Italian
+  selection, through English, judged in Spanish*; change 38's equal change 24's plus one; change 24's
+  equal change 19's plus one;
+- `archiveAfter` keeps change 38 with changes 24, 19 and 2, which `openspec_archive_order.py` names
+  (exit 10 while they are open).
+
+The alternative, copying change 24's block and dropping change 38 from `archiveAfter`, would let this
+change archive first, but change 38's archive would then replace the requirement with a block lacking
+this change's scenario, and changes 39 and 40, which copy this block with change 38's scenario in it,
+would no longer follow. The cost is a wait: this change archives after change 38 does. Nothing it
+measures or lists waits for that.
+
+### D7 — A fragment translated as nothing (found at the run)
+
+The route answered one fragment, « seguito » (k 58), with an empty translation. `alone` is then `""`,
+as for an empty fragment, never asked, and the sentence's marks stand unreconciled — what relay.ts
+shows too, since `reconcileMarks` leaves marks it has no evidence about. The results are right; the
+run's summary counted the line as an empty fragment. `measure_marks.mjs` now tells the two apart by
+the fragment and names it « translated as nothing »; the results do not move.
+
 ## Risks / Trade-offs
 
 - **One judge** → the criteria committed first, three references per line, the strict tier, the owner's
