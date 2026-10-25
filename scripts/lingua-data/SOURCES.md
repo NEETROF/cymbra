@@ -878,11 +878,13 @@ first entry stood and every other entry as its line was:
   as it-fr imports them —; a row opening on a meaning the section marks archaic, obsolete, dated or
   historical opens on its first meaning that is not; **`FIRST_RUN`**, a reviewed table keyed by the
   headword's case, a part of speech and the sense the row opens on (a sense the section nests under
-  another read by its own text), opens 26 rows on the sense it names — `come`, `loro`, `bene`, `gente`,
+  another read by its own text), opens 40 rows on the sense it names — `come`, `loro`, `bene`, `gente`,
   `piano`, `forte`, `partito`, `squadra`, `presto`, `valore`, `testo`, `usato`, `morire`, `medio`,
   `prego`, `stazione`, `tratta`, `signore`, `compagno`, and `dì`, `contrastare`, `contea`, `pro`,
-  `parlamento`, `ce`, `parmigiano`, approved by the owner on 2026-10-25 —; the reduction fails on a row
-  whose sense it does not find;
+  `parlamento`, `ce`, `parmigiano`, and, on an Italian specialist's review of the gloss diff, `tanto`,
+  `costa`, `mica`, `manco`, `mona`, `ara`, `alma`, `aureo`, `galeotto`, `giullare`, `augurare`,
+  `giostra`, `domino`, `losco` (`tratta` moved from « draft » to « trafficking, trade »), all approved by
+  the owner on 2026-10-25 —; the reduction fails on a row whose sense it does not find;
 - **pointers** (D3): a labelled form or spelling (« Marche, Milan, Rome, and Venice form of di »,
   « proscribed spelling of ché »), a clitic compound — its meaning after its closing full stop read where
   it writes one —, a truncation and an untagged alternative form are pointers to their word; a pointer to
@@ -893,8 +895,12 @@ first entry stood and every other entry as its line was:
 - **names' notes** (D6): a surname's note off a row whose word holds a common meaning, a given name's off
   a row a common word opens, a town's, a comune's, a village's, a hamlet's, a frazione's or a
   municipality's off a common word unless the row opens on it, the place is a city or a capital itself,
-  or a town and province — and **`TOWNS_KEPT`**, the owner's (2026-10-25): `massa`, the capital of
-  Massa-Carrara, which the section calls a town alone;
+  or a town and province, a « commune » being a place only before « in » or « of » — and **`TOWNS_KEPT`**,
+  the owner's (2026-10-25): `massa`, the capital of Massa-Carrara, which the section calls a town alone,
+  and, on the specialist's review, `sassuolo`, `orvieto`, `frascati`, `cassino` and `monopoli`, met as the
+  place or its wine, game or abbey. No note goes from a row whose every lowercase meaning the section tags
+  archaic, obsolete, dated, historical, rare, poetic, literary, regional or dialectal (`esposito` « a
+  common surname; foundling »);
 - **the page's notes and typography** (D7): `lo`'s usage note read by its last clause, a list marker
   out, a quoted opener read as its meaning, « etc » with its period;
 - **`CORRECTIONS`** (D8), it-fr's reviewed shape for it-en, each keyed by the source, the headword, its
@@ -907,15 +913,17 @@ first entry stood and every other entry as its line was:
   `bambina` « girl, little girl » (https://en.wiktionary.org/wiki/bambina#Italian) and `compagna`
   « companion, partner » (https://en.wiktionary.org/wiki/compagna#Italian), the Italian Wiktionary's
   translations, and `spagnola` « Spaniard » (the noun `spagnolo`'s;
-  https://en.wiktionary.org/wiki/spagnola#Italian).
+  https://en.wiktionary.org/wiki/spagnola#Italian); and, on the specialist's review, `tratta` « trafficking,
+  trade; stretch, section (of a route) », its « trade » marked archaic and no route's stretch on the page
+  (https://en.wiktionary.org/wiki/tratta#Italian).
 
 **Predicted at implementation** (2026-10-25, reduced locally by `build.sh --reduce it-en` from it-en's
 pinned sources — the release `lingua-pack-sources-it-en-2026.10.25` and MarkIT at `e210079d` —, Python
-3.12 and `requirements-reduce.txt`): 1,581 rows of `gloss.tsv` change (133 / 302 / 601 / 545 of the
-1,000 / 5,000 / 20,000 commonest and beyond), 345 in their first sense, no lemma gained or lost — the
-design's 1,578 and 341, and the four corrections on top —; 19 expressions; coverage 91.3 / 84.2 / 75.8 %,
-as before; the pack 2,461,309 B (sha256 `d7c57512…`), its base it-fr's, byte for byte (1,551,196 B), its
-layer 910,353 B (`8041b230…`), at `pack_version` `2026.10.25+380fa9f.442fd70`. Only it-en re-pins:
+3.12 and `requirements-reduce.txt`), with the specialist's round: 1,536 rows of `gloss.tsv` change
+(132 / 298 / 583 / 523 of the 1,000 / 5,000 / 20,000 commonest and beyond), 341 in their first sense, no
+lemma gained or lost; 19 expressions; coverage 91.3 / 84.2 / 75.8 %, as before; the pack 2,461,617 B
+(sha256 `33a4394f…`), its base it-fr's, byte for byte (1,551,196 B), its layer 910,661 B (`53a068d2…`),
+at `pack_version` `2026.10.25+8d3fcaf.442fd70`. Only it-en re-pins:
 `tables/it/` and the seven other pairs' tables, pins and packs do not move.
 
 ## IT → ES: Italian glossed in Spanish
