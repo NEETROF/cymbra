@@ -1,0 +1,101 @@
+k	id	word	upos	engine_marks	engine	engine_reason	gloss_marks	gloss	gloss_reason
+0	n01001011	parte	NOUN		withheld	no mark (« gran parte della » → « gran parte de la »)	parte	correct	
+1	n01004009	insegnare	VERB	enseñar	correct		enseñar	correct	
+2	n01010042	volta	NOUN	vez	correct		vez	correct	
+3	n01016014	società	NOUN	compañía	correct			withheld	no gloss word in the sentence
+4	n01019005	esperti	NOUN	expertos	correct			withheld	no gloss word in the sentence
+5	n01022016	cresciuti	VERB	crecieron	correct			withheld	no gloss word in the sentence
+6	n01025045	corso	NOUN	lo largo	correct	doubtful: « Nel corso » → « A lo largo de », an expression's rendering, the mark on its « lo largo » without « A » (judge B's doubt; it-fr's « Tout | long » was counted plainly correct)		withheld	no gloss word in the sentence
+7	n01029011	originaria	ADJ	originaria de	correct		originaria	correct	
+8	n01033021	ricercatori	NOUN	investigadores	correct		investigadores	correct	
+9	n01036020	fossero	VERB	a	wrong	marks « a », the personal « a » of « regula a los agentes », instead of « hubiera » (« ci fossero »): the pivot moved the tag (it-fr « ait » and it-en « to be » correct)		withheld	no gloss word in the sentence
+10	n01041018	medici	NOUN	médicos	correct		médicos	correct	
+11	n01045035	giudice	NOUN	juez	correct		juez	correct	
+12	n01050014	livelli	NOUN	niveles	correct		niveles	correct	
+13	n01054011	pubblicate	VERB	publicaron	correct	« sono state pubblicate » → « se publicaron »: the mark on the verb, its « se » left out	publicaron	correct	
+14	n01059008	discordanza	NOUN	discordia	correct	doubtful: « discordanza » (a mismatch) rendered « discordia » (strife), a loose rendering the mark follows		withheld	no gloss word in the sentence
+15	n01063011	maggiore	ADJ	mayor	correct	the engine tagged « su »; the fragment's own translation moved the mark to « mayor »	mayor	correct	
+16	n01066093	trascuratezza	NOUN	negligencia	correct		negligencia	correct	
+17	n01070017	commentato	VERB	comentó	correct		comentó	correct	
+18	n01074020	gioco	NOUN	juego	correct		juego	correct	
+19	n01078025	nazista	ADJ	nazi	correct		nazi	correct	
+20	n01084008	coppia	NOUN	par	correct	doubtful: « coppia » (a couple) rendered « par » (a pair), a loose rendering the mark follows	par	correct	doubtful: as the engine's mark
+21	n01087005	sostenere	VERB	argumentar	correct			withheld	no gloss word in the sentence
+22	n01091013	migliore	NOUN	mejor	correct	« Nel migliore dei casi » → « En el mejor de los casos »: « mejor » renders « migliore »	mejor	correct	
+23	n01094014	mercati	NOUN	mercados	correct		mercados	correct	
+24	n01097098	fermata	NOUN	parada	correct		parada	correct	
+25	n01102006	detto	VERB	dijo	correct	« Ha detto » → « Le dijo »: the mark on « dijo », without the clitic		withheld	no gloss word in the sentence
+26	n01107006	richieste	NOUN	reclamaciones	correct			withheld	no gloss word in the sentence
+27	n01110008	identiche	ADJ	idénticos	correct		idénticos	correct	
+28	n01114025	adulti	NOUN	adultos	correct		adultos	correct	
+29	n01118003	cadere	VERB	Deje caer	correct	« Fa' cadere » → « Deje caer », an expression's rendering	caer	correct	« caer », the verb of « Deje caer »
+30	n01121032	volta	NOUN	última	wrong	marks « última » instead of « vez » (« l'ultima volta » → « la última vez »): the tag landed on the neighbour and the fragment's « Tiempo » is not in the sentence (it-fr « fois » and it-en « time » correct)	vez	correct	
+31	n01127089	scelta	VERB	elegí	correct	« l'ho scelta » → « la elegí »: the mark on « elegí »		withheld	no gloss word in the sentence
+32	n01130003	punto	NOUN	punto	correct		punto	correct	
+33	n01134015	riconosciuto	VERB		withheld	no mark (« Gli viene riconosciuto » → « Se le atribuye », unmarked): the pivot lost the mark it-fr and it-en kept		withheld	no gloss word in the sentence
+34	n01138026	episodi	NOUN	episodios	correct		episodios	correct	
+35	n01142008	incredibile	ADJ	increíble	correct		increíble	correct	
+36	n01145028	volontari	NOUN	voluntarios	correct		voluntarios	correct	
+37	n01149027	vidi	VERB	vi	correct	« vidi » → « vi », the passato remoto rendered by the preterite		withheld	no gloss word in the sentence
+38	w01003056	isole	NOUN		withheld	no mark (« isole » → « islas », unmarked)	islas	correct	
+39	w01007004	limitato	ADJ	limitado	correct		limitado	correct	the right word, the gloss of « limitare »
+40	w01010046	stato	NOUN	estado	correct		estado	correct	the right word, found through « essere »'s gloss
+41	w01016070	esempio	NOUN	ejemplo	correct		ejemplo	correct	
+42	w01020018	causa	NOUN	Debido	correct	« A causa di » → « Debido a », an expression's rendering, the mark on « Debido »		withheld	no gloss word in the sentence
+43	w01025085	importanti	ADJ	importantes	correct		importantes	correct	
+44	w01028069	reazione	NOUN	reacción	correct		reacción	correct	
+45	w01031015	tende	VERB	tiende	correct			withheld	no gloss word in the sentence
+46	w01035081	realtà	NOUN	hecho	correct	« In realtà » → « De hecho », an expression's rendering, the mark on « hecho »		withheld	no gloss word in the sentence
+47	w01038044	indigeni	ADJ	indígenas	correct		indígenas	correct	
+48	w01042055	temporali	NOUN	tormentas eléctricas	correct		tormentas	correct	
+49	w01046056	governo	NOUN	gobierno	correct		gobierno	correct	
+50	w01050067	caduta	NOUN	caída	correct		caída	correct	
+51	w01053015	esatto	ADJ	exacto	correct			withheld	no gloss word in the sentence
+52	w01058009	battaglia	NOUN	batalla	correct	the engine tagged « en »; the fragment's own translation moved the mark to « batalla »	batalla	correct	
+53	w01063048	rappresentavano	VERB	representaban	correct		representaban	correct	
+54	w01066040	capodanno	NOUN	Año Nuevo	correct	« capodanno » → « Año Nuevo », the whole compound	Año	wrong	« Año » alone, half of « Año Nuevo »
+55	w01070031	astronomico	ADJ	astronómico	correct		astronómico	correct	
+56	w01072079	secolo	NOUN	siglo	correct		siglo	correct	
+57	w01075039	comprendono	VERB	que	wrong	marks « que » instead of « entienden », « comprendono » rendered in the wrong sense (as it-fr's « qui » and it-en's « who »)		withheld	no gloss word in the sentence
+58	w01080129	seguito	NOUN	tarde	correct	« in seguito » → « Más tarde », an expression's rendering, the mark on « tarde »; the fragment came back empty, the marks unreconciled		withheld	no gloss word in the sentence
+59	w01085004	buoni	ADJ	buenos	correct		buenos	correct	
+60	w01089040	tempo	NOUN	momento	correct	« A quel tempo » → « En ese momento »		withheld	no gloss word in the sentence
+61	w01095090	riguarda	VERB		withheld	no mark (« Per quanto riguarda » → « En cuanto a »)		withheld	no gloss word in the sentence
+62	w01099012	spiegazioni	NOUN	Las explicaciones	correct	the article carried along	explicaciones	correct	
+63	w01102020	paramilitari	ADJ	paramilitares	correct		paramilitares	correct	
+64	w01106073	quota	NOUN	altitud	correct	« L'alta quota » → « La gran altitud »		withheld	no gloss word in the sentence
+65	w01111089	conobbe	VERB	conoció	correct	« conobbe » → « conoció », the passato remoto rendered by the preterite	conoció	correct	
+66	w01115023	recensioni	NOUN	críticas	correct		críticas	correct	
+67	w01119059	simili	ADJ	similares	correct		similares	correct	
+68	w01125036	ore	NOUN	horas	correct		horas	correct	
+69	w01130099	rilasciò	VERB	lanzó	correct	« rilasciò » → « lanzó »		withheld	no gloss word in the sentence
+70	w01133014	sceneggiatore	NOUN	guionista	correct		guionista	correct	
+71	w01136029	stereotipata	ADJ	estereotipada	correct		estereotipada	correct	
+72	w01140032	metodo	NOUN	método	correct		método	correct	
+73	w01143037	interpreta	VERB	interpretó	correct	the engine tagged « donde »; the fragment's own translation moved the mark to « interpretó » (« interpreta », a historic present; tense never decides)	interpretó	correct	
+74	w01147122	agosto	NOUN	agosto	correct		agosto	correct	
+75	n02002007	agenti	NOUN	oficiales	correct	doubtful: « agenti » (police officers) rendered « oficiales », a calque of « officers » where Spanish says « agentes », a loose rendering the mark follows (judge B's doubt)		withheld	no gloss word in the sentence
+76	n02027007	agenti	NOUN	los agentes	correct	the article carried along	agentes	correct	
+77	n02038007	procede	VERB	procede	correct		procede	correct	
+78	n02048002	sveglia	NOUN		withheld	no mark (« sveglia » → « despertador », unmarked, as en-es withholds « alarm clock » → « despertador »; it-fr « réveil » correct, it-en « alarm » wrong)	despertador	correct	
+79	n02073024	nemiche	ADJ	enemigas	correct		enemigas	correct	
+80	n03001007	differenza	NOUN	A diferencia	correct	« A differenza » → « A diferencia », an expression's rendering	diferencia	correct	
+81	n03005025	accusò	VERB	acusó	correct	« accusò » → « acusó », the passato remoto rendered by the preterite		withheld	no gloss word in the sentence
+82	n03008011	sgoccioli	NOUN	su	wrong	marks « su » alone, a possessive the route added, not « infarest », « sgoccioli »'s garbled rendering (as it-en's « its »)		withheld	no gloss word in the sentence
+83	n04003043	canzone	NOUN	canción	correct		canción	correct	
+84	n04007018	nota	NOUN	nota	correct		nota	correct	the right word, found through « notare »'s gloss
+85	n05001005	rappresenta	VERB	representa	correct		representa	correct	
+86	n05003022	unico	NOUN	único	correct	« l'unico » → « el único »: the mark on « único »	único	correct	
+87	n05008012	preoccupato	ADJ	preocupado	correct		preocupado	correct	
+88	w02003037	chiostro	NOUN	claustro	correct		claustro	correct	
+89	w02006081	vincere	VERB	ganar	correct	« fu in grado di vincere » → « pudo ganar »: the mark on « ganar »		withheld	no gloss word in the sentence
+90	w02009002	rigore	NOUN	rigor	correct			withheld	no gloss word in the sentence
+91	w02014013	ultimi	ADJ	últimos	correct		últimos	correct	
+92	w02017061	tracce	NOUN	rastros	correct		rastros	correct	
+93	w03003039	capitanata	VERB	capitaneado	correct	« capitanata » → « capitaneado »: gender never decides		withheld	no gloss for the word
+94	w03007039	commercio	NOUN	comercio	correct		comercio	correct	
+95	w04001027	inferiore	ADJ	baja	correct	« parte inferiore » → « parte baja »		withheld	no gloss word in the sentence
+96	w04004051	parte	NOUN	parte de	correct	the mark carries « de »	parte	correct	
+97	w04010027	incontrano	VERB	Nicolai	wrong	marks the name « Nicolai » instead of « se reúnen » (« si incontrano »): the tag landed on the neighbour and the fragment's « Conocer » is not in the sentence (it-fr « se retrouvent » and it-en « meet » correct)		withheld	no gloss word in the sentence
+98	w05003012	sospensione	NOUN	suspensión	correct		suspensión	correct	
+99	w05006058	esterne	ADJ	externas	correct		externas	correct	
