@@ -914,8 +914,8 @@ pinned sources — the release `lingua-pack-sources-it-en-2026.10.25` and MarkIT
 3.12 and `requirements-reduce.txt`): 1,581 rows of `gloss.tsv` change (133 / 302 / 601 / 545 of the
 1,000 / 5,000 / 20,000 commonest and beyond), 345 in their first sense, no lemma gained or lost — the
 design's 1,578 and 341, and the four corrections on top —; 19 expressions; coverage 91.3 / 84.2 / 75.8 %,
-as before; the pack 2,461,303 B (sha256 `b52a046f…`), its base it-fr's, byte for byte (1,551,196 B), its
-layer 910,347 B (`86ca8627…`), at `pack_version` `2026.10.25+15b6fb2.442fd70`. Only it-en re-pins:
+as before; the pack 2,461,309 B (sha256 `d7c57512…`), its base it-fr's, byte for byte (1,551,196 B), its
+layer 910,353 B (`8041b230…`), at `pack_version` `2026.10.25+380fa9f.442fd70`. Only it-en re-pins:
 `tables/it/` and the seven other pairs' tables, pins and packs do not move.
 
 ## IT → ES: Italian glossed in Spanish
