@@ -1,0 +1,77 @@
+{
+  "snapshot": "2026.10.25",
+  "pack": {
+    "sha256": "7c7a42e3464eff8fd5a2890690c133f3643d3a1564870f6d14e284f97dfaa99b",
+    "size": 2467844
+  },
+  "base": {
+    "sha256": "f8c7822871460da3196ff148633e39d660dfeecf1af261cda54d6199a58934a2",
+    "size": 1551534
+  },
+  "layer": {
+    "sha256": "118836294e3b7661f0ab1aa7cae35ca658d28e87595bdfbbd5299bb23b7b84db",
+    "size": 916550
+  },
+  "reducer": {
+    "sha256": "7f4aed6ba5fc0940e865cd7068371a3fd56519b7ee4df484b698afa77cb9302e",
+    "files": [
+      "reduce-it-en.py",
+      "reduce_common.py",
+      "reduce_edition_en.py",
+      "reduce_italian_acronyms.py",
+      "reduce_italian_en.py"
+    ]
+  },
+  "studied": {
+    "reference": "it-fr",
+    "tables": {
+      "forms.tsv": "a9cada0deb342c0ec34d5575f289b752301772783527c98f630b5b6f7d2ede99",
+      "freq.tsv": "6dee7b4d12290a3ced927af91e3b5bdda8b2c6302f7b1ed1a2c1c06c7fadf909",
+      "grammar.tsv": "e9f309678c687dda254db41dde60e5ee0e3f8489e7b904e5faaf88460cb224ad",
+      "level.tsv": "67aff3f862700920053424dc89bbacc6522480f4e21703b2244c0e794b995fdd",
+      "lexical.tsv": "1d0572e8ee47be8f38971cd64fcc5721a3bacdb25610643032d86178b128e81f",
+      "tags.tsv": "92b933c47ce5a78cd6a6c14c7a57d557e7dbbed0cc428bdacdb540c942221fb9"
+    }
+  },
+  "sources": {
+    "kaikki-en": {
+      "release": "lingua-pack-sources-it-en-2026.10.25",
+      "url": "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz",
+      "fetched": "2026-10-25",
+      "last_modified": "Wed, 21 Oct 2026 11:23:03 GMT",
+      "dump": {
+        "sha256": "60a6073c7cd3f77a6f76fac8135dc8e34ca38ce1d12052f855fe36a5a1c2f965",
+        "size": 26611939151,
+        "compressed_size": 3082192147
+      },
+      "files": {
+        "kaikki-Italian.jsonl": {
+          "asset": "kaikki-Italian.jsonl.zst",
+          "sha256": "ae7de484ba53e3a6a472b9672a69d7e7fdc96cf55b68c5399a5b338adb387f0b",
+          "size": 665207473
+        }
+      }
+    },
+    "kaikki-it": {
+      "release": "lingua-pack-sources-it-en-2026.10.25",
+      "url": "https://kaikki.org/itwiktionary/raw-wiktextract-data.jsonl.gz",
+      "fetched": "2026-10-25",
+      "last_modified": "Sat, 24 Oct 2026 21:16:17 GMT",
+      "dump": {
+        "sha256": "e007665a8b21ed628d38095fcff107988f4af91e06c67f1283d363ce39ddf562",
+        "size": 566646259,
+        "compressed_size": 43849715
+      },
+      "files": {
+        "kaikki-it-traductions-en.jsonl": {
+          "asset": "kaikki-it-traductions-en.jsonl.zst",
+          "sha256": "e192643a4e0501431c31050d9b2cc087b9d8ab80fa1576d80d8502ea9ed245d4",
+          "size": 7216558
+        }
+      }
+    },
+    "wordfreq": {
+      "version": "3.1.1"
+    }
+  }
+}
