@@ -302,8 +302,38 @@ describe("A pair's marks are measured before they are shown", () => {
     expect(firstTier(strict)).toBe(true);
   });
 
+  it("An Italian selection, judged in English: it-en, the Italian selections through the it-en model alone, is listed on its own figures — 94 of 97, 3 % withheld, whatever it-fr's are (measure-lingua-it-en-translation-marks D2, D4)", () => {
+    expect(nativeOf("it-en")).toBe("en");
+    expect(judged("it-en")).toEqual({ correct: 94, shown: 97, withheld: 3, total: 100 });
+    // The tier verdict against the list: on the tier, so listed — inert until the Italian programme's
+    // change 25 (enable-lingua-italian-for-english-speakers) lists it-en in packs.json (D3).
+    expect(firstTier(judged("it-en"))).toBe(true);
+    expect(MARKED_PAIRS.includes("it-en")).toBe(firstTier(judged("it-en")));
+    // Its own measurement, on it-fr's selections: the same ids, another route, another native language.
+    const lines = results("it-en");
+    expect(lines.map((line) => line.id)).toEqual(results("it-fr").map((line) => line.id));
+    expect(judged("it-en")).not.toEqual(judged("it-fr"));
+    // No request trapped and every fragment reconciled; the experiment left empty, no it-en gloss
+    // table being committed at the run (the Italian programme's change 22).
+    expect(lines.every((line) => line.trapped === false && line.alone !== null && line.alone !== "")).toBe(true);
+    expect(lines.every((line) => line.gloss === null)).toBe(true);
+    // An Italian selection marked in the English sentence: « Nel corso » → « Throughout », an
+    // expression's rendering (the criteria's example, step 6).
+    expect(lines.find((line) => line.k === 6)?.shown).toMatch(/^⟦Throughout⟧ history/u);
+    // One judge — the doubtful lines named, and the tier held with them counted wrong (92 / 97).
+    const rows = readFileSync(join(marks, "judged-it-en.tsv"), "utf8")
+      .split("\n")
+      .slice(1)
+      .filter((row) => row !== "")
+      .map((row) => row.split("\t"));
+    const doubtful = rows.filter((row) => row[6]!.startsWith("doubtful")).map((row) => row[0]);
+    expect(doubtful).toEqual(["14", "20"]);
+    const strict = { ...judged("it-en"), correct: judged("it-en").correct - doubtful.length };
+    expect(firstTier(strict)).toBe(true);
+  });
+
   it("structural: the list is the judged pairs on the first tier — every listed pair judged, a judged pair listed exactly when its committed judgment reaches the tier, a pair with no judged file not listed (measure-lingua-it-fr-translation-marks D4)", () => {
-    expect(MARKED_PAIRS).toEqual(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr"]);
+    expect(MARKED_PAIRS).toEqual(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en"]);
     for (const pair of MARKED_PAIRS) expect(judgedPairs(), pair).toContain(pair);
     for (const pair of judgedPairs()) expect(MARKED_PAIRS.includes(pair), pair).toBe(firstTier(judged(pair)));
     expect(existsSync(join(marks, "judged-de-fr.tsv"))).toBe(false);

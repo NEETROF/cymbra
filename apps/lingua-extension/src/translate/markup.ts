@@ -12,18 +12,21 @@
  * their studied language, through their route, judged in their native language, and reached the
  * programme's first tier (release-lingua-spanish-translation,
  * measure-lingua-translation-matrix-marks, add-lingua-french-translation,
- * measure-lingua-it-fr-translation-marks, tool/marks/README.md).
+ * measure-lingua-it-fr-translation-marks, measure-lingua-it-en-translation-marks,
+ * tool/marks/README.md).
  * es-fr goes through English, two alignments chained: 89 of its 90 shown marks were right, 10 %
  * withheld — which says nothing of es-en's one model, measured on its own: 94 of 96, 4 % withheld;
  * en-es, 96 of 96, 4 % withheld. French the same way: fr-en 95 of 96, 4 % withheld; fr-es, through
- * English, 90 of 91, 9 % withheld. Italian: it-fr, through it-en then en-fr, 93 of 97, 3 % withheld.
+ * English, 90 of 91, 9 % withheld. Italian: it-fr, through it-en then en-fr, 93 of 97, 3 % withheld;
+ * it-en, its one model, 94 of 97, 3 % withheld.
  * A pair outside the list is translated without a mark (add-lingua-spanish-translation-pivot D3,
  * generalise-lingua-translation-routes-by-pair D4). A listed pair ships, or is listed ahead of its
  * readers and inert until a change lists it in packs.json: es-en and en-es until changes 34 and 35
- * shipped them, fr-en and fr-es until change 52 (enable-lingua-french), and it-fr until the Italian
- * programme's change 20 (enable-lingua-italian).
+ * shipped them, fr-en and fr-es until change 52 (enable-lingua-french), it-fr until the Italian
+ * programme's change 20 (enable-lingua-italian), and it-en until its change 25
+ * (enable-lingua-italian-for-english-speakers).
  */
-export const MARKED_PAIRS: readonly string[] = ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr"];
+export const MARKED_PAIRS: readonly string[] = ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en"];
 
 /** The tag that marks the selection. Page text is escaped, so no other tag reaches the engine. */
 const OPEN = "<b>";

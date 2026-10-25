@@ -82,8 +82,8 @@ describe("relayTranslation", () => {
     expect(marks.map((m) => fr.slice(m.start, m.end))).toEqual(["maison"]);
   });
 
-  it("The shipped pairs today: en-fr and es-fr are marked, as before; es-en, en-es, fr-en and fr-es were listed ahead of their readers, and it-fr is, inert until the Italian programme's change 20 (routes-by-pair D4, matrix-marks D5, french-translation D7, it-fr-translation-marks D4)", () => {
-    expect(MARKED_PAIRS).toEqual(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr"]);
+  it("The shipped pairs today: en-fr and es-fr are marked, as before; es-en, en-es, fr-en and fr-es were listed ahead of their readers, and it-fr and it-en are, inert until the Italian programme's changes 20 and 25 (routes-by-pair D4, matrix-marks D5, french-translation D7, it-fr-translation-marks D4, it-en-translation-marks D3)", () => {
+    expect(MARKED_PAIRS).toEqual(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en"]);
     // Keyed by pair, never by studied language: a language alone is not in the list.
     expect(MARKED_PAIRS).not.toContain("en");
     expect(MARKED_PAIRS).not.toContain("es");
@@ -178,6 +178,30 @@ describe("relayTranslation", () => {
     if (result.kind !== "translated") throw new Error("not translated");
     const { sentence: fr, marks } = result.translation;
     expect(marks.map((m) => fr.slice(m.start, m.end))).toEqual(["chute"]);
+  });
+
+  it("An Italian selection, judged in English: a reader of English on an Italian page goes through it-en, marked in the English sentence on it-en's own figures, the fragment moving a tag that landed on a neighbour (it-en-translation-marks D4)", async () => {
+    // As measured (results-it-en.jsonl, k 52): the tag lands on « in », the fragment alone is « Battle ».
+    const { access, seen, pairs } = engine((markup) => ({
+      ok: true,
+      html:
+        markup === "battaglia" ? "Battle" : "However, this was erased when Julian was killed <b>in</b> battle in 363.",
+    }));
+    const request = {
+      sentence: "Tuttavia, questo fu cancellato quando Giuliano fu ucciso in battaglia nel 363.",
+      selection: { start: 60, end: 69 }, // « battaglia »
+      language: "it",
+    };
+    expect(MARKED_PAIRS).toContain("it-en"); // 94 of 97, 3 % withheld; inert until change 25 lists it-en
+    const result = await relayTranslation(access, request, pairOf(request.language, "en"));
+    expect(pairs).toEqual(["it-en", "it-en"]);
+    expect(seen).toEqual([
+      "Tuttavia, questo fu cancellato quando Giuliano fu ucciso in <b>battaglia</b> nel 363.",
+      "battaglia",
+    ]);
+    if (result.kind !== "translated") throw new Error("not translated");
+    const { sentence: en, marks } = result.translation;
+    expect(marks.map((m) => en.slice(m.start, m.end))).toEqual(["battle"]);
   });
 
   it("translates a sentence through an unmeasured pair untagged, once, without a mark (pivot D3)", async () => {
