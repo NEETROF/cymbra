@@ -196,6 +196,37 @@ measurement; never lowered after it; the floor step of `lingua-extension-check.y
 `--pair it-es`. On the study's ranking that would be about 82.7 / 74.1 / 63.5 (the designed figures,
 84.7 / 76.1 / 65.5, less two).
 
+**Criteria and method, written before any it-es figure was read (2026-10-25), and committed before
+the study ran:**
+
+- *The bytes.* The sources are the files `DUMPS["it-es"]` names, derived by `pack_sources.py`'s own
+  update path (`fetch_live` → `read_edition` → `derive`, run locally into a scratch folder with the
+  pinned interpreter and wordfreq) from the dumps kaikki and Wikimedia serve on the day of the study —
+  the bytes the dispatch's sources release would hold if run that day. Each dump is recorded by its
+  address, Last-Modified, the sha256 and size of its decompressed bytes and its size as served, and each
+  derived file by its sha256 and size, for the owner to approve the release. A dump regenerated before
+  the dispatch moves the figures a little; the study is not re-run for it unless the owner asks.
+- *The study.* The coverage of `tables/it/freq.tsv` as committed on `main` — the 5,000 / 10,000 / 20,000
+  commonest, as `gloss_coverage.measure` counts them — by `gloss.tsv` exactly as `reduce-it-es.py`
+  writes it, every source in D2's order with D4's pre-pass and D3's pivot; the acronym rows, unranked,
+  are not counted. Also measured, from the same reduction: the coverage after each source in D2's order
+  (cumulative), the glossed lemmas by source (the pivot by edition), and the rows that change when
+  Wikidata's items and the Spanish section swap places (D2).
+- *The floor proposed.* Each of the three figures less 2.0 points, to one decimal — never rounded up,
+  never moved after the figures are read. A defect fixed afterwards in a class D3 or D4 names re-runs the
+  study, and both measurements are reported; the floor proposed is the later one's, less two, and the
+  owner settles it.
+- *What may be fixed before the dispatch.* Only a class D3 or D4 names, in it-es's own files; each
+  measured alone against the reduction without it, by rows changed among the 5,000 and the 20,000
+  commonest; kept when every changed row of the 5,000 reads right or no worse and most of 5,001–20,000
+  read right, narrowed (and recorded) otherwise; never taking the only gloss of a ranked lemma of the
+  20,000 unless that gloss is pure noise. A reordering of senses, a wrong row no rule tells from a right
+  one, or a matter of taste goes to change 28 (*Known data defects*).
+- *The sample.* 100 glossed lemmas of the 20,000 commonest, drawn by it-fr's and it-en's seed
+  (20261024), each marked by its source, a pivot row by its edition, entry and sense; read for the owner,
+  not graded against a target.
+- *Never read*: UD Italian-PUD and MarkIT's test section (change 9's gates).
+
 ### D9 — Coverage, provenance and credits
 
 `tables/it-es/README.md`: the coverage against the floor, the glossed lemmas by source — definitions,
