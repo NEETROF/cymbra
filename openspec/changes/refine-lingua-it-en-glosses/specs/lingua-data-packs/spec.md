@@ -10,12 +10,15 @@ verb or adjective the section opens on does not move. The treebank's counts are 
 fixed expression counts for none, a noun, a verb, an adjective or a proper noun counts under its lemma
 and any other part of speech under its own form; it-en's pin records MarkIT's two sections at the commit
 and sha256s it-fr's pin records, and reads them for these counts alone. A row the marks move opens on
-that meaning, its entry first, every other sense in its place; a mark other than the four (rare,
-uncommon, literary, poetic, regional) moves nothing. The reviewed table holds a row only for a row the
-rules do not move or move wrongly, each with its reason, decided by the owner; its key is the
-headword's case, a part of speech and the sense the row opens on, and the reduction fails on a row whose
-sense it does not find. The treebank's order applies first, then the marks', then the table's; no order
-adds or removes a sense. These are rules of it-en's own modules: they re-pin it-en and no other pair,
+that meaning, its entry first, every other sense in its place; a row whose every meaning carries one of
+the four marks keeps the section's order; a mark other than the four (rare, uncommon, literary, poetic,
+regional) moves nothing. The marks' rule orders an expression's entries as a word's; the treebank's
+rule and the table order words alone. The reviewed table holds a row only for a row the rules do not
+move or move wrongly, each with its reason, decided by the owner; its key is the headword's case, a part
+of speech and the sense the row opens on — a sense of the section, or one the section nests under
+another, then read by its own text —, and the reduction fails on a row whose sense it does not find. The
+treebank's order applies first, then the marks', then the table's, which reads the senses a short
+word's pointer lends; no order adds or removes a sense. These are rules of it-en's own modules: they re-pin it-en and no other pair,
 Italian's studied tables do not move, its coverage stays at least its floor, and the it-en baseline is
 re-blessed once, in the pull request that commits them.
 
@@ -44,8 +47,20 @@ re-blessed once, in the pull request that commits them.
 - **THEN** the gloss of `come` still opens on « how »
 
 #### Scenario: A row whose every sense is marked
+- **WHEN** the section marks every meaning of a row archaic, obsolete, dated or historical, and the reviewed table names no row for it
+- **THEN** the row keeps the section's order
+
+#### Scenario: A row the table opens where every sense is marked
 - **WHEN** the section marks every sense of `gente` archaic, its adjective « noble » first, and the reviewed table names its noun « people, guys, folks (body of human beings) »
 - **THEN** the gloss of `gente` opens on « people, guys, folks (body of human beings) »
+
+#### Scenario: A sense nested under another
+- **WHEN** the section nests « parliament » under `parlamento`'s « public assembly or meeting », and the reviewed table names `parlamento`'s « parliament »
+- **THEN** the gloss of `parlamento` opens on « parliament », then « public assembly or meeting »
+
+#### Scenario: An expression's outdated sense
+- **WHEN** the section gives the expression `a vanvera` « at random, without any effort to achieve particular outcome », marked dated, before « without thinking »
+- **THEN** the gloss of `a vanvera` opens on « without thinking »
 
 #### Scenario: A sense the table no longer finds
 - **WHEN** an update finds the section no longer writing a sense a row of the reviewed table names
@@ -56,14 +71,18 @@ re-blessed once, in the pull request that commits them.
 - **THEN** `tables/it/` and the seven other pairs' tables, pins, packs and goldens are byte for byte as before, and it-en's coverage is at least `FLOORS["it-en"]`
 
 ### Requirement: it-en reads a pointer as its word's meaning where the section names one
-The it-en reduction SHALL read as a pointer to its word a sense the section writes as a labelled form or spelling of a word, a clitic compound or a truncation, and an alternative form whose word no field names; SHALL let a pointer to an Italian word of one or two letters lend that word's meanings of its part of speech, in its place, when its entry holds no meaning of its own and the pointer is not marked archaic, obsolete, dated or a misspelling; and SHALL read a meaning nested under a comparative's or a superlative's wording by its own gloss.
+The it-en reduction SHALL read as a pointer to its word a sense the section writes as a labelled form or spelling of a word, a clitic compound or a truncation, and an alternative form whose word no field names; SHALL let a pointer to an Italian word of one or two letters lend that word's meanings of its part of speech, after the row's own senses, when its entry holds no meaning of its own, the shared rules lend the word nothing, and the section does not tag the pointer archaic, obsolete, dated or a misspelling; and SHALL read a meaning nested under a comparative's or a superlative's wording by its own gloss.
 A labelled form or spelling names its word last, or before a colon, after labels — archaic, regional,
 dialectal, obsolete, Old Italian, proscribed, censored, dominant, a place's name — and « form of » or
 « spelling of »; a clitic compound's meaning written after its closing full stop is read as a sense. A
 pointer lends as the rules every pair shares lend — its word's senses in the same part of speech — from a
-word of three letters or more; a word of one or two letters lends here instead. A « female equivalent
-of » pointer lends nothing beside the word's own senses: a female equivalent is no word's meaning, and the
-masculine's English is often a man's. A word with other glossed senses keeps them.
+word of three letters or more; a word of one or two letters lends here instead. Whether a pointer may
+lend is read from the section's tags, not from the labels its wording carries. Lent senses come after
+the row's own, never more than the room the eight-sense bound leaves them, none the section tags
+regional, dialectal, archaic, obsolete or dated, and none whose words a sense of the row already says,
+so that no sense of the row's own is pushed past the bound. A « female equivalent of » pointer lends
+nothing beside the word's own senses: a female equivalent is no word's meaning, and the masculine's
+English is often a man's. A word with other glossed senses keeps them.
 
 #### Scenario: A proscribed spelling
 - **WHEN** the section gives `che` the conjunction's sense « proscribed spelling of ché » beside its own senses
@@ -72,6 +91,18 @@ masculine's English is often a man's. A word with other glossed senses keeps the
 #### Scenario: A regional form of a short word
 - **WHEN** the section's `de` holds « alternative form of di » and « Marche, Milan, Rome, and Venice form of di » as prepositions, and no other sense
 - **THEN** the gloss of `de` is `di`'s prepositional senses
+
+#### Scenario: A pointer whose wording names a label it is not tagged with
+- **WHEN** the section gives the article `el` « archaic, regional, and Rome form of il », with no tag marking it archaic, beside the pronoun « he »
+- **THEN** the gloss of `el` is « he; the »
+
+#### Scenario: Lent senses after the row's own
+- **WHEN** `ne` holds seven senses of its own and the preposition « alternative form of in »
+- **THEN** the gloss of `ne` holds its seven senses, then `in`'s « in » alone, the one sense the bound leaves
+
+#### Scenario: A word the shared rules lend to
+- **WHEN** the section's `je` holds only « alternative form of gli (…) » and « alternative form of le (…) », and `gli` lends its pronoun's senses
+- **THEN** the gloss of `je` is `gli`'s « him, to him, it, to it; … », and `le`'s senses lend nothing
 
 #### Scenario: A short word's obsolete form
 - **WHEN** the section gives `il` the pronoun « Tuscany form of lo », marked obsolete, beside its article « the »
@@ -90,14 +121,18 @@ masculine's English is often a man's. A word with other glossed senses keeps the
 - **THEN** the gloss of `signora` holds none of `signore`'s senses (« lord (ruler) »)
 
 ### Requirement: it-en's glosses hold no name's note or page note a common word does not need
-The it-en reduction SHALL leave a proper noun's sense that only says its word is a surname out of a row holding any other meaning; SHALL leave a proper noun's sense that only says its word is a given name out of a row whose first meaning is a common word's; SHALL leave a proper noun's sense naming its place a town, a comune, a village, a hamlet, a frazione or a municipality out of a word with a common meaning, unless the sense names the place a capital, a city or a town and province, or a reviewed list keeps it; and SHALL read an article's sense describing its own form by its last clause.
-Another meaning is a common word's sense, a pointer that lends, or another proper noun's sense; a
-surname's note alone stays, and so does a given name's that opens its row. The reviewed list holds a
-commune, each with its reason, only where the section names a provincial capital without saying so,
-decided by the owner. A sense left with nothing goes, and a proper noun's entry left with no sense. The
-reduction also writes « etc » with its period in glosses and expressions, leaves out a list marker
-opening a sense, and reads a sense opening on a quoted meaning in parentheses (« (“sea”) … ») as that
-meaning followed by the rest.
+The it-en reduction SHALL leave a proper noun's sense that only says its word is a surname out of a row whose word holds a common meaning; SHALL leave a proper noun's sense that only says its word is a given name out of a row whose first meaning is a common word's; SHALL leave a proper noun's sense naming its place a town, a comune, a village, a hamlet, a frazione or a municipality out of a word with a common meaning, unless the row opens on a proper noun's sense, the sense calls the place itself a city or a capital, or a town and province, or a reviewed list keeps it; and SHALL read an article's sense describing its own form by its last clause.
+A word holds a common meaning when a lowercase entry of it holds a meaning, or when a lowercase pointer
+of it lends once none of its proper nouns' senses stays; a row holding only proper nouns' senses keeps
+its surname's note, and a given name's note that opens its row stays. A place called a city or a
+capital is the place itself (« a city and comune », « the capital of »), never a province it lies in
+(« the Metropolitan City of … »). A proper noun whose senses only point at another proper noun reads
+that name's senses as the section writes them, before these rules, its own row then read by them. The
+reviewed list holds a commune, each with its reason, only where the section names a provincial capital
+without saying so, decided by the owner. A proper noun's entry left with no sense goes. The reduction
+also writes « etc » with its period in glosses and expressions, leaves out a list marker opening a
+sense, and reads a sense opening on a quoted meaning in parentheses (« (“sea”) … ») as that meaning
+followed by the rest.
 
 #### Scenario: A surname after a common word
 - **WHEN** the section gives `musica` « music » and the proper noun `Musica` « a surname »
@@ -106,6 +141,10 @@ meaning followed by the rest.
 #### Scenario: A surname alone
 - **WHEN** the section's only sense of `mattarella` is the proper noun's « a surname »
 - **THEN** the gloss of `mattarella` is « a surname »
+
+#### Scenario: A surname beside another name
+- **WHEN** the section gives `garibaldi` the proper nouns' senses « a surname » and « Anita Garibaldi, Italian patriot… », and no lowercase entry
+- **THEN** the gloss of `garibaldi` keeps « a surname »
 
 #### Scenario: A given name after a common word
 - **WHEN** the section gives `delfino` « dolphin », « dauphin » and « hunchbacked », and the proper noun `Delfino` « a male given name », after them
@@ -118,6 +157,18 @@ meaning followed by the rest.
 #### Scenario: A town beside a common word
 - **WHEN** the section gives `noto` « of common knowledge; well-known, known » and the proper noun `Noto` « a town in Syracuse, Sicily, Italy »
 - **THEN** the gloss of `noto` holds no town
+
+#### Scenario: A town opening its row
+- **WHEN** the section gives the proper noun `Cervia` « a town in Ravenna, Emilia-Romagna, Italy » before the noun `cervia` « hind (female deer) »
+- **THEN** the gloss of `cervia` keeps the town
+
+#### Scenario: A province's metropolitan city
+- **WHEN** the section gives `russo` « Russian » and the proper noun « a frazione in Rizziconi, Metropolitan City of Reggio Calabria, Calabria, Italy »
+- **THEN** the gloss of `russo` holds no town
+
+#### Scenario: A name pointing at a name
+- **WHEN** the section's `Pinuccio` only points at `Pino`, whose given name's note `pino`'s row leaves out beside « pine »
+- **THEN** the gloss of `pinuccio` keeps « a diminutive of the male given name Giuseppe… »
 
 #### Scenario: A provincial capital
 - **WHEN** the section gives `fermo` « still; firm » and the proper noun `Fermo` « a town and province of Marche, Italy »
@@ -135,16 +186,21 @@ meaning followed by the rest.
 - **WHEN** a sense ends on « etc », another opens on « # », and `mar` reads « (“sea”) (used in poetry and in names of some seas) »
 - **THEN** the first ends on « etc. », the second holds no « # », and the gloss of `mar` is « sea (used in poetry and in names of some seas) »
 
-### Requirement: it-en corrects, by name, the slips its sources write
-The it-en reduction SHALL read the entries a reviewed list names as the list corrects them — each keyed by the source, the headword, its part of speech and its text as the pinned files write it, with the corrected text or none and its reason, and reported to the Wiktionary that wrote it — and SHALL apply none whose source text it does not find.
+### Requirement: it-en corrects and completes, by name, what its sources write
+The it-en reduction SHALL read the entries a reviewed list names as the list corrects or completes them — each keyed by the source, the headword, its part of speech and its text as the pinned files write it, with the corrected text, a sense to add, or none, and its reason, and reported or suggested to the Wiktionary that wrote it — and SHALL apply none whose source text it does not find.
 A correction takes its words from a source where one has them and is written by a person otherwise;
-the owner reads each. An entry a correction adds is read before the section's own entries of the word,
+the owner reads each. A row may add a meaning the section leaves out (a feminine noun's person, which
+its « female equivalent of » pointer does not lend), not only remove or rewrite a slip. An entry a correction adds is read before the section's own entries of the word,
 the row's order then set as for any row. An update that finds a correction firing on nothing names it,
 and it is removed. No correction glosses an acronym row, which its own requirement glosses.
 
 #### Scenario: A jocular spelling among the translations
 - **WHEN** the Italian Wiktionary lists « ancient », « anshent » and « antique » as `all'antica`'s English translations, and the list removes « anshent »
 - **THEN** the gloss of `all'antica` is « ancient, antique »
+
+#### Scenario: A meaning the section leaves out
+- **WHEN** the section gives `amica` « female equivalent of amico » and « girlfriend », and the list adds « friend » to `amica`'s noun
+- **THEN** the gloss of `amica` opens on « friend », then « girlfriend »
 
 #### Scenario: The page corrected upstream
 - **WHEN** an update finds `all'antica`'s translations no longer holding « anshent »

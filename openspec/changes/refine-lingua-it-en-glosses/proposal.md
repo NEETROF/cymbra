@@ -27,7 +27,7 @@ before the figures):
   beside another sense — `amica` (882) « girlfriend », `bambina` « babe », `compagna` « wife, spouse »;
   `obbiettivo` is « a surname »; `guai` « woe! » without « trouble ».
 - **Names after a common word's senses.** 1,143 rows of the 20,000 commonest hold a surname's note
-  (`volta`, `guerra`, `marzo`, `musica` « …; a surname »), 567 a given name's (`delfino` « dolphin;
+  (`volta`, `guerra`, `marzo`, `musica` « …; a surname »), 597 a given name's (`delfino` « dolphin;
   …; a male given name »), and common words keep a town (`noto` « …; a town in Syracuse, Sicily »,
   `grado`, `cambio`).
 - **Smaller items.** « etc » without its period (71 rows, 13 expressions), `mar` « (“sea”) (used in
@@ -44,34 +44,40 @@ fr-en's treebank rule and MarkIT's counts are imported unchanged, as it-fr impor
   « only », `spesso` « often », `verso` « toward »); a row that would open on a sense the page marks
   archaic, obsolete, dated or historical opens on its first sense that is not (173 rows: `polizia`
   « police », `università` « university », `ufficio` « office », `prodotto` « product »); a reviewed
-  table, keyed by the sense a row opens on, orders 19 rows the rules miss or misread (`bene` « well »,
+  table, keyed by the sense a row opens on, orders 25 rows the rules miss or misread (`bene` « well »,
   `gente` « people », `testo` « text », `piano` « floor, storey » with « plan » back, `come` held at
-  « how ») — the owner's (task 0.1).
+  « how ») — the 19 the owner approved (task 0.1), and six added after his answer on the review of
+  this proposal, approved with the gloss diff (`dì` « day », `contrastare` « to oppose », `contea`
+  « county », `pro` « for », `parlamento` « parliament », `ce` « us »).
 - **Pointers read** (D3, D4): pointer wordings the English edition does not know (« … form of »,
   « proscribed spelling of », « compound of … with », « Old Italian form of ») are pointers; a pointer to a
-  word of one or two letters lends that word's senses (`de` → *di*, `el` « the », `ce` → *ci*); a meaning
+  word of one or two letters lends that word's senses after the row's own, within the eight-sense bound
+  (`de` → *di*, `el` « he; the », `ce` → *ci*, `se` gaining *si*'s reflexive); a meaning
   nested under a degree's wording, a degree's carried meaning, a clipping's and, beside another part of
   speech, a plural's are read (`minimo` « minimum, (the) least… », `più` « more », `auto` « car; bus »,
   `guai` « woe!; trouble »).
 - **Female equivalents** (D5): the rule that would lend the masculine's senses is measured and rejected
-  (`signora` « lord (ruler) », `bambina` « boy, young boy »); four rows the owner may correct by name
-  (task 0.3).
-- **Names' notes** (D6): a surname's note goes from any row that says something else, a given name's
-  where it follows a common word's senses, a town's, a comune's or a village's from a common word —
-  capitals, cities and provincial capitals kept, `massa` and `andria` by a reviewed list (task 0.2).
-  1,852 rows; `francesco`, `alice`, `diego`, which open on the name, keep it.
+  (`signora` « lord (ruler) », `bambina` « boy, young boy »); four rows corrected by name, the owner's
+  answer (task 0.3): `amica` « friend », `bambina` « girl, little girl », `compagna` « companion,
+  partner », `spagnola` « Spaniard ».
+- **Names' notes** (D6), the owner's answer (task 0.2): a surname's note goes from a row whose word holds
+  a common meaning, a given name's where it follows a common word's senses, a town's, a comune's or a
+  village's from a common word unless the row opens on the town — cities, capitals and provincial
+  capitals kept, `massa` by a reviewed list, `andria` by the rule. 1,260 rows; a row holding only names
+  keeps them (`garibaldi`, `clinton`), and `francesco`, `alice`, `diego`, which open on the name, keep it.
 - **The page's notes and typography** (D7): `lo` « the; him; it… », « etc. », a list marker, a quoted
   opener.
-- **`CORRECTIONS`** (D8): it-fr's reviewed shape for it-en — `all'antica` without « anshent », and the
-  rows task 0.3 settles —, each reported upstream.
+- **`CORRECTIONS`** (D8): it-fr's reviewed shape for it-en, correcting and adding — `all'antica` without
+  « anshent », and the four rows of D5 —, each reported or suggested upstream.
 - **Measured and left** (D9): bracketed constructions (« to ask [with di ‘about (someone)’] »), kept as
   the preposition a verb takes; `USA`'s order, the shared acronym table's; offensive senses unlabelled;
   names opening a row.
-- **One re-reduction** (D10): the owner's dispatch (`lingua-pack-update`, mode `reduce`) at it-en's pin,
-  which gains MarkIT's two sections; together the rules change **2,175 rows** (134 / 335 / 754 / 952 by
-  band), 476 in their first sense, coverage **91.3 / 84.2 / 75.8 %** as now; Italian's studied tables,
-  the seven other pairs and the PUD gates byte for byte; `it-en.golden` and the English card re-blessed
-  once (D11).
+- **One re-reduction** (D10): a dispatch (`lingua-pack-update`, mode `reduce`) at it-en's pin, to which
+  the implementation's first commit adds MarkIT's two sections by hand (D1); together the rules change
+  **1,578 rows** (132 / 300 / 601 / 545 by band), 341 in their first sense, no lemma gained or lost,
+  coverage **91.3 / 84.2 / 75.8 %** as now; Italian's studied tables, the seven other pairs and the PUD
+  gates byte for byte; `it-en.golden` and the English card re-blessed once by the update workflow, their
+  moved lines listed for approval (D11).
 
 ## Capabilities
 
@@ -102,11 +108,12 @@ None.
     `TOWNS_KEPT`), `reduce-it-en.py` (the post-passes, `CORRECTIONS`, MarkIT read from the work
     folder), `test_reduce_it_en.py`, `test_reduce_editions.py`; `pack_sources.py` (`PINNED["it-en"]`,
     MarkIT's two sections, as fr-es's refinement added UD French-GSD) and `test_pack_sources.py`;
-    `tables/it-en/` (`gloss.tsv`, `senses.tsv`, `mwe.tsv`, `manifest.json`, `pin.json`, `README.md`),
+    `tables/it-en/` (`pin.json`, MarkIT's two sources by hand, then `gloss.tsv`, `senses.tsv`, `mwe.tsv`,
+    `manifest.json`, `README.md` by the dispatch),
     `SOURCES.md`; *consumed*: `reduce_common.py`, `reduce_edition_en.py`, `reduce_italian_acronyms.py`,
     `reduce_french_treebank.py`, `reduce_italian_treebank.py`, `gloss_coverage.py`, unchanged.
   - `crates/lingua-wasm/tests/baseline/it-en.golden` re-blessed; `crates/lingua-pack/tests/committed_tables.rs`
-    against the new pin.
+    against the new pin, its list of it-en's source keys naming MarkIT's two.
   - `apps/lingua-extension/test/baseline/word-card-it-en.txt` re-blessed once.
   - ID, Music, Live, the back office, the site, the backend, lingua-core and the engine, the
     extension's source, the Apple host app and the agent plugin are untouched.
@@ -116,6 +123,7 @@ None.
 - **Release.** Silent: no package lists it-en before change 25.
 - **Order.** After change 22 (on `main`, its requirement still open), whose requirement this change
   modifies; before change 25.
-- **The owner's**: three questions (tasks 0.1–0.3) and the golden's re-bless on its listed probes
-  (task 4.1).
+- **The owner's**: three questions, answered on 2026-10-25 as recommended (tasks 0.1–0.3); the six
+  table rows added after that answer and the golden's and card's moved lines, approved on their listing
+  (tasks 4.1, 4.2).
 - **Effort**: 2.5–3.5 ideal days (design, *Effort*), against the programme's 2–3.5.
