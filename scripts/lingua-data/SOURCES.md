@@ -924,7 +924,7 @@ pinned sources — the release `lingua-pack-sources-it-en-2026.10.25` and MarkIT
 lemma gained or lost; 19 expressions; coverage 91.3 / 84.2 / 75.8 %, as before; the pack 2,461,617 B
 (sha256 `33a4394f…`), its base it-fr's, byte for byte (1,551,196 B), its layer 910,661 B (`53a068d2…`),
 at `pack_version` `2026.10.25+8d3fcaf.442fd70`. Only it-en re-pins:
-`tables/it/` and the seven other pairs' tables, pins and packs do not move.
+`tables/it/` and the eight other pairs' tables, pins and packs — it-es's among them — do not move.
 
 ## IT → ES: Italian glossed in Spanish
 
