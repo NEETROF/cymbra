@@ -12,7 +12,7 @@ import { pinnedMain } from "../support/media.mjs";
 // `src/data/lingua-coverage.json` and the extension's model catalogue, so the page, its
 // `getStaticPaths()` and the layout's Spanish links all read the same list:
 // - the fixtures' pairs (`test/fixtures/lingua/taken-with.json`, the shipped en-fr, es-fr, es-en, en-es,
-//   fr-en and fr-es):
+//   fr-en, fr-es, it-fr and it-en):
 //   `/lingua/` and `/en/lingua/` render the fixtures' `<main>`, byte for byte, whatever the
 //   live data holds (`test/post-build/lingua.spec.ts` checks the built pages against the
 //   same fixtures while the live pairs are the fixtures');
@@ -185,7 +185,7 @@ describe("the six pairs: a row per pair, in a box that scrolls on its own (chang
     expect(rowHeaders(english)).toEqual(["Spanish → English", "English → French", "Spanish → French", "English → Spanish"]);
   });
 
-  it("fr-en and fr-es shipping beside them (change 52), then it-fr (enable-lingua-italian): seven rows in the box, each native's pairs together — the fixtures' table", async () => {
+  it("fr-en and fr-es shipping beside them (change 52), then it-fr (enable-lingua-italian) and it-en (enable-lingua-italian-for-english-speakers): eight rows in the box, each native's pairs together — the fixtures' table", async () => {
     shipTheFixtures();
     const french = await render(FrenchPage);
     expect(main(french)).toContain('<div class="table-scroll">');
@@ -195,6 +195,7 @@ describe("the six pairs: a row per pair, in a box that scrolls on its own (chang
       "Italien → français",
       "Espagnol → anglais",
       "Français → anglais",
+      "Italien → anglais",
       "Anglais → espagnol",
       "Français → espagnol",
     ]);
@@ -203,6 +204,7 @@ describe("the six pairs: a row per pair, in a box that scrolls on its own (chang
     expect(rowHeaders(english)).toEqual([
       "Spanish → English",
       "French → English",
+      "Italian → English",
       "English → French",
       "Spanish → French",
       "Italian → French",
