@@ -200,6 +200,10 @@ PINNED = {
     # Italian's reference pair (add-lingua-italian-forms-tables D2): MarkIT's two sections, and
     # Morph-it! at the owner's one-off release.
     "it-fr": {**ITALIAN_MARKIT, **MORPH_IT},
+    # The same two sections of MarkIT, at the same commit, read for the part of speech a function
+    # word's row opens on (refine-lingua-it-en-glosses D1, D2a): it-en's pin records them as it-fr's
+    # does, as fr-es's records UD French-GSD beside fr-en's.
+    "it-en": ITALIAN_MARKIT,
 }
 # ESDB, the English Speller Database (switch-lingua-inflections-to-esdb): not a file but a database
 # its repository builds; `scowl.txt` is its export. Built at the commit of `rel-2026.02.25`, with
