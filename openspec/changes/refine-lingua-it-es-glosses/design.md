@@ -239,11 +239,13 @@ one table gives (`caso` « Azar », the Spanish tables read backwards) hides the
   on « Ir », one on « Andar »); or when the row's first word is given by its own source alone and
   another word by two or more (`qualche` « Poca » → « Algún »). Ties go to the earlier source in D2's
   order, then to the word's place there.
-- **c. Its part of speech.** The winner must be a word some source gives in the part of speech the
-  row opens on, its support counted across every part of speech (the sources label one word
-  differently: the section's possessives are adjectives). *Rejected*: support counted by part of speech
-  (`male` « Malamente, mal », `piano` « Grave, paroxítono… », `sotto` « Abajo »); a winner of any part
-  of speech (`insieme` « Conjunto »).
+- **c. Its part of speech.** The second trigger's winner must be a word some source gives in the part
+  of speech the row opens on, its support counted across every part of speech (the sources label one
+  word differently: the section's possessives are adjectives); the first trigger's is a word two sources
+  open on, which the measurement read as it is (*Implementation*: requiring the part of speech of it too
+  moves 25 rows, `amica` back to « Amigo »). *Rejected*: support counted by part of speech (`male`
+  « Malamente, mal », `piano` « Grave, paroxítono… », `sotto` « Abajo »); a winner of any part of speech
+  (`insieme` « Conjunto »).
 - **d. Where it goes.** The sense holding the winner opens the row, the winner first in it; a winner the
   row lacks brings the sense of the earliest source holding it, and the row's first sense goes only when
   none of its words another source gives; within eight senses.
@@ -579,3 +581,60 @@ with their tests 1.5–2 (agreement and its pivot counts the largest); `FIRST_RU
 README, `SOURCES.md` and the measurements 0.75–1; the golden's and card's listing and the specialist's
 review 0.5–1; the owner's reading 0.25. Eleven classes of the review, against change 23's seven, and the
 agreement across seven sources account for the difference.
+
+## Implementation
+
+Measured on 2026-10-25 by the reduction itself — `build.sh --reduce it-es` over it-es's pinned sources
+(the release `lingua-pack-sources-it-es-2026.10.25`, fetched again into a scratch folder, and MarkIT at
+`e210079d`), Python 3.12 and `requirements-reduce.txt` —, whose tables the dispatch of task 3.1 is to
+write byte for byte:
+
+- **Together**: the figures of *Measured*, byte for byte the prototype's tables (`gloss.tsv` `82922ca8…`,
+  `senses.tsv` `0fb7c20c…`, `mwe.tsv` `f0965ef2…`) but for the three rows of task 0.4 — 2,085 rows (149 /
+  394 / 780 / 762), 2,031 in their first sense — and those three on top: **2,087 rows** (149 / 396 / 780 /
+  762), **2,033 in their first sense** (137 / 379 / 763 / 754); `dei`, `degli` and `delle` gained, `the`,
+  `tag` and `trad` lost; 2 expressions (`d'accordo` « De acuerdo, vale », `cumino tedesco` « Alcaravea »);
+  coverage **85.2 / 76.1 / 65.1 %**, as before, against the floor 83.2 / 74.0 / 63.1. `gloss.tsv`
+  `69824f66…`, `senses.tsv` `0fb7c20c…`, `mwe.tsv` `f0965ef2…`. The 545 changed rows of the 5,000 commonest
+  are listed in the pull request, each with the rules that change it alone.
+- **Each rule alone** (the pre-pass and that rule, `RULES`), as *Measured* gives it: D4 5 rows (2 / 2 / 1 /
+  0), D2f 99 (1 / 19 / 45 / 34), D9a 23, D6a 837 (3 / 45 / 246 / 543), D6b 5 (no first sense), D3a 9, D3b
+  2, D7a 11, D7b 104 (103 first senses), D8 7, D9b 42 and `d'accordo`, D5a 40 (37) and `cumino tedesco`,
+  D5b 3, D10 10 (4). **D2 alone moves 1,483 rows (104 / 311 / 597 / 471), not 1,485**: the prototype's
+  run of D2 alone predates its last reading of « ¡ » and « ! », and moved `grazie` « Gracias; ¡Gracias! »
+  and `buongiorno`, which D9b's repeats are; together the count is the prototype's. The reviewed tables
+  alone (D11, D12): 45 rows (28 / 13 / 3 / 1), 42 in their first sense — *Measured*'s 42 and task 0.4's
+  three (`ognuno`, rank 847; `cancellato`, 2,744; `tessera`, 4,591).
+- **D2c, as implemented**: the part of speech binds the second trigger's winner (a first word its own
+  source alone gives), as the prototype measured it; the first trigger's winner is a word two sources open
+  the row on. Requiring the part of speech of it too moves 25 rows (6 / 9 / 7 / 3), most of them worse —
+  `amica` back to « Amigo », `bambino` « Infantil (conducta); Niño », `bilancia` « Libra; … », `bagno`
+  « Cuarto de baño » —: kept as measured, the requirement's wording made exact.
+- **The review's judged rows**: read again on these tables, the rows the review judged are the
+  prototype's, word for word — task 0.4's three are none of them: of the 300 commonest, **0 wrong** (from
+  25, 8.6 %) and **10 partly right, 3.4 %** (from 33, 11.3 %), as this design's reader reads them;
+  `mark` and `frodo` left wrong past the 300, `tag` and `trad` unglossed.
+- **The reduction's report**: 8 heraldic senses, 7 surnames' notes, 127 given names' notes read, 85 verb
+  forms' translations, 53 of the pivot's verb words, 303 words that are not Spanish and 17 places' labels
+  out; rows moved, in order, 5 by D4, 99 by D2f, 23 by D9a, 809 by D6a, 1,392 by D2, 2 by D3b, 7 by D3a,
+  11 by D7a, 66 by D9b (a row counted under each rule that moves it); 20 of 20 rows of `FIRST_RUN`, 22 of
+  22 of `CORRECTIONS`, 6 of 6 of `DI_FAMILY` fired; 11 of 11 function words.
+- **The pack**: 1,897,366 B (3,170 B more than change 27's), its base it-fr's, byte for byte (1,551,196 B),
+  its layer 346,410 B, at `pack_version` `2026.10.25+3c957aa.442fd70`; only it-es's tables, pin and
+  manifest move. The reduction of every pair from its pin, as the extension check's `reduce` job runs it,
+  moves it-es's alone.
+- **The golden and the card**, as the update workflow's bless step re-blesses them (D15), listed in the
+  pull request for the owner (task 4.1): `it-es.golden` moves in 75 of its 239 probes (its `pack` line and
+  the glosses of 82 lemmas: `andare` « Ir, andar », `ancora` « Todavía; De nuevo; Ancla », `del` « Del »,
+  `a` « A; En (…) », `subito` « Inmediatamente… », `the` unglossed, …), `word-card-it-es.txt` in 101 lines;
+  no other baseline moves.
+- **How it is built**: the three passes are `reduce_italian_es.refine_section` (after `read_section`),
+  `refine_tables` with `without_verb_forms_translations` (the Italian Wiktionary's translations read again
+  after D10a) and `refine_rows` (after `native_side`, on each source's gloss of a lemma,
+  `source_glosses`), each rule named in `RULES` so the reduction can run any of them alone;
+  `FIRST_RUN`, `CORRECTIONS`, `DI_FAMILY` and `BY_A_PERSON` live in `reduce_italian_es.py`. A
+  `CORRECTIONS` row is keyed by its source's sense, as the pinned file writes it, and writes the row whole
+  (the « corrected » text of D12 is the row as the correction leaves it); one whose source no longer
+  writes its sense is named on the report line, and so is a `FIRST_RUN` row the reduction never reaches.
+  The update's sample names a row of the `di` family's table `DI_FAMILY`. `committed_tables.rs` reads the
+  pin's sources sorted (`serde_json`), so it holds their names, and their order from the pin's text.

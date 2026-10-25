@@ -9,9 +9,8 @@ the gloss's items split at a comma and at « o » or « u » between short items
 their case folded —, each of the pivot's translation tables counting as a source. A row yields when the
 word most sources open on is opened on by at least two of them, by more than open on the row's first word,
 and is held by more sources than that word; or when the row's first word is held by its own source alone
-and another word by two or more. The word that wins is one some source gives in the part of speech the
-row opens on; ties go to the earlier source in the order of *Italian is glossed in Spanish…*, then to
-the word's place there. The sense holding the winner opens the row, the winner first in it; a winner the
+and another word, one some source gives in the part of speech the row opens on, by two or more. Ties go to
+the earlier source in the order of *Italian is glossed in Spanish…*, then to the word's place there. The sense holding the winner opens the row, the winner first in it; a winner the
 row lacks brings the sense of the earliest source holding it, and the row's first sense goes only when
 none of its words another source gives; a row keeps at most eight senses. A row Wikidata's lexemes of one
 item gloss, whose first word no other source gives, takes the gloss of the next source whose first word
