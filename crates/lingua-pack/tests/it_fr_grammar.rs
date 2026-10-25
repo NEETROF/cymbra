@@ -317,6 +317,35 @@ fn spec_scenario_a_dialect_s_table() {
 }
 
 #[test]
+fn spec_scenario_an_imperative_read_as_a_subjunctive() {
+    // refine-lingua-it-fr-glosses D12: *fare*'s second and third tables list `fàte` beside `facciàte`
+    // as the present subjunctive's second person plural, untagged; the reviewed list sets that reading
+    // aside, and `fate` reads as the present indicative and the imperative alone.
+    assert_eq!(
+        Card::of("fate", "fare"),
+        Card::reading(&[
+            "VERB|Mood=Imp|Number=Plur|Person=2|VerbForm=Fin",
+            "VERB|Mood=Ind|Number=Plur|Person=2|Tense=Pres|VerbForm=Fin",
+        ])
+        .naming("fata", &["NOUN|Gender=Fem|Number=Plur"])
+    );
+}
+
+#[test]
+fn spec_scenario_a_verb_s_first_person_read_as_its_verb() {
+    // refine-lingua-it-fr-glosses D11, rule 1: `sto`, beside an ellipsis, and `vado`, beside an obsolete
+    // noun, are their verbs' first persons; `sapete`, its own entry sapere's inflection written without
+    // its tag, its second person plural.
+    const FIRST_SINGULAR: &str = "VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin";
+    assert_eq!(Card::of("sto", "stare"), Card::reading(&[FIRST_SINGULAR]));
+    assert_eq!(Card::of("vado", "andare"), Card::reading(&[FIRST_SINGULAR]));
+    assert_eq!(
+        Card::of("sapete", "sapere"),
+        Card::reading(&["VERB|Mood=Ind|Number=Plur|Person=2|Tense=Pres|VerbForm=Fin"])
+    );
+}
+
+#[test]
 fn spec_scenario_a_link_the_dictionary_marks_names_no_other_word() {
     // `sono` names no *suonare* (a poetic Latinism), `anno` no *avere* (« misspelling of hanno »),
     // `dire` no *diro* (a literary adjective), and `colli` no *colla* through `colle`, a plural.
