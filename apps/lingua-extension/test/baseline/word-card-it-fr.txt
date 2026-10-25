@@ -13,7 +13,7 @@ row: sciopero — Grève (ouvrière, syndicale etc.)
 row: sapere — Savoir
 row: riuscire — Ressortir
 row: fare da — Faire office de
-row: solo — Unique
+row: solo — Seulement
 ### phrase-gloss fare colazione
 row: fare — Faire, fabriquer, construire, opérer
 row: colazione — Petit déjeuner, déjeuner, repas qui se prend en début de matinée
@@ -262,8 +262,8 @@ page 1/1:
 row: Vie
 ### word-grammar del del
 page 1/1:
-  [déterminant] Du. Note d’usage : il s’utilise devant un mot commençant par une consonne, à l’exception des mots commençant par « s + consonne », par « gn », « pn », « ps », « x », « y » et « z »
-row: Du. Note d’usage : il s’utilise devant un mot commençant par une consonne, à…
+  [déterminant] Du
+row: Du
 ### word-grammar al a
 grammar: « al » = a + il
 page 1/1:
@@ -463,9 +463,10 @@ page 3/3:
 row: De, pour indiquer une appartenance, une origine
 ### word-grammar che che
 page 1/1:
-  [pronom] Quoi
+  [pronom] Qui, que; Quoi
+  [conjonction] Que
   [adjectif] Quel
-row: Quoi
+row: Qui, que
 ### word-grammar come come
 grammar: peut aussi être le féminin pluriel de coma
 page 1/1:
@@ -495,23 +496,19 @@ page 1/1:
 row: Nous, pronom clitique objet de la première personne du pluriel
 ### word-grammar solo solo
 page 1/2:
-  [adjectif] Unique; Seul
   [adverbe] Seulement
+  [adjectif] Unique; Seul
 page 2/2:
   [nom masculin] Solo, morceau ou passage d’une composition musicale qui n’est joué que par un seul instrument ou qui n’est chanté que par un seul chanteur
-row: Unique
+row: Seulement
 ### word-grammar essere essere
 page 1/1:
   [verbe] Être
   [nom masculin] Être, organisme, créature vivante
 row: Être
 ### word-grammar io io
-page 1/3:
+page 1/1:
   [pronom] Pronom de la première personne du singulier. Correspondant au « je » français, il est rarement utilisé, la déclinaison verbale intégrant un suffixe de personne. Utilisé seulement quand la forme verbale peut prêter à confusion (les trois personnes au singulier du subjonctif présent et les deux…
-page 2/3:
-  [pronom] io sono in Francia. — moi, je suis en France; Pago io o paghi tu ? — je paie ou tu paies ?; io pago. — c’est moi qui paie
-page 3/3:
-  [nom propre] Io, fille d’Inachus, maîtresse de Zeus, qui la transforma en génisse; Io, satellite naturel de la planète Jupiter, une des quatre lunes galiléennes
 row: Pronom de la première personne du singulier. Correspondant au « je » français…
 ### word-grammar tutto tutto
 page 1/1:
@@ -537,25 +534,25 @@ page 1/1:
 row: Au commencement, d’abord, en premier lieu
 ### word-grammar loro loro
 page 1/1:
-  [pronom] Pronom de la troisième personne du pluriel, utilisé pour la politesse (équivalent au vouvoiement); Ils, elles, eux
+  [pronom] Ils, elles, eux; Pronom de la troisième personne du pluriel, utilisé pour la politesse (équivalent au vouvoiement)
   [adjectif] Leur
-row: Pronom de la troisième personne du pluriel, utilisé pour la politesse…
+row: Ils, elles, eux
 ### word-grammar dopo dopo
 page 1/1:
-  [adverbe] Après, ensuite, puis
   [préposition] Après, derrière; Derrière
+  [adverbe] Après, ensuite, puis
   [conjonction] Après, ensuite
-row: Après, ensuite, puis
+row: Après, derrière
 ### word-grammar uno uno
 page 1/1:
-  [adjectif] Un (1)
   [déterminant] Un
-row: Un (1)
+  [adjectif] Un (1)
+row: Un
 ### word-grammar ne ne
 page 1/1:
-  [adverbe] En, de là
   [pronom] En, de lui, d'elle; De ça; Personne, chose de cette espèce, d’entre eux, d’entre elles. Note d’usage : Utilisé tout seul ou avec une quantification
-row: En, de là
+  [adverbe] En, de là
+row: En, de lui, d'elle
 ### word-grammar poi poi
 page 1/1:
   [adverbe] Puis, alors
@@ -574,9 +571,9 @@ page 1/1:
 row: De nouveau, encore
 ### word-grammar molto molto
 page 1/1:
-  [adjectif] Beaucoup, maint
   [adverbe] Bien, fort, tout, très
-row: Beaucoup, maint
+  [adjectif] Beaucoup, maint
+row: Bien, fort, tout, très
 ### word-grammar mai mai
 page 1/1:
   [adverbe] Jamais, en nul temps. — Note d’usage : Se rencontre combiné avec la particule négative non
@@ -612,9 +609,9 @@ page 1/1:
 row: Second, deuxième
 ### word-grammar proprio proprio
 page 1/1:
-  [adjectif] Personnel, propre
   [adverbe] Vraiment; Précisément
-row: Personnel, propre
+  [adjectif] Personnel, propre
+row: Vraiment
 ### word-grammar altro altro
 page 1/1:
   [adjectif] Autre
@@ -634,7 +631,6 @@ row: Vous
 ### word-grammar qui qui
 page 1/1:
   [adverbe] Ici
-  [nom propre] Riri
 row: Ici
 ### word-grammar stesso stesso
 page 1/1:
@@ -666,9 +662,9 @@ page 1/1:
 row: Avoir, être en relation possessive
 ### word-grammar fino fino
 page 1/1:
-  [adjectif] Fin
   [préposition] Jusque
-row: Fin
+  [adjectif] Fin
+row: Jusque
 ### word-grammar meglio meglio
 page 1/1:
   [adjectif] Meilleur
