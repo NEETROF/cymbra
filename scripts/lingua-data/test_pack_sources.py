@@ -2207,7 +2207,8 @@ def statement(prop, value, datatype, rank="normal"):
 
 
 def lexeme(number, lang, language, lemma, category, senses):
-    """A lexeme as the dump writes it, its own claims and forms empty (`[]`, Wikibase's empty map)."""
+    """A lexeme as the dump writes it, with no claim of its own (`{}`, as the dump writes empty
+    claims) and no form."""
     return {
         "pageid": 54_000_000 + number,
         "ns": 146,
@@ -2219,16 +2220,17 @@ def lexeme(number, lang, language, lemma, category, senses):
         "lemmas": {lang: {"language": lang, "value": lemma}},
         "lexicalCategory": category,
         "language": language,
-        "claims": [],
+        "claims": {},
         "forms": [],
         "senses": senses,
     }
 
 
 # Three lexemes: Italian `gatto` — its first sense naming the item Q146 (cat), the Spanish sense
-# as its translation, and glossed in Spanish; its second with no statement (`[]`) but a deprecated
-# one —, French `chat` of the same item, and Spanish `gato`, last in the array (no comma), naming
-# the item and the Italian sense back.
+# as its translation, and glossed in Spanish; its second with no statement but a deprecated one; its
+# third with none (`{}`) —, French `chat` of the same item, and Spanish `gato`, last in the array (no
+# comma), naming the item and the Italian sense back; its second sense's claims are `[]`, which the
+# dump does not write, read all the same.
 GATTO = lexeme(
     100,
     "it",
@@ -2252,7 +2254,7 @@ GATTO = lexeme(
             "glosses": {"it": {"language": "it", "value": "persona furba"}},
             "claims": {"P5137": [statement("P5137", "Q146", "wikibase-item", rank="deprecated")]},
         },
-        {"id": "L100-S3", "glosses": {"it": {"language": "it", "value": "gioco"}}, "claims": []},
+        {"id": "L100-S3", "glosses": {"it": {"language": "it", "value": "gioco"}}, "claims": {}},
     ],
 )
 CHAT = lexeme(
@@ -2277,7 +2279,8 @@ GATO = lexeme(
                 "P5137": [statement("P5137", "Q146", "wikibase-item")],
                 "P5972": [statement("P5972", "L100-S1", "wikibase-sense")],
             },
-        }
+        },
+        {"id": "L300-S2", "glosses": {"es": {"language": "es", "value": "gato hidráulico"}}, "claims": []},
     ],
 )
 GATTO_SIDE = {"lemma": "gatto", "category": "Q1084", "lexeme": "L100", "sense": "L100-S1"}
@@ -2540,6 +2543,34 @@ class WikidataLexemes(unittest.TestCase):
             ps.derive(self.dump, self.FILES, self.work)
         self.assertEqual(sorted(p.name for p in self.work.iterdir()), ["wikidata.json.gz"], "no derived file, no .part")
 
+    def test_items_written_without_their_id_are_refused_rather_than_derived_without_pairs(self):
+        # A drift of the statements' shape: the item's value without its `id`. The lexemes of both
+        # languages are read and their translation link paired, but no pair of one item is: the
+        # research read 4,103, so none is a format change, refused, and nothing is left behind.
+        def without_item_ids(entity):
+            entity = json.loads(json.dumps(entity))
+            for sense in entity["senses"]:
+                claims = sense["claims"] if isinstance(sense["claims"], dict) else {}
+                for st in claims.get("P5137", ()):
+                    del st["mainsnak"]["datavalue"]["value"]["id"]
+            return entity
+
+        self.dump.write_bytes(lexeme_dump([without_item_ids(GATTO), CHAT, without_item_ids(GATO)]))
+        with self.assertRaisesRegex(
+            ps.PinError, r"wikidata\.json\.gz: pairs no sense of it with a sense of es by an item \(P5137\)"
+        ):
+            ps.derive(self.dump, self.FILES, self.work)
+        self.assertEqual(sorted(p.name for p in self.work.iterdir()), ["wikidata.json.gz"], "no derived file, no .part")
+
+    def test_a_sense_stating_one_item_twice_is_one_pair(self):
+        gato = json.loads(json.dumps(GATO))
+        claims = gato["senses"][0]["claims"]
+        claims["P5137"] = [*claims["P5137"], statement("P5137", "Q146", "wikibase-item")]
+        self.dump.write_bytes(lexeme_dump([GATTO, CHAT, gato]))
+        ps.derive(self.dump, self.FILES, self.work)
+        derived = (self.work / "wikidata-lexemes-it-es.jsonl").read_text(encoding="utf-8")
+        self.assertEqual([json.loads(line) for line in derived.splitlines()], LEXEME_PAIRS, "one pair of item Q146")
+
     def test_the_record_is_named_for_wikidata(self):
         self.assertEqual(ps.source_name("wikidata"), "wikidata")
         self.assertEqual(ps.source_name("de"), "kaikki-de")
@@ -2668,6 +2699,35 @@ class ItalianGlossedInSpanishSources(unittest.TestCase):
             recorded = {file for spec in ps.load(pin)["sources"].values() if isinstance(spec, dict) for file in spec.get("files") or {}}
             self.assertFalse(added & recorded, pin.parent.name)
             self.assertNotIn("wikidata", ps.load(pin)["sources"], pin.parent.name)
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_an_update_refuses_a_pivot_derived_empty(self):
+        # The Dutch dump's tables written another way (a translation's word under another key): its
+        # pivot derives empty, which it-es's update refuses, naming the pair, the file and the dump,
+        # and records nothing. `derive` itself does not fail — the edition's folder holds the empty
+        # file —: a dump's whole catalogue is derived whichever pair reads it first.
+        import unittest.mock as mock
+
+        self.served[ps.EDITIONS["nl"]["url"]] = gz(
+            [
+                {
+                    "word": "venster",
+                    "lang_code": "nl",
+                    "pos": "noun",
+                    "translations": [{"lang_code": "it", "term": "finestra"}, {"lang_code": "es", "term": "ventana"}],
+                }
+            ]
+        )
+        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ), contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaisesRegex(
+                ps.PinError,
+                r"^it-es reads kaikki-nl-pivot-it-es\.jsonl of the 'nl' edition, which "
+                r"https://kaikki\.org/nlwiktionary/raw-wiktextract-data\.jsonl\.gz derived empty: no table lists words "
+                r"of it and es under one sense",
+            ):
+                ps.fetch_live(self.pin, self.work, "2026.10.25", fetch=self.fetch, today=datetime.date(2026, 10, 25), cache=self.cache)
+        self.assertFalse(self.pin.exists(), "no record")
+        self.assertEqual((self.work / "editions" / "nl-2026.10.25" / "kaikki-nl-pivot-it-es.jsonl").read_bytes(), b"")
 
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
     def test_spec_scenario_the_lexemes_on_a_re_reduction(self):

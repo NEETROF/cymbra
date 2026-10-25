@@ -890,9 +890,12 @@ rows), would collapse to one group per entry. Of the research's 175,556 pivot ro
 name no sense — French 25,568, Russian 13,475, Portuguese 10,147, Dutch 1,197 —, 14,044 of them on
 entries of several senses, and 166 French tables are « Traductions à trier suivant le sens »: kept
 under the entry, marked so, for change 27 to decide (D6.5). The pivot's errors cluster on homographs
-and participles (`sparato` « Bragueta », `sino` « Seno », `braccia` « Braza »). Derived, one file per
-edition: about 7.8, 5.8, 4.8, 3.0, 2.0, 1.5 and 1.0 MB (English, German, French, Russian, Polish,
-Portuguese, Dutch).
+and participles (`sparato` « Bragueta », `sino` « Seno », `braccia` « Braza »). Each file's derived
+size is to be measured at the first update: the research's figures understate them (a sample of the
+Dutch dump, 22 % of it, already derives 1.0 MB, the size it gave the whole). An update refuses a pivot
+file it reads that is derived empty — a change of the dump's format, not a dictionary —, naming the
+pair, the file and the dump; `derive` does not, since it writes a dump's whole catalogue whichever pair
+reads the dump first.
 
 **Wikidata's Lexemes, an edition of its own** (D3). `EDITIONS["wikidata"]` reads
 `https://dumps.wikimedia.org/wikidatawiki/entities/latest-lexemes.json.gz`, the latest weekly dump
@@ -907,8 +910,8 @@ with the `item`; `translation`, a translation link between the two (P5972, eithe
 `gloss`, a Spanish gloss of an Italian sense. Each side names the lemma, the lexical category (an
 item: `Q1084` a noun), the lexeme and the sense; a deprecated statement names nothing. The pairs are
 sorted by their senses' ids, so the file does not move with the order the dump's shards are written
-in. A dump holding no Italian or no Spanish lexeme, or a line naming either language that is no
-JSON, fails the update rather than publish an empty file. The research read 2,904 Italian words in
+in. A dump holding no Italian or no Spanish lexeme, pairing none of their senses by an item, or with
+a line naming either language that is no JSON, fails the update rather than publish an empty file. The research read 2,904 Italian words in
 4,103 pairs of one item, 193 translation links and 8 glosses. Published zstd-compressed in it-es's
 own sources release, like every derived file; a re-reduction reads it from there, checked by its
 sha256, and fetches no Lexemes dump. The release notes name its licence beside the dump (`dumps`).
@@ -930,9 +933,9 @@ Portuguese 37,273,122 B), about 4.65 GB gzipped — and the Lexemes dump (0.66 G
 dumps per it-es update**, none cached (`read_edition` fetches each once per run); a re-reduction from
 the pin reads the derived files from the release. Once it-es has tables, the monthly dry run of every
 pair reads these dumps too. Since a dump's whole catalogue is derived at its first read, every
-English- and French-dump derivation writes one more file, the pivot (7.8 and 4.8 MB), every
-Spanish-dump derivation the Spanish Wiktionary's Italian section, and every Italian-dump derivation
-two more files; no other pair's `DUMPS` names any of them, so no other pin moves.
+English- and French-dump derivation writes one more file, the pivot, every Spanish-dump derivation
+two more, the Spanish Wiktionary's Italian section and its Spanish entries' Italian translations, and
+every Italian-dump derivation two more, its Spanish translations and its Spanish section; no other pair's `DUMPS` names any of them, so no other pin moves.
 
 ## The editions' dumps
 

@@ -246,7 +246,7 @@ EDITIONS = {
             # Italian's studied side: its forms and their lemmas (add-lingua-italian-forms-tables D2).
             "kaikki-Italian.jsonl": ("entries", "it"),
             # it-es's pivot (add-lingua-it-es-pivot-sources D2): the Italian and Spanish words the
-            # English entries' tables list, kept together by sense — 7.8 MB derived on 2026-10-22.
+            # English entries' tables list, kept together by sense — its size measured at the first update.
             "kaikki-en-pivot-it-es.jsonl": ("pivot", "en", "it", "es"),
         },
     },
@@ -269,7 +269,7 @@ EDITIONS = {
             "kaikki-fr-Italien.jsonl": ("entries", "it"),
             # it-fr's inverted fallback: the French entries' Italian translations, read backwards (D2).
             "kaikki-fr-traductions-it.jsonl": ("translations", "fr", "it"),
-            # it-es's pivot (add-lingua-it-es-pivot-sources D2), from the French entries' tables — 4.8 MB.
+            # it-es's pivot (add-lingua-it-es-pivot-sources D2), from the French entries' tables.
             "kaikki-fr-pivot-it-es.jsonl": ("pivot", "fr", "it", "es"),
         },
     },
@@ -860,7 +860,7 @@ def pivot_groups(entry: dict, into: tuple) -> list[dict]:
 def _statement_ids(claims, prop: str) -> list[str]:
     """The ids a lexeme sense's statements of `prop` name — an item (`Q146`, P5137) or a sense
     (`L7-S1`, P5972) —, in order; a deprecated statement, or one naming no value, names none.
-    Wikibase writes an empty map as `[]`: claims that are no map name nothing."""
+    The dump writes empty claims as `{}`; claims that are no map at all name nothing."""
     if not isinstance(claims, dict):
         return []
     ids = []
@@ -891,8 +891,8 @@ def lexeme_pairs(lines, dump: Path, lang: str, into: str) -> list[dict]:
     or of `into` (`WIKIDATA_LANGUAGES`) are parsed, and a pair needs both its lexemes, which the
     dump may write in either order: every lexeme of the two languages is collected, then the pairs
     are made. A line naming one of those items that is no JSON fails, naming the dump and the line,
-    and so does a dump holding no lexeme of either language: a change of the dump's format must not
-    publish an empty file.
+    and so does a dump holding no lexeme of either language, or pairing none by an item: a change of
+    the dump's format must not publish an empty file.
 
     Three kinds of pair, `by`: `item`, a sense of each language naming the same item (P5137, *item
     for this sense*), with the `item`; `translation`, a sense of one language naming a sense of the
@@ -931,7 +931,9 @@ def lexeme_pairs(lines, dump: Path, lang: str, into: str) -> list[dict]:
             if not isinstance(sense, dict) or not isinstance(sense.get("id"), str):
                 continue
             for item in _statement_ids(sense.get("claims"), "P5137"):
-                items.setdefault(item, {}).setdefault(code, []).append(sense["id"])
+                listed = items.setdefault(item, {}).setdefault(code, [])
+                if sense["id"] not in listed:  # a sense stating one item twice is one pair
+                    listed.append(sense["id"])
             links += [(sense["id"], target) for target in _statement_ids(sense.get("claims"), "P5972")]
             gloss = sense.get("glosses").get(into) if isinstance(sense.get("glosses"), dict) else None
             if code == lang and isinstance(gloss, dict) and isinstance(gloss.get("value"), str) and gloss["value"].strip():
@@ -957,6 +959,13 @@ def lexeme_pairs(lines, dump: Path, lang: str, into: str) -> list[dict]:
         for a in senses.get(lang, ())
         for b in senses.get(into, ())
     ]
+    # The research read 4,103 pairs of one item: none means the statements are no longer written
+    # as read here (a value without its `id`), and an empty file must not be published.
+    if not by_item:
+        raise PinError(
+            f"{dump}: pairs no sense of {lang} with a sense of {into} by an item (P5137): not the Lexemes "
+            "dump's format? Nothing is derived from it"
+        )
     translated = set()
     for source, target in links:
         if (language(source), language(target)) == (lang, into):
@@ -1468,6 +1477,17 @@ def fetch_live(
                 )
             raw = work / file
             shutil.copyfile(folder / file, raw)
+            # A pivot read empty is a format change, not a dictionary (add-lingua-it-es-pivot-sources
+            # D2): refused here, where the pair that reads it takes it, and not in `derive`, which
+            # writes a dump's whole catalogue whichever pair reads the dump — an empty French pivot
+            # must not fail en-fr's update.
+            kind, _, *into = EDITIONS[edition]["files"][file]
+            if kind == "pivot" and raw.stat().st_size == 0:
+                raise PinError(
+                    f"{pair} reads {file} of the {edition!r} edition, which {dumped['url']} derived empty: no "
+                    f"table lists words of {' and '.join(into)} under one sense — not the dump's format? Nothing "
+                    "is recorded"
+                )
             asset = file + ".zst"
             files[file] = {"asset": asset, "sha256": pack_asset(raw, asset, cache), "size": raw.stat().st_size}
         sources[source_name(edition)] = {
