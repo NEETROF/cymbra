@@ -755,6 +755,45 @@ dump regenerated 2026-10-23 23:53 and the Italian one 2026-10-21 00:21) wrote th
 byte — coverage 89.2 / 81.8 / 73.3 against the owner's floor 87.2 / 79.8 / 71.3, the pack
 `0e6795d9…`; `tables/it-fr/README.md` records them.
 
+## IT → EN: Italian glossed in English
+
+Reduced by `reduce-it-en.py` (add-lingua-pack-it-en, change 22 of `docs/lingua/italian-programme.md`):
+it-en is **Italian's first reader pair**, English speakers studying Italian. Like es-en for Spanish,
+it reads Italian's studied side — `tables/it/`, which it-fr's reduction writes — as committed and
+computes nothing of it, and writes its native side alone; its pin records the studied tables it read,
+so an it-fr reduction that moves one fails it-en's checks until it-en is reduced again (`pairs --after
+it-fr` brings it along). Its rule digest is `reduce-it-en.py`, `reduce_common.py`,
+`reduce_edition_en.py`, `reduce_italian_acronyms.py` and `reduce_italian_en.py`, it-en's own pre-pass:
+an edit of either of the last two re-pins it-en alone among the pairs glossed in English, an edit of
+the English edition es-en, fr-en and it-en. No package carries it-en (`packs.json` is unchanged, change
+25 lists it). Its first update writes its folder whole: the pull request that registers it carries
+none (`pairs --after it-en` names a registered reader pair whose reference's tables are committed).
+
+| Table | Source | Licence | What we keep |
+|---|---|---|---|
+| `tables/it-en/gloss.tsv`, `senses.tsv` | **kaikki.org**: the English Wiktionary's (`enwiktionary`) Italian section (`kaikki-Italian.jsonl`, `EDITIONS["en"]`, it-en's own fetch); the Italian Wiktionary's (`itwiktionary`) English translations (`kaikki-it-traductions-en.jsonl`, `EDITIONS["it"]`) | CC BY-SA 4.0 + GFDL | up to eight whole senses per ranked lemma, grouped by part of speech (the shared rules), from the section read through the English edition's pre-passes and it-en's own (`reduce_italian_en.py`, D4: a pointer's carried meaning by a reviewed list of wordings, acronyms off common words and names off function words, no word glossed by a letter's name, the page's notes out); then the Italian Wiktionary's translations, at most three per part of speech, for what the section leaves out (D2). Never the English Wiktionary's Italian translations read backwards. A sense repeated word for word shown once |
+| `tables/it-en/mwe.tsv` | the same two files | CC BY-SA 4.0 + GFDL | the section's headwords with a space, then the Italian Wiktionary's, then the words Italian's pre-pass splits that either glosses with a meaning (`d'accordo`, `all'inizio`; D5), keyed at build by change 12's rules |
+| the acronym rows' glosses (`USA`) | it-en's own glosses of the rows' synonyms (`reduce_italian_acronyms.acronym_gloss`) | — | D6 |
+| `NOTICE`, `manifest.json` | both sides' sources: the English Wiktionary's Italian section and the Italian Wiktionary for the glosses; for the studied side, everything it-fr's notice credits — the section, wordfreq, UD Italian-MarkIT (CC BY 4.0), Morph-it! while it-fr pins it — and the French Wiktionary's Italian section, whose glosses decide Italian's dictionary words and levels; never UD Italian-PUD | — | the attribution stack; the manifest says the levels are estimated and names Italian's analyser version |
+
+**Coverage** is held to `gloss_coverage.FLOORS["it-en"]` by the extension check's `reduce` job: the
+study's figures on change 9's committed ranks with D2's fallback and D4's pre-pass, **91.3 / 84.2 / 75.7 %**
+of the 5,000 / 10,000 / 20,000 commonest (90.9 / 83.8 / 75.3 from the definitions alone), less two
+points — **89.3 / 82.2 / 73.7**, proposed for the owner to settle before the first committed
+measurement (D7, task 0.1).
+
+**Predicted at implementation** (2026-10-25, reduced locally by `build.sh --update it-en` from the bytes
+an update reads today: the English dump of 2026-10-21 11:23 — decompressed sha256 `60a6073c…`, it-fr's
+— whose Italian section is `ae7de484…`, 665,207,473 B, the file of it-fr's release
+`lingua-pack-sources-it-fr-2026.10.23`; the Italian dump of 2026-10-24 21:16 — `e007665a…`, which derives
+the same `kaikki-it-traductions-en.jsonl` as the dump it-fr pins, `e192643a…`, 7,216,558 B; the committed
+studied tables of 2026.10.24; Python 3.12 and `requirements-reduce.txt`): 33,209 glosses — 33,014 from
+the section, 194 from the Italian Wiktionary, the `USA` row —; 9,831 expressions (8,542 of the section
+with a space, 1,194 of the Italian Wiktionary, 93 + 2 split words); the section as read: 505 pointers
+read as their meaning, 36 acronym senses and 19 names' entries set aside, 6 Greek letters' senses out,
+557 notes taken out and 1 sense that was only a note, 42 entries left with no sense, 18 glosses
+repeating a sense. The pack 2,467,740 B, its base 1,551,534 B (it-fr's), its layer 916,446 B.
+
 ## The editions' dumps
 
 kaikki is read at **one address per Wiktionary edition** — the English, French and Spanish ones, and
@@ -781,6 +820,7 @@ derived from the dumps served on 2026-10-08:
 | | `kaikki-fr-Italien.jsonl` | Italian entries | 769,483,152 B (the proposal's measure; the review derived it again from the dump regenerated 2026-10-23) | it-fr (glosses, expressions; add-lingua-pack-it-fr) |
 | | `kaikki-fr-traductions-it.jsonl` | French entries' Italian translations | about 7 MB | it-fr (inverted) |
 | **Italian** (`kaikki.org/itwiktionary/raw-wiktextract-data.jsonl.gz`): 43,849,715 B gzipped, regenerated 2026-10-21 | `kaikki-it-traductions-fr.jsonl` | Italian entries' French translations | about 1.2 MB | it-fr (direct) |
+| | `kaikki-it-traductions-en.jsonl` | Italian entries' English translations | 7,216,558 B (the dumps of 2026-10-21 and 2026-10-24 alike) | it-en (direct; add-lingua-pack-it-en) |
 | **Spanish** (`kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz`): 103,226,106 B gzipped, 1,233,016,167 B decompressed, regenerated 2026-10-02 12:12 | `kaikki-es-English.jsonl` | English entries | 36,426,539 B | en-es |
 | | `kaikki-es-Frances.jsonl` | French entries | 7,438,610 B | fr-es (definitions) |
 | | `kaikki-es-traductions.jsonl` | Spanish entries' French translations | 1,537,580 B | es-fr (direct), fr-es (inverted) |
@@ -1142,8 +1182,9 @@ reducer and every `reduce_*.py` module importing it loads, read from `sys.module
 `reduce_edition_es.py`, and fr-es's `reduce-fr-es.py`, `reduce_common.py`, `reduce_edition_es.py`,
 `reduce_french_acronyms.py` and `reduce_french_treebank.py` (refine-lingua-fr-es-glosses D8); it-fr's are
 `reduce-it-fr.py`, `reduce_common.py`, `reduce_italian_acronyms.py` (Italian's acronym table,
-keep-lingua-italian-acronyms-and-names) and `reduce_italian_treebank.py`. Editing the English edition re-pins
-es-en and fr-en alone, the Spanish edition en-es and fr-es alone, either French module (the treebank's,
+keep-lingua-italian-acronyms-and-names) and `reduce_italian_treebank.py`, and it-en's `reduce-it-en.py`,
+`reduce_common.py`, `reduce_edition_en.py`, `reduce_italian_acronyms.py` and `reduce_italian_en.py`
+(add-lingua-pack-it-en D4). Editing the English edition re-pins es-en, fr-en and it-en alone, the Spanish edition en-es and fr-es alone, either French module (the treebank's,
 the acronyms') fr-en and fr-es alone (each pair's own rules, such as en-es's and fr-es's passes over their section, live in
 its reducer); editing `reduce_common.py` re-pins every pair. `check-reducer` fails, naming the module, when a
 reducer loads a rule module its record does not name, and tests refuse a `reduce_*` import a
