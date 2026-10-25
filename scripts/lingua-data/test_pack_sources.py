@@ -2967,6 +2967,9 @@ class Split(unittest.TestCase):
         with self.assertRaisesRegex(ps.PinError, "it-en is no pair of"):
             ps.pairs(self.tables, after="it-en")  # no reference's tables to read yet
         (self.tables / "it-fr").mkdir()
+        with self.assertRaisesRegex(ps.PinError, "it-en is no pair of"):
+            ps.pairs(self.tables, after="it-en")  # its folder, but no committed tables: no pin
+        (self.tables / "it-fr" / "pin.json").write_text("{}\n")
         self.assertEqual(ps.pairs(self.tables), ["es-fr", "it-fr"])
         self.assertEqual(ps.pairs(self.tables, after="it-en"), ["it-en"])
         with contextlib.redirect_stdout(io.StringIO()) as out:

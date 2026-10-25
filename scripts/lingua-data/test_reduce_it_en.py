@@ -74,6 +74,22 @@ DELLA = entry(
     "contraction",
     sense("contraction of di la; of the, from the", ("abbreviation", "alt-of", "contraction"), alt_of=[("di la", "of the, from the")]),
 )
+DEI = entry(
+    "dei",
+    "contraction",
+    sense("contraction of di + i; of the, from the", ("abbreviation", "alt-of", "contraction"), alt_of=[("di", "+ i; of the, from the")]),
+    sense("some", ("contraction",)),
+)
+DEI_NOUN = entry("dei", "noun", sense("plural of dio", ("form-of", "masculine", "plural"), form_of=[("dio", None)]))
+DEI_VERB = entry(
+    "dei",
+    "verb",
+    sense(
+        "alternative form of devi, second-person singular present indicative of dovere",
+        ("Tuscany", "alt-of", "alternative", "archaic", "colloquial", "poetic"),
+        alt_of=[("devi", "second-person singular present indicative of dovere")],
+    ),
+)
 ED = entry(
     "ed",
     "conj",
@@ -305,6 +321,18 @@ class CarriedMeanings(Fixture):
         self.assertEqual(italian.carried_meaning(DEL["senses"][0], "contraction"), "some, of the, from the")
         self.assertEqual(italian.carried_meaning(DELLA["senses"][0], "contraction"), "of the, from the")
 
+    def test_the_di_family_s_contraction_is_read_wherever_it_stands(self):
+        # Recorded: `dei`'s other entries are the plural of *dio* and two alternative forms, pointers that
+        # hold it out of the narrowing; its contraction is the `di` family's, an Italian shape read beside
+        # them, before the row's own « some ».
+        self.assertEqual(italian.carried_meaning(DEI["senses"][0], "contraction", alone=False), "of the, from the")
+        self.assertEqual(italian.carried_meaning(DELLA["senses"][0], "contraction", alone=False), "of the, from the")
+        self.assertIsNone(italian.carried_meaning(COLLA_CONTRACTION["senses"][0], "contraction", alone=False), "a con contraction")
+        glosses = self.glosses(DEI, DEI_NOUN, DEI_VERB, lemmas={"dei"})
+        self.assertEqual(glosses["dei"], "of the, from the; some")
+        without = self.glosses(DEI, DEI_NOUN, DEI_VERB, lemmas={"dei"}, rules=())
+        self.assertEqual(without["dei"], "some")
+
     def test_italian_s_three_shapes(self):
         self.assertEqual(italian.carried_meaning(ED["senses"][0], "conj"), "and")
         self.assertEqual(italian.carried_meaning(AD["senses"][0], "prep"), "to, at, in")
@@ -400,6 +428,11 @@ class LettersAndNotes(Fixture):
         self.assertNotIn("mu", glosses["mi"].split("; "))
         self.assertEqual(glosses["chi"], "who, whom, whoever")
         self.assertEqual(glosses["eta"], "eta (Greek letter)", "a word that is only the letter keeps it")
+        # Recorded: `rho`'s other sense is a proper noun's, the town: no common word's entry holds another
+        # meaning, so the letter stays.
+        rho = entry("rho", "noun", sense("rho (Greek letter)", ("feminine", "invariable", "masculine")))
+        town = entry("Rho", "name", sense("a town in Milan, Lombardy, Italy"))
+        self.assertEqual(self.glosses(rho, town, lemmas={"rho"})["rho"], "rho (Greek letter); a town in Milan, Lombardy, Italy")
 
     def test_a_latin_letter_goes_with_the_english_edition_s_pre_passes(self):
         cut = it_en.without_letters(self.jsonl(A_LETTER, CHI), str(self.dir / "words.jsonl"))

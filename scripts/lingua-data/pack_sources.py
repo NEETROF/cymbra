@@ -503,8 +503,9 @@ def pairs(tables: Path, after: str | None = None) -> list[str]:
     update writes it whole. Named by `after`, it is that update's pair; it is no pair of the list
     otherwise, having no tables to reduce again or check. A reader pair's first update
     (add-lingua-pack-it-en): a pair registered in `DUMPS`, with no folder yet, whose studied folder
-    names another pair, whose tables are there — it reads that folder as committed and writes its own
-    whole —, named by `after`, is that update's pair alone, and no pair of the list otherwise."""
+    names another pair, whose tables are committed (its `pin.json` is there) — it reads that folder as
+    committed and writes its own whole —, named by `after`, is that update's pair alone, and no pair of
+    the list otherwise."""
     names = [folder.name for folder in folders(tables) if is_pair(folder)]
     if not names:
         raise PinError(f"{tables} holds no pair (a folder named <studied>-<native>)")
@@ -514,8 +515,10 @@ def pairs(tables: Path, after: str | None = None) -> list[str]:
         return ordered
     if after not in names and is_pair_name(after) and reference_of(tables / studied_of(after)) == after:
         return [after, *(n for n in ordered if studied_of(n) == studied_of(after))]
-    if after not in names and after in DUMPS and reference_of(tables / studied_of(after)) in set(names) - {after}:
-        return [after]
+    if after not in names and after in DUMPS:
+        reference = reference_of(tables / studied_of(after))
+        if reference not in (None, after) and (tables / reference / "pin.json").is_file():
+            return [after]
     if after not in names:
         raise PinError(f"{after} is no pair of {tables} ({', '.join(ordered)})")
     if refs.get(studied_of(after)) != after:

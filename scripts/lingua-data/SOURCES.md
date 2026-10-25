@@ -789,10 +789,10 @@ an update reads today: the English dump of 2026-10-21 11:23 — decompressed sha
 the same `kaikki-it-traductions-en.jsonl` as the dump it-fr pins, `e192643a…`, 7,216,558 B; the committed
 studied tables of 2026.10.24; Python 3.12 and `requirements-reduce.txt`): 33,209 glosses — 33,014 from
 the section, 194 from the Italian Wiktionary, the `USA` row —; 9,831 expressions (8,542 of the section
-with a space, 1,194 of the Italian Wiktionary, 93 + 2 split words); the section as read: 505 pointers
+with a space, 1,194 of the Italian Wiktionary, 93 + 2 split words); the section as read: 506 pointers
 read as their meaning, 36 acronym senses and 19 names' entries set aside, 6 Greek letters' senses out,
 557 notes taken out and 1 sense that was only a note, 42 entries left with no sense, 18 glosses
-repeating a sense. The pack 2,467,740 B, its base 1,551,534 B (it-fr's), its layer 916,446 B.
+repeating a sense. The pack 2,467,844 B, its base 1,551,534 B (it-fr's), its layer 916,550 B.
 
 ## The editions' dumps
 
