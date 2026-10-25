@@ -82,8 +82,8 @@ describe("relayTranslation", () => {
     expect(marks.map((m) => fr.slice(m.start, m.end))).toEqual(["maison"]);
   });
 
-  it("The shipped pairs today: en-fr and es-fr are marked, as before; es-en, en-es, fr-en and fr-es were listed ahead of their readers, and it-fr and it-en are, inert until the Italian programme's changes 20 and 25 (routes-by-pair D4, matrix-marks D5, french-translation D7, it-fr-translation-marks D4, it-en-translation-marks D3)", () => {
-    expect(MARKED_PAIRS).toEqual(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en"]);
+  it("The shipped pairs today: en-fr and es-fr are marked, as before; es-en, en-es, fr-en and fr-es were listed ahead of their readers, and it-fr, it-en and it-es are, inert until the Italian programme's changes 20, 25 and 30 (routes-by-pair D4, matrix-marks D5, french-translation D7, it-fr-translation-marks D4, it-en-translation-marks D3, it-es-translation-marks D4)", () => {
+    expect(MARKED_PAIRS).toEqual(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en", "it-es"]);
     // Keyed by pair, never by studied language: a language alone is not in the list.
     expect(MARKED_PAIRS).not.toContain("en");
     expect(MARKED_PAIRS).not.toContain("es");
@@ -202,6 +202,35 @@ describe("relayTranslation", () => {
     if (result.kind !== "translated") throw new Error("not translated");
     const { sentence: en, marks } = result.translation;
     expect(marks.map((m) => en.slice(m.start, m.end))).toEqual(["battle"]);
+  });
+
+  it("An Italian selection, through English, judged in Spanish: a reader of Spanish on an Italian page goes through it-es, marked in the Spanish sentence on it-es's own figures, the fragment moving a tag that landed on a neighbour (it-es-translation-marks D4)", async () => {
+    // As measured (results-it-es.jsonl, k 15): the tag lands on « su », the fragment alone is « Mayor ».
+    const { access, seen, pairs } = engine((markup) => ({
+      ok: true,
+      html:
+        markup === "maggiore"
+          ? "Mayor"
+          : "Los productores de Miami Bass se desprendieron en su arte de mover traseros, <b>su</b> mayor preocupación.",
+    }));
+    const request = {
+      sentence:
+        "I produttori di Miami Bass sono stati distaccati nella loro arte di far muovere i sederi - la loro preoccupazione maggiore.",
+      selection: { start: 114, end: 122 }, // « maggiore »
+      language: "it",
+    };
+    expect(request.sentence.slice(114, 122)).toBe("maggiore");
+    // 90 of 95, 5 % withheld; listed, not shipped: inert until change 30 lists it-es in packs.json.
+    expect(MARKED_PAIRS).toContain("it-es");
+    const result = await relayTranslation(access, request, pairOf(request.language, "es"));
+    expect(pairs).toEqual(["it-es", "it-es"]);
+    expect(seen).toEqual([
+      "I produttori di Miami Bass sono stati distaccati nella loro arte di far muovere i sederi - la loro preoccupazione <b>maggiore</b>.",
+      "maggiore",
+    ]);
+    if (result.kind !== "translated") throw new Error("not translated");
+    const { sentence: es, marks } = result.translation;
+    expect(marks.map((m) => es.slice(m.start, m.end))).toEqual(["mayor"]);
   });
 
   it("translates a sentence through an unmeasured pair untagged, once, without a mark (pivot D3)", async () => {

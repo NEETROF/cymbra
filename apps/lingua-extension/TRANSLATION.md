@@ -156,8 +156,13 @@ until row 20 (`enable-lingua-italian`) lists it-fr in `packs.json`. it-en is mea
 selections through its one model and judged in English (row 24,
 `measure-lingua-it-en-translation-marks`): 94 of its 97 shown marks correct (92 of 97 with its
 doubtful lines counted wrong), 3 % withheld, on the first tier — listed ahead of its readers too,
-inert until row 25 (`enable-lingua-italian-for-english-speakers`) lists it-en. Rows 29, 38, 49 and 53
-measure the other Italian pairs through their routes before they ship.
+inert until row 25 (`enable-lingua-italian-for-english-speakers`) lists it-en. it-es is measured on
+the same selections through it-en then en-es and judged in Spanish (row 29,
+`measure-lingua-it-es-translation-marks`): 90 of its 95 shown marks correct (86 of 95 with its
+doubtful lines counted wrong), 5 % withheld, on the first tier — a blind second judge agreed on every
+line —, listed ahead of its readers too, inert until row 30
+(`enable-lingua-italian-for-spanish-speakers`) lists it-es. Rows 38, 49 and 53 measure the other
+Italian pairs through their routes before they ship.
 
 It is bundled, so the reviewed package decides what is accepted; the host only serves bytes. The
 setting's cost (« Télécharge 25,8 Mo une fois ») is computed from it, and so is what the build, the
@@ -449,6 +454,40 @@ every pin held) asked every Italian selection twice through the it-en model soak
 engine: no request trapped — as the soak found, isolated and in one instance —, every fragment was
 reconciled, and `tool/marks/README.md` lists no trapped selection. Its marks, judged in English: 94
 of 97 shown correct, 3 % withheld; two runs gave the same results byte for byte.
+
+#### it-es, soaked before it ships (2026-10-25)
+
+`node --experimental-strip-types tool/soak_engine.mjs --pair it-es --models <dir> --isolate`, then in
+one instance, over the same 100 Italian selections, with the six models assembled again from
+Mozilla's registry by `tool/assemble_model_site.mjs` (all eighteen files kept, every pin held)
+(`measure-lingua-it-es-translation-marks` D1). Its chain is new: it-en's English fed to en-es, each
+model soaked before on its own selections. The same engine (`a6310e24…`, `.wasm` `7ef4b3fd…3122`)
+and machine as the soaks above (MacBook Pro `Mac14,6`, Apple M2 Max, 12 cores, 64 GB; macOS 26.5.2;
+Node 22.22.2).
+
+|                        | it-es `--isolate`           | it-es, one instance        |
+| ---------------------- | --------------------------- | -------------------------- |
+| Models                 | it-en 2.0, then en-es 2.1   | it-en 2.0, then en-es 2.1  |
+| Selections translated  | **100 / 100**               | **100 / 100**              |
+| Trapped, timed out     | **0, 0**                    | **0, 0**                   |
+| Time per sentence      | 214 / 219 / 303 ms          | 69 / 75 / 277 ms           |
+| Memory high-water mark | 548.0 MiB (highest child's) | 556.5 MiB (this process's) |
+| Whole run              | 69 s                        | 9 s                        |
+
+Times are median / mean / max; maxRSS is Node's, not the worker's. Beside them, in the same session
+and in one instance: fr-es 69 / 76 / 297 ms and 566.1 MiB, it-en 35 / 38 / 169 ms and 411.6 MiB — in
+this tool it-es costs what fr-es and it-fr cost. The machine's one-minute load average stayed between
+2.3 and 2.9 during the runs. No selection of the committed Italian corpus trapped it-es in Node (V8)
+with this engine build, isolated or in one instance; the browsers' workers were not run. Row 30
+(`enable-lingua-italian-for-spanish-speakers`) reads these figures; they decide nothing here, and a
+trap on another input still costs the reader one respawn.
+
+The marks measurement of row 29 (`tool/measure_marks.mjs --pair it-es`, the same day, machine,
+engine and models) asked every Italian selection twice through one engine: no request trapped, and
+`tool/marks/README.md` lists no trapped selection; one fragment, « seguito » (k 58), came back as an
+empty translation, so that sentence's marks stand unreconciled, as the extension would show them. Its
+marks, judged in Spanish: 90 of 95 shown correct, 5 % withheld; two runs gave the same results byte
+for byte.
 
 ## What never happens
 

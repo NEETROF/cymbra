@@ -45,7 +45,7 @@ export interface ResultLine {
   engineMarks: string[];
   /**
    * The fragment's own translation; null when it trapped twice, "" for an empty fragment, which is
-   * not asked. Either way the engine's marks stand unreconciled, as relay.ts shows them.
+   * not asked, and for one the route translated as nothing (it-es's k 58). Either way the engine's marks stand unreconciled, as relay.ts shows them.
    */
   alone: string | null;
   gloss: { lemma: string; text: string | null; marks: string[]; shown: string } | null;

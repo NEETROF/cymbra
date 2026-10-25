@@ -10,10 +10,10 @@
 //
 // Usage: node --experimental-strip-types tool/measure_marks.mjs --pair <pair> [--models <assembled-site-dir>]
 //   The pair is one the catalogue routes and the corpus holds selections of: en-fr, es-fr, es-en,
-//   en-es, fr-en, fr-es, it-fr through it-en then en-fr (measure-lingua-it-fr-translation-marks), and
-//   it-en through its one model, on the same Italian selections (measure-lingua-it-en-translation-marks).
-//   it-es is measured on them by its own row, and a pair glossed in Italian once
-//   tool/marks/stop-words.mjs holds Italian's. The corpus is the pair's studied language's, and the gloss experiment's stop words are its native language's, read from the
+//   en-es, fr-en, fr-es, it-fr through it-en then en-fr (measure-lingua-it-fr-translation-marks),
+//   it-en through its one model, on the same Italian selections (measure-lingua-it-en-translation-marks),
+//   and it-es through it-en then en-es, on them too (measure-lingua-it-es-translation-marks); a pair
+//   glossed in Italian once tool/marks/stop-words.mjs holds Italian's. The corpus is the pair's studied language's, and the gloss experiment's stop words are its native language's, read from the
 //   route's last model (tool/marks/stop-words.mjs). The experiment reads the pair's gloss table only
 //   when it holds a gloss (add-lingua-french-translation D6). The models come from that directory
 //   (tool/assemble_model_site.mjs) or, without it, from the catalogue's host; every file is checked
@@ -27,6 +27,7 @@ import { fileURLToPath } from "node:url";
 import { catalogue, engine } from "./marks/engine.mjs";
 import { glossMark, measureSelections, nativeOfRoute, readGlossTables } from "./marks/measure.mjs";
 import { parseConllu, pudText } from "./marks/pud.mjs";
+import { selectedText } from "../src/translate/markup.ts";
 import { stopWords } from "./marks/stop-words.mjs";
 import { studiedOf } from "./packs.mjs";
 
@@ -83,10 +84,12 @@ async function main() {
   });
   const out = join(here, `marks/results-${pair}.jsonl`);
   writeFileSync(out, lines.map((line) => JSON.stringify(line)).join("\n") + "\n");
-  // A fragment that trapped twice (`alone` null) and an empty one, never asked (`alone` ""), both
-  // leave the engine's marks unreconciled; they are counted apart.
+  // A fragment that trapped twice (`alone` null), an empty one, never asked (`alone` ""), and one
+  // the route translated as nothing (`alone` "" too: it-es's k 58) all leave the engine's marks
+  // unreconciled; they are counted apart, the last two told by the fragment itself.
   const ids = (label, picked) =>
     `${picked.length} ${label}${picked.length ? ` (${picked.map((l) => l.id).join(", ")})` : ""}`;
+  const asked = (l) => Boolean(selectedText(l.sentence, selections.find((s) => s.id === l.id).selection));
   const trapped = ids(
     "trapped twice",
     lines.filter((l) => l.trapped),
@@ -97,10 +100,14 @@ async function main() {
   );
   const empty = ids(
     "empty fragments (not asked, marks unreconciled)",
-    lines.filter((l) => !l.trapped && l.alone === ""),
+    lines.filter((l) => !l.trapped && l.alone === "" && !asked(l)),
+  );
+  const blank = ids(
+    "fragments translated as nothing (marks unreconciled)",
+    lines.filter((l) => !l.trapped && l.alone === "" && asked(l)),
   );
   console.log(
-    `${out}: ${lines.length} selections, ${built} engine${built === 1 ? "" : "s"} built, ${trapped}, ${fragmentTrapped}, ${empty}`,
+    `${out}: ${lines.length} selections, ${built} engine${built === 1 ? "" : "s"} built, ${trapped}, ${fragmentTrapped}, ${empty}, ${blank}`,
   );
 }
 
