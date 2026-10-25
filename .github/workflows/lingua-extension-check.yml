@@ -155,9 +155,12 @@ jobs:
       # scripts/lingua-data/testdata/it-fr/ before —, beside the real en-fr pack, whose update
       # moves its `beside en-fr` line alone; an it-fr update moves it as es-fr's moves its own.
       # The Italian card's lines over it, in French, are pinned by test/word-card-it-fr.spec.ts
-      # (add-lingua-italian-word-card D6).
-      - name: Invariance baselines (en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr)
-        run: cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline --test fr_es_baseline --test italian_baseline
+      # (add-lingua-italian-word-card D6). it-en (the Italian programme's change 22,
+      # add-lingua-pack-it-en D9) freezes the Italian scenario glossed in English over the committed
+      # tables/it/ and tables/it-en/, equal to it-fr's on the studied side; the English card's lines
+      # over it are pinned by test/word-card-it-en.spec.ts.
+      - name: Invariance baselines (en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr, it-en)
+        run: cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline --test fr_es_baseline --test italian_baseline --test it_en_baseline
       # What a pack studies does not depend on how it glosses (add-lingua-pack-lexical-layer):
       # a studied language's tables — its pinned tag pool, studied tables and dictionary words —
       # are kept once, in tables/<studied>/, and read by every pair of that language
@@ -324,9 +327,10 @@ jobs:
       # that reduces it under its floor — its sources, its rules, the Spanish edition's or French's
       # studied tables moved — fails here, naming the pair, the top and the figure. it-fr
       # (add-lingua-pack-it-fr D7, D10), Italian's reference, reduced first of the Italian pairs, to the
-      # same rule, fixed before its first committed measurement. The site's figures
+      # same rule, fixed before its first committed measurement; it-en (add-lingua-pack-it-en D7),
+      # Italian's first reader pair, reduced after it-fr, the same way. The site's figures
       # (`gloss_coverage.py --write`, the `check` job) list the shipped pairs alone.
-      - name: Gloss coverage of es-en, en-es, fr-en, fr-es and it-fr, against their floors
+      - name: Gloss coverage of es-en, en-es, fr-en, fr-es, it-fr and it-en, against their floors
         run: |
           set -euo pipefail
           python scripts/lingua-data/gloss_coverage.py --pair es-en
@@ -334,3 +338,4 @@ jobs:
           python scripts/lingua-data/gloss_coverage.py --pair fr-en
           python scripts/lingua-data/gloss_coverage.py --pair fr-es
           python scripts/lingua-data/gloss_coverage.py --pair it-fr
+          python scripts/lingua-data/gloss_coverage.py --pair it-en

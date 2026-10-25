@@ -66,21 +66,21 @@ class OnePairTest(unittest.TestCase):
         return code, out.getvalue(), err.getvalue()
 
     def test_a_pair_not_shipped_is_measured_and_held_to_its_floor(self) -> None:
-        # A pair with no floor of its own (made up): held to the one given alone.
+        # A pair with no floor of its own (made up: it-es, which has none yet): held to the one given alone.
         with tempfile.TemporaryDirectory() as tmp:
             tables = Path(tmp)
             (tables / "it").mkdir()
-            (tables / "it-en").mkdir()
+            (tables / "it-es").mkdir()
             write_table(tables / "it" / "freq.tsv", [("a", "1"), ("b", "2"), ("c", "3")])
-            write_table(tables / "it-en" / "gloss.tsv", [("a", "A"), ("c", "C")])
-            code, out, err = self.run_main(tables, "--pair", "it-en")
+            write_table(tables / "it-es" / "gloss.tsv", [("a", "A"), ("c", "C")])
+            code, out, err = self.run_main(tables, "--pair", "it-es")
             self.assertEqual((code, err), (0, ""))
-            self.assertEqual(json.loads(out), {"tops": [5000, 10000, 20000], "glossed": {"it-en": [66.7, 66.7, 66.7]}})
-            self.assertEqual(self.run_main(tables, "--pair", "it-en", "--floor", "66.7", "60", "50")[0], 0)
-            code, _, err = self.run_main(tables, "--pair", "it-en", "--floor", "66.7", "70", "50")
+            self.assertEqual(json.loads(out), {"tops": [5000, 10000, 20000], "glossed": {"it-es": [66.7, 66.7, 66.7]}})
+            self.assertEqual(self.run_main(tables, "--pair", "it-es", "--floor", "66.7", "60", "50")[0], 0)
+            code, _, err = self.run_main(tables, "--pair", "it-es", "--floor", "66.7", "70", "50")
             self.assertEqual(code, 1)
             self.assertEqual(
-                err, "it-en: 66.7 % of the 10,000 commonest lemmas are glossed, under the floor of 70.0 %\n"
+                err, "it-es: 66.7 % of the 10,000 commonest lemmas are glossed, under the floor of 70.0 %\n"
             )
             with self.assertRaises(SystemExit):
                 self.run_main(tables, "--pair", "de-en")
@@ -322,6 +322,78 @@ class OnePairTest(unittest.TestCase):
         self.assertEqual((code, err), (0, ""))
         measured = json.loads(out)["glossed"]["it-fr"]
         for top, share, floor in zip(coverage.TOPS, measured, coverage.FLOORS["it-fr"]):
+            self.assertGreaterEqual(share, floor, f"the {top:,} commonest lemmas")
+
+
+    # it-en (add-lingua-pack-it-en D7, the programme's M6): its floor is fixed before the measurement
+    # whose tables are committed — the study's figures on change 9's committed ranks less two points —, in
+    # the requirement *it-en is committed beside Italian's studied tables, held to a coverage floor, and
+    # not shipped*, read where it stands: the change's delta until it is archived, the capability's spec
+    # after.
+    IT_EN_REQUIREMENT = re.compile(r"it-en SHALL gloss at least ([\d.]+), ([\d.]+) and ([\d.]+) % of the 5,000")
+
+    def it_en_requirement(self) -> tuple[float, ...]:
+        specs = [
+            coverage.ROOT / "openspec/changes/add-lingua-pack-it-en/specs/lingua-data-packs/spec.md",
+            coverage.ROOT / "openspec/specs/lingua-data-packs/spec.md",
+        ]
+        for spec in specs:
+            if spec.is_file():
+                found = self.IT_EN_REQUIREMENT.search(spec.read_text(encoding="utf-8"))
+                if found:
+                    return tuple(float(share) for share in found.groups())
+        self.fail("no requirement states it-en's floor")
+
+    def test_spec_scenario_it_en_s_floor_is_not_lowered_after_measuring(self) -> None:
+        # The entry is the requirement's value: a pull request that lowers FLOORS["it-en"] and leaves
+        # the requirement as it is fails here.
+        self.assertEqual(self.it_en_requirement(), (89.3, 82.2, 73.7))
+        self.assertEqual(coverage.FLOORS["it-en"], self.it_en_requirement())
+        with mock.patch.dict(coverage.FLOORS, {"it-en": (89.0, 82.2, 73.7)}):
+            self.assertNotEqual(coverage.FLOORS["it-en"], self.it_en_requirement())
+
+    def test_spec_scenario_it_en_s_floor_in_one_place(self) -> None:
+        # The reduce job measures it-en against FLOORS alone: it passes no `--floor`.
+        job = (coverage.ROOT / ".github/workflows/lingua-extension-check.yml").read_text(encoding="utf-8")
+        self.assertIn("python scripts/lingua-data/gloss_coverage.py --pair it-en\n", job)
+        self.assertNotIn("--pair it-en --floor", job)
+
+    def test_spec_scenario_it_en_under_the_floor(self) -> None:
+        # Italian's studied tables moved under a committed it-en (made up): the checks fail, naming the
+        # pair, each top it falls short at and the figure.
+        with tempfile.TemporaryDirectory() as tmp:
+            tables = Path(tmp)
+            (tables / "it").mkdir()
+            (tables / "it-en").mkdir()
+            write_table(tables / "it" / "freq.tsv", [(w, str(r)) for r, w in enumerate("abcdefghij", 1)])
+            write_table(tables / "it-en" / "gloss.tsv", [(w, w.upper()) for w in "abcdefgh"])
+            code, out, err = self.run_main(tables, "--pair", "it-en")
+            self.assertEqual(json.loads(out)["glossed"]["it-en"], [80.0, 80.0, 80.0])
+            self.assertEqual(code, 1)
+            self.assertEqual(
+                err.splitlines(),
+                [
+                    "it-en: 80.0 % of the 5,000 commonest lemmas are glossed, under the floor of 89.3 %",
+                    "it-en: 80.0 % of the 10,000 commonest lemmas are glossed, under the floor of 82.2 %",
+                ],
+            )
+            write_table(tables / "it-en" / "gloss.tsv", [(w, w.upper()) for w in "abcdefghi"])
+            code, _, err = self.run_main(tables, "--pair", "it-en")
+            self.assertEqual((code, err), (0, ""), "90.0 % holds it")
+
+    def test_spec_scenario_it_en_s_floor_holds(self) -> None:
+        # On the committed tables, once its first update commits them: at least FLOORS' entry at every
+        # top, and published nowhere — no package lists it-en before Italian is enabled for English
+        # speakers (change 25).
+        published = json.loads(coverage.SITE_DATA.read_text(encoding="utf-8"))
+        self.assertNotIn("it-en", coverage.shipped_pairs())
+        self.assertNotIn("it-en", published["glossed"])
+        if not (coverage.TABLES / "it-en" / "gloss.tsv").is_file():
+            return
+        code, out, err = self.run_main(coverage.TABLES, "--pair", "it-en")
+        self.assertEqual((code, err), (0, ""))
+        measured = json.loads(out)["glossed"]["it-en"]
+        for top, share, floor in zip(coverage.TOPS, measured, coverage.FLOORS["it-en"]):
             self.assertGreaterEqual(share, floor, f"the {top:,} commonest lemmas")
 
 

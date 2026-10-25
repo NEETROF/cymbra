@@ -1,0 +1,726 @@
+### phrase-gloss a poco a poco
+expression: a poco a poco
+page 1/1:
+  [—] little by little, by degrees
+### phrase-gloss ad alta voce
+expression: ad alta voce
+page 1/1:
+  [—] aloud
+### phrase-gloss a causa dello sciopero
+row: a causa di — because of, due to, on account of
+row: sciopero — strike, walkout, stoppage
+### phrase-gloss Non so se riuscirò a farcela da solo
+row: sapere — to know (information)
+row: riuscire — to manage, to be able
+row: fare — to do
+row: da solo — by oneself, on one's own
+### phrase-gloss fare colazione
+row: fare — to do
+row: colazione — breakfast
+### phrase-gloss per favore
+expression: per favore
+page 1/1:
+  [—] please
+### phrase-gloss Quel ramo del lago di Como, che volge a mezzogiorno
+row: ramo — branch
+row: lago — lake
+row: como — Como (a city and comune, the capital of the province of Como, Lombardy)
+row: volgere — to turn, to direct (something (towards a specific object or goal))
+row: mezzogiorno — midday, noon
+### phrase-gloss L'uomo che aspettavo
+row: uomo — person, man (human being)
+row: aspettare — to wait for, await, wait
+### phrase-gloss la temperatura dell'acqua
+row: temperatura — temperature (a measure of cold or hot, of a body or environment)
+row: acqua — water
+### phrase-gloss all'alba
+row: alba — dawn, daybreak, break of day
+### phrase-gloss un po' di pane
+row: un po' — a bit, a little
+row: pane — bread
+### phrase-gloss C'è un po' di pane
+row: un po' — a bit, a little
+row: pane — bread
+### phrase-gloss c'è stato un errore
+row: errore — mistake, error, slip, howler, blunder, goof
+### phrase-gloss del pane e delle uova
+row: pane — bread
+row: uovo — egg
+### phrase-gloss nel cassetto
+row: cassetto — drawer
+### phrase-gloss Nel mezzo del cammin
+row: mezzo — half, middle
+row: cammino — walk, way, path (in idiomatic senses)
+### phrase-gloss col cane
+row: cane — dog, male dog
+### phrase-gloss dirmelo subito
+row: dire — to utter (produce (speech or other sounds) with one's voice)
+row: subito — at once, immediately, as soon as possible, shortly
+### phrase-gloss vattene
+row: andare — to go
+### phrase-gloss eccolo di nuovo
+row: ecco — used to call someone's attention to suddenly approaching or appearing beings or…
+row: di nuovo — again, anew
+### phrase-gloss Non lo so, dimmelo tu
+row: non lo so — I don't know
+row: dire — to utter (produce (speech or other sounds) with one's voice)
+### phrase-gloss Eccolo, è arrivato dall'Italia
+row: ecco — used to call someone's attention to suddenly approaching or appearing beings or…
+row: arrivato — successful
+row: italia — Italy (a country in Southern Europe)
+### phrase-gloss E' troppo tardi perche' la citta' e' piu' lontana
+row: tardi — late
+row: città — town, city
+row: più — anymore, any longer
+row: lontano — distant
+### phrase-gloss I paesi della NATO
+row: paese — country (nation)
+### phrase-gloss Dai, andiamo!
+row: dare — to give (to transfer the possession/holding of something to someone else)
+row: andare — to go
+### phrase-gloss mi dai una mano?
+row: dare — to give (to transfer the possession/holding of something to someone else)
+row: mano — hand
+### phrase-gloss a mo' di esempio
+row: a mo' di — like, as, by way of
+row: esempio — example
+### phrase-gloss Lorenzo de' Medici
+row: lorenzo — a male given name from Latin, equivalent to English Laurence
+row: medico — medical
+### phrase-gloss ne' campi
+row: campo — field
+### phrase-gloss trent'anni fa
+row: trent'anni — thirty years
+row: fare — to do
+### phrase-gloss gliel'ho detto
+row: dire — to utter (produce (speech or other sounds) with one's voice)
+### phrase-gloss davanti alla porta
+row: davanti a — in front of
+row: portare — to bring, fetch, take, carry
+### phrase-gloss ossia il primo
+row: primo — first
+### phrase-gloss non di il che
+rows: (none)
+### phrase-gloss cotto al dente
+row: cotto — cooked
+row: al dente — Firm to the bite, cooked just right
+### phrase-gloss vicino al mare
+row: vicino — near, close
+row: mare — sea
+### phrase-gloss a causa del ritardo
+row: a causa di — because of, due to, on account of
+row: ritardo — delay, lag
+### phrase-gloss anch'io
+expression: anch'io
+page 1/1:
+  [—] me too (subject)
+### phrase-gloss anche io
+row: anche — also, too, as well, besides
+### phrase-gloss un poco di pane
+row: pane — bread
+### phrase-gloss vale la pena
+expression: valere la pena
+page 1/1:
+  [—] (also with [che + subj.] or [di + inf.]) to be worth it
+### phrase-gloss d'accordo
+expression: d'accordo
+page 1/1:
+  [—] in agreement; agreed; sure!, OK!, of course!, naturally!; all right!, very well!
+### phrase-gloss The lighthouse stood
+row: lighthouse — lighthouse
+### phrase-gloss El faro se alzaba
+row: el — archaic, regional, and Rome form of il
+row: faro — lighthouse
+### phrase-gloss Le phare se dressait
+rows: (none)
+### phrase-gloss El far s'alçava
+row: el — archaic, regional, and Rome form of il
+row: fare — to do
+### phrase-gloss Non era unha noite tranquila
+rows: (none)
+### phrase-gloss Pharus in margine rupis
+row: margine — margin, border, edge, brink, bank, brow
+### word-grammar è essere
+grammar: third-person singular present indicative of essere
+page 1/2:
+  [verb] used as a copula. to be; denotes absolute time; used with as an auxiliary in the conjugation of other verbs, before their past participle; to exist, there be
+page 2/2:
+  [masculine noun] being, living; being; being, living, existence, condition; being, condition
+row: used as a copula. to be
+### word-grammar sono essere
+grammar: first-person singular present indicative and third-person plural present indicative of essere
+page 1/2:
+  [verb] used as a copula. to be; denotes absolute time; used with as an auxiliary in the conjugation of other verbs, before their past participle; to exist, there be
+page 2/2:
+  [masculine noun] being, living; being; being, living, existence, condition; being, condition
+row: used as a copula. to be
+### word-grammar era essere
+grammar: third-person singular imperfect indicative of essere
+page 1/2:
+  [verb] used as a copula. to be; denotes absolute time; used with as an auxiliary in the conjugation of other verbs, before their past participle; to exist, there be
+page 2/2:
+  [masculine noun] being, living; being; being, living, existence, condition; being, condition
+row: used as a copula. to be
+### word-grammar fu essere
+grammar: third-person singular past historic (passato remoto) of essere
+page 1/2:
+  [verb] used as a copula. to be; denotes absolute time; used with as an auxiliary in the conjugation of other verbs, before their past participle; to exist, there be
+page 2/2:
+  [masculine noun] being, living; being; being, living, existence, condition; being, condition
+row: used as a copula. to be
+### word-grammar sia essere
+grammar: first-, second- and third-person singular present subjunctive of essere
+page 1/2:
+  [verb] used as a copula. to be; denotes absolute time; used with as an auxiliary in the conjugation of other verbs, before their past participle; to exist, there be
+page 2/2:
+  [masculine noun] being, living; being; being, living, existence, condition; being, condition
+row: used as a copula. to be
+### word-grammar fosse essere
+grammar: third-person singular imperfect subjunctive of essere
+grammar: may also be the feminine plural of fossa
+page 1/2:
+  [verb] used as a copula. to be; denotes absolute time; used with as an auxiliary in the conjugation of other verbs, before their past participle; to exist, there be
+page 2/2:
+  [masculine noun] being, living; being; being, living, existence, condition; being, condition
+row: used as a copula. to be
+### word-grammar sarebbe essere
+grammar: third-person singular conditional of essere
+page 1/2:
+  [verb] used as a copula. to be; denotes absolute time; used with as an auxiliary in the conjugation of other verbs, before their past participle; to exist, there be
+page 2/2:
+  [masculine noun] being, living; being; being, living, existence, condition; being, condition
+row: used as a copula. to be
+### word-grammar ha avere
+grammar: third-person singular present indicative of avere
+page 1/1:
+  [verb] to have; to have (done something)
+  [masculine noun] property, substance; credit; belongings; assets; swag
+row: to have
+### word-grammar ebbe avere
+grammar: third-person singular past historic (passato remoto) of avere
+page 1/1:
+  [verb] to have; to have (done something)
+  [masculine noun] property, substance; credit; belongings; assets; swag
+row: to have
+### word-grammar abbia avere
+grammar: first-, second- and third-person singular present subjunctive of avere
+page 1/1:
+  [verb] to have; to have (done something)
+  [masculine noun] property, substance; credit; belongings; assets; swag
+row: to have
+### word-grammar andò andare
+grammar: third-person singular past historic (passato remoto) of andare
+page 1/3:
+  [verb] to go; to be agreeable (to), to be pleasing (to) (idiomatically, to feel like, to want/like) [with a ‘person with feeling’ and di ‘thing desired’]
+page 2/3:
+  [verb] to attend (school, church regularly); used to form the passive voice with a connotation of obligation or prescription
+page 3/3:
+  [verb] to enter, to take on, to experience [with in ‘a condition, emotion, etc.’]
+row: to go
+### word-grammar va andare
+grammar: third-person singular present indicative and second-person singular imperative of andare
+page 1/3:
+  [verb] to go; to be agreeable (to), to be pleasing (to) (idiomatically, to feel like, to want/like) [with a ‘person with feeling’ and di ‘thing desired’]
+page 2/3:
+  [verb] to attend (school, church regularly); used to form the passive voice with a connotation of obligation or prescription
+page 3/3:
+  [verb] to enter, to take on, to experience [with in ‘a condition, emotion, etc.’]
+row: to go
+### word-grammar fa fare
+grammar: third-person singular present indicative and second-person singular imperative of fare
+page 1/2:
+  [verb] to do; to make; to provoke (a physical sensation); to inflict (damage, pain, etc.) on; to cause or arouse (an emotion)
+page 2/2:
+  [verb] to draw up or enter into (a contract, agreement, etc.); to emit from the body
+  [masculine noun] manner, way
+row: to do
+### word-grammar disse dire
+grammar: third-person singular past historic (passato remoto) of dire
+page 1/2:
+  [verb] to utter (produce (speech or other sounds) with one's voice); to recite; to say, tell, utter; to say (indicate in a written form); to mean
+page 2/2:
+  [verb] to express a concept with the proper word in a given language; to speak
+  [masculine noun] words
+row: to utter (produce (speech or other sounds) with one's voice)
+### word-grammar porta portare
+grammar: third-person singular present indicative and second-person singular imperative of portare
+grammar: may also be the feminine past participle of porgere
+page 1/1:
+  [verb] to bring, fetch, take, carry; to transmit, to relay; to propose; to lead or drive; to wear; to bear, to feel, to harbor (of a feeling)
+row: to bring, fetch, take, carry
+### word-grammar porta porta
+gloss: (none)
+### word-grammar legge leggere
+grammar: third-person singular present indicative of leggere
+page 1/1:
+  [verb] to read
+row: to read
+### word-grammar legge legge
+grammar: may also be the third-person singular present indicative of leggere
+page 1/1:
+  [feminine noun] law
+row: law
+### word-grammar sale salire
+grammar: third-person singular present indicative of salire
+page 1/1:
+  [verb] to go up, to come up; to ride, to mount, to board
+row: to go up, to come up
+### word-grammar sale sale
+grammar: may also be the feminine plural of sala
+grammar: may also be the third-person singular present indicative of salire
+page 1/1:
+  [masculine noun] salt, sal
+row: salt, sal
+### word-grammar vite vita
+grammar: feminine plural of vita
+page 1/1:
+  [feminine noun] life; body, build, shape; waist
+row: life
+### word-grammar del del
+page 1/1:
+  [—] some, of the, from the
+row: some, of the, from the
+### word-grammar al a
+grammar: “al” = a + il
+page 1/4:
+  [preposition] indicates the indirect object. to; indicates the place, used in some contexts, in others in is used. in, to; denotes the manner. by
+page 2/4:
+  [preposition] forms adverbs meaning “in a manner related or resembling ~”; forms goodbye formulas from the time the persons will meet again. see you…
+page 3/4:
+  [preposition] introduces the ingredients of a dish, perfume, etc. with; denotes the direct object, but only if it is not preceded by articles
+page 4/4:
+  [preposition] forms an interjection that gives an instruction or calls attention to something
+row: indicates the indirect object. to
+### word-grammar l'uomo uomo
+grammar: “l'uomo” = lo + uomo
+page 1/1:
+  [masculine noun] person, man (human being); man (male human); man (husband, boyfriend, lover)
+  [pronoun] one (any person)
+row: person, man (human being)
+### word-grammar l’ lo
+page 1/2:
+  [determiner] the form of il that is used before the so-called impure consonants, that is, s+consonant (impure s), gn, pn, ps, x, y, or z, and before i+vocal, bd, cn, ct, dm, ft, mn, pt, tm and also ts, before a vowel it becomes l', the
+page 2/2:
+  [pronoun] him; it, this or that thing
+row: the form of il that is used before the so-called impure consonants, that is…
+### word-grammar l’ il
+page 1/1:
+  [determiner] the
+row: the
+### word-grammar dirmelo dire
+page 1/2:
+  [verb] to utter (produce (speech or other sounds) with one's voice); to recite; to say, tell, utter; to say (indicate in a written form); to mean
+page 2/2:
+  [verb] to express a concept with the proper word in a given language; to speak
+  [masculine noun] words
+row: to utter (produce (speech or other sounds) with one's voice)
+### word-grammar vattene andare
+page 1/3:
+  [verb] to go; to be agreeable (to), to be pleasing (to) (idiomatically, to feel like, to want/like) [with a ‘person with feeling’ and di ‘thing desired’]
+page 2/3:
+  [verb] to attend (school, church regularly); used to form the passive voice with a connotation of obligation or prescription
+page 3/3:
+  [verb] to enter, to take on, to experience [with in ‘a condition, emotion, etc.’]
+row: to go
+### word-grammar NATO NATO
+gloss: (none)
+### word-grammar dai dare
+grammar: second-person singular present indicative and second-person singular imperative of dare
+page 1/2:
+  [verb] to give (to transfer the possession/holding of something to someone else); to yield, to bear, to produce, to return; to name, to call, to refer to
+page 2/2:
+  [verb] chiefly in the form darla: acquiesce to a sexual intercourse
+  [masculine noun] debit
+row: to give (to transfer the possession/holding of something to someone else)
+### word-grammar dai da
+grammar: “dai” = da + i
+page 1/2:
+  [preposition] from; used to indicate the house, place, or establishment of, at/to + -'s; since, from; to (implying necessity); like, as; by; enough to
+page 2/2:
+  [preposition] used to express a quality or characteristic of
+row: from
+### word-grammar mo' mò
+gloss: (none)
+### word-grammar parlo parlare
+grammar: first-person singular present indicative of parlare
+page 1/1:
+  [verb] to talk, to speak; to cant
+row: to talk, to speak
+### word-grammar parli parlare
+grammar: second-person singular present indicative and first-, second- and third-person singular present subjunctive of parlare
+page 1/1:
+  [verb] to talk, to speak; to cant
+row: to talk, to speak
+### word-grammar parla parlare
+grammar: third-person singular present indicative and second-person singular imperative of parlare
+page 1/1:
+  [verb] to talk, to speak; to cant
+row: to talk, to speak
+### word-grammar parliamo parlare
+grammar: first-person plural present indicative or subjunctive and first-person plural imperative of parlare
+page 1/1:
+  [verb] to talk, to speak; to cant
+row: to talk, to speak
+### word-grammar mangiate mangiare
+grammar: feminine plural past participle, second-person plural present indicative or subjunctive and second-person plural imperative of mangiare
+grammar: may also be the feminine plural of mangiata
+page 1/2:
+  [verb] to eat; to tuck in, to start to eat; to live; to gnaw, to nibble, to eat away at (of insects); to consume; to dissipate, to squander
+page 2/2:
+  [verb] to graft (to obtain illegal gain from dishonest practices, especially in public life)
+  [masculine noun] food
+row: to eat
+### word-grammar parlate parlare
+grammar: feminine plural past participle, second-person plural present indicative and second-person plural imperative of parlare
+grammar: may also be the feminine plural of parlata
+page 1/1:
+  [verb] to talk, to speak; to cant
+row: to talk, to speak
+### word-grammar parlavo parlare
+grammar: first-person singular imperfect indicative of parlare
+page 1/1:
+  [verb] to talk, to speak; to cant
+row: to talk, to speak
+### word-grammar parlò parlare
+grammar: third-person singular past historic (passato remoto) of parlare
+page 1/1:
+  [verb] to talk, to speak; to cant
+row: to talk, to speak
+### word-grammar parlerò parlare
+grammar: first-person singular future of parlare
+page 1/1:
+  [verb] to talk, to speak; to cant
+row: to talk, to speak
+### word-grammar parlerei parlare
+grammar: first-person singular conditional of parlare
+page 1/1:
+  [verb] to talk, to speak; to cant
+row: to talk, to speak
+### word-grammar parlerebbe parlare
+grammar: third-person singular conditional of parlare
+page 1/1:
+  [verb] to talk, to speak; to cant
+row: to talk, to speak
+### word-grammar parlassi parlare
+grammar: first- and second-person singular imperfect subjunctive of parlare
+page 1/1:
+  [verb] to talk, to speak; to cant
+row: to talk, to speak
+### word-grammar parlando parlare
+grammar: gerund of parlare
+page 1/1:
+  [verb] to talk, to speak; to cant
+row: to talk, to speak
+### word-grammar parlanti parlare
+grammar: present participle of parlare
+grammar: may also be the plural and masculine plural of parlante
+page 1/1:
+  [verb] to talk, to speak; to cant
+row: to talk, to speak
+### word-grammar parlante parlante
+grammar: may also be the present participle of parlare
+page 1/1:
+  [adjective] talking; lifelike (painting)
+  [masculine noun] sayer; speaker (of a particular language)
+row: talking
+### word-grammar parlato parlare
+grammar: past participle of parlare
+page 1/1:
+  [verb] to talk, to speak; to cant
+row: to talk, to speak
+### word-grammar creduta credere
+grammar: feminine past participle of credere
+page 1/1:
+  [verb] to believe; to think
+row: to believe
+### word-grammar case casa
+grammar: feminine plural of casa
+page 1/1:
+  [feminine noun] house; home; family, dynasty, descent, stock, lineage, birth, origin; homeland, fatherland; square; structure for public use
+row: house
+### word-grammar rosse rosso
+grammar: feminine plural of rosso
+page 1/1:
+  [adjective] red; ginger, red (of hair); incandescent, red hot
+  [masculine noun] red (any of a range of colours/colors); any red pigment; a Socialist or Communist; gules
+row: red
+### word-grammar grandi grande
+grammar: plural and masculine and feminine plural of grande
+page 1/2:
+  [adjective] of greater physical dimensions or numerosity; great (importance)
+  [adverb] really (intensifier)
+  [interjection] great!
+  [noun] adult, grownup; greatness, magnificence
+page 2/2:
+  [noun] great (person of major significance)
+  [proper noun] a surname
+row: of greater physical dimensions or numerosity
+### word-grammar tali tale
+grammar: may also be the masculine plural of talo
+page 1/1:
+  [determiner] such
+row: such
+### word-grammar minore piccolo
+grammar: comparative of piccolo
+page 1/1:
+  [adjective] small; little; young; of the penis: small or not erected
+  [proper noun] a surname
+row: small
+### word-grammar mila mille
+page 1/1:
+  [numeral] thousand, one thousand
+row: thousand, one thousand
+### word-grammar città città
+page 1/1:
+  [feminine noun] town, city
+row: town, city
+### word-grammar di di
+page 1/2:
+  [preposition] used to indicate possession, after the thing owned and before the owner, of, ’s; from; by, of, ’s; than; used in superlative forms, in, of
+page 2/2:
+  [preposition] about, on, concerning; expresses composition, of, made of, in or more often omitted; to or omitted
+row: used to indicate possession, after the thing owned and before the owner, of, ’s
+### word-grammar che che
+page 1/1:
+  [pronoun] what, which; who, whom, which, that
+  [conjunction] that; proscribed spelling of ché; than; when; let, may
+  [determiner] some (a remarkable), what (intensifier to begin a sentence)
+row: what, which
+### word-grammar come come
+grammar: may also be the feminine plural of coma
+page 1/1:
+  [adverb] how; as, like; such as
+  [conjunction] as soon as
+row: how
+### word-grammar lo lo
+page 1/2:
+  [determiner] the form of il that is used before the so-called impure consonants, that is, s+consonant (impure s), gn, pn, ps, x, y, or z, and before i+vocal, bd, cn, ct, dm, ft, mn, pt, tm and also ts, before a vowel it becomes l', the
+page 2/2:
+  [pronoun] him; it, this or that thing
+row: the form of il that is used before the so-called impure consonants, that is…
+### word-grammar o o
+page 1/1:
+  [conjunction] or
+row: or
+### word-grammar questo questo
+page 1/1:
+  [determiner] this, these; the last, the past
+  [pronoun] this, this one, these; this, that
+row: this, these
+### word-grammar ci ci
+page 1/2:
+  [pronoun] us; ourselves, each other; to us; replaces the indefinite personal pronoun si (“one”) before reflexive si (“oneself”), one; it, to it
+  [adverb] to there, here, there
+page 2/2:
+  [adverb] forms part of many verbs
+  [noun] the Twi language family
+row: us
+### word-grammar solo solo
+page 1/2:
+  [adjective] alone, by oneself, unattended, unaccompanied, lonely, lone, lonesome; only, single, just one, unique, sole; solo (a piece of music for one performer)
+page 2/2:
+  [adverb] only, just, but, alone, merely
+  [conjunction] but, only; if only; only if
+  [masculine noun] the only one, the only man
+row: alone, by oneself, unattended, unaccompanied, lonely, lone, lonesome
+### word-grammar essere essere
+page 1/2:
+  [verb] used as a copula. to be; denotes absolute time; used with as an auxiliary in the conjugation of other verbs, before their past participle; to exist, there be
+page 2/2:
+  [masculine noun] being, living; being; being, living, existence, condition; being, condition
+row: used as a copula. to be
+### word-grammar io io
+page 1/1:
+  [pronoun] I (the first-person singular nominative pronoun)
+  [masculine noun] ego, self
+row: I (the first-person singular nominative pronoun)
+### word-grammar tutto tutto
+page 1/1:
+  [determiner] all
+  [pronoun] everything, all; anything
+  [adverb] entirely, quite; all over; used after interrogative pronouns to emphasise plurality
+  [masculine noun] whole
+row: all
+### word-grammar cosa cosa
+page 1/1:
+  [feminine noun] thing, matter; what's-her-name
+  [pronoun] what?; what!
+row: thing, matter
+### word-grammar fatto fatto
+grammar: may also be the past participle of fare
+page 1/1:
+  [adjective] done, made; fit, right, made; grown; stoned, baked, high, wasted, stuffed
+  [masculine noun] fact, event, occurrence, matter, affair, business, action, story
+row: done, made
+### word-grammar prima prima
+grammar: may also be the feminine singular of primo
+page 1/1:
+  [adverb] before; once, formerly; beforehand, in advance; earlier, sooner
+  [feminine noun] the first; an opening night, a premier; the first year at school
+row: before
+### word-grammar loro loro
+page 1/1:
+  [pronoun] they, them; theirs; you (plural), plural of Ella and Lei; them, to them
+  [determiner] their; your (plural); your (polite plural form)
+row: they, them
+### word-grammar dopo dopo
+page 1/1:
+  [adverb] later
+  [preposition] after
+  [adjective] next, (right) after, following; following, later
+row: later
+### word-grammar uno uno
+page 1/1:
+  [numeral] one
+  [determiner] an, a
+  [pronoun] somebody, someone, a person
+row: one
+### word-grammar ne ne
+page 1/4:
+  [adverb] from there
+  [pronoun] from this, from that, from these, from those, sometimes not translated in English; about this, about that, about these, about those
+page 2/4:
+  [pronoun] of this, of that, of these, of those, sometimes not translated in English; of them (sometimes not translated in English)
+page 3/4:
+  [pronoun] for this, of that, of these, of those, sometimes not translated in English
+page 4/4:
+  [pronoun] intensive particle, used in forms of certain verbs suffixed with -ne, where it indicates a particular way of carrying out the verb's action
+row: from there
+### word-grammar poi poi
+page 1/1:
+  [adverb] then; later
+  [masculine noun] the future
+row: then
+### word-grammar quello quello
+page 1/1:
+  [determiner] that, those
+  [pronoun] that one, those ones, those
+row: that, those
+### word-grammar ancora ancora
+grammar: may also be the third-person singular present indicative and second-person singular imperative of ancorare
+page 1/1:
+  [adverb] still; again; more; yet, not yet; even
+  [feminine noun] anchor (tool to moor a vessel into sea bottom)
+row: still
+### word-grammar molto molto
+page 1/2:
+  [adverb] much, very much, a lot (with verbs); very, really, very much (with adjectives or adverbs); much, far, a lot (in expressions of comparison)
+page 2/2:
+  [determiner] a lot of, much, great, (in the plural) many, a lot of, lots of
+  [pronoun] much, a lot; many, many people
+  [masculine noun] the many; the large part
+row: much, very much, a lot (with verbs)
+### word-grammar mai mai
+page 1/1:
+  [adverb] never; ever, always; used as an intensifier
+row: never
+### word-grammar ora ora
+page 1/1:
+  [feminine noun] hour (a unit of time of one twenty-fourth of a day (sixty minutes)); blow, breeze; time (of day), hour
+  [adverb] now
+  [conjunction] and yet; first … then…, one moment … the next
+row: hour (a unit of time of one twenty-fourth of a day (sixty minutes))
+### word-grammar quanto quanto
+page 1/2:
+  [determiner] how much, how many, however much, however many
+  [pronoun] how much, however much; how …! … so much!
+  [adverb] how; how …! (to be) so …! how … is it?!
+  [conjunction] as much as; as … as …
+page 2/2:
+  [masculine noun] quantum
+row: how much, how many, however much, however many
+### word-grammar dove dove
+page 1/1:
+  [conjunction] where
+  [adverb] where, whereabouts
+row: where
+### word-grammar quindi quindi
+page 1/1:
+  [adverb] therefore, hence, thus; then, afterwards, thenceforth; thence, from there; that way, to another side (as opposed a different one)
+  [conjunction] so
+row: therefore, hence, thus
+### word-grammar secondo secondo
+page 1/2:
+  [adjective] second; the second
+  [masculine noun] second (unit of time); second (in boxing or duelling); second mate, executive officer (in the navy); main course (of a meal)
+page 2/2:
+  [masculine noun] latter (relating to or being the second of two items)
+  [preposition] according to, as per, per
+row: second
+### word-grammar proprio proprio
+page 1/2:
+  [adjective] one's, one's own, her (own), its (own), their (own); characteristic, peculiar, typical; proper
+  [adverb] really, quite, indeed; just, quite, exactly
+page 2/2:
+  [adverb] (intensifier) very, right, at all
+  [masculine noun] one's own, what belongs to one, one's due
+row: one's, one's own, her (own), its (own), their (own)
+### word-grammar altro altro
+page 1/1:
+  [determiner] other, another, more, further, else; previous, last (in reference to time)
+  [pronoun] other, other man, another, more, somebody else; something else, some other thing
+row: other, another, more, further, else
+### word-grammar bene bene
+page 1/2:
+  [adjective] upper-class, posh, high
+  [adverb] well, nicely, OK, right; properly, correctly, rightly; thoroughly, carefully
+  [interjection] good!, fine!
+  [masculine noun] good
+page 2/2:
+  [masculine noun] goods, property, possessions, belongings, assets; sake, good
+row: upper-class, posh, high
+### word-grammar vi vi
+page 1/2:
+  [pronoun] second-person personal plural object pronoun: you, to you; you (in the singular), to you (singular), yourself; second-person reflexive plural: yourselves
+page 2/2:
+  [pronoun] it, about it, of it, on it
+  [adverb] there; here
+row: second-person personal plural object pronoun: you, to you
+### word-grammar qui qui
+page 1/1:
+  [adverb] here
+row: here
+### word-grammar stesso stesso
+page 1/1:
+  [determiner] same, equal; -self, myself, yourself, himself, itself, myself
+  [pronoun] same, same person, same man; same, same thing
+row: same, equal
+### word-grammar grande grande
+page 1/2:
+  [adjective] of greater physical dimensions or numerosity; great (importance)
+  [adverb] really (intensifier)
+  [interjection] great!
+  [noun] adult, grownup; greatness, magnificence
+page 2/2:
+  [noun] great (person of major significance)
+  [proper noun] a surname
+row: of greater physical dimensions or numerosity
+### word-grammar fine fine
+grammar: may also be the feminine plural of fino
+page 1/1:
+  [adjective] thin; fine; refined
+  [noun] end; aim, purpose, end
+row: thin
+### word-grammar tuo tuo
+page 1/1:
+  [determiner] your (informal)
+  [pronoun] yours
+row: your (informal)
+### word-grammar avere avere
+page 1/1:
+  [verb] to have; to have (done something)
+  [masculine noun] property, substance; credit; belongings; assets; swag
+row: to have
+### word-grammar fino fino
+page 1/1:
+  [preposition] till, until, as far as
+  [adjective] thin, fine
+row: till, until, as far as
+### word-grammar meglio meglio
+page 1/1:
+  [adjective] better, (the) best
+  [adverb] better; best
+  [noun] the best thing, the best part; the better
+row: better, (the) best
+### phrase-gloss reader Il vecchio marinaio chiuse le finestre del faro
+row: marinaio — sailor, mariner, seaman
