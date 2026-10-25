@@ -24,6 +24,10 @@ Inputs:
 - `kaikki-it-traductions-en.jsonl`, in `--work`: the English translations the Italian Wiktionary's
   Italian entries list (derived from its dump, `pack_sources.py DUMPS`), the glosses' fallback (D2),
   at most three words per part of speech. No table read backwards, no pivot, no machine translation.
+- `it_markit-ud-train.conllu` and `it_markit-ud-dev.conllu`, in `--work`: UD Italian-MarkIT's training
+  and development sections, pinned at it-fr's commit (`pack_sources.py PINNED["it-en"]`), read for
+  the part of speech a function word's row opens on (refine-lingua-it-en-glosses D1, D2a) and for
+  nothing else; its test section never.
 
 Outputs, in `--work`: `gloss.tsv`, `senses.tsv`, `mwe.tsv`, `NOTICE` and `manifest.json`; and
 `measures.json`, what the reduction measures of its glosses for the update's report, which no table
@@ -34,14 +38,20 @@ as es-en calls them — its letters left out (`common.without_letter_senses`,
 `english.without_letter_headwords`), its senses read as meanings (`english.read_as_meanings`) —, then
 through it-en's own (`italian.read_as_italian`, D4: a pointer's carried meaning read by a reviewed
 list of wordings, acronyms kept off common words and names off function words, no word glossed by a
-letter's name, the page's notes out), then the English edition's etymology merging (off).
+letter's name, the page's notes out; and change 23's rules reading a headword's entries together —
+the row's order over MarkIT's counts, the page's marks and a reviewed table, pointers, carried
+meanings, names' notes, the page's typography, the section's `CORRECTIONS`), then the English
+edition's etymology merging (off). After the shared rules, « etc » takes its period and the Italian
+Wiktionary's translations are read as `CORRECTIONS` correct them (refine-lingua-it-en-glosses D7, D8).
 
 Every rule here names a source or is Italian's: the native side every pair shares
 (`reduce_common.native_tables`, step by step so that each lemma's source is kept) with the English
 edition's rules. it-fr's reducer is not loaded — a reducer loads code by import statements alone, and
 nothing of it-fr may move with this pair — so the pair's rule digest is this file,
-`reduce_italian_en.py`, `reduce_italian_acronyms.py` (change 11's rows), `reduce_common.py` and
-`reduce_edition_en.py`. A change to it-fr's rules reaches this pair through the committed tables:
+`reduce_italian_en.py`, `reduce_italian_acronyms.py` (change 11's rows), `reduce_common.py`,
+`reduce_edition_en.py`, and the two treebank modules it-fr imports as well, fr-en's
+`reduce_french_treebank.py` and MarkIT's `reduce_italian_treebank.py` (refine-lingua-it-en-glosses
+D1). A change to it-fr's rules reaches this pair through the committed tables:
 when a studied table moves, it-en's pack moves and its checks name the table (`pack_sources.py
 check-reducer`).
 """
@@ -59,6 +69,7 @@ import reduce_common as common  # noqa: E402 — the rules every pair shares
 import reduce_edition_en as english  # noqa: E402 — the English Wiktionary's rules: it-en's glosses are English
 import reduce_italian_acronyms as acronyms  # noqa: E402 — Italian's acronym rows (keep-lingua-italian-acronyms-and-names)
 import reduce_italian_en as italian  # noqa: E402 — it-en's own pre-pass over the English section (D4)
+import reduce_italian_treebank as treebank  # noqa: E402 — UD Italian-MarkIT's counts, a row's order (change 23's D2a)
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ANALYSIS_RS = os.path.join(_HERE, "..", "..", "crates", "lingua-core", "src", "analysis", "mod.rs")
@@ -68,6 +79,11 @@ _STUDIED = os.environ.get("LINGUA_STUDIED") or os.path.join(_HERE, "tables", "it
 # The native side's sources, in `--work` (pack_sources.py DUMPS["it-en"]).
 SECTION = "kaikki-Italian.jsonl"
 DIRECT = "kaikki-it-traductions-en.jsonl"
+# UD Italian-MarkIT's training and development sections, pinned at it-fr's commit and sha256s
+# (pack_sources.py PINNED["it-en"]), read for the part of speech a function word's row opens on
+# (refine-lingua-it-en-glosses D1, D2a) and for nothing else; its test section never
+# (`reduce_italian_treebank.held_out`).
+MARKIT = ("it_markit-ud-train.conllu", "it_markit-ud-dev.conllu")
 # What the native side writes beside its sources, as it reads them — no table: `pack_sources.py split`
 # files none of them.
 SECTION_SENSES = "kaikki-Italian-senses.jsonl"
@@ -92,7 +108,7 @@ IT = common.Studied(
     token=_TOKEN,
     # Not read by the native side; kept for the shared rules' interface.
     form_of_target=re.compile(rf"([{_LETTERS}]+)\s*\.?$"),
-    coordinators=frozenset({"e", "ed", "o", "ma", "sia", "oppure", "né", "cioè", "ovvero", "ossia", "nonché", "bensì"}),
+    coordinators=italian.COORDINATORS,
 )
 
 # What the native side reads of an entry (`reduce_common._read_entries`, `reduce_expressions`,
@@ -290,6 +306,120 @@ def acronym_glosses(glosses, expressions, entries):
     return out
 
 
+# refine-lingua-it-en-glosses D7 — « etc » takes its period, in glosses and expressions: fr-en's
+# `with_etc_period` (refine-lingua-fr-en-glosses D8), written again here, since a reducer loads no other
+# pair's.
+_ETC = re.compile(r"\betc\b(?!\.)")
+
+
+def with_etc_period(text):
+    """`text` with every « etc » not followed by a period written « etc. »."""
+    return _ETC.sub("etc.", text)
+
+
+def with_etc_periods(table):
+    """`with_etc_period` over a table's values, in place: answers the keys whose value moved, sorted."""
+    moved = []
+    for key, value in sorted(table.items()):
+        written = with_etc_period(value)
+        if written != value:
+            table[key] = written
+            moved.append(key)
+    return moved
+
+
+# refine-lingua-it-en-glosses D8 — the sources' slips corrected, and the meanings they leave out added,
+# by name (it-fr's `CORRECTIONS`, for it-en): `reduce_italian_en.Correction`'s fields — the source
+# (`section`, the English Wiktionary's Italian section, read by `read_as_italian`; `translations`, the
+# Italian Wiktionary's English translations, `corrected_translations`), the headword, its part of
+# speech, its texts as the pinned files write them, the corrected texts or None, the reason, the page
+# it is reported or suggested to, and whether it adds an entry. A correction that finds nothing is
+# named by the reduction's report, and removed. The owner reads each (task 0.3, 2026-10-25). Editing
+# the list changes the rules' sha256, as for any rule.
+CORRECTIONS = (
+    italian.Correction(
+        "translations",
+        "all'antica",
+        "phrase",
+        ("ancient", "anshent", "antique"),
+        ("ancient", "antique"),
+        "« anshent », a jocular spelling of « ancient », listed as a translation beside it",
+        "https://it.wiktionary.org/wiki/all%27antica",
+    ),
+    # D5 — four feminine nouns whose « female equivalent of » pointer lends nothing beside a narrow sense
+    # of their own: the person's meaning added, in a source's words, before the section's senses (the
+    # owner's answer to task 0.3, option (a), 2026-10-25). Additions, suggested upstream.
+    italian.Correction(
+        "section",
+        "amica",
+        "noun",
+        ("female equivalent of amico", "girlfriend"),
+        ("friend",),
+        "amica (rank 882) reads « girlfriend » alone: its female-equivalent pointer lends nothing beside it; "
+        "« friend » is amico's first sense",
+        "https://en.wiktionary.org/wiki/amica#Italian",
+        True,
+    ),
+    italian.Correction(
+        "section",
+        "bambina",
+        "noun",
+        ("female equivalent of bambino", "babe"),
+        ("girl, little girl",),
+        "bambina (rank 1,479) reads « babe » alone; « girl, little girl » are the Italian Wiktionary's English "
+        "translations of bambina",
+        "https://en.wiktionary.org/wiki/bambina#Italian",
+        True,
+    ),
+    italian.Correction(
+        "section",
+        "compagna",
+        "noun",
+        ("female equivalent of compagno (“companion”)", "wife, spouse", "alternative form of compagnia (“company”)", "ship's pantry"),
+        ("companion, partner",),
+        "compagna (rank 2,810) opens on « wife, spouse »; « companion, partner » are the Italian Wiktionary's English "
+        "translations of compagna",
+        "https://en.wiktionary.org/wiki/compagna#Italian",
+        True,
+    ),
+    italian.Correction(
+        "section",
+        "spagnola",
+        "noun",
+        ("Spanish influenza", "tit fuck, titwank, titjob", "female equivalent of spagnolo"),
+        ("Spaniard",),
+        "spagnola (rank 2,541) reads « Spanish influenza » and a vulgar sense; « Spaniard » is the noun spagnolo's "
+        "first sense",
+        "https://en.wiktionary.org/wiki/spagnola#Italian",
+        True,
+    ),
+)  # fmt: skip
+
+
+def corrected_translations(direct, fired, corrections=CORRECTIONS):
+    """The Italian Wiktionary's translations (`read_translated`) as `CORRECTIONS` correct them, in place:
+    a word's translations of a part of speech, when they are exactly `text`, replaced by `corrected`;
+    each correction that fires added to `fired`."""
+    for correction in corrections:
+        if correction.source != "translations":
+            continue
+        by_pos = direct.get(correction.headword)
+        if not by_pos:
+            continue
+        upos = common.kaikki_upos(correction.pos, correction.headword, studied=IT)
+        if tuple(by_pos.get(upos) or ()) != tuple(correction.text):
+            continue
+        by_pos[upos] = list(correction.corrected or ())
+        fired.add(correction)
+    return direct
+
+
+def unfired(fired, corrections=CORRECTIONS):
+    """The corrections that fired on nothing: each, as the report names it — the page was corrected, or
+    the entry is gone, and the correction is to be removed."""
+    return [f"{c.headword} ({c.source}, {c.pos})" for c in corrections if c not in fired]
+
+
 def row_words(rows=None):
     """The expansions and synonyms of the acronym rows, lowercased as the pair keys them."""
     rows = acronyms.ACRONYMS if rows is None else rows
@@ -428,12 +558,13 @@ def manifest(pack_version):
 def reduce(work, studied, max_lemmas, pack_version, report=print):
     """The reduction over the raw sources in `work`, its tables written there: answers what the report
     prints, as a dict, for the measurement."""
-    absent = [name for name in (SECTION, DIRECT) if not os.path.isfile(os.path.join(work, name))]
+    absent = [name for name in (SECTION, DIRECT, *MARKIT) if not os.path.isfile(os.path.join(work, name))]
     if absent:
         raise SystemExit(
             f"it-en: {', '.join(os.path.join(work, name) for name in absent)} missing: it-en's glosses read the "
             "English Wiktionary's Italian section and the Italian Wiktionary's English translations "
-            "(pack_sources.py DUMPS['it-en'])"
+            "(pack_sources.py DUMPS['it-en']), and orders a row by UD Italian-MarkIT's training and development "
+            "sections (pack_sources.py PINNED['it-en'])"
         )
     ranks = read_studied(studied, max_lemmas)
     forms = read_forms(studied)
@@ -442,14 +573,32 @@ def reduce(work, studied, max_lemmas, pack_version, report=print):
     section = without_letters(section, os.path.join(work, SECTION_WORDS))
     section = english.without_letter_headwords(section, os.path.join(work, SECTION_HEADWORDS))
     section = english.read_as_meanings(section, os.path.join(work, SECTION_MEANINGS))
-    section, stats = italian.read_as_italian(section, os.path.join(work, SECTION_ITALIAN), edition=EDITION)
+    # Change 23's rules read a headword's entries together: a row's order over MarkIT's parts of speech
+    # (D2a), the section's corrections (D8); the reviewed rows checked after.
+    counts = treebank.markit_pos_counts([os.path.join(work, name) for name in MARKIT])
+    reviewed = italian.Reviewed()
+    section, stats = italian.read_as_italian(
+        section,
+        os.path.join(work, SECTION_ITALIAN),
+        edition=EDITION,
+        counts=counts,
+        corrections=[c for c in CORRECTIONS if c.source == "section"],
+        reviewed=reviewed,
+    )
+    missed_runs = italian.unfound_first_runs(reviewed.first_runs)
+    if missed_runs:
+        raise SystemExit(
+            f"it-en: {len(missed_runs)} row(s) of FIRST_RUN name a sense the section does not give: " + ", ".join(missed_runs)
+        )
     section = english.merge_same_pos_etymologies(section, os.path.join(work, SECTION_MERGED))
-    direct = read_translated(os.path.join(work, DIRECT), os.path.join(work, DIRECT_READ))
+    fired = set(reviewed.fired)
+    direct = corrected_translations(read_translated(os.path.join(work, DIRECT), os.path.join(work, DIRECT_READ)), fired)
 
     glosses, runs, expressions, steps = native_side(section, ranks, direct)
     # A sense repeating an earlier one goes, before the acronym rows read the glosses.
     repeated = without_repeated_senses(glosses, runs)
     stats["glosses repeating a sense"] = len(repeated)
+    stats["glosses whose « etc » takes its period"] = len(with_etc_periods(glosses))
     # The words Italian's pre-pass splits, after the headwords with a space: the section's, then the
     # Italian Wiktionary's (D4.5, D5); and the entries of the acronym rows' synonyms, whatever their
     # part of speech (D6).
@@ -458,6 +607,7 @@ def reduce(work, studied, max_lemmas, pack_version, report=print):
     with_space = len(expressions)
     expressions.update(split)
     expressions.update(split_table)
+    stats["expressions whose « etc » takes its period"] = len(with_etc_periods(expressions))
     # Each acronym row glossed from it-en's own glosses of its expansions, else of its synonyms
     # (keep-lingua-italian-acronyms-and-names D3), the only unranked lemmas it glosses.
     glossed_acronyms = acronym_glosses(glosses, expressions, row_entries)
@@ -493,6 +643,9 @@ def reduce(work, studied, max_lemmas, pack_version, report=print):
             "split words, the Italian Wiktionary": len(split_table),
         },
         "section as read": dict(stats),
+        "corrections fired": len(CORRECTIONS) - len(unfired(fired)),
+        "corrections that fired on nothing": unfired(fired),
+        "towns kept by the reviewed list": sorted(reviewed.kept),
         "acronym glosses": {acronym: gloss for acronym, (gloss, _) in glossed_acronyms.items()},
         "dropped": dropped,
     }
@@ -510,6 +663,21 @@ def reduce(work, studied, max_lemmas, pack_version, report=print):
         + ")"
     )
     report("reduced it-en: the section as read: " + ", ".join(f"{n} {what}" for what, n in sorted(stats.items())))
+    report(
+        f"reduced it-en: {summary['corrections fired']} of {len(CORRECTIONS)} corrections fired"
+        + (
+            "; fired on nothing, to remove: " + ", ".join(summary["corrections that fired on nothing"])
+            if summary["corrections that fired on nothing"]
+            else ""
+        )
+        + "; towns kept by the reviewed list: "
+        + (", ".join(summary["towns kept by the reviewed list"]) or "none")
+        + (
+            "; kept nothing, to remove: " + ", ".join(sorted(set(italian.TOWNS_KEPT) - reviewed.kept))
+            if set(italian.TOWNS_KEPT) - reviewed.kept
+            else ""
+        )
+    )
     report(
         "reduced it-en: the acronym rows "
         + (", ".join(f"{a} « {g} »" for a, g in summary["acronym glosses"].items()) or "none glossed")
