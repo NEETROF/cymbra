@@ -254,18 +254,27 @@ const nowSeconds = (): number => Math.floor(Date.now() / 1000);
 /**
  * The three-letter codes (ISO 639-2) some packages declare for the shipped languages, and for the
  * neighbours the detection guards keep out of them (`GUARDED`, read-lingua-card-in-another-studied-language D7):
- * Sardinian's, Corsican's and Latin's since enable-lingua-italian (D3). Venetian, Sicilian, Neapolitan
- * and Friulian have no two-letter code and are declared in three. `fra` and `ita` stay unmapped.
+ * Italian's, Sardinian's, Corsican's and Latin's since enable-lingua-italian (D3) — an Italian book
+ * declaring `ita` is shelved and read as Italian —, and the four ISO 639-3 languages of the Sardinian
+ * macrolanguage (`srd`), Logudorese, Campidanese, Sassarese and Gallurese, read as Sardinian, which
+ * Italian's guard keeps out (Sassarese and Gallurese, nearer Corsican, are kept out either way).
+ * Venetian, Sicilian, Neapolitan and Friulian have no two-letter code and are declared in three.
+ * `fra` stays unmapped.
  */
 const THREE_LETTER: Record<string, string> = {
   eng: "en",
   spa: "es",
+  ita: "it",
   cat: "ca",
   glg: "gl",
   oci: "oc",
   ron: "ro",
   rum: "ro",
   srd: "sc",
+  src: "sc",
+  sro: "sc",
+  sdc: "sc",
+  sdn: "sc",
   cos: "co",
   lat: "la",
 };

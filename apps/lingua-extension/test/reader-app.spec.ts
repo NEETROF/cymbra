@@ -678,6 +678,14 @@ describe("shelfSections (group-lingua-library-by-language)", () => {
     ]);
   });
 
+  it("shelves an Italian book declaring it or ita under Italian (enable-lingua-italian D3)", () => {
+    const books = [book("Pinocchio", "it"), book("Promessi", "ita"), book("Gattopardo", "it-IT"), book("x", "fra")];
+    expect(titles(shelfSections(books, ["en", "it"]))).toEqual([
+      ["it", ["Pinocchio", "Promessi", "Gattopardo"]],
+      [null, ["x"]],
+    ]);
+  });
+
   it("puts a book declaring nothing, or und, with the others", () => {
     const books = [book("a", null), book("b", "und"), book("c", ""), book("d", "en")];
     expect(titles(shelfSections(books, ["en"]))).toEqual([

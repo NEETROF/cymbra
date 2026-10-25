@@ -465,6 +465,10 @@ describe("otherStudiedLanguages (D1, D7)", () => {
       "scn",
       "vec",
       "srd",
+      "src",
+      "sro",
+      "sdc",
+      "sdn",
       "nap",
       "fur",
       "sc",
@@ -488,7 +492,7 @@ describe("otherStudiedLanguages (D1, D7)", () => {
         "it",
       ]);
     }
-    // Italian's neighbours are not Spanish's or French's: a Sicilian page still reads Spanish and French.
+    // Italian's neighbours are not Spanish's or English's: a Sicilian page still reads Spanish and English.
     expect(
       otherStudiedLanguages({
         ...italian,
@@ -510,18 +514,21 @@ describe("otherStudiedLanguages (D1, D7)", () => {
 
   it("reads the guards' three-letter codes", () => {
     expect(["cat", "glg", "oci", "ron", "rum"].map(primaryLanguage)).toEqual(["ca", "gl", "oc", "ro", "ro"]);
-    // Sardinian's, Corsican's and Latin's (enable-lingua-italian D3); Venetian, Sicilian, Neapolitan and
-    // Friulian are three-letter codes of their own; French and Italian stay as declared.
-    expect(["srd", "cos", "lat", "vec", "scn", "nap", "fur"].map(primaryLanguage)).toEqual([
+    // Italian's, Sardinian's — the macrolanguage's and its four languages' —, Corsican's and Latin's
+    // (enable-lingua-italian D3); Venetian, Sicilian, Neapolitan and Friulian are three-letter codes of
+    // their own; French stays as declared.
+    expect(["ita", "srd", "src", "sro", "sdc", "sdn", "cos", "lat"].map(primaryLanguage)).toEqual([
+      "it",
+      "sc",
+      "sc",
+      "sc",
+      "sc",
       "sc",
       "co",
       "la",
-      "vec",
-      "scn",
-      "nap",
-      "fur",
     ]);
-    expect(["fra", "ita"].map(primaryLanguage)).toEqual(["fra", "ita"]);
+    expect(["vec", "scn", "nap", "fur"].map(primaryLanguage)).toEqual(["vec", "scn", "nap", "fur"]);
+    expect(primaryLanguage("fra")).toBe("fra");
   });
 });
 
