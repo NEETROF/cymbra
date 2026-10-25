@@ -322,3 +322,65 @@ not listed. Rollback is a revert.
 | The golden, cross-native, committed-tables tests, testdata, the row cut | 0.75–1.25 |
 | The card snapshot | 0.25–0.5 |
 | The floor, OpenSpec, review | 0.25–0.5 |
+
+## Implementation
+
+What the implementation measured and decided before the dispatch (2026-10-26). Every figure is reduced by
+`reduce-en-it.py` itself, with Python 3.12 and `requirements-reduce.txt`, over the bytes below; D6's
+criteria were committed (`a51fa5c72`) before any of them was read.
+
+### The bytes
+
+`pack_sources.fetch_live` for en-it, run locally as `build.sh --update en-it` runs it (snapshot 2026.10.26):
+what the dispatch's release, `lingua-pack-sources-en-it-<snapshot>`, would hold if run that day. Both dumps
+are CC BY-SA 4.0 + GFDL (Wiktionary, through kaikki.org).
+
+| Record | Dump, Last-Modified | Served B | Decompressed B, sha256 | Derived file: B, sha256 (asset .zst B) |
+|---|---|---:|---|---|
+| `kaikki-it` | itwiktionary, Sat, 24 Oct 2026 21:16:17 GMT | 43,849,715 | 566,646,259, `e007665a8b21ed62…` | `kaikki-it-Inglese.jsonl` 13,670,867 `79033de933029e33…` (1,125,359); `kaikki-it-traductions-en.jsonl` 7,216,558 `e192643a4e050143…` (718,486) |
+| `kaikki-en` | enwiktionary, Wed, 21 Oct 2026 11:23:03 GMT | 3,082,192,147 | 26,611,939,151, `60a6073c7cd3f77a…` | `kaikki-en-traductions-it.jsonl` 9,684,334 `bb2f8c5a946aee33…` (1,435,258) |
+
+The English dump fetched in 57 s, its six-file catalogue derived in 171 s; the Italian one in 1 s and 5 s.
+Three assets, 3,279,103 B compressed. The section and the inverted table are the proposal's files to the
+byte; the direct table is 40,625 B larger than the proposal's (the English dump regenerated since
+2026-10-03). Both dumps are the ones change 27's study read (same Last-Modified and sha256).
+
+### The study (task 0.1)
+
+On English's committed ranks (`tables/en/freq.tsv`, 40,685 lemmas), `gloss_coverage.measure` over the
+`gloss.tsv` the reducer wrote:
+
+| After | Loose 5,000 / 10,000 / 20,000 | Strict |
+|---|---|---|
+| the section's definitions, change 35's rules | 84.8 / 72.2 / 53.0 | 84.6 / 72.0 / 52.8 |
+| + the direct table | 90.6 / 81.1 / 67.0 | 90.4 / 81.0 / 66.9 |
+| **+ the inverted table** | **91.4 / 82.8 / 70.3** | 91.2 / 82.6 / 70.2 |
+| **`FLOORS["en-it"]` proposed** (less two points) | **89.4 / 80.8 / 68.3** | |
+
+Within 0.1 of the proposal's 91.4 / 82.7 / 70.3: the larger direct table glosses 2 more lemmas of the
+10,000. Glossed lemmas by source: definitions 13,677 (55 through a pointer), the direct table 6,125, the
+inverted 1,724; 21,526 of 40,685 (52.9 %). The top rows (5,000 / 10,000 / 20,000): definitions 4,229 /
+7,200 / 10,565, a pointer's word 10 / 18 / 28, the direct table 292 / 895 / 2,807, the inverted 39 / 163
+/ 665, unglossed 430 / 1,724 / 5,935. The tables give 12.8 % of the 8,276 glossed among the 10,000.
+English's dictionary words glossed: 4,235 of 4,373 / 7,614 of 8,022 / 12,755 of 13,930; contractions 24
+of 81 / 25 of 172 / 27 of 489. Expressions: 13,423 — the section 1,380, the direct table 9,905, the
+inverted 2,138. The pack, built with a scratch native tag (the core refuses `it`, below): 1,553,507 B, its
+base 935,260 B (en-es's), its layer 618,472 B.
+
+No departure from D1–D5 was found: no fix before the dispatch. The sample of 100 (seed 20261024, the
+20,000 commonest): 77 definitions, 21 direct, 2 inverted; its defects are D10's (`austin`, `bennett`,
+`caroline`, `adrian` glossed by their names' notes, `duff` opening on one, `jp` an abbreviation's
+expansion, `mx` « signorə, signor, a », a split of « signor/a », for change 37).
+
+### What waits
+
+- **The owner** (task 0.1): the floor above, and the sources release as *The bytes* list it.
+- **Change 32** (`add-lingua-italian-native-language`, after change 20, #1058): `lingua-pack-build` refuses
+  a pack glossed in `it` (« a native language the core does not know »), so `build.sh --update en-it` —
+  the dispatch — fails at the build after the reduction, and so would `en_it_baseline.rs`,
+  `cross_native.rs`, `committed_tables.rs`, `pipeline_testdata.rs` and the card snapshot. The dispatch
+  waits for it, with them.
+- **The update's pull request** (task 3.2): `tables/en-it/` and its README, the floor step and the
+  baselines step of `lingua-extension-check.yml` (`--pair en-it` has no table to measure before),
+  `lingua-pack-update.yml`'s bless steps (`en_it_baseline`, `word-card-en-it.spec.ts`), and
+  `tables/en-fr/README.md` naming en-it among the pairs reading `../en/`.

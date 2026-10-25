@@ -4429,12 +4429,14 @@ class TheItalianEdition(Entries):
             self.assertIn(old, text)
             module.write_text(text.replace(old, new), encoding="utf-8")
             self.assertEqual({pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in editions}, before, new)
-        # A pair glossed from the Italian Wiktionary (en-it, change 36) loads it, and moves with it.
-        reader = copy / "reduce-xx-it.py"
-        reader.write_text("import reduce_common\nimport reduce_edition_it\n", encoding="utf-8")
+        # en-it (add-lingua-pack-en-it D1), the first pair glossed from the Italian Wiktionary, loads it, and
+        # moves with it; no committed pair does.
+        reader = copy / "reduce-en-it.py"
         self.assertEqual(
-            [p.name for p in ps.rule_files(reader)], ["reduce-xx-it.py", "reduce_common.py", "reduce_edition_it.py"]
+            [p.name for p in ps.rule_files(reader)], ["reduce-en-it.py", "reduce_common.py", "reduce_edition_it.py"]
         )
+        loading = [p.stem.removeprefix("reduce-") for p in sorted(copy.glob("reduce-*.py")) if "reduce_edition_it.py" in ps.loaded_rules(p)]
+        self.assertEqual(loading, ["en-it"])
         moved = ps.rules_sha256(reader)
         module = copy / "reduce_edition_it.py"
         module.write_text(module.read_text(encoding="utf-8") + "\n# edited\n", encoding="utf-8")
