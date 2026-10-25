@@ -377,7 +377,8 @@ coverage does not count them.
   preposition or a conjunction of a closed list (`split_translation`) glosses nothing. Not a class D3
   names, so not a fix D8's criteria allow before the dispatch: implemented because the spec's pivot pairs
   « an Italian and a Spanish word a person wrote » under one sense, which a fragment is not, and **left
-  for the owner to keep or drop** — the coverage with it 85.2 / 76.0 / 65.1, without 85.3 / 76.1 / 65.1.
+  for the owner to keep or drop** — the coverage with it 85.2 / 76.0 / 65.1, without 85.3 / 76.1 / 65.1. The
+  requirement names it; dropped, its clause goes with `split_translation` and its tests.
 - **D3's order**: a lemma's Spanish words by the number of tables giving them, then of editions, then
   Spanish frequency, then the alphabet — D3's wording. Against the two Wiktionaries' tables, on the 8,766
   lemmas they and the pivot gloss, the first word agrees 78.0 % so, 77.7 % editions first, 77.8 % by
