@@ -2,12 +2,12 @@
 
 ## 0. Before the dispatch
 
-- [ ] 0.1 [owner] The study re-run on change 9's committed ranks with D2's fallback and D4's pre-pass (D7): `FLOORS["it-en"]` fixed at those figures less two points, up or down, the owner settling it before the first committed measurement; the figures written into the requirement *it-en is committed beside Italian's studied tables…* and a test holding `FLOORS` to them. — *Proposed*: the study gives 91.3 / 84.2 / 75.7 % (design, *Implementation*), so `FLOORS["it-en"]` = 89.3 / 82.2 / 73.7, written into the requirement and held by `test_gloss_coverage.py`; the owner settles it.
+- [x] 0.1 [owner] The study re-run on change 9's committed ranks with D2's fallback and D4's pre-pass (D7): `FLOORS["it-en"]` fixed at those figures less two points, up or down, the owner settling it before the first committed measurement; the figures written into the requirement *it-en is committed beside Italian's studied tables…* and a test holding `FLOORS` to them. — *Proposed*: the study gives 91.3 / 84.2 / 75.7 % (design, *Implementation*), so `FLOORS["it-en"]` = 89.3 / 82.2 / 73.7, written into the requirement and held by `test_gloss_coverage.py`; the owner settles it. Done 2026-10-25: the owner settled the floor at 89.3 / 82.2 / 73.7.
 
 ## 1. The sources and the pipeline
 
 - [x] 1.1 `pack_sources.py`: `EDITIONS["it"]` gains `kaikki-it-traductions-en.jsonl` (`("translations", "it", "en")`); `DUMPS["it-en"]` names it beside the English Wiktionary's `kaikki-Italian.jsonl`, it-en pinning its own fetch (D3); `test_pack_sources.py` covers them; `gloss_coverage.py`: `FLOORS["it-en"]`; `SOURCES.md` names the sources and licences.
-- [ ] 1.2 `lingua-pack-update.yml`: it-en among the pairs, reduced after it-fr, `--test it_en_baseline` run; `test_reduce_loops.py` holds the options; `lingua-extension-check.yml`: the gloss-coverage floor step runs `--pair it-en` and is renamed for the pairs it holds, and `--test it_en_baseline` runs beside the Italian baseline (D7, D9). — *Done*: the pair option, the `it` group, it-en reduced after it-fr (and its first update without a folder, `pairs --after it-en`), `test_reduce_loops.py`, the floor step. *Waits for 4.1*: the two workflows' `--test it_en_baseline` and `word-card-it-en.spec.ts` lines, on `impl/add-lingua-pack-it-en-post` (design, *Deviations*, D9).
+- [x] 1.2 `lingua-pack-update.yml`: it-en among the pairs, reduced after it-fr, `--test it_en_baseline` run; `test_reduce_loops.py` holds the options; `lingua-extension-check.yml`: the gloss-coverage floor step runs `--pair it-en` and is renamed for the pairs it holds, and `--test it_en_baseline` runs beside the Italian baseline (D7, D9). — *Done*: the pair option, the `it` group, it-en reduced after it-fr (and its first update without a folder, `pairs --after it-en`), `test_reduce_loops.py`, the floor step. *Waits for 4.1*: the two workflows' `--test it_en_baseline` and `word-card-it-en.spec.ts` lines, on `impl/add-lingua-pack-it-en-post` (design, *Deviations*, D9). Done: the workflow lines landed with the committed tables.
 
 ## 2. The reducer
 
@@ -17,13 +17,13 @@
 
 ## 3. The tables
 
-- [ ] 3.1 [owner-dispatched] `lingua-pack-update` in mode `update` for it-en, with the owner's go-ahead for its sources release: the workflow's pull request commits `tables/it-en/`, `tables/it/` byte for byte; the coverage at or above the floor; `tables/it-en/README.md` and the programme's *Measured figures* record it (D8); `bash scripts/lingua-data/build.sh it-en /tmp/it-en.lingua` passes against the pin; the golden and the English card snapshot blessed in that pull request (D9). — *Predicted* (design, *The predicted dispatch*): the README drafted on `impl/add-lingua-pack-it-en-post`.
+- [x] 3.1 [owner-dispatched] `lingua-pack-update` in mode `update` for it-en, with the owner's go-ahead for its sources release: the workflow's pull request commits `tables/it-en/`, `tables/it/` byte for byte; the coverage at or above the floor; `tables/it-en/README.md` and the programme's *Measured figures* record it (D8); `bash scripts/lingua-data/build.sh it-en /tmp/it-en.lingua` passes against the pin; the golden and the English card snapshot blessed in that pull request (D9). — *Predicted* (design, *The predicted dispatch*): the README drafted on `impl/add-lingua-pack-it-en-post`. Done 2026-10-25: run 40183685031 (mode `update`, `keep=` empty, on this branch) with the owner's go-ahead; it published `lingua-pack-sources-it-en-2026.10.25`; the tables equal the prediction byte for byte (pack `7c7a42e3…`, 2,467,844 B; base it-fr's `f8c78228…`); coverage 91.3 / 84.2 / 75.7.
 
 ## 4. The baseline and the checks
 
-- [ ] 4.1 `crates/lingua-wasm/tests/it_en_baseline.rs` and `baseline/it-en.golden` over `pages-it.txt`; a test that the golden is it-fr's on the studied side; `cross_native.rs`: the Italian corpus read with it-fr's and it-en's packs alike but for the glosses (D9).
-- [ ] 4.2 `crates/lingua-pack/tests/committed_tables.rs`: it-en built to its pin, whole and in parts; its credits (the notice's sources, `levels_estimated`, the analyser version), as `spec_scenario_the_credits` holds es-en's; listed in no package while the list does not name it (D8, D10).
-- [ ] 4.3 `apps/lingua-extension/test/word-card-it-en.spec.ts`: change 18's English card snapshot over the real it-en pack (its D8).
+- [x] 4.1 `crates/lingua-wasm/tests/it_en_baseline.rs` and `baseline/it-en.golden` over `pages-it.txt`; a test that the golden is it-fr's on the studied side; `cross_native.rs`: the Italian corpus read with it-fr's and it-en's packs alike but for the glosses (D9). Done on the committed tables.
+- [x] 4.2 `crates/lingua-pack/tests/committed_tables.rs`: it-en built to its pin, whole and in parts; its credits (the notice's sources, `levels_estimated`, the analyser version), as `spec_scenario_the_credits` holds es-en's; listed in no package while the list does not name it (D8, D10). Done on the committed tables.
+- [x] 4.3 `apps/lingua-extension/test/word-card-it-en.spec.ts`: change 18's English card snapshot over the real it-en pack (its D8). Done on the committed tables.
 
   4.1–4.3 need the committed tables: written, blessed and run on the predicted tables, they are on `impl/add-lingua-pack-it-en-post` (design, *The predicted golden and English card*), to bring onto this branch after the dispatch.
 
@@ -31,7 +31,7 @@
 
 - [x] 5.1 Nothing else moves: `git diff --stat origin/main -- scripts/lingua-data/reduce_edition_en.py scripts/lingua-data/reduce_common.py scripts/lingua-data/tables crates/lingua-wasm/tests/baseline ':!scripts/lingua-data/tables/it-en' ':!crates/lingua-wasm/tests/baseline/it-en.golden'` empty; `packs.json` unchanged.
 - [x] 5.2 `cargo fmt --all --check`; `cargo clippy --workspace --all-targets -- -D warnings`; `cargo test --workspace`; the Python tests; `gloss_coverage.py --check`; in `apps/lingua-extension`: `yarn test`.
-- [ ] 5.3 `openspec validate add-lingua-pack-it-en --strict` passes; `python3 scripts/openspec_archive_order.py add-lingua-pack-it-en` names its prerequisites; the MODIFIED block re-copied from `add-lingua-pack-fr-en` as it then stands, only D11's clauses differing; `docs/lingua/italian-programme.md` row 22's status names this change's pull requests. — *Done*: the validation, the archive order (eight prerequisites), the MODIFIED block (fr-en's requirement as it stands, only D11's clauses differing). *The orchestrator's*: row 22.
+- [x] 5.3 `openspec validate add-lingua-pack-it-en --strict` passes; `python3 scripts/openspec_archive_order.py add-lingua-pack-it-en` names its prerequisites; the MODIFIED block re-copied from `add-lingua-pack-fr-en` as it then stands, only D11's clauses differing; `docs/lingua/italian-programme.md` row 22's status names this change's pull requests. — *Done*: the validation, the archive order (eight prerequisites), the MODIFIED block (fr-en's requirement as it stands, only D11's clauses differing). *The orchestrator's*: row 22. Done: row 22 names #1063.
 
 ## 6. Owner
 

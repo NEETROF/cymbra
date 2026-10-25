@@ -28,8 +28,7 @@ In this folder:
 
 ## What is in them
 
-<!-- The figures below are the implementation's prediction (2026-10-25), reduced locally from the bytes
-the first update reads; the update's pull request writes the committed ones in their place. -->
+<!-- Measured on the committed tables of the update of 2026-10-25 (run 40183685031), byte for byte the implementation's prediction. -->
 
 - **English glosses for 33,209 lemmas** of Italian's 60,000 — 33,014 from the English Wiktionary's
   Italian section, 194 from the Italian Wiktionary's translations, and `USA`, glossed through its
