@@ -104,7 +104,7 @@ moved the ranks, 1,121.
 | D2b, a row opens on its first sense the page does not mark archaic, obsolete, dated or historical | 173 (9 / 17 / 55 / 92) | 173 | — | `polizia` « police », `università` « university », `ufficio` « office », `prodotto` « product », `avanti` « forward », `dieta` « diet », `sincero`, `tortura`, `esca` « bait »; five rows of the 5,000 opening on a lesser sense are held by the table (D2c) |
 | *D2b, every outdated sense last (rejected)* | 296 (20 / 42 / 98 / 136) | 173 | — | reshuffles whole rows: `tratta` « seine fishing », `signore`, `costo` |
 | *D2b with rare, uncommon, literary and poetic (rejected)* | 318 first senses (17 / 32 / 101 / 168) | 318 | — | `grande` « really (intensifier) », `sito` « region of a protein », `testo` « an earthenware baking tray »: worse |
-| D2c, `FIRST_RUN` (25 rows) | 19 (17 / 2 / 0 / 0) alone | 19 | — | `bene` « well », `gente` « people », `piano` « floor, storey; plan… », `testo` « text (writing) », `morire` « to die », `parlamento` « parliament »; `come`, `loro`, and the rows D2b moves (`dì`, `contrastare`, `pro`) already open so alone; `ce`'s needs D3's lending |
+| D2c, `FIRST_RUN` (25 rows; 26 with `parmigiano`, added at implementation) | 19 (17 / 2 / 0 / 0) alone | 19 | — | `bene` « well », `gente` « people », `piano` « floor, storey; plan… », `testo` « text (writing) », `morire` « to die », `parlamento` « parliament »; `come`, `loro`, and the rows D2b moves (`dì`, `contrastare`, `pro`) already open so alone; `ce`'s needs D3's lending |
 | D3, pointer wordings, and a short word's pointer lending | 26 (9 / 3 / 7 / 7) | 10 | — | `che` without « proscribed spelling of ché », `de` *di*'s « of, ’s; from… », `el` « he; the », `ce` « reinforcing particle, “do”; us; … » (the table opens it on « us »), `aprile` « April », `amo`, `eo` « I », `istoria` « history; story » |
 | D4a, a meaning nested under a degree's wording | 31 (1 / 2 / 4 / 24) | 31 | — | `minimo` « minimum, (the) least… », `minore` « less; shorter; lesser… », `pochissimo` « very little », `gravissimo` |
 | D4b, a degree's carried meaning wherever it stands | 5 (1 / 0 / 2 / 2) | 5 | — | `più` « more; anymore… », `bravissimo` « very good », `gentilissimo` « very kind » |
@@ -192,8 +192,9 @@ names it), and a row moves only entries and senses, never adds or removes one. K
 than a part of speech alone, as change 17's could not be: `testo` has two noun entries, `gente`'s and
 `stazione`'s meanings sit inside one. A row may name a sense the page nests under another — `parlamento`'s
 « parliament », under « public assembly or meeting » —: the row opens on it, read by its own text, the
-page's words. **25 rows**: the 19 the owner approved (task 0.1), and six added after that answer, on the
-review of #1065, which the owner approves with the gloss diff at implementation:
+page's words. **26 rows**: the 19 the owner approved (task 0.1), six added after that answer, on the
+review of #1065, which the owner approves with the gloss diff at implementation, and `parmigiano`, added on
+that gloss diff — all approved by the owner on 2026-10-25:
 
 | Row | Opens on | Reason |
 |---|---|---|
@@ -222,6 +223,7 @@ review of #1065, which the owner approves with the gloss diff at implementation:
 | *`pro`* | preposition « for, in favor of/in favour of » | *added*: D2b opens on the noun « pro », the preposition being marked dated |
 | *`parlamento`* | noun « parliament », nested under « public assembly or meeting » | *added*: « parliament » itself never shows; the row reads « parliament; public assembly or meeting; conversation, talk; … » |
 | *`ce`* | pronoun « us » | *added*: D3 lends `ci`'s pronoun after the row's own « reinforcing particle, “do” » |
+| *`parmigiano`* (7,871) | noun « parmesan cheese » | *added at implementation, on the gloss diff*: D2b opens on « the dialect of Emilian spoken in Parma », the adjective « of, from or relating to Parma » being marked archaic; readers meet the word as the cheese |
 
 **In this order**: the treebank's, then D2b's, then the table's, each ahead of the previous; the table
 reads the senses D3 lends. MarkIT's counts and the table never touch a proper noun's entry. *Not taken*:
@@ -461,7 +463,8 @@ The three questions of tasks group 0, answered by Guillaume on 2026-10-25, each 
   19 rows of `FIRST_RUN` as proposed. Six rows were added after that answer, on the review of #1065
   (`dì`, `contrastare`, `contea`, `pro`, `parlamento`, `ce`: D2b and D3 opened them on a lesser sense);
   the owner approves them with the gloss diff at implementation. **Approved by the owner on
-  2026-10-25**: the six rows, the table's 25 rows in all.
+  2026-10-25**: the six rows, and a seventh the implementation's gloss diff added, `parmigiano`
+  « parmesan cheese » — the table's 26 rows in all.
 - **Q2, names, given names and towns beside common words** (D6): (a), the notes taken off common words,
   Massa and Andria kept. The review of #1065 then narrowed the rule without changing that answer: a row
   holding only names keeps its surname (`garibaldi`, `clinton`), a town opening its row stays — so Andria

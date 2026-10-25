@@ -660,6 +660,12 @@ AMICA = [
     entry("amica", "noun", sense("female equivalent of amico", ("feminine", "form-of"), form_of=[("amico", None)]), sense("girlfriend", ("feminine",))),
     entry("amica", "adj", sense("feminine singular of amico", ("feminine", "form-of", "singular"), form_of=[("amico", None)])),
 ]  # cut
+PARMIGIANO = [
+    entry("parmigiano", "adj", sense("of, from or relating to Parma", ("archaic",))),
+    entry("parmigiano", "noun", sense("native or inhabitant of Parma (usually male)", ("archaic", "masculine"))),
+    entry("parmigiano", "noun", sense("the dialect of Emilian spoken in Parma", ("masculine", "uncountable"))),
+    entry("parmigiano", "noun", sense("parmesan cheese", ("also", "masculine", "uncountable"))),
+]
 ALL_ANTICA = {"word": "all'antica", "pos": "phrase", "translations": [{"word": "ancient"}, {"word": "anshent"}, {"word": "antique"}]}
 # UD Italian-MarkIT's counts of the words above, as `reduce_italian_treebank.markit_pos_counts` reads its
 # training and development sections at it-en's pin (e210079d).
@@ -1150,6 +1156,18 @@ class RowOrder(Fixture):
         self.assertIn("FIRST_RUN", str(raised.exception))
         self.assertIn("testo (lowercase noun « a text no longer written »)", str(raised.exception))
 
+    def test_a_row_the_marks_open_on_a_lesser_sense(self):
+        # D2b opens `parmigiano` on the dialect, its adjective being marked archaic; the reviewed table
+        # opens it on the cheese, as readers meet it.
+        glosses = self.glosses(*PARMIGIANO, lemmas={"parmigiano"})
+        self.assertEqual(
+            glosses["parmigiano"],
+            "parmesan cheese; the dialect of Emilian spoken in Parma; native or inhabitant of Parma (usually male); "
+            "of, from or relating to Parma",
+        )
+        unordered = self.glosses(*PARMIGIANO, lemmas={"parmigiano"}, first_run={})
+        self.assertTrue(unordered["parmigiano"].startswith("the dialect of Emilian spoken in Parma"), unordered["parmigiano"])
+
     def test_ce_opens_on_the_pronoun_its_pointer_lends(self):
         glosses = self.glosses(*CE, CI, lemmas={"ce"})
         self.assertEqual(glosses["ce"], "us; ourselves, each other; to us; it, to it; reinforcing particle, “do”")
@@ -1157,9 +1175,10 @@ class RowOrder(Fixture):
         self.assertTrue(unordered["ce"].startswith("reinforcing particle, “do”; us"), "the lent senses after the row's own")
 
     def test_the_reviewed_table(self):
-        # The 19 rows the owner settled (task 0.1) and the six added on the review of #1065, approved by him
-        # on 2026-10-25: each a case, a part of speech, a sense and a reason.
-        self.assertEqual(len(italian.FIRST_RUN), 25)
+        # The 19 rows the owner settled (task 0.1), the six added on the review of #1065 and `parmigiano`,
+        # added on the implementation's gloss diff, each approved by him on 2026-10-25: each a case, a part
+        # of speech, a sense and a reason.
+        self.assertEqual(len(italian.FIRST_RUN), 26)
         for word, (case, pos, text, reason) in italian.FIRST_RUN.items():
             self.assertIn(case, italian._FIRST_RUN_CASES, word)
             self.assertIn(pos, common._KAIKKI_UPOS, word)

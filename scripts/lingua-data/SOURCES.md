@@ -878,11 +878,11 @@ first entry stood and every other entry as its line was:
   as it-fr imports them —; a row opening on a meaning the section marks archaic, obsolete, dated or
   historical opens on its first meaning that is not; **`FIRST_RUN`**, a reviewed table keyed by the
   headword's case, a part of speech and the sense the row opens on (a sense the section nests under
-  another read by its own text), opens 25 rows on the sense it names — `come`, `loro`, `bene`, `gente`,
+  another read by its own text), opens 26 rows on the sense it names — `come`, `loro`, `bene`, `gente`,
   `piano`, `forte`, `partito`, `squadra`, `presto`, `valore`, `testo`, `usato`, `morire`, `medio`,
   `prego`, `stazione`, `tratta`, `signore`, `compagno`, and `dì`, `contrastare`, `contea`, `pro`,
-  `parlamento`, `ce`, approved by the owner on 2026-10-25 —; the reduction fails on a row whose sense it
-  does not find;
+  `parlamento`, `ce`, `parmigiano`, approved by the owner on 2026-10-25 —; the reduction fails on a row
+  whose sense it does not find;
 - **pointers** (D3): a labelled form or spelling (« Marche, Milan, Rome, and Venice form of di »,
   « proscribed spelling of ché »), a clitic compound — its meaning after its closing full stop read where
   it writes one —, a truncation and an untagged alternative form are pointers to their word; a pointer to

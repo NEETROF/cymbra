@@ -24,7 +24,7 @@ by band of the 1,000 / 5,000 / 20,000 commonest and beyond):
   (`reduce_french_treebank.commonest_first`) over MarkIT's counts, as it-fr imports both — 16 rows,
   all of the 1,000; a row opening on a meaning the section marks archaic, obsolete, dated or
   historical opens on its first meaning that is not — 173 rows (9 / 17 / 55 / 92); and a reviewed
-  table, `FIRST_RUN`, opens 25 rows on the sense it names — 19 moving alone;
+  table, `FIRST_RUN`, opens 26 rows on the sense it names — 20 moving alone;
 - pointers (D3): the wordings the English edition does not know read as pointers, and a pointer to a
   word of one or two letters lending that word's meanings after the row's own — 26 rows;
 - carried meanings (D4): a meaning nested under a degree's wording (31 rows), a degree's (5) and a
@@ -349,9 +349,10 @@ OUTDATED = frozenset({"archaic", "obsolete", "dated", "historical"})
 # sense the section nests under another read by its own text (`parlamento`) —, that sense first in its
 # entry and that entry first in the row. A row moves entries and senses, never adds or removes one; it
 # applies after D2a and D2b, on the senses D3 lends. Nineteen rows settled by the owner on 2026-10-25
-# (task 0.1); the last six added on the review of #1065, where D2b and D3 opened them on a lesser
-# sense, approved by the owner on 2026-10-25. The reduction fails on a row whose sense it does not
-# find (`unfound_first_runs`). Editing it changes the rules' sha256, as for any rule.
+# (task 0.1); six added on the review of #1065, where D2b and D3 opened them on a lesser sense, and
+# `parmigiano`, added on the implementation's gloss diff, each approved by the owner on 2026-10-25. The
+# reduction fails on a row whose sense it does not find (`unfound_first_runs`). Editing it changes the
+# rules' sha256, as for any rule.
 FIRST_RUN = {
     "come": (
         "lowercase", "adv", "how",
@@ -426,6 +427,12 @@ FIRST_RUN = {
     "ce": (
         "lowercase", "pron", "us",
         "D3 lends ci's pronoun after the row's own « reinforcing particle, “do” »",
+    ),
+    # Added on the implementation's gloss diff, approved by the owner on 2026-10-25.
+    "parmigiano": (
+        "lowercase", "noun", "parmesan cheese",
+        "D2b opens the row on « the dialect of Emilian spoken in Parma », the adjective « of, from or relating to "
+        "Parma » being marked archaic; readers meet parmigiano as the cheese",
     ),
 }  # fmt: skip
 _FIRST_RUN_CASES = frozenset({"lowercase", "capitalised"})
@@ -1181,7 +1188,7 @@ def read_as_italian(
       (`counts`, `reduce_italian_treebank.markit_pos_counts`; none, no move) — 16 rows; a row opening
       on an outdated meaning opens on its first meaning that is not (`polizia` « police; polity ») —
       173 rows; the senses a short word lends come last; and the reviewed table (`first_run`,
-      `FIRST_RUN` by default) opens a row on the sense it names — 25 rows, 19 moving alone.
+      `FIRST_RUN` by default) opens a row on the sense it names — 26 rows, 20 moving alone.
 
     `rules` names the rules that run (`RULES`, all by default). `towns_kept` defaults to `TOWNS_KEPT`.
     `reviewed` (a `Reviewed`) records the reviewed rows that found what they name. `(dst, stats)`: how
