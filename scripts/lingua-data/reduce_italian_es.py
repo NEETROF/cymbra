@@ -25,7 +25,7 @@ it-es's rule digest (`pack_sources.rule_files`): editing it re-pins it-es and no
 - **Notes**: sense links « _(1, 5) », superscripts, and the subscripts the Spanish edition's rule leaves
   after a quotation mark or a superscript, taken out; a gloss opening in lower case opens on a capital.
 - **Function words**: the commonest a reviewed list glosses (`FUNCTION_WORDS`), where the section
-  describes them (`tu` « Tú », `è` « Es », `li` « Los »).
+  describes them (`tu` « Tú », `lo` « El; Lo », `essere` without « Verbo auxiliar »).
 - **The Italian word given as Spanish**: refused unless `ITALIAN_ALIKE` names it a Spanish word too —
   the rule `reduce_spanish_tables.is_the_studied_word` reads.
 - **The Italian Wiktionary's notes** in its Spanish section, read backwards: « vedi italiano » and
@@ -105,17 +105,20 @@ def _holds_a_meaning(sense):
 # — The function words, from a reviewed list —
 #
 # The section describes the commonest function words rather than glossing them (`tu` « Pronombre
-# personal nominativo de 2 persona del singular… », `essere` « Verbo auxiliar … »), and `è` and `sono`
-# borrow `essere`'s description through their pointers. Each row is fr-es's `CORRECTIONS` shape: keyed
-# by the section's text as the pinned file writes it — an entry's senses, in their order —, so that it
-# fires on nothing once the page is corrected; the update that takes the correction in says so on its
-# summary line, and the row is removed. The corrected senses are meanings: they replace the entry's
-# senses whole, pointers included. Their words come from the sources where one has them — the Italian
-# Wiktionary's Spanish translations (« Tú », « Ella », « Usted », « Soy », « Son »), the Spanish
-# Wiktionary's Spanish tables (« El », « Los »), the section's own text (« Las », « De él, de ella, de
-# ellos, de ellas »); a person wrote the rest (« Es », « Lo », « De allí, de ahí »). `corrected` None
-# leaves out the entry, the word keeping its other entries' senses (`essere`'s and `avere`'s
-# auxiliaries). The owner reads each; each is reported to the Spanish Wiktionary.
+# personal nominativo de 2 persona del singular… », `essere` « Verbo auxiliar … »). Each row is fr-es's
+# `CORRECTIONS` shape: keyed by the section's text as the pinned file writes it — an entry's senses, in
+# their order —, so that it fires on nothing once the page is corrected; the update that takes the
+# correction in says so on its summary line, and the row is removed. The corrected senses are
+# meanings: they replace the entry's senses whole, pointers included. Their words come from the
+# sources: the Italian Wiktionary's Spanish translations (« Tú », « Ella », « Usted »), the Spanish
+# Wiktionary's Spanish tables (« El », « Ellos », « Ellas »), the pivot (« Lo »: the English *him* and
+# *it*, the French *le*, the German *ihn*, the Dutch *het* pair `lo` with « lo »), the section's own text
+# (« De él, de ella, de ellos, de ellas », « Ustedes »). One row is written by a person, as it-fr's `dati`
+# « Données » is: `ne`'s adverb « De allí, de ahí », which no source glosses (the owner, 2026-10-25).
+# `corrected` None leaves out the entry, the word keeping its other entries' senses (`essere`'s and
+# `avere`'s auxiliaries). Only rows of ranked lemmas: `è`, `sono`, `le`, `gli` and `li` are forms of
+# other lemmas in Italian's tables, which a row of theirs would not reach. The owner reads each; each is
+# reported to the Spanish Wiktionary.
 Correction = tables.Correction
 _PAGE = "https://es.wiktionary.org/wiki/{}"
 _DESCRIBED = "the section describes the word rather than gloss it"
@@ -127,23 +130,6 @@ FUNCTION_WORDS = (
         ("Tú.",),
         f"{_DESCRIBED}; « tú » is the Italian Wiktionary's own Spanish for « tu »",
         _PAGE.format("tu"),
-    ),
-    Correction(
-        "section", "è", "verb",
-        ("Tercera persona del singular (lui, lei) del presente de indicativo de essere.",),
-        ("Es.",),
-        "a pointer lending essere's whole row, its auxiliaries' descriptions with it; the third person's « es »",
-        _PAGE.format("è"),
-    ),
-    Correction(
-        "section", "sono", "verb",
-        (
-            "Primera persona del singular (io) del presente de indicativo de essere.",
-            "Tercera persona del plural (esse, essi) del presente de indicativo de essere.",
-        ),
-        ("Soy.", "Son."),
-        "pointers lending essere's whole row; « soy » and « son » are the Italian Wiktionary's own Spanish for « sono »",
-        _PAGE.format("sono"),
     ),
     Correction(
         "section", "essere", "verb",
@@ -180,52 +166,8 @@ FUNCTION_WORDS = (
         "section", "lo", "pron",
         ("Pronombre personal acusativo de género masculino, tercera persona singular.",),
         ("Lo.",),
-        f"{_DESCRIBED}: the accusative's « lo »",
+        f"{_DESCRIBED}: the accusative's « lo », which the pivot pairs with `lo` (English him, it; French le; German ihn; Dutch het)",
         _PAGE.format("lo"),
-    ),
-    Correction(
-        "section", "le", "article",
-        ("Artículo determinado femenino del plural de la, equivale al español: las.",),
-        ("Las.",),
-        f"{_DESCRIBED}; « las » is the section's own Spanish",
-        _PAGE.format("le"),
-    ),
-    Correction(
-        "section", "le", "pron",
-        (
-            'Pronombre personal acusativo 3ª persona femenino plural, "a esas" (como complemento directo).',
-            "Pronombre personal dativo de femenino de la tercera persona del singular: A ella, a esa, (como "
-            "complemento indirecto).",
-            "Grafía alternativa de Le.",
-        ),
-        ("Las.", "Le, a ella."),
-        f"{_DESCRIBED}: the accusative's « las », the dative's « le, a ella », the section's own words",
-        _PAGE.format("le"),
-    ),
-    Correction(
-        "section", "gli", "article",
-        ("Artículo definido plural masculino.",),
-        ("Los.",),
-        f"{_DESCRIBED}; the Spanish Wiktionary's article « los » lists « gli »",
-        _PAGE.format("gli"),
-    ),
-    Correction(
-        "section", "gli", "pron",
-        (
-            "Pronombre personal dativo de la tercera persona masculino del singular.",
-            "Pronombre personal dativo de la tercera persona del plural, tanto para masculino como femenino "
-            "(plural de le).",
-        ),
-        ("Le, a él.", "Les."),
-        f"{_DESCRIBED}: the dative's « le », « les »",
-        _PAGE.format("gli"),
-    ),
-    Correction(
-        "section", "li", "pron",
-        ("Pronombre personal acusativo de género masculino, tercera persona. Es plural de lo.",),
-        ("Los.",),
-        f"{_DESCRIBED}; the Spanish Wiktionary's pronoun « los » lists « li »",
-        _PAGE.format("li"),
     ),
     Correction(
         "section", "ne", "adv",
@@ -233,7 +175,7 @@ FUNCTION_WORDS = (
             "Indica proveniencia de un lugar ya nombrado precedentemente. No tiene una traducción al español.",
         ),
         ("De allí, de ahí.",),
-        f"{_DESCRIBED}: where one comes from, « de allí »",
+        f"{_DESCRIBED}: where one comes from, « de allí » — the one row a person wrote, no source glossing it",
         _PAGE.format("ne"),
     ),
     Correction(

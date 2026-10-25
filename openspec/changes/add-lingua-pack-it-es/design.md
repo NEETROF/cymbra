@@ -365,6 +365,48 @@ Against the reduction without it (rows of `gloss.tsv` changed among the ranks 1�
 other lemmas in change 9's committed tables, not ranked lemmas: the rules hold them (the tests), the
 coverage does not count them.
 
+### The owner's decisions (Guillaume, 2026-10-25)
+
+- **The floor**: `FLOORS["it-es"]` = 83.2 / 74.0 / 63.1, **settled**, on the study above; written into the
+  requirement and held by `test_gloss_coverage.py`, never lowered after the first committed measurement.
+  Measured again after the review's fixes (*The review's fixes*): 85.2 / 76.1 / 65.1, above it.
+- **The sources release**: `lingua-pack-sources-it-es-<date>`, as *The bytes* list it, **approved** for
+  publication by the update dispatch (task 3.2's go-ahead).
+- **The split translations' filter** (Polish, Russian): **kept**, its cost shown — `bilanciamento`,
+  `alberghiero` and `montano` lose their only gloss, `stante` loses « Por, debido a ».
+- **`ne`'s adverb « De allí, de ahí »**: **kept**, the one row of `FUNCTION_WORDS` a person wrote, marked as
+  such in the code (precedent: it-fr's `dati` « Données »).
+
+### The review's fixes
+
+Each measured alone against the reduction before it (rows of `gloss.tsv` changed among the ranks
+1–1,000 / 1,001–5,000 / 5,001–20,000 / beyond); no lemma of the 20,000 loses its gloss:
+
+- **`FUNCTION_WORDS`'s dead rows removed**: 7 of the 18 fired on forms of other lemmas (`è`, `sono`, `le`,
+  `gli`, `li`), which Italian's tables do not rank: 11 rows remain; `gloss.tsv`, `senses.tsv` and `mwe.tsv`
+  byte for byte the same. A test holds every row's word to a ranked lemma.
+- **The Spanish section read backwards keeps its parentheses**: a parenthesis narrows the sense (`cruel`
+  « (di dolore) insopportabile », `cuerno` « (di insetto) antenna »), so a sense opening on one gives no
+  word and a part holding one is no word; only the gender marks « (m) », « (f) », « (m,f) », « (f inv) »
+  go. 37 rows (2 / 6 / 16 / 13): `insopportabile` « Cruel » → « Insoportable, insufrible, inaguantable »,
+  `antenna` « Cuerno » → « Antena, verga, punto de contacto », `guasto` and `imbarazzato` lose « Cortado »,
+  `scarso` « Corto » → « Escaso, poco, contado; Exiguo », `pronto` « Hola » → « Bueno, hola, diga; …»;
+  coverage the same.
+- **The pivot's Spanish words read as the tables write them** (`pivot_spanish_words`): an item split on a
+  comma before a space (never inside « ¡…! », « ¿…? » or a formula), each without its parentheses —
+  English and German labels among them, « (disused) », « (ugs.) » —, an unmatched bracket or quotation
+  mark, or a separator at an end. 143 rows (7 / 14 / 51 / 71), most of them reordered as a word cleaned
+  joins the same word of other tables: `presso` « …; Por ahí “ » → « …; Por ahí », `automatico`
+  « Automático, automático , ( automáticamente… » → « Automático, automáticamente, inconsciente »,
+  `immigrato` « Inmigrante / » → « Inmigrante », `sopra` « …, por encima (de), sobre; … » → « Sobre,
+  encima de, por encima; … », `personale` « Personal, propio, personal, particular » → « Personal, propio,
+  particular »; `suv` gains « Vehículo utilitario deportivo »; coverage 85.2 / 76.0 / 65.1 → 85.2 / 76.1 /
+  65.1.
+
+After them: definitions 3,973, the Italian Wiktionary's translations 3,582, the Spanish tables read
+backwards 2,996, Wikidata's links 14, its items 738, the Spanish section 1,148, the pivot 12,253; coverage
+after each source as above but the Spanish section, 66.8 / 53.8 / 40.7, and the pivot, 85.2 / 76.1 / 65.1.
+
 ### Deviations
 
 - **D3, a filter added: a translation split into its words.** The Polish and Russian extracts list each
@@ -378,11 +420,13 @@ coverage does not count them.
   names, so not a fix D8's criteria allow before the dispatch: implemented because the spec's pivot pairs
   « an Italian and a Spanish word a person wrote » under one sense, which a fragment is not, and **left
   for the owner to keep or drop** — the coverage with it 85.2 / 76.0 / 65.1, without 85.3 / 76.1 / 65.1. The
-  requirement names it; dropped, its clause goes with `split_translation` and its tests.
+  requirement names it. **Kept by the owner** (2026-10-25), its cost: `bilanciamento`, `alberghiero` and
+  `montano` lose their only gloss, `stante` loses « Por, debido a ».
 - **D3's order**: a lemma's Spanish words by the number of tables giving them, then of editions, then
   Spanish frequency, then the alphabet — D3's wording. Against the two Wiktionaries' tables, on the 8,766
   lemmas they and the pivot gloss, the first word agrees 78.0 % so, 77.7 % editions first, 77.8 % by
-  tables alone, 45.9 % by frequency alone.
+  tables alone, 45.9 % by frequency alone. The first run read editions first; switched after it, the
+  order reorders 64 rows (3 / 14 / 27 / 20), the coverage the same — both measurements, as D8 asks.
 - **D3's groups**: a table under a sense (`by: under`) counts as named by it; the dumps write none.
 - **D4, the table rules**: `reduce_spanish_tables.py` copies fr-es's letters, corrections, other senses,
   `read_backwards`, the studied word given as Spanish, typography and `listed_once`, each fr-es global a
@@ -390,13 +434,14 @@ coverage does not count them.
   fr-es's own cases. fr-es's `listed_once_direct` is not copied: D4 lists every table-shaped source once by
   `listed_once`, under the first part of speech Italian's readings name. it-es's `Rules`: the language
   code « it », no correction of a table and no other sense named.
-- **D4, the function words** (`FUNCTION_WORDS`, 18 rows for `tu`, `è`, `sono`, `essere`, `avere`, `lo`,
-  `le`, `gli`, `li`, `ne`, `lei`/`Lei`, `loro`/`Loro`): fr-es's `CORRECTIONS` shape, keyed by the section's
-  text, but a row's senses replace the entry's whole — pointers' tags included, since `è` and `sono` are
-  tagged forms of `essere` — or leave the entry out (`essere`'s and `avere`'s auxiliaries). Their words come
-  from the sources where one has them (the Italian Wiktionary's « tú », « ella », « usted », « soy »,
-  « son »; the Spanish tables' « el », « los »; the section's own « las », « de él, de ella… »); « Es »,
-  « Lo » and « De allí, de ahí » are written by a person. **For the owner to review.**
+- **D4, the function words** (`FUNCTION_WORDS`, 11 rows for `tu`, `essere`, `avere`, `lo`, `ne`,
+  `lei`/`Lei`, `loro`/`Loro`; `è`, `sono`, `le`, `gli`, `li` — forms of other lemmas in Italian's tables —
+  removed after the review): fr-es's `CORRECTIONS` shape, keyed by the section's text, but a row's senses
+  replace the entry's whole, pointers' tags included, or leave the entry out (`essere`'s and `avere`'s
+  auxiliaries). Their words come from the sources: the Italian Wiktionary's « tú », « ella », « usted »; the
+  Spanish tables' « el », « ellos », « ellas »; the pivot's « lo » (English *him*, *it*, French *le*,
+  German *ihn*, Dutch *het*); the section's own « de él, de ella… », « ustedes ». One row is written by a
+  person, `ne`'s adverb « De allí, de ahí », kept by the owner and marked so.
 - **D4, `ITALIAN_ALIKE`**: the design's four, `credo`, `friulano`, `nutrimento`, `visivo` (DLE). With it
   the rule refuses 88 Italian words of the 20,000 as their own Spanish gloss, each source alike — most
   rightly (`satira`, `anteriore`, `treno`); some the DLE may hold too (`tempo`, `finta`, `voluta`, `testa`,
@@ -406,9 +451,11 @@ coverage does not count them.
 - **D2, Wikidata**: a pair's part of speech is its Italian lexeme's lexical category; a proper noun's, a
   letter's or an affix's lexeme glosses nothing, as such an entry of a Wiktionary's table; a lemma's Spanish
   words ordered by the number of senses pairing them.
-- **27a's D3 rule, the Spanish section read backwards**: a parenthesis is taken out before the split
-  (« (di azienda) solido, sicuro » gives `solido`, `sicuro`), then the first three parts, each of at most two
-  words; a lemma's Spanish words commonest first, as the Spanish tables read backwards.
+- **27a's D3 rule, the Spanish section read backwards**: a sense opening on a parenthesis gives no word (it
+  narrows the sense: « (di dolore) insopportabile »), a part holding one is no word, and only the gender
+  marks « (m) », « (f) », « (m,f) », « (f inv) » are taken out (the review's fix; the first run took every
+  parenthesis out, which made `insopportabile` « Cruel », `antenna` « Cuerno »); then the first three parts,
+  each of at most two words; a lemma's Spanish words commonest first, as the Spanish tables read backwards.
 - **D9**: `measures.json` adds the coverage after each source and the pivot by edition; the sample marks a
   pivot row « pivot (<edition>: <entry> (<part of speech>), « <sense> ») ». The README comes with the tables.
 - **D11 and task 4**: `licence.rs`'s `Cc0` and the test that no package lists it-es are here; the baseline,
@@ -418,26 +465,38 @@ coverage does not count them.
   release step published the snapshot. They come with the tables, after the dispatch.
 - **The release notes**: their header and licence footer name Wikidata's data and CC0 when the release
   holds a file derived from Wikidata (change 27a's review); « the date kaikki regenerated it » reads « the
-  date it was regenerated ».
+  date it was regenerated »; the release step is named « Keep the sources' bytes as the snapshot's
+  release », and `keep` accepts `wikidata` beside the two-letter editions.
+- **The update report** (`pack_report.py`): for it-es, the share counts every source after the definitions,
+  Wikidata, the Spanish section and the pivot with the two tables, and says so; the coverage after each
+  source is shown beside it.
 
 ### The forecast (task 3.2)
 
-`build.sh --update it-es`'s steps after `fetch-live`, over the bytes above, in a scratch root: `gloss.tsv`
-24,705 rows (`0745b641…`), `senses.tsv` (`b1eed817…`), `mwe.tsv` 1,165 rows (`2cb47ffa…`), `NOTICE`
-(`e9039b41…`); the pin records it-fr as the reference and the six studied tables as committed; the pack
-1,894,353 B, its base it-fr's (`b1301e06…`, 1,551,196 B), its layer 343,397 B. The tables do not depend on
+`build.sh --update it-es`'s steps after `fetch-live`, over the bytes above, in a scratch root, after the
+review's fixes: `gloss.tsv` 24,705 rows (`0ab46596…`), `senses.tsv` (`53e6e980…`), `mwe.tsv` 1,165 rows
+(`2cb47ffa…`, unchanged), `NOTICE` (`e9039b41…`); the pin records it-fr as the reference and the six studied
+tables as committed, and `check-reducer` passes; the pack 1,894,196 B (`c974efb0…`, `pack_version`
+`2026.10.25+8327a6c.442fd70`), its base it-fr's (`b1301e06…`, 1,551,196 B), its layer 343,240 B. The
+first run's tables, before the fixes: `gloss.tsv` `0745b641…`, `senses.tsv` `b1eed817…`, the pack
+1,894,353 B. The tables do not depend on
 the day; `pack_version`, the manifest and the pack's sha256 do, and so does any edit of it-es's rule files.
 
 ### Left for change 28
 
-Besides *Known data defects*, read in the forecast's 300 commonest rows and its sample:
+Besides *Known data defects*, read in the forecast's 300 commonest rows and its sample — about 12 of the
+200 commonest read wrong (`del`, `ci`, `ti`, `te`, `vi`, `contro`, `posto`, `caso`, `corso`, `solo`, `cui`,
+`verso`):
 
 - **Function words the pivot glosses from many forms at once**: `del` « Algo, un tanto, algún tanto; Para;
   Del », `ci` « Nos, nosotros, ahí; Aquí, por allí, para allá; Ce; No, hay », `ti` « Te, ti, la », `te`
   « La, lo, te », `vi`, `contro`; `della` keeps « Contracción de la preposición… » (the edition's gap).
 - **The tables' wrong rows at the top**: `posto` « En », `caso` « Azar », `solo` « Único », `cui` « Quien »,
-  `verso` « Sentido », `corso` « Cambio » once its « Corso » is refused.
-- **Wikidata's items**: `aderenza` « Tractor », `don` « D. », `domestico` « Gato », `decina` « Década ».
+  `verso` « Sentido », `corso` « Cambio » once its « Corso » is refused, `nulla` « Ninguna cosa, ni
+  flores… », `autodeterminazione` « Libertad ».
+- **Wikidata's items**: `aderenza` « Tractor », `don` « D. », `domestico` « Gato », `decina` « Década »;
+  and its Spanish glosses of Italian senses, definitions with no cap of their own beyond the section's
+  300 characters a sense (`nobel` 276 characters, `nebulosa` 151): a shorter cap is change 28's to measure.
 - **A name's note alone**: 136 rows of the 20,000 (`maria` « Nombre de pila de mujer, equivalente del
   español María », `berlusconi` « Apellido »), as designed.
 - **The pivot's last words**: `restringere` « Restringir, reducir, eliminar », `tuttora` « Aún, todavía,

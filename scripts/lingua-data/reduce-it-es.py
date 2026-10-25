@@ -250,17 +250,22 @@ def read_wikidata(path):
 
 # — The Italian Wiktionary's Spanish section, read backwards (change 27a's D3 rule) —
 
-_PARENTHESIS = re.compile(r"\s*\([^()]*\)")
+# A gender mark after an Italian word (« (m) », « (f) », « (m,f) », « (f inv) »), which says nothing of
+# its sense. Any other parenthesis narrows the sense — « (di dolore) insopportabile » is `cruel` of a
+# pain, « (di insetto) antenna » `cuerno` of an insect —: a sense opening on one gives no word, and a part
+# holding one is no Italian word.
+_GENDER = re.compile(r"\s*\((?:m|f|m,\s*f|m\s*inv|f\s*inv)\)")
 
 
 def spanish_section_words(text):
     """The Italian words a sense of the Italian Wiktionary's Spanish section gives: its notes to its
-    readers out (`italian.without_spanish_section_notes`), its parentheses out, split on « , » and « ; »
-    into at most three parts, each of at most two words, as the pack keys an Italian word."""
+    readers out (`italian.without_spanish_section_notes`), none when it opens on a parenthesis, its
+    gender marks out (`_GENDER`), split on « , » and « ; » into at most three parts, each of at most two
+    words, as the pack keys an Italian word."""
     text = italian.without_spanish_section_notes(text)
-    if text is None:
+    if text is None or text.lstrip().startswith("("):
         return []
-    text = _PARENTHESIS.sub("", text)
+    text = _GENDER.sub("", text)
     out = []
     for part in re.split(r"[,;]", text)[:3]:
         part = part.strip().rstrip(".").strip()
@@ -380,6 +385,38 @@ def pivot_word_kept(word):
     return isinstance(word, str) and bool(word.strip()) and (not _capitalised(word) or _short_acronym(word))
 
 
+# How the pivot's tables write a Spanish word, read as one or more words (the review of the implementation):
+# several words in one item (« automático , ( automáticamente »), a label in parentheses, English's and
+# German's among them (« (disused) », « (ugs.) »), a parenthesis narrowing it (« por encima (de) »), a
+# bracket or a quotation mark left open (« respuesta ) negativa », « Por ahí “ »), a separator left
+# at an end (« Inmigrante / »).
+_PIVOT_PARENTHESIS = re.compile(r"\s*\([^()]*\)")
+_PIVOT_PAIRS = (("(", ")"), ("[", "]"), ("«", "»"), ("“", "”"))
+_PIVOT_ENDS = " ,;/(“”\"«»"
+
+
+def pivot_spanish_words(word):
+    """The Spanish words a pivot table's item writes: split on a comma before a space — never inside an
+    exclamation or a question (« ¡ay, Dios mío! »), nor a formula's commas (« 2,4,6-… ») —, each without
+    its parentheses, an unmatched bracket or quotation mark, or a separator at either end; the empty
+    ones left out."""
+    if not isinstance(word, str):
+        return []
+    out = []
+    pieces = [word] if "¡" in word or "¿" in word else re.split(r"\s*,\s+", word)
+    for piece in pieces:
+        piece = _PIVOT_PARENTHESIS.sub("", piece)
+        for opening, closing in _PIVOT_PAIRS:
+            if piece.count(opening) != piece.count(closing):
+                piece = piece.replace(opening, " ").replace(closing, " ")
+        if piece.count('"') % 2:
+            piece = piece.replace('"', " ")
+        piece = re.sub(r"\s+", " ", piece).strip(_PIVOT_ENDS)
+        if piece and piece not in out:
+            out.append(piece)
+    return out
+
+
 def spanish_word_kept(word):
     """Whether a Spanish word of a pivot table may gloss: `pivot_word_kept`, no grave accent or « ° »,
     at most `PIVOT_LONGEST` characters."""
@@ -410,7 +447,7 @@ class Pivot:
                     self.groups["groups left out"] += 1
                     continue
                 self.groups["groups read"] += 1
-                natives = [common.native_words(w) for w in record.get("es") or () if spanish_word_kept(w)]
+                natives = [common.native_words(w) for item in record.get("es") or () for w in pivot_spanish_words(item) if spanish_word_kept(w)]
                 natives = [n for n in natives if n]
                 keys = [_studied_key(w) for w in record.get("it") or () if pivot_word_kept(w)]
                 table = (edition, number)

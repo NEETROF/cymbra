@@ -392,7 +392,7 @@ class Loops(unittest.TestCase):
     def release(self, pair: str) -> subprocess.CompletedProcess:
         return self.run_step(
             "lingua-pack-update.yml",
-            "Keep kaikki's bytes as the snapshot's release",
+            "Keep the sources' bytes as the snapshot's release",
             PAIR=pair,
             SNAPSHOT="2026.10.08",
             GITHUB_SHA="0" * 40,
@@ -654,6 +654,10 @@ class Loops(unittest.TestCase):
         for mode, keep, refused in (
             ("update", "en", False),
             ("update", "en,es", False),
+            # it-es's Wikidata record is an edition too (add-lingua-pack-it-es).
+            ("update", "wikidata", False),
+            ("update", "es,wikidata", False),
+            ("update", "wiki", True),
             ("update", "", False),
             ("reduce", "en", True),
             ("dry", "en", True),

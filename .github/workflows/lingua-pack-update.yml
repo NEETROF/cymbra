@@ -16,9 +16,11 @@ name: lingua-pack-update
 # nothing it produces reaches a release without a person:
 #
 # - dispatch, mode `update`: today's sources (CEFR-J, Octanove, ESDB, UD Spanish-GSD at their pinned
-#   commits, UD French-GSD too; kaikki live), kept as a new snapshot, reduced, and pushed to the branch
-#   lingua-pack/<pair>/<snapshot>. kaikki is read as its dumps of whole Wiktionary editions alone —
-#   the English, French, Spanish and Italian Wiktionaries', one address each (pack_sources.py EDITIONS,
+#   commits, UD French-GSD too; kaikki live; for it-es, Wikidata's Lexemes too), kept as a new snapshot,
+#   reduced, and pushed to the branch lingua-pack/<pair>/<snapshot>. kaikki is read as its dumps of whole
+#   Wiktionary editions alone — the English, French, Spanish and Italian Wiktionaries', and for it-es's
+#   pivot the German, Portuguese, Russian, Polish and Dutch ones, one address each, beside Wikidata's
+#   Lexemes dump, read as an edition of its own (pack_sources.py EDITIONS,
 #   migrate-lingua-pack-sources-to-raw-dumps D1): the files the pair reads are derived from them in
 #   one pass per edition and published as the release lingua-pack-sources-<pair>-<snapshot>, never
 #   replaced, whose notes name each dump by its address, regeneration date and decompressed sha256;
@@ -90,7 +92,7 @@ on:
         options: [any, identical]
         default: any
       keep:
-        description: "Editions whose recorded bytes the update keeps, comma-separated (en, fr, es, it): their dumps are not read, their pinned files are (mode update only). Empty = read every edition anew."
+        description: "Editions whose recorded bytes the update keeps, comma-separated (en, fr, es, it, de, pt, ru, pl, nl, wikidata): their dumps are not read, their pinned files are (mode update only). Empty = read every edition anew."
         type: string
         default: ""
   schedule:
@@ -163,8 +165,8 @@ jobs:
             echo "::error::keep=$KEEP keeps an edition's recorded bytes through an update: dispatch it with mode=update."
             exit 1
           fi
-          if [ -n "${KEEP:-}" ] && ! printf '%s' "$KEEP" | grep -qxE '[a-z]{2}(,[a-z]{2})*'; then
-            echo "::error::keep=$KEEP is no list of editions: write their codes, comma-separated (en, or en,es)."
+          if [ -n "${KEEP:-}" ] && ! printf '%s' "$KEEP" | grep -qxE '([a-z]{2}|wikidata)(,([a-z]{2}|wikidata))*'; then
+            echo "::error::keep=$KEEP is no list of editions: write their codes, comma-separated (en, or en,es, or es,wikidata)."
             exit 1
           fi
 
@@ -317,7 +319,7 @@ jobs:
         working-directory: apps/lingua-extension
         run: yarn install --immutable
 
-      - name: Keep kaikki's bytes as the snapshot's release
+      - name: Keep the sources' bytes as the snapshot's release
         if: env.MODE == 'update'
         env:
           GH_TOKEN: ${{ github.token }}

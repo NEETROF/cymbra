@@ -463,6 +463,27 @@ class ThePivot(Fixture):
         self.assertEqual(table["adattatore"], {"NOUN": ["adaptador"], "ADJ": ["adaptador"]})
         self.assertEqual(it_es.table_rules(table, {"adattatore": {"NOUN"}}, zipf)["adattatore"], {"NOUN": ["adaptador"]})
 
+    def test_a_spanish_word_as_the_tables_write_it(self):
+        # The review's cases, recorded from the pivot's tables: several words in one item, labels, a
+        # parenthesis narrowing it, a bracket or a quotation mark left open, a separator at an end.
+        cases = {
+            "por ahí “": ["por ahí"],
+            "automático , ( automáticamente": ["automático", "automáticamente"],
+            "inmigrante /": ["inmigrante"],
+            "respuesta ) negativa": ["respuesta negativa"],
+            "por encima (de)": ["por encima"],
+            "duricia (disused)": ["duricia"],
+            "Bulle (ugs.)": ["Bulle"],
+            "adondequiera (whitherever)": ["adondequiera"],
+            "¡ay, Dios mío!": ["¡ay, Dios mío!"],
+            "1-metil-2,4,6-trinitrobenceno": ["1-metil-2,4,6-trinitrobenceno"],
+            "(": [],
+        }
+        for item, words in cases.items():
+            self.assertEqual(it_es.pivot_spanish_words(item), words, item)
+        presso = {**ADAPTER, "it": ["presso"], "es": ["por ahí “", "en casa de"], "pos": "adv", "word": "nearby"}
+        self.assertEqual(self.pivot(presso).table(lambda w: 0.0), {"presso": {"ADV": ["en casa de", "por ahí"]}})
+
     def test_a_grave_accented_word_glosses_nothing(self):
         self.assertFalse(it_es.spanish_word_kept("mochìla"))
         self.assertEqual(self.pivot(ZAINO).table(lambda w: 0.0), {})
@@ -508,23 +529,31 @@ class TheSectionAsRead(Fixture):
         self.assertEqual(glosses["tu"], "Tú")
         self.assertEqual(glosses["avere"], "Haber; Tener")
         fired = set()
-        self.assertEqual(italian.as_function_word(SONO_VERB, fired)["senses"], [{"glosses": ["Soy."]}, {"glosses": ["Son."]}])
+        self.assertEqual(italian.as_function_word(TU, fired)["senses"], [{"glosses": ["Tú."]}])
         self.assertIsNone(italian.as_function_word(AVERE_AUXILIARY, fired))
         # Keyed by the section's text: a corrected page fires nothing, and the summary names the row.
         self.assertEqual(italian.as_function_word({**TU, "senses": [sense("Tú.")]}), {**TU, "senses": [sense("Tú.")]})
         self.assertEqual(
             sorted(italian.unfired(fired)),
-            sorted(f"{row.headword} ({row.pos})" for row in italian.FUNCTION_WORDS if row.headword not in ("sono", "avere")),
+            sorted(f"{row.headword} ({row.pos})" for row in italian.FUNCTION_WORDS if row.headword not in ("tu", "avere")),
         )
+        # `sono` is a form of `essere` in Italian's tables: no row of its own, it borrows nothing described.
+        self.assertEqual(italian.as_function_word(SONO_VERB), SONO_VERB)
 
     def test_every_function_word_names_its_reason_and_its_page(self):
-        self.assertEqual(len(italian.FUNCTION_WORDS), 18)
+        self.assertEqual(len(italian.FUNCTION_WORDS), 11)
         self.assertEqual(
-            {row.headword.lower() for row in italian.FUNCTION_WORDS},
-            {"tu", "è", "sono", "essere", "avere", "lo", "le", "gli", "li", "ne", "lei", "loro"},
+            {row.headword.lower() for row in italian.FUNCTION_WORDS}, {"tu", "essere", "avere", "lo", "ne", "lei", "loro"}
         )
         for row in italian.FUNCTION_WORDS:
             self.assertTrue(row.reason and row.report.startswith("https://es.wiktionary.org/wiki/"), row.headword)
+        # Every row's word is a lemma of Italian's committed tables: a form's row would reach nothing.
+        ranked = it_es.read_studied(os.path.join(_HERE, "tables", "it"), 60000)
+        for row in italian.FUNCTION_WORDS:
+            self.assertIn(row.headword.lower(), ranked, row.headword)
+        # One row is written by a person, and says so: `ne`'s adverb (the owner, 2026-10-25).
+        written = [row for row in italian.FUNCTION_WORDS if "a person wrote" in row.reason]
+        self.assertEqual([(row.headword, row.pos, row.corrected) for row in written], [("ne", "adv", ("De allí, de ahí.",))])
 
     def test_spec_scenario_secondo_without_its_surname(self):
         _, glosses, _, _ = self.reduce()
@@ -605,10 +634,16 @@ class TheTables(Fixture):
         self.assertEqual(italian.without_spanish_section_notes("analogia, vedi italiano"), "analogia")
         # Each part of at most two words; a parenthesis is no word; three parts at most.
         self.assertEqual(table["sicuro"], {"ADJ": ["seguro"]})
-        self.assertEqual(table["solido"], {"ADJ": ["seguro"]})
+        self.assertNotIn("solido", table, "a sense opening on a parenthesis narrows it: no word")
         self.assertEqual(table["ragazza"], {"NOUN": ["chica"]})
         self.assertNotIn("femminile di chico", table)
         self.assertEqual(it_es.spanish_section_words("a, b, c, d"), ["a", "b", "c"])
+        # A parenthesis narrows the sense (`cruel` « (di dolore) insopportabile »): kept, so the part is no
+        # word; a gender mark says nothing of it, and goes.
+        self.assertEqual(it_es.spanish_section_words("(di dolore) insopportabile"), [])
+        self.assertEqual(it_es.spanish_section_words("antenna (di insetto)"), [])
+        self.assertEqual(it_es.spanish_section_words("rana (f), ranocchio (m)"), ["rana", "ranocchio"])
+        self.assertEqual(it_es.spanish_section_words("cantante (m,f)"), ["cantante"])
 
     def test_wikidata_s_two_tables(self):
         links, items = it_es.read_wikidata(self.jsonl(*WIKIDATA, name="w.jsonl"))
@@ -645,6 +680,17 @@ class TheReducer(Fixture):
         self.assertEqual(rows["acquirente"], "pivot (en: buyer (noun), « person who makes purchases »)")
         self.assertEqual(measured["pivot by edition"], {"en": 3, "fr": 1})
         self.assertEqual(list(measured["coverage by source"]), list(it_es.SOURCES))
+
+    def test_the_update_report_names_every_source(self):
+        # pack_report.py's line over it-es's measures: the share counts every source after the definitions,
+        # and the coverage after each source is shown.
+        import pack_report
+
+        self.reduce()
+        line = pack_report.share_line("it-es", self.dir / "work" / "measures.json")
+        self.assertIn("come from a source after the definitions", line)
+        self.assertIn("Coverage of the 5,000 / 10,000 / 20,000 commonest after each source: definitions ", line)
+        self.assertIn("; pivot ", line)
 
     def test_spec_scenario_the_credits(self):
         work, *_ = self.reduce()

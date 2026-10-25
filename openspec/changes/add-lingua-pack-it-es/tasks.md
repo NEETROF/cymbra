@@ -2,7 +2,7 @@
 
 ## 0. Before the dispatch
 
-- [ ] 0.1 [owner] The study re-run on change 9's committed ranks with every source in D2's order and D4's pre-pass (D8): `FLOORS["it-es"]` fixed at those figures less two points, the owner settling it before the first committed measurement; the figures written into the requirement *it-es is committed beside Italian's studied tables…* and a test holding `FLOORS` to them. — *Proposed, awaiting the owner*: D8's criteria committed before any figure was read; the study gives 85.2 / 76.0 / 65.1 % (design, *Implementation*), so `FLOORS["it-es"]` = 83.2 / 74.0 / 63.1, written into the requirement and held by `test_gloss_coverage.py` — 85.3 / 76.1 / 65.1 and 83.3 / 74.1 / 63.1 without the split translations' filter (*Deviations*); the owner settles it.
+- [x] 0.1 [owner] The study re-run on change 9's committed ranks with every source in D2's order and D4's pre-pass (D8): `FLOORS["it-es"]` fixed at those figures less two points, the owner settling it before the first committed measurement; the figures written into the requirement *it-es is committed beside Italian's studied tables…* and a test holding `FLOORS` to them. — *Proposed, awaiting the owner*: D8's criteria committed before any figure was read; the study gives 85.2 / 76.0 / 65.1 % (design, *Implementation*), so `FLOORS["it-es"]` = 83.2 / 74.0 / 63.1, written into the requirement and held by `test_gloss_coverage.py` — 85.3 / 76.1 / 65.1 and 83.3 / 74.1 / 63.1 without the split translations' filter (*Deviations*). Done 2026-10-25: the owner settled the floor at 83.2 / 74.0 / 63.1, kept the split translations' filter and `ne`'s person-written adverb; measured again after the review's fixes, 85.2 / 76.1 / 65.1.
 
 ## 1. The Spanish table rules
 
@@ -17,7 +17,7 @@
 ## 3. The pipeline and the tables
 
 - [x] 3.1 `gloss_coverage.py` `FLOORS["it-es"]`; `lingua-extension-check.yml`'s floor step runs `--pair it-es`; `lingua-pack-update.yml` offers it-es, reduced after it-fr, and its sources release's notes name Wikidata's Lexemes and CC0 in their header and licence footer, which name kaikki and the Wiktionary's licence alone (change 27a's review); `test_reduce_editions.py` names it-es among the Spanish edition's readers (D5); `SOURCES.md`. — *Done*: `FLOORS["it-es"]` proposed (0.1); `test_reduce_loops.py` holds it-es's first update, its group and its release notes.
-- [ ] 3.2 [owner-dispatched] `lingua-pack-update` in mode `update` for it-es, with the owner's go-ahead for its sources release: the workflow's pull request commits `tables/it-es/`, `tables/it/` byte for byte; the coverage at or above the floor; `tables/it-es/README.md` — coverage by source, the sample marked by source — and the programme's *Measured figures* (D9); the pack built against its pin.
+- [ ] 3.2 [owner-dispatched] `lingua-pack-update` in mode `update` for it-es, with the owner's go-ahead for its sources release (given 2026-10-25): the workflow's pull request commits `tables/it-es/`, `tables/it/` byte for byte; the coverage at or above the floor; `tables/it-es/README.md` — coverage by source, the sample marked by source — and the programme's *Measured figures* (D9); the pack built against its pin. — The pull request opens only once the dispatch's tables are on this branch: until then `gloss_coverage.py --pair it-es`, the extension check's floor step, exits 1 (no `tables/it-es/`), as it-en's did; the dispatch runs on this branch (mode `update`, pair `it-es`, expect `any`, `keep` empty).
 
 ## 4. The baseline and the checks
 
