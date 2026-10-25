@@ -40,6 +40,8 @@ import reduce_edition_es as spanish  # noqa: E402
 from reduce_edition_es import ES  # noqa: E402
 import reduce_edition_fr as french  # noqa: E402
 from reduce_edition_fr import FR  # noqa: E402
+import reduce_edition_it as italian  # noqa: E402
+from reduce_edition_it import IT  # noqa: E402
 
 
 def _reducer(pair):
@@ -55,9 +57,11 @@ en_fr = _reducer("en-fr")
 es_fr = _reducer("es-fr")
 es_en = _reducer("es-en")
 en_es = _reducer("en-es")
+fr_es = _reducer("fr-es")
 # The studied languages, as the pairs that study them describe them.
 ENGLISH = en_fr.EN
 SPANISH = es_fr.ES
+FRENCH = fr_es.FR
 
 
 class Entries(unittest.TestCase):
@@ -4085,6 +4089,357 @@ class ItEsGlossesRefined(Entries):
         ):
             text = (Path(_HERE) / name).read_text(encoding="utf-8")
             self.assertNotIn("refine-lingua-it-es-glosses", text, name)
+
+
+# — The Italian Wiktionary (add-lingua-italian-edition-rules) —
+# Recorded from its English, French and Spanish sections, derived from kaikki's dump of the whole
+# edition (2026-10-21, the bytes it-en and it-es pin), as `common.WORD_GLOSS` reads them; the made-up
+# entries say so.
+IT_LABOUR = {"word": "labour", "pos": "noun", "senses": [{"glosses": ["lavoro"], "raw_tags": ["diritto"], "topics": ["economics"]}]}
+IT_LABOR = {
+    "word": "labor",
+    "pos": "noun",
+    "senses": [{"glosses": ["variante statunitense di labour"], "raw_tags": ["US", "diritto"], "topics": ["economics"]}],
+}
+IT_THOSE = {"word": "those", "pos": "adj", "senses": [{"glosses": ["plurale di that: quelli, quelle"]}]}
+IT_ISNT = {"word": "isn't", "pos": "verb", "senses": [{"glosses": ["contrazione di is not"]}]}
+IT_FC = {"word": "FC", "pos": "abbrev", "senses": [{"glosses": ["abbreviazione di football club"]}]}
+IT_HEAR = {
+    "word": "hear",
+    "pos": "verb",
+    "senses": [
+        {"glosses": ["sentire, udire"], "tags": ["form-of"], "form_of": [{"word": "udire"}]},
+        {"glosses": ["ascoltare, dare udienza"], "tags": ["form-of"], "form_of": [{"word": "ascoltare"}]},
+        {"glosses": ["capire"], "tags": ["form-of"], "raw_tags": ["popolare"], "form_of": [{"word": "capire"}]},
+    ],
+}
+# `go`'s second verb entry, cut to two senses.
+IT_GO = [
+    {"word": "go", "pos": "verb", "senses": [{"glosses": ["andare"]}, {"glosses": ["andarsene"]}]},
+    {
+        "word": "go",
+        "pos": "verb",
+        "senses": [
+            {"glosses": ["vado"], "tags": ["form-of"], "form_of": [{"word": "vado"}]},
+            {"glosses": ["vai"], "tags": ["form-of"], "form_of": [{"word": "vai"}]},
+        ],
+    },
+]
+IT_PANDA = {"word": "panda", "pos": "noun", "senses": [{"glosses": ["vedi italiano"], "topics": ["zoology"]}]}
+IT_CARPA = {
+    "word": "carpa",
+    "pos": "noun",
+    "senses": [
+        {"glosses": ["vedi italiano (pesce)"], "topics": ["ichthyology"]},
+        {"glosses": ["tenda"]},
+        {"glosses": ["carpa"], "topics": ["heraldry"]},
+    ],
+}
+IT_PERNICIOSO = {"word": "pernicioso", "pos": "adj", "senses": [{"glosses": ["pernicioso, vedi italiano (dannoso)"]}]}
+# `close`'s adjective, cut to its first three senses.
+IT_CLOSE = {
+    "word": "close",
+    "pos": "adj",
+    "senses": [
+        {"glosses": ["chiuso (nell'inglese moderno generalmente rimpiazzato da closed)"], "tags": ["archaic"]},
+        {"glosses": ["vicino"]},
+        {"glosses": ["intimo, stretto"]},
+    ],
+}
+IT_LE = {
+    "word": "le",
+    "pos": "article",
+    "senses": [
+        {
+            "glosses": [
+                "articolo che si usa per le pezze onorevoli e il leone (per l'aquila si usa la), mentre per tutte le "
+                "altre pezze e le altre figure si usa l'articolo indeterminativo un e une"
+            ],
+            "topics": ["heraldry"],
+        }
+    ],
+}
+IT_MORT = [
+    {
+        "word": "mort",
+        "pos": "adj",
+        "senses": [
+            {
+                "glosses": ["attributo che qualifica l'animale giacente sul lato destro, con la testa e le zampe abbandonate"],
+                "topics": ["heraldry"],
+            },
+            {"glosses": ["morto"]},
+        ],
+    },
+    {"word": "mort", "pos": "noun", "senses": [{"glosses": ["morte"]}]},
+]
+IT_ARMS_OF_ALLIANCE = {
+    "word": "arms of alliance",
+    "pos": "phrase",
+    "senses": [
+        {
+            "glosses": [
+                "armi della moglie, che un uomo unisce alle proprie, secondo le regole del marshalling: arma d'alleanza"
+            ],
+            "topics": ["heraldry"],
+        }
+    ],
+}
+# The Italian Wiktionary's English translations (`kaikki-it-traductions-en.jsonl`), the entry that lists it.
+IT_ARMA_D_ALLEANZA = {
+    "pos": "phrase",
+    "translations": [{"sense": "termine araldico", "word": "arms of alliance"}],
+    "word": "arma d'alleanza",
+}
+IT_ZETA = {
+    "word": "zeta",
+    "pos": "noun",
+    "senses": [{"glosses": ["La lettera Zeta"]}, {"glosses": ["La lettera Greca 'Zeta'."]}],
+}
+IT_EVENT = {"word": "event", "pos": "noun", "senses": [{"glosses": ["avvenimento m., evento m., fatto m"]}]}
+IT_SINGING = {
+    "word": "singing",
+    "pos": "verb",
+    "senses": [{"glosses": ["participio presente di sing"], "tags": ["form-of"], "form_of": [{"word": "sing"}]}],
+}
+IT_SING = {"word": "sing", "pos": "verb", "senses": [{"glosses": ["cantare"]}]}
+IT_NEIGHBORHOOD = {
+    "word": "neighborhood",
+    "pos": "noun",
+    "senses": [{"glosses": ["() vicinato"], "raw_tags": ["US"]}, {"glosses": ["intorno"]}],
+}
+IT_NEIGHBORHOODS = {
+    "word": "neighborhoods",
+    "pos": "noun",
+    "senses": [
+        {"glosses": ["() plurale di neighborhood"], "tags": ["form-of"], "raw_tags": ["US"], "form_of": [{"word": "neighborhood"}]}
+    ],
+}
+IT_ANCHOR = {
+    "word": "anchor",
+    "pos": "noun",
+    "senses": [{"glosses": ["ancora: costituita da:"], "topics": ["heraldry"]}, {"glosses": ["conduttore, presentatore"]}],
+}
+# `could`, cut to its first four senses.
+IT_COULD = {
+    "word": "could",
+    "pos": "verb",
+    "senses": [
+        {"glosses": ["passato semplice di can (potere)"], "tags": ["form-of"], "form_of": [{"word": "potere"}]},
+        {"glosses": ["condizionale di can"], "tags": ["form-of"], "form_of": [{"word": "condizionale"}]},
+        {
+            "glosses": ["condizionale di can", "utilizzato in contrapposizione alla situazione attuale"],
+            "tags": ["form-of"],
+            "form_of": [{"word": "condizionale"}],
+        },
+        {
+            "glosses": ["condizionale di can", "utilizzato per indicare un'ipotesi"],
+            "tags": ["form-of"],
+            "form_of": [{"word": "condizionale"}],
+        },
+    ],
+}
+IT_MAIL = {
+    "word": "mail",
+    "pos": "noun",
+    "senses": [
+        {"glosses": ["(inv) posta"]},
+        {"glosses": ["definizione mancante; se vuoi, aggiungila tu"]},
+        {"glosses": ["[crema]], fior fiore"]},
+    ],
+}
+
+
+class TheItalianEdition(Entries):
+    """add-lingua-italian-edition-rules: the Italian Wiktionary's rules (`reduce_edition_it.py`) and its
+    pre-pass, read as the pairs glossed from it will read them (changes 36, 47, 51): letters out, then
+    `read_as_meanings`, then the shared rules."""
+
+    def italian(self, studied, lemmas, *entries):
+        words = common.without_letter_senses(self.jsonl(*entries), str(self.dir / "words.jsonl"), edition=IT)
+        read = italian.read_as_meanings(words, str(self.dir / "meanings.jsonl"))
+        glosses = common.reduce_gloss(read, set(lemmas), **common.WORD_GLOSS, studied=studied, edition=IT)
+        return glosses, read
+
+    def test_it_is_the_edition_s_shape(self):
+        self.assertEqual(IT.code, "it")
+        self.assertFalse(IT.capitalised)
+        self.assertEqual((IT.pointer_tags, IT.pointer_fields), (frozenset({"form-of"}), ("form_of",)))
+        self.assertEqual((IT.mwe_form_of, IT.dangling, IT.long_parenthesis), (None, None, 0))
+
+    def test_spec_scenario_a_pointer_lends_the_word_it_names(self):
+        glosses, _ = self.italian(ENGLISH, {"labor", "labour"}, IT_LABOR, IT_LABOUR)
+        self.assertEqual(glosses["labor"], "lavoro")
+        # Tagged, kaikki names the gloss's last link: the wording's word is named instead (D3).
+        self.assertEqual(glosses, {"labor": "lavoro", "labour": "lavoro"})
+
+    def test_spec_scenario_a_pointer_carrying_a_meaning(self):
+        glosses, _ = self.italian(ENGLISH, {"those"}, IT_THOSE)
+        self.assertEqual(glosses["those"], "plurale di that: quelli, quelle")
+        self.assertFalse(IT.form_of.match("plurale di that: quelli, quelle"))
+        self.assertTrue(IT.form_of.match("plurale di that"))
+
+    def test_spec_scenario_a_contraction_and_an_abbreviation(self):
+        glosses, _ = self.italian(ENGLISH, {"isn't", "fc"}, IT_ISNT, IT_FC)
+        self.assertEqual(glosses, {"isn't": "contrazione di is not", "fc": "abbreviazione di football club"})
+        # Made up: an abbreviation whose word lends a gloss points at it.
+        ps_ = {"word": "ps", "pos": "noun", "senses": [{"glosses": ["abbreviazione di postscript"]}]}
+        postscript = {"word": "postscript", "pos": "noun", "senses": [{"glosses": ["poscritto"]}]}
+        glosses, _ = self.italian(ENGLISH, {"ps", "postscript"}, ps_, postscript)
+        self.assertEqual(glosses["ps"], "poscritto")
+
+    def test_spec_scenario_a_meaning_kaikki_tags_as_a_form(self):
+        glosses, _ = self.italian(ENGLISH, {"hear"}, IT_HEAR)
+        self.assertEqual(glosses["hear"], "sentire, udire; ascoltare, dare udienza; capire")
+        # A word with another meaning keeps such senses as pointers: `go` does not read « vado ».
+        glosses, _ = self.italian(ENGLISH, {"go"}, *IT_GO)
+        self.assertEqual(glosses["go"], "andare; andarsene")
+
+    def test_spec_scenario_the_italian_word_is_the_same(self):
+        glosses, _ = self.italian(ENGLISH, {"panda"}, IT_PANDA)
+        self.assertEqual(glosses["panda"], "panda")
+        # Followed by a qualifier, the same; after a meaning, the note goes and the qualifier stays.
+        glosses, _ = self.italian(SPANISH, {"carpa", "pernicioso"}, IT_CARPA, IT_PERNICIOSO)
+        self.assertEqual(glosses["carpa"], "carpa (pesce); tenda; carpa")
+        self.assertEqual(glosses["pernicioso"], "pernicioso (dannoso)")
+
+    def test_spec_scenario_an_obsolete_sense_last(self):
+        glosses, _ = self.italian(ENGLISH, {"close"}, IT_CLOSE)
+        self.assertEqual(
+            glosses["close"],
+            "vicino; intimo, stretto; chiuso (nell'inglese moderno generalmente rimpiazzato da closed)",
+        )
+
+    def test_spec_scenario_a_word_glossed_by_heraldry_alone(self):
+        glosses, read = self.italian(FRENCH, {"le", "mort"}, IT_LE, *IT_MORT)
+        self.assertNotIn("le", glosses)
+        self.assertNotIn('"word": "le"', Path(read).read_text(encoding="utf-8"))
+        # A word with another meaning keeps its heraldic sense, after the others of its entry.
+        self.assertTrue(glosses["mort"].startswith("morto; "), glosses["mort"])
+        # The translation tables gloss `le`: the shared fallback reads what the definitions leave out.
+        table = {"le": {"DET": ["il", "lo"]}}
+        self.assertEqual(common.fallback_glosses({"le"}, glosses, [(table, list)], edition=IT), {"le": ("il, lo", [("DET", 1)])})
+
+    def test_spec_scenario_an_expression_glossed_by_heraldry_alone(self):
+        _, read = self.italian(ENGLISH, set(), IT_ARMS_OF_ALLIANCE)
+        expressions = common.reduce_expressions(read, studied=ENGLISH, edition=IT)
+        self.assertEqual(expressions, {})
+        inverted = common.read_translations(self.jsonl(IT_ARMA_D_ALLEANZA, name="it-en.jsonl"), inverted=True, studied=ENGLISH)
+        self.assertEqual(
+            common.fallback_expressions(expressions, [(inverted, list)], edition=IT),
+            {"arms of alliance": "arma d'alleanza"},
+        )
+
+    def test_spec_scenario_a_letter_s_name(self):
+        glosses, _ = self.italian(SPANISH, {"zeta"}, IT_ZETA)
+        self.assertNotIn("zeta", glosses)
+        self.assertTrue(IT.letter.search("nome della lettera X"))
+        self.assertFalse(IT.letter.search("lettera circolare"))
+
+    def test_spec_scenario_a_gender_mark_and_a_pointer_s_word(self):
+        self.assertEqual(italian.typography("avvenimento m., evento m., fatto m"), "avvenimento, evento, fatto")
+        self.assertEqual(italian.typography("participio presente di sing"), "participio presente di sing")
+        glosses, read = self.italian(ENGLISH, {"event", "singing", "sing"}, IT_EVENT, IT_SINGING, IT_SING)
+        self.assertEqual(glosses["event"], "avvenimento, evento, fatto")
+        self.assertEqual(glosses["singing"], "cantare")
+        senses = [json.loads(line) for line in Path(read).read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(senses[1]["senses"][0]["form_of"], [{"word": "sing"}])
+
+    def test_spec_scenario_a_table_gloss_keeps_its_case(self):
+        self.assertEqual(common.translation_gloss({"ADV": ["su"]}, list, edition=IT), ("su", [("ADV", 1)]))
+
+    def test_the_notes_go(self):
+        glosses, _ = self.italian(ENGLISH, {"mail"}, IT_MAIL)
+        self.assertEqual(glosses["mail"], "posta; crema, fior fiore")
+        for gloss in ("definizione mancante; se vuoi, aggiungila tu", "(inv)", "[[]]", "()"):
+            self.assertEqual(common.clean_gloss(gloss, 300, edition=IT), "", gloss)
+        # « approfondimento » is a word as well as a template's residue.
+        self.assertEqual(
+            common.clean_gloss("introspezione, approfondimento", 300, edition=IT), "introspezione, approfondimento"
+        )
+
+    def test_template_residue_goes_before_the_pointer_test(self):
+        glosses, _ = self.italian(ENGLISH, {"neighborhood", "neighborhoods"}, IT_NEIGHBORHOOD, IT_NEIGHBORHOODS)
+        self.assertEqual(glosses, {"neighborhood": "vicinato; intorno", "neighborhoods": "vicinato; intorno"})
+
+    def test_a_heraldic_sense_last(self):
+        glosses, _ = self.italian(ENGLISH, {"anchor"}, IT_ANCHOR)
+        self.assertEqual(glosses["anchor"], "conduttore, presentatore; ancora: costituita da")
+
+    def test_a_gloss_nested_under_a_pointer(self):
+        glosses, _ = self.italian(ENGLISH, {"could"}, IT_COULD)
+        self.assertEqual(
+            glosses["could"], "utilizzato in contrapposizione alla situazione attuale; utilizzato per indicare un'ipotesi"
+        )
+
+    def test_typography(self):
+        for text, written in (
+            ("tanto... quanto", "tanto… quanto"),
+            ('il tasto "shift" della tastiera', "il tasto «shift» della tastiera"),
+            ('anche nel senso di "persona', 'anche nel senso di "persona'),
+            ("esperto, , provetto", "esperto, provetto"),
+            ("applicazione , uso ( pratico )", "applicazione, uso (pratico)"),
+            ("merda f", "merda"),
+            ("plurale di f", "plurale di f"),
+        ):
+            self.assertEqual(italian.typography(text), written, text)
+
+    def test_a_line_it_cannot_read_is_written_as_it_is(self):
+        src = self.dir / "entries.jsonl"
+        src.write_text('not json\n[1, 2]\n{"word": "x", "pos": "noun"}\n', encoding="utf-8")
+        out = italian.read_as_meanings(str(src), str(self.dir / "out.jsonl"))
+        self.assertEqual(Path(out).read_text(encoding="utf-8"), src.read_text(encoding="utf-8"))
+
+    def test_spec_scenario_the_italian_edition_s_rules_edited(self):
+        # Every committed pair loads the one edition whose senses are its definitions, and none loads
+        # the Italian one: editing it moves no committed pair's rule digest (D1). Every committed pin
+        # records the rules and the pack_version its tables were reduced under.
+        editions = {
+            "en-fr": "reduce_edition_fr.py",
+            "es-fr": "reduce_edition_fr.py",
+            "it-fr": "reduce_edition_fr.py",
+            "es-en": "reduce_edition_en.py",
+            "fr-en": "reduce_edition_en.py",
+            "it-en": "reduce_edition_en.py",
+            "en-es": "reduce_edition_es.py",
+            "fr-es": "reduce_edition_es.py",
+            "it-es": "reduce_edition_es.py",
+        }
+        pairs = sorted(p.name for p in (Path(_HERE) / "tables").iterdir() if (p / "pin.json").is_file())
+        self.assertEqual(pairs, sorted(editions))
+        for pair, edition in editions.items():
+            reducer = Path(_HERE) / f"reduce-{pair}.py"
+            loaded = [p.name for p in ps.rule_files(reducer) if p.name.startswith("reduce_edition_")]
+            self.assertEqual(loaded, [edition], pair)
+            pin = Path(_HERE) / "tables" / pair / "pin.json"
+            self.assertEqual(ps.rules_sha256(reducer), ps.get(ps.load(pin), "reducer.sha256"), pair)
+            manifest = json.loads((pin.parent / "manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(ps.pack_version(pin, reducer), manifest["meta"]["pack_version"], pair)
+        copy = self.dir / "rules"
+        copy.mkdir()
+        for path in Path(_HERE).glob("reduce[-_]*.py"):
+            (copy / path.name).write_bytes(path.read_bytes())
+        before = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in editions}
+        for old, new in (
+            ('_NO_LONGER_USED = frozenset({"obsolete", ', "_NO_LONGER_USED = frozenset({"),
+            ("    capitalised=False,\n", "    capitalised=True,\n"),
+        ):
+            module = copy / "reduce_edition_it.py"
+            text = module.read_text(encoding="utf-8")
+            self.assertIn(old, text)
+            module.write_text(text.replace(old, new), encoding="utf-8")
+            self.assertEqual({pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in editions}, before, new)
+        # A pair glossed from the Italian Wiktionary (en-it, change 36) loads it, and moves with it.
+        reader = copy / "reduce-xx-it.py"
+        reader.write_text("import reduce_common\nimport reduce_edition_it\n", encoding="utf-8")
+        self.assertEqual(
+            [p.name for p in ps.rule_files(reader)], ["reduce-xx-it.py", "reduce_common.py", "reduce_edition_it.py"]
+        )
+        moved = ps.rules_sha256(reader)
+        module = copy / "reduce_edition_it.py"
+        module.write_text(module.read_text(encoding="utf-8") + "\n# edited\n", encoding="utf-8")
+        self.assertNotEqual(ps.rules_sha256(reader), moved)
+        self.assertEqual({pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in editions}, before)
 
 
 if __name__ == "__main__":
