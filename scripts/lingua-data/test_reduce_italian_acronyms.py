@@ -187,12 +187,14 @@ class TheGloss(unittest.TestCase):
 
 class TheRuleDigest(unittest.TestCase):
     def test_spec_scenario_the_module_moves_it_fr_s_rules_alone(self):
-        # A rule file of it-fr's reduction, and of no other committed pair's: editing it re-pins it-fr.
-        for pin in sorted(Path(_TABLES).glob("*/pin.json")):
-            pair = pin.parent.name
+        # A rule file of the reductions of the pairs glossing Italian — it-fr's, and it-en's since
+        # add-lingua-pack-it-en (D1, D6) — and of no other committed pair's: editing it re-pins them.
+        pairs = {pin.parent.name for pin in Path(_TABLES).glob("*/pin.json")} | {"it-en"}
+        for pair in sorted(pairs):
             loaded = [p.name for p in ps.rule_files(Path(_HERE) / f"reduce-{pair}.py")]
-            self.assertEqual("reduce_italian_acronyms.py" in loaded, pair == "it-fr", pair)
-            self.assertNotIn("reduce_french_acronyms.py" if pair == "it-fr" else "reduce_italian_acronyms.py", loaded, pair)
+            italian = pair.startswith("it-")
+            self.assertEqual("reduce_italian_acronyms.py" in loaded, italian, pair)
+            self.assertNotIn("reduce_french_acronyms.py" if italian else "reduce_italian_acronyms.py", loaded, pair)
 
 
 if __name__ == "__main__":
