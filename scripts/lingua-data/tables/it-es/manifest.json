@@ -1,0 +1,38 @@
+{
+  "meta": {
+    "studied": "it",
+    "native": "es",
+    "pack_version": "2026.10.25+8327a6c.442fd70",
+    "analyzer_version": "1.4.0",
+    "levels_estimated": true,
+    "licences": [
+      "kaikki / eswiktionary, itwiktionary, enwiktionary, frwiktionary, dewiktionary, ptwiktionary, ruwiktionary, plwiktionary, nlwiktionary (CC BY-SA 4.0 + GFDL)",
+      "Wikidata Lexemes (CC0 1.0)",
+      "wordfreq (CC BY-SA 4.0)",
+      "UD Italian-MarkIT (CC BY 4.0)",
+      "Morph-it! (CC BY-SA 2.0)"
+    ]
+  },
+  "sources": [
+    {
+      "name": "kaikki",
+      "licence": "CcBySa"
+    },
+    {
+      "name": "Wikidata",
+      "licence": "Cc0"
+    },
+    {
+      "name": "wordfreq",
+      "licence": "CcBySa"
+    },
+    {
+      "name": "UD Italian-MarkIT",
+      "licence": "CcBy"
+    },
+    {
+      "name": "Morph-it!",
+      "licence": "CcBySa"
+    }
+  ]
+}

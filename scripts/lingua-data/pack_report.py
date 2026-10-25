@@ -286,10 +286,22 @@ def share_line(pair: str, measures: Path) -> str:
     marked by source, folded — the coverage beside it is the report's own (`coverage_line`)."""
     got = json.loads(measures.read_text(encoding="utf-8"))
     tables = ", ".join(f"{name} {len(got.get(name) or ())}" for name in ("direct", "inverted"))
-    lines = [
-        f"`{pair}`: of the {got['glossed']:,} glossed lemmas among the {got['top']:,} commonest, "
-        f"**{got['share']} %** come from a translation table ({tables}) rather than from an entry."
-    ]
+    if isinstance(got.get("coverage by source"), dict):
+        # it-es (add-lingua-pack-it-es D9): its share counts every source after the definitions —
+        # Wikidata, the Italian Wiktionary's Spanish section and the pivot as well as the two tables.
+        lines = [
+            f"`{pair}`: of the {got['glossed']:,} glossed lemmas among the {got['top']:,} commonest, "
+            f"**{got['share']} %** come from a source after the definitions — a translation table ({tables}), "
+            "Wikidata, a section read backwards or the pivot — rather than from an entry.",
+            "Coverage of the 5,000 / 10,000 / 20,000 commonest after each source: "
+            + "; ".join(f"{name} " + " / ".join(map(str, shares)) for name, shares in got["coverage by source"].items())
+            + ".",
+        ]
+    else:
+        lines = [
+            f"`{pair}`: of the {got['glossed']:,} glossed lemmas among the {got['top']:,} commonest, "
+            f"**{got['share']} %** come from a translation table ({tables}) rather than from an entry."
+        ]
     if isinstance(got.get("by source"), dict):
         lines.append(
             "Glossed lemmas by source: " + ", ".join(f"{name} {count:,}" for name, count in got["by source"].items()) + "."

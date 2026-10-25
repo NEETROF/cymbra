@@ -532,9 +532,9 @@ class TheEnglishEditionSettings(Entries):
         copy.mkdir()
         for path in Path(_HERE).glob("reduce[-_]*.py"):
             (copy / path.name).write_bytes(path.read_bytes())
-        pairs = ("en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en")
+        pairs = ("en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en", "it-es")
         glossed_in_english = ("es-en", "fr-en", "it-en")
-        others = ("en-fr", "es-fr", "en-es", "fr-es", "it-fr")
+        others = ("en-fr", "es-fr", "en-es", "fr-es", "it-fr", "it-es")
         before = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
         self.assertEqual(before, {pair: ps.rules_sha256(Path(_HERE) / f"reduce-{pair}.py") for pair in pairs})
         # The committed pairs' digests are the ones their pins record: fr-en's glosses moved no other,
@@ -561,11 +561,13 @@ class TheEnglishEditionSettings(Entries):
             self.assertEqual({p: after[p] for p in others}, {p: before[p] for p in others}, new)
             before = after
         # A rule of es-en's own reducer re-pins es-en alone, one of fr-en's fr-en alone, and one of
-        # it-en's — its reducer or its own pre-pass module — it-en alone.
+        # it-en's — its reducer or its own pre-pass module — it-en alone; one of it-es's — its reducer, its
+        # pre-pass or its copy of fr-es's table rules — it-es alone (add-lingua-pack-it-es D4).
         for pair, old, new in (
             ("es-en", 'if entry.get("pos") == "character":', "if False:"),
             ("fr-en", '"à la": (', '"à le": ('),
             ("it-en", 'if entry.get("pos") == "character":', "if False:"),
+            ("it-es", "PIVOT_LONGEST = 60\n", "PIVOT_LONGEST = 61\n"),
         ):
             reducer = copy / f"reduce-{pair}.py"
             text = reducer.read_text(encoding="utf-8")
@@ -575,18 +577,19 @@ class TheEnglishEditionSettings(Entries):
             self.assertNotEqual(after[pair], before[pair], new)
             self.assertEqual({p: after[p] for p in pairs if p != pair}, {p: before[p] for p in pairs if p != pair}, new)
             before = after
-        module = copy / "reduce_italian_en.py"
-        module.write_text(module.read_text(encoding="utf-8") + "\n# edited\n", encoding="utf-8")
-        after = {p: ps.rules_sha256(copy / f"reduce-{p}.py") for p in pairs}
-        self.assertNotEqual(after["it-en"], before["it-en"])
-        self.assertEqual({p: after[p] for p in pairs if p != "it-en"}, {p: before[p] for p in pairs if p != "it-en"})
-        before = after
-        # The Spanish edition's rules are en-es's and fr-es's (add-lingua-pack-en-es D1,
-        # add-lingua-pack-fr-es D1: *A rule of the Spanish edition*).
+        for name, pair in (("reduce_italian_en.py", "it-en"), ("reduce_italian_es.py", "it-es"), ("reduce_spanish_tables.py", "it-es")):
+            module = copy / name
+            module.write_text(module.read_text(encoding="utf-8") + "\n# edited\n", encoding="utf-8")
+            after = {p: ps.rules_sha256(copy / f"reduce-{p}.py") for p in pairs}
+            self.assertNotEqual(after[pair], before[pair], name)
+            self.assertEqual({p: after[p] for p in pairs if p != pair}, {p: before[p] for p in pairs if p != pair}, name)
+            before = after
+        # The Spanish edition's rules are en-es's, fr-es's and it-es's (add-lingua-pack-en-es D1,
+        # add-lingua-pack-fr-es D1, add-lingua-pack-it-es D5: *A rule of the Spanish edition*).
         edition = copy / "reduce_edition_es.py"
         edition.write_text(edition.read_text(encoding="utf-8") + "\n# edited\n", encoding="utf-8")
         after = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
-        glossed_in_spanish = ("en-es", "fr-es")
+        glossed_in_spanish = ("en-es", "fr-es", "it-es")
         for pair in glossed_in_spanish:
             self.assertNotEqual(after[pair], before[pair], pair)
         self.assertEqual(

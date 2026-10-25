@@ -13,7 +13,8 @@
 // limitations under the License.
 
 //! The licence guard (design D3): only commercially-usable sources may enter a
-//! pack; GPL, AGPL and non-commercial sources are refused.
+//! pack; GPL, AGPL and non-commercial sources are refused. CC0 (Wikidata, add-lingua-pack-it-es
+//! D9) is a licence of its own, allowed: a manifest names it as `"Cc0"`.
 
 use serde::{Deserialize, Serialize};
 
@@ -26,6 +27,9 @@ pub enum Licence {
     CcBySa,
     /// Creative Commons Attribution.
     CcBy,
+    /// Creative Commons Zero — public domain dedication (Wikidata's lexemes, read by it-es:
+    /// add-lingua-pack-it-es D9). Never denied.
+    Cc0,
     /// GNU General Public License — copyleft, denied.
     Gpl,
     /// GNU Affero GPL — network copyleft, denied.
@@ -60,8 +64,18 @@ mod tests {
         assert!(!is_denied(Licence::Permissive));
         assert!(!is_denied(Licence::CcBySa));
         assert!(!is_denied(Licence::CcBy));
+        assert!(!is_denied(Licence::Cc0));
         assert!(is_denied(Licence::Gpl));
         assert!(is_denied(Licence::Agpl));
         assert!(is_denied(Licence::NonCommercial));
+    }
+
+    #[test]
+    fn a_manifest_names_cc0_as_cc0() {
+        // it-es's manifest names Wikidata's licence `"Cc0"` (add-lingua-pack-it-es D9).
+        let source: Source =
+            serde_json::from_str(r#"{"name": "Wikidata", "licence": "Cc0"}"#).unwrap();
+        assert_eq!(source.licence, Licence::Cc0);
+        assert!(!is_denied(source.licence));
     }
 }

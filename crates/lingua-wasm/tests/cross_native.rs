@@ -21,7 +21,8 @@
 //! `tables/en-es/`; es-en, the committed pair glossed in English (add-lingua-pack-es-en), built
 //! from `tables/es/` and `tables/es-en/`; fr-es, French glossed in Spanish
 //! (add-lingua-pack-fr-es), built from `tables/fr/` and `tables/fr-es/`; it-en, Italian glossed in
-//! English (add-lingua-pack-it-en D9), built from `tables/it/` and `tables/it-en/`.
+//! English (add-lingua-pack-it-en D9), built from `tables/it/` and `tables/it-en/`; and it-es, Italian
+//! glossed in Spanish (add-lingua-pack-it-es D11), built from `tables/it/` and `tables/it-es/`.
 //!
 //! Every probe of the language's invariance baseline is answered through both packs, and must
 //! be byte for byte alike once glosses, senses and expressions — the native side — are removed
@@ -509,6 +510,53 @@ fn spec_scenario_italian_through_another_native_language() {
     assert_eq!(sizes(&other, "it"), sizes(&reference, "it"));
 }
 
+#[test]
+fn spec_scenario_italian_through_spanish() {
+    // it-fr, Italian's reference, and it-es: the committed pair glossed in Spanish
+    // (add-lingua-pack-it-es D11, *One studied side, three natives*), both built from tables/it/ — the
+    // real third pack. The scenario's engine holds the one pack (`render_unseeded`): it-fr's cards
+    // carry no label, it-es's `es`.
+    let root = Scenario::tables_root();
+    let (reference_inputs, other_inputs) = (
+        inputs_from_tables(&root, "it-fr").expect("read it-fr"),
+        inputs_from_tables(&root, "it-es").expect("read it-es"),
+    );
+    assert_eq!(
+        other_inputs.meta.native, "es",
+        "it-es is glossed in Spanish"
+    );
+    let (reference, other) = (
+        build_pack(&reference_inputs).expect("it-fr"),
+        build_pack(&other_inputs).expect("it-es"),
+    );
+    let (it_fr, it_es) = (Pack::load(&reference).unwrap(), Pack::load(&other).unwrap());
+    assert_eq!(it_es.pair().key(), "it-es", "glossed in Spanish");
+    // Italian's levels (add-lingua-italian-levels) and paradigms (add-lingua-italian-grammar-tables)
+    // are among the sections compared.
+    assert_studied_sections_alike("it-fr", &reference, &other);
+    assert_probes_alike(&ITALIAN, Some("it"), &reference, &other, "fr", "es");
+    // A lemma it-es glosses and it-fr does not is no dictionary word: the dictionary words are
+    // it-fr's, read from tables/it.
+    let only_here: Vec<&str> = other_inputs
+        .glosses
+        .iter()
+        .map(|(lemma, _)| lemma.as_str())
+        .filter(|lemma| it_fr.gloss(lemma).is_none())
+        .collect();
+    assert!(only_here.len() > 100, "{}", only_here.len());
+    for lemma in &only_here {
+        assert!(!it_es.is_dictionary_word(lemma), "{lemma}");
+    }
+    assert!(
+        it_es
+            .gloss("casa")
+            .is_some_and(|gloss| gloss.starts_with("Casa"))
+    );
+    assert!(it_es.is_dictionary_word("casa"));
+    // *A vocabulary size counts dictionary words*: the universe and the ladder are it-fr's.
+    assert_eq!(sizes(&other, "it"), sizes(&reference, "it"));
+}
+
 /// How many cards a seeding asks for in `seeding_follows_each_packs_glosses`: the engine's cap,
 /// the extension's `SEED_CAP`.
 const SEEDED: usize = 50;
@@ -654,12 +702,14 @@ fn seed_through(
 fn seeding_follows_each_packs_glosses() {
     // *Seeded cards through another native language* (seed-lingua-decks-with-glossed-lemmas D4):
     // each language's reference pack and the real second one, built from the committed tables —
-    // the four languages side by side, building a pack being the slow part.
+    // the four languages side by side — Italian through English and through Spanish —, building a pack
+    // being the slow part.
     let languages = [
         ("en", "en-fr", "en-es"),
         ("es", "es-fr", "es-en"),
         ("fr", "fr-en", "fr-es"),
         ("it", "it-fr", "it-en"),
+        ("it", "it-fr", "it-es"),
     ];
     let checked: Vec<_> = std::thread::scope(|scope| {
         let threads: Vec<_> = languages
@@ -760,6 +810,7 @@ fn a_gloss_the_reader_chose_wins_through_every_native_language() {
         ("es-fr", "es-en", "es", "casa"),
         ("fr-en", "fr-es", "fr", "maison"),
         ("it-fr", "it-en", "it", "casa"),
+        ("it-fr", "it-es", "it", "casa"),
     ];
     for (reference, other, language, lemma) in cases {
         let reference_pack = Scenario::real_pack(reference);

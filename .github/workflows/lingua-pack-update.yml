@@ -6,7 +6,9 @@ name: lingua-pack-update
 # reference pair, which writes tables/fr/ — since add-lingua-french-forms-tables, fr→es — which reads
 # tables/fr/ as committed — since add-lingua-pack-fr-es, it→fr — Italian's reference pair, which
 # writes tables/it/ — since add-lingua-italian-forms-tables, it→en — which reads tables/it/ as
-# committed, reduced after it-fr — since add-lingua-pack-it-en).
+# committed, reduced after it-fr — since add-lingua-pack-it-en, it→es — which reads it too, reduced
+# after it-fr, its sources the Spanish and Italian Wiktionaries, Wikidata's Lexemes and seven
+# Wiktionaries' tables as a pivot — since add-lingua-pack-it-es).
 #
 # Releases never read upstream: they build the pack from the tables committed under
 # scripts/lingua-data/tables/<pair>/ and its studied language's tables/<studied>/, and check it
@@ -14,9 +16,11 @@ name: lingua-pack-update
 # nothing it produces reaches a release without a person:
 #
 # - dispatch, mode `update`: today's sources (CEFR-J, Octanove, ESDB, UD Spanish-GSD at their pinned
-#   commits, UD French-GSD too; kaikki live), kept as a new snapshot, reduced, and pushed to the branch
-#   lingua-pack/<pair>/<snapshot>. kaikki is read as its dumps of whole Wiktionary editions alone —
-#   the English, French, Spanish and Italian Wiktionaries', one address each (pack_sources.py EDITIONS,
+#   commits, UD French-GSD too; kaikki live; for it-es, Wikidata's Lexemes too), kept as a new snapshot,
+#   reduced, and pushed to the branch lingua-pack/<pair>/<snapshot>. kaikki is read as its dumps of whole
+#   Wiktionary editions alone — the English, French, Spanish and Italian Wiktionaries', and for it-es's
+#   pivot the German, Portuguese, Russian, Polish and Dutch ones, one address each, beside Wikidata's
+#   Lexemes dump, read as an edition of its own (pack_sources.py EDITIONS,
 #   migrate-lingua-pack-sources-to-raw-dumps D1): the files the pair reads are derived from them in
 #   one pass per edition and published as the release lingua-pack-sources-<pair>-<snapshot>, never
 #   replaced, whose notes name each dump by its address, regeneration date and decompressed sha256;
@@ -80,7 +84,7 @@ on:
       pair:
         description: "The language pair whose tables to propose (a <studied>-<native> folder of scripts/lingua-data/tables); a studied language's reference brings the pairs that read it; all = every pair, mode reduce or dry."
         type: choice
-        options: [en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr, it-en, all]
+        options: [en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr, it-en, it-es, all]
         default: en-fr
       expect:
         description: "any = report what moved; identical = fail on any byte the rules were not meant to move (mode reduce only)."
@@ -88,7 +92,7 @@ on:
         options: [any, identical]
         default: any
       keep:
-        description: "Editions whose recorded bytes the update keeps, comma-separated (en, fr, es, it): their dumps are not read, their pinned files are (mode update only). Empty = read every edition anew."
+        description: "Editions whose recorded bytes the update keeps, comma-separated (en, fr, es, it, de, pt, ru, pl, nl, wikidata): their dumps are not read, their pinned files are (mode update only). Empty = read every edition anew."
         type: string
         default: ""
   schedule:
@@ -104,8 +108,8 @@ permissions:
 # never propose the reader's folder on two branches at once: the `es` group for es-fr and es-en,
 # the `en` group for en-fr and en-es, the `fr` group for fr-en and fr-es, which reads tables/fr/
 # (add-lingua-french-forms-tables D10, add-lingua-pack-fr-es D10), the `it` group for it-fr, which
-# writes tables/it/, it-en, which reads it (add-lingua-pack-it-en D3), and the Italian pairs to come
-# (add-lingua-italian-forms-tables D9). `all` (modes reduce and dry) and the monthly dry run have a group
+# writes tables/it/, it-en and it-es, which read it (add-lingua-pack-it-en D3, add-lingua-pack-it-es
+# D1), and the Italian pairs to come (add-lingua-italian-forms-tables D9). `all` (modes reduce and dry) and the monthly dry run have a group
 # each.
 concurrency:
   group: lingua-pack-update-${{ startsWith(inputs.pair, 'es-') && 'es' || startsWith(inputs.pair, 'en-') && 'en' || startsWith(inputs.pair, 'fr-') && 'fr' || startsWith(inputs.pair, 'it-') && 'it' || inputs.pair || 'monthly' }}
@@ -161,8 +165,8 @@ jobs:
             echo "::error::keep=$KEEP keeps an edition's recorded bytes through an update: dispatch it with mode=update."
             exit 1
           fi
-          if [ -n "${KEEP:-}" ] && ! printf '%s' "$KEEP" | grep -qxE '[a-z]{2}(,[a-z]{2})*'; then
-            echo "::error::keep=$KEEP is no list of editions: write their codes, comma-separated (en, or en,es)."
+          if [ -n "${KEEP:-}" ] && ! printf '%s' "$KEEP" | grep -qxE '([a-z]{2}|wikidata)(,([a-z]{2}|wikidata))*'; then
+            echo "::error::keep=$KEEP is no list of editions: write their codes, comma-separated (en, or en,es, or es,wikidata)."
             exit 1
           fi
 
@@ -315,7 +319,7 @@ jobs:
         working-directory: apps/lingua-extension
         run: yarn install --immutable
 
-      - name: Keep kaikki's bytes as the snapshot's release
+      - name: Keep the sources' bytes as the snapshot's release
         if: env.MODE == 'update'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -344,18 +348,29 @@ jobs:
             echo "::error::$PAIR's pin.json names no asset under $tag: the update fetched nothing of its own."
             exit 1
           fi
+          # Wikidata's Lexemes (it-es's, add-lingua-it-es-pivot-sources D3) are no kaikki data, and CC0: the
+          # header and the licence footer name them when the release holds a file derived from them
+          # (add-lingua-pack-it-es, change 27a's review).
+          lexemes_data=""
+          lexemes_dump=""
+          lexemes_licence=""
+          if printf '%s\n' "$dumps" | grep -q '^- `wikidata`:'; then
+            lexemes_data=" and Wikidata data"
+            lexemes_dump=", and from Wikidata's Lexemes dump"
+            lexemes_licence=" Wikidata's Lexemes: CC0 1.0 (public domain) — https://www.wikidata.org/wiki/Wikidata:Lexicographical_data."
+          fi
           cat > "$RUNNER_TEMP/notes.md" <<EOF
-          The kaikki.org data read for Cymbra Lingua's $PAIR data pack, as it was on $SNAPSHOT: the files the
-          pair derives from kaikki's dumps of whole Wiktionary editions. The dumps are not kept — the
+          The kaikki.org data$lexemes_data read for Cymbra Lingua's $PAIR data pack, as it was on $SNAPSHOT: the files the
+          pair derives from kaikki's dumps of whole Wiktionary editions$lexemes_dump. The dumps are not kept — the
           English edition's alone is above the 2 GiB a release asset may weigh — and each is named here by its
-          address, the date kaikki regenerated it and the sha256 of its decompressed bytes:
+          address, the date it was regenerated and the sha256 of its decompressed bytes:
 
           $dumps
 
           The assets are the pack's raw sources, kept because upstream regenerates them every day. Each is
           zstd-compressed; decompressed, its sha256 is in \`scripts/lingua-data/tables/$PAIR/pin.json\`.
 
-          Licence: Wiktionary content, CC BY-SA 4.0 and GFDL — https://kaikki.org, https://www.wiktionary.org.
+          Licence: Wiktionary content, CC BY-SA 4.0 and GFDL — https://kaikki.org, https://www.wiktionary.org.$lexemes_licence
           EOF
           gh release create "$tag" "${files[@]}" --target "$GITHUB_SHA" \
             --title "Lingua pack sources $PAIR $SNAPSHOT" --notes-file "$RUNNER_TEMP/notes.md" --latest=false
@@ -378,7 +393,7 @@ jobs:
           git switch -c "$branch"
           # The invariance baselines follow the dictionary (docs/lingua/spanish-programme.md,
           # docs/lingua/language-matrix-programme.md): re-blessed here, so the pull request shows
-          # what the update changes in English and Spanish output. All eight, whatever the pair:
+          # what the update changes in English and Spanish output. All nine, whatever the pair:
           # the Spanish ladder borrows English's figures from the en-fr pack, es-en's golden
           # moves with es-fr's studied tables (change 23) and en-es's with en-fr's (change 24).
           # Once, whatever the pairs.
@@ -389,19 +404,20 @@ jobs:
           # D9): it runs over the committed it-fr tables since add-lingua-pack-it-fr, so an it-fr
           # update moves it, and its engine holds the real en-fr pack beside, so an en-fr update
           # moves its `beside en-fr` line. And it-en's (add-lingua-pack-it-en D9), which moves with
-          # it-en and with Italian's studied tables.
-          LINGUA_BLESS=1 cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline --test fr_es_baseline --test italian_baseline --test it_en_baseline
+          # it-en and with Italian's studied tables; and it-es's (add-lingua-pack-it-es D11), likewise.
+          LINGUA_BLESS=1 cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline --test fr_es_baseline --test italian_baseline --test it_en_baseline --test it_es_baseline
           # The extension's snapshots follow them (add-lingua-english-card-wording D2, D4,
           # add-lingua-spanish-card-wording D2): the English card's lines over the es-en golden's
           # grammar probes, the Spanish card's over the en-es golden's, the French card's in
           # English and in Spanish over the fr-en and fr-es goldens' grammar and phrase probes
           # (add-lingua-french-word-card D9), the Italian card's in French over the it-fr golden's
           # (add-lingua-italian-word-card D6) and in English over the it-en golden's
-          # (add-lingua-pack-it-en D9), and the selection card's rows over the committed
+          # (add-lingua-pack-it-en D9) and in Spanish over the it-es golden's (add-lingua-pack-it-es
+          # D11), and the selection card's rows over the committed
           # French glosses. `-u` after the files: vitest's `-u, --update [type]` takes an optional
           # value, so `-u <file>` would read the first file as that value and run the others
           # alone, leaving the first snapshot as it was.
-          (cd apps/lingua-extension && yarn vitest run test/word-card-es-en.spec.ts test/word-card-en-es.spec.ts test/word-card-fr-en.spec.ts test/word-card-fr-es.spec.ts test/word-card-it-fr.spec.ts test/word-card-it-en.spec.ts test/row-gloss-tables.spec.ts -u)
+          (cd apps/lingua-extension && yarn vitest run test/word-card-es-en.spec.ts test/word-card-en-es.spec.ts test/word-card-fr-en.spec.ts test/word-card-fr-es.spec.ts test/word-card-it-fr.spec.ts test/word-card-it-en.spec.ts test/word-card-it-es.spec.ts test/row-gloss-tables.spec.ts -u)
           # The site's coverage figures follow the tables (add-site-lingua-spanish-pages D3).
           python scripts/lingua-data/gloss_coverage.py --write
           if [ "$EXPECT" = identical ]; then
