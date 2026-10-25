@@ -44,11 +44,13 @@ fr-en's treebank rule and MarkIT's counts are imported unchanged, as it-fr impor
   « only », `spesso` « often », `verso` « toward »); a row that would open on a sense the page marks
   archaic, obsolete, dated or historical opens on its first sense that is not (173 rows: `polizia`
   « police », `università` « university », `ufficio` « office », `prodotto` « product »); a reviewed
-  table, keyed by the sense a row opens on, orders 25 rows the rules miss or misread (`bene` « well »,
+  table, keyed by the sense a row opens on, orders 40 rows the rules miss or misread (`bene` « well »,
   `gente` « people », `testo` « text », `piano` « floor, storey » with « plan » back, `come` held at
   « how ») — the 19 the owner approved (task 0.1), and six added after his answer on the review of
   this proposal, approved with the gloss diff (`dì` « day », `contrastare` « to oppose », `contea`
-  « county », `pro` « for », `parlamento` « parliament », `ce` « us »).
+  « county », `pro` « for », `parlamento` « parliament », `ce` « us »), and `parmigiano` « parmesan
+  cheese », added on the implementation's gloss diff, and fourteen more on an Italian specialist's review
+  of it (`tanto`, `costa`, `mica`, `manco` …), all approved on 2026-10-25.
 - **Pointers read** (D3, D4): pointer wordings the English edition does not know (« … form of »,
   « proscribed spelling of », « compound of … with », « Old Italian form of ») are pointers; a pointer to a
   word of one or two letters lends that word's senses after the row's own, within the eight-sense bound

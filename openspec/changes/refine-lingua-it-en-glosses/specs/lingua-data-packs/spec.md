@@ -121,15 +121,19 @@ English is often a man's. A word with other glossed senses keeps them.
 - **THEN** the gloss of `signora` holds none of `signore`'s senses (« lord (ruler) »)
 
 ### Requirement: it-en's glosses hold no name's note or page note a common word does not need
-The it-en reduction SHALL leave a proper noun's sense that only says its word is a surname out of a row whose word holds a common meaning; SHALL leave a proper noun's sense that only says its word is a given name out of a row whose first meaning is a common word's; SHALL leave a proper noun's sense naming its place a town, a comune, a village, a hamlet, a frazione or a municipality out of a word with a common meaning, unless the row opens on a proper noun's sense, the sense calls the place itself a city or a capital, or a town and province, or a reviewed list keeps it; and SHALL read an article's sense describing its own form by its last clause.
+The it-en reduction SHALL leave a proper noun's sense that only says its word is a surname out of a row whose word holds a common meaning; SHALL leave a proper noun's sense that only says its word is a given name out of a row whose first meaning is a common word's; SHALL leave a proper noun's sense naming its place a town, a comune, a village, a hamlet, a frazione or a municipality out of a word with a common meaning, unless the row opens on a proper noun's sense, the sense calls the place itself a city or a capital, or a town and province, or a reviewed list keeps it; SHALL leave no such note out of a row whose every lowercase meaning the section tags archaic, obsolete, dated, historical, rare, poetic, literary, regional or dialectal; and SHALL read an article's sense describing its own form by its last clause.
 A word holds a common meaning when a lowercase entry of it holds a meaning, or when a lowercase pointer
 of it lends once none of its proper nouns' senses stays; a row holding only proper nouns' senses keeps
 its surname's note, and a given name's note that opens its row stays. A place called a city or a
 capital is the place itself (« a city and comune », « the capital of »), never a province it lies in
-(« the Metropolitan City of … »). A proper noun whose senses only point at another proper noun reads
+(« the Metropolitan City of … »); a commune is a place only before « in » or « of » (« a commune of
+Liguria »), never a revolutionary government (« Commune (of Paris) »). Whether a lowercase meaning is
+so marked is read from the section's tags, never from its wording; the notes such a row keeps stay
+where the section writes them. A proper noun whose senses only point at another proper noun reads
 that name's senses as the section writes them, before these rules, its own row then read by them. The
 reviewed list holds a commune, each with its reason, only where the section names a provincial capital
-without saying so, decided by the owner. A proper noun's entry left with no sense goes. The reduction
+without saying so, or where readers meet the word as the place or its wine, game or abbey, decided by
+the owner. A proper noun's entry left with no sense goes. The reduction
 also writes « etc » with its period in glosses and expressions, leaves out a list marker opening a
 sense, and reads a sense opening on a quoted meaning in parentheses (« (“sea”) … ») as that meaning
 followed by the rest.
@@ -169,6 +173,14 @@ followed by the rest.
 #### Scenario: A name pointing at a name
 - **WHEN** the section's `Pinuccio` only points at `Pino`, whose given name's note `pino`'s row leaves out beside « pine »
 - **THEN** the gloss of `pinuccio` keeps « a diminutive of the male given name Giuseppe… »
+
+#### Scenario: A row whose common meanings are all marked
+- **WHEN** the section gives the proper noun `Esposito` « a common surname » before the noun `esposito` « foundling », tagged obsolete
+- **THEN** the gloss of `esposito` is « a common surname; foundling »
+
+#### Scenario: A commune named as a government
+- **WHEN** the section gives `comune` « comune, municipality » and the proper noun `Comune` « Commune (of Paris, properly “Comune di Parigi”) »
+- **THEN** the gloss of `comune` keeps « Commune (of Paris, properly “Comune di Parigi”) »
 
 #### Scenario: A provincial capital
 - **WHEN** the section gives `fermo` « still; firm » and the proper noun `Fermo` « a town and province of Marche, Italy »

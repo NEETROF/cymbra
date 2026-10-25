@@ -71,7 +71,7 @@ row: italia — Italy (a country in Southern Europe)
 ### phrase-gloss E' troppo tardi perche' la citta' e' piu' lontana
 row: tardi — late
 row: città — town, city
-row: più — anymore, any longer
+row: più — more
 row: lontano — distant
 ### phrase-gloss I paesi della NATO
 row: paese — country (nation)
@@ -129,12 +129,12 @@ page 1/1:
 ### phrase-gloss The lighthouse stood
 row: lighthouse — lighthouse
 ### phrase-gloss El faro se alzaba
-row: el — archaic, regional, and Rome form of il
+row: el — he
 row: faro — lighthouse
 ### phrase-gloss Le phare se dressait
 rows: (none)
 ### phrase-gloss El far s'alçava
-row: el — archaic, regional, and Rome form of il
+row: el — he
 row: fare — to do
 ### phrase-gloss Non era unha noite tranquila
 rows: (none)
@@ -298,11 +298,10 @@ page 1/1:
   [pronoun] one (any person)
 row: person, man (human being)
 ### word-grammar l’ lo
-page 1/2:
-  [determiner] the form of il that is used before the so-called impure consonants, that is, s+consonant (impure s), gn, pn, ps, x, y, or z, and before i+vocal, bd, cn, ct, dm, ft, mn, pt, tm and also ts, before a vowel it becomes l', the
-page 2/2:
+page 1/1:
+  [determiner] the
   [pronoun] him; it, this or that thing
-row: the form of il that is used before the so-called impure consonants, that is…
+row: the
 ### word-grammar l’ il
 page 1/1:
   [determiner] the
@@ -453,7 +452,6 @@ page 1/2:
   [noun] adult, grownup; greatness, magnificence
 page 2/2:
   [noun] great (person of major significance)
-  [proper noun] a surname
 row: of greater physical dimensions or numerosity
 ### word-grammar tali tale
 grammar: may also be the masculine plural of talo
@@ -464,7 +462,6 @@ row: such
 grammar: comparative of piccolo
 page 1/1:
   [adjective] small; little; young; of the penis: small or not erected
-  [proper noun] a surname
 row: small
 ### word-grammar mila mille
 page 1/1:
@@ -483,7 +480,7 @@ row: used to indicate possession, after the thing owned and before the owner, of
 ### word-grammar che che
 page 1/1:
   [pronoun] what, which; who, whom, which, that
-  [conjunction] that; proscribed spelling of ché; than; when; let, may
+  [conjunction] that; than; when; let, may
   [determiner] some (a remarkable), what (intensifier to begin a sentence)
 row: what, which
 ### word-grammar come come
@@ -493,11 +490,10 @@ page 1/1:
   [conjunction] as soon as
 row: how
 ### word-grammar lo lo
-page 1/2:
-  [determiner] the form of il that is used before the so-called impure consonants, that is, s+consonant (impure s), gn, pn, ps, x, y, or z, and before i+vocal, bd, cn, ct, dm, ft, mn, pt, tm and also ts, before a vowel it becomes l', the
-page 2/2:
+page 1/1:
+  [determiner] the
   [pronoun] him; it, this or that thing
-row: the form of il that is used before the so-called impure consonants, that is…
+row: the
 ### word-grammar o o
 page 1/1:
   [conjunction] or
@@ -517,12 +513,13 @@ page 2/2:
 row: us
 ### word-grammar solo solo
 page 1/2:
-  [adjective] alone, by oneself, unattended, unaccompanied, lonely, lone, lonesome; only, single, just one, unique, sole; solo (a piece of music for one performer)
-page 2/2:
   [adverb] only, just, but, alone, merely
+  [adjective] alone, by oneself, unattended, unaccompanied, lonely, lone, lonesome; only, single, just one, unique, sole
+page 2/2:
+  [adjective] solo (a piece of music for one performer)
   [conjunction] but, only; if only; only if
   [masculine noun] the only one, the only man
-row: alone, by oneself, unattended, unaccompanied, lonely, lone, lonesome
+row: only, just, but, alone, merely
 ### word-grammar essere essere
 page 1/2:
   [verb] used as a copula. to be; denotes absolute time; used with as an auxiliary in the conjugation of other verbs, before their past participle; to exist, there be
@@ -565,19 +562,18 @@ page 1/1:
 row: they, them
 ### word-grammar dopo dopo
 page 1/1:
-  [adverb] later
   [preposition] after
+  [adverb] later
   [adjective] next, (right) after, following; following, later
-row: later
+row: after
 ### word-grammar uno uno
 page 1/1:
-  [numeral] one
   [determiner] an, a
+  [numeral] one
   [pronoun] somebody, someone, a person
-row: one
+row: an, a
 ### word-grammar ne ne
 page 1/4:
-  [adverb] from there
   [pronoun] from this, from that, from these, from those, sometimes not translated in English; about this, about that, about these, about those
 page 2/4:
   [pronoun] of this, of that, of these, of those, sometimes not translated in English; of them (sometimes not translated in English)
@@ -585,7 +581,9 @@ page 3/4:
   [pronoun] for this, of that, of these, of those, sometimes not translated in English
 page 4/4:
   [pronoun] intensive particle, used in forms of certain verbs suffixed with -ne, where it indicates a particular way of carrying out the verb's action
-row: from there
+  [adverb] from there
+  [preposition] in
+row: from this, from that, from these, from those, sometimes not translated in…
 ### word-grammar poi poi
 page 1/1:
   [adverb] then; later
@@ -593,9 +591,9 @@ page 1/1:
 row: then
 ### word-grammar quello quello
 page 1/1:
-  [determiner] that, those
   [pronoun] that one, those ones, those
-row: that, those
+  [determiner] that, those
+row: that one, those ones, those
 ### word-grammar ancora ancora
 grammar: may also be the third-person singular present indicative and second-person singular imperative of ancorare
 page 1/1:
@@ -631,9 +629,9 @@ page 2/2:
 row: how much, how many, however much, however many
 ### word-grammar dove dove
 page 1/1:
-  [conjunction] where
   [adverb] where, whereabouts
-row: where
+  [conjunction] where
+row: where, whereabouts
 ### word-grammar quindi quindi
 page 1/1:
   [adverb] therefore, hence, thus; then, afterwards, thenceforth; thence, from there; that way, to another side (as opposed a different one)
@@ -649,12 +647,12 @@ page 2/2:
 row: second
 ### word-grammar proprio proprio
 page 1/2:
-  [adjective] one's, one's own, her (own), its (own), their (own); characteristic, peculiar, typical; proper
-  [adverb] really, quite, indeed; just, quite, exactly
+  [adverb] really, quite, indeed; just, quite, exactly; (intensifier) very, right, at all
+  [adjective] one's, one's own, her (own), its (own), their (own)
 page 2/2:
-  [adverb] (intensifier) very, right, at all
+  [adjective] characteristic, peculiar, typical; proper
   [masculine noun] one's own, what belongs to one, one's due
-row: one's, one's own, her (own), its (own), their (own)
+row: really, quite, indeed
 ### word-grammar altro altro
 page 1/1:
   [determiner] other, another, more, further, else; previous, last (in reference to time)
@@ -662,13 +660,13 @@ page 1/1:
 row: other, another, more, further, else
 ### word-grammar bene bene
 page 1/2:
-  [adjective] upper-class, posh, high
   [adverb] well, nicely, OK, right; properly, correctly, rightly; thoroughly, carefully
+  [adjective] upper-class, posh, high
   [interjection] good!, fine!
   [masculine noun] good
 page 2/2:
   [masculine noun] goods, property, possessions, belongings, assets; sake, good
-row: upper-class, posh, high
+row: well, nicely, OK, right
 ### word-grammar vi vi
 page 1/2:
   [pronoun] second-person personal plural object pronoun: you, to you; you (in the singular), to you (singular), yourself; second-person reflexive plural: yourselves
@@ -693,7 +691,6 @@ page 1/2:
   [noun] adult, grownup; greatness, magnificence
 page 2/2:
   [noun] great (person of major significance)
-  [proper noun] a surname
 row: of greater physical dimensions or numerosity
 ### word-grammar fine fine
 grammar: may also be the feminine plural of fino

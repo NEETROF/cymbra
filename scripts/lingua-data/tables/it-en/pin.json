@@ -1,25 +1,27 @@
 {
   "snapshot": "2026.10.25",
   "pack": {
-    "sha256": "da05f55422795bb5be8046cca550169c9c7798cd9aa84a965cbdc786f8a3151c",
-    "size": 2467552
+    "sha256": "33a4394fb0deca465f3695bc111742236b4bbbd6880ba9bb0552213c8bff340b",
+    "size": 2461617
   },
   "base": {
     "sha256": "b1301e06502f2a5cdd1a399a8935a7f2c491a4518f5027f177a33188a35c5ef5",
     "size": 1551196
   },
   "layer": {
-    "sha256": "1fb9a931b13bdad8280058a81976e441436e50560c3045c3c5c106077f18ae2f",
-    "size": 916596
+    "sha256": "53a068d223238be3ccbb9ccf6695ba1551e91dc75a1e0aa422e8ac8342f1904b",
+    "size": 910661
   },
   "reducer": {
-    "sha256": "7f4aed6ba5fc0940e865cd7068371a3fd56519b7ee4df484b698afa77cb9302e",
+    "sha256": "8d3fcafcba1e96611687beab10a2393c9b8bd4896676d955585cdcbcc589b1a9",
     "files": [
       "reduce-it-en.py",
       "reduce_common.py",
       "reduce_edition_en.py",
+      "reduce_french_treebank.py",
       "reduce_italian_acronyms.py",
-      "reduce_italian_en.py"
+      "reduce_italian_en.py",
+      "reduce_italian_treebank.py"
     ]
   },
   "studied": {
@@ -34,6 +36,14 @@
     }
   },
   "sources": {
+    "markit-train": {
+      "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_Italian-MarkIT/e210079df0aea331ec1dcaa90648d815ce94c3ce/it_markit-ud-train.conllu",
+      "sha256": "4f6fc3423acb00d49e1e167bd21b11ebbc23e22275fd6f5eeb4d75cfbbccc5c6"
+    },
+    "markit-dev": {
+      "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_Italian-MarkIT/e210079df0aea331ec1dcaa90648d815ce94c3ce/it_markit-ud-dev.conllu",
+      "sha256": "633b6186f47ecfebfcff4ff9c7e19a0cbffd1f655f14fc1e9265b12bda597f97"
+    },
     "kaikki-en": {
       "release": "lingua-pack-sources-it-en-2026.10.25",
       "url": "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz",

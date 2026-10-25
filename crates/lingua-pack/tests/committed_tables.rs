@@ -3334,23 +3334,60 @@ fn spec_scenario_italian_s_first_reader_pair() {
             "it-en: it/{name}"
         );
     }
+    // Since change 23 (refine-lingua-it-en-glosses D1), its rules hold fr-en's treebank rule and
+    // MarkIT's counts too, which it-fr imports as well.
     assert_eq!(
         pin["reducer"]["files"],
         serde_json::json!([
             "reduce-it-en.py",
             "reduce_common.py",
             "reduce_edition_en.py",
+            "reduce_french_treebank.py",
             "reduce_italian_acronyms.py",
-            "reduce_italian_en.py"
+            "reduce_italian_en.py",
+            "reduce_italian_treebank.py"
         ])
     );
     // Its own fetch of the English Wiktionary's Italian section and the Italian Wiktionary's
-    // English translations (D3), under its own release; nothing pinned at a commit, no treebank.
+    // English translations (D3), under its own release; pinned at a commit, MarkIT's training and
+    // development sections, it-fr's, read for the order of a row alone (refine-lingua-it-en-glosses
+    // D1), and no held-out treebank.
     let sources = pin["sources"].as_object().unwrap();
     assert_eq!(
         sources.keys().map(String::as_str).collect::<Vec<_>>(),
-        ["kaikki-en", "kaikki-it", "wordfreq"]
+        [
+            "kaikki-en",
+            "kaikki-it",
+            "markit-dev",
+            "markit-train",
+            "wordfreq"
+        ]
     );
+    // In the order the pin writes them, its pinned sources first, as `fetch_pinned` reads them.
+    let written = std::fs::read_to_string(tables().join("it-en/pin.json")).unwrap();
+    let at = |name: &str| {
+        written
+            .find(&format!("\"{name}\": {{"))
+            .unwrap_or_else(|| panic!("it-en/pin.json records {name}"))
+    };
+    let order = [
+        "markit-train",
+        "markit-dev",
+        "kaikki-en",
+        "kaikki-it",
+        "wordfreq",
+    ];
+    assert!(
+        order.windows(2).all(|pair| at(pair[0]) < at(pair[1])),
+        "it-en/pin.json writes its sources in the order {order:?}"
+    );
+    let it_fr_pin = json(&tables().join("it-fr/pin.json"));
+    for name in ["markit-train", "markit-dev"] {
+        assert_eq!(
+            sources[name], it_fr_pin["sources"][name],
+            "{name}: it-fr's commit and sha256"
+        );
+    }
     for (name, file) in [
         ("kaikki-en", "kaikki-Italian.jsonl"),
         ("kaikki-it", "kaikki-it-traductions-en.jsonl"),
