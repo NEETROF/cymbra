@@ -1288,7 +1288,9 @@ FIRST_RUN = {
 # the part of speech and the text of the source's sense it answers (`Correction`: `source`, `headword`,
 # `pos`, `text`), and the row as the correction writes it — `corrected`, its `(UPOS, sense)` pairs, or
 # None for no gloss —, with its reason and the page reported upstream. A correction whose source no
-# longer writes its text fires on nothing, and the update's summary line names it (`unfired_rows`).
+# longer writes its text fires on nothing, and the update's summary line names it (`refine_rows`). The
+# page is the one whose entry or table wrote the source's text: a pivot's word, the other Wiktionary's
+# entry whose table lists it.
 _ES = "https://es.wiktionary.org/wiki/{}"
 _IT = "https://it.wiktionary.org/wiki/{}"
 _EN = "https://en.wiktionary.org/wiki/{}"
@@ -1306,11 +1308,11 @@ CORRECTIONS = (
     Correction(
         "pivot", "te", "PRON", "La, lo, te", (("PRON", "Ti, te"),),
         f"« ti » {_PERSON} (task 0.1): the stressed pronoun after a preposition (« per te »); « la », « lo », clitic tables' words",
-        _EN.format("te#Italian"),
+        _EN.format("you"),
     ),
     Correction(
         "pivot", "ti", "PRON", "Te, ti, la", (("PRON", "Te, ti"),),
-        "« la », a clitic table's word", _EN.format("ti#Italian"),
+        "« la », a clitic table's word", _EN.format("you"),
     ),
     Correction(
         "inverted", "cui", "PRON", "Quien", (("PRON", "Que"), ("PRON", "Cuyo")),
@@ -1326,7 +1328,7 @@ CORRECTIONS = (
     Correction(
         "pivot", "the", "NOUN", "Té", None,
         "the English article on Italian pages, read as the Russian « чай »; it-en leaves `the` unglossed too (change 23's D9)",
-        _EN.format("the"),
+        "https://ru.wiktionary.org/wiki/чай",
     ),
     # Task 0.2, the owner's.
     Correction(
@@ -1343,7 +1345,7 @@ CORRECTIONS = (
     ),
     Correction(
         "pivot", "efficiente", "VERB", "Efecto, producir", (("ADJ", "Eficiente, eficaz, efectivo"),),
-        f"a Polish translation split into its words — {_OWNER_S}", "https://pl.wiktionary.org/wiki/efektywny",
+        f"a Polish translation split into its words — {_OWNER_S}", "https://pl.wiktionary.org/wiki/działać",
     ),
     Correction(
         "pivot", "tag", "NOUN", "Chapa", None,
@@ -1362,16 +1364,16 @@ CORRECTIONS = (
     ),
     Correction(
         "pivot", "qualunque", "DET", "Quequier", (("DET", "Cualquier, cualquiera, cualesquiera"),),
-        f"« Quequier », no Spanish word — {_REVIEWED_AFTER}", _EN.format("qualunque"),
+        f"« Quequier », no Spanish word — {_REVIEWED_AFTER}", _EN.format("whatever"),
     ),
     Correction(
         "pivot", "appunto", "INTJ", "Exactamente, exacto, école",
         (("ADV", "Exactamente, exacto"), ("NOUN", "Broma, reto, chiste")),
-        f"« école », French; the adverb first (MarkIT: 8 adverbs) — {_REVIEWED_AFTER}", _EN.format("appunto"),
+        f"« école », French; the adverb first (MarkIT: 8 adverbs) — {_REVIEWED_AFTER}", _EN.format("exactly"),
     ),
     Correction(
         "wikidata items", "stop", "NOUN", "Fin", (("INTJ", "Alto, pare"),),
-        f"Wikidata's lone item; the pivot's words, its « pelota corta » out — {_REVIEWED_AFTER}", _WD.format("stop"),
+        f"Wikidata's lone item; the pivot's words, its « pelota corta » (the German Stoppball's) out — {_REVIEWED_AFTER}", _WD.format("stop"),
     ),
     Correction(
         "definitions", "fanciulla", "NOUN", "Chico, muchacho, chaval, zagal, jovencito, mozo", (("NOUN", "Moza"),),
@@ -1385,12 +1387,13 @@ CORRECTIONS = (
     ),
     Correction(
         "pivot", "presa", "NOUN", "Enchufe, tomacorriente, toma", (("NOUN", "Toma, captura"),),
-        f"D2 opens it on the socket and drops the section's « Captura » — {_REVIEWED_AFTER}", _EN.format("presa"),
+        f"D2 opens it on the socket and drops the section's « Captura » — {_REVIEWED_AFTER}", _EN.format("socket"),
     ),
     # Task 0.4, the owner's (2026-10-25): three rows a person's word fixes, no source giving it.
     Correction(
         "pivot", "tessera", "NOUN", "Tesela", (("NOUN", "Tarjeta, carné"),),
-        f"« Tarjeta, carné » {_PERSON} (task 0.4): a membership or party card, not the mosaic's tile", _ES.format("tessera"),
+        f"« Tarjeta, carné » {_PERSON} (task 0.4): a membership or party card, not the mosaic's tile",
+        "https://pl.wiktionary.org/wiki/tessera",
     ),
     Correction(
         "direct", "cancellato", "ADJ", "Celosiado", (("ADJ", "Cancelado, borrado"),),
@@ -1399,7 +1402,7 @@ CORRECTIONS = (
     ),
     Correction(
         "pivot", "ognuno", "PRON", "Todo, cada, cada una", (("PRON", "Cada uno"),),
-        f"« Cada uno » {_PERSON} (task 0.4): the pronoun, « each one »", _ES.format("ognuno"),
+        f"« Cada uno » {_PERSON} (task 0.4): the pronoun, « each one »", "https://pl.wiktionary.org/wiki/każdy",
     ),
 )  # fmt: skip
 

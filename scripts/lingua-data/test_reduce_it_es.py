@@ -690,6 +690,7 @@ class TheReducer(Fixture):
         rows = {lemma: source for lemma, _, source, _ in measured["sample"]}
         self.assertEqual(rows["casa"], "definitions")
         self.assertEqual(rows["acquirente"], "pivot (en: buyer (noun), « person who makes purchases »)")
+        self.assertEqual(rows["degli"], "DI_FAMILY", "a row of the `di` family's table no source glosses (change 28's D11)")
         self.assertEqual(measured["pivot by edition"], {"en": 3, "fr": 1})
         self.assertEqual(list(measured["coverage by source"]), list(it_es.SOURCES))
 

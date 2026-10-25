@@ -632,8 +632,11 @@ def pivot_editions(steps, glosses, runs, pivot, pivot_table):
 
 def sample_source(lemma, steps, pivot, pivot_table):
     """A sample row's source: its name; a pivot row's with the edition, entry and sense of its first
-    Spanish word's first table."""
+    Spanish word's first table; `DI_FAMILY` for a row of the `di` family no source glosses (change 28's
+    D11)."""
     name = source_of(lemma, steps)
+    if name is None and lemma in italian.DI_FAMILY:
+        return "DI_FAMILY"
     if name != "pivot":
         return name
     for natives in pivot_table.get(lemma, {}).values():
