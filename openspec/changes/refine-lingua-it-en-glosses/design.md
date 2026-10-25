@@ -509,3 +509,39 @@ and the rules D2–D7 with their tests 1–1.5; `FIRST_RUN`, `TOWNS_KEPT`, `CORR
 and the checks naming it-en's sources 0.5; the dispatch, the README, `SOURCES.md` and the measurements
 0.5–0.75; the listing of the golden's and the card's moved lines and the checks 0.25–0.5; the owner's
 reading 0.25. MarkIT's source and the sense-keyed table, absent from 48b, account for the difference.
+
+## Implementation
+
+Measured on 2026-10-25 by the reduction itself — `build.sh --reduce it-en` over it-en's pinned sources
+(the release `lingua-pack-sources-it-en-2026.10.25`, MarkIT at `e210079d`), Python 3.12 and
+`requirements-reduce.txt` —, whose tables the dispatch of task 3.1 writes byte for byte:
+
+- **Together**: the figures of *Measured* — 1,578 rows (132 / 300 / 601 / 545), 341 in their first sense,
+  no lemma gained or lost, coverage 91.3 / 84.2 / 75.8 % — and D5's four corrections on top: **1,581
+  rows** (133 / 302 / 601 / 545), **345 in their first sense** (43 / 29 / 97 / 176). `compagna` is among
+  the 1,578 already (its surname's note goes); `amica`, `bambina` and `spagnola` join them. 19
+  expressions; the 435 changed rows of the 5,000 commonest are listed in the pull request, each with the
+  rules that change it alone.
+- **Each rule alone**, as *Measured* gives it: D2a 16 rows (15 first senses), D2b 173, D2c 19 (17 / 2;
+  `ce`'s row needs D3's lending, and the reduction fails on it when the table runs without D3), D3 26
+  (10), D4a 31, D4b 5, D4c 7 (5), D4d 2 (1), D6 1,260 (57), D7's article note 1, D7 and D8 72 (31), D5's
+  corrections 4. Two readings move: `a cazzo`'s « poorly » is D4c's — its clipping —, not D2b's, which
+  alone reorders four expressions (`a vanvera`, `stare a bada`, `botta segreta`, `cahier de doléances`);
+  and the list marker alone leaves `itria` with no gloss, its text then a pointer no field names, which
+  D3 reads — together it reads « otter ».
+- **The section as read**, the reduction's report: 33,432 senses read as pointers (labelled forms and
+  clitic compounds, and 3 alternative forms named in their text) and 1 compound read as its meaning
+  (`vendesi`); 34 pointers to a short word lending its meanings; 184 meanings nested under a degree read,
+  10 degrees', 9 clippings' and 6 plurals' meanings; 2,381 surnames', 192 given names' and 119 places'
+  notes out, 2,628 proper nouns' entries left with no sense, 8 names read through the name they point
+  at, Massa kept by `TOWNS_KEPT`; 24 rows opened by MarkIT, 362 on a meaning not outdated, 25 by the
+  table; 72 glosses and 13 expressions taking « etc. »; 5 of 5 corrections fired.
+- **The pack** 2,461,303 B (6,249 B less), its base it-fr's byte for byte (1,551,196 B), its layer
+  910,347 B, at `pack_version` `2026.10.25+15b6fb2.442fd70`.
+- **How it is built**: the rules read a headword's entries in `reduce_italian_en.HeadwordPass`, run by
+  `read_as_italian` after change 22's rules, so each can be measured alone (`RULES`); `FIRST_RUN` and
+  `TOWNS_KEPT` live in `reduce_italian_en.py`, `CORRECTIONS` in `reduce-it-en.py` — the section's applied
+  first in the headword pass, the Italian Wiktionary's on its translations as read
+  (`corrected_translations`). A proper noun's entry the names' notes leave with no sense goes before the
+  row is ordered: measured both ways, no row differs. `committed_tables.rs` reads the pin's sources
+  sorted (`serde_json`), so it holds their names, and their order from the pin's text.
