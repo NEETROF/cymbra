@@ -393,6 +393,23 @@ CORRECTIONS = (
         "https://en.wiktionary.org/wiki/spagnola#Italian",
         True,
     ),
+    # An Italian specialist's review of the gloss diff, the owner's (2026-10-25): the section gives tratta's
+    # trade only as « trade », marked archaic, and no sense of a route's stretch; « la tratta degli esseri
+    # umani », trafficking, and « una tratta ferroviaria » are the word's common uses. Suggested upstream.
+    italian.Correction(
+        "section",
+        "tratta",
+        "noun",
+        (
+            "act of pulling", "strong blow with a rope, whipping", "space crossed by a pulled object", "interval of space",
+            "line (of people)", "seine fishing", "seine", "trade", "draft (financial instrument)",
+        ),
+        ("trafficking, trade", "stretch, section (of a route)"),
+        "tratta (rank 256) opens on « draft » by the reviewed table, its « trade » marked archaic, and no sense names "
+        "a route's stretch: « trafficking, trade » and « stretch, section (of a route) » are its common uses",
+        "https://en.wiktionary.org/wiki/tratta#Italian",
+        True,
+    ),
 )  # fmt: skip
 
 

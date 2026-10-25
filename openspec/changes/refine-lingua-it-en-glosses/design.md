@@ -192,9 +192,10 @@ names it), and a row moves only entries and senses, never adds or removes one. K
 than a part of speech alone, as change 17's could not be: `testo` has two noun entries, `gente`'s and
 `stazione`'s meanings sit inside one. A row may name a sense the page nests under another — `parlamento`'s
 « parliament », under « public assembly or meeting » —: the row opens on it, read by its own text, the
-page's words. **26 rows**: the 19 the owner approved (task 0.1), six added after that answer, on the
-review of #1065, which the owner approves with the gloss diff at implementation, and `parmigiano`, added on
-that gloss diff — all approved by the owner on 2026-10-25:
+page's words. **40 rows**: the 19 the owner approved (task 0.1), six added after that answer, on the
+review of #1065, which the owner approves with the gloss diff at implementation, `parmigiano`, added on
+that gloss diff, and fourteen an Italian specialist's review of it added (`tanto` … `galeotto`), `tratta`'s
+row moved to the sense `CORRECTIONS` adds — all approved by the owner on 2026-10-25:
 
 | Row | Opens on | Reason |
 |---|---|---|
@@ -214,7 +215,7 @@ that gloss diff — all approved by the owner on 2026-10-25:
 | `medio` | adjective « mean, average » | the noun « middle finger » first |
 | `prego` | interjection « you're welcome, don't mention it etc. » | the noun « prayer » first |
 | `stazione` | noun « station (stopping place for ground transportation) » | « position, posture » first, every sense marked archaic |
-| `tratta` | noun « draft (financial instrument) » | D2b would open on the regional « seine fishing » |
+| `tratta` | noun « trafficking, trade », the sense `CORRECTIONS` adds (D8) | D2b would open on the regional « seine fishing »; the row first approved, « draft (financial instrument) », replaced on the specialist's review |
 | `signore` | capitalised noun « Mister or Sir » | D2b opens on « Lord, God » |
 | `compagno` (1,482) | noun « mate, companion, partner… » | the informal adjective « alike, like, similar » first |
 | *`dì`* | noun « day » | *added after the owner's answer*: D2b opens on « daytime », « day » being marked dated and literary |
@@ -224,6 +225,20 @@ that gloss diff — all approved by the owner on 2026-10-25:
 | *`parlamento`* | noun « parliament », nested under « public assembly or meeting » | *added*: « parliament » itself never shows; the row reads « parliament; public assembly or meeting; conversation, talk; … » |
 | *`ce`* | pronoun « us » | *added*: D3 lends `ci`'s pronoun after the row's own « reinforcing particle, “do” » |
 | *`parmigiano`* (7,871) | noun « parmesan cheese » | *added at implementation, on the gloss diff*: D2b opens on « the dialect of Emilian spoken in Parma », the adjective « of, from or relating to Parma » being marked archaic; readers meet the word as the cheese |
+| *`tanto`* (98) | determiner « so much; so many » | *added on the specialist's review*: MarkIT opens the row on the adverb, and the determiner's « such » falls past the eight |
+| *`costa`* (545) | noun « coast, shoreline » | *added on the review*: « rib » first, « coast » the entry's fourteenth sense, past the eight |
+| *`mica`* (1,229) | adverb « not » | *added on the review*: D2b opens on « bit, morsel » |
+| *`manco`* (1,619) | adverb « not even » | *added on the review*: D2b opens on the adjective « left » |
+| *`mona`* (5,559) | noun « idiot, silly, dupe » | *added on the review*: D2b opens on the vulgar « cunt, pussy » |
+| *`alma`* (7,430) | noun « soul » | *added on the review*: D2b opens on the game « halma » |
+| *`domino`* (8,606) | noun « dominoes (board game) » | *added on the review*: D2b opens on the masked-ball robe |
+| *`giostra`* (9,155) | noun « merry-go-round (British), carousel (US); ride (at a theme park etc.) » | *added on the review*: D2b opens on « fight » |
+| *`ara`* (12,491) | noun « altar » | *added on the review*: D2b opens on « pyre » |
+| *`augurare`* (13,445) | verb « to wish » | *added on the review*: D2b opens on « to foretell » |
+| *`losco`* (17,958) | adjective « shady, suspicious (person) » | *added on the review*: D2b opens on « near-sighted, cross-eyed » |
+| *`aureo`* (19,363) | adjective « gold; golden » | *added on the review*: D2b opens on the coin « aureus » |
+| *`giullare`* (19,451) | noun « medieval entertainer; minstrel; juggler; jester » | *added on the review*: the page has no « jester » alone, so the row opens on the sense holding it; D2b opens on « clown (stupid person) » |
+| *`galeotto`* (19,966) | noun « convict » | *added on the review*: D2b opens on the name « Galeotto » |
 
 **In this order**: the treebank's, then D2b's, then the table's, each ahead of the previous; the table
 reads the senses D3 lends. MarkIT's counts and the table never touch a proper noun's entry. *Not taken*:
@@ -325,6 +340,12 @@ section gives many given names an archaic or rare common entry. Decided — the 
   pointer to *mulino* would lend nothing beside its frazioni), `ferrari`, `ventimiglia`, `mattarella`.
   Gone: `volta`, `marzo`, `musica`, `guerra`, `milanese` « Milanese », `argentino`. 2,381 senses, 1,088
   ranked rows (71 / 236 / 437 / 344).
+- *Round 2* (an Italian specialist's review of the gloss diff, the owner's, 2026-10-25): **no note** — a
+  surname's, a given name's or a town's — **goes from a row whose every lowercase meaning the section tags
+  archaic, obsolete, dated, historical, rare, poetic, literary, regional or dialectal**, read from its
+  tags, never its wording; the notes stay where the page writes them: `esposito` « a common surname;
+  foundling », « foundling » being tagged obsolete, `italo`, `sora`, `desio`, `vanni`. 39 rows, 16 of the
+  20,000 (*Implementation*).
 - **A given name's note** (« a male given name… », « a diminutive of the female given name… ») goes only
   where a common word's meaning comes first, the row not opening on the name: `primo`, `giusto`,
   `massimo`, `rosa`, `domenica` « Sunday », `delfino` « dolphin; dauphin; probable successor;
@@ -340,7 +361,11 @@ section gives many given names an archaic or rare common entry. Decided — the 
   `fermo`, `matera`), or the reviewed list `TOWNS_KEPT` keeps it: **`massa`** (755), the capital of
   Massa-Carrara, « Massa (a town in Tuscany, Italy) », which would read « mass; crowd ». The owner kept
   Massa and Andria (task 0.2): Andria by the rule, since it opens its row, Massa by the list. 119
-  senses, 105 rows.
+  senses, 105 rows. *Round 2* (the specialist's review, the owner's, 2026-10-25): `TOWNS_KEPT` gains
+  `sassuolo`, `orvieto`, `frascati`, `cassino` and `monopoli`, towns readers meet as the place or its
+  wine, game or abbey — `cassino`'s row superseding the owner's earlier acceptance that Cassino goes; and
+  a « commune » is a place only before « in » or « of » (« a commune of Liguria »), so that `comune` keeps
+  « Commune (of Paris, properly “Comune di Parigi”) ».
 - **A name whose senses only point at another name** (« endearing form of Pino: … ») reads that name's
   senses as the page writes them before the notes go, its own row then read by these rules, as the
   shared rules would have lent them: `pinuccio` keeps « a diminutive of the male given name Giuseppe… »,
@@ -373,12 +398,15 @@ as change 17 left every place note but a commune's: `volta` « …; Volta (a riv
 it-fr's reviewed list (change 17's D10), for it-en, which corrects what a source writes wrongly and adds
 what it leaves out: each entry the source, the headword, its part of speech, the source's text as the
 pinned file writes it, the corrected text or none, the reason and the page to report or suggest
-upstream; an update finding a correction firing on nothing names it. Five rows:
+upstream; an update finding a correction firing on nothing names it. Six rows:
 - `all'antica`, the Italian Wiktionary's English translations « ancient, anshent, antique »: « anshent »,
   a jocular spelling, out — a mechanical correction, reported upstream;
 - the four rows of D5, the owner's (task 0.3): `amica` « friend », `bambina` « girl, little girl »,
   `compagna` « companion, partner », `spagnola` « Spaniard », each read before the section's own
-  senses of the word, the row's order then set as for any row — additions, suggested upstream.
+  senses of the word, the row's order then set as for any row — additions, suggested upstream;
+- *round 2*, the specialist's review, the owner's (2026-10-25): `tratta` gains « trafficking, trade » and
+  « stretch, section (of a route) », which the section does not write — its « trade » is marked archaic —,
+  read first and held there by `FIRST_RUN`; an addition, suggested upstream.
 
 Not `USA` (D9): the acronym requirement forbids a gloss of a pair's own words for a row.
 
@@ -478,6 +506,18 @@ Decided here, so not asked: MarkIT's rule as it-fr reads it (D2a), D2b's four ma
 « literary », the pointer wordings and the short words' lending (D3), the degrees, clippings and plurals
 (D4), the notes and typography (D7), `all'antica` (D8), and D9's list; the golden's and the card's moved
 lines are approved on their listing after the implementation (tasks 4.1, 4.2).
+
+**Round 2, after an Italian specialist's review of the gloss diff** (the owner's choice, 2026-10-25, to fix
+its findings in the implementation's pull request):
+- **Fourteen rows of `FIRST_RUN`** (D2c): `tanto`, `costa`, `mica`, `manco`, `mona`, `ara`, `alma`,
+  `aureo`, `galeotto`, `giullare` (on « medieval entertainer; minstrel; juggler; jester », the page having
+  no « jester » alone), `augurare`, `giostra`, `domino`, `losco`; and `tratta`'s row moved from « draft »
+  to « trafficking, trade ».
+- **`CORRECTIONS`** (D8): `tratta` gains « trafficking, trade » and « stretch, section (of a route) ».
+- **Names' notes** (D6): none goes from a row whose every lowercase meaning the section tags archaic,
+  obsolete, dated, historical, rare, poetic, literary, regional or dialectal; `TOWNS_KEPT` gains
+  `sassuolo`, `orvieto`, `frascati`, `cassino` (superseding the earlier acceptance that Cassino goes) and
+  `monopoli`; « Commune (of Paris) » is no place.
 
 ## Risks / Trade-offs
 

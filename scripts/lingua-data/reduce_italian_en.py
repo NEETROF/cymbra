@@ -24,7 +24,7 @@ by band of the 1,000 / 5,000 / 20,000 commonest and beyond):
   (`reduce_french_treebank.commonest_first`) over MarkIT's counts, as it-fr imports both — 16 rows,
   all of the 1,000; a row opening on a meaning the section marks archaic, obsolete, dated or
   historical opens on its first meaning that is not — 173 rows (9 / 17 / 55 / 92); and a reviewed
-  table, `FIRST_RUN`, opens 26 rows on the sense it names — 20 moving alone;
+  table, `FIRST_RUN`, opens 40 rows on the sense it names;
 - pointers (D3): the wordings the English edition does not know read as pointers, and a pointer to a
   word of one or two letters lending that word's meanings after the row's own — 26 rows;
 - carried meanings (D4): a meaning nested under a degree's wording (31 rows), a degree's (5) and a
@@ -349,10 +349,11 @@ OUTDATED = frozenset({"archaic", "obsolete", "dated", "historical"})
 # sense the section nests under another read by its own text (`parlamento`) —, that sense first in its
 # entry and that entry first in the row. A row moves entries and senses, never adds or removes one; it
 # applies after D2a and D2b, on the senses D3 lends. Nineteen rows settled by the owner on 2026-10-25
-# (task 0.1); six added on the review of #1065, where D2b and D3 opened them on a lesser sense, and
-# `parmigiano`, added on the implementation's gloss diff, each approved by the owner on 2026-10-25. The
-# reduction fails on a row whose sense it does not find (`unfound_first_runs`). Editing it changes the
-# rules' sha256, as for any rule.
+# (task 0.1); six added on the review of #1065, where D2b and D3 opened them on a lesser sense,
+# `parmigiano`, added on the implementation's gloss diff, and fourteen on an Italian specialist's review
+# of it (`tanto` … `losco`, and `tratta` opened on the sense `CORRECTIONS` adds), each approved by the
+# owner on 2026-10-25. The reduction fails on a row whose sense it does not find (`unfound_first_runs`).
+# Editing it changes the rules' sha256, as for any rule.
 FIRST_RUN = {
     "come": (
         "lowercase", "adv", "how",
@@ -398,8 +399,9 @@ FIRST_RUN = {
         "« position, posture » first, every sense marked archaic, so D2b cannot choose",
     ),
     "tratta": (
-        "lowercase", "noun", "draft (financial instrument)",
-        "D2b would open the row on the regional « seine fishing »",
+        "lowercase", "noun", "trafficking, trade",
+        "the sense CORRECTIONS adds, held first: D2b would open the row on the regional « seine fishing », and the "
+        "section's « trade » is marked archaic (it replaces the row « draft », the owner's, 2026-10-25)",
     ),
     "signore": ("capitalised", "noun", "Mister or Sir", "D2b opens the row on « Lord, God »"),
     "compagno": (
@@ -433,6 +435,62 @@ FIRST_RUN = {
         "lowercase", "noun", "parmesan cheese",
         "D2b opens the row on « the dialect of Emilian spoken in Parma », the adjective « of, from or relating to "
         "Parma » being marked archaic; readers meet parmigiano as the cheese",
+    ),
+    # Added on an Italian specialist's review of the gloss diff, approved by the owner on 2026-10-25.
+    "tanto": (
+        "lowercase", "det", "so much; so many",
+        "MarkIT's rule opens the row on the adverb « so much; very », and the determiner's « such » falls past the "
+        "eight senses",
+    ),
+    "costa": (
+        "lowercase", "noun", "coast, shoreline",
+        "« rib » first, « coast » the fourteenth sense of its entry and past the eight",
+    ),
+    "mica": ("lowercase", "adv", "not", "D2b opens the row on « bit, morsel »; readers meet mica as the negation"),
+    "manco": (
+        "lowercase", "adv", "not even",
+        "D2b opens the row on the adjective « left »; readers meet manco as « not even »",
+    ),
+    "mona": (
+        "lowercase", "noun", "idiot, silly, dupe",
+        "D2b opens the row on the vulgar « cunt, pussy »; the insult is the word's common use",
+    ),
+    "ara": (
+        "lowercase", "noun", "altar",
+        "D2b opens the row on « pyre »; « altar », marked literary, is the word's meaning in Italian text",
+    ),
+    "alma": (
+        "lowercase", "noun", "soul",
+        "D2b opens the row on the game « halma », « soul » being marked archaic and literary",
+    ),
+    "aureo": (
+        "lowercase", "adj", "gold; golden",
+        "D2b opens the row on the coin « aureus », the adjective being marked dated",
+    ),
+    "galeotto": (
+        "lowercase", "noun", "convict",
+        "D2b opens the row past the historical « galley slave »; « convict » is the word's common use",
+    ),
+    "giullare": (
+        "lowercase", "noun", "medieval entertainer; minstrel; juggler; jester",
+        "D2b opens the row on « clown (stupid person) »; the page has no « jester » alone, so the row opens on the "
+        "historical sense that holds it",
+    ),
+    "augurare": (
+        "lowercase", "verb", "to wish",
+        "D2b opens the row on « to foretell », marked literary; « to wish » is the verb's common use",
+    ),
+    "giostra": (
+        "lowercase", "noun", "merry-go-round (British), carousel (US); ride (at a theme park etc.)",
+        "D2b opens the row on « fight »; readers meet giostra as the merry-go-round",
+    ),
+    "domino": (
+        "lowercase", "noun", "dominoes (board game)",
+        "D2b opens the row on the masked-ball robe; readers meet domino as the game",
+    ),
+    "losco": (
+        "lowercase", "adj", "shady, suspicious (person)",
+        "D2b opens the row on « near-sighted, cross-eyed »; « shady » is the word's common use",
     ),
 }  # fmt: skip
 _FIRST_RUN_CASES = frozenset({"lowercase", "capitalised"})
@@ -480,23 +538,36 @@ _PLURAL = re.compile(r"^plural of\b", re.IGNORECASE)
 # and at most three words before « surname »), a given name's (« a male given name… », « a diminutive
 # of the female given name… »), and a place's that is only a town, a village, a hamlet, a frazione, a
 # comune or a municipality — not a city or a capital itself (« a city and comune », « the capital
-# of »; never « the Metropolitan City of … », which names its province), nor a town and province.
+# of »; never « the Metropolitan City of … », which names its province), nor a town and province. A
+# « commune » is a place only before « in » or « of » (« a commune of Liguria »), never `comune`'s « Commune
+# (of Paris, …) », the revolutionary government (the specialist's review). None goes from a row
+# whose every lowercase meaning the section tags `_LESSER` (the specialist's review, the owner's,
+# 2026-10-25): the name is what a reader meets (`esposito` « a common surname; foundling »).
 _SURNAME = re.compile(r"^an? (?:[\w-]+ ){0,3}surname\b", re.IGNORECASE)
 _GIVEN_NAME = re.compile(
     r"^an? (?:[\w-]+ ){0,3}given name\b|^an? (?:[\w-]+ )?diminutive of the (?:male |female )?given name\b", re.IGNORECASE
 )
 _PLACE = re.compile(
-    r"^(?:[^()]*\(\s*)?(?:an? |the )?(?:[\w-]+ ){0,2}(?:town|village|hamlet|frazione|comune|municipality|commune)\b",
+    r"^(?:[^()]*\(\s*)?(?:an? |the )?(?:[\w-]+ ){0,2}(?:town|village|hamlet|frazione|comune|municipality|commune(?=\s+(?:in|of)\b))\b",
     re.IGNORECASE,
 )
 _CITY = re.compile(r"\b(?:a|an|the)\s+(?:[a-z-]+\s+){0,2}(?:city|capital)\b|\bcapital of\b")
 _AND_PROVINCE = re.compile(r"\band province\b")
+_LESSER = frozenset({"archaic", "obsolete", "dated", "historical", "rare", "poetic", "literary", "regional", "dialectal"})
 # D6 — the towns a reviewed list keeps beside their word: a provincial capital the section calls a town
 # alone (settled by the owner on 2026-10-25, task 0.2: Massa and Andria kept, Andria by the rule, since
-# its town opens its row). Editing it changes the rules' sha256, as for any rule.
+# its town opens its row), and towns readers meet as the place or its wine, game or abbey (an Italian
+# specialist's review of the gloss diff, the owner's, 2026-10-25 — `cassino`'s row supersedes his earlier
+# acceptance that Cassino goes). Editing it changes the rules' sha256, as for any rule.
 TOWNS_KEPT = {
     "massa": "Massa, the capital of the province of Massa-Carrara, which the section calls « a town in Tuscany »: "
     "without the row, massa reads « mass; crowd » alone",
+    "sassuolo": "Sassuolo, met as the town and its football club: without the row, sassuolo reads a pebble alone",
+    "orvieto": "Orvieto, met as the town and its white wine",
+    "frascati": "Frascati, met as the town and its white wine",
+    "cassino": "Cassino, met as the town and Monte Cassino's abbey: without the row, cassino reads « a type of "
+    "two-wheeled cart » alone",
+    "monopoli": "Monopoli, met as the town; « Monopoli » is also the board game's Italian name",
 }
 
 # D7 — the page's notes and typography: an article's sense describing its form read by its last
@@ -922,6 +993,16 @@ class HeadwordPass:
         first = next((s for s in slots if any(_a_meaning(x, edition) for x in s.entry.get("senses") or ())), None)
         opens_on_name = first is not None and first.entry.get("pos") == "name"
         own_meaning = key in self.meanings.poses
+        # The specialist's review (2026-10-25): no note goes from a row whose every lowercase meaning the
+        # section tags archaic, obsolete, dated, historical, rare, poetic, literary, regional or dialectal —
+        # its tags, not its wording: the name is what a reader meets (`esposito`, `lucio`, `italo`).
+        lowercase = [
+            x for s in slots
+            if straight(s.entry.get("word")) == key and s.entry.get("pos") != "name"
+            for x in s.entry.get("senses") or () if _a_meaning(x, edition)
+        ]  # fmt: skip
+        if lowercase and all(set(x.get("tags") or ()) & _LESSER for x in lowercase):
+            return {}, None
         kinds, kept = {}, None
         for k in names:
             for n, sense in enumerate(slots[k].entry.get("senses") or ()):
@@ -1188,7 +1269,7 @@ def read_as_italian(
       (`counts`, `reduce_italian_treebank.markit_pos_counts`; none, no move) — 16 rows; a row opening
       on an outdated meaning opens on its first meaning that is not (`polizia` « police; polity ») —
       173 rows; the senses a short word lends come last; and the reviewed table (`first_run`,
-      `FIRST_RUN` by default) opens a row on the sense it names — 26 rows, 20 moving alone.
+      `FIRST_RUN` by default) opens a row on the sense it names — 40 rows.
 
     `rules` names the rules that run (`RULES`, all by default). `towns_kept` defaults to `TOWNS_KEPT`.
     `reviewed` (a `Reviewed`) records the reviewed rows that found what they name. `(dst, stats)`: how

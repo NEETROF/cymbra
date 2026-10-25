@@ -666,6 +666,44 @@ PARMIGIANO = [
     entry("parmigiano", "noun", sense("the dialect of Emilian spoken in Parma", ("masculine", "uncountable"))),
     entry("parmigiano", "noun", sense("parmesan cheese", ("also", "masculine", "uncountable"))),
 ]
+# Round 2 (an Italian specialist's review of the gloss diff, the owner's, 2026-10-25).
+TANTO = [
+    entry("tanto", "det", sense("so much; so many"), sense("much; many"), sense("such"), sense("significant")),
+    entry("tanto", "pron", sense("much; many; a lot")),
+    entry("tanto", "adv", sense("so much"), sense("very"), sense("at least, as for, regarding", ("dialectal", "obsolete"))),
+    entry("tanto", "conj", sense("after all"), sense("anyways")),
+]
+TRATTA = [
+    entry(
+        "tratta",
+        "noun",
+        sense("act of pulling", ("archaic", "feminine", "rare")),
+        sense("strong blow with a rope, whipping", ("archaic", "feminine", "rare")),
+        sense("space crossed by a pulled object", ("archaic", "feminine", "rare")),
+        sense("interval of space", ("archaic", "broadly", "feminine", "rare")),
+        sense("line (of people)", ("archaic", "feminine", "rare")),
+        sense("seine fishing", ("feminine", "regional")),
+        sense("seine", ("feminine", "regional")),
+        sense("trade", ("archaic", "feminine")),
+        sense("draft (financial instrument)", ("feminine",)),
+    ),
+]
+ESPOSITO = [
+    entry("Esposito", "name", sense("a common surname", _PERSON)),
+    entry("esposito", "noun", sense("foundling", ("masculine", "obsolete"))),
+]
+STELLA = [
+    entry("stella", "noun", sense("star", ("feminine",)), sense("star, mullet", ("feminine",))),
+    entry(
+        "Stella",
+        "name",
+        sense("a female given name", ("feminine",)),
+        sense("a commune of Liguria", ("feminine",)),
+        sense("a river in Friuli-Venezia Giulia", ("feminine",)),
+    ),
+]
+COMUNE_NAME = entry("Comune", "name", sense("Commune (of Paris, properly “Comune di Parigi”)", ("feminine",)))
+COMUNE = entry("comune", "noun", sense("comune, municipality", ("masculine",)))  # cut
 ALL_ANTICA = {"word": "all'antica", "pos": "phrase", "translations": [{"word": "ancient"}, {"word": "anshent"}, {"word": "antique"}]}
 # UD Italian-MarkIT's counts of the words above, as `reduce_italian_treebank.markit_pos_counts` reads its
 # training and development sections at it-en's pin (e210079d).
@@ -1168,6 +1206,12 @@ class RowOrder(Fixture):
         unordered = self.glosses(*PARMIGIANO, lemmas={"parmigiano"}, first_run={})
         self.assertTrue(unordered["parmigiano"].startswith("the dialect of Emilian spoken in Parma"), unordered["parmigiano"])
 
+    def test_a_row_the_table_opens_so_that_a_sense_stays_within_the_bound(self):
+        # Round 2: the determiner first, so that « such » stays within the eight senses.
+        glosses = self.glosses(*TANTO, lemmas={"tanto"})
+        self.assertEqual(glosses["tanto"].split("; ")[:3], ["so much, so many", "much, many", "such"])
+        self.assertLessEqual(len(glosses["tanto"].split("; ")), 8)
+
     def test_ce_opens_on_the_pronoun_its_pointer_lends(self):
         glosses = self.glosses(*CE, CI, lemmas={"ce"})
         self.assertEqual(glosses["ce"], "us; ourselves, each other; to us; it, to it; reinforcing particle, “do”")
@@ -1178,7 +1222,7 @@ class RowOrder(Fixture):
         # The 19 rows the owner settled (task 0.1), the six added on the review of #1065 and `parmigiano`,
         # added on the implementation's gloss diff, each approved by him on 2026-10-25: each a case, a part
         # of speech, a sense and a reason.
-        self.assertEqual(len(italian.FIRST_RUN), 26)
+        self.assertEqual(len(italian.FIRST_RUN), 40, "and the 14 rows of the specialist's review")
         for word, (case, pos, text, reason) in italian.FIRST_RUN.items():
             self.assertIn(case, italian._FIRST_RUN_CASES, word)
             self.assertIn(pos, common._KAIKKI_UPOS, word)
@@ -1319,7 +1363,27 @@ class NamesNotes(Fixture):
         self.assertEqual(self.gloss(*MASSA, word="massa", reviewed=reviewed), "mass; crowd; Massa (a town in Tuscany, Italy)")
         self.assertEqual(reviewed.kept, {"massa"})
         self.assertEqual(self.gloss(*MASSA, word="massa", towns_kept={}), "mass; crowd", "without the row, Massa goes")
-        self.assertEqual(sorted(italian.TOWNS_KEPT), ["massa"])
+        self.assertIn("massa", italian.TOWNS_KEPT)
+
+    def test_a_row_whose_common_meanings_are_all_marked_keeps_its_names(self):
+        # Round 2 (the specialist's review): « foundling » is tagged obsolete, so `esposito` keeps its surname,
+        # first, as the page writes it; a mark is read from the tags, never the wording.
+        self.assertEqual(self.gloss(*ESPOSITO, word="esposito"), "a common surname; foundling")
+        unmarked = [ESPOSITO[0], entry("esposito", "noun", sense("foundling (obsolete)", ("masculine",)))]
+        self.assertEqual(self.gloss(*unmarked, word="esposito"), "foundling (obsolete)")
+
+    def test_a_commune_is_a_place_only_before_in_or_of(self):
+        self.assertEqual(self.gloss(*STELLA, word="stella"), "star; star, mullet; a river in Friuli-Venezia Giulia")
+        glosses = self.glosses(COMUNE, COMUNE_NAME, lemmas={"comune"})
+        self.assertEqual(glosses["comune"], "comune, municipality; Commune (of Paris, properly “Comune di Parigi”)")
+
+    def test_the_towns_the_specialist_s_review_keeps(self):
+        self.assertEqual(sorted(italian.TOWNS_KEPT), ["cassino", "frascati", "massa", "monopoli", "orvieto", "sassuolo"])
+        cassino = [
+            entry("cassino", "noun", sense("a type of two-wheeled cart", ("masculine",))),
+            entry("Cassino", "name", sense("a town in Frosinone, Lazio", ("feminine",))),
+        ]
+        self.assertEqual(self.gloss(*cassino, word="cassino"), "a type of two-wheeled cart; a town in Frosinone, Lazio")
 
     def test_a_lowercase_pointer_lends_once_the_names_go(self):
         self.assertEqual(self.gloss(*OBBIETTIVO, OBIETTIVO, word="obbiettivo"), "objective")
@@ -1351,7 +1415,7 @@ class Corrections(Fixture):
     def test_spec_scenario_a_jocular_spelling_among_the_translations(self):
         _, _, _, mwe = self.reduce(translated=[*TRANSLATED, ALL_ANTICA])
         self.assertEqual(mwe["all'antica"], "ancient, antique")
-        self.assertIn("1 of 5 corrections fired", self.report)
+        self.assertIn("1 of 6 corrections fired", self.report)
 
     def test_spec_scenario_a_meaning_the_section_leaves_out(self):
         section = [c for c in it_en.CORRECTIONS if c.source == "section"]
@@ -1360,6 +1424,15 @@ class Corrections(Fixture):
         self.assertEqual(glosses["amica"], "friend; girlfriend")
         self.assertEqual([c.headword for c in reviewed.fired], ["amica"])
         self.assertEqual(self.glosses(*AMICA, lemmas={"amica"})["amica"], "girlfriend", "without the list")
+
+    def test_a_meaning_added_opens_its_row(self):
+        # Round 2: tratta opens on « trafficking, trade », the sense the list adds, held by the reviewed table.
+        section = [c for c in it_en.CORRECTIONS if c.source == "section"]
+        glosses = self.glosses(*TRATTA, lemmas={"tratta"}, corrections=section)
+        senses = glosses["tratta"].split("; ")
+        self.assertEqual(senses[0], "trafficking, trade")
+        self.assertIn("stretch, section (of a route)", senses)
+        self.assertLessEqual(len(senses), 8)
 
     def test_spec_scenario_the_page_corrected_upstream(self):
         upstream = {**ALL_ANTICA, "translations": [{"word": "ancient"}, {"word": "antique"}]}
@@ -1373,7 +1446,9 @@ class Corrections(Fixture):
         self.assertIn("1 glosses whose « etc » takes its period", self.report)
 
     def test_the_list(self):
-        self.assertEqual([c.headword for c in it_en.CORRECTIONS], ["all'antica", "amica", "bambina", "compagna", "spagnola"])
+        self.assertEqual(
+            [c.headword for c in it_en.CORRECTIONS], ["all'antica", "amica", "bambina", "compagna", "spagnola", "tratta"]
+        )
         for correction in it_en.CORRECTIONS:
             self.assertIn(correction.source, ("section", "translations"), correction.headword)
             self.assertTrue(correction.reason and correction.report.startswith("https://"), correction.headword)
