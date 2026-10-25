@@ -290,6 +290,7 @@ alternanza	B2
 alternativa	A2
 alternativo	B1
 altezza	A2
+altissimo	B2
 altitudine	B2
 alto	A1
 altrettanto	A2
@@ -807,6 +808,7 @@ backup	B2
 badante	C2
 badare	B2
 badia	B2
+baffi	B2
 bagagli	B2
 bagagliaio	C2
 bagaglio	B2
@@ -920,6 +922,7 @@ bevuto	B1
 biancheria	B2
 bianco	A1
 biasimo	C2
+bibbia	B1
 biblico	C2
 bibliografia	B1
 biblioteca	A2
@@ -1191,8 +1194,6 @@ capitano	A1
 capitare	B2
 capitato	B1
 capitolo	A2
-capiva	B2
-capivo	C1
 capo	A1
 capodanno	B1
 capolavoro	B1
@@ -1222,7 +1223,6 @@ cardinale	A2
 cardine	C2
 carenza	B1
 carestia	B2
-cargo	C2
 carica	A1
 caricamento	C2
 caricare	B1
@@ -1232,7 +1232,6 @@ carico	A1
 carino	A2
 carisma	C1
 carità	A2
-carlino	C2
 carne	A1
 carnevale	B1
 caro	A1
@@ -1314,7 +1313,6 @@ cazzo	A1
 ce	A1
 ceca	B2
 cecità	C2
-ceco	C2
 cedere	B1
 celebrare	B1
 celebrazione	B1
@@ -1328,6 +1326,7 @@ cemento	B1
 cena	A1
 cenare	B2
 cenere	B2
+ceneri	B2
 cenno	B2
 censimento	B1
 censura	B1
@@ -1355,7 +1354,6 @@ certamente	A1
 certezza	A2
 certificazione	B2
 certo	A1
-certosa	C2
 cervello	A1
 cervo	B2
 cesena	B2
@@ -1394,7 +1392,6 @@ chimica	A2
 chimico	B1
 china	B1
 chiodo	B2
-chioma	C2
 chiostro	C1
 chip	B2
 chirurgia	B1
@@ -1494,7 +1491,7 @@ cm	A1
 cmq	B1
 coalizione	B1
 coca	B1
-cocaina	B1
+cocaina	B2
 cocco	B2
 coccodrillo	C1
 cocktail	B2
@@ -1710,7 +1707,6 @@ concessione	A2
 concetto	A1
 concettuale	C2
 concezione	B1
-conchiglia	C2
 conchiglie	C2
 conciliare	C2
 conciliazione	C1
@@ -1734,9 +1730,7 @@ condividere	A2
 condivisione	B1
 condiviso	B1
 condizionale	B2
-condizionamento	C2
 condizionato	C1
-condizionatore	C2
 condizione	A1
 condominio	B1
 condotta	A2
@@ -1811,7 +1805,7 @@ conservatorio	B2
 conservazione	A2
 considerare	A2
 considerazione	A2
-considerevole	B1
+considerevole	B2
 considerevolmente	C2
 consigliare	B2
 consigliato	B1
@@ -1838,7 +1832,6 @@ consulenza	B1
 consulta	B2
 consultare	B2
 consultazione	B2
-consultivo	C2
 consulto	C2
 consumare	B2
 consumato	B2
@@ -1928,7 +1921,7 @@ convinzione	B1
 convivenza	B1
 convivere	B2
 convocare	C2
-convocazione	B1
+convocazione	B2
 convoglio	C1
 cooperativa	B1
 cooperazione	B1
@@ -1947,12 +1940,14 @@ copiare	B2
 copiato	B2
 copione	B2
 coppa	A2
+coppe	B2
 coppia	A1
 coprifuoco	C2
 coprire	B1
 coraggio	A1
 coraggioso	B2
 corale	C1
+corano	B2
 corazza	C2
 corda	B1
 cordiale	C1
@@ -2103,7 +2098,7 @@ cucchiaio	B2
 cucciolo	B2
 cucina	A1
 cucinare	B1
-cuffie	B1
+cuffie	B2
 cugino	B1
 cui	A1
 culinaria	C2
@@ -2157,6 +2152,7 @@ dark	B1
 data	A1
 database	B1
 datazione	C1
+dati	A1
 davanti	A1
 davvero	A1
 de	A1
@@ -2267,7 +2263,6 @@ deserto	A2
 desiderare	B1
 desiderato	B1
 desiderio	A2
-desidero	B1
 designato	B2
 designazione	C2
 destinare	C1
@@ -2316,7 +2311,7 @@ diciannove	B2
 diciassette	B2
 diciotto	B1
 dicitura	C1
-didattica	B1
+didattica	B2
 didattico	B2
 dieci	A1
 dieta	A2
@@ -3075,7 +3070,6 @@ finestra	A2
 finestrino	B2
 fingere	B2
 finire	A1
-finisci	B2
 finito	A1
 finlandese	B2
 fino	A1
@@ -3167,6 +3161,7 @@ forse	A1
 forte	A1
 fortemente	A2
 fortezza	B1
+fortissimo	B2
 fortuna	A1
 fortunatamente	B1
 fortunato	B1
@@ -3299,6 +3294,7 @@ gelato	B1
 gelo	B2
 gelosia	B2
 geloso	B2
+gemelli	B1
 gemello	C1
 gemma	B2
 gene	B1
@@ -3715,7 +3711,6 @@ incompetenza	B2
 incomprensibile	B2
 inconcepibile	C2
 inconscio	C2
-incontra	A2
 incontrare	A2
 incontro	A1
 inconveniente	C2
@@ -4116,13 +4111,13 @@ lavorare	A1
 lavorato	A2
 lavoratore	B1
 lavorazione	B1
-lavoriamo	B2
 lavoro	A1
 laziale	C1
 leale	B2
 lealtà	B2
 leccare	C1
 lecito	B2
+lega	A1
 legale	A1
 legalità	B1
 legalizzazione	B2
@@ -4170,6 +4165,7 @@ letterale	B2
 letteralmente	A2
 letterario	B1
 letteratura	A1
+lettere	A2
 lettore	A2
 lettura	A1
 leucemia	C2
@@ -4874,6 +4870,7 @@ nobile	A2
 nobiltà	B2
 nocciolo	C1
 noce	B2
+nodi	B1
 nodo	B1
 noi	A1
 noia	B1
@@ -4952,6 +4949,7 @@ o	A1
 oasi	C1
 obbedienza	C2
 obbedire	C1
+obbiettivo	B1
 obbligare	B2
 obbligatoriamente	C1
 obbligatorio	B1
@@ -4965,7 +4963,7 @@ occasione	A1
 occhiali	B1
 occhiata	A2
 occhio	A1
-occidentale	A1
+occidentale	A2
 occidente	B1
 occupare	B1
 occupato	A2
@@ -5227,6 +5225,7 @@ paragrafo	B1
 paralisi	B2
 parallela	B2
 parallelamente	B2
+parallele	B2
 parallelo	B1
 parametro	B2
 paranoia	C1
@@ -5543,6 +5542,7 @@ playlist	B2
 plotone	C2
 plurale	B2
 pmi	B2
+pochissimo	B1
 poco	A1
 podcast	B2
 podestà	C1
@@ -5693,7 +5693,7 @@ preferire	B2
 preferito	A2
 prefetto	B1
 prefettura	B1
-prefisso	C1
+prefisso	C2
 pregare	B1
 preghiera	A2
 pregio	B1
@@ -5718,7 +5718,7 @@ preoccupazione	B1
 preparare	A2
 preparato	A2
 preparazione	A2
-preposto	C1
+preposto	C2
 prepotente	C2
 prerogativa	C1
 presa	A1
@@ -5791,7 +5791,7 @@ principessa	A2
 principio	A2
 priorità	A2
 privacy	A2
-privatizzazione	C1
+privatizzazione	C2
 privato	A1
 privilegiato	B2
 privilegio	B1
@@ -5914,6 +5914,7 @@ protettore	B2
 protezione	A1
 protocollo	B1
 prototipo	B2
+prova	A1
 provare	A1
 provenienza	B1
 provenire	B2
@@ -6082,15 +6083,15 @@ ragioniere	C2
 ragno	B2
 ragù	C2
 raid	B2
-rallentamento	C1
+rallentamento	C2
 rallentare	B2
 rally	B2
 rame	B1
 rammarico	C1
 ramo	B1
-rampa	C1
+rampa	C2
 rana	B2
-ranch	C1
+ranch	C2
 rancore	B2
 rapida	B1
 rapidamente	A2
@@ -6098,7 +6099,7 @@ rapidità	B2
 rapido	B1
 rapimento	B2
 rapina	B1
-rapire	C1
+rapire	C2
 rapporto	A1
 rappresaglia	C2
 rappresentante	A2
@@ -6241,7 +6242,7 @@ restituire	B1
 restituzione	B2
 resto	A1
 restringere	C2
-restrizione	C1
+restrizione	C2
 resurrezione	B2
 retaggio	C1
 rete	A1
@@ -6263,7 +6264,7 @@ riapertura	B2
 riaprire	C1
 riassumere	B2
 riassunto	B1
-riavere	C1
+riavere	C2
 ribadire	B2
 ribalta	B2
 ribasso	B2
@@ -6300,7 +6301,7 @@ riciclo	C1
 ricognizione	B2
 ricominciare	B1
 ricompensa	B2
-riconciliazione	B2
+riconciliazione	C1
 riconoscenza	C2
 riconoscere	A2
 riconoscibile	C1
@@ -6385,6 +6386,7 @@ rimpianto	B2
 rimuovere	B1
 rinascere	C2
 rinascimentale	C2
+rinascimento	B2
 rinascita	B1
 rinchiuso	B2
 rinforzare	C2
@@ -6594,7 +6596,7 @@ sala	A1
 salame	C1
 salariale	C2
 salario	B1
-salato	B2
+salato	C1
 saldamente	C2
 saldo	B1
 sale	A1
@@ -6638,7 +6640,6 @@ santo	A1
 santuario	B1
 sanzione	B1
 sapere	A1
-sapete	A2
 sapienza	B1
 sapone	B1
 sapore	A2
@@ -6662,14 +6663,14 @@ sbaglio	A2
 sbarcare	C1
 sbarco	B2
 sbarra	C1
-sbarramento	B2
+sbarramento	C1
 sbattere	B2
 sbattuto	C1
-sbloccare	B2
+sbloccare	C1
 sbocco	C2
 scacchi	B2
 scacco	C2
-scadente	B2
+scadente	C1
 scadenza	A2
 scadere	C1
 scaduto	B2
@@ -6686,7 +6687,7 @@ scambiare	B2
 scambio	A2
 scampo	C1
 scandalo	B1
-scandaloso	B2
+scandaloso	C1
 scanner	C2
 scansione	B2
 scapito	B2
@@ -6769,6 +6770,7 @@ scommettere	B2
 scomodo	C1
 scomparire	B2
 scomparsa	A2
+scomparso	B1
 sconcertante	C1
 sconfiggere	B1
 sconfitta	A2
@@ -6878,7 +6880,7 @@ seminato	C2
 semplice	A1
 semplicemente	A1
 semplicità	B1
-semplificare	B2
+semplificare	C1
 semplificato	C2
 semplificazione	B2
 sempre	A1
@@ -6896,7 +6898,7 @@ sensibilizzare	C1
 sensibilizzazione	B2
 sensibilmente	B2
 senso	A1
-sensore	B2
+sensore	C1
 sensuale	C1
 sentenza	A1
 sentiero	B1
@@ -6975,7 +6977,7 @@ sfondare	C2
 sfondo	A2
 sfortuna	B2
 sfortunatamente	B1
-sfortunato	B2
+sfortunato	C1
 sforzo	A2
 sfratto	C2
 sfruttamento	B1
@@ -6983,7 +6985,7 @@ sfruttare	B1
 sfuggire	B1
 sgombero	C1
 sgomento	C2
-sgradevole	B2
+sgradevole	C1
 sguardo	A2
 shampoo	B2
 sharia	C1
@@ -7268,7 +7270,6 @@ spendere	B1
 spento	B1
 speranza	A1
 sperare	A2
-speriamo	A2
 sperimentale	B1
 sperimentare	B2
 sperimentato	B2
@@ -7393,7 +7394,6 @@ stimolare	B2
 stimolo	B2
 stipendio	A2
 stirpe	B2
-sto	A1
 stock	B2
 stoffa	B2
 stomaco	A2
@@ -7685,6 +7685,7 @@ terrore	B1
 terrorismo	A2
 terrorista	B1
 terroristico	C1
+terzi	A2
 terziario	C2
 terzo	A1
 teschio	C2
@@ -8010,7 +8011,6 @@ vacanza	A2
 vacca	B2
 vaccinazione	C1
 vaccino	B1
-vado	A1
 vaffanculo	B1
 vagamente	B2
 vagina	B2

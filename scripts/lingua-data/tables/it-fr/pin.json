@@ -1,23 +1,24 @@
 {
   "snapshot": "2026.10.24",
   "pack": {
-    "sha256": "0e6795d938bc0ca7307ff461e3175d1768f8edcf3b6ccae7efc4a2b3688793c5",
-    "size": 2645342
+    "sha256": "7c73fd304dbc526029f644df0ae2c3809d1b7cd4a8c5a296fb370a2080833442",
+    "size": 2645721
   },
   "base": {
-    "sha256": "f8c7822871460da3196ff148633e39d660dfeecf1af261cda54d6199a58934a2",
-    "size": 1551534
+    "sha256": "b1301e06502f2a5cdd1a399a8935a7f2c491a4518f5027f177a33188a35c5ef5",
+    "size": 1551196
   },
   "layer": {
-    "sha256": "0927f745fce9da9d37c8b3a925d2e8374097a96edf82afa83f4368037dd0020d",
-    "size": 1094048
+    "sha256": "274908f7b87a67c7e55646447f35c5d91772ca500b8451871f4ed322b7fbf14c",
+    "size": 1094765
   },
   "reducer": {
-    "sha256": "b0768c4e748cd3f8199e382947a6ea7cca65e2039947a8f5b80598e3627eaba1",
+    "sha256": "1cb6715bb4ca5e13e9c2494660e2fee7b972cccf0b855b88936cbd2a5834dcbf",
     "files": [
       "reduce-it-fr.py",
       "reduce_common.py",
       "reduce_edition_fr.py",
+      "reduce_french_treebank.py",
       "reduce_italian_acronyms.py",
       "reduce_italian_treebank.py"
     ]

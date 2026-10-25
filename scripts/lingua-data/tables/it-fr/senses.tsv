@@ -5,7 +5,7 @@ abaco	NOUN:6
 abatantuono	PROPN:1
 abate	NOUN:1
 abbacchio	NOUN:1
-abbadia	PROPN:1
+abbadia	NOUN:1	PROPN:1
 abbagliante	ADJ:1	NOUN:1
 abbaglianti	ADJ:1
 abbagliare	VERB:1
@@ -301,6 +301,7 @@ acerenza	PROPN:1
 acerno	PROPN:1
 acero	NOUN:2
 acerra	PROPN:1
+acerrimo	ADJ:1
 acetato	NOUN:1
 acetico	ADJ:1
 acetilcolina	NOUN:1
@@ -498,6 +499,7 @@ aerodinamico	ADJ:1
 aeromobile	NOUN:1
 aeronautica	ADJ:1
 aeronautico	ADJ:1
+aeronavale	ADJ:1
 aeroplano	NOUN:1
 aeroporto	NOUN:1
 aeroportuale	ADJ:1
@@ -783,6 +785,7 @@ alamo	PROPN:1
 alanina	NOUN:1
 alano	VERB:2
 alare	ADJ:1	NOUN:1	VERB:2
+alaska	PROPN:1
 alassio	PROPN:1
 alato	ADJ:1
 alatri	PROPN:1
@@ -1075,6 +1078,7 @@ altimetria	NOUN:1
 altimetrico	ADJ:1
 altimetro	NOUN:1
 altino	PROPN:1
+altissimo	ADJ:1
 altitudine	NOUN:2
 alto	ADJ:6
 altobelli	PROPN:1
@@ -1213,6 +1217,7 @@ amigo	PROPN:1
 amilasi	NOUN:1
 amilcare	PROPN:1
 amina	NOUN:1
+aminoacido	NOUN:1
 aminta	PROPN:1
 amleto	PROPN:1
 ammaccatura	NOUN:4
@@ -1412,7 +1417,7 @@ anfetamina	NOUN:1
 anfibio	ADJ:4
 anfibolo	NOUN:1
 anfiteatro	NOUN:1
-anfitrione	PROPN:1
+anfitrione	NOUN:1
 anfora	NOUN:1
 anfossi	PROPN:1
 angelelli	PROPN:1
@@ -1679,7 +1684,7 @@ anulare	ADJ:1	NOUN:1
 anvedi	INTJ:1
 anversa	PROPN:1
 anwar	PROPN:1
-anzi	ADV:1	PROPN:1
+anzi	ADV:1
 anzianità	NOUN:1
 anziano	ADJ:1
 anziché	SCONJ:1
@@ -2032,7 +2037,7 @@ aritmetico	ADJ:1	NOUN:1
 aritmia	NOUN:1
 arizona	PROPN:1
 arkansas	PROPN:2
-arlecchino	PROPN:1	ADJ:1
+arlecchino	ADJ:1	NOUN:1
 arles	PROPN:1
 arma	NOUN:2
 armada	PROPN:1
@@ -2048,7 +2053,7 @@ armata	NOUN:1
 armato	ADJ:3
 armatore	NOUN:1
 armatura	NOUN:4
-arme	NOUN:1
+arme	NOUN:3
 armeggiare	VERB:1
 armenia	PROPN:1
 armeno	ADJ:1
@@ -2539,7 +2544,7 @@ attrattivo	ADJ:1
 attratto	ADJ:1
 attrattore	NOUN:1
 attraversare	VERB:2
-attraverso	ADV:1	ADP:2
+attraverso	ADP:2	ADV:1
 attrazione	NOUN:3
 attrezzare	VERB:1
 attrezzato	ADJ:1
@@ -2907,6 +2912,7 @@ badoer	PROPN:1
 badoglio	PROPN:1
 bae	PROPN:1
 baek	PROPN:1
+baffi	NOUN:1
 baffo	NOUN:1
 baffuto	ADJ:1
 bag	PROPN:1
@@ -2916,6 +2922,7 @@ bagaglio	NOUN:2
 baganza	PROPN:1
 bagarella	PROPN:1
 bagascia	NOUN:1
+bagdad	PROPN:1
 bagel	NOUN:1
 baggianata	NOUN:1
 baggio	PROPN:1
@@ -2939,6 +2946,7 @@ bagnomaria	NOUN:1
 bagnoregio	PROPN:1
 bagnoschiuma	NOUN:1
 bahama	PROPN:1
+bahamas	PROPN:1
 bahrain	PROPN:1
 bahrein	PROPN:1
 baht	NOUN:1
@@ -3426,7 +3434,7 @@ bellicoso	ADJ:1
 belligerante	ADJ:1
 belligeranza	NOUN:1
 bellini	PROPN:2
-bellino	ADJ:1	PROPN:1
+bellino	ADJ:1
 bellinzona	PROPN:1
 bellisario	PROPN:1
 bellizzi	PROPN:2
@@ -3450,7 +3458,7 @@ beltrami	PROPN:1
 beltramo	PROPN:1
 beluga	NOUN:1
 belva	NOUN:1
-belvedere	NOUN:1	PROPN:2
+belvedere	NOUN:1	PROPN:1
 belzoni	PROPN:1
 belém	PROPN:1
 bemolle	NOUN:1	ADJ:1
@@ -3665,7 +3673,7 @@ biasimare	VERB:1
 biasimo	NOUN:1
 biasio	PROPN:1
 biathlon	NOUN:1
-bibbia	PROPN:1
+bibbia	NOUN:1
 bibbiano	PROPN:1
 biberon	NOUN:1
 bibione	PROPN:1
@@ -4122,7 +4130,7 @@ borgia	PROPN:2
 borgio	PROPN:1
 borgna	PROPN:1
 borgo	NOUN:1
-borgogna	PROPN:1
+borgogna	NOUN:1
 borgognone	ADJ:1
 borgonovo	PROPN:1
 borgonuovo	PROPN:1
@@ -4460,7 +4468,7 @@ brusca	ADJ:2
 bruscamente	ADV:1
 bruschetta	NOUN:1
 brusco	ADJ:2	NOUN:2
-brusio	NOUN:1	PROPN:1
+brusio	NOUN:1
 brutal	NOUN:1
 brutale	ADJ:1
 brutalità	NOUN:1
@@ -4709,7 +4717,7 @@ caff	PROPN:1
 caffarelli	PROPN:1
 caffaro	PROPN:1
 caffeina	NOUN:1
-caffelatte	NOUN:1
+caffelatte	NOUN:2
 caffellatte	NOUN:2	ADJ:1
 caffetteria	NOUN:1
 caffettiera	NOUN:6
@@ -4831,7 +4839,7 @@ californiano	ADJ:1
 caligari	PROPN:1
 calipari	PROPN:1
 calippo	PROPN:1
-calipso	PROPN:3
+calipso	NOUN:1	PROPN:3
 call	PROPN:1
 calla	NOUN:1
 callaghan	PROPN:1
@@ -4938,7 +4946,7 @@ cammarata	PROPN:1
 cammariere	PROPN:1
 cammarota	PROPN:1
 cammello	NOUN:1	ADJ:1
-cammeo	NOUN:1
+cammeo	NOUN:2
 camminare	VERB:3
 camminata	NOUN:1
 camminatore	NOUN:1
@@ -5042,7 +5050,7 @@ candidamente	ADV:1
 candidare	VERB:1
 candidato	NOUN:1
 candidatura	NOUN:1
-candido	ADJ:1	PROPN:1
+candido	ADJ:2
 canditi	ADJ:2
 candito	ADJ:2	NOUN:1
 candore	NOUN:1
@@ -5187,10 +5195,6 @@ capitolazione	NOUN:2
 capitolino	VERB:1
 capitolo	NOUN:2
 capitone	NOUN:1
-capiva	VERB:2
-capivamo	VERB:2
-capivano	VERB:2
-capivo	VERB:2
 capizzi	PROPN:1
 capo	NOUN:5
 capobanda	NOUN:2
@@ -5925,6 +5929,7 @@ cencio	NOUN:2
 ceneda	PROPN:1
 cenere	NOUN:1
 cenerentola	PROPN:1
+ceneri	NOUN:1
 cenerino	ADJ:1
 cengia	NOUN:1
 cengio	PROPN:2
@@ -6136,7 +6141,7 @@ chat	NOUN:1
 chateau	PROPN:1
 chattare	VERB:1
 chau	PROPN:1
-che	PRON:1	ADJ:1
+che	PRON:2	SCONJ:1	ADJ:1
 checca	NOUN:1
 checchi	PROPN:1
 checco	PROPN:1
@@ -7030,6 +7035,7 @@ como	PROPN:2
 comodamente	ADV:2
 comodato	NOUN:1
 comodino	NOUN:1
+comodissimo	ADJ:1
 comodità	NOUN:2
 comodo	ADJ:1	NOUN:1
 comore	PROPN:1
@@ -7477,8 +7483,7 @@ consolida	PROPN:1
 consolidamento	NOUN:1
 consolidare	VERB:1
 consolidato	VERB:1
-consolle	NOUN:1
-consolo	PROPN:1
+consolle	NOUN:2
 consonante	NOUN:1
 consonanza	NOUN:1
 consonni	PROPN:1
@@ -7770,6 +7775,7 @@ copiosamente	ADV:1
 copioso	ADJ:1
 copista	NOUN:1
 coppa	NOUN:5	PROPN:1
+coppe	NOUN:5
 coppia	NOUN:2
 coppiere	NOUN:1
 coppino	PROPN:1
@@ -7791,7 +7797,7 @@ coral	PROPN:1
 corale	NOUN:1
 coralità	NOUN:1
 corallo	NOUN:1
-corano	PROPN:1
+corano	NOUN:1
 corazza	NOUN:1
 corazzata	NOUN:1
 corazzato	ADJ:1
@@ -8047,6 +8053,7 @@ costui	PRON:1
 costume	NOUN:3
 costumista	NOUN:1
 così	ADV:3
+cosí	ADV:3
 cota	PROPN:1
 cotenna	NOUN:1
 coto	PROPN:1
@@ -8422,6 +8429,7 @@ curdo	ADJ:1	NOUN:2
 curia	NOUN:1
 curio	NOUN:1
 curiosamente	ADV:2
+curiosissimo	ADJ:1
 curiosità	NOUN:2
 curioso	ADJ:2	NOUN:1
 curling	NOUN:1
@@ -8561,6 +8569,7 @@ database	NOUN:1
 databile	ADJ:1
 datare	VERB:1
 datazione	NOUN:1
+dati	NOUN:1
 dativo	NOUN:1
 datta	PROPN:1
 dattero	NOUN:2
@@ -8761,7 +8770,7 @@ degregori	PROPN:1
 degustare	VERB:1
 degustazione	NOUN:1
 dehors	PROPN:1
-dei	DET:1
+dei	DET:2
 deidda	PROPN:1
 deidrogenasi	NOUN:1
 deindustrializzazione	NOUN:1
@@ -8792,6 +8801,7 @@ deliberato	ADJ:1
 deliberazione	NOUN:1
 delicatamente	ADV:1
 delicatezza	NOUN:1
+delicatissimo	ADJ:1
 delicato	ADJ:1
 delillo	PROPN:1
 delimitare	VERB:1
@@ -8809,10 +8819,10 @@ delitto	NOUN:1
 delittuoso	ADJ:1
 deliziosamente	ADV:1
 delizioso	ADJ:1
-della	ADP:1
+della	DET:1
 dellai	PROPN:1
 delle	DET:1
-dello	DET:1
+dello	DET:2
 delneri	PROPN:1
 delocalizzare	VERB:1
 delocalizzazione	NOUN:1
@@ -8980,7 +8990,6 @@ desiderabile	ADJ:2
 desiderare	VERB:3
 desiderato	ADJ:1
 desiderio	NOUN:1	PROPN:1
-desidero	VERB:3
 designare	VERB:1
 designato	ADJ:1	NOUN:1
 designazione	NOUN:1
@@ -9318,6 +9327,7 @@ diramare	VERB:1
 diramazione	NOUN:1
 dire	VERB:4
 direttamente	ADV:1
+direttissimo	ADJ:1
 direttiva	NOUN:1
 diretto	ADJ:1	NOUN:1
 direttore	NOUN:2
@@ -9334,7 +9344,7 @@ diroccato	VERB:1
 dirompente	VERB:1
 dirottamento	NOUN:1
 dirottare	VERB:1
-dirotto	VERB:1
+dirotto	ADJ:1
 dirupo	NOUN:2
 disabile	NOUN:1
 disabilità	NOUN:1
@@ -9764,7 +9774,7 @@ dominio	NOUN:2
 domino	NOUN:1
 domodossola	PROPN:1
 domotica	NOUN:1
-don	NOUN:1	PROPN:3
+don	NOUN:1	PROPN:1
 donadio	PROPN:1
 donadoni	PROPN:1
 donaggio	PROPN:1
@@ -9803,7 +9813,7 @@ dooley	PROPN:1
 dop	NOUN:1
 dopamina	NOUN:1
 dopato	ADJ:1
-dopo	ADV:1	ADP:2	SCONJ:1
+dopo	ADP:2	ADV:1	SCONJ:1
 dopobarba	ADJ:1
 dopodiché	ADV:1
 dopodomani	ADV:1
@@ -11106,7 +11116,7 @@ fabbricazione	NOUN:2
 fabbrini	PROPN:1
 fabbro	NOUN:1
 fabi	PROPN:1
-fabiano	PROPN:1
+fabiano	ADJ:1
 fabio	PROPN:2
 fabiola	PROPN:1
 fabo	PROPN:1
@@ -11427,7 +11437,7 @@ fecondazione	NOUN:1
 fecondità	NOUN:1
 fecondo	ADJ:2
 fede	NOUN:2
-fedele	ADJ:1	PROPN:1
+fedele	ADJ:2
 fedelissimo	NOUN:1
 fedelmente	ADV:1
 fedeltà	NOUN:3
@@ -11558,7 +11568,7 @@ fertilizzazione	NOUN:1
 ferula	NOUN:1
 fervente	ADJ:1
 fervido	ADJ:1
-fes	PROPN:1
+fes	NOUN:1	PROPN:1
 fesa	NOUN:1
 fesseria	NOUN:1
 fesso	ADJ:1	NOUN:1
@@ -11681,6 +11691,7 @@ figurato	ADJ:1
 figurazione	NOUN:2
 figurino	VERB:1
 figuro	VERB:1
+fiji	PROPN:1
 fila	NOUN:2
 filadelfia	PROPN:2
 filamento	NOUN:1
@@ -11780,14 +11791,13 @@ fingere	VERB:1
 finimondo	NOUN:1
 finire	VERB:2
 finis	PROPN:1
-finisci	VERB:2
 finito	ADJ:3
 finitura	NOUN:1
 finizio	PROPN:1
 finlandese	ADJ:1	NOUN:2
 finlandia	PROPN:1
 finnico	ADJ:1	NOUN:1
-fino	ADJ:1	ADP:1
+fino	ADP:1	ADJ:1
 finocchiaro	PROPN:1
 finocchio	NOUN:3
 finora	ADV:1
@@ -12153,6 +12163,8 @@ fortificazione	NOUN:1
 fortilizio	NOUN:1
 fortino	NOUN:1
 fortis	PROPN:1
+fortissimamente	ADV:1
+fortissimo	ADJ:1
 fortuitamente	ADV:1
 fortuito	ADJ:1
 fortuna	NOUN:1
@@ -12217,7 +12229,7 @@ foyer	NOUN:1
 fp	PROPN:1
 fps	PROPN:1
 fr	PROPN:1
-fra	NOUN:1	ADP:1
+fra	ADP:1	NOUN:1
 frac	NOUN:1
 fracassare	VERB:1
 fracasso	NOUN:1
@@ -12365,6 +12377,7 @@ frequentemente	ADV:1
 frequenza	NOUN:1
 fresa	NOUN:1
 freschezza	NOUN:2
+freschissimo	ADJ:1
 fresco	ADJ:1	NOUN:1
 frescobaldi	PROPN:1
 frescura	NOUN:1
@@ -12706,6 +12719,7 @@ gamble	PROPN:1
 gambo	NOUN:2
 games	PROPN:1
 gamma	NOUN:1
+gana	PROPN:1
 gancia	PROPN:1
 gancio	NOUN:1
 gand	PROPN:1
@@ -12860,7 +12874,7 @@ gelso	NOUN:1
 gelsomino	NOUN:1
 gemellaggio	NOUN:1
 gemellare	ADJ:1	VERB:1
-gemelli	PROPN:1
+gemelli	ADJ:1	PROPN:1	NOUN:1
 gemello	ADJ:1	NOUN:1
 gemere	VERB:2
 gemito	NOUN:1
@@ -12928,7 +12942,7 @@ genovese	ADJ:1	NOUN:3
 genserico	PROPN:1
 genta	PROPN:1
 gentaglia	NOUN:1
-gente	ADJ:1	NOUN:1
+gente	NOUN:1	ADJ:1
 gentildonna	NOUN:1
 gentile	ADJ:2
 gentilezza	NOUN:1
@@ -13691,6 +13705,7 @@ granita	NOUN:1
 granitico	ADJ:1
 granito	NOUN:1
 grano	NOUN:8
+granoturco	NOUN:1
 granturco	NOUN:1
 granulare	ADJ:1	VERB:1
 granuloma	NOUN:1
@@ -13961,6 +13976,7 @@ guri	PROPN:1
 guscio	NOUN:3
 gustare	VERB:1
 gusto	NOUN:1
+gustosissimo	ADJ:1
 gustoso	ADJ:1
 gutierrez	PROPN:1
 gutturale	ADJ:2
@@ -14779,7 +14795,6 @@ inconsueto	ADJ:1
 incontenibile	ADJ:1
 incontestabile	ADJ:1
 incontinenza	NOUN:1
-incontra	VERB:1
 incontrada	PROPN:1
 incontrare	VERB:1
 incontro	NOUN:1
@@ -15447,6 +15462,7 @@ intendimento	NOUN:1
 intensamente	ADV:1
 intensificare	VERB:1
 intensificazione	NOUN:1
+intensissimo	ADJ:1
 intensità	NOUN:1
 intensivo	ADJ:1
 intenso	ADJ:1
@@ -15579,6 +15595,7 @@ intimazione	NOUN:1
 intimidatorio	ADJ:1
 intimidazione	NOUN:1
 intimidire	VERB:1
+intimissimi	ADJ:1
 intimista	ADJ:1
 intimità	NOUN:1
 intimo	ADJ:1
@@ -15730,7 +15747,7 @@ involuzione	NOUN:1
 invulnerabile	ADJ:1
 inzaghi	PROPN:1
 inzuppare	VERB:2
-io	PRON:4	PROPN:2
+io	PRON:1
 iodato	NOUN:1
 iodice	PROPN:1
 iodio	NOUN:1
@@ -15809,6 +15826,7 @@ iqbal	PROPN:1
 ir	NOUN:1	PROPN:1
 ira	NOUN:1
 iracheno	ADJ:1	NOUN:1
+irak	PROPN:1
 iran	PROPN:1
 iraniano	ADJ:1	NOUN:1
 iranico	ADJ:1	NOUN:3
@@ -16049,6 +16067,7 @@ jaffe	PROPN:1
 jahn	PROPN:1
 jai	PROPN:1
 jama	PROPN:1
+jamaica	PROPN:2
 janas	PROPN:1
 jang	PROPN:1
 jannacci	PROPN:1
@@ -16117,6 +16136,7 @@ jurij	PROPN:1
 juris	PROPN:1
 jury	PROPN:1
 jus	NOUN:1
+juta	NOUN:1
 jutland	PROPN:1
 juvarra	PROPN:1
 k	PRON:1	ADJ:1
@@ -16366,7 +16386,7 @@ lampo	NOUN:2
 lampone	NOUN:2
 lampugnani	PROPN:1
 lampugnano	PROPN:1
-lana	NOUN:1	PROPN:1
+lana	NOUN:1
 lanaro	PROPN:1
 lancellotti	PROPN:1
 lancetta	NOUN:2
@@ -16532,7 +16552,6 @@ lavorare	VERB:1
 lavorato	VERB:1
 lavoratore	ADJ:1	NOUN:1
 lavorazione	NOUN:2
-lavoriamo	VERB:1
 lavorio	NOUN:2
 lavoro	NOUN:2
 lawton	PROPN:1
@@ -16574,6 +16593,7 @@ ledere	VERB:2
 ledro	PROPN:1
 leech	PROPN:1
 leeds	PROPN:1
+lega	NOUN:3
 legale	NOUN:1	ADJ:1
 legalità	NOUN:2
 legalizzare	VERB:2
@@ -16717,6 +16737,7 @@ letteralmente	ADV:1
 letterario	ADJ:1
 letterato	ADJ:1	NOUN:2
 letteratura	NOUN:1
+lettere	NOUN:5
 lettiera	NOUN:1
 lettieri	PROPN:1
 lettino	NOUN:1
@@ -17025,7 +17046,6 @@ locus	NOUN:1
 locusta	NOUN:1
 locuzione	NOUN:1
 lod	PROPN:1
-loda	PROPN:1
 lodare	VERB:1
 lodato	VERB:1
 lode	NOUN:1
@@ -17225,7 +17245,7 @@ lumia	NOUN:1
 lumicino	NOUN:1
 luminescente	ADJ:1
 luminescenza	NOUN:1
-lumino	NOUN:1	PROPN:1
+lumino	NOUN:1
 luminosità	NOUN:1
 luminoso	ADJ:2
 luna	NOUN:1	PROPN:1
@@ -18098,7 +18118,7 @@ massaggiatore	NOUN:1
 massaggio	NOUN:1
 massaia	NOUN:1
 massara	PROPN:1
-massaro	PROPN:1
+massaro	NOUN:2	PROPN:1
 massaua	PROPN:1
 massena	PROPN:1
 masseria	NOUN:1
@@ -18212,7 +18232,7 @@ maturazione	NOUN:1
 maturità	NOUN:2
 maturo	ADJ:1
 matusa	NOUN:1
-matusalemme	PROPN:2
+matusalemme	PROPN:1	NOUN:1
 mau	PROPN:1
 mauceri	PROPN:1
 maura	PROPN:1
@@ -18348,6 +18368,7 @@ mediterraneo	ADJ:1	PROPN:1
 medium	NOUN:1
 medley	PROPN:1
 medoro	PROPN:1
+meduna	PROPN:1
 medusa	NOUN:1
 mega	PROPN:1
 megafono	NOUN:1
@@ -18371,7 +18392,6 @@ melandri	PROPN:1
 melani	PROPN:1
 melania	PROPN:1
 melanina	NOUN:1
-melano	PROPN:1
 melanoma	NOUN:1
 melanzana	NOUN:2
 melara	PROPN:1
@@ -18454,11 +18474,13 @@ menghi	PROPN:1
 menghini	PROPN:1
 mengoni	PROPN:1
 menhir	NOUN:1
+menia	PROPN:1
 menichini	PROPN:1
 meningite	NOUN:1
 meningococco	NOUN:1
 menisco	NOUN:1
 mennea	PROPN:1
+mennella	PROPN:1
 meno	ADV:1	PROPN:1
 menomato	VERB:1
 menomazione	NOUN:1
@@ -18598,6 +18620,7 @@ metabolico	ADJ:1
 metabolismo	NOUN:1
 metabolita	NOUN:1
 metabolizzare	VERB:1
+metabolizzazione	NOUN:1
 metacarpo	NOUN:1
 metadone	NOUN:1
 metafisico	ADJ:1
@@ -18635,6 +18658,7 @@ meticolosità	NOUN:1
 meticoloso	ADJ:1
 metile	NOUN:1
 metilene	NOUN:3
+metilico	ADJ:1
 metionina	NOUN:1
 metodicamente	ADV:1
 metodico	ADJ:1
@@ -18839,8 +18863,10 @@ minestra	NOUN:1
 minestrina	NOUN:1
 minestrone	NOUN:2
 minetti	PROPN:1
+mingardi	PROPN:1
 minghetti	PROPN:1
 minghi	PROPN:1
+minguzzi	PROPN:1
 miniato	ADJ:1
 miniatore	NOUN:1
 miniatura	NOUN:1
@@ -19062,6 +19088,7 @@ modificato	ADJ:1
 modificatore	ADJ:1
 modificazione	NOUN:1
 modigliana	PROPN:1
+modino	PROPN:1
 modo	NOUN:2
 modotti	PROPN:1
 modulare	ADJ:1	VERB:1
@@ -19087,6 +19114,7 @@ mola	NOUN:2
 molare	ADJ:1
 moldavia	PROPN:1
 moldavo	ADJ:1	NOUN:2
+moldova	NOUN:1
 mole	NOUN:3
 molecola	NOUN:2
 molecolare	ADJ:1
@@ -19096,7 +19124,7 @@ molesto	ADJ:1
 molibdeno	NOUN:1
 moliere	PROPN:1
 molinaro	NOUN:1
-molino	NOUN:1
+molino	NOUN:4
 molisano	ADJ:1
 molise	PROPN:2
 molitura	NOUN:1
@@ -19118,7 +19146,7 @@ moltiplicato	ADJ:1
 moltiplicatore	ADJ:1
 moltiplicazione	NOUN:1
 moltitudine	NOUN:1
-molto	ADJ:1	ADV:1
+molto	ADV:1	ADJ:1
 mombasa	PROPN:1
 mombello	PROPN:1
 momentaneamente	ADV:1
@@ -19665,6 +19693,7 @@ napoleonico	ADJ:1
 napoletana	NOUN:2
 napoletano	ADJ:1	NOUN:2
 napoli	PROPN:1
+napolitano	ADJ:1
 nappa	NOUN:3
 nara	PROPN:2
 narbona	PROPN:1
@@ -19790,12 +19819,13 @@ nazionalsocialista	ADJ:1
 nazione	NOUN:1
 nazismo	NOUN:1
 nazista	ADJ:1
+nazzareno	ADJ:2
 nazzaro	PROPN:1
 nc	PROPN:1
 ncd	PROPN:1
 nde	NOUN:1
 ndo	ADV:1
-ne	ADV:1	PRON:3
+ne	PRON:3	ADV:1
 nea	PROPN:1
 neal	PROPN:1
 neanche	SCONJ:1	ADV:1
@@ -19915,6 +19945,7 @@ nesta	PROPN:1
 neto	PROPN:1
 nettamente	ADV:3
 nettare	NOUN:1	VERB:1
+nettissimo	ADJ:1
 netto	ADJ:1
 nettuno	PROPN:3
 netturbino	NOUN:1
@@ -19993,6 +20024,7 @@ nicoli	PROPN:1
 nicolini	PROPN:1
 nicolo	PROPN:1
 nicolosi	PROPN:1
+nicolò	PROPN:1
 nicomede	PROPN:1
 nicomedia	PROPN:1
 nicosia	PROPN:2
@@ -20080,6 +20112,7 @@ nocività	NOUN:1
 nocivo	ADJ:1
 noda	PROPN:1
 nodale	ADJ:1
+nodi	NOUN:1
 nodo	NOUN:1
 nodulo	NOUN:1
 noelle	PROPN:1
@@ -20309,6 +20342,7 @@ obbediente	ADJ:1
 obbedienza	NOUN:1
 obbedire	VERB:1
 obbiettivamente	ADV:1
+obbiettivo	ADJ:1
 obbligare	VERB:1
 obbligatoriamente	ADV:1
 obbligatorio	ADJ:1
@@ -20416,7 +20450,6 @@ officiante	VERB:1
 officiare	VERB:1
 officina	NOUN:2
 officinale	ADJ:1
-officio	NOUN:1
 offrire	VERB:2
 oftalmico	ADJ:2
 oftalmologia	NOUN:1
@@ -20499,7 +20532,7 @@ oltraggio	NOUN:1
 oltraggioso	ADJ:1
 oltralpe	ADJ:1
 oltranza	NOUN:1
-oltre	ADV:3	PROPN:1
+oltre	ADV:3
 oltreché	SCONJ:1
 oltremare	NOUN:2	ADJ:1
 oltrepassare	VERB:2
@@ -21076,6 +21109,7 @@ padrone	NOUN:3
 padroneggiare	VERB:3
 padua	PROPN:1
 padula	PROPN:3
+padule	NOUN:1
 paella	NOUN:1
 paes	PROPN:1
 paesaggio	NOUN:2
@@ -21416,6 +21450,7 @@ paralizzato	ADJ:2
 parallasse	NOUN:1
 parallela	NOUN:1
 parallelamente	ADV:2
+parallele	NOUN:1
 parallelepipedo	NOUN:1
 parallelismo	NOUN:1
 parallelo	ADJ:1
@@ -21500,6 +21535,7 @@ parmigianino	PROPN:1
 parmigiano	ADJ:1	NOUN:2
 parmitano	PROPN:1
 parnaso	PROPN:1
+paro	NOUN:1
 parodia	NOUN:1
 parola	NOUN:2
 parolaccia	NOUN:1
@@ -21850,6 +21886,7 @@ pelati	VERB:1
 pelato	VERB:1
 peleo	PROPN:1
 pell	PROPN:1
+pella	DET:1
 pellagra	NOUN:1
 pellame	NOUN:1
 pelle	NOUN:2
@@ -22314,7 +22351,7 @@ pianificare	VERB:1
 pianificato	ADJ:1
 pianificatore	ADJ:1	NOUN:1
 pianificazione	NOUN:1
-pianissimo	ADV:1
+pianissimo	ADJ:1	ADV:1
 pianista	NOUN:1
 pianistico	ADJ:1
 piano	ADJ:4	ADV:2	NOUN:2
@@ -22444,7 +22481,7 @@ piglio	VERB:1
 pigmentazione	NOUN:1
 pigmento	NOUN:1
 pigmeo	ADJ:1
-pigna	NOUN:1	PROPN:1
+pigna	NOUN:1
 pignataro	PROPN:1
 pignatelli	PROPN:1
 pignatone	PROPN:1
@@ -22528,7 +22565,7 @@ piramide	NOUN:5
 pirandello	PROPN:2
 piranha	NOUN:1
 pirani	PROPN:1
-pirano	NOUN:1	PROPN:1
+pirano	NOUN:1
 piras	PROPN:1
 pirata	NOUN:1
 pirateria	NOUN:3
@@ -22554,7 +22591,7 @@ pisanello	PROPN:1
 pisano	PROPN:1	ADJ:1
 pisanu	PROPN:1
 pisapia	PROPN:1
-piscia	VERB:1
+piscia	NOUN:1
 pisciare	VERB:1
 piscina	NOUN:3
 piscio	NOUN:1
@@ -22627,7 +22664,7 @@ pizzicotto	NOUN:1
 pizzo	NOUN:4
 pizzul	PROPN:1
 piè	NOUN:1
-più	ADJ:1
+più	ADV:1
 pl	PROPN:2
 pla	PROPN:1
 placare	VERB:2
@@ -22732,6 +22769,7 @@ pnf	PROPN:1
 poc'anzi	ADV:1
 pochette	NOUN:2
 pochettino	PROPN:1
+pochissimo	ADJ:1
 poco	ADJ:1	NOUN:1
 podcast	NOUN:1
 podere	NOUN:2
@@ -23345,6 +23383,7 @@ presidio	NOUN:1
 presiedere	VERB:1
 pressa	NOUN:1
 pressante	ADJ:1
+pressapochismo	NOUN:1
 pressappoco	ADV:1
 pressare	VERB:1
 pressione	NOUN:3
@@ -23484,6 +23523,7 @@ privitera	PROPN:1
 privo	ADJ:1
 proattivo	ADJ:1
 probabile	ADJ:1
+probabilissimo	ADJ:1
 probabilità	NOUN:1
 probabilmente	ADV:1
 problema	NOUN:1
@@ -23688,7 +23728,7 @@ propriamente	ADV:1
 proprietaria	ADJ:1
 proprietario	ADJ:1
 proprietà	NOUN:1
-proprio	ADJ:1	ADV:2
+proprio	ADV:2	ADJ:1
 propulsione	NOUN:1
 propulsivo	ADJ:1
 propulsore	NOUN:2
@@ -23761,6 +23801,7 @@ prototipo	NOUN:1
 protratto	ADJ:1
 protrombina	NOUN:1
 protuberanza	NOUN:1
+prova	NOUN:8
 provaglio	PROPN:1
 provana	PROPN:1
 provare	VERB:4
@@ -23956,7 +23997,7 @@ puppa	PROPN:1
 puppo	PROPN:1
 puramente	ADV:1
 purché	SCONJ:1
-pure	ADJ:2	ADV:1	SCONJ:1
+pure	ADV:1	ADJ:2	SCONJ:1
 purezza	NOUN:1
 purga	NOUN:1
 purgatorio	NOUN:1
@@ -24000,7 +24041,7 @@ qi	PROPN:1
 qian	PROPN:1
 qiu	PROPN:1
 qu	PROPN:1
-qua	ADV:1	PROPN:1
+qua	ADV:1
 quad	NOUN:1
 quaderno	NOUN:1
 quadrangolare	ADJ:1
@@ -24114,7 +24155,7 @@ questo	PRON:2	ADJ:1
 questore	NOUN:1
 questua	NOUN:1
 questura	NOUN:1
-qui	ADV:1	PROPN:1
+qui	ADV:1
 quick	PROPN:1
 quid	PRON:1
 quien	PROPN:1
@@ -24136,7 +24177,7 @@ quintana	NOUN:2
 quintavalle	PROPN:1
 quintessenza	NOUN:1
 quintetto	NOUN:1
-quinto	ADJ:1	ADV:1	PROPN:2
+quinto	ADJ:1	ADV:1	PROPN:1
 quirico	PROPN:1
 quirinale	PROPN:4
 quito	PROPN:1
@@ -24510,6 +24551,7 @@ recapitare	VERB:1
 recapito	VERB:1
 recare	VERB:1
 recchi	PROPN:1
+recchia	NOUN:2
 recco	PROPN:1
 recedere	VERB:1
 recensione	NOUN:1
@@ -24872,7 +24914,7 @@ rezia	PROPN:1
 rezzonico	PROPN:1
 rg	PROPN:1
 rh	NOUN:1
-rho	NOUN:1	PROPN:1
+rho	NOUN:1
 rhodesia	PROPN:1
 riabilitare	VERB:3
 riabilitazione	NOUN:1
@@ -24955,6 +24997,7 @@ ricavato	VERB:2
 ricavo	VERB:2
 riccamente	ADV:2
 ricchezza	NOUN:5
+ricchione	NOUN:1
 riccio	NOUN:7	ADJ:1
 ricciolo	NOUN:1
 riccione	PROPN:1
@@ -25250,7 +25293,7 @@ rinaldo	PROPN:1
 rinascente	VERB:1
 rinascere	VERB:1
 rinascimentale	ADJ:1
-rinascimento	PROPN:1
+rinascimento	NOUN:1
 rinascita	NOUN:1
 rinaudo	PROPN:1
 rincalzo	VERB:1
@@ -25300,7 +25343,7 @@ rintracciabile	ADJ:2
 rinuncia	NOUN:2
 rinunciare	VERB:1
 rinunciatario	NOUN:1
-rinunzia	NOUN:1
+rinunzia	NOUN:2
 rinvenire	VERB:1
 rinviare	VERB:1
 rinvigorire	VERB:1
@@ -25588,7 +25631,7 @@ rizzoli	PROPN:1
 rm	PROPN:2
 rn	PROPN:1
 rna	NOUN:1
-ro	NOUN:1	PROPN:1
+ro	NOUN:1
 roach	PROPN:1
 roan	PROPN:1
 roar	INTJ:1
@@ -26064,7 +26107,6 @@ salerno	PROPN:2
 salesiano	ADJ:1
 saletta	PROPN:1
 salgemma	NOUN:1
-saliamo	VERB:2
 salice	NOUN:1
 saliceto	PROPN:2
 salicilico	ADJ:1
@@ -26258,7 +26300,6 @@ saona	PROPN:1
 sapegno	PROPN:1
 sapelli	PROPN:1
 sapere	VERB:1
-sapete	VERB:1
 sapido	ADJ:1
 sapiente	ADJ:2	NOUN:1
 sapientemente	ADV:1
@@ -26276,6 +26317,7 @@ saputa	VERB:1
 saputo	VERB:1
 saraceno	ADJ:1
 saracinesca	NOUN:2
+saracino	ADJ:1
 saragat	PROPN:1
 saragozza	PROPN:3
 sarajevo	PROPN:1
@@ -26340,6 +26382,7 @@ satellitare	ADJ:1
 satellite	NOUN:2	ADJ:1
 satinato	VERB:1
 satira	NOUN:1
+satirica	ADJ:1
 satirico	ADJ:1
 satiro	ADJ:1
 satrapo	NOUN:1
@@ -26850,7 +26893,6 @@ scogliera	NOUN:2
 scoglio	NOUN:1
 scognamiglio	PROPN:1
 scoiattolo	NOUN:2
-scola	NOUN:1
 scolapasta	NOUN:1
 scolare	ADJ:1	VERB:3
 scolaretto	NOUN:1
@@ -26873,6 +26915,7 @@ scomodità	NOUN:2
 scomodo	ADJ:1	NOUN:1
 scomparire	VERB:1
 scomparsa	NOUN:1
+scomparso	VERB:1
 scompartimento	NOUN:1
 scomparto	NOUN:1
 scompiglio	NOUN:1
@@ -27152,6 +27195,7 @@ seguito	NOUN:3
 seguro	PROPN:1
 sehr	PROPN:1
 seiano	PROPN:1
+seicentesco	ADJ:1
 seicento	ADJ:1	PROPN:1
 seiko	PROPN:1
 seimila	ADJ:1
@@ -27231,7 +27275,6 @@ semiserio	ADJ:1
 semita	ADJ:1
 semitico	ADJ:1
 semitrasparente	ADJ:1
-semo	VERB:1
 semola	NOUN:2
 semolino	NOUN:1
 semovente	ADJ:1	NOUN:1
@@ -27446,7 +27489,7 @@ settare	VERB:1
 settario	ADJ:1
 settarismo	NOUN:1
 sette	ADJ:1	NOUN:2
-settebello	PROPN:1	NOUN:1
+settebello	NOUN:2
 settecento	ADJ:1	PROPN:1
 settembre	NOUN:1
 settemila	ADJ:1
@@ -27670,6 +27713,7 @@ sicumera	NOUN:1
 sicura	ADJ:1
 sicuramente	ADV:2
 sicurezza	NOUN:1
+sicurissimo	ADJ:1
 sicuro	ADJ:1	ADV:1	NOUN:1
 sicurtà	NOUN:1
 sida	NOUN:1
@@ -28150,6 +28194,7 @@ solidamente	ADV:1
 solidarietà	NOUN:1
 solidarizzare	VERB:1
 solidificazione	NOUN:1
+solidissimo	ADJ:1
 solidità	NOUN:1
 solido	ADJ:4	NOUN:2
 soligo	PROPN:1
@@ -28174,7 +28219,7 @@ sollevatore	NOUN:2
 sollievo	NOUN:1
 sollima	PROPN:1
 solmi	PROPN:1
-solo	ADJ:2	ADV:1	NOUN:1
+solo	ADV:1	ADJ:2	NOUN:1
 solofra	PROPN:1
 solone	PROPN:1
 solstizio	NOUN:1
@@ -28370,6 +28415,7 @@ sotterrare	VERB:1
 sotterrato	VERB:1
 sottigliezza	NOUN:1
 sottile	ADJ:1
+sottilissimo	ADJ:1
 sottilmente	ADV:1
 sottintendere	VERB:1
 sottinteso	ADJ:1	NOUN:1
@@ -28582,6 +28628,7 @@ specchio	NOUN:1
 speci	PROPN:1
 special	ADJ:1
 speciale	ADJ:1
+specialissimo	ADJ:1
 specialista	NOUN:1
 specialità	NOUN:1
 specializzando	VERB:1
@@ -28621,7 +28668,6 @@ speranza	NOUN:1
 sperare	VERB:1
 sperequazione	NOUN:1
 spergiuro	ADJ:1
-speriamo	VERB:1
 spericolato	ADJ:1
 sperimentale	ADJ:1
 sperimentalmente	ADV:1
@@ -28637,7 +28683,7 @@ sperperare	VERB:1
 sperpero	NOUN:1
 spesa	NOUN:6
 speso	ADJ:1
-spesso	ADJ:1	ADV:1
+spesso	ADV:1	ADJ:1
 spessore	NOUN:1
 spettacolare	ADJ:1
 spettacolo	NOUN:1
@@ -28654,7 +28700,7 @@ spettrometro	NOUN:1
 spettroscopia	NOUN:1
 speziale	NOUN:2
 speziato	ADJ:1
-spezie	NOUN:1
+spezie	NOUN:2
 spezzare	VERB:1
 spezzatino	NOUN:1
 spezzato	VERB:1
@@ -29012,7 +29058,7 @@ stefano	PROPN:2
 stein	PROPN:4
 stel	PROPN:1
 stele	NOUN:1
-stella	NOUN:5	PROPN:3
+stella	NOUN:5	PROPN:2
 stellare	ADJ:1	VERB:1
 stellato	ADJ:1
 stellina	NOUN:1
@@ -29101,7 +29147,6 @@ stiva	NOUN:1
 stivale	NOUN:2
 stivaletto	NOUN:1
 stizza	NOUN:1
-sto	VERB:3
 stocastico	ADJ:1
 stocazzo	INTJ:1
 stoccafisso	NOUN:1
@@ -29770,6 +29815,7 @@ tank	NOUN:3
 tanner	PROPN:1
 tannico	ADJ:2
 tannino	NOUN:1
+tantalo	NOUN:1
 tanto	ADJ:1
 tanucci	PROPN:1
 tanzania	PROPN:1
@@ -30046,6 +30092,7 @@ tenente	NOUN:1
 teneramente	ADV:1
 tenere	VERB:3
 tenerezza	NOUN:1
+tenerissimo	ADJ:1
 tenero	ADJ:1
 teng	PROPN:1
 tenia	NOUN:3
@@ -30163,6 +30210,7 @@ terrorizzare	VERB:1
 terso	VERB:1
 terzani	PROPN:1
 terzetto	NOUN:1
+terzi	NOUN:1
 terziario	ADJ:1
 terzina	NOUN:1
 terzo	ADJ:1	NOUN:1
@@ -30536,7 +30584,6 @@ tornielli	PROPN:1
 tornio	NOUN:1
 tornitore	NOUN:1
 tornitura	NOUN:2
-torno	PROPN:1
 toro	NOUN:3	PROPN:1
 toronto	PROPN:1
 toros	PROPN:1
@@ -30710,7 +30757,6 @@ trance	NOUN:1
 tranche	NOUN:1
 trancio	NOUN:1
 tranello	NOUN:1
-trani	PROPN:1
 tranne	ADP:1
 tranquillamente	ADV:1
 tranquillante	VERB:1
@@ -31081,6 +31127,7 @@ tubinga	PROPN:1
 tubino	NOUN:1
 tubo	NOUN:1
 tubolare	ADJ:1	NOUN:1
+tubulare	ADJ:1
 tubulo	NOUN:1
 tucano	NOUN:1	PROPN:1
 tucidide	PROPN:1
@@ -31333,7 +31380,7 @@ università	NOUN:1
 universo	NOUN:1
 univocità	NOUN:1
 univoco	ADJ:1
-uno	ADJ:1	DET:1
+uno	DET:1	ADJ:1
 unto	NOUN:1
 unwin	PROPN:1
 unzione	NOUN:1
@@ -31438,7 +31485,7 @@ uva	NOUN:1
 uvetta	NOUN:1
 uxoricidio	NOUN:1
 uzbekistan	PROPN:1
-uzbeko	ADJ:1	NOUN:1
+uzbeko	ADJ:1
 vabbè	X:1
 vabè	X:1
 vacante	ADJ:1
@@ -31454,7 +31501,6 @@ vaccino	NOUN:1
 vacillare	VERB:1
 vacuità	NOUN:1
 vademecum	NOUN:1
-vado	VERB:1
 vaffanculo	INTJ:1
 vagabondaggio	NOUN:3
 vagabondare	VERB:1
@@ -31984,6 +32030,7 @@ vichingo	ADJ:1	NOUN:1
 vici	PROPN:1
 vicinanza	NOUN:1
 vicinato	NOUN:1
+vicinissimo	ADJ:1
 vicino	ADJ:1	ADV:1	NOUN:1
 vickers	PROPN:1
 vicki	PROPN:1
@@ -32091,7 +32138,7 @@ vinoso	ADJ:1
 vinto	ADJ:1
 vio	PROPN:1
 viol	PROPN:1
-viola	PROPN:1	NOUN:4	ADJ:1
+viola	NOUN:5	ADJ:1
 violaceo	ADJ:1
 violare	VERB:1
 violazione	NOUN:1
@@ -32202,7 +32249,7 @@ vitto	NOUN:1
 vittone	PROPN:1
 vittor	PROPN:1
 vittore	PROPN:1
-vittoria	NOUN:1	PROPN:1
+vittoria	NOUN:1
 vittoriano	ADJ:1
 vittorini	PROPN:1
 vittorino	PROPN:1
@@ -32261,7 +32308,7 @@ volatile	ADJ:1
 volatilità	NOUN:1
 volente	ADJ:1
 volentieri	ADV:1
-volere	VERB:6
+volere	VERB:3
 volgare	ADJ:1
 volgarità	NOUN:2
 volgarmente	ADV:1
@@ -32573,6 +32620,7 @@ zeng	PROPN:1
 zenga	PROPN:1
 zeni	PROPN:1
 zenit	NOUN:1
+zenith	NOUN:1
 zeno	PROPN:1
 zenone	PROPN:1
 zenzero	NOUN:2

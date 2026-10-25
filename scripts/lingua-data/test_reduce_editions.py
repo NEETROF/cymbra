@@ -3860,5 +3860,65 @@ class EnEsGlossesReadAsMeanings(Entries):
             before = after
 
 
+
+class ItFrGlossesRefined(Entries):
+    """refine-lingua-it-fr-glosses: it-fr's own rules, in its reducer, and fr-en's treebank rule imported as
+    fr-es imports it (D1)."""
+
+    def test_spec_scenario_nothing_else_moves(self):
+        # it-fr's rule digest names the treebank's module and moves with each of its rules; en-fr's,
+        # es-fr's, es-en's, en-es's, fr-en's and fr-es's do not — no shared, French-edition or treebank
+        # module is edited. Every other committed pin records the rules it was reduced with.
+        pairs = ("en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr")
+        for pair in pairs[:-1]:
+            self.assertEqual(
+                ps.rules_sha256(Path(_HERE) / f"reduce-{pair}.py"),
+                ps.get(ps.load(Path(_HERE) / "tables" / pair / "pin.json"), "reducer.sha256"),
+                pair,
+            )
+        self.assertEqual(
+            [p.name for p in ps.rule_files(Path(_HERE) / "reduce-it-fr.py")],
+            [
+                "reduce-it-fr.py",
+                "reduce_common.py",
+                "reduce_edition_fr.py",
+                "reduce_french_treebank.py",
+                "reduce_italian_acronyms.py",
+                "reduce_italian_treebank.py",
+            ],
+        )
+        copy = self.dir / "rules"
+        copy.mkdir()
+        for path in Path(_HERE).glob("reduce[-_]*.py"):
+            (copy / path.name).write_bytes(path.read_bytes())
+        before = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
+        for name, old, new, moved in (
+            # D2–D10 and D11–D12, one edit each of it-fr's reducer: it-fr alone.
+            ("reduce-it-fr.py", '"pure": ("lowercase", "ADV",', '"pure": ("lowercase", "ADJ",', ("it-fr",)),
+            ("reduce-it-fr.py", '_OLD = frozenset({"archaic", "obsolete", "dated"})', '_OLD = frozenset({"archaic"})', ("it-fr",)),
+            ("reduce-it-fr.py", '("Qui, que.",),', '("Qui.",),', ("it-fr",)),
+            ("reduce-it-fr.py", '"cesena": "Cesena', '"cesenatico": "Cesena', ("it-fr",)),
+            ("reduce-it-fr.py", '_EXAMPLE_SHARE = 0.6', '_EXAMPLE_SHARE = 0.5', ("it-fr",)),
+            ("reduce-it-fr.py", '"signor": ("signore",', '"signore": ("signore",', ("it-fr",)),
+            ("reduce-it-fr.py", '"prova": (\n        "prova",', '"prova": (\n        "provare",', ("it-fr",)),
+            ("reduce-it-fr.py", '("fate", "fare", "VERB|Mood=Sub', '("fate", "fare", "VERB|Mood=Ind', ("it-fr",)),
+            # fr-en's treebank rule: fr-en, fr-es and it-fr together.
+            ("reduce_french_treebank.py", "TREEBANK_RATIO = 2\n", "TREEBANK_RATIO = 3\n", ("fr-en", "fr-es", "it-fr")),
+        ):
+            rules = copy / name
+            text = rules.read_text(encoding="utf-8")
+            self.assertIn(old, text)
+            rules.write_text(text.replace(old, new), encoding="utf-8")
+            after = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
+            for pair in moved:
+                self.assertNotEqual(after[pair], before[pair], f"{name}: {new}")
+            self.assertEqual({p: after[p] for p in pairs if p not in moved}, {p: before[p] for p in pairs if p not in moved}, new)
+            before = after
+        # Neither the shared rules nor the French edition's carry a rule of this change.
+        for name in ("reduce_common.py", "reduce_edition_fr.py", "reduce_french_treebank.py"):
+            text = (Path(_HERE) / name).read_text(encoding="utf-8")
+            self.assertNotIn("refine-lingua-it-fr-glosses", text, name)
+
+
 if __name__ == "__main__":
     unittest.main()

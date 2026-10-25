@@ -548,3 +548,89 @@ owner's dispatch on this change's branch; rollback is a revert of the tables, th
 pin, the moved-lines listing, the README, `SOURCES.md` and the measurements 0.75–1; the golden, the
 card and the checks 0.25–0.5; the owner's reading 0.25. The forms rules, absent from 48b, account for
 the difference; leaving the verb forms' gloss as it is (D7) saves what the label would have cost.
+
+## Implementation (2026-10-25)
+
+Implemented on `main` after change 18; **the tables are not in the pull request**: they arrive with the
+owner's dispatch (task 3.1). Every figure below is predicted — reduced locally from it-fr's pinned
+release assets (`lingua-pack-sources-it-fr-2026.10.23`, `…-2026.10.24`, `…-morph-it-0.4.8`, MarkIT at
+`e210079d`; Python 3.12 and `requirements-reduce.txt`), `main`'s rules first giving `main`'s committed
+tables byte for byte — at `pack_version` `2026.10.24+d85215a`: the pack 2,644,651 B (`26c51cc8…`), its
+base 1,551,202 B (`a2af1872…`), its layer 1,093,689 B (`f9befdeb…`).
+
+**The gloss rules (D2–D10) reproduce the proposal's prototype row for row**, but where the full section
+holds what its extract lacked. Each alone, against the committed rows: D2 14 (14 / 0 / 0 / 0), 13 first
+senses; D3 12 (0 / 3 / 5 / 4); D4 5; D6 3; D8 10, 1 gained; D9 14, `trani` and `melano` lost; D10's
+example 1 — as measured. **D5**: 28 rows (0 / 1 / 7 / 20) and 60 lemmas gained (0 / 8 / 13 / 39), against
+27 and 56: `signor` (the proposal's prototype skipped it, read as *signore* by D11's apocope row, which
+takes it out of the ranks anyway), and `intimissimi`, `pressapochismo`, `aeronavale` gained and `uzbeko`
+changed past 20,000 — their pointers' words were not in the extract. Together, with the corrections:
+92 rows change (27 / 11 / 22 / 32), 59 in their first sense, 61 gain a gloss; coverage 89.4 / 82.0 /
+73.4 on the committed ranks. D4's function words count kaikki's `contraction` (an articulated
+preposition) as the measured prototype did. A correction that adds an entry is keyed by the texts the
+section writes for the word's entries of that part of speech (`()`: none), so a page corrected upstream
+leaves it firing on nothing.
+
+**The forms rules (D11), as the requirement words them, move other lines than the census counted:**
+- **Rule 1 takes 27 ranked lemmas, not 32.** As written — the form's own entries holding only the verb's
+  inflection written without its tag, an ellipsis, or another part of speech's pointer marked obsolete,
+  archaic, literary, poetic, dated or colloquial, where a verb's table gives the form as a person —, it
+  leaves `sanguina` (its noun is marked « rare », which the list does not name), `rota` (*rotare*'s table
+  writes `ruota`, no `rota`), `deviate` (also *deviata*'s plural: another word's inflection), `enno` and
+  `risto` (no table gives them as a person), `accorre` (its poetic sense names *accogliere*, a meaning)
+  and `carcano` (a surname's lemma, the names rule's); and it takes `semo` and `sieno`, *essere*'s
+  inflections written without their tag (« alternative form of siamo: inflection of essere »), which
+  *essere*'s dialect table gives as persons. Adding « rare » to the list would take `sanguina` too: the
+  owner's call.
+- **Rule 2 is a plural of a plural**, as the census counted it (`viti`: `vite`'s plural, `vite` *vita*'s):
+  read literally — any candidate that is a noun's plural —, it would have taken out of the tables
+  `faccie`, `guancie`, `premii`, `principii` and six more misspellings of a plural. The requirement's
+  wording is amended so.
+- **Rule 4 reads the dialect's row where its verb is the lemma chosen**, and a verb the form's own entry
+  names is no row of the dialect's alone (`cresi`, *credere*'s obsolete past historic by its own entry
+  too, stays *credere*'s); otherwise a common word the dialect's table also lists would have moved (`amo`
+  → *amare*, `dono` → *donare*, `foro` → *forare*). It moves 21 forms, not 11: besides the design's list,
+  `pareranno`, `parerebbe`, `parerà` → *parare*, `poteranno`, `poterebbe`, `poterà` → *potare*, `volse`,
+  `volsero`, `volsi` → *volgere*, `faci` → *face* and `fusti` → *fusto* — each its own entry's word, the
+  Italian table marking those cells doubtful; `sien` stays *essere*'s, `sieno` being no ranked lemma
+  any more (rule 1). The headings rule takes `archaic`, `infinitive` and `subjunctive` out; `imperative`
+  reads as *imperativo*, its own entry.
+- **The moved lines** (task 3.3): `forms.tsv` 58 forms change lemma, 10 leave, 29 join; `freq.tsv` by
+  renumbering alone — 29 lemmas leave (rule 1's 27, `signor`, `od`), `dati`, `prova`, `lega` and 26 at the
+  cut join —; `grammar.tsv` in 62 forms, their own and `other` marks and `fate`'s subjunctive.
+
+**D14's figures**: coverage 89.4 / 82.0 / 73.4; 24,269 dictionary words (24,267 after the review's round); 8,302 levels, 19 joining and 19
+leaving, 25 changing band; M8's cost 30 / 44 / 66. **UD Italian-PUD 99.27 / 91.37 / 99.90**, not 99.26 /
+91.35: the owner's `prova` row brings back its plural `prove` (2 words, unresolved before), as `lega`'s
+brings `leghe` back — +2 content words and +2 resolved beyond the design's count (`signor` +1, `lega` +1,
+`prova` +2, `prove` +2, `dati` −1). MarkIT's test section 99.43 / 94.65 / 98.87, as before.
+
+**The 456**: by the reduction's own rule — a ranked lemma of the levelled span the dictionary words do not
+list and no source glosses —, `main` holds 511; 12 are glossed again (the design's twelve), 5 leave the
+ranks (`signor`, `od`; `guardo`, `segui`, `nego` by rule 1), 494 are left.
+
+**Dispatched** (`lingua-pack-update` run 40177647583, mode `reduce`, commit `a7ada5414`): the tables,
+the pin, the golden and the card equal the prediction byte for byte.
+
+**Fixed at review (2026-10-25)**, a second reduction:
+- **`dati`'s own reading is a plural.** The English section heads « data (plural of dato) » with no
+  number, so its own entry gave `dati` a masculine *singular* noun's reading. D12's list now lets a row
+  carry a replacement tag — the reading read as that tag, its mark kept —, and holds `dati` *dati*
+  `NOUN|Gender=Masc|Number=Sing` → `NOUN|Gender=Masc|Number=Plur`, a tag of the pinned pool, which stays
+  byte for byte.
+- **Two more corrections** (D10): `crypto` and `cripto`, whose only sense is « Variante de kripton
+  (l’élément chimique Kr) » — readers meet them as the cryptocurrency, and no sense of the section says
+  « crypto-monnaie » —, lose it rather than lend « Krypton »; `stupidissimo` « Superlatif de stupido :
+  « très léger » », the section's slip, reads « Très stupide ». Each is reported upstream.
+- **`vadi`**, which leaves the tables with rule 1, is a real word: the colloquial subjunctive of
+  *andare* (« che tu vadi »), which `andare`'s table does not list and the tables read before as the
+  plural of the obsolete noun `vado`, the ford — as `viti` leaves by rule 2.
+
+Predicted for the round (the owner's second dispatch), reduced locally as before at `pack_version`
+`2026.10.24+1cb6715`: the pack 2,645,721 B (`7c73fd30…`), its base 1,551,196 B (`b1301e06…`), its layer
+1,094,765 B (`274908f7…`); `tables/it/grammar.tsv` one line (`dati`'s plural), `lexical.tsv` −`cripto`
+−`crypto` (24,267), `tables/it-fr/gloss.tsv` and `senses.tsv` −`cripto` −`crypto`, `stupidissimo` « Très
+stupide » (32,739 glosses); `forms.tsv`, `freq.tsv`, `level.tsv`, `mwe.tsv`, `tags.tsv` and the NOTICE
+byte for byte; coverage 89.4 / 82.0 / 73.4; UD Italian-PUD 99.27 / 91.37 / 99.90, as before. The golden
+moves in its pack line and the two vocabulary estimates' universe (24,267 → 24,265, 24,266 → 24,264);
+the card does not move.

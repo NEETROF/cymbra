@@ -13,7 +13,8 @@ records the sources of both. Change 9 writes Italian's forms and ranks, change 1
 pool (`../it/tags.tsv`), change 14 its estimated levels (`../it/level.tsv`, add-lingua-italian-levels,
 *The levels* below), and change 16 (add-lingua-pack-it-fr) its French glosses, sense runs and
 expressions in this folder and Italian's dictionary words in `../it/lexical.tsv`, which the levels go
-to (*The glosses* below). The Italian baseline (`crates/lingua-wasm/tests/italian_baseline.rs`) runs
+to (*The glosses* below); change 17 (refine-lingua-it-fr-glosses) refines the glosses and some of
+Italian's forms (*Refined: change 17* below). The Italian baseline (`crates/lingua-wasm/tests/italian_baseline.rs`) runs
 over the pack these tables build since change 16 re-blessed it once — its hand-written fixture
 (`scripts/lingua-data/testdata/it-fr/`) before, a pack of forms and ranks alone blinding its gloss,
 expression and level probes —; the readings are pinned by `crates/lingua-pack/tests/it_fr_grammar.rs`
@@ -122,17 +123,21 @@ In `../it/`, Italian's tables, written by it-fr's reduction:
 - **One lemma per form (D5, M8).** A form whose own lemma entries are names alone reads as the other
   word (`bambini`, a surname → *bambino*); `roma`, which no other word reads, stays the city; every
   other form is left to `OVERRIDES` — the owner's `stato` and `stati` → *essere* (2026-10-23; « lo
-  Stato » reads as *essere*, the accepted cost), and `bianca` → *bianco* —, then MarkIT's counts,
-  the form's own entry, the lemma's frequency, the alphabet.
+  Stato » reads as *essere*, the accepted cost), and `bianca` → *bianco*; since change 17, `usa` →
+  *usare* and the owner's `dati` → *dati*, `lega` → *lega*, `prova` → *prova* (2026-10-25), no `dato`
+  row —, then MarkIT's counts, the form's own entry (since change 17, by a meaning alone where a
+  verb's table gives the form as a person: *Refined: change 17*), the lemma's frequency, the alphabet.
 - **The apocopes** written without an apostrophe read as their word alone by a reviewed table
   (`APOCOPES`): `un` → *uno*, `buon` → *buono*, `nessun`, `alcun`, `ciascun`, `qualcun`, `bel` →
   *bello*, `san` → *santo*, `gran` → *grande*, `quel` → *quello*, `tal` → *tale*, `qual` → *quale*,
-  and `fin` → *fino* (« fin qui », refine-lingua-italian-reading D7).
+  and `fin` → *fino* (« fin qui », refine-lingua-italian-reading D7); since change 17, `signor` →
+  *signore* (« Variante de signore » in the French section) and the euphonic `od` → *o*.
 - **Acronyms in capitals (keep-lingua-italian-acronyms-and-names).** A reviewed table,
   `reduce_italian_acronyms.ACRONYMS`, the owner's decision row by row (2026-10-23: `NATO` and `USA`
   only; `FAI` and `AGI` too rare in the corpora, `TARI` already read as the tax): each written
   into `forms.tsv` as a form in capitals that is its own lemma — the only forms holding a capital —
-  and into `lexical.tsv`, with no rank and no level; `nato` stays *nascere*'s and `usa` *uso*'s.
+  and into `lexical.tsv`, with no rank and no level; `nato` stays *nascere*'s and `usa` reads as
+  *usare* (*uso*'s until change 17's override row).
   Italian's analysis reads a word standing alone in capitals as written, so « della NATO » is the
   alliance and « LA NATO HA VOTATO » the participle. The reduction fails on a row the section's own
   entry does not back, or whose lower case the tables read as no other word (`check_lowercase`): `ONU`
@@ -316,17 +321,93 @@ characters cut here:
 | 19527 | `olivieri` | section | Nom de famille |
 | 19829 | `situa` | section | Situer |
 
-**Known defects**, for change 17 (`refine-lingua-it-fr-glosses`; add-lingua-pack-it-fr's design,
-*Known data defects*): the wrong sense first by the entries' order (`gente`, `fino`, `fra`, `spesso`,
-`pure`, `spezie`, `loro`); participles borrowing their infinitive's gloss (`assicurato`, `avvolto`);
-pointers that are no `form_of` (`lettere`, `signor` « Variante de signore »: about 18 lemmas of the
-20,000 left unglossed); a name's sense blocking a common word (`rose`, `panni`, `gemelli`); `che`
-« Quoi; Quel », with no « Que »; `della` « De » read backwards; `del`'s gloss keeping its usage note;
-an example split into senses with no marker (`volere`); commune notes worded otherwise (`vittoria`
-« commune et ville », `ro`); words without a space that are no Italian (`d'n'b`, `c'hwerty`, `l'wha`);
-surnames glossed « Nom de famille » alone (`lexa`, `santangelo`); English loans and some Italian words
-the sources do not gloss (`web`, `ok`, `entro`, `supporto`, `verifica`), which therefore take no
-level.
+**Known defects**: change 16's list went to change 17, which fixed or decided each item (*Refined:
+change 17*, below).
+
+## Refined: change 17 (refine-lingua-it-fr-glosses)
+
+Rules of it-fr's own reducer (`reduce-it-fr.py`), each measured alone against change 16's committed
+rows — a class counted in ranked lemmas by band (1–1,000 / 1,001–5,000 / 5,001–20,000 / beyond), a rule
+kept where every row it changes among the 5,000 commonest reads right or no worse and those of
+5,001–20,000 right in a majority, the criteria written before the figures —, with fr-en's treebank
+rule imported as fr-es imports it: `reduce_common.py`, `reduce_edition_fr.py` and
+`reduce_french_treebank.py` are not edited, and no other pair moves. The section as change 16 reads it
+is refined (`refine_section`), a headword's entries — every case of it — read together:
+
+| Rule | What it does | Rows (bands) | For example |
+|---|---|---|---|
+| D2, MarkIT's order | a function word's row, or one the section opens on a proper noun, opens on the part of speech UD Italian-MarkIT's training and development sections read it as at least 10 times and twice as often as the section's first, never a proper noun (`reduce_french_treebank.commonest_first`); a reviewed table, `FIRST_RUN`, orders what MarkIT cannot (the owner, 2026-10-25): `come` held at « Comme », `gente`, `fino`, `pure`, `loro` | 14 (14 / 0 / 0 / 0), 13 first senses | `fra` « Entre, durant; Frère », `spesso` « Beaucoup, fréquemment, souvent; Gros, épais », `proprio`, `molto`, `solo`, `uno`, `più` (an adverb's run); `gente` « Gens… », `fino` « Jusque; Fin », `loro` « Ils, elles, eux; … » |
+| D3, a name its common entry repeats | a proper noun's sense a lowercase entry of a common part of speech gives word for word is the common entry's | 12 (0 / 3 / 5 / 4), 2 | `bibbia`, `rinascimento`, `corano` read as nouns, so dictionary words with a level |
+| D4, no name under a function word | a proper noun's entry, no acronym, left out of a word whose lowercase entries are all a function word's or an adverb's | 5 (5 / 0 / 0 / 0) | `io` (Io, Inachus's daughter), `qui` « Ici » (Riri), `qua`, `oltre`, `anzi` |
+| D5, pointers read | an untagged « Pluriel de X », an alternative form not marked obsolete, archaic or dated, a superlative's or a plural's quoted meaning | 28 (0 / 1 / 7 / 20), 60 lemmas gained (0 / 8 / 13 / 39) | `lettere`, `terzi` « Tiers », `paro` « Paire », `pochissimo` « Très peu », `ceneri` « Cendre », `can` « Khan, prince mongol »; `fora`, `maio` not followed |
+| D6, a pointer lending beside a name or an old sense | a noun's or an adjective's pointer lends its word's senses when the word's other senses are a capitalised entry's or outdated, the lent entries first | 3 (0 / 1 / 2 / 0) | `gemelli` « Jumeau; Gémeaux…; Bouton de manchette », `spezie` « Épice…; Espèce », `arme`; never a verb form's (`regolo`) |
+| D8, the `di` family and the articles' notes | the `di` family's links read as glosses, « Article contracté souvent traduit par X » read « X » where the word has no other glossed sense, a usage note out of a determiner's or a preposition's sense | 10 (6 / 1 / 2 / 1), 1 gained | `della` « De la », `degli`, `delle` « Des », `del` « Du », `cogli` « Avec les »; `sebbene` keeps its note |
+| D9, communes | a proper noun's sense naming its place a commune right after its name is a name's note, set aside as change 16's are — but a chef-lieu's or a capital's, a provincial capital's (« Province autour de cette ville ») and the reviewed list's (`COMMUNES_KEPT`: `piacenza`, `cesena`, the owner, 2026-10-25) | 14 (2 / 4 / 5 / 3), `trani` and `melano` left with no gloss | `vittoria` « Victoire », `ro` « Rhô », `don`, `lana`; `bordeaux`, `colonia`, `matera` keep their city |
+| D10, the example, the corrections, split words | an Italian example joined to its French by a dash goes; `CORRECTIONS` (below); a word split after its elided piece holding `j`, `k`, `w`, `x`, `y` or a second apostrophe is no expression | 1 example row (`io`'s three senses); 3 split words | `c'hwerty`, `l'wha`, `d'n'b` |
+
+**The corrections** (`CORRECTIONS`, the owner's reading, 2026-10-25), each keyed by the section's text
+as the pinned file writes it — an update finding one firing on nothing names it on the report's line,
+for it to be removed — and reported to the French Wiktionary: `che` gains the relative pronoun « Qui,
+que » and the conjunction « Que », read before its own entries (« Qui, que; Quoi; Que; Quel »);
+`volere` loses an example filed as three senses; `dirotto` gains the adjective « À verse (dans a
+dirotto) » (its participle lent `dirompere`'s « Écanguer »); `dati`, a lemma of its own by the owner's
+row, reads « Données », the plural; and, fixed at review, `crypto` and `cripto` lose « Variante de
+kripton (l’élément chimique Kr) » — readers meet them as the cryptocurrency, which no sense of the section
+names — and `stupidissimo` reads « Très stupide », not the section's « très léger ».
+
+**Italian's forms** (`../it/`, D11), judged on the dictionary's entries and MarkIT's training and
+development counts: a verb's person whose own entry holds no meaning — the verb's inflection written
+without its tag, an ellipsis, another part of speech's pointer marked obsolete, archaic, literary,
+poetic, dated or colloquial — reads as its verb (`sto` → *stare*, `vado` → *andare*, `sapete` →
+*sapere*; never a function word's homograph, a contraction, an acronym's headword or another word's
+inflection: `contra`, `cogli`, `tari`, `dee`, `mei` keep theirs); no form of a form through a plural of
+a plural (`viti` leaves the tables, `crochi` → *croco*); no form from a feminine noun's masculine row
+its form's own entry does not name (`signorini` → *signorino*; `gattaro`, `lavandaio`, `pecoro`,
+`puttano` leave); no row of a table the readings set aside outranks the form's own entry naming another
+ranked word (`avi`, `ava` → *avo*, `pozzi` → *pozzo*, `fuor` → *fuori*, `volse` → *volgere*), and no
+heading kaikki reads as a cell gives a form (« archaic », « infinitive », « subjunctive » leave;
+`imperative` reads as *imperativo*, its own entry). `signor` and `od` join the apocopes; `usa` → *usare*
+and the owner's `dati`, `lega`, `prova` join the overrides. **The readings** (D12): `fate` reads no
+subjunctive, and `dati` reads as a masculine plural noun, not the singular its own entry's head gives
+(`READINGS_SET_ASIDE`, a row setting a reading aside or giving its replacement; the reduction fails on a
+row it does not find). `vadi` leaves the tables with `vado` (rule 1): the colloquial subjunctive of
+*andare* (« che tu vadi »), which *andare*'s table does not list, read before as the plural of the
+obsolete noun `vado`, the ford — as `viti` leaves by rule 2.
+
+**The figures**, of the tables `lingua-pack-update` run 40177647583 wrote (mode `reduce`, `pack_version`
+`2026.10.24+d85215a`), equal to the local prediction, with the review's round (2026-10-25: `dati`'s
+plural reading, `crypto`, `cripto` and `stupidissimo`) predicted the same way at `2026.10.24+1cb6715`:
+- `forms.tsv` 129,610 → 129,629 lines: 58 forms change lemma, 10 leave, 29 join; `freq.tsv` moves by
+  renumbering alone — 29 lemmas leave (`sto`, `vado`, `signor`, `sapete`, `speriamo`, `torno`, `guardo`,
+  `incontra`, `od`, `segui` … `sieno`) and `dati` (259), `prova` (302), `lega` (709) and 26 lemmas at the
+  cut join, the 60,000th (`modino`) at Zipf 2.06; `grammar.tsv` moves in 62 forms, its own and `other`
+  marks where a form changes lemma, `fate`'s subjunctive and `dati`'s plural;
+- 32,739 glosses (31,086 from the section, 278 from the Italian Wiktionary, 1,374 read backwards, the
+  `USA` row); coverage **89.4 / 82.0 / 73.4 %** against the floor 87.2 / 79.8 / 71.3; against change 16's
+  rows, 92 change (27 / 11 / 22 / 32), 59 in their first sense, 69 lemmas gain a gloss (`dati`, `prova`,
+  `lega` among them) and 21 lose one (`trani`, `melano`, and the 19 that leave the ranks);
+- 18,293 expressions; 24,267 dictionary words (+67, −16); 8,302 levels, 19 joining (`dati`, `prova`,
+  `lega` A1; `lettere`, `terzi` A2; `bibbia`, `gemelli`, `pochissimo` B1; `rinascimento`, `corano` B2 …)
+  and 19 leaving (`sto`, `vado` A1, `sapete`, `speriamo` A2 … and nine at C2's end), 25 changing band;
+- the pack 2,645,721 B (sha256 `7c73fd30…`), its base 1,551,196 B (`b1301e06…`), its layer 1,094,765 B
+  (`274908f7…`) — at `2026.10.24+d85215a`, before the review's round, 2,644,651 B (`26c51cc8…`);
+- UD Italian-PUD **99.27 / 91.37 / 99.90** (19,155 words, 8,909 content words, 985 auxiliaries; the gates
+  hold), read after the rules: +5 content words — `signor` +1 (*signore*), `lega` +1, `prova` +2, and its
+  plural `prove` +2 (no form before, *prova*'s again), `dati` −1 (PUD lemmatises its ten nouns *dato*,
+  which stay misses, and its one participle *dare*) — and 2 more words resolved (`prove`); MarkIT's test
+  section 99.43 / 94.65 / 98.87, unchanged.
+
+**Left, with their reasons** (D13): 494 lemmas of the levelled span the levels pass over because no
+source glosses them — the 25 commonest
+Italian words among them, to contribute upstream: `ex`, `post`, `ok`, `web`, `beh`, `entro`, `oh`, `pro`,
+`club`, `supporto`, `super`, `prof`, `super-io`, `leader`, `live`, `anti`, `forum`, `max`, `mm`, `frega`,
+`set`, `city`, `mar`, `rio`, `email` —; names spelled as a common word's form (`Rossi` *rosso*,
+`Bianchi` *bianco*, `Conti` *conto*, `Bari` *barare*, as French's `Lot`), `Esposito` and `Ferrari` after
+« Dott. » and « Prof. », the press's « la Nato », « gli Usa », « tra USA e NATO » and « dai retta » —
+Italian's analysis's, in the programme's backlog —; the `di` retry's partitives and its 30 literal
+phrases, which stay offered; species named in common rows; a verb form's borrowed senses, read as its
+verb's (`assicurato` « Assurer, certifier, garantir »: the card names the verb, the owner's choice, D7);
+and surnames glossed « Nom de famille » alone (`lexa`, `santangelo`), names, so no dictionary words.
 
 ## Measured
 
@@ -389,23 +470,24 @@ and +0.08 / +0.17 / 0 with it). The owner keeps it (2026-10-23).
 ## What one lemma per form costs (M8)
 
 A lemma is keyed by its own form, so a dictionary noun whose form reads as a verb's leaves the pack:
-« la porta » shows *portare*'s card. Among wordfreq's 1,000, 2,000 and 5,000 commonest words, **32,
-47 and 69** dictionary nouns read as a verb and are no ranked lemma (Spanish 30 / 48 / 95, French 30
-/ 55 / 135), measured on these tables. Among the 2,000 (rank, noun, verb): 21 sono essere, 50 era
-essere, 51 stato essere (the owner's override), 84 fa fare, 105 sei essere, 156 detto dire, 181
-visto vedere, 186 so sapere, 256 dato dare, 267 credo credere, 335 successo succedere, 342 scritto
-scrivere, 352 porta portare, 354 state essere, 359 letto leggere, 383 possa potere, 424 dati dare,
-491 prova provare, 499 fatta fare, 516 messo mettere, 528 ero essere, 559 pare parere, 568 trovato
-trovare, 675 cerca cercare, 732 nota notare, 758 portato portare, 853 iniziato iniziare, 882 vale
-valere, 924 chiama chiamare, 935 resta restare, 960 scoperto scoprire, 983 passa passare, 1007
-parlato parlare, 1112 lega legare, 1214 permesso permettere, 1261 creato creare, 1287 conosciuto
-conoscere, 1456 stia stare, 1567 caccia cacciare, 1604 conta contare, 1621 reso rendere, 1701
-scritta scrivere, 1704 tratto trarre, 1793 formato formare, 1855 punta puntare, 1903 venuto venire,
-1942 aggiunto aggiungere. An override row keeps one noun and reads every verb form it shares as the
-noun; the owner may name rows, each with its reason, at any reduction. Two of them came with the
-names rule's narrowing (the review of 2026-10-23) and are left for change 17's refinements: `dato`
-reads as *dare* (MarkIT's counts, 9 *dare* against 3 *dato*) and `dati` with it (« i dati »), and
-`lega` as *legare* (one count), whose `leghe` is then no form.
+« la porta » shows *portare*'s card. Among wordfreq's 1,000, 2,000 and 5,000 commonest words, **30,
+44 and 66** dictionary nouns read as a verb and are no ranked lemma (Spanish 30 / 48 / 95, French 30
+/ 55 / 135), measured on these tables — 32 / 47 / 69 before change 17's rows for `dati`, `prova` and
+`lega`. Among the 2,000 (rank, noun, verb): 21 sono essere, 50 era essere, 51 stato essere (the
+owner's override), 84 fa fare, 105 sei essere, 156 detto dire, 181 visto vedere, 186 so sapere, 256
+dato dare, 267 credo credere, 335 successo succedere, 342 scritto scrivere, 352 porta portare, 354
+state essere, 359 letto leggere, 383 possa potere, 499 fatta fare, 516 messo mettere, 528 ero essere,
+559 pare parere, 568 trovato trovare, 675 cerca cercare, 732 nota notare, 758 portato portare, 853
+iniziato iniziare, 882 vale valere, 924 chiama chiamare, 935 resta restare, 960 scoperto scoprire,
+983 passa passare, 1007 parlato parlare, 1214 permesso permettere, 1261 creato creare, 1287
+conosciuto conoscere, 1456 stia stare, 1567 caccia cacciare, 1604 conta contare, 1621 reso rendere,
+1701 scritta scrivere, 1704 tratto trarre, 1793 formato formare, 1855 punta puntare, 1903 venuto
+venire, 1942 aggiunto aggiungere. An override row keeps one noun and reads every verb form it shares
+as the noun; the owner may name rows, each with its reason, at any reduction. Change 17's, the
+owner's (2026-10-25): `dati` → *dati*, the plural noun as a lemma of its own (« i dati »), `lega` →
+*lega* (`leghe` its plural again) and `prova` → *prova* (`prove` too); `dato` stays *dare*'s (MarkIT's
+counts, 9 *dare* against 3 *dato*): « mi ha dato » is the very common participle, which the noun
+« donnée » would misread in conversation.
 
 ## The levels (`../it/level.tsv`)
 
@@ -425,17 +507,17 @@ so an English update cannot move Italian's levels unannounced.
 
 **Which lemmas take one** (D2) is read from the English Wiktionary's Italian section — the source of
 the forms —, and since change 16 among Italian's dictionary words alone (D4; add-lingua-pack-it-fr
-D5). Within the levelled span (ranks 1–11,679, the tables of 2026.10.24), 3,377 ranked lemmas take no
+D5). Within the levelled span (ranks 1–11,651, change 17's tables), 3,349 ranked lemmas take no
 level:
 
 | Rule | Left out | For example |
 |---|---|---|
-| 1. the section gives it no sense that is not a form of another word… | 1,997 | `facebook`, `of`, `eh`, `ecc`, `km`, `http`: none has an entry in the section |
-| …or only a name's, written there with a capital | 711 | `italia`, `milano`, `europa`, `giovanni`, `google` |
+| 1. the section gives it no sense that is not a form of another word… | 1,995 | `facebook`, `of`, `eh`, `ecc`, `km`, `http`: none has an entry in the section |
+| …or only a name's, written there with a capital | 707 | `italia`, `milano`, `europa`, `giovanni`, `google` |
 | 2. a single character the section gives no word's sense — a letter's, its name read by its gloss, a symbol's, a name's, an abbreviation's, another word's spelling | 16 | `b`, `r` (« alternative spelling of er »), `x` (« abbreviation of per »), `é`, `u` (« the name of the Latin script letter U/u »), `k`, `à` (« obsolete spelling of ha »); `a` (the preposition), `e` and `o` (the conjunctions) keep their place |
 | 3. every sense it is given, a name's aside, only spells another word, read by French's prefixes, not kaikki's `alt_of` pointer — so a contraction or an apocope stays a word | 9 | `the` (« misspelling of tè »), `nè`, `can`, `are`, `contenente`, `zombie`, `buddha`, `ro`, `homo` |
 | 4. its own form reads as another lemma in `forms.tsv` | 0 | none: the ranks keep no such lemma (change 9's D6) and the builder refuses one; the rule stays as a guard |
-| 5. Italian's dictionary words do not list it | 644 | since change 16: a name it-fr glosses by a proper noun alone (`roma`, `napoli`, `maria`, `francesco`, `gesù`, `luigi`, `bibbia`) or a word the sources do not gloss (`ok`, `web`, `club`, `entro`, `supporto`) |
+| 5. Italian's dictionary words do not list it | 622 | since change 16: a name it-fr glosses by a proper noun alone (`roma`, `napoli`, `maria`, `francesco`, `gesù`, `luigi`; 128) or a word the sources do not gloss (`ok`, `web`, `club`, `entro`, `supporto`; 494); `bibbia`, `rinascimento` and `corano` are words since change 17 |
 
 Every word the pre-pass writes has a level through its lemma: the `di` family (`del`, `della`, …),
 the articles (*il*, *lo*, *uno*), the elided pieces' and the truncations' words and the split
@@ -446,15 +528,19 @@ The acronym rows have no rank, so no level.
 
 | Level | Lemmas | Ranks | First words |
 |---|---|---|---|
-| A1 | 1,020 | 1–1,103 | di, e, che, il, a, in, non, per |
-| A2 | 1,158 | 1,104–2,474 | partecipare, principalmente, principio, quartiere, ridere, risolvere, sostegno, terreno |
-| B1 | 2,015 | 2,475–5,125 | organo, palco, parcheggio, pilota, pistola, profondità, quindici, rapida |
-| B2 | 2,347 | 5,126–8,686 | ebreo, economicamente, energetico, espressamente, fotocamera, gonna, igiene, illustrato |
-| C1 | 886 | 8,688–10,176 | sonoro, tassista, terminologia, urto, usura, utero, vaccinazione, vico |
-| C2 | 876 | 10,177–11,679 | riconquistare, rigenerazione, rinascimentale, rione, ristampa, risultante, ritornello, sbocco |
+| A1 | 1,020 | 1–1,102 | di, e, che, il, a, in, non, per |
+| A2 | 1,158 | 1,103–2,469 | occidentale, partecipare, principalmente, principio, quartiere, ridere, risolvere, sostegno |
+| B1 | 2,015 | 2,470–5,108 | organo, palco, parcheggio, pilota, pistola, profondità, quindici, rapida |
+| B2 | 2,347 | 5,111–8,658 | cocaina, considerevole, convocazione, cuffie, didattica, ebreo, economicamente, energetico |
+| C1 | 886 | 8,659–10,151 | riconciliazione, salato, sbarramento, sbloccare, scadente, scandaloso, semplificare, sensore |
+| C2 | 876 | 10,153–11,651 | prefisso, preposto, privatizzazione, rallentamento, rampa, ranch, rapire, restrizione |
 
-The table's figures are the tables of 2026.10.24 (change 16): 578 lemmas left the levels — 458 that
-it-fr does not gloss, 120 it glosses by a proper noun alone — and 578 joined, 1,162 changed band.
+The table's figures are change 17's tables: 19 lemmas joined the levels (`dati`, `prova`, `lega`, ranked
+again; `lettere`, `terzi`, `pochissimo`, `ceneri`, glossed by its pointer rules; `bibbia`, `rinascimento`,
+`corano`, `gemelli`, words again) and 19 left (ten verb forms read as their verb, `sto`, `vado`,
+`sapete`…, and nine at C2's end), 25 changed band. On the tables of 2026.10.24 (change 16), 578 lemmas
+left the levels — 458 that it-fr does not gloss, 120 it glosses by a proper noun alone — and 578
+joined, 1,162 changed band.
 
 These are a local reduction's, made as the update makes it — Python 3.12 and
 `requirements-reduce.txt`, `build.sh --reduce it-fr` from the pinned 2026.10.23 sources (the release
@@ -740,7 +826,7 @@ No rule was changed on these treebanks' figures: the rules were written, and the
 design decided (`openspec/changes/add-lingua-italian-grammar-tables/design.md`, *As implemented*), on
 the dictionary's own entries before they were measured; the review's, on its tags.
 
-**M8's cost** is change 9's, unmoved: 32 / 47 / 69 dictionary nouns read as a verb among wordfreq's
+**M8's cost** is change 9's (30 / 44 / 66 since change 17's rows): the dictionary nouns read as a verb among wordfreq's
 1,000 / 2,000 / 5,000, none of whose readings is kept — « la porta » opens *portare*'s card, which
 names *porgere* (`porta`, the feminine of its participle `porto`) and no noun.
 

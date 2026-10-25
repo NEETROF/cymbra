@@ -2827,6 +2827,7 @@ fn spec_scenario_the_reference_and_the_pipeline() {
             "reduce-it-fr.py",
             "reduce_common.py",
             "reduce_edition_fr.py",
+            "reduce_french_treebank.py",
             "reduce_italian_acronyms.py",
             "reduce_italian_treebank.py"
         ])
@@ -2942,14 +2943,15 @@ fn every_italian_levelled_lemma_is_a_dictionary_word() {
 fn spec_scenario_italian_s_acronym_rows() {
     // keep-lingua-italian-acronyms-and-names D2, D4, D6: `tables/it/forms.tsv` maps `NATO` to `NATO`
     // and `USA` to `USA`, the forms holding a capital; `freq.tsv` holds neither, and there is no
-    // level; `nato` and `usa` keep their readings; the rows are Italian's dictionary words.
+    // level; `nato` and `usa` keep their readings — `usa` *usare*'s since refine-lingua-it-fr-glosses
+    // D11's override row; the rows are Italian's dictionary words.
     assert_eq!(
         italian_acronyms(),
         BTreeSet::from(["NATO".to_owned(), "USA".to_owned()])
     );
     let forms = tsv(&tables().join("it/forms.tsv"));
     assert_eq!(forms["nato"], "nascere");
-    assert_eq!(forms["usa"], "uso");
+    assert_eq!(forms["usa"], "usare");
     let ranks = tsv(&tables().join("it/freq.tsv"));
     let lexical: BTreeSet<String> = std::fs::read_to_string(tables().join("it/lexical.tsv"))
         .unwrap()
@@ -2983,8 +2985,47 @@ fn spec_scenario_italian_s_acronym_rows() {
     assert_eq!(pack.gloss("USA"), Some("Amérique (continent); États-Unis"));
     assert_eq!(pack.gloss("NATO"), None);
     assert_eq!(lexicon.lemma_of("nato"), Some("nascere"));
-    assert_eq!(lexicon.lemma_of("usa"), Some("uso"));
+    assert_eq!(lexicon.lemma_of("usa"), Some("usare"));
     assert!(pack.rank("nascere").is_some());
+}
+
+#[test]
+fn spec_scenario_italian_s_forms_refined() {
+    // refine-lingua-it-fr-glosses D11: a verb's person whose own entry holds no meaning reads as its
+    // verb (`sto`, `vado`, `sapete`), no form of a form through a plural of a plural (`viti`), no
+    // feminine noun's masculine row its form does not name (`signorini`), no row of the dialect's
+    // table outranking the form's own entry naming another ranked word (`avi`, `ava`), no heading
+    // read as a cell (« archaic »); the apocope and euphonic rows (`signor`, `od`), and the owner's
+    // rows — `dati`, `lega`, `prova` the nouns, their plurals back, `dato` still *dare*'s.
+    let forms = tsv(&tables().join("it/forms.tsv"));
+    let ranks = tsv(&tables().join("it/freq.tsv"));
+    for (form, lemma) in [
+        ("sto", "stare"),
+        ("vado", "andare"),
+        ("sapete", "sapere"),
+        ("signorini", "signorino"),
+        ("avi", "avo"),
+        ("ava", "avo"),
+        ("signor", "signore"),
+        ("od", "o"),
+        ("dati", "dati"),
+        ("dato", "dare"),
+        ("lega", "lega"),
+        ("leghe", "lega"),
+        ("prova", "prova"),
+        ("prove", "prova"),
+    ] {
+        assert_eq!(forms.get(form).map(String::as_str), Some(lemma), "{form}");
+    }
+    for form in ["viti", "archaic", "subjunctive", "infinitive"] {
+        assert!(!forms.contains_key(form), "{form} is a form");
+    }
+    for lemma in ["dati", "lega", "prova"] {
+        assert!(ranks.contains_key(lemma), "{lemma} unranked");
+    }
+    for form in ["sto", "vado", "sapete", "signor", "od", "dato"] {
+        assert!(!ranks.contains_key(form), "{form} ranked");
+    }
 }
 
 #[test]
