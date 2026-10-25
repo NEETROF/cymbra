@@ -3582,8 +3582,9 @@ fn spec_scenario_italian_glossed_in_spanish() {
         ])
     );
     // Its own fetch of every file it reads (change 27a's D4), under its own release: the Spanish and
-    // Italian Wiktionaries, the seven Wiktionaries of the pivot and Wikidata's Lexemes; nothing pinned at
-    // a commit, no treebank.
+    // Italian Wiktionaries, the seven Wiktionaries of the pivot and Wikidata's Lexemes; pinned at a
+    // commit, MarkIT's training and development sections, it-fr's, read for a row's parts of speech
+    // alone (refine-lingua-it-es-glosses D1), and no held-out treebank.
     let sources = pin["sources"].as_object().unwrap();
     assert_eq!(
         sources.keys().map(String::as_str).collect::<Vec<_>>(),
@@ -3598,11 +3599,49 @@ fn spec_scenario_italian_glossed_in_spanish() {
             "kaikki-pl",
             "kaikki-pt",
             "kaikki-ru",
+            "markit-dev",
+            "markit-train",
             "wikidata",
             "wordfreq"
         ]
     );
-    for (name, record) in sources.iter().filter(|(name, _)| *name != "wordfreq") {
+    // In the order the pin writes them, its pinned sources first, as `fetch_pinned` reads them.
+    let written = std::fs::read_to_string(tables().join("it-es/pin.json")).unwrap();
+    let at = |name: &str| {
+        written
+            .find(&format!("\"{name}\": {{"))
+            .unwrap_or_else(|| panic!("it-es/pin.json records {name}"))
+    };
+    let order = [
+        "markit-train",
+        "markit-dev",
+        "kaikki-es",
+        "kaikki-it",
+        "kaikki-en",
+        "kaikki-fr",
+        "kaikki-de",
+        "kaikki-pt",
+        "kaikki-ru",
+        "kaikki-pl",
+        "kaikki-nl",
+        "wikidata",
+        "wordfreq",
+    ];
+    assert!(
+        order.windows(2).all(|pair| at(pair[0]) < at(pair[1])),
+        "it-es/pin.json writes its sources in the order {order:?}"
+    );
+    let it_fr_pin = json(&tables().join("it-fr/pin.json"));
+    for name in ["markit-train", "markit-dev"] {
+        assert_eq!(
+            sources[name], it_fr_pin["sources"][name],
+            "{name}: it-fr's commit and sha256"
+        );
+    }
+    for (name, record) in sources
+        .iter()
+        .filter(|(name, _)| *name != "wordfreq" && !name.starts_with("markit-"))
+    {
         assert!(
             record["release"]
                 .as_str()

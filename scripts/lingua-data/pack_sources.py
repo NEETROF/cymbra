@@ -204,6 +204,10 @@ PINNED = {
     # word's row opens on (refine-lingua-it-en-glosses D1, D2a): it-en's pin records them as it-fr's
     # does, as fr-es's records UD French-GSD beside fr-en's.
     "it-en": ITALIAN_MARKIT,
+    # The same two sections again, read for the part of speech a function word's row opens on and
+    # the adverb or preposition a row misses (refine-lingua-it-es-glosses D1, D3): it-es's pin
+    # records them as it-fr's and it-en's do.
+    "it-es": ITALIAN_MARKIT,
 }
 # ESDB, the English Speller Database (switch-lingua-inflections-to-esdb): not a file but a database
 # its repository builds; `scowl.txt` is its export. Built at the commit of `rel-2026.02.25`, with

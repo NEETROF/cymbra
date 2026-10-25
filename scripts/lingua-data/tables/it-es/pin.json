@@ -35,6 +35,14 @@
     }
   },
   "sources": {
+    "markit-train": {
+      "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_Italian-MarkIT/e210079df0aea331ec1dcaa90648d815ce94c3ce/it_markit-ud-train.conllu",
+      "sha256": "4f6fc3423acb00d49e1e167bd21b11ebbc23e22275fd6f5eeb4d75cfbbccc5c6"
+    },
+    "markit-dev": {
+      "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_Italian-MarkIT/e210079df0aea331ec1dcaa90648d815ce94c3ce/it_markit-ud-dev.conllu",
+      "sha256": "633b6186f47ecfebfcff4ff9c7e19a0cbffd1f655f14fc1e9265b12bda597f97"
+    },
     "kaikki-es": {
       "release": "lingua-pack-sources-it-es-2026.10.25",
       "url": "https://kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz",
