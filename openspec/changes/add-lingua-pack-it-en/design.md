@@ -255,11 +255,13 @@ English edition does not know (« Old Italian form of », « proscribed spelling
 « censored spelling of », « truncation of »); apocopes misread (`quel`'s usage note, `or`, `mar`, `san`)
 or left unglossed (`gran` by kaikki's target, `alcun` across the determiner and the adjective);
 bracketed construction and auxiliary notes (86 rows of the 20,000); « etc » without its period; names'
-runs after a common word's (1,009 rows, fr-en's class); the Italian Wiktionary's rows repeating a sense
-across parts of speech (11: `ex`, `beige`, `wow`, `horror`); `negra` « black, nigger », unlabelled; the
+runs after a common word's (1,009 rows, fr-en's class); `negra` « black, nigger », unlabelled; the
 species among the expressions (302); the `del` family's runs read as `X` (kaikki's `contraction`); the
 carried meanings D4.1 reads first where a row's own senses come before (`colla` opening on « with the »
-before « glue », `soldi` on « penny, cent » before « money »).
+before « glue », `soldi` on « penny, cent » before « money »). The Italian Wiktionary's rows repeating a
+sense across parts of speech (`ex`, `beige`, `wow`, `horror`), listed here at the proposal, are done by
+this change (*Implementation*: a sense repeated word for word is shown once), and the narrowing of D4.1
+keeps `colla` off « with the ».
 
 ## Risks / Trade-offs
 
@@ -344,12 +346,12 @@ ranks: 1–1,000 / 1,001–5,000 / 5,001–20,000 / beyond):
 
 | Rule | Rows changed | Lemmas gained | Expressions | Examples |
 |---|---|---|---|---|
-| D4.1, carried meanings | 4 (2 / 0 / 2 / 0) | 9 (6 / 0 / 2 / 1) | 21 gained | `del`, `della`, `delle`, `degli`, `dello`, `ed` gained; `mi` « me; (to) me; … », `ad` « to, at, in »; `altissimo` « highest; … », `santissimo`; `anch'io` « me too (subject) », `cent'anni`, `patate fritte` |
+| D4.1, carried meanings | 5 (3 / 0 / 2 / 0) | 9 (6 / 0 / 2 / 1) | 21 gained | `del`, `della`, `delle`, `degli`, `dello`, `ed` gained; `mi` « me; (to) me; … », `ad` « to, at, in », `dei` « of the, from the; some »; `altissimo` « highest; … », `santissimo`; `anch'io` « me too (subject) », `cent'anni`, `patate fritte` |
 | D4.2, acronyms and names | 14 (6 / 2 / 3 / 3) | `ad` lost alone, regained with D4.1 | — | `io`, `ora`, `meno`, `durante`, `voi`, `anzi` lose a name; `salvo`, `uni`; `este` « this », `elle` « she » |
 | D4.3, letters | 5 (2 / 2 / 0 / 1) | — | — | `mi`, `chi`, `coppa`, `ni` lose a Greek letter; `lambda` |
 | D4.4, notes | 370 (31 / 81 / 142 / 116) | — | 13 changed | `lavoro` « work », `anno`, `da`, `video`, `classe`, `mercato`, `fenomeno`; `avere` loses « See Category:… », `mio` « Same as entry above » |
 | a sense repeated word for word | 18 (1 / 2 / 8 / 7) | — | — | `ex` « ex, former », `wow`, `horror`, `beige`, `crash` |
-| **Together** | **410 (41 / 87 / 155 / 127)** | **9 (6 / 0 / 2 / 1)**, none lost | 13 changed, 21 gained | coverage 91.2 / 84.2 / 75.7 → 91.3 / 84.2 / 75.7 |
+| **Together** | **411 (42 / 87 / 155 / 127)** | **9 (6 / 0 / 2 / 1)**, none lost | 13 changed, 21 gained | coverage 91.2 / 84.2 / 75.7 → 91.3 / 84.2 / 75.7 |
 
 ### Deviations
 
@@ -369,8 +371,11 @@ ranks: 1–1,000 / 1,001–5,000 / 5,001–20,000 / beyond):
   « with the » before « glue », `cuori` on « when talking about the organ » (an `extra` that is a note),
   `fusa` on « spindle » before « purr », `magi` on « archaic, literary, dialectal », `cogli` « with the »
   in place of *cogliere*'s lent senses; `sommi` would read the Italian « mi sono ». Implemented: Italian's
-  three shapes wherever they stand; fr-en's wordings (`synonym` left out) only for a word whose lowercase
-  entries hold nothing but such pointers; the meaning read from the gloss — its text past a semicolon or a
+  shapes wherever they stand — the three D4.1 names and, since the review, the `di` family's contraction
+  (« contraction of di + i; of the, from the »), which the narrowing would otherwise keep from `dei`, whose
+  other entries are the plural of *dio* and two alternative forms (one row: `dei` « of the, from the;
+  some », in place of « some »; no expression nor coverage moves) —; fr-en's wordings (`synonym` left out)
+  only for a word whose lowercase entries hold nothing but such pointers; the meaning read from the gloss — its text past a semicolon or a
   colon outside quotation marks and parentheses, else its first quoted text —, never from `extra`; a
   meaning made only of the pointer's own words is none. Forgone, each an addition to a row its own senses
   gloss: `guai` « trouble », `mura` « wall », `peste` « footprint », `esteri` « ester », `bravissimo`
@@ -405,10 +410,10 @@ ranks: 1–1,000 / 1,001–5,000 / 5,001–20,000 / beyond):
 English dump (3,082,192,147 B) and the Italian one, derives both catalogues, and publishes
 `lingua-pack-sources-it-en-<snapshot>` with `kaikki-Italian.jsonl.zst` (`ae7de484…`, 665,207,473 B) and
 `kaikki-it-traductions-en.jsonl.zst` (`e192643a…`, 7,216,558 B). Simulated by `build.sh --update it-en`
-over the same bytes, snapshot 2026.10.25: `gloss.tsv` 33,209 rows (`d2495579…`), `senses.tsv`
-(`28774212…`), `mwe.tsv` 9,831 rows (`ce2aecea…`), `NOTICE` (`c2a0af44…`); the pin records it-fr as the
-reference and the six studied tables as committed; `pack_version` `2026.10.25+2744487.5bc3d87`; the pack
-2,467,740 B, its base 1,551,534 B — it-fr's, `f8c78228…` —, its layer 916,446 B. The tables do not depend
+over the same bytes, snapshot 2026.10.25: `gloss.tsv` 33,209 rows (`f08d1a5a…`), `senses.tsv`
+(`aff67e8d…`), `mwe.tsv` 9,831 rows (`ce2aecea…`), `NOTICE` (`c2a0af44…`); the pin records it-fr as the
+reference and the six studied tables as committed; `pack_version` `2026.10.25+7f4aed6.5bc3d87`; the pack
+2,467,844 B (`7c7a42e3…`), its base 1,551,534 B — it-fr's, `f8c78228…` —, its layer 916,550 B. The tables do not depend
 on the day; the snapshot, `pack_version` and the pack's sha256 do. `build.sh --reduce it-en` from the pin
 so written gives the same tables, manifest and pin byte for byte, and `check-reducer` passes.
 
@@ -422,7 +427,9 @@ a gloss the reader chose win; `committed_tables.rs` holds the pack to its pin, w
 base to it-fr's, its credits and its not being listed; `test/baseline/word-card-it-en.txt` (726 lines)
 renders the 96 grammar and 49 phrase probes in English (« third-person singular past historic (passato
 remoto) of parlare », « may also be the present participle of parlare », `del` « some, of the, from the »,
-`d'accordo` « in agreement; agreed; sure!, OK!, … »).
+`d'accordo` « in agreement; agreed; sure!, OK!, … »). After the review's `di` shape, the golden moves in four lines — the
+pack line and the three answers holding `dei` (« of the, from the; some ») — and the card snapshot not at
+all: `dei` is no grammar probe.
 
 ### Change 17's refinements, read for it-en
 
@@ -461,3 +468,31 @@ predicted tables by an Italian–English reading of the 300 commonest rows and o
 - **The narrowing's forgone readings**: a plural's or a degree's meaning beside a word's own senses
   (`guai` « trouble », `mura` « wall », `bravissimo` « very good »), to read once the row's order is
   decided.
+
+**The review's reading of the 1,000 commonest** (about 29 rows whose first sense is wrong), with ranks:
+
+- **A sense of the wrong part of speech first**: `più` (16) « anymore, any longer » before « more »,
+  `bene` (73) « upper-class, posh, high », `gente` (128) « noble », `forte` (264) « fort, fortress »,
+  `partito` (275) the heraldic « party per pale », `squadra` (386) « set square », `presto` (416)
+  « ready », `prodotto` (464) « extensive, protracted », `usato` (590) « usual, customary », `ufficio`
+  (602) « moral duty », `morire` (650) « death », `parlamento` (740) « conversation, talk », `medio` (755)
+  « middle finger », `prego` (814) « prayer », `stazione` (835) « position, posture ».
+- **A description or a pointer's wording as the gloss**: `lo` (21) opens on a usage note of some 300
+  characters (« the form of il that is used before the so-called impure consonants… ») ending in
+  « the », and every `l'` card shows it, `l'` being a form of `lo`; `de` (94) « Marche, Milan, Rome, and
+  Venice form of di »; `el` (842) « archaic, regional, and Rome form of il »; `minimo` (950) « superlative
+  degree of piccolo », untagged; `ce` (198) « reinforcing particle, “do” ».
+- **A pointer that lends nothing**: `vado` (451) « ford; dyer's woad… », where it-fr reads *andare*'s
+  « aller » (Italian's forms: change 17); the feminine nouns whose « female equivalent of X » lends
+  nothing beside another sense — 73 such senses among the 20,000 —, the harmful ones `amica` (881)
+  « girlfriend » alone, `bambina` (1,481) « babe », `compagna` (2,815) « wife, spouse », `spagnola`
+  (2,546) « Spanish influenza; … », `svizzera` (1,450) « Switzerland; hamburger », `fiorentina` (3,247)
+  « T-bone steak », `brutta` (1,454) « rough copy ».
+- **The eight-sense cap**: `piano` (214) loses « plan » to it, its first senses a plane's and a pope's.
+- **Elsewhere**: `USA`'s gloss opens on the supercontinent (« America, the Americas (a supercontinent…) »,
+  its first synonym's entry) before « United States »; the English card's « plural and masculine and
+  feminine plural of grande » (change 18's English renderer, not the tables).
+- **Out of this change's scope, noted**: the fr-en requirement D11 re-copies says no translation table
+  glosses a French expression in fr-en, while fr-en's expressions read the French Wiktionary's English
+  translations since add-lingua-fr-en-translated-expressions (D6); the contradiction is inherited from
+  `add-lingua-pack-fr-en`, copied whole as D11 asks, and is that requirement's holder's to settle.

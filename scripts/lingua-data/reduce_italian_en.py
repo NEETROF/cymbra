@@ -75,7 +75,11 @@ def _entries(path):
 # especially before /a/; to, at, in »: `ad`, `ed`), the article's form (« form of the article i (“the”)
 # used before a vowel…; the »: `gli`), each after its last semicolon; and a pronoun's clitic case form
 # (« clitic accusative of io. me »: `mi`), after the full stop closing the pointer — the English
-# edition's `_CASE_FORM` needs the case word to open the gloss and a colon or a semicolon after it.
+# edition's `_CASE_FORM` needs the case word to open the gloss and a colon or a semicolon after it; and
+# the `di` family's contraction (« contraction of di + i; of the, from the »: `dei`, whose other entries
+# are the plural of *dio* and two alternative forms), read as the other carrying wordings read their
+# meaning (`_carried_text`), the `di` family being lemmas of their own by Italian's tokenisation.
+_DI_CONTRACTION = re.compile(r"^contraction of di\b", re.IGNORECASE)
 _EUPHONY = re.compile(r"\bfor euphony\b.*;\s*([^;]+?)\s*$", re.IGNORECASE | re.DOTALL)
 _ARTICLE_FORM = re.compile(r"^form of the article\b.*;\s*([^;]+?)\s*$", re.IGNORECASE | re.DOTALL)
 _CASE_FORM = re.compile(
@@ -119,12 +123,27 @@ def _after_separator(gloss):
     return None
 
 
+def _carried_text(gloss):
+    """The meaning a carrying wording writes in its gloss (`_CARRYING_POINTER`, `_DI_CONTRACTION`): its
+    text past a semicolon or a colon outside quotation marks and parentheses, else its first quoted text;
+    None when there is none, or when it is made only of the pointer's own words (« contraction of sono +
+    mi: mi sono »)."""
+    quoted = _QUOTED_MEANING.search(gloss)
+    meaning = _after_separator(gloss) or (quoted.group(1) if quoted else None)
+    if meaning:
+        pointer = gloss[: gloss.find(meaning)] if meaning in gloss else gloss
+        words = {w.lower() for w in _PIECES.findall(meaning)}
+        if words and words <= {w.lower() for w in _PIECES.findall(pointer)}:
+            return None
+    return meaning
+
+
 def carried_meaning(sense, pos, alone=True, edition=english.EN):
     """The meaning a pointer sense carries (D4.1), or None: a pointer (`reduce_common._is_form_of`) worded
-    as Italian's three shapes — a form for euphony, the article's form, a pronoun's clitic case form —, or,
-    when the word's lowercase entries hold nothing else (`alone`), as one of `_CARRYING_POINTER`'s. A meaning in
-    capitals only is none, and so is one made only of the pointer's own words (« contraction of sono +
-    mi: mi sono »)."""
+    as Italian's four shapes — a form for euphony, the article's form, a pronoun's clitic case form, the
+    `di` family's contraction —, or, when the word's lowercase entries hold nothing else (`alone`), as one
+    of `_CARRYING_POINTER`'s. A meaning in capitals only is none, and so is one made only of the pointer's
+    own words (« contraction of sono + mi: mi sono »)."""
     gloss = _gloss_text(sense)
     if not gloss or not common._is_form_of(sense, gloss, edition=edition):
         return None
@@ -132,14 +151,8 @@ def carried_meaning(sense, pos, alone=True, edition=english.EN):
     case = _CASE_FORM.match(gloss) if pos == "pron" else None
     if euphony or article or case:
         meaning = (euphony or article or case).group(1)
-    elif alone and _CARRYING_POINTER.match(gloss):
-        quoted = _QUOTED_MEANING.search(gloss)
-        meaning = _after_separator(gloss) or (quoted.group(1) if quoted else None)
-        if meaning:
-            pointer = gloss[: gloss.find(meaning)] if meaning in gloss else gloss
-            words = {w.lower() for w in _PIECES.findall(meaning)}
-            if words and words <= {w.lower() for w in _PIECES.findall(pointer)}:
-                return None
+    elif _DI_CONTRACTION.match(gloss) or (alone and _CARRYING_POINTER.match(gloss)):
+        meaning = _carried_text(gloss)
     else:
         return None
     meaning = (meaning or "").strip().rstrip(".").strip()
@@ -266,7 +279,8 @@ def read_as_italian(src, dst, *, edition=english.EN, rules=RULES, stats=None):
 
     - **A meaning a pointer carries** (D4.1, `carried_meaning`): read in its place, as the meaning the
       reviewed wordings write after their target — never in a name's or an acronym's entry: `del`
-      « some, of the, from the », `ed` « and », `ad` « to, at, in », `gli` « the », `mi` « me ».
+      « some, of the, from the », `dei` « of the, from the », `ed` « and », `ad` « to, at, in », `gli`
+      « the », `mi` « me ».
     - **Acronyms off common words, names off function words** (D4.2): an acronym's sense goes from a
       word with a lowercase entry of its own unless that entry only points at the acronym (`ad` loses
       `AD` « CEO », `pil` keeps `PIL`'s); a proper noun's entry goes from a word with a function word's
