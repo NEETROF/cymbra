@@ -135,11 +135,13 @@ The criteria were written before the run (release-lingua-spanish-translation D3,
 measure-lingua-translation-matrix-marks D4 for any native language; add-lingua-french-translation D6
 added the French examples, before fr-en and fr-es were run, and moved no verdict;
 measure-lingua-it-fr-translation-marks D3 added the Italian examples below, taken from the corpus,
-before it-fr was run, and moved no verdict), and a pair is judged in its **native language** — French
-for en-fr, es-fr and it-fr, English for es-en and fr-en, Spanish for en-es and fr-es. Through English,
-fr-es's mark crosses two alignments, as es-fr's does, and so does it-fr's, it-en then en-fr: it is
-judged against the rendering the reader sees, in the pair's native language, whatever the English one
-in between.
+before it-fr was run, and moved no verdict; measure-lingua-it-en-translation-marks D2 added their
+English counterparts, anchored on verdicts already committed, before it-en was run, and moved no
+verdict), and a pair is judged in its **native language** — French for en-fr, es-fr and it-fr,
+English for es-en, fr-en and it-en, Spanish for en-es and fr-es. Through English, fr-es's mark
+crosses two alignments, as es-fr's does, and so does it-fr's, it-en then en-fr: it is judged against
+the rendering the reader sees, in the pair's native language, whatever the English one in between.
+it-en's mark crosses one, the it-en model's alone: Italian is judged in English as French is (fr-en).
 
 - **Correct:**
   - the marks cover the rendering, in the pair's native language, of the selected word in that
@@ -170,6 +172,40 @@ with these examples from the corpus's Italian steps, written before it-fr was ru
   its kind (French had 8): the mark renders `unico` (« le seul »), never the article alone.
 - **Gender or number English lost:** a French rendering whose gender or number the route lost still
   counts as the word's rendering — step 79 « nemiche », step 71 « stereotipata ».
+
+**Italian selections, judged in English** (measure-lingua-it-en-translation-marks D2): the rules
+above, with these examples from the same Italian steps, anchored on verdicts already committed,
+written before it-en was run.
+
+- **A subject the model adds:** step 25 « Ha detto all'Andrew Marr Show »: a mark on « told »,
+  « said » or « He told » is correct, on « He » alone it is not — one of es-en's two wrong marks, k 25,
+  marked « he » for « said »; es-fr's k 25 « il a déclaré » was judged correct for carrying the subject
+  the rendering adds.
+- **A compound past rendered as a simple one:** the passato remoto is one word in English as in
+  Italian (es-en: k 65 « met », k 69 « released », k 81 « accused »), so the French case above does
+  not arise; the reverse does — an Italian compound past's participle (steps 5, 13, 17, 25, 31) often
+  renders as one English simple past: a mark on that word is correct, on « has » or « were » alone it
+  is not.
+- **A word after a fused preposition:** step 6's « Nel corso della storia » (also 22, 82, 91): a mark
+  on « course » or « In the course » is correct, on « In » alone it is not; an expression's rendering
+  (« Throughout ») counts.
+- **A word after an elided piece:** step 86's « l'unico nel Governo »: a mark on « only », « only
+  one » or « the only (one) » is correct — the article comes from « l' » (es-en k 86 « the only
+  one ») —, on « the » alone it is not.
+- **A clitic pronoun beside the selected verb** (steps 9, 31, 33, 97; none reflexive): step 33 « Gli
+  viene riconosciuto » → « He is credited »: « credited » or « is credited » is correct, « He » alone
+  is not (es-en k 33 marked « credited »); step 31 « l'ho scelta » → « I chose it »: « chose » is
+  correct, « it », « her » or « I » alone is not; step 97 « si incontrano » → « met »: « each other »
+  alone is not; step 9 « ci fossero » → « there were »: « were » or « be » is correct, « there » alone
+  is not.
+- **One Italian word, an English compound:** step 54 « Il capodanno cinese » → « Chinese New Year »
+  and step 78 « sveglia » → « alarm clock »: the whole compound is correct; « Year », « alarm » or
+  « clock » alone is part of a compound, which the criteria count wrong — es-en's k 54 (« Year »
+  judged correct) does not carry over, its Spanish selection being « Año » alone.
+- **Gender or number English does not mark, and a numeral beside the word:** step 79 « le due fazioni
+  nemiche » → « the two enemy factions »: a mark on « enemy » (or « hostile », « rival ») is correct,
+  on « two » it is not, as es-en's k 79 was judged; step 71 « stereotipata » → « stereotypical » or
+  « stereotyped ».
 
 One judge reads a pair, as the shipped pairs were judged; a doubtful line says so in
 `engine_reason`, and the owner may re-judge any line in the pull request — the figures are
