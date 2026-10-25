@@ -117,13 +117,13 @@ ESSERE = entry("essere", "verb", sense("Ser."), sense("Estar (algo o alguien en 
 SECONDO_NAME = entry("Secondo", "name", sense("Apellido"))
 SECONDO_NUM = entry("secondo", "num", sense("Segundo."), tags=["ordinal"])
 SECONDO_PREP = entry("secondo", "prep", sense("Según."))
-SEGRETO_NAME = entry("Segreto", "name", sense("Apellido."))  # made up: a name's note on a word only a table glosses
+CLOAKED_IT_NAME = entry("Segreto", "name", sense("Apellido."))  # made up: a name's note on a word only a table glosses
 STATI_UNITI = entry("Stati Uniti", "name", sense("Estados Unidos."))
 AMERICA = entry("America", "name", sense("América."), tags=["feminine"])
 
 SECTION = [
     CASA, TU, VEDERE, VERO_ADJ, VERO_NOUN, QUALE_PREP, CAZZO_INTJ, SETTE_CARDINAL, SETTE_FORM, STA, AVERE_AUXILIARY,
-    AVERE, AVER, SONO_NOUN, SONO_VERB, SUONO, ESSERE, SECONDO_NAME, SECONDO_NUM, SECONDO_PREP, SEGRETO_NAME,
+    AVERE, AVER, SONO_NOUN, SONO_VERB, SUONO, ESSERE, SECONDO_NAME, SECONDO_NUM, SECONDO_PREP, CLOAKED_IT_NAME,
     STATI_UNITI, AMERICA,
 ]  # fmt: skip
 
@@ -138,7 +138,7 @@ CASA_TRANSLATED = {
     ],
     "word": "casa",
 }
-SEGRETO_TRANSLATED = [
+CLOAKED_IT_TRANSLATED = [
     {"pos": "adj", "translations": [{"word": "secreto"}, {"word": "oculto"}], "word": "segreto"},
     {"pos": "noun", "translations": [{"word": "secreto"}, {"word": "oculto"}], "word": "segreto"},
 ]
@@ -165,19 +165,19 @@ QUALCUNO_TRANSLATED = {"pos": "pron", "translations": [{"word": "alguien"}, {"wo
 D_ACCORDO_TRANSLATED = {"pos": "adv", "translations": [{"word": "de acuerdo"}], "word": "d’accordo"}  # made up
 UN_PO_TRANSLATED = {"pos": "adv", "translations": [{"word": "un poco"}], "word": "un po'"}  # made up
 
-DIRECT = [CASA_TRANSLATED, *SEGRETO_TRANSLATED, *ACCADUTO_TRANSLATED, *CORSO_TRANSLATED, CREDO_TRANSLATED,
+DIRECT = [CASA_TRANSLATED, *CLOAKED_IT_TRANSLATED, *ACCADUTO_TRANSLATED, *CORSO_TRANSLATED, CREDO_TRANSLATED,
           ABBONAMENTO_TRANSLATED, QUALCUNO_TRANSLATED, D_ACCORDO_TRANSLATED, UN_PO_TRANSLATED]  # fmt: skip
 
 # — The Spanish Wiktionary's Spanish entries' Italian translations (kaikki-es-traductions-it.jsonl), recorded —
 
 MANZANO_LISTS = {"pos": "noun", "translations": [{"word": "it"}, {"word": "melo"}], "word": "manzano"}
-SECRETO_LISTS = {"pos": "noun", "translations": [{"word": "segreto"}], "word": "secreto"}
+CLOAKED_ES_LISTS = {"pos": "noun", "translations": [{"word": "segreto"}], "word": "secreto"}
 CAMBIO_LISTS = {
     "pos": "noun",
     "translations": [{"word": "cambio"}, {"word": "cambiamento"}, {"word": "scambio"}, {"word": "corso"}],
     "word": "cambio",
 }
-INVERTED = [MANZANO_LISTS, SECRETO_LISTS, CAMBIO_LISTS]
+INVERTED = [MANZANO_LISTS, CLOAKED_ES_LISTS, CAMBIO_LISTS]
 
 # — Wikidata's lexeme pairs (wikidata-lexemes-it-es.jsonl), recorded —
 
@@ -560,9 +560,9 @@ class TheSectionAsRead(Fixture):
         self.assertEqual(glosses["secondo"], "Segundo; Según")
         # The thin-pair clause: `segreto` has no lowercase entry, and the direct table glosses it.
         self.assertEqual(glosses["segreto"], "Secreto, oculto")
-        read, stats = self.read(SEGRETO_NAME, tabled=frozenset())
-        self.assertEqual(read, [SEGRETO_NAME], "no table glosses it: the name's note stays")
-        read, stats = self.read(SEGRETO_NAME, tabled=frozenset({"segreto"}))
+        read, stats = self.read(CLOAKED_IT_NAME, tabled=frozenset())
+        self.assertEqual(read, [CLOAKED_IT_NAME], "no table glosses it: the name's note stays")
+        read, stats = self.read(CLOAKED_IT_NAME, tabled=frozenset({"segreto"}))
         self.assertEqual((read, stats["names' notes off a word a table glosses"]), ([], 1))
 
     def test_spec_scenario_sense_links_superscripts_and_subscripts(self):
