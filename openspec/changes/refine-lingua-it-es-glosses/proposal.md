@@ -63,7 +63,7 @@ fr-en's treebank rule and MarkIT's counts are imported unchanged, as it-fr impor
   after the review of this proposal (`porca` « Cerda; … », `entrambi` « Ambos », `presa` « Toma,
   captura », `ragazza`'s « Novia »).
 - **Measured and left** (D13): ten partly right rows of the 300 (`vi`, `oltre`, `conto`), three rows a
-  person's word would fix (`tessera`, `cancellato`, `ognuno`: task 0.4, open), `mark` and `frodo`, the
+  person's word fixes (`tessera`, `cancellato`, `ognuno`: task 0.4, approved — `CORRECTIONS`), `mark` and `frodo`, the
   pivot's homographs, the Spanish edition's gaps.
 - **One re-reduction** (D14): a dispatch (`lingua-pack-update`, mode `reduce`, it-es) at it-es's pin, to
   which the implementation's first commit adds MarkIT's two sections by hand; together the rules change
@@ -117,8 +117,8 @@ None.
 - **Order.** After change 27 (on `main`, its requirement still open), whose requirement this change
   modifies; before change 30; either side of change 23, which edits the same lines of
   `pack_sources.py`'s `PINNED` for it-en.
-- **The owner's**: three questions answered on 2026-10-25, each as recommended — the six glosses a
-  person writes, the ten rows past the 300, the short form of given names (tasks 0.1–0.3) —, one open,
-  three words no source gives (0.4); the gloss diff after the specialist's review, the golden's and the
+- **The owner's**: four questions answered on 2026-10-25, each as recommended — the six glosses a
+  person writes, the ten rows past the 300, the short form of given names, three words no source gives
+  (tasks 0.1–0.4); the gloss diff after the specialist's review, the golden's and the
   card's moved lines (task 4.1).
 - **Effort**: 3.75–5.25 ideal days (design, *Effort*), against the programme's 2–3.5.

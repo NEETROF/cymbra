@@ -468,9 +468,11 @@ source's but the three marked written by a person:
 | `presa` | the pivot's « Enchufe, tomacorriente, toma » | « Toma, captura » | D2 drops the section's « Captura » — *added after the review* |
 
 Hand-written glosses, all of this change: `a`'s « A », `te`'s « ti », `svezia`'s « Suecia », and D11's
-four rows — seven, the owner's (tasks 0.1, 0.2). Three wrong rows need a word no source gives and go
-back to the owner (task 0.4): `tessera` « Tesela » (the card, « Tarjeta, carné »), `cancellato`
-« Celosiado » (« Cancelado, borrado »), `ognuno` « Cada, todo, cada una » (« Cada uno »).
+four rows — seven, the owner's (tasks 0.1, 0.2). Three wrong rows needed a word no source gives and went
+back to the owner, who approved them (task 0.4, 2026-10-25): three more `CORRECTIONS` rows, each written
+by a person — `tessera` « Tesela » → « Tarjeta, carné » (the card), `cancellato` « Celosiado » →
+« Cancelado, borrado », `ognuno` « Cada, todo, cada una » → « Cada uno »: ten in all, 22 rows of
+`CORRECTIONS`.
 
 ### D13 — Measured and left
 
@@ -478,7 +480,8 @@ back to the owner (task 0.4): `tessera` « Tesela » (the card, « Tarjeta, carn
   allí, para allá », `oltre` « Además, más », `pure` « Hasta », `seguito`, `piano` « Llano, plano; … »
   (it-en's row opens it on the floor), `strada` « Camino », `conto` « Cálculo », `tratta`, `avanti`: no
   rule reaches them without moving right rows, and each opens on a right word or a near one.
-- **Wrong rows a person's word would fix**: `tessera`, `cancellato`, `ognuno` — task 0.4.
+- **Wrong rows a person's word fixes**: `tessera`, `cancellato`, `ognuno` — task 0.4, approved:
+  `CORRECTIONS` (D12).
 - **Left wrong past the 300**: `mark` « Mark », `frodo` « Fraude » (*frodo* is mostly « di frodo »,
   contraband): no source gives a better word.
 - **A function word's pivot words given by one table**: measured as a rule and rejected (`alquanto`,
@@ -525,7 +528,7 @@ passes unblessed.
 
 ## Settled by the owner (2026-10-25)
 
-Answered by Guillaume on 2026-10-25, each as recommended (tasks 0.1–0.3):
+Answered by Guillaume on 2026-10-25, each as recommended (tasks 0.1–0.4):
 - **Q1, six glosses a person writes** (D11, D12): (a), all six — `della` « De la », `dei` and `degli`
   « De los », `delle` « De las », `a` « A » before the section's sense, `te` « Ti, te » —, each marked
   written by a person and reported to the Wiktionary.
@@ -542,7 +545,9 @@ Answered by Guillaume on 2026-10-25, each as recommended (tasks 0.1–0.3):
   full note (« Nombre de pila de varón, equivalente del español Adolfo »): the difference between the
   two pairs is the owner's choice; the variants without « de pila » read the same way.
 
-**Open (task 0.4)**: three rows a person's word would fix, `tessera`, `cancellato`, `ognuno`.
+- **Q4, three words no source gives** (D12, task 0.4): (a) — `tessera` « Tarjeta, carné »,
+  `cancellato` « Cancelado, borrado », `ognuno` « Cada uno », three `CORRECTIONS` rows, each written by a
+  person and marked so, as the seven above.
 
 Decided here, so not asked: every rule and its variant (the criteria), the precedents (fr-en's Q2, Q3,
 Q5; it-en's D6 on names), the 15 reviewed rows of the 300 whose words a source writes (all of D12's
@@ -556,8 +561,8 @@ rows of the 300 but `a` and `te`).
   many tables give for a function word can still be wrong (`ci`, `te`): those rows are reviewed.
 - **[wordfreq's thresholds]** → measured in variants; a word left out by D5 or moved by D6 is listed in
   the pull request among the changed rows.
-- **[Hand-written glosses]** → seven, marked in the code and the pull request, approved by the owner;
-  three more wait for the owner (task 0.4).
+- **[Hand-written glosses]** → ten, marked in the code and the pull request, approved by the owner
+  (tasks 0.1, 0.2, 0.4).
 - **[A pin gains a source]** → MarkIT's two files are it-fr's, at the same commit and sha256s, read for
   counts alone.
 
