@@ -62,12 +62,12 @@ same add-on with its sign-in buttons hidden.
 
 One language pack per pair `packs.json` lists, `<studied>-<native>`: `en-fr` (English glossed in
 French), `es-fr` (Spanish in French), `es-en` (Spanish in English), `en-es` (English in Spanish),
-`fr-en` (French in English), `fr-es` (French in Spanish), `it-fr` (Italian in French) and `it-en`
-(Italian in English). Each ships as **two parts**, which the
+`fr-en` (French in English), `fr-es` (French in Spanish), `it-fr` (Italian in French), `it-en`
+(Italian in English) and `it-es` (Italian in Spanish). Each ships as **two parts**, which the
 add-on assembles when it loads them: the pair's **layer**, `assets/packs/<pair>.lingua` (its
-translations, senses, expressions and NOTICE, 0.5 to 1.6 MB), and its studied language's **base**,
+translations, senses, expressions and NOTICE, 0.3 to 1.6 MB), and its studied language's **base**,
 `assets/bases/<studied>.lingua` (forms, frequencies, levels and readings, 0.9 to 1.6 MB) — one base
-for every pair of that language, so the package carries **eight layers and four bases**, twelve files.
+for every pair of that language, so the package carries **nine layers and four bases**, thirteen files.
 They are **generated, not authored**: the built files are not in the archive, but everything they
 are built from is. `yarn gen:pack:real` runs `scripts/lingua-data/build.sh --parts <pair>
 assets/bases/<studied>.lingua assets/packs/<pair>.lingua` for each pair, which builds both from the
@@ -78,8 +78,8 @@ download and no Python** — and checks each against the sha256 recorded in `tab
 (`layer` and `base`; also printed at the end of this README against each file's path): the build
 fails unless it produces the very bytes the package carries. A language's second pair builds its base
 again, and the build stops if one byte differs. To compare, run `shasum -a 256
-assets/packs/*.lingua assets/bases/*.lingua` after the build: the twelve sha256 are the ones listed
-at the end of this README, and the files of `dist-firefox/assets/` are the same twelve.
+assets/packs/*.lingua assets/bases/*.lingua` after the build: the thirteen sha256 are the ones listed
+at the end of this README, and the files of `dist-firefox/assets/` are the same thirteen.
 
 Those tables were reduced from public corpora by one script per pair and the rule modules it
 imports, all in this archive: `scripts/lingua-data/reduce_common.py`, the rules every pair shares,
@@ -158,20 +158,19 @@ not from `mozilla/firefox-translations-models`: each file lists its path there a
 the gzip file Mozilla serves, beside the sha256 of its decompressed bytes that the add-on checks.
 The package downloads none of them until the reader turns « Traduction étendue » on, and then only
 the models its pairs' routes need. This package ships the pairs `en-fr`, `es-fr`, `es-en`, `en-es`,
-`fr-en`, `fr-es`, `it-fr` and `it-en` (`packs.json`), and a reader's pairs are those of their native
-language, so a Spanish-speaking reader downloads two models at most and a French- or English-speaking
-reader three — a French-speaking reader the models of `en-fr`, `es-fr` and `it-fr`
-(`en-fr/base-memory/2.0`, `es-en/base-memory/2.0` and `it-en/base-memory/2.0`, Italian going through
-English, the engine holding two of them at a time), an English-speaking reader those of `es-en`,
-`fr-en` and `it-en` (`es-en/base-memory/2.0`, `fr-en/base-memory/2.0` and `it-en/base-memory/2.0`,
-three one-model routes, the engine holding two of them at a time), a Spanish-speaking reader those
-of `en-es` and `fr-es` (`en-es/base-memory/2.1` and `fr-en/base-memory/2.0`, French going through
-English); a French-speaking reader downloads nothing of `fr-en`, since no pair of this package
-teaches them French, and a French- or English-speaking reader `it-en/base-memory/2.0` only once they
-study Italian. The other Italian routes are listed ahead of their pairs: no pair of this package
-studies Italian for Spanish speakers, nor is glossed in Italian, so no Spanish-speaking reader
-downloads `it-en/base-memory/2.0`, no reader downloads `en-it/base-memory/2.1`, and nothing is kept
-or loaded for their routes.
+`fr-en`, `fr-es`, `it-fr`, `it-en` and `it-es` (`packs.json`), and a reader's pairs are those of
+their native language, so every reader downloads three models at most — a French-speaking reader the
+models of `en-fr`, `es-fr` and `it-fr` (`en-fr/base-memory/2.0`, `es-en/base-memory/2.0` and
+`it-en/base-memory/2.0`, Italian going through English, the engine holding two of them at a time), an
+English-speaking reader those of `es-en`, `fr-en` and `it-en` (`es-en/base-memory/2.0`,
+`fr-en/base-memory/2.0` and `it-en/base-memory/2.0`, three one-model routes, the engine holding two of
+them at a time), a Spanish-speaking reader those of `en-es`, `fr-es` and `it-es`
+(`en-es/base-memory/2.1`, `fr-en/base-memory/2.0` and `it-en/base-memory/2.0`, French and Italian going
+through English, the engine holding two of them at a time); a French-speaking reader downloads nothing
+of `fr-en`, since no pair of this package teaches them French, and any reader `it-en/base-memory/2.0`
+only once they study Italian. The other Italian routes are listed ahead of their pairs: no pair of this
+package is glossed in Italian, so no reader downloads `en-it/base-memory/2.1`, and nothing is kept or
+loaded for their routes.
 
 ## Where the add-on reaches the network
 

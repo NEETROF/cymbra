@@ -310,7 +310,7 @@ blind second one.
 | **fr-es, engine (pivot fr→en→es)**   | **90 / 91 — 98.9 %**     | **9 %**  | **First tier: marked (shipped since change 52)**                                |
 | **it-fr, engine (pivot it→en→fr)**   | **93 / 97 — 95.9 %**     | **3 %**  | **First tier: marked (shipped since the Italian programme's change 20)**        |
 | **it-en, engine, judged in English** | **94 / 97 — 96.9 %**     | **3 %**  | **First tier: marked (shipped since the Italian programme's change 25)**        |
-| **it-es, engine (pivot it→en→es)**   | **90 / 95 — 94.7 %**     | **5 %**  | **First tier: marked (listed, inert until the Italian programme's change 30)**  |
+| **it-es, engine (pivot it→en→es)**   | **90 / 95 — 94.7 %**     | **5 %**  | **First tier: marked (shipped since the Italian programme's change 30)**        |
 | es-fr, gloss-located (experiment)    | 76 / 78 — 97.4 %         | 22 %     | —                                                                               |
 | en-fr, gloss-located (experiment)    | 76 / 79 — 96.2 %         | 21 %     | —                                                                               |
 | es-en, gloss-located (experiment)    | 75 / 78 — 96.2 %         | 22 %     | —                                                                               |
@@ -407,7 +407,7 @@ What these numbers say:
   (« originally from » → « originally », k 7). Run twice, the results were byte for byte the same.
 - **it-es is on the first tier** through two models, it-en then en-es: 90 of its 95 shown marks
   correct, 5 withheld — listed in `MARKED_PAIRS`, inert until the Italian programme's change 30
-  (`enable-lingua-italian-for-spanish-speakers`) lists it-es in `packs.json`. Its five wrong marks, by
+  (`enable-lingua-italian-for-spanish-speakers`) listed it-es in `packs.json`, marked since. Its five wrong marks, by
   `k`: « fossero » marked the personal « a » of « regula a los agentes » instead of « hubiera » (k 9);
   « volta » marked « última » instead of « vez » (k 30, as fr-es's « la » was); « comprendono »,
   rendered « entienden » in the wrong sense, marked « que » (k 57, as it-fr's « qui » and it-en's

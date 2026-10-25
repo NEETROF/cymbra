@@ -937,8 +937,9 @@ digest is `reduce-it-es.py`, `reduce_common.py`, `reduce_edition_es.py`, `reduce
 `reduce_italian_es.py` (it-es's own pre-pass) and `reduce_spanish_tables.py` (fr-es's table rules
 copied, every fr-es global a parameter, so that fr-es's and en-es's digests do not move; they adopt the
 module at their next re-pin): an edit of either of the last two re-pins it-es alone, an edit of the
-Spanish edition en-es, fr-es and it-es. No package carries it-es (change 30 lists it). Its first update
-writes its folder whole: the pull request that registers it carries none.
+Spanish edition en-es, fr-es and it-es. Packages carry it-es since the Italian programme's change 30
+(enable-lingua-italian-for-spanish-speakers) listed it in `packs.json`, its tables above their floor and
+refined by change 28. Its first update writes its folder whole: the pull request that registers it carries none.
 
 | Table | Source | Licence | What we keep |
 |---|---|---|---|

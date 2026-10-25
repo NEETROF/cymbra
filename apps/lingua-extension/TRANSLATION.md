@@ -60,7 +60,7 @@ taken again.
 | `it-en` | `it-en/base-memory/2.0`                                                 | yes, since the Italian programme's row 25 (English speakers) |
 | `en-it` | `en-it/base-memory/2.1`                                                 | not yet: the Italian programme's row 45                      |
 | `it-fr` | `it-en/base-memory/2.0`, then `en-fr/base-memory/2.0` — through English | yes, since the Italian programme's row 20 (Italian studied)  |
-| `it-es` | `it-en/base-memory/2.0`, then `en-es/base-memory/2.1` — through English | not yet: the Italian programme's row 30                      |
+| `it-es` | `it-en/base-memory/2.0`, then `en-es/base-memory/2.1` — through English | yes, since the Italian programme's row 30 (Spanish speakers) |
 | `fr-it` | `fr-en/base-memory/2.0`, then `en-it/base-memory/2.1` — through English | not yet: the Italian programme's row 50                      |
 | `es-it` | `es-en/base-memory/2.0`, then `en-it/base-memory/2.1` — through English | not yet: the Italian programme's row 54                      |
 
@@ -97,10 +97,11 @@ registry's `uncompressedHash`. it-fr downloads it-en's and en-fr's files (51,994
 it-en's and en-es's (51,615,655), fr-it fr-en's and en-it's (52,744,550), es-it es-en's and
 en-it's (52,750,887) — two models each, as es-fr and fr-es. it-fr ships since the Italian
 programme's row 20 (`enable-lingua-italian`): a French-native reader who accepts Italian downloads
-it-en's model beside en-fr's, and no English- or Spanish-native reader ever does. No other pair of
-`packs.json` studies Italian or is glossed in it, so no reader's pairs need the five other routes:
-nothing is downloaded, kept or loaded for them until the programme ships their pairs — it-en in row
-25, it-es in row 30, en-it in row 45, fr-it in row 50 and es-it in row 54. The model host must serve both models before any package or App Store build whose
+it-en's model beside en-fr's. it-en ships since row 25 (`enable-lingua-italian-for-english-speakers`),
+its one model, and it-es since row 30 (`enable-lingua-italian-for-spanish-speakers`): a Spanish-native
+reader who accepts Italian downloads it-en's model beside en-es's. No pair of `packs.json` is glossed
+in Italian, so no reader's pairs need the three other routes: nothing is downloaded, kept or loaded
+for them until the programme ships their pairs — en-it in row 45, fr-it in row 50 and es-it in row 54. The model host must serve both models before any package or App Store build whose
 catalogue names them is released: the owner dispatches `lingua-model-deploy` right after the merge,
 and until then the release gates refuse (`add-lingua-italian-translation-models` D6).
 
@@ -118,7 +119,11 @@ loaded two at a time, a route's (`add-lingua-italian-translation-models` D2). Si
 `enable-lingua-italian`, a French-native reader of English, Spanish and Italian holds the first row
 below: three models, two at a time, and the setting says « environ 340 Mo », the memory of two
 (`enable-lingua-italian` D6); one of Italian alone downloads it-en's and en-fr's files, 51,994,773 B
-(52,0 Mo), « environ 340 Mo » too. The other rows wait for their Italian pairs:
+(52,0 Mo), « environ 340 Mo » too. The English row holds since row 25
+(`enable-lingua-italian-for-english-speakers`), and the Spanish row since row 30
+(`enable-lingua-italian-for-spanish-speakers`): a Spanish-native reader of Italian alone downloads
+it-en's and en-es's files, 51,615,655 B (51,6 MB), « unos 340 MB » as for three. The Italian row waits
+for its pairs:
 
 | Native  | Pairs               | Models              | Download               |
 | ------- | ------------------- | ------------------- | ---------------------- |
@@ -165,7 +170,7 @@ the same selections through it-en then en-es and judged in Spanish (row 29,
 `measure-lingua-it-es-translation-marks`): 90 of its 95 shown marks correct (86 of 95 with its
 doubtful lines counted wrong), 5 % withheld, on the first tier — a blind second judge agreed on every
 line —, listed ahead of its readers too, inert until row 30
-(`enable-lingua-italian-for-spanish-speakers`) lists it-es. Rows 38, 49 and 53 measure the other
+(`enable-lingua-italian-for-spanish-speakers`) listed it-es, marked since. Rows 38, 49 and 53 measure the other
 Italian pairs through their routes before they ship.
 
 It is bundled, so the reviewed package decides what is accepted; the host only serves bytes. The
