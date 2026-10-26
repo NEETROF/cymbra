@@ -197,7 +197,7 @@ describe("the matrix: each page leads with its readers' pairs (D2)", () => {
     expect(t.coverage.perPair).toBe(false);
     expect(t.coverage.head).toEqual(["Palabras más frecuentes", "Inglés"]);
     expect(t.coverage.note).toBe(
-      "Las definiciones proceden del Wikcionario y de traducciones escritas por personas, nunca de una traducción automática. La traducción ampliada, opcional, traduce el inglés.",
+      "Los significados proceden del Wikcionario y, para el italiano, también de Wikidata, escritos por personas, nunca por una traducción automática. La traducción ampliada, opcional, traduce el inglés.",
     );
   });
 
@@ -314,7 +314,7 @@ describe("the coverage table and the translation note per pair (D4)", () => {
       "Les définitions viennent du Wiktionnaire et de traductions écrites par des personnes, jamais d'une traduction automatique. La traduction étendue, facultative, traduit l'anglais vers le français, l'espagnol vers le français (en passant par l'anglais), l'espagnol vers l'anglais et l'anglais vers l'espagnol.",
     );
     expect(linguaPageText("es", matrix, noDiscord).coverage.note).toBe(
-      "Las definiciones proceden del Wikcionario y de traducciones escritas por personas, nunca de una traducción automática. La traducción ampliada, opcional, traduce del inglés al español, del inglés al francés, del español al francés (pasando por el inglés) y del español al inglés.",
+      "Los significados proceden del Wikcionario y, para el italiano, también de Wikidata, escritos por personas, nunca por una traducción automática. La traducción ampliada, opcional, traduce del inglés al español, del inglés al francés, del español al francés (pasando por el inglés) y del español al inglés.",
     );
   });
 

@@ -405,7 +405,9 @@ For the owner:
 - **5, provenance**: (a), Wikidata named — « Los significados proceden del Wikcionario y, para el
   italiano, también de Wikidata, escritos por personas, nunca por una traducción automática. » The site's
   three `glossesOrigin` sentences follow when change 30 lands: they are static, and would name Wikidata
-  before it-es is listed if they landed earlier.
+  before it-es is listed if they landed earlier. Narrowed by the owner on 2026-10-26: change 30 names
+  Wikidata in the Spanish sentence only — only it-es uses Wikidata, so the French and English pages,
+  whose readers' Italian is it-fr's and it-en's, keep their sentences.
 - **6, the Chrome Web Store's Spanish screenshots**: unchanged.
 - **7, the es-ES and es-MX Support URL**: `https://cymbra.app/es/soporte/` (`apps/site/src/pages/es/soporte.md`).
 - And, for change 30 (its Open Question 1): the Spanish summary « La web en inglés, francés o italiano:

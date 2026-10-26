@@ -80,6 +80,11 @@ interface LinguaTable {
   captionOneNative: string;
   captionPerPair: string;
   commonestWords: string;
+  /**
+   * Where the glosses come from. The Spanish sentence names Wikidata for Italian since it-es ships
+   * (enable-lingua-italian-for-spanish-speakers; add-lingua-italian-spanish-listings D6, option a);
+   * the French and English do not, since only it-es uses Wikidata (the owner, 2026-10-26).
+   */
   glossesOrigin: string;
   translationServes: string;
   translationNotYet: string;
@@ -409,7 +414,7 @@ const es: LinguaTable = {
     "La proporción de las palabras más frecuentes que tienen una definición en la lengua del lector, medida de la misma manera para cada par, en los diccionarios que se entregan con la extensión.",
   commonestWords: "Palabras más frecuentes",
   glossesOrigin:
-    "Las definiciones proceden del Wikcionario y de traducciones escritas por personas, nunca de una traducción automática.",
+    "Los significados proceden del Wikcionario y, para el italiano, también de Wikidata, escritos por personas, nunca por una traducción automática.",
   translationServes: " La traducción ampliada, opcional, traduce {served}.",
   translationNotYet: " Pendiente: {unserved}.",
   throughEnglish: " (pasando por el inglés)",

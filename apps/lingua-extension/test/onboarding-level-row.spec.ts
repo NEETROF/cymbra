@@ -103,4 +103,17 @@ describe("onboarding — a language's level (add-lingua-spanish-levels)", () => 
       "Level saved: B1 (estimated). You can close this tab and start reading.",
     );
   });
+
+  it("asks Italian's level in Spanish, its levels estimated (enable-lingua-italian-for-spanish-speakers D3)", async () => {
+    const row = mount("it", true, "es");
+    expect(row.querySelector("h2")?.textContent).toBe("¿Cuál es tu nivel de italiano?");
+    expect(row.querySelector(".note")?.textContent).toBe(
+      "Niveles estimados según la frecuencia de las palabras, a falta de una lista MCER de uso libre para el italiano.",
+    );
+    row.querySelector<HTMLButtonElement>('button[data-lvl="B1"]')!.click();
+    await settle();
+    expect(row.querySelector(".confirm")?.textContent).toBe(
+      "Nivel guardado: B1 (estimado). Puedes cerrar esta pestaña y empezar a leer.",
+    );
+  });
 });

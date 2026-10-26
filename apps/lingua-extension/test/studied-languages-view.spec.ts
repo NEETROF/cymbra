@@ -20,6 +20,8 @@ const FR_EN_ALONE = ["en-fr", "es-fr", "es-en", "en-es", "fr-en"];
 const SEVEN = [...SIX, "it-fr"];
 /** The eight pairs, it-en last: packs.json since enable-lingua-italian-for-english-speakers. */
 const EIGHT = [...SEVEN, "it-en"];
+/** The nine pairs, it-es last: packs.json since enable-lingua-italian-for-spanish-speakers. */
+const NINE = [...EIGHT, "it-es"];
 const settle = async (): Promise<void> => {
   for (let i = 0; i < 3; i++) await new Promise((resolve) => setTimeout(resolve, 0));
 };
@@ -162,15 +164,17 @@ describe("« Langues étudiées »", () => {
     expect(s.block.querySelector('input[data-language="fr"]')).toBeNull();
   });
 
-  it("offers on the bundle's list what each native language's pairs study (enable-lingua-italian, enable-lingua-italian-for-english-speakers)", async () => {
-    expect(SHIPPED_PAIRS).toEqual(EIGHT);
+  it("offers on the bundle's list what each native language's pairs study (enable-lingua-italian, enable-lingua-italian-for-english-speakers, enable-lingua-italian-for-spanish-speakers)", async () => {
+    expect(SHIPPED_PAIRS).toEqual(NINE);
     const languages = async (native: NativeLanguage, pairs: readonly string[] = SHIPPED_PAIRS) =>
       offered((await mount(["en"], pairs, native)).block).map(([language]) => language);
     expect(await languages("fr")).toEqual(["en", "es", "it"]);
     expect(await languages("en")).toEqual(["es", "fr", "it"]);
-    expect(await languages("es")).toEqual(["en", "fr"]);
-    // On the seven pairs, an English speaker was offered Spanish and French alone (enable-lingua-italian).
+    expect(await languages("es")).toEqual(["en", "fr", "it"]);
+    // On the seven pairs, an English speaker was offered Spanish and French alone (enable-lingua-italian),
+    // and on the eight a Spanish speaker English and French alone (enable-lingua-italian-for-english-speakers).
     expect(await languages("en", SEVEN)).toEqual(["es", "fr"]);
+    expect(await languages("es", EIGHT)).toEqual(["en", "fr"]);
   });
 
   // enable-lingua-italian-for-english-speakers D3: Italian offered to an English speaker after Spanish
@@ -197,6 +201,31 @@ describe("« Langues étudiées »", () => {
     const s = await mount(["en"], EIGHT, "es", "es");
     expect(s.block.querySelector('input[data-language="it"]')).toBeNull();
     expect(offered(s.block).map(([language]) => language)).toEqual(["en", "fr"]);
+  });
+
+  // enable-lingua-italian-for-spanish-speakers D3: Italian offered to a Spanish speaker after English
+  // and French, in the Spanish interface.
+  it("offers a Spanish speaker English, French then Italian, and ticking Italian adds it after English (enable-lingua-italian-for-spanish-speakers)", async () => {
+    const s = await mount(["en"], NINE, "es", "es");
+    expect(s.block.hidden).toBe(false);
+    expect(offered(s.block)).toEqual([
+      ["en", "Inglés"],
+      ["fr", "Francés"],
+      ["it", "Italiano"],
+    ]);
+    expect(s.box("en").checked).toBe(true);
+    expect(s.box("it").checked).toBe(false);
+    s.box("it").checked = true;
+    s.box("it").dispatchEvent(new Event("change"));
+    await settle();
+    expect(await s.port.studiedLanguages()).toEqual(["en", "it"]);
+    expect(s.persist).toHaveBeenCalledOnce();
+    expect(s.block.querySelector('input[data-language="es"]')).toBeNull();
+  });
+
+  it("offers a Spanish speaker English then Italian when fr-es is under its floor (enable-lingua-italian-for-spanish-speakers)", async () => {
+    const s = await mount(["en"], [...FR_EN_ALONE, "it-fr", "it-en", "it-es"], "es", "es");
+    expect(offered(s.block).map(([language]) => language)).toEqual(["en", "it"]);
   });
 
   // enable-lingua-italian D1, D3: Italian offered to a French speaker after English and Spanish, and to

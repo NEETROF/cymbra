@@ -4,8 +4,9 @@ The reduced tables Cymbra Lingua's Italian→Spanish data pack is built from: It
 Spanish, for Spanish speakers studying Italian — Italian's thin reader pair (add-lingua-pack-it-es,
 change 27 of `docs/lingua/italian-programme.md`). They are committed so that every build makes the same
 pack with no download, and so that a change to the dictionary is a pull request whose diff shows it.
-No extension package carries the pack: `apps/lingua-extension/packs.json` does not list it-es until
-Italian is enabled for Spanish speakers (change 30). Its glosses are refined by change 28
+Extension packages carry the pack since `enable-lingua-italian-for-spanish-speakers` (change 30) lists
+it-es in `apps/lingua-extension/packs.json`, which it does because these tables stand at or above their
+coverage floor (change 27) and were refined by change 28. Its glosses are refined by change 28
 (`refine-lingua-it-es-glosses`): they open on the Spanish word their sources agree on, in the order
 Italian uses the word, in Spanish words read as their sources mean them (*How the sources are read*).
 

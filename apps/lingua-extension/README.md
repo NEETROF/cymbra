@@ -208,19 +208,20 @@ yarn lint && yarn format:check && yarn typecheck && yarn test
 
 Packs themselves are **never committed**; what they are built from is. The pairs a package
 ships are one list, `packs.json` (`["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr",
-"it-en"]`; the first pair glossed in a native language gives that native language's default studied
-language, so French, studied by English and Spanish speakers, comes after the first four, and Italian,
-studied by French speakers since enable-lingua-italian and by English speakers since
-enable-lingua-italian-for-english-speakers, last). Each pair's pack ships as **two parts**
+"it-en", "it-es"]`; the first pair glossed in a native language gives that native language's default
+studied language, so French, studied by English and Spanish speakers, comes after the first four, and
+Italian, studied by French speakers since enable-lingua-italian, by English speakers since
+enable-lingua-italian-for-english-speakers and by Spanish speakers since
+enable-lingua-italian-for-spanish-speakers, last). Each pair's pack ships as **two parts**
 (ship-lingua-pack-bases-once): the pair's **layer** — its glosses, senses, expressions and NOTICE —
 at the pair's path, `assets/packs/<pair>.lingua`, and its studied language's **base** — forms,
 lemmas, ranks, levels, readings and dictionary words — once for every pair of that language, at
-`assets/bases/<studied>.lingua`: eight layers and four bases, 13.0 MB where eight whole packs would
-be 18.6. At run time an engine starts with the default pair's base and layer, assembled
+`assets/bases/<studied>.lingua`: nine layers and four bases, 13.4 MB where nine whole packs would
+be 20.5. At run time an engine starts with the default pair's base and layer, assembled
 (`LinguaEngine.assemble`), and adds another listed pair's the first time its language is needed
 (`addParts`; `src/analyzer/engine.ts`, `src/analyzer/pairs.ts`). `tool/check_variants.mjs` refuses a
 package whose files differ from the list's layers and their languages' bases, or that carries a
-whole pack, and any list but en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr then it-en: shipping another pair,
+whole pack, and any list but en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr, it-en then it-es: shipping another pair,
 or dropping one, takes two edits in one pull request, one of them in that gate.
 `yarn gen:pack:real` builds each listed pair's layer and its studied language's base
 (`scripts/lingua-data/build.sh --parts`) from the reduced tables committed under

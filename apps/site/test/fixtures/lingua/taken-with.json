@@ -9,7 +9,8 @@
       "fr-en": [93.9, 87.2, 76.8],
       "fr-es": [83.2, 70.9, 57.1],
       "it-fr": [89.4, 82.0, 73.4],
-      "it-en": [91.3, 84.2, 75.8]
+      "it-en": [91.3, 84.2, 75.8],
+      "it-es": [85.2, 76.1, 65.1]
     }
   },
   "routes": {
@@ -20,6 +21,7 @@
     "fr-en": ["fr-en/base-memory/2.0"],
     "fr-es": ["fr-en/base-memory/2.0", "en-es/base-memory/2.1"],
     "it-fr": ["it-en/base-memory/2.0", "en-fr/base-memory/2.0"],
-    "it-en": ["it-en/base-memory/2.0"]
+    "it-en": ["it-en/base-memory/2.0"],
+    "it-es": ["it-en/base-memory/2.0", "en-es/base-memory/2.1"]
   }
 }

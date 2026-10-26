@@ -3498,13 +3498,15 @@ fn spec_scenario_the_credits_of_it_en() {
 #[test]
 fn spec_scenario_it_en_is_shipped_once_italian_is_enabled_for_english_speakers() {
     // No package listed it-en while the list of shipped pairs did not name it (D10); change 25
-    // (enable-lingua-italian-for-english-speakers D1) lists it, last, with its `testdata/it-en/`,
-    // the it-fr fixture glossed in English.
+    // (enable-lingua-italian-for-english-speakers D1) lists it right after it-fr — last until change
+    // 30 (enable-lingua-italian-for-spanish-speakers) listed it-es after it —, with its
+    // `testdata/it-en/`, the it-fr fixture glossed in English.
     let packs = json(
         &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../apps/lingua-extension/packs.json"),
     );
     let pairs = packs["pairs"].as_array().unwrap();
-    assert_eq!(pairs.last().unwrap(), "it-en", "{pairs:?}");
+    let it_fr = pairs.iter().position(|p| p == "it-fr").unwrap();
+    assert_eq!(pairs[it_fr + 1], "it-en", "{pairs:?}");
     assert!(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../scripts/lingua-data/testdata/it-en")
@@ -3515,7 +3517,8 @@ fn spec_scenario_it_en_is_shipped_once_italian_is_enabled_for_english_speakers()
 
 // it-es (add-lingua-pack-it-es, the Italian programme's change 27): Italian's thin reader pair, glossed in
 // Spanish from the Spanish and Italian Wiktionaries, Wikidata and a pivot of seven Wiktionaries' tables.
-// Its first update wrote its folder whole (D1); no package lists it before change 30 (D11).
+// Its first update wrote its folder whole (D1); no package listed it before change 30
+// (enable-lingua-italian-for-spanish-speakers), which lists it (D11).
 
 /// it-es's pack, whole and as its base and layer, built once per test binary.
 fn it_es() -> &'static (Vec<u8>, SplitPack) {
@@ -3823,24 +3826,19 @@ fn spec_scenario_it_es_s_glosses_refined() {
 }
 
 #[test]
-fn spec_scenario_it_es_is_not_shipped() {
-    // No package lists it-es while the list of shipped pairs does not name it (D11): change 30 lists it,
-    // with its `testdata/it-es/`, which nothing builds before.
+fn spec_scenario_it_es_is_shipped_once_italian_is_enabled_for_spanish_speakers() {
+    // No package listed it-es while the list of shipped pairs did not name it (D11); change 30
+    // (enable-lingua-italian-for-spanish-speakers D1) lists it, last, with its `testdata/it-es/`,
+    // the it-fr fixture glossed in Spanish.
     let packs = json(
         &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../apps/lingua-extension/packs.json"),
     );
-    if packs["pairs"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .any(|p| p == "it-es")
-    {
-        return;
-    }
+    let pairs = packs["pairs"].as_array().unwrap();
+    assert_eq!(pairs.last().unwrap(), "it-es", "{pairs:?}");
     assert!(
-        !PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../scripts/lingua-data/testdata/it-es")
-            .exists(),
-        "a fixture of it-es before a package lists it"
+            .is_dir(),
+        "it-es's fixture, for test builds"
     );
 }

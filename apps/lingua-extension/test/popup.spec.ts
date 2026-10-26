@@ -250,6 +250,18 @@ describe("the popup's page, filled from the catalogue", () => {
     expect(r.text("note")).toBe("No text in your languages found on this page.");
   });
 
+  it("A Spanish-native reader of Italian: the panel names Italian in Spanish (enable-lingua-italian-for-spanish-speakers D3)", async () => {
+    const italian = { language: "it" as const, languages: ["it" as const], levelsEstimated: true };
+    let r = await rendered("es", stats({ ...italian, analysable: false }));
+    expect(r.text("note")).toBe("No se detectó texto en italiano en esta página.");
+    r = await rendered("es", stats({ ...italian, needsLevel: true }));
+    expect(r.text("level-cta")).toBe("Elige tu nivel de italiano");
+    r = await rendered("es", stats(italian));
+    expect(r.text("level-line")).toBe("Nivel de italiano estimado: B1");
+    r = await rendered("es", stats({ ...italian, analysable: false, languages: ["en", "it"] }));
+    expect(r.text("note")).toBe("No se detectó texto en tus idiomas en esta página.");
+  });
+
   it("A reader of French, English- or Spanish-native: the panel names French in their language (enable-lingua-french D3)", async () => {
     const french = { language: "fr" as const, languages: ["fr" as const], levelsEstimated: true };
     let r = await rendered("en", stats({ ...french, analysable: false }));

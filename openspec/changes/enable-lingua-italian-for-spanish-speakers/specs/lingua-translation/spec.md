@@ -23,28 +23,24 @@ The translation setting SHALL state the memory of two models when the reader's p
 
 #### Scenario: A French speaker reading Italian
 - **WHEN** it-fr is listed and a reader whose native language is French accepts Italian alone
-- **THEN** the setting says, in the French interface, that it downloads it-en's and en-fr's files once, their sum read from the catalogue, and uses « environ 340 Mo », the two models it-fr's route goes through
+- **THEN** the setting says, in the French interface, that it downloads 52,0 Mo once — it-en's and en-fr's files, their sum read from the catalogue — and uses « environ 340 Mo », the two models it-fr's route goes through
 
 #### Scenario: A French speaker reading English, Spanish and Italian
 - **WHEN** it-fr is listed and a reader whose native language is French accepts English, Spanish and Italian
-- **THEN** the setting says, in the French interface, that it downloads en-fr's, es-en's and it-en's files once, their sum read from the catalogue, and uses « environ 340 Mo », the engine holding two of the three at a time
+- **THEN** the setting says, in the French interface, that it downloads 78,2 Mo once — en-fr's, es-en's and it-en's files, their sum read from the catalogue — and uses « environ 340 Mo », the engine holding two of the three at a time
 
 #### Scenario: An English speaker reading Italian alone
 - **WHEN** it-en is listed and a reader whose native language is English accepts Italian alone
-- **THEN** the setting says, in the English interface, that it downloads it-en's files once, their size read from the catalogue, and uses "about 200 MB"
+- **THEN** the setting says, in the English interface, that it downloads 26.2 MB once — it-en's files, their size read from the catalogue — and uses "about 200 MB"
 
 #### Scenario: An English speaker reading Spanish, French and Italian
 - **WHEN** it-en is listed and a reader whose native language is English accepts Spanish, French and Italian
-- **THEN** the setting says, in the English interface, that it downloads es-en's, fr-en's and it-en's files once, their sum read from the catalogue, and uses "about 340 MB", the engine holding two of the three at a time
-
-#### Scenario: An Italian speaker reading English
-- **WHEN** en-it is listed, extended translation serves it, and a reader whose native language is Italian accepts English
-- **THEN** the setting says, in the Italian interface, that it downloads en-it's files once, their size read from the catalogue, and uses about 200 MB, as the Italian interface writes it
+- **THEN** the setting says, in the English interface, that it downloads 78.7 MB once — es-en's, fr-en's and it-en's files, their sum read from the catalogue — and uses "about 340 MB", the engine holding two of the three at a time
 
 #### Scenario: A Spanish speaker reading Italian alone
 - **WHEN** it-es is listed, extended translation serves it, and a reader whose native language is Spanish accepts Italian alone
-- **THEN** the setting says, in the Spanish interface, that it downloads it-en's and en-es's files once, their sum read from the catalogue, and uses unos 340 MB, the two models it-es's route goes through
+- **THEN** the setting says, in the Spanish interface, that it downloads 51,6 MB once — it-en's and en-es's files, their sum read from the catalogue — and uses unos 340 MB, the two models it-es's route goes through
 
 #### Scenario: A Spanish speaker reading English, French and Italian
 - **WHEN** fr-es and it-es are listed, extended translation serves both, and a reader whose native language is Spanish accepts English, French and Italian
-- **THEN** the setting says, in the Spanish interface, that it downloads en-es's, fr-en's and it-en's files once, their sum read from the catalogue, and uses unos 340 MB, the engine holding two of the three at a time
+- **THEN** the setting says, in the Spanish interface, that it downloads 77,9 MB once — en-es's, fr-en's and it-en's files, their sum read from the catalogue — and uses unos 340 MB, the engine holding two of the three at a time

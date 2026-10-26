@@ -56,9 +56,11 @@ Spanish, French (add-lingua-french-word-card D1) and Italian (add-lingua-italian
 ahead of the extension's `StudiedLanguage`, which change 52 (enable-lingua-french) widened when it
 listed the French pairs, and Italian ahead of it until the Italian programme's change 20
 (enable-lingua-italian) widened it when it listed it-fr: since then an Italian card is opened for a
-French-native reader, and since its change 25 (enable-lingua-italian-for-english-speakers) listed it-en
-for an English-native one too; the renderers' Italian rows are held by their unit tests and the it-fr
-and it-en snapshots (`test/word-card-it-fr.spec.ts`, `test/word-card-it-en.spec.ts`). Every renderer
+French-native reader, since its change 25 (enable-lingua-italian-for-english-speakers) listed it-en
+for an English-native one too, and since its change 30 (enable-lingua-italian-for-spanish-speakers)
+listed it-es for a Spanish-native one; the renderers' Italian rows are held by their unit tests and the
+it-fr, it-en and it-es snapshots (`test/word-card-it-fr.spec.ts`, `test/word-card-it-en.spec.ts`,
+`test/word-card-it-es.spec.ts`). Every renderer
 has a table for every studied language: the French renderer's French, which no French-native reader
 is shown, serves the interface override M2 reserves and the enumeration of what each renderer names,
 as the English renderer's English and the Spanish renderer's Spanish do; its Italian is the first

@@ -82,11 +82,12 @@ describe("relayTranslation", () => {
     expect(marks.map((m) => fr.slice(m.start, m.end))).toEqual(["maison"]);
   });
 
-  it("The shipped pairs today: en-fr and es-fr are marked, as before; es-en, en-es, fr-en, fr-es, it-fr and it-en were listed ahead of their readers and ship marked since their packs are listed, and it-es is listed ahead of its readers, inert until the Italian programme's change 30 (routes-by-pair D4, matrix-marks D5, french-translation D7, it-fr-translation-marks D4, enable-lingua-italian D5, it-en-translation-marks D3, enable-lingua-italian-for-english-speakers D4, it-es-translation-marks D4)", () => {
+  it("The shipped pairs today: en-fr and es-fr are marked, as before; es-en, en-es, fr-en, fr-es, it-fr, it-en and it-es were listed ahead of their readers and ship marked since their packs are listed (routes-by-pair D4, matrix-marks D5, french-translation D7, it-fr-translation-marks D4, enable-lingua-italian D5, it-en-translation-marks D3, enable-lingua-italian-for-english-speakers D4, it-es-translation-marks D4, enable-lingua-italian-for-spanish-speakers D4)", () => {
     expect(MARKED_PAIRS).toEqual(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en", "it-es"]);
-    // Every marked pair ships, but those listed ahead of their readers.
-    expect(MARKED_PAIRS.filter((pair) => !SHIPPED_PAIRS.includes(pair))).toEqual(["it-es"]);
+    // Every marked pair ships: none is listed ahead of its readers any more.
+    expect(MARKED_PAIRS.filter((pair) => !SHIPPED_PAIRS.includes(pair))).toEqual([]);
     expect(SHIPPED_PAIRS).toContain("it-en"); // since enable-lingua-italian-for-english-speakers (D4)
+    expect(SHIPPED_PAIRS).toContain("it-es"); // since enable-lingua-italian-for-spanish-speakers (D4)
     // Keyed by pair, never by studied language: a language alone is not in the list.
     expect(MARKED_PAIRS).not.toContain("en");
     expect(MARKED_PAIRS).not.toContain("es");
@@ -225,8 +226,10 @@ describe("relayTranslation", () => {
       language: "it",
     };
     expect(request.sentence.slice(114, 122)).toBe("maggiore");
-    // 90 of 95, 5 % withheld; listed, not shipped: inert until change 30 lists it-es in packs.json.
+    // 90 of 95, 5 % withheld; shipped since change 30 (enable-lingua-italian-for-spanish-speakers D4)
+    // lists it-es in packs.json.
     expect(MARKED_PAIRS).toContain("it-es");
+    expect(SHIPPED_PAIRS).toContain("it-es");
     const result = await relayTranslation(access, request, pairOf(request.language, "es"));
     expect(pairs).toEqual(["it-es", "it-es"]);
     expect(seen).toEqual([

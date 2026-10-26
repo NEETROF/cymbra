@@ -273,6 +273,8 @@ describe("the app's pairs (add-lingua-italian-baseline, task 7.1)", () => {
 
   /** enable-lingua-italian's list: it-fr the one pair studying Italian. */
   const ITALIAN = [...FRENCH, "it-fr"];
+  /** enable-lingua-italian-for-english-speakers' list: no pair of Italian glossed in Spanish. */
+  const ITALIAN_EN = [...ITALIAN, "it-en"];
 
   it("follow it-fr for a French-native reader of Italian once it is listed, and no English or Spanish reader's on its list (enable-lingua-italian D5, D9)", async () => {
     expect(SHIPPED_PAIRS).toContain("it-fr");
@@ -284,9 +286,11 @@ describe("the app's pairs (add-lingua-italian-baseline, task 7.1)", () => {
     ]);
     for (const native of ["en", "es"]) {
       for (const studied of [["it"], ["it", "en"], ["es", "it"], ["en", "es", "fr", "it"]]) {
-        // On enable-lingua-italian's list; since enable-lingua-italian-for-english-speakers, an English
-        // reader's Italian follows it-en (below), a Spanish reader's still nothing.
-        const pairs = await appPairs(port(studied, native), native === "en" ? ITALIAN : SHIPPED_PAIRS);
+        // On enable-lingua-italian's list for an English reader, on
+        // enable-lingua-italian-for-english-speakers' for a Spanish one: since then an English reader's
+        // Italian follows it-en, and since enable-lingua-italian-for-spanish-speakers a Spanish
+        // reader's follows it-es (below).
+        const pairs = await appPairs(port(studied, native), native === "en" ? ITALIAN : ITALIAN_EN);
         const where = `${native}: ${studied.join(",")}`;
         expect(
           pairs.every((pair) => SHIPPED_PAIRS.includes(pair)),
@@ -319,5 +323,18 @@ describe("the app's pairs (add-lingua-italian-baseline, task 7.1)", () => {
     const s = setup({ pairs: () => appPairs(port(["es", "it"], "en")), catalogue: async () => committed });
     const view = (await openAppTranslation(s.deps)).view();
     expect(view).toMatchObject({ phase: "offer", pairs: ["es-en", "it-en"] });
+  });
+
+  it("follow it-es for a Spanish-native reader of Italian once it is listed, through it-en then en-es (enable-lingua-italian-for-spanish-speakers D4, D8)", async () => {
+    expect(SHIPPED_PAIRS).toContain("it-es");
+    expect(await appPairs(port(["en", "it"], "es"))).toEqual(["en-es", "it-es"]);
+    expect(await appPairs(port(["it"], "es"))).toEqual(["it-es"]);
+    expect(modelsFor(committed, await appPairs(port(["it"], "es"))).map((m) => m.version)).toEqual([
+      IT_EN,
+      "en-es/base-memory/2.1",
+    ]);
+    const s = setup({ pairs: () => appPairs(port(["en", "it"], "es")), catalogue: async () => committed });
+    const view = (await openAppTranslation(s.deps)).view();
+    expect(view).toMatchObject({ phase: "offer", pairs: ["en-es", "it-es"] });
   });
 });

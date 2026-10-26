@@ -28,7 +28,7 @@ Each precondition below is a fact only once its change is implemented:
 - it-es committed at or above its floor (change 27, the floor fixed by the owner at its task 0.1), its
   known defects fixed (change 28, `refine-lingua-it-es-glosses`, not yet proposed), its marks measured
   (change 29);
-- change 20 implemented and released;
+- change 20 implemented (released with this change and change 25, D11);
 - change 25 implemented: this change appends after it-en and copies its *Guided activation* block;
 - the Spanish catalogue names Italian (change 15: « Italiano », « Nivel de italiano estimado »), and the
   card names Italian's forms in Spanish (change 18: « pretérito perfecto simple de indicativo »);
@@ -135,7 +135,10 @@ goes through English:
 
 Change 20's requirement already reads « two models or more »; this change adds the two Spanish
 scenarios. If it-es's translation is not offered (D4), a Spanish reader's accepted Italian adds no
-model, and the scenarios' condition (« extended translation serves it ») is false.
+model, and the scenarios' condition (« extended translation serves it ») is false. **Measured at
+implementation** (2026-10-25, the committed catalogue): Italian alone 51,615,655 B, « Descarga 51,6 MB
+una vez »; the three 77,850,370 B, « Descarga 77,9 MB una vez » — the scenarios state both, as change
+25's state its English figures.
 
 ### D6 — The Spanish description and activation page
 
@@ -159,6 +162,10 @@ resaltadas, porcentaje honesto. Sin conexión y privado. » (109). Said the same
 | `lede` | « Lee la web en inglés, en francés o en italiano: las palabras que todavía no conoces aparecen resaltadas, directamente en Safari. » |
 | `step3` | « En Safari, abre la extensión desde el <strong>menú de la barra de direcciones</strong> y elige tu nivel de inglés. Para el francés o el italiano, márcalo en los <strong>Ajustes</strong> de la extensión, pestaña <strong>Idioma</strong>, y luego elige su nivel. » |
 
+**The owner's answer (OQ1, 2026-10-25)**: the third draft, « La web en inglés, francés o italiano:
+palabras desconocidas resaltadas, porcentaje honesto. Sin conexión. » (105), and the page's `lede` and
+`step3` as drafted.
+
 The page grows by three words (the lede two, step 3 one). Change 40 watched the iOS page's scroll, so the dogfood reads it on
 an iPhone. The French and English pages do not move; `test/apple-activation-page.spec.ts` follows (the
 Spanish page names inglés, francés and italiano, in that order).
@@ -171,6 +178,12 @@ be the list's. The site needs no code change (change 21's tables):
 - the French and English Lingua pages gain it-es's row;
 - the site's fixtures are refreshed from the built pages, and `test/astro/lingua-page.spec.ts` counts
   a row per listed pair: nine, ten or eleven as en-it and fr-it are listed.
+
+**Where the glosses come from** (`glossesOrigin`, change 31's D6 and task 1.3, the owner's option a):
+the Spanish sentence names Wikidata once it-es is listed — « Los significados proceden del Wikcionario
+y, para el italiano, también de Wikidata, escritos por personas, nunca por una traducción automática. »
+The French and English sentences are unchanged (the owner, 2026-10-26): only it-es uses Wikidata, so on
+the French and English pages, whose readers' Italian is it-fr's and it-en's, the claim would be false.
 
 The Spanish home card, which is data-driven, reads « Lee la web en inglés, en francés o en italiano… »
 from this pull request's coverage file. Change 31 is implemented first, as change 26 is before change
@@ -243,9 +256,11 @@ Safari (macOS, iOS). The owner runs it, and findings go to the pull request.
 
 ### D11 — The release
 
-it-es is released on its own, TestFlight first, with change 31's listings. The site is deployed after
-the merge with it-es's figures, before the listings are pasted. Each submission is the owner's (I12,
-M18).
+**One release carries changes 20, 25 and 30** (the owner, 2026-10-26): it-fr, it-en and it-es ship
+together, dogfooded in full — the passes of the three changes' D10 — before the release pull request
+(#1036, release-please) merges. TestFlight first, with changes 21's, 26's and 31's listings. The site is
+deployed after the merge with it-es's figures, before the listings are pasted. Each submission is the
+owner's (I12, M18). This replaces the release « on its own » first proposed, and answers Open Question 5.
 
 ### D12 — Requirements true of their time
 
@@ -311,6 +326,11 @@ The list's requirement follows the branch:
 
 *Guided activation* is not shared: change 45 does not touch it.
 
+**As implemented (2026-10-25)**: it-es first (OQ4, en-it being stage 3 and not built). The list's and
+the memory sentence's blocks are re-copied from change 25 as it stands on its branch (with its
+measured figures), only D12's clauses differing; `enable-lingua-italian-speakers` is dropped from
+`archiveAfter`, and change 45 re-copies this change's blocks when it lists en-it.
+
 **Against changes 50 and 54** (Italian speakers learning French and Spanish), which extend this change's
 list, memory and *Guided activation* blocks: the same rule holds, whichever is implemented later
 re-copying the earlier's blocks and naming it in `archiveAfter`; and it-es is appended at the end of
@@ -328,8 +348,8 @@ fr-it in the order `packs.json` first listed them » (amended by change 50's pul
 
 ## Migration Plan
 
-Nothing to migrate: Italian is offered, never added. The owner releases it after changes 20's and 25's
-releases. Rollback is the previous release, which reads schema 4 and knows `it` but lists no it-es. A
+Nothing to migrate: Italian is offered, never added. The owner releases it in one release with changes
+20 and 25 (D11). Rollback is the previous release, which reads schema 4 and knows `it` but lists no it-es. A
 Spanish reader's Italian is left out of what it accepts, and kept in the backup, until this release
 returns (D10).
 
@@ -358,6 +378,13 @@ For the owner:
 3. **it-es after its refinement** (D2): listed only once change 28 has merged. Recommended.
 4. **Which of it-es and en-it is listed first** (D13): no technical preference once the second re-copies
    the first's blocks; the one whose data is ready first.
-5. **The release** (D11): on its own, TestFlight first. Recommended.
+5. **The release** (D11): on its own, TestFlight first. Recommended. — Answered 2026-10-26: one release
+   carrying changes 20, 25 and 30 (D11).
 6. **Reading pivot glosses before listing** (D10): a sample of about fifty, read by the owner or by an
    agent reading Italian and Spanish, its findings fixed in change 28 or here. Recommended.
+
+The owner's answers (2026-10-25): 1, the third draft and the page as drafted (D6); 2, settled by change
+29's figures — 94.7 % correct, 5 % withheld, first tier: marked; 3, change 28 merged (#1070) before the
+list; 4, it-es first (D13); 5, one release carrying changes 20, 25 and 30, dogfooded in full before #1036
+merges (2026-10-26, D11); 6, done — a specialist read the it-es glosses twice (change 27's
+review, change 28's gloss-diff review), the top 300 now 0 wrong.
