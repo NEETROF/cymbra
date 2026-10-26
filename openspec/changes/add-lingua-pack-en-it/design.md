@@ -377,7 +377,10 @@ expansion, `mx` « signorə, signor, a », a split of « signor/a », for change
 - **The owner's decisions (Guillaume, 2026-10-26)**: the floor, `FLOORS["en-it"]` = 89.4 / 80.8 / 68.3, **settled**; the sources release, as *The bytes* list it, **approved** for publication by the update dispatch.
 - **Change 32** (`add-lingua-italian-native-language`, #1079, merged): before it, `lingua-pack-build`
   refused a pack glossed in `it`; on the rebased branch the forecast tables build.
-- **The update's pull request** (task 3.2): `tables/en-it/` and its README, the floor step and the
-  baselines step of `lingua-extension-check.yml` (`--pair en-it` has no table to measure before),
-  `lingua-pack-update.yml`'s bless steps (`en_it_baseline`, `word-card-en-it.spec.ts`), and
-  `tables/en-fr/README.md` naming en-it among the pairs reading `../en/`.
+- **The update's pull request** (task 3.2): done in the branch the dispatch pushed (run 40324469757, the
+  release `lingua-pack-sources-en-it-2026.10.26`): the tables byte for byte the forecast, the floor step and
+  the baselines step of `lingua-extension-check.yml`, `lingua-pack-update.yml`'s bless of `en_it_baseline`,
+  the golden (blessed here: no workflow blesses a pair's first golden), `cross_native.rs`,
+  `committed_tables.rs`, `testdata/en-it/`, the row cut, `tables/en-it/README.md` and the en-fr README.
+- **Changes 33 and 34** (the Italian interface and renderer): `word-card-en-it.spec.ts` and its snapshot,
+  the card rendered in Italian over this golden, and its line in the bless step (task 4.3).

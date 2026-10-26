@@ -16,20 +16,20 @@
 
 ## 3. The pipeline and the tables
 
-- [ ] 3.1 `gloss_coverage.py` `FLOORS["en-it"]` and `test_gloss_coverage.py`; `lingua-extension-check.yml`'s floor and baselines steps; `lingua-pack-update.yml`'s pair option, `keep` text and bless steps; `test_reduce_loops.py` (D8).
-- [ ] 3.2 [owner-dispatched] `lingua-pack-update` in mode `update` for en-it, with the owner's go-ahead for its sources release (given 2026-10-26: `lingua-pack-sources-en-it-<date>`, the files design *The bytes* lists): the pull request commits `tables/en-it/` and `tables/en/` byte for byte; the coverage at or above the floor; `tables/en-it/README.md` (D9) and the programme's *Measured figures*; the pack built against its pin.
+- [x] 3.1 `gloss_coverage.py` `FLOORS["en-it"]` and `test_gloss_coverage.py`; `lingua-extension-check.yml`'s floor and baselines steps; `lingua-pack-update.yml`'s pair option, `keep` text and bless steps; `test_reduce_loops.py` (D8). — Done; the bless step runs `en_it_baseline`, and gains `word-card-en-it.spec.ts` with 4.3's snapshot.
+- [x] 3.2 [owner-dispatched] `lingua-pack-update` in mode `update` for en-it, with the owner's go-ahead for its sources release (given 2026-10-26: `lingua-pack-sources-en-it-<date>`, the files design *The bytes* lists): the pull request commits `tables/en-it/` and `tables/en/` byte for byte; the coverage at or above the floor; `tables/en-it/README.md` (D9) and the programme's *Measured figures*; the pack built against its pin. — Done: run 40324469757 (2026.10.26), release `lingua-pack-sources-en-it-2026.10.26`, the tables byte for byte the forecast; 91.4 / 82.8 / 70.3 against 89.4 / 80.8 / 68.3.
 
 ## 4. The baseline and the checks
 
-- [ ] 4.1 `crates/lingua-wasm/tests/en_it_baseline.rs` and `baseline/en-it.golden` (en-es's 40 extra lemmas; the studied side en-fr's), blessed in task 3.2's pull request; `cross_native.rs` with en-it; both workflows run it (D8).
-- [ ] 4.2 `crates/lingua-pack/tests/committed_tables.rs`: en-it built to its pin, its credits, listed in no package while the list does not name it; `scripts/lingua-data/testdata/en-it/` (`pipeline_testdata.rs`); `tables/en-fr/README.md` names en-it among the pairs reading `../en/`.
-- [ ] 4.3 `apps/lingua-extension/test/row-gloss-tables.spec.ts` with en-it; `test/word-card-en-it.spec.ts` and `test/baseline/word-card-en-it.txt`, the card in Italian over en-it's golden, re-blessed with it (D8).
+- [x] 4.1 `crates/lingua-wasm/tests/en_it_baseline.rs` and `baseline/en-it.golden` (en-es's 40 extra lemmas; the studied side en-fr's), blessed in task 3.2's pull request; `cross_native.rs` with en-it; both workflows run it (D8).
+- [x] 4.2 `crates/lingua-pack/tests/committed_tables.rs`: en-it built to its pin, its credits, listed in no package while the list does not name it; `scripts/lingua-data/testdata/en-it/` (`pipeline_testdata.rs`); `tables/en-fr/README.md` names en-it among the pairs reading `../en/`.
+- [ ] 4.3 `apps/lingua-extension/test/row-gloss-tables.spec.ts` with en-it; `test/word-card-en-it.spec.ts` and `test/baseline/word-card-en-it.txt`, the card in Italian over en-it's golden, re-blessed with it (D8). — The row cut is done (no row empty or ending on an opening mark); the card in Italian waits for the Italian interface and renderer (changes 33 and 34: no `src/i18n/it` on `main`).
 
 ## 5. Gates
 
-- [ ] 5.1 Nothing else moves: every other pair's tables, pins, packs and goldens unchanged.
-- [ ] 5.2 `cargo fmt --all --check`; `cargo clippy --workspace --all-targets -- -D warnings`; `cargo test --workspace`; the Python tests; `gloss_coverage.py --check`; in `apps/lingua-extension`: `yarn gen:pack`, `yarn test`.
-- [ ] 5.3 `openspec validate add-lingua-pack-en-it --strict`; the archive order; `docs/lingua/italian-programme.md` row 36's status.
+- [x] 5.1 Nothing else moves: every other pair's tables, pins, packs and goldens unchanged.
+- [x] 5.2 `cargo fmt --all --check`; `cargo clippy --workspace --all-targets -- -D warnings`; `cargo test --workspace`; the Python tests; `gloss_coverage.py --check`; in `apps/lingua-extension`: `yarn gen:pack`, `yarn test`.
+- [x] 5.3 `openspec validate add-lingua-pack-en-it --strict`; the archive order; `docs/lingua/italian-programme.md` row 36's status.
 
 ## 6. Owner
 
