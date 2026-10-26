@@ -4,6 +4,13 @@ What differs from the App Store / Play listings, field by field. Everything else
 reused as is from `fr.md`, `en.md`, `es.md`, `it.md` (change: add-desktop-auto-update,
 design D4).
 
+## Status (2026-10-26)
+
+First submission made **without** the subscription paragraph: web billing is not live
+in production (`billing.web.enabled` off, no `CYMBRA_PADDLE_*`), so the Windows app
+offers no purchase and the certification notes say so. Add the paragraph below to the
+four listings (and update the notes) in the same submission that turns web billing on.
+
 ## Description
 
 The **"Description complète"** of each language file, with its last section
