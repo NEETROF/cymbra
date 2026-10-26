@@ -60,5 +60,9 @@ jobs:
         run: bash backend/db/init/00-roles.sh
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          # Keyed on the dev profile too: rust-cache hashes Cargo.lock only. Keep in sync with
+          # rust.yml and bump when [profile.*] in Cargo.toml changes.
+          key: opt2
       - name: Integration tests (ignored set)
         run: cargo test -p cymbra-auth -p cymbra-user -p cymbra-jobs -p cymbra-plans -p cymbra-lingua -- --ignored
