@@ -10,6 +10,7 @@ import {
   pickVoice,
   rankVoices,
   sameSpokenText,
+  speechRateOf,
   type VoiceInfo,
   voiceGroups,
   voiceLabel,
@@ -618,6 +619,7 @@ describe("the browser's synthesiser behind the seam", () => {
   class FakeUtterance {
     voice: SpeechSynthesisVoice | null = null;
     lang = "";
+    rate = 1;
     onend: (() => void) | null = null;
     onerror: ((e: { error?: string }) => void) | null = null;
     constructor(readonly text: string) {}
@@ -654,11 +656,12 @@ describe("the browser's synthesiser behind the seam", () => {
     const f = fakeSynth();
     const engine = browserSpeechEngine(f.synth)!;
     const done = vi.fn();
-    engine.speak("seldom", samantha as SpeechSynthesisVoice, done);
+    engine.speak("seldom", samantha as SpeechSynthesisVoice, 1, done);
     const u = f.utterances[0];
     expect(u.text).toBe("seldom");
     expect(u.voice).toBe(samantha);
     expect(u.lang).toBe("en-US");
+    expect(u.rate).toBe(1);
     u.onend?.();
     u.onend?.();
     expect(done).toHaveBeenCalledTimes(1);
@@ -670,9 +673,9 @@ describe("the browser's synthesiser behind the seam", () => {
     const f = fakeSynth();
     const engine = browserSpeechEngine(f.synth)!;
     const done = vi.fn();
-    engine.speak("seldom", samantha as SpeechSynthesisVoice, done);
+    engine.speak("seldom", samantha as SpeechSynthesisVoice, 1, done);
     f.utterances[0].onerror?.({ error: "interrupted" });
-    engine.speak("seldom", samantha as SpeechSynthesisVoice, done);
+    engine.speak("seldom", samantha as SpeechSynthesisVoice, 1, done);
     f.utterances[1].onerror?.({});
     expect(done.mock.calls).toEqual([["interrupted"], ["unknown"]]);
   });
@@ -698,7 +701,7 @@ describe("the browser's synthesiser behind the seam", () => {
     createSpeaker(
       browserSpeechEngine(f.synth),
       "en",
-      { load: async () => ({ voices: {}, androidVoices: false, remoteVoices: false }), watch: () => unwatch },
+      { load: async () => ({ voices: {}, androidVoices: false, remoteVoices: false, rate: 1 }), watch: () => unwatch },
       lifetime.signal,
     );
     expect(f.listeners).toHaveLength(1);
@@ -746,5 +749,44 @@ describe("a voice per studied language (add-lingua-language-choice D4)", () => {
     expect(s.preferred()).toBe("Daniel");
     s.speak("selection", "harbour");
     expect(fake.spoken[1].voice).toBe(english);
+  });
+});
+
+describe("the speaking rate (add-lingua-read-aloud-speed)", () => {
+  it("reads a stored value as one of the steps, else normal", () => {
+    expect([0.5, 0.75, 1].map(speechRateOf)).toEqual([0.5, 0.75, 1]);
+    for (const odd of [undefined, null, 0, 1.2, 10, "0.5", NaN]) expect(speechRateOf(odd)).toBe(1);
+  });
+
+  it("speaks at normal pace until the reader chooses another", () => {
+    const fake = makeFakeSpeech([samantha]);
+    const s = createSpeaker(fake.engine, "en", fake.preference);
+    expect(s.rate()).toBe(1);
+    s.speak("selection", "seldom");
+    expect(fake.spoken[0].rate).toBe(1);
+  });
+
+  it("hands the chosen rate to the synthesiser, preview included, and keeps the voice", async () => {
+    const fake = makeFakeSpeech([samantha], { rate: 0.5 });
+    const s = createSpeaker(fake.engine, "en", fake.preference);
+    await Promise.resolve();
+    s.speak("sentence", "They seldom ship on Friday.");
+    s.speak("preview", "Hello.", samantha);
+    expect(fake.spoken.map((u) => [u.rate, u.voice.name])).toEqual([
+      [0.5, samantha.name],
+      [0.5, samantha.name],
+    ]);
+  });
+
+  it("applies a change to the next reading, not to the one under way", async () => {
+    const fake = makeFakeSpeech([samantha]);
+    const s = createSpeaker(fake.engine, "en", fake.preference);
+    s.speak("selection", "seldom");
+    fake.prefer({ rate: 0.75 });
+    expect(s.speaking()?.key).toBe("selection");
+    expect(fake.spoken).toHaveLength(1);
+    expect(fake.spoken[0].rate).toBe(1);
+    s.speak("selection", "seldom");
+    expect(fake.spoken[1].rate).toBe(0.75);
   });
 });

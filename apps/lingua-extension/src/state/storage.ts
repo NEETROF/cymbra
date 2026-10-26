@@ -1,7 +1,7 @@
 import { DEFAULT_NATIVE, SHIPPED_PAIRS } from "../analyzer/pairs.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
 import type { LemmaStatus, NativeLanguage, StudiedLanguage } from "../analyzer/types.ts";
-import type { SpeechSettings, VoicePreference } from "../reading/speech.ts";
+import { type SpeechRate, type SpeechSettings, speechRateOf, type VoicePreference } from "../reading/speech.ts";
 import { nativeLanguageOf } from "./profile.ts";
 
 // Versioned local state (designs D4 + the review change). The authoritative state is
@@ -86,6 +86,13 @@ export const ANDROID_VOICES_KEY = "cymbra-lingua-android-voices";
  * synchronised.
  */
 export const REMOTE_VOICES_KEY = "cymbra-lingua-remote-voices";
+
+/**
+ * How fast the reader wants read-aloud spoken (add-lingua-read-aloud-speed D2): one of the steps of
+ * `SPEECH_RATES`, once for every studied language. Absent — or any value off the steps — reads as
+ * normal. Per device, never synchronised.
+ */
+export const SPEECH_RATE_KEY = "cymbra-lingua-speech-rate";
 
 /**
  * Whether the reader chose « Traduction en ligne » (add-lingua-online-translation D8): the card
@@ -412,6 +419,16 @@ export async function saveRemoteVoices(area: AsyncStorageArea, allowed: boolean)
   await area.set({ [REMOTE_VOICES_KEY]: allowed });
 }
 
+/** The speaking rate of read-aloud; absent means normal. */
+export async function loadSpeechRate(area: AsyncStorageArea): Promise<SpeechRate> {
+  return speechRateOf((await area.get(SPEECH_RATE_KEY))[SPEECH_RATE_KEY]);
+}
+
+/** Choose how fast read-aloud is spoken. */
+export async function saveSpeechRate(area: AsyncStorageArea, rate: SpeechRate): Promise<void> {
+  await area.set({ [SPEECH_RATE_KEY]: rate });
+}
+
 /** Whether « Traduction en ligne » is chosen on this device; absent means not chosen. */
 export async function loadOnlineTranslation(area: AsyncStorageArea): Promise<boolean> {
   const got = await area.get(ONLINE_TRANSLATION_KEY);
@@ -429,6 +446,7 @@ export function storedVoicePreference(area: AsyncStorageArea): VoicePreference {
     voices: await loadVoices(area),
     androidVoices: await loadAndroidVoices(area),
     remoteVoices: await loadRemoteVoices(area),
+    rate: await loadSpeechRate(area),
   });
   return {
     load,
@@ -437,7 +455,10 @@ export function storedVoicePreference(area: AsyncStorageArea): VoicePreference {
       // it runs (add-lingua-apple-review).
       if (__APP__) return () => {};
       const listener = (changes: Record<string, chrome.storage.StorageChange>, areaName: string): void => {
-        if (areaName !== "local" || !(changes[VOICE_KEY] || changes[ANDROID_VOICES_KEY] || changes[REMOTE_VOICES_KEY]))
+        if (
+          areaName !== "local" ||
+          !(changes[VOICE_KEY] || changes[ANDROID_VOICES_KEY] || changes[REMOTE_VOICES_KEY] || changes[SPEECH_RATE_KEY])
+        )
           return;
         void load().then(onChange);
       };

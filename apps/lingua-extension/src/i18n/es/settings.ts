@@ -18,6 +18,8 @@ export const settings: typeof fr = {
   pillNote: "Pastilla discreta al pie de la página: porcentaje + acceso al mazo y a los ajustes.",
   readAloud: "Lectura en voz alta",
   readingVoice: "Voz de lectura",
+  speechRate: "Velocidad de lectura",
+  speechRateSteps: { 0.5: "Muy lenta", 0.75: "Lenta", 1: "Normal" },
   listen: "▶ Escuchar",
   stop: "■ Detener",
   onDeviceNote: "Voces instaladas en este dispositivo: el texto leído no sale del dispositivo.",

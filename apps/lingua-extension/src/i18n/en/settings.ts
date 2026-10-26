@@ -18,6 +18,8 @@ export const settings: typeof fr = {
   pillNote: "A discreet pill at the bottom of the page: percentage + access to the deck and the settings.",
   readAloud: "Read aloud",
   readingVoice: "Reading voice",
+  speechRate: "Reading speed",
+  speechRateSteps: { 0.5: "Very slow", 0.75: "Slow", 1: "Normal" },
   listen: "▶ Listen",
   stop: "■ Stop",
   onDeviceNote: "Voices installed on this device: the text read never leaves the device.",

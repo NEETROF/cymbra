@@ -446,6 +446,7 @@ function catalogue(language: InterfaceLanguage, surface: string): Catalogue {
 
 /** Texts that are the same in every language: names, symbols, separators, spoken previews. */
 const SAME_EVERYWHERE = new Set([
+  "Normal",
   "Cymbra Lingua",
   "Cymbra",
   "Google",

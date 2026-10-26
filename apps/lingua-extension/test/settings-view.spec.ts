@@ -7,6 +7,7 @@ import {
   BADGE_COUNT_KEY,
   NEW_WORDS_PER_DAY_KEY,
   REMOTE_VOICES_KEY,
+  SPEECH_RATE_KEY,
   ROOT_KEY,
   STORAGE_VERSION,
   VOICE_KEY,
@@ -425,6 +426,36 @@ describe("Réglages — Lecture à voix haute", () => {
 
   const ordinaryLabels = (select: HTMLSelectElement): string[] =>
     [...select.children].filter((c) => c.tagName === "OPTION").map((o) => o.textContent ?? "");
+
+  const rateButtons = (block: HTMLElement): HTMLButtonElement[] => [
+    ...block.querySelectorAll<HTMLButtonElement>(".set-segment"),
+  ];
+
+  it("offers the speaking rate under the voice, normal pressed by default, and saves a choice", async () => {
+    const s = mountVoices(voiceFixture("chrome-macos"));
+    await settle();
+    const buttons = rateButtons(s.block);
+    expect(buttons.map((b) => b.textContent)).toEqual(["Très lent", "Lent", "Normal"]);
+    expect(buttons.map((b) => b.getAttribute("aria-pressed"))).toEqual(["false", "false", "true"]);
+    buttons[0].click();
+    await settle();
+    expect(s.area.store[SPEECH_RATE_KEY]).toBe(0.5);
+    s.fake.prefer({ rate: 0.5 });
+    expect(rateButtons(s.block).map((b) => b.getAttribute("aria-pressed"))).toEqual(["true", "false", "false"]);
+  });
+
+  it("previews a voice at the chosen rate", async () => {
+    const s = mountVoices(voiceFixture("chrome-macos"), { rate: 0.75 });
+    await settle();
+    s.preview.click();
+    expect(s.fake.spoken[0].rate).toBe(0.75);
+  });
+
+  it("hides the speaking rate with the voice choice", async () => {
+    const s = mountVoices([]);
+    await settle();
+    expect(s.block.hidden).toBe(true);
+  });
 
   it("lists the automatic choice, the ordinary voices, then the others apart at the bottom", async () => {
     const s = mountVoices(voiceFixture("chrome-macos"));

@@ -34,6 +34,7 @@ import {
   saveOnlineTranslation,
   saveNewWordsPerDay,
   saveRemoteVoices,
+  saveSpeechRate,
   saveReaderFlow,
   saveVoice,
 } from "../state/storage.ts";
@@ -56,7 +57,7 @@ import type { SwitchView } from "../usage/counts.ts";
 import { reportSetUp, runtimeUsageSwitch, type UsageSwitchControls } from "../usage/messages.ts";
 import { mountNativeLanguage, nativeLanguageCopy } from "./native-language-view.ts";
 import { mountStudiedLanguages } from "./studied-languages-view.ts";
-import { type Speaker, type VoiceInfo, voiceGroups, voiceLabel } from "./speech.ts";
+import { SPEECH_RATES, type Speaker, type SpeechRate, type VoiceInfo, voiceGroups, voiceLabel } from "./speech.ts";
 import {
   mountTranslationSetting,
   runtimeTranslationControls,
@@ -427,7 +428,24 @@ export function mountSettings(
   remoteToggle.type = "checkbox";
   remoteRow.append(remoteToggle, el("span", undefined, copy.useRemoteVoices));
   const remoteNote = el("div", "set-note", copy.remoteNote);
-  voiceBlock.append(androidRow, androidNote, noVoiceNote, remoteRow, remoteNote, voiceRow, onDeviceNote);
+  // « Vitesse de lecture » (add-lingua-read-aloud-speed): one pace for every language, heard on the
+  // next reading — the preview above included.
+  const rateGroup = el("div", "set-segmented");
+  rateGroup.setAttribute("role", "group");
+  rateGroup.setAttribute("aria-label", copy.speechRate);
+  const rateButtons = SPEECH_RATES.map((step) => {
+    const b = el("button", "set-segment", copy.speechRateSteps[step]);
+    b.type = "button";
+    b.addEventListener("click", () => void saveSpeechRate(area, step));
+    return { step, b };
+  });
+  rateGroup.append(...rateButtons.map(({ b }) => b));
+  const rateRow = el("div", "set-display-row");
+  rateRow.append(el("span", undefined, copy.speechRate), rateGroup);
+  const showRate = (rate: SpeechRate): void => {
+    for (const { step, b } of rateButtons) b.setAttribute("aria-pressed", String(step === rate));
+  };
+  voiceBlock.append(androidRow, androidNote, noVoiceNote, remoteRow, remoteNote, voiceRow, rateRow, onDeviceNote);
 
   // — Livres — the reader page, whichever host this view is rendered in (add-lingua-reader D8).
   const booksBlock = settingBlock(copy.books);
@@ -837,6 +855,8 @@ export function mountSettings(
     // Where Android's voices are allowed, the promise below would not hold: the note above says why.
     onDeviceNote.hidden = eligible.length === 0 || (offersAndroid && speaker.androidVoices()) || remote;
     voiceRow.hidden = eligible.length === 0;
+    rateRow.hidden = eligible.length === 0;
+    showRate(speaker.rate());
     if (eligible.length === 0) return;
     const option = (value: string, label: string): HTMLOptionElement => {
       const o = el("option", undefined, label);
