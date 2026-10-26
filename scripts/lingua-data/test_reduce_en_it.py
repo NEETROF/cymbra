@@ -817,6 +817,61 @@ class RefinedSection(unittest.TestCase):
         self.assertFalse(refine.describes("suo, sua"))
 
 
+# The 55 rows D11 composed at en-it's re-reduction of 2026.10.26 (task 0.1): listed as generated, in the
+# pull request too.
+GENERATED_ROWS = (
+    "could've", "doesn't", "hadn't", "hasn't", "he'd", "he'll", "he's", "how'd", "how's", "i'd", "i'll", "it'd",
+    "it'll", "let's", "might've", "must've", "she'd", "she'll", "she's", "should've", "that'd", "that'll",
+    "that's", "there'd", "there'll", "there're", "there's", "they'd", "they'll", "they're", "they've",
+    "this'll", "we'd", "we'll", "we're", "we've", "what'd", "what'll", "what're", "what's", "when's",
+    "where'd", "where's", "who'd", "who'll", "who're", "who's", "who've", "why'd", "why's", "would've",
+    "you'd", "you'll", "you're", "you've",
+)  # fmt: skip
+
+
+class CommittedTables(unittest.TestCase):
+    """en-it's committed tables, re-reduced at its pin with change 37's rules (task 3.1): each reviewed
+    row as its table writes it — a row whose source no longer writes what it names fails here, once the
+    next reduction is committed —, the generated rows, and the pin naming the module."""
+
+    @classmethod
+    def setUpClass(cls):
+        tables = Path(_HERE) / "tables" / "en-it"
+        cls.gloss = dict(line.split("\t", 1) for line in (tables / "gloss.tsv").read_text(encoding="utf-8").splitlines())
+        cls.pin = json.loads((tables / "pin.json").read_text(encoding="utf-8"))
+
+    def senses(self, lemma):
+        return self.gloss[lemma].split("; ")
+
+    def test_the_pin_names_change_37_s_rules(self):
+        self.assertEqual(self.pin["reducer"]["files"], ["reduce-en-it.py", "reduce_common.py", "reduce_edition_it.py", "reduce_english_it.py"])
+        self.assertEqual(self.pin["reducer"]["sha256"], ps.rules_sha256(Path(_HERE) / "reduce-en-it.py"))
+
+    def test_every_reviewed_row_as_its_table_writes_it(self):
+        for lemma, row in {**refine.FIRST_RUN, **refine.CORRECTIONS}.items():
+            opened = [op.text for op in row.ops if isinstance(op, refine.Open)]
+            self.assertEqual(self.senses(lemma)[: len(opened)], opened, lemma)
+            for op in row.ops:
+                if isinstance(op, refine.Drop):
+                    self.assertNotIn(op.text, self.senses(lemma), lemma)
+                elif isinstance(op, refine.DropItem):
+                    items = {item for sense in self.senses(lemma) for item in refine.split_items(sense)}
+                    self.assertNotIn(op.item, items, lemma)
+
+    def test_every_generated_row(self):
+        written = sorted(lemma for lemma, gloss in self.gloss.items() if gloss == refine.contraction_gloss(lemma) and lemma in GENERATED_ROWS)
+        self.assertEqual(written, sorted(GENERATED_ROWS))
+        self.assertEqual(self.gloss["doesn't"], "contrazione di does not")
+        self.assertEqual(self.gloss["i'd"], "contrazione di I would; contrazione di I had")
+        for lemma in ("i's", "you's", "n't", "someone's", "women's"):
+            self.assertNotIn(lemma, self.gloss)
+
+    def test_the_glosses_a_person_wrote(self):
+        self.assertTrue(self.gloss["lot"].startswith("molto, parecchio (a lot); "))
+        written = [lemma for lemma, gloss in self.gloss.items() if "(a lot)" in gloss]
+        self.assertEqual(written, ["lot"])
+
+
 # Made up for the section's cases: English's words rate in English, Italian's in Italian.
 _ENGLISH_WORDS = {
     "united": 5.5, "kingdom": 5.0, "moving": 5.0, "average": 5.0, "close": 5.5, "quarters": 4.5, "combat": 4.5,

@@ -3906,12 +3906,14 @@ fn spec_scenario_english_glossed_in_italian() {
             "en-it: en/{name}"
         );
     }
+    // Change 37 (refine-lingua-en-it-glosses D1): en-it's own rules, in a module no other pair loads.
     assert_eq!(
         pin["reducer"]["files"],
         serde_json::json!([
             "reduce-en-it.py",
             "reduce_common.py",
-            "reduce_edition_it.py"
+            "reduce_edition_it.py",
+            "reduce_english_it.py"
         ])
     );
     // Its own fetch, under its own release: the Italian Wiktionary's English section and English
@@ -3954,6 +3956,73 @@ fn spec_scenario_english_glossed_in_italian() {
         "cedere, abbandonare, rinunciare; arrendersi"
     );
     assert_eq!(mwe["arms of alliance"], "arma d'alleanza");
+}
+
+#[test]
+fn spec_scenario_en_it_s_glosses_refined() {
+    // Change 37 (refine-lingua-en-it-glosses), re-reduced at en-it's pin: the requirements' scenarios
+    // as the committed rows read them — the part of speech two signals agree on (D2), the missing main
+    // sense and a row of descriptions (D3), the reviewed rows (D4, D12, a person's « (a lot) » among
+    // them), frames, names, heraldry, expansions and repeats out (D5–D10), contractions read as
+    // pointers (D11) — and what no rule moves.
+    let glossed = tsv(&tables().join("en-it/gloss.tsv"));
+    for (lemma, gloss) in [
+        ("prove", "dimostrare, provare"),
+        ("its", "suo; possessivo di it"),
+        ("rescue", "salvare; salvataggio"),
+        ("goddamn", "dannato, maledetto"),
+        ("my", "il mio, la mia, i miei, le mie"),
+        ("summer", "estate"),
+        ("john", "Giovanni (nome)"),
+        (
+            "side",
+            "lato; faccia di una medaglia; allearsi; schierarsi; sgrossare",
+        ),
+        ("uk", "Regno Unito"),
+        ("national", "nazionale"),
+        ("mx", "signor/a"),
+        ("disposable", "monouso, usa e getta"),
+        ("some", "qualche, alcuni, alcune; del, della"),
+        ("trash", "spazzatura, immondizia, rifiuti; scartare"),
+        ("you're", "contrazione di you are"),
+        (
+            "how'd",
+            "contrazione di how did; contrazione di how would; contrazione di how had",
+        ),
+        ("doesn't", "contrazione di does not"),
+        (
+            "audio",
+            "relativo all'ascolto, alla riproduzione sonora; sonoro, audio, segnale sonoro",
+        ),
+    ] {
+        assert_eq!(glossed[lemma], gloss, "en-it: {lemma}");
+    }
+    for (lemma, opening) in [
+        ("make", "fare, creare, fabbricare; "),
+        (
+            "that",
+            "quello, quella; che, il quale, la quale, i quali, le quali; ",
+        ),
+        ("can", "potere; latta, lattina, scatola, barattolo; "),
+        ("lot", "molto, parecchio (a lot); lotto; "),
+    ] {
+        assert!(
+            glossed[lemma].starts_with(opening),
+            "en-it: {lemma} « {} »",
+            glossed[lemma]
+        );
+    }
+    assert!(glossed["make"].ends_with("; marca"), "en-it: make");
+    assert!(
+        glossed["csi"].starts_with("California Security Institute; "),
+        "a list of expansions stays"
+    );
+    for lemma in ["i's", "you's", "women's", "someone's", "n't"] {
+        assert!(
+            !glossed.contains_key(lemma),
+            "en-it: {lemma} is no contraction"
+        );
+    }
 }
 
 #[test]
