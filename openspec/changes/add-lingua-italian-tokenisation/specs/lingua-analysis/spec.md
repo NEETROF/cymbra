@@ -74,11 +74,11 @@ The core SHALL read Italian text through a pre-pass of its own, beside the rules
 ### Requirement: Italian is a studied language served by the baseline analysis
 The core SHALL analyse Italian as a studied language, tagged `it` and detected as Italian, and SHALL serve it with the baseline analysis until its own rules are written, its tokenisation pre-pass excepted (*Italian tokenisation pre-pass*): segmentation, the pre-pass rules that belong to no language, and the pack's form→lemma lookup, the lowercased form when the pack does not list it; no enclitic split, no Unicode (NFC) normalisation, no exception table, no function-word table, no names rule and no detection guard. Italian SHALL carry an analyser version of its own, below `1.0.0` while the baseline serves it, which a pack studying Italian is checked against and no other language's pack is. A rule written for English, Spanish or French SHALL NOT run on Italian, and adding Italian SHALL leave the English, Spanish and French analyses byte for byte what they were.
 
-#### Scenario: An elided word is its pieces
+#### Scenario: An elided word is one token
 - **WHEN** « l'uomo », « un'amica », « dell'acqua » and « c'è » are tokenised as Italian with a pack that lists `è` and none of the whole words
 - **THEN** « l'uomo » is `lo` and `uomo`, « un'amica » `una` and `amica`, « dell'acqua » `dello` and `acqua`, « c'è » `ci` and `è`, each piece lemmatised as itself, lowercased
 
-#### Scenario: Articulated prepositions as I7 reads them
+#### Scenario: Articulated prepositions are whole
 - **WHEN** « del », « nel », « al », « dal », « sul » and « col » are tokenised as Italian
 - **THEN** « del » is one token, lemmatised as the pack lists it or as itself, and the five others are a preposition and an article sharing the word's span
 
