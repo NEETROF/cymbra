@@ -1,7 +1,7 @@
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { Coverage, Routes } from "../../src/lib/lingua-pairs";
-import { MATRIX, ROUTES, TODAY, WITH_FR_EN } from "../support/lingua";
+import { EIGHT_PAIRS, MATRIX, ROUTES, TODAY, WITH_FR_EN } from "../support/lingua";
 
 // The English home page rendered as the build renders it, through Astro's Container API
 // (change: add-lingua-french-listings, D9). As `spanish-pages.spec.ts` does, the test stands in
@@ -10,7 +10,9 @@ import { MATRIX, ROUTES, TODAY, WITH_FR_EN } from "../support/lingua";
 // - today's pairs (en-fr, es-fr): the card is today's, byte for byte — written for French
 //   speakers, « Read the English web… »;
 // - es-en (change 34): Spanish, read with an English gloss;
-// - es-en and fr-en (change 52): Spanish or French.
+// - es-en and fr-en (change 52): Spanish or French;
+// - es-en, fr-en and it-en (the Italian programme's change 25, with it-fr beside them):
+//   Spanish, French or Italian (change: add-lingua-italian-english-listings, D1).
 // Whatever the pairs, its button opens `/en/lingua`.
 
 const coverage = vi.hoisted(() => ({ tops: [] as number[], glossed: {} as Record<string, number[]> }));
@@ -70,6 +72,14 @@ describe("/en/ and the pairs it ships", () => {
     ship(WITH_FR_EN, ROUTES);
     expect(linguaCard(await render(EnglishHome))).toEqual({
       body: `Read the web in Spanish or French ${REST}`,
+      href: "/en/lingua",
+    });
+  });
+
+  it("es-en, fr-en and it-en: Spanish, French or Italian, and the English Lingua page", async () => {
+    ship(EIGHT_PAIRS, ROUTES);
+    expect(linguaCard(await render(EnglishHome))).toEqual({
+      body: `Read the web in Spanish, French or Italian ${REST}`,
       href: "/en/lingua",
     });
   });

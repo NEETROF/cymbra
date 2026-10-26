@@ -59,7 +59,8 @@ it never tells a Spanish speaker that Lingua explains words in Spanish before it
 The English home's Lingua card follows the same rule (`englishHomeLinguaCard`, change
 `add-lingua-french-listings`, D9): once a pair glossed in English ships it names the
 languages read with an English gloss — "Read the web in Spanish…" with es-en, "…in Spanish or
-French…" with fr-en beside it — and until then it is the paragraph written for French
+French…" with fr-en beside it, "…in Spanish, French or Italian…" with it-en beside them (the
+Italian programme's change 25; `add-lingua-italian-english-listings`, D1) — and until then it is the paragraph written for French
 speakers, « Read the English web… », byte for byte. Its button always opens `/en/lingua`. The
 French home's card names the languages read with a French gloss, in `packs.json`'s order —
 « Lisez le web en anglais ou en espagnol… » (`frenchHomeLinguaCard`, change
