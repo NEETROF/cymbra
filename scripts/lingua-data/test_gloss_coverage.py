@@ -518,7 +518,7 @@ class OnePairTest(unittest.TestCase):
 
     # en-it (add-lingua-pack-en-it D6, the programme's M6): its floor is fixed before the measurement whose
     # tables are committed — the study's figures on English's committed ranks with the Italian Wiktionary's
-    # English section and both tables, less two points; proposed, the owner settling it (task 0.1) —, in
+    # English section and both tables, less two points; settled by the owner on 2026-10-26 (task 0.1) —, in
     # the requirement *en-it is committed beside English's studied tables, held to a coverage floor, and
     # not shipped*, read where it stands: the change's delta until it is archived, the capability's spec
     # after. The reduce job's `--pair en-it` step joins the workflow with the tables, in the update's pull

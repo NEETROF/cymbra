@@ -1125,7 +1125,7 @@ ranks (2026-10-26, reduced locally from the bytes an update reads that day: the 
 2026-10-24 21:16, decompressed sha256 `e007665a…`; the English dump of 2026-10-21 11:23, `60a6073c…`),
 **91.4 / 82.8 / 70.3 %** of the 5,000 / 10,000 / 20,000 commonest (84.8 / 72.2 / 53.0 from the
 definitions alone, 90.6 / 81.1 / 67.0 with the direct table), less two points — **89.4 / 80.8 / 68.3**,
-proposed for the owner to settle before the first committed measurement (D6, task 0.1). 21,526 glosses
+settled by the owner on 2026-10-26, before the first committed measurement (D6, task 0.1). 21,526 glosses
 of 40,685 lemmas: 13,677 from the section (55 through a pointer), 6,125 from the direct table, 1,724
 from the inverted one; 13,423 expressions; 12.8 % of the 8,276 glossed among the 10,000 commonest from a
 table.

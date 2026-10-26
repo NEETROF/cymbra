@@ -2,7 +2,7 @@
 
 ## 0. Before the dispatch
 
-- [ ] 0.1 [owner] The measurement re-run (proposed 2026-10-26: 89.4 / 80.8 / 68.3 on the study's 91.4 / 82.8 / 70.3, design *Implementation*; awaiting the owner) on the committed English ranks with D2's sources and change 35's rules (D6): `FLOORS["en-it"]` fixed at those figures less two points (about 89.4 / 80.7 / 68.3), the owner settling it before the first committed measurement; the figures written into the requirement *en-it is committed beside English's studied tables…* and a test holding `FLOORS` to them.
+- [x] 0.1 [owner] The measurement re-run (settled by the owner on 2026-10-26: 89.4 / 80.8 / 68.3 on the study's 91.4 / 82.8 / 70.3, design *Implementation*; held by `test_gloss_coverage.py`) on the committed English ranks with D2's sources and change 35's rules (D6): `FLOORS["en-it"]` fixed at those figures less two points (about 89.4 / 80.7 / 68.3), the owner settling it before the first committed measurement; the figures written into the requirement *en-it is committed beside English's studied tables…* and a test holding `FLOORS` to them.
 
 ## 1. The sources
 
@@ -17,7 +17,7 @@
 ## 3. The pipeline and the tables
 
 - [ ] 3.1 `gloss_coverage.py` `FLOORS["en-it"]` and `test_gloss_coverage.py`; `lingua-extension-check.yml`'s floor and baselines steps; `lingua-pack-update.yml`'s pair option, `keep` text and bless steps; `test_reduce_loops.py` (D8).
-- [ ] 3.2 [owner-dispatched] `lingua-pack-update` in mode `update` for en-it, with the owner's go-ahead for its sources release: the pull request commits `tables/en-it/` and `tables/en/` byte for byte; the coverage at or above the floor; `tables/en-it/README.md` (D9) and the programme's *Measured figures*; the pack built against its pin.
+- [ ] 3.2 [owner-dispatched] `lingua-pack-update` in mode `update` for en-it, with the owner's go-ahead for its sources release (given 2026-10-26: `lingua-pack-sources-en-it-<date>`, the files design *The bytes* lists): the pull request commits `tables/en-it/` and `tables/en/` byte for byte; the coverage at or above the floor; `tables/en-it/README.md` (D9) and the programme's *Measured figures*; the pack built against its pin.
 
 ## 4. The baseline and the checks
 

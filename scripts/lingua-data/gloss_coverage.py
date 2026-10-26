@@ -70,8 +70,8 @@ TOPS = (5_000, 10_000, 20_000)
 # en-it (add-lingua-pack-en-it D6, the programme's M6): the same rule, the study's figures on English's
 # committed ranks with the Italian Wiktionary's English section, read by change 35's rules, and both
 # translation tables (91.4 / 82.8 / 70.3 %, reduced from the bytes its first update would read,
-# 2026-10-26) less two points — proposed; the owner settles it (task 0.1) before the measurement whose
-# tables are committed, never lowered after it.
+# 2026-10-26) less two points — settled by the owner on 2026-10-26 (task 0.1), before the measurement
+# whose tables are committed, never lowered after it.
 FLOORS = {
     "es-en": (87.6, 77.2, 63.7),
     "en-es": (91.4, 83.2, 69.9),

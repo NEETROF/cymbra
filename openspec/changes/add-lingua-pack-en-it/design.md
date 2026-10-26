@@ -374,12 +374,9 @@ expansion, `mx` « signorə, signor, a », a split of « signor/a », for change
 
 ### What waits
 
-- **The owner** (task 0.1): the floor above, and the sources release as *The bytes* list it.
-- **Change 32** (`add-lingua-italian-native-language`, after change 20, #1058): `lingua-pack-build` refuses
-  a pack glossed in `it` (« a native language the core does not know »), so `build.sh --update en-it` —
-  the dispatch — fails at the build after the reduction, and so would `en_it_baseline.rs`,
-  `cross_native.rs`, `committed_tables.rs`, `pipeline_testdata.rs` and the card snapshot. The dispatch
-  waits for it, with them.
+- **The owner's decisions (Guillaume, 2026-10-26)**: the floor, `FLOORS["en-it"]` = 89.4 / 80.8 / 68.3, **settled**; the sources release, as *The bytes* list it, **approved** for publication by the update dispatch.
+- **Change 32** (`add-lingua-italian-native-language`, #1079, merged): before it, `lingua-pack-build`
+  refused a pack glossed in `it`; on the rebased branch the forecast tables build.
 - **The update's pull request** (task 3.2): `tables/en-it/` and its README, the floor step and the
   baselines step of `lingua-extension-check.yml` (`--pair en-it` has no table to measure before),
   `lingua-pack-update.yml`'s bless steps (`en_it_baseline`, `word-card-en-it.spec.ts`), and
