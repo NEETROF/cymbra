@@ -1217,7 +1217,7 @@ ascetic	ADJ:1	NOUN:1
 ascii	X:1
 ascribe	VERB:1
 asexual	ADJ:1
-ash	NOUN:4
+ash	NOUN:3
 ashamed	ADJ:1
 ashen	ADJ:1
 ashkenazi	ADJ:1
@@ -4283,8 +4283,8 @@ coordinate	NOUN:1	VERB:2
 coordination	NOUN:1
 coordinator	NOUN:3
 coot	NOUN:1
-cop	VERB:4	NOUN:2
-cope	VERB:4	NOUN:3
+cop	NOUN:2	VERB:4
+cope	VERB:2	NOUN:3	VERB:3
 copier	NOUN:1
 copilot	NOUN:1
 copious	ADJ:1
@@ -6555,7 +6555,7 @@ eocene	NOUN:1
 eon	NOUN:1
 ephemeral	ADJ:1
 ephesians	NOUN:1
-epic	NOUN:1	ADJ:1
+epic	ADJ:1	NOUN:1
 epidemic	NOUN:1
 epidemiological	ADJ:1
 epidemiologist	NOUN:1
@@ -6939,7 +6939,7 @@ exposition	NOUN:1
 expository	ADJ:1
 exposure	NOUN:6
 expound	VERB:1
-express	NOUN:1	ADJ:7
+express	VERB:1	ADJ:7
 expression	NOUN:1
 expressionism	NOUN:1
 expressionist	ADJ:1
@@ -7434,7 +7434,7 @@ flannel	NOUN:1
 flap	NOUN:1	VERB:1
 flapper	NOUN:1
 flare	NOUN:4
-flash	VERB:1	NOUN:2
+flash	NOUN:2	VERB:1
 flashlight	NOUN:1
 flashpoint	NOUN:1
 flashy	ADJ:1
@@ -7650,7 +7650,7 @@ formally	ADV:2
 format	NOUN:3	VERB:2
 formation	NOUN:1
 formative	ADJ:1
-former	ADJ:1	NOUN:2	ADJ:1
+former	ADJ:2	NOUN:2
 formerly	ADV:3
 formidable	ADJ:1
 formidably	ADV:1
@@ -8385,7 +8385,7 @@ granular	ADJ:1
 grape	NOUN:2
 grapefruit	NOUN:1
 grapevine	NOUN:1
-graph	NOUN:1	X:1	VERB:1
+graph	X:1	NOUN:1	VERB:1
 graphene	NOUN:1
 graphic	ADJ:2	NOUN:1
 graphics	NOUN:1
@@ -8952,7 +8952,7 @@ hence	ADV:4
 henceforth	ADV:1
 henchman	NOUN:5
 henna	NOUN:1
-henry	NOUN:1
+henry	PROPN:1	NOUN:1
 hentai	NOUN:1
 heparin	NOUN:1
 hepatic	ADJ:1
@@ -10172,7 +10172,7 @@ intelligently	ADV:1
 intelligentsia	NOUN:1
 intelligible	ADJ:1
 intend	VERB:5
-intense	ADJ:2
+intense	ADJ:1
 intensely	ADV:1
 intensification	NOUN:1
 intensify	VERB:2
@@ -10593,7 +10593,7 @@ johnson	PROPN:1
 join	VERB:6	NOUN:2
 joiner	NOUN:1
 joinery	NOUN:1
-joint	ADJ:1	NOUN:6
+joint	NOUN:5	ADJ:1
 jointly	ADV:2
 joke	NOUN:5	VERB:1
 joker	NOUN:4
@@ -14361,7 +14361,7 @@ picture	NOUN:1
 picturesque	ADJ:2
 pidgin	NOUN:1
 pie	NOUN:3	VERB:1
-piece	NOUN:1
+piece	X:1	NOUN:1
 piecemeal	ADJ:1	ADV:1
 piedmont	PROPN:1
 pier	NOUN:2
@@ -17276,7 +17276,7 @@ shill	NOUN:1	VERB:1
 shim	NOUN:1
 shimmer	VERB:1	NOUN:1
 shin	NOUN:1
-shine	VERB:3	NOUN:3
+shine	VERB:1	NOUN:3	VERB:2
 shingle	NOUN:1
 shinto	NOUN:1
 shiny	ADJ:2	NOUN:1
@@ -17934,7 +17934,7 @@ spanish	ADJ:1	NOUN:1
 spank	VERB:1	NOUN:1
 spanner	NOUN:1
 spar	VERB:1
-spare	ADJ:1	NOUN:1
+spare	ADJ:1	VERB:1	NOUN:1
 sparingly	ADV:1
 spark	NOUN:1
 sparkle	NOUN:1
@@ -18331,7 +18331,7 @@ stipe	NOUN:1
 stipend	NOUN:1
 stipulate	VERB:1
 stipulation	NOUN:2
-stir	VERB:1	NOUN:3
+stir	VERB:1	NOUN:3	VERB:1
 stitch	NOUN:1
 stochastic	ADJ:1
 stock	NOUN:3
@@ -19210,7 +19210,7 @@ thankful	ADJ:1
 thankfully	ADV:2
 thankless	ADJ:1
 thanksgiving	NOUN:1
-that	PRON:2	SCONJ:1	ADV:1	PRON:1
+that	PRON:2	ADV:1	SCONJ:1	PRON:1
 that'd	X:2
 that'll	X:1
 that's	X:2
@@ -21140,7 +21140,7 @@ what'll	X:1
 what're	X:1
 what's	X:2
 whatever	PRON:1
-whatsoever	ADV:1	ADJ:1
+whatsoever	ADJ:1	ADV:1
 wheat	NOUN:1
 wheel	NOUN:5
 wheelbarrow	NOUN:1
@@ -21153,7 +21153,7 @@ whelp	NOUN:3
 when	ADV:1
 when's	X:2
 whence	ADV:1
-whenever	CCONJ:1	ADV:2
+whenever	ADV:2
 where	ADV:1	NOUN:1	SCONJ:1
 where'd	X:3
 where's	X:2

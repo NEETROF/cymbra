@@ -290,8 +290,8 @@ row: per, poiché, durante
 ### word-grammar that that
 page 1/2:
   [pronome] quello, quella; che, il quale, la quale, i quali, le quali
-  [congiunzione] introduce una proposizione che è il soggetto o l'oggetto di un verbo
   [avverbio] così
+  [congiunzione] introduce una proposizione che è il soggetto o l'oggetto di un verbo
 page 2/2:
   [pronome] il quale, la quale, i quali, le quali, cui
 row: quello, quella
