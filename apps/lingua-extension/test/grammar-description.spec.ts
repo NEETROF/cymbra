@@ -23,6 +23,7 @@ import type { GrammarRenderer, StudiedLanguageCode } from "@/i18n/index.ts";
 import { grammar as en } from "@/i18n/en/grammar.ts";
 import { grammar as es } from "@/i18n/es/grammar.ts";
 import { grammar as fr } from "@/i18n/fr/grammar.ts";
+import { grammar as itGrammar } from "@/i18n/it/grammar.ts";
 import { lineText } from "@/reading/grammar-description.ts";
 import { createCard } from "@/reading/wordpopup.ts";
 
@@ -649,6 +650,7 @@ describe("What each renderer names", () => {
   const renderers: [string, GrammarRenderer][] = [
     ["en", en],
     ["es", es],
+    ["it", itGrammar],
   ];
   const tags = vocabularyTags();
 
@@ -698,7 +700,7 @@ describe("What each renderer names", () => {
           const singular: GrammarTag = { pos, features: { Number: "Sing" } };
           const french = fr.readingName(plural, studied);
           if (french) named++;
-          for (const renderer of [fr, en, es]) {
+          for (const renderer of [fr, en, es, itGrammar]) {
             const lines = (readings: GrammarTag[]) =>
               renderer.grammarLines(grammar({ readings }), "lemma", "lemma", "lemma", studied);
             expect(lines([plural, singular]), `${studied} ${JSON.stringify(plural)}`).toEqual([]);
@@ -732,6 +734,9 @@ describe("What each renderer names", () => {
     expect(said(fr, "fr")).toEqual([
       "1re et 3e personnes du singulier du présent de l’indicatif ou du subjonctif et 2e personne du singulier de l’impératif de parler",
     ]);
+    expect(said(itGrammar, "fr")).toEqual([
+      "prima e terza persona singolare dell'indicativo o congiuntivo presente e seconda persona singolare dell'imperativo di parler",
+    ]);
     // Spanish's « hable » keeps its subjunctive and its imperative apart, and never merges moods.
     expect(said(en, "es")).toEqual([
       "first- and third-person singular present indicative, first- and third-person singular present subjunctive and second-person singular imperative of parler",
@@ -745,7 +750,7 @@ describe("What each renderer names", () => {
         { pos: "VERB", features: { Tense: "Pqp", VerbForm: "Fin" } },
       ],
     });
-    for (const renderer of [fr, en, es]) {
+    for (const renderer of [fr, en, es, itGrammar]) {
       expect(renderer.grammarLines(silent, "se", "le", "le", "es")).toEqual([]);
     }
   });
@@ -816,6 +821,7 @@ describe("the card's two blocks (enable-lingua-english-speakers D6)", () => {
     ["fr", fr],
     ["en", en],
     ["es", es],
+    ["it", itGrammar],
   ];
 
   for (const [name, renderer] of renderers) {

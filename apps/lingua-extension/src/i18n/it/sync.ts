@@ -11,7 +11,7 @@ export const sync: typeof fr = {
   syncedHoursAgo: (n) => `Sincronizzato ${n} h fa.`,
   lastSyncOn: (date) => `Ultima sincronizzazione: ${date}.`,
   storageFull:
-    "La memoria dell’estensione è piena su questo dispositivo: reimposta i tuoi dati locali in Impostazioni.",
+    "La memoria dell'estensione è piena su questo dispositivo: reimposta i tuoi dati locali in Impostazioni.",
   unavailable: "Server irraggiungibile: riprova più tardi.",
   sessionExpired: "Sessione scaduta: accedi di nuovo qui sopra, in Account.",
   conflict: "C'è già un'operazione in corso: riprova tra un istante.",
