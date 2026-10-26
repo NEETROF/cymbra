@@ -61,9 +61,10 @@ export const SIX_PAIRS: Coverage = {
 /**
  * The six pairs and the one the Italian programme's change 20 (enable-lingua-italian) lists after
  * them: it-fr (Italian for French speakers), with the figures its committed tables measured
- * (change 16, add-lingua-pack-it-fr). Change 21 (add-lingua-italian-listings) writes the pages for it.
+ * (change 16, add-lingua-pack-it-fr; refreshed by change 17, #1062). Change 21
+ * (add-lingua-italian-listings) writes the pages for it.
  */
 export const SEVEN_PAIRS: Coverage = {
   tops: TODAY.tops,
-  glossed: { ...SIX_PAIRS.glossed, "it-fr": [89.2, 81.8, 73.3] },
+  glossed: { ...SIX_PAIRS.glossed, "it-fr": [89.4, 82.0, 73.4] },
 };
