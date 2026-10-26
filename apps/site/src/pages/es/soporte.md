@@ -7,6 +7,7 @@ alternates:
   fr: /support
   en: /en/support
   es: /es/soporte
+  it: /it/assistenza
 ---
 
 ¿Una pregunta sobre Cymbra Music, un problema con tu cuenta o con tu suscripción?

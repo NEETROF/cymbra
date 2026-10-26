@@ -9,7 +9,8 @@ import { outputFileFor } from "../../src/lib/pinned-routes";
 // the header's language switch (every other language the page exists in) and one
 // `hreflang` per alternate. Asserted on the built HTML: the layouts are `.astro`, which
 // only the build renders. The home and Music pages exist in Spanish too, the account,
-// code and checkout pages do not (change: extend-site-spanish-locale, D4, D5).
+// code and checkout pages do not (change: extend-site-spanish-locale, D4, D5). Italian
+// follows Spanish under `/it/` (change: add-site-italian-locale, D1, D4).
 
 const dist = resolve(__dirname, "../../dist");
 const site = "https://cymbra.app";
@@ -28,7 +29,7 @@ function alternatesOf(path: string): { hreflang: [string, string][]; switchTo: [
     (m) => [m[1], m[2]] as [string, string],
   );
   const nav = html.match(/<nav class="nav-links">(.*?)<\/nav>/s)?.[1] ?? "";
-  const switchTo = [...nav.matchAll(/<a href="([^"]+)">(FR|EN|ES)<\/a>/g)].map((m) => [m[2], m[1]] as [string, string]);
+  const switchTo = [...nav.matchAll(/<a href="([^"]+)">(FR|EN|ES|IT)<\/a>/g)].map((m) => [m[2], m[1]] as [string, string]);
   return { hreflang, switchTo };
 }
 
@@ -37,14 +38,14 @@ describe("each page names its translations", () => {
   // extend-site-spanish-locale) — its own `hreflang` and its twins', and a switch to every
   // twin — not to the home page, as before the fix.
   const twins: Record<string, Record<string, string>> = {
-    privacy: { fr: "/confidentialite", en: "/en/privacy", es: "/es/privacidad" },
-    terms: { fr: "/cgu", en: "/en/terms", es: "/es/terminos" },
-    support: { fr: "/support", en: "/en/support", es: "/es/soporte" },
-    deletion: { fr: "/suppression-compte", en: "/en/delete-account", es: "/es/eliminar-cuenta" },
-    home: { fr: "/", en: "/en/", es: "/es/" },
-    music: { fr: "/music", en: "/en/music", es: "/es/music" },
+    privacy: { fr: "/confidentialite", en: "/en/privacy", es: "/es/privacidad", it: "/it/privacy" },
+    terms: { fr: "/cgu", en: "/en/terms", es: "/es/terminos", it: "/it/termini" },
+    support: { fr: "/support", en: "/en/support", es: "/es/soporte", it: "/it/assistenza" },
+    deletion: { fr: "/suppression-compte", en: "/en/delete-account", es: "/es/eliminar-cuenta", it: "/it/elimina-account" },
+    home: { fr: "/", en: "/en/", es: "/es/", it: "/it/" },
+    music: { fr: "/music", en: "/en/music", es: "/es/music", it: "/it/music" },
     // The Lingua leaving page (change: add-lingua-usage-counts, D12).
-    leaving: { fr: "/lingua/au-revoir", en: "/en/lingua/goodbye", es: "/es/lingua/adios" },
+    leaving: { fr: "/lingua/au-revoir", en: "/en/lingua/goodbye", es: "/es/lingua/adios", it: "/it/lingua/arrivederci" },
   };
 
   for (const [page, byLang] of Object.entries(twins)) {
@@ -77,7 +78,7 @@ describe("each page names its translations", () => {
     }
   });
 
-  it("a page without a Spanish twin offers French and English alone", () => {
+  it("a page without a Spanish or an Italian twin offers French and English alone", () => {
     // The account, code redemption and checkout pages (D4).
     expect(alternatesOf("/account").hreflang).toEqual([
       ["fr", `${site}/account/`],
@@ -116,5 +117,59 @@ describe("a Spanish page's links (change: extend-site-spanish-locale, D4, D5)", 
     expect(html).toContain('<a class="brand" href="/es/">Cymbra</a>');
     expect(html).toContain('<a class="btn btn-primary" href="/es/">Inicio</a>');
     expect(html).toContain('<a class="btn btn-ghost" href="/es/music">Cymbra Music</a>');
+  });
+});
+
+describe("an Italian page's links (change: add-site-italian-locale, D1, D4)", () => {
+  /** The `href` of the link labelled `label` in the header nav or the footer of a built page. */
+  function linkOf(path: string, where: "nav" | "footer", label: string): string | undefined {
+    const html = builtPage(path);
+    const block =
+      where === "nav" ? html.match(/<nav class="nav-links">(.*?)<\/nav>/s)?.[1] : html.match(/<footer class="site-footer">(.*?)<\/footer>/s)?.[1];
+    return block?.match(new RegExp(`<a href="([^"]+)">${label}</a>`))?.[1];
+  }
+  const ITALIAN = ["/it/", "/it/music", "/it/privacy", "/it/termini", "/it/assistenza", "/it/elimina-account", "/it/lingua/arrivederci"];
+
+  for (const path of ITALIAN) {
+    it(`${path}: the brand and « Music » open the Italian pages, « Account » and « Codice di accesso » the English ones`, () => {
+      expect(builtPage(path)).toContain('<a class="brand" href="/it/">Cymbra</a>');
+      expect(linkOf(path, "nav", "Music")).toBe("/it/music");
+      expect(linkOf(path, "footer", "Music")).toBe("/it/music");
+      expect(linkOf(path, "nav", "Privacy")).toBe("/it/privacy");
+      expect(linkOf(path, "footer", "Assistenza")).toBe("/it/assistenza");
+      expect(linkOf(path, "nav", "Account")).toBe("/en/account");
+      expect(linkOf(path, "footer", "Account")).toBe("/en/account");
+      expect(linkOf(path, "footer", "Codice di accesso")).toBe("/en/redeem");
+      expect(linkOf(path, "footer", "Elimina il mio account")).toBe("/it/elimina-account");
+    });
+  }
+
+  it("the Italian not-found page's « Home » and « Cymbra Music » open the Italian pages", () => {
+    const html = readFileSync(resolve(dist, "it/404.html"), "utf8");
+    expect(html).toContain('<html lang="it"');
+    expect(html).toContain('<a class="brand" href="/it/">Cymbra</a>');
+    expect(html).toContain('<a class="btn btn-primary" href="/it/">Home</a>');
+    expect(html).toContain('<a class="btn btn-ghost" href="/it/music">Cymbra Music</a>');
+  });
+
+  // The courtesy notice (I13, D2): directly under the title of the three legal pages, linking
+  // the French page that prevails; the support page, which holds no terms, carries none.
+  const COURTESY: [string, string][] = [
+    ["/it/privacy", "/confidentialite"],
+    ["/it/termini", "/cgu"],
+    ["/it/elimina-account", "/suppression-compte"],
+  ];
+  for (const [path, french] of COURTESY) {
+    it(`${path}: « Traduzione di cortesia: fa fede la versione francese » under its title, linking ${french}`, () => {
+      const html = builtPage(path);
+      expect(html).toMatch(
+        new RegExp(
+          `</h1>\\s*<p class="courtesy" lang="it"><a href="${french}" hreflang="fr">Traduzione di cortesia: fa fede la versione francese</a></p>`,
+        ),
+      );
+    });
+  }
+  it("/it/assistenza carries no courtesy notice", () => {
+    expect(builtPage("/it/assistenza")).not.toContain('class="courtesy"');
   });
 });

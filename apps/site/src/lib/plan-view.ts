@@ -125,13 +125,14 @@ export function productLabel(lang: Lang, productId: string): string {
 
 /**
  * The Sign in with Apple return URL for the current page: the canonical, registered
- * form — no trailing slash, no `/en` or `/es` locale prefix (`https://cymbra.app/redeem`,
+ * form — no trailing slash, no `/en`, `/es` or `/it` locale prefix (`https://cymbra.app/redeem`,
  * `https://cymbra.app/account`; `/es/eliminar-cuenta/` sends
- * `https://cymbra.app/eliminar-cuenta`). Apple matches Return URLs exactly, so each
+ * `https://cymbra.app/eliminar-cuenta`; `/it/elimina-account/` sends
+ * `https://cymbra.app/elimina-account`). Apple matches Return URLs exactly, so each
  * address this produces is registered on the Services ID (`.env.example`).
  */
 export function appleReturnUrl(origin: string, pathname: string): string {
-  const path = pathname.replace(/^\/(?:en|es)(?=\/|$)/, "").replace(/\/+$/, "");
+  const path = pathname.replace(/^\/(?:en|es|it)(?=\/|$)/, "").replace(/\/+$/, "");
   return `${origin}${path || "/"}`;
 }
 

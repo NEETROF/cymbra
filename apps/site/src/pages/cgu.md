@@ -6,6 +6,7 @@ alternates:
   fr: /cgu
   en: /en/terms
   es: /es/terminos
+  it: /it/termini
 updated: 30/08/2026
 ---
 

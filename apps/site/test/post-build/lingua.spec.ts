@@ -151,3 +151,27 @@ describe("a Spanish Lingua page only once a pair glossed in Spanish ships (D3)",
     },
   );
 });
+
+describe("an Italian Lingua page only once a pair glossed in Italian ships (change: add-site-italian-locale, D6)", () => {
+  // Today no listed pair is glossed in Italian: `/it/lingua/` is not built, and every Italian page
+  // links the English Lingua page. Change 45 lists en-it together with the page's media.
+  const glossedInItalian = Object.keys(coverage.glossed).filter((pair) => pair.split("-")[1] === "it");
+  const expected = glossedInItalian.length ? "/it/lingua" : "/en/lingua";
+  const italianPages = builtPages().filter((page) => page.startsWith("it/") && !page.startsWith("it/lingua/index"));
+
+  it("builds /it/lingua/ exactly when a shipped pair is glossed in Italian", () => {
+    expect(existsSync(resolve(dist, "it/lingua/index.html")), "dist/it/lingua/index.html").toBe(glossedInItalian.length > 0);
+  });
+
+  it(`links Lingua from every Italian page's nav and footer to ${expected}`, () => {
+    expect(italianPages.length).toBeGreaterThan(0);
+    for (const page of italianPages) {
+      const html = read(page);
+      const nav = html.match(/<nav class="nav-links">(.*?)<\/nav>/s)?.[1] ?? "";
+      const footer = html.match(/<footer class="site-footer">(.*?)<\/footer>/s)?.[1] ?? "";
+      expect(nav, `${page} nav`).toContain(`<a href="${expected}">Lingua</a>`);
+      expect(footer, `${page} footer`).toContain(`<a href="${expected}">Lingua</a>`);
+    }
+    expect(read("it/404.html")).toContain(`<a class="btn btn-ghost" href="${expected}">Cymbra Lingua</a>`);
+  });
+});

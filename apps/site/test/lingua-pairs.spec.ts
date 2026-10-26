@@ -132,8 +132,9 @@ describe("the readers' pairs first (D2)", () => {
   });
 
   it("puts a native language the site does not speak after the site's languages", () => {
-    const withItalian = linguaPairs({ tops: [1], glossed: { "en-it": [1], "en-fr": [1] } }, {});
-    expect(pairsByNative("en", withItalian).map((g) => g.native)).toEqual(["fr", "it"]);
+    // German: a language the site does not speak (Italian was, until add-site-italian-locale).
+    const withGerman = linguaPairs({ tops: [1], glossed: { "en-de": [1], "en-fr": [1] } }, {});
+    expect(pairsByNative("en", withGerman).map((g) => g.native)).toEqual(["fr", "de"]);
   });
 });
 
@@ -166,8 +167,8 @@ describe("a page for a language a pair is glossed in (D3)", () => {
   });
 
   it("gives no page to a native language the site does not speak", () => {
-    const withItalian = linguaPairs({ tops: [1], glossed: { "en-fr": [1], "en-it": [1] } }, {});
-    expect(linguaPageLangs(withItalian)).toEqual(["fr", "en"]);
-    expect(linguaLocalePaths(withItalian)).toEqual([]);
+    const withGerman = linguaPairs({ tops: [1], glossed: { "en-fr": [1], "en-de": [1] } }, {});
+    expect(linguaPageLangs(withGerman)).toEqual(["fr", "en"]);
+    expect(linguaLocalePaths(withGerman)).toEqual([]);
   });
 });

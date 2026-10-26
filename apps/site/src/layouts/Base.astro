@@ -59,7 +59,9 @@ interface Link {
 // (change: extend-site-spanish-locale) — and, where a page has no Spanish twin
 // (account, code), its English page. Lingua's Spanish page exists once a pair glossed
 // in Spanish ships (`linguaHref`, change: add-site-lingua-matrix-pages): the English
-// one until then.
+// one until then. The Italian table follows the same rule (change: add-site-italian-locale):
+// its own home, Music, legal, support and deletion pages, the English account and code
+// pages, and Lingua's Italian page once a pair glossed in Italian ships.
 const TABLES: Record<Lang, { home: string; nav: Link[]; footerHead: Link[]; footerTail: Link[] }> = {
   fr: {
     home: '/',
@@ -131,12 +133,36 @@ const TABLES: Record<Lang, { home: string; nav: Link[]; footerHead: Link[]; foot
       { href: '/en/', label: 'EN' },
     ],
   },
+  it: {
+    home: '/it/',
+    nav: [
+      { href: '/it/music', label: 'Music' },
+      { href: linguaHref('it'), label: 'Lingua' },
+      { href: '/it/privacy', label: 'Privacy' },
+      { href: '/it/termini', label: 'Termini' },
+      { href: '/en/account', label: 'Account' },
+    ],
+    footerHead: [
+      { href: '/it/music', label: 'Music' },
+      { href: linguaHref('it'), label: 'Lingua' },
+      { href: '/it/assistenza', label: 'Assistenza' },
+    ],
+    footerTail: [
+      { href: '/it/privacy', label: 'Privacy' },
+      { href: '/it/termini', label: 'Termini' },
+      { href: '/en/account', label: 'Account' },
+      { href: '/en/redeem', label: 'Codice di accesso' },
+      { href: '/it/elimina-account', label: 'Elimina il mio account' },
+      { href: '/', label: 'FR' },
+      { href: '/en/', label: 'EN' },
+    ],
+  },
 };
 const { home, nav, footerHead, footerTail } = TABLES[lang];
 
 // The alternates in `LANGS`' order, for `hreflang` (each of them) and the switch (the
 // others). No `x-default`: the site has none today, and choosing one is the owner's.
-const LABEL: Record<Lang, string> = { fr: 'FR', en: 'EN', es: 'ES' };
+const LABEL: Record<Lang, string> = { fr: 'FR', en: 'EN', es: 'ES', it: 'IT' };
 const hreflangs: { lang: Lang; href: string }[] = [];
 for (const l of LANGS) {
   const href = alternates[l];
@@ -157,6 +183,7 @@ const BRAND_ALT: Record<Lang, string> = {
   fr: 'Le nom Cymbra sur un dégradé bleu et violet',
   en: 'The name Cymbra on a blue-to-purple gradient',
   es: 'El nombre Cymbra sobre un degradado azul y violeta',
+  it: 'Il nome Cymbra su una sfumatura dal blu al viola',
 };
 const share = image ?? { src: brandShare, alt: BRAND_ALT[lang] };
 const shareImage = await getImage({ src: share.src, width: 1200, height: 630, fit: 'cover', position: 'top', format: 'jpeg', quality: 82 });

@@ -18,7 +18,10 @@
 //
 // Adding a page does NOT pin it. A route joins this list on the day a shipped
 // client or a store listing field starts pointing at it — which is the only moment
-// anyone knows the pin exists.
+// anyone knows the pin exists. One exception: a path is pinned AHEAD of a client about
+// to compile it, from the day the page is published, so that `check:routes` refuses a
+// build that drops it before that client ships — as `/es/eliminar-cuenta/`, the leaving
+// pages and the four Italian pages below were (change: add-site-italian-locale, D3).
 
 export interface PinnedRoute {
   /** The path as the consumer requests it. */
@@ -64,6 +67,14 @@ export const PINNED_ROUTES: PinnedRoute[] = [
   { path: "/lingua/au-revoir/", pinnedBy: "Lingua — uninstall page, compiled into Chromium and Firefox builds (French interface)", source: "apps/lingua-extension/src/usage/counts.ts — `LEAVING_PAGES`, registered by `setUninstallURL` (add-lingua-usage-counts, D12)" },
   { path: "/en/lingua/goodbye/", pinnedBy: "Lingua — uninstall page, compiled into Chromium and Firefox builds (English interface)", source: "apps/lingua-extension/src/usage/counts.ts — `LEAVING_PAGES`, registered by `setUninstallURL` (add-lingua-usage-counts, D12)" },
   { path: "/es/lingua/adios/", pinnedBy: "Lingua — uninstall page, compiled into Chromium and Firefox builds (Spanish interface)", source: "apps/lingua-extension/src/usage/counts.ts — `LEAVING_PAGES`, registered by `setUninstallURL` (add-lingua-usage-counts, D12)" },
+
+  // The Italian pages, pinned ahead of the clients about to compile them (change:
+  // add-site-italian-locale, D3): the extension's Italian interface (change 45 of the
+  // Italian programme) and Cymbra ID's Italian e-mails (change 43).
+  { path: "/it/termini/", pinnedBy: "Cymbra ID e-mail footer, it (change 43)", source: "backend/platform/src/email_template/mod.rs" },
+  { path: "/it/privacy/", pinnedBy: "Cymbra ID e-mail footer, it (change 43); Lingua — privacy link, Italian interface (change 45)", source: "backend/platform/src/email_template/mod.rs; apps/lingua-extension/src/translate/online.ts — `PRIVACY_POLICY_URLS`" },
+  { path: "/it/elimina-account/", pinnedBy: "Lingua — deletion link, Italian interface (change 45)", source: "apps/lingua-extension/src/account/locale.ts — `deleteAccountUrl`" },
+  { path: "/it/lingua/arrivederci/", pinnedBy: "Lingua — uninstall page, compiled into Chromium and Firefox builds (Italian interface, change 45)", source: "apps/lingua-extension/src/usage/counts.ts — `LEAVING_PAGES`, registered by `setUninstallURL` (add-lingua-usage-counts, D12)" },
 
   // Rendered into Cymbra ID e-mails (change: localise-cymbra-id-email-legal-links).
   // An e-mail already sent keeps the links it was rendered with, like a shipped
