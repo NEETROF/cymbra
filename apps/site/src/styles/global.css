@@ -194,6 +194,12 @@ a:hover { text-decoration: underline; }
 .prose table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.92rem; }
 .prose th, .prose td { border: 1px solid var(--border); padding: 0.5rem 0.7rem; text-align: left; vertical-align: top; }
 .prose th { background: var(--surface); }
+/* A phone's width (375 px): the privacy policies' three-column tables were wider than the page in
+   every language (a long word in a narrow column), scrolling it sideways. A cell's word is hyphenated
+   in the page's language, or broken as a last resort (change: add-site-italian-locale). */
+@media (max-width: 480px) {
+  .prose th, .prose td { hyphens: auto; overflow-wrap: anywhere; padding: 0.45rem 0.5rem; }
+}
 /* A table wider than the text scrolls inside its own box, never the page (the Lingua page's
    per-pair coverage table, change: add-lingua-french-listings, D8). */
 .table-scroll { overflow-x: auto; }
