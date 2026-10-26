@@ -560,8 +560,9 @@ class ReviewedRows(unittest.TestCase):
     rows = RefinedRows.rows
 
     def test_every_reviewed_row_names_its_reason_its_sources_and_its_page(self):
-        self.assertEqual(len(refine.FIRST_RUN), 34)
-        self.assertEqual(len(refine.CORRECTIONS), 23)
+        # Round 2 (the owner's, 2026-10-26): 13 more FIRST_RUN rows, 2 more CORRECTIONS.
+        self.assertEqual(len(refine.FIRST_RUN), 47)
+        self.assertEqual(len(refine.CORRECTIONS), 25)
         self.assertFalse(set(refine.FIRST_RUN) & set(refine.CORRECTIONS), "one row a word")
         self.assertIn("bye", refine.FIRST_RUN)
         for name in ("trash", "lot", "some", "disposable"):
@@ -657,7 +658,33 @@ class ReviewedRows(unittest.TestCase):
             direct={"trash": {"NOUN": ["spazzatura", "immondizia", "rifiuti"], "VERB": ["scartare"]}},
             rules=("reviewed rows",),
         )
-        self.assertEqual(glosses["trash"], "spazzatura, immondizia, rifiuti; scartare; battere, percuotere, colpire")
+        self.assertEqual(glosses["trash"], "spazzatura, immondizia, rifiuti; scartare")
+
+    def test_a_reviewed_row_is_never_moved_by_d2_or_d3(self):
+        # Round 2: `cop` opens on « poliziotto » as the section writes it — D2 would open it on the slang
+        # verb, its table's « prendere » rating high —; `spare` takes the table's « di scorta, di ricambio »,
+        # never D3a's « superfluo, ulteriore ».
+        cop = ("poliziotto; bobina, spola; arrestare; prendere, beccare", [("NOUN", 2), ("VERB", 2)])
+        spare = ("ricambio", [("NOUN", 1)])
+        first = {"cop": ("VERB", ["afferrare", "prendere"]), "spare": ("ADJ", ["superfluo", "ulteriore"])}
+        direct = {
+            "cop": {"VERB": ["afferrare", "prendere"], "NOUN": ["piedipiatti", "poliziotto"]},
+            "spare": {"ADJ": ["superfluo", "ulteriore", "di scorta", "di ricambio"], "VERB": ["risparmiare"]},
+        }
+        zipf = zipf_of({"prendere": 5.4, "poliziotto": 4.3, "superfluo": 3.5, "ulteriore": 4.6, "risparmiare": 4.2})
+        glosses, *_ = self.rows({"cop": cop, "spare": spare}, first=first, direct=direct, zipf=zipf)
+        self.assertEqual(glosses["cop"], cop[0])
+        self.assertEqual(glosses["spare"], "di scorta, di ricambio; risparmiare; ricambio")
+        # Without the reviewed rows, D2 and D3a move them.
+        glosses, *_ = self.rows({"cop": cop, "spare": spare}, first=first, direct=direct, zipf=zipf, rules=("part of speech", "missing part of speech"))
+        self.assertEqual(glosses["cop"], "arrestare; prendere, beccare; poliziotto; bobina, spola")
+        self.assertEqual(glosses["spare"], "superfluo, ulteriore; ricambio")
+
+    def test_english_text_out_of_a_row(self):
+        intense = refine.CORRECTIONS["intense"].ops
+        texts = [op.text for op in intense if isinstance(op, refine.Drop)]
+        glosses, *_ = self.rows({"intense": ("; ".join(texts), [("ADJ", 2)])}, direct={"intense": {"ADJ": ["intenso"]}}, rules=("reviewed rows",))
+        self.assertEqual(glosses["intense"], "intenso")
 
     def test_spec_scenario_a_gloss_written_by_a_person(self):
         # `lot` opens on the expression *a lot*'s « molto, parecchio », « (a lot) » a person's (task 0.2).
@@ -716,6 +743,9 @@ class RefinedSection(unittest.TestCase):
         self.assertEqual(read[("he", "pron")], ["egli, lui, esso"])
         self.assertEqual(read[("first", "adj")], ["primo"])
         self.assertEqual(read[("yes", "noun")], ["sì"])
+        # Round 2: « rafforzativo » opens a frame (`so`).
+        read = self.read({"word": "so", "pos": "adv", "senses": [{"glosses": ["rafforzativo dell'aggettivo: così, molto"]}]})
+        self.assertEqual(read[("so", "adv")], ["così, molto"])
 
     def test_spec_scenario_a_frame_kept(self):
         entries = (
@@ -737,6 +767,18 @@ class RefinedSection(unittest.TestCase):
         self.assertEqual(read[("John", "name")], ["Giovanni (nome)"])
         self.assertEqual(read[("Scott", "name")], ["nome proprio di persona inglese maschile"], "a name alone keeps its note")
 
+    def test_a_given_name_on_a_word_that_only_names_itself(self):
+        # Round 2: `henry`'s common entry is the unit, « henry »: the given name's note stays, read short;
+        # a surname's note still goes (`maxwell`).
+        read = self.read(
+            {"word": "henry", "pos": "noun", "senses": [{"glosses": ["henry"]}]},
+            {"word": "Henry", "pos": "name", "senses": [{"glosses": ["nome proprio di persona maschile, corrispondente all'italiano Enrico"]}]},
+            {"word": "maxwell", "pos": "noun", "senses": [{"glosses": ["maxwell"]}]},
+            {"word": "Maxwell", "pos": "name", "senses": [{"glosses": ["nome proprio di persona inglese maschile"]}]},
+        )
+        self.assertEqual(read[("Henry", "name")], ["Enrico (nome)"])
+        self.assertNotIn(("Maxwell", "name"), read)
+
     def test_spec_scenario_heraldry_inside_a_row(self):
         read = self.read(
             {"word": "side", "pos": "noun", "senses": [
@@ -752,6 +794,14 @@ class RefinedSection(unittest.TestCase):
         self.assertNotIn(("or", "noun"), read, "a tincture")
         self.assertEqual(read[("savage", "noun")], ["selvatico"])
         self.assertEqual(read[("crown", "noun")], ["corona"], "a sense tagged heraldic alone, not worded so, stays")
+        # Round 2: a canting arms' wording is heraldry's (`ash`).
+        read = self.read(
+            {"word": "ash", "pos": "noun", "senses": [
+                {"glosses": ["cenere"]},
+                {"glosses": ["frassino: questa figura compare in numerose armi parlanti per la presenza della sillaba ash in molti cognomi"]},
+            ]},
+        )  # fmt: skip
+        self.assertEqual(read[("ash", "noun")], ["cenere"])
 
     def test_spec_scenario_an_expansion_and_a_list_of_them(self):
         csi = {"word": "CSI", "pos": "abbrev", "tags": ["abbreviation"], "senses": [

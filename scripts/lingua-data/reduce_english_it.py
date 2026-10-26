@@ -32,12 +32,21 @@ Three passes, in the design's order (D1), each rule named in `RULES` so that it 
   never yielding to a noun (D2: 199, `make` « fare, creare, fabbricare; … »); the missing main part
   of speech (D3a: 76, `prove`, `rescue` « salvare; … ») and a row of descriptions (D3b: 45, `its`
   « suo; … »), opened on the English Wiktionary's first sense; the reviewed rows, `FIRST_RUN` (D4,
-  34 rows) and `CORRECTIONS` (D12, 23 rows; with D4 alone, 55 rows); whole repeated senses and
+  47 rows) and `CORRECTIONS` (D12, 25 rows), which D2 and D3 never move; whole repeated senses and
   repeated items last (D10a: 369, `national` « nazionale »).
 
 Together, over the pinned release `lingua-pack-sources-en-it-2026.10.26`, the design measured 1,035
 rows changed (154 / 314 / 402 / 165), 618 in their first sense, 54 lemmas gained and none lost, and
 the coverage of the 5,000 / 10,000 / 20,000 commonest at 92.1 / 83.1 / 70.6 %.
+
+**Round 2** (the specialist's review of the gloss diff, the owner's, 2026-10-26: 15 of the 468 changed
+rows of the 5,000 commonest read worse): a reviewed row is never moved by D2 or D3; `FIRST_RUN` gains 13
+rows and `CORRECTIONS` 2 (`spare`, `intense`), every word a source's; D6 keeps a given name's note, read
+short, on a word whose only common sense is itself (`henry` « Enrico (nome); henry »); D8 reads « armi
+parlanti » as heraldry (`ash`); D5 reads « rafforzativo » as a frame (`so`). No narrowing of D2 passed
+the criteria — opening a moved block on the sense holding the table's first word, scoring a class by its
+first word, holding a row that opens on a sense of unknown part of speech or on a description (the
+design's *Round 2*) —, so D2 is as measured.
 
 Every word a row gains is a source's — the section's, a table's or an expression's —, but for
 `BY_A_PERSON` (task 0.2, the owner's: `lot`'s « (a lot) ») and the contractions' pointers, composed by
@@ -105,7 +114,8 @@ _GIVEN_NAME = re.compile(
 )
 # D8: heraldry's wording, and the tinctures, whose sense the edition tags heraldic.
 _HERALDIC = re.compile(
-    r"araldic|blason|(?:al|come) cimiero|dello scudo|di uno scudo|su uno scudo|quando riferito a (?:nobili|principi)",
+    r"araldic|blason|(?:al|come) cimiero|dello scudo|di uno scudo|su uno scudo|quando riferito a (?:nobili|principi)"
+    r"|armi parlanti|arme parlante",
     re.IGNORECASE,
 )
 TINCTURES = frozenset({"or", "argent", "azure", "gules", "vert", "sable", "purpure", "tenné", "tenne", "sanguine", "murrey", "proper"})
@@ -122,7 +132,7 @@ _WIKI = re.compile(r"\bwiki", re.IGNORECASE)
 # D5: a frame's opening, and an item opening on a preposition (what a frame keeps then).
 FRAME = re.compile(
     r"^(?:forma|usat[oa]|utilizzat[oa]|articolo (?:in)?determinativo|complemento|corrisponde|relativ[oa]|risposta|plurale|"
-    r"in funzione|riferito|riguardante|pronome|introduce)\b",
+    r"in funzione|riferito|riguardante|pronome|introduce|rafforzativo)\b",
     re.IGNORECASE,
 )
 _PREPOSITION = re.compile(
@@ -226,18 +236,20 @@ def _entries(path):
 
 
 def _common_words(entries):
-    """The lowercase words with an entry that is no name's and holds a sense that is no name's note."""
-    words = set()
+    """The lowercase words with an entry that is no name's and holds a sense that is no name's note; and,
+    among them, those whose every such sense is the word itself (`henry` « henry », the unit), a given
+    name's note keeps off (round 2)."""
+    words, themselves = set(), set()
     for entry, _ in entries:
         if isinstance(entry, dict) and entry.get("pos") != "name":
             word = (entry.get("word") or "").strip()
-            if (
-                word
-                and word == word.lower()
-                and any(gloss_text(s) and not _NAME_NOTE.match(gloss_text(s)) for s in entry.get("senses") or [])
-            ):
-                words.add(word)
-    return words
+            meanings = [gloss_text(s) for s in entry.get("senses") or [] if gloss_text(s) and not _NAME_NOTE.match(gloss_text(s))]
+            if word and word == word.lower() and meanings:
+                if any(m.strip().lower() != word for m in meanings):
+                    words.add(word)
+                else:
+                    themselves.add(word)
+    return words, themselves - words
 
 
 class _Dropped:
@@ -250,12 +262,15 @@ class _Dropped:
 
 
 def _read_sense(entry, sense, *, word, common_words, zipf, rules, stats):
-    """One sense of the section as D5–D9 and D13 read it: the sense, rewritten or not, or `_Dropped`."""
+    """One sense of the section as D5–D9 and D13 read it: the sense, rewritten or not, or `_Dropped`.
+    `common_words` is `_common_words`'s pair."""
+    common_words, themselves = common_words
     text = gloss_text(sense)
     if not text:
         return sense
     dropped = None
-    if "names" in rules and entry.get("pos") == "name" and word[:1].isupper() and word.lower() in common_words and _NAME_NOTE.match(text):
+    common = word.lower() in common_words or (word.lower() in themselves and not _GIVEN_NAME.match(text))
+    if "names" in rules and entry.get("pos") == "name" and word[:1].isupper() and common and _NAME_NOTE.match(text):
         dropped = "names"
     elif "heraldry" in rules and (_HERALDIC.search(text) or ("heraldry" in (sense.get("topics") or []) and word.lower() in TINCTURES)):
         dropped = "heraldry"
@@ -623,6 +638,7 @@ _IT = "https://it.wiktionary.org/wiki/{}"
 _EN = "https://en.wiktionary.org/wiki/{}"
 _PERSON = "written by a person"
 _OWNER_S = "task 0.2, the owner's (2026-10-26)"
+_ROUND_2 = "round 2, the specialist's review of the gloss diff, the owner's (2026-10-26)"
 
 # D4's `FIRST_RUN`: the commonest grammatical words and the rows no rule tells apart, each opening on a
 # sense a source writes. Every word is a source's; none is written by a person.
@@ -683,6 +699,35 @@ FIRST_RUN = {
     "none": Reviewed((Open("PRON", "nessuno, nessuna", "section"),), "D2 opens it on the adverb « non »", _IT.format("none")),
     "bye": Reviewed((Open("INTJ", "ciao, addio", "section"),), "a sport's status first; the section's own words after D5 takes « forma corta di goodbye » out", _IT.format("bye")),
     "conductor": Reviewed((Open("NOUN", "direttore d'orchestra", "section"),), "« bigliettaio » first", _IT.format("conductor")),
+    # Round 2 (the specialist's review of the gloss diff, the owner's, 2026-10-26): the rows D2, D3a and
+    # D3b read worse, and the moved rows no narrowing of D2 reaches (design *Round 2*).
+    "cop": Reviewed((Open("NOUN", "poliziotto", "section"),), f"D2 opens it on the slang verb « arrestare » — {_ROUND_2}", _IT.format("cop")),
+    "whenever": Reviewed((Open("ADV", "ogni volta che", "section"),), f"D3a opens it on « in ogni momento » — {_ROUND_2}", _IT.format("whenever")),
+    "flash": Reviewed((Open("NOUN", "fulmine, lampo", "section"),), f"D2 opens it on « scintillare » — {_ROUND_2}", _IT.format("flash")),
+    "epic": Reviewed((Open("ADJ", "epico", "section"),), f"D2 opens it on the genre « epica » — {_ROUND_2}", _IT.format("epic")),
+    "piece": Reviewed((Open("X", "pezzo", "section"),), f"D2 opens it on « porzione, pezzo », and D10a takes « pezzo » — {_ROUND_2}", _IT.format("piece")),
+    "graph": Reviewed((Open("X", "grafico", "section"),), f"D2 opens it on the mathematician's « grafo » — {_ROUND_2}", _IT.format("graph")),
+    "whatsoever": Reviewed(
+        (Open("ADJ", "qualsiasi, qualsivoglia", "section"),), f"D2 opens it on a description — {_ROUND_2}", _IT.format("whatsoever"),
+    ),
+    "shine": Reviewed(
+        (Open("VERB", "brillare, splendere", "section"),), f"D2 opens the verb on the rare « fare luce con » — {_ROUND_2}", _IT.format("shine"),
+    ),
+    "cope": Reviewed(
+        (Open("VERB", "affrontare, far fronte", "direct"), Open("VERB", "resistere, fronteggiare", "section")),
+        f"D2 opens the verb on the mason's « dotare di cimasa », the commonest sense missing — {_ROUND_2}", _EN.format("cope"),
+    ),
+    "express": Reviewed(
+        (Open("VERB", "esprimere", "direct"),), f"D2 opens it on « autobus », the verb missing — {_ROUND_2}", _EN.format("express"),
+    ),
+    "joint": Reviewed(
+        (Open("NOUN", "articolazione, giuntura", ("direct", "section")),),
+        f"D2 opens it on the rare adjective « comune » — {_ROUND_2}", _EN.format("joint"),
+    ),
+    "stir": Reviewed(
+        (Open("VERB", "mescolare, agitare", "direct"),), f"D2 opens it on « esaltare », the commonest verb missing — {_ROUND_2}", _EN.format("stir"),
+    ),
+    "forum": Reviewed((Open("NOUN", "forum", "direct"),), f"D3b opens it on the Roman « foro » — {_ROUND_2}", _EN.format("forum")),
 }  # fmt: skip
 
 # D12's `CORRECTIONS`: the false friends the review names, the pages copied from another word, English
@@ -718,6 +763,7 @@ CORRECTIONS = {
         (
             Drop("festa chiassosa o sontuosa"), Drop("battere, percuotere, picchiare"), Drop("pestare"),
             Drop("frustare, fustigare, sferzare"), Drop("battere, sconfiggere"), Drop("trebbiare, battere"), Drop("agitare"),
+            Drop("battere, percuotere, colpire"),
             Open("NOUN", "spazzatura, immondizia, rifiuti", "direct"), Open("VERB", "scartare", "direct"),
         ),
         "the section's eight senses are *thrash*'s", _IT.format("trash"),
@@ -742,6 +788,20 @@ CORRECTIONS = {
     ),
     "passionate": Reviewed((Drop("passionale"), Open("ADJ", "appassionato", "direct")), "« passionale », a false friend", _IT.format("passionate")),
     "sacred": Reviewed((Open("ADJ", "sacro", "direct"),), "« santo » alone, the holy rather than the sacred", _IT.format("sacred")),
+    # Round 2 (the owner's, 2026-10-26).
+    "spare": Reviewed(
+        (Open("ADJ", "di scorta, di ricambio", "direct"), Open("VERB", "risparmiare", "direct")),
+        f"D3a opens it on « superfluo, ulteriore », which misleads; « libero » (spare time) no source gives — {_ROUND_2}",
+        _EN.format("spare"),
+    ),
+    "intense": Reviewed(
+        (
+            Drop("Strained, tightly drawn, kept on the stretch, strict, very close or earnest, as, intense study or application, intense thought"),
+            Drop("Extreme in degree, excessive, immoderate, as: (a) Ardent, fervent, as, intense heat. (b) Keen, biting, as, intense cold. (c) Vehement, earnest, exceedingly strong, as, intense passion or hate. (d) Very severe, violent, as, intense pain or anguish. (e) Deep, strong, brilliant, as, intense color or…"),
+            Open("ADJ", "intenso", "direct"),
+        ),
+        f"two English sentences (Webster's) — {_ROUND_2}", _IT.format("intense"),
+    ),
 }  # fmt: skip
 
 # Every gloss of en-it written by a person, by headword: the words no source gives (task 0.2). The pull
@@ -872,7 +932,8 @@ def refine_rows(glosses, runs, steps, *, ranks, first, direct, inverted, express
         senses = glosses[lemma].split("; ")
         parts = _expand(runs[lemma])
         before = list(senses)
-        if lemma in steps["entries"]:
+        # A reviewed row is never moved by D2 or D3 (round 2): the reviewed table orders it alone.
+        if lemma in steps["entries"] and lemma not in reviewed:
             upos, words = first.get(lemma, ("X", []))
             agreed = CLASSES.get(upos)
             if "part of speech" in rules and len({_class(p) for p in parts}) > 1:

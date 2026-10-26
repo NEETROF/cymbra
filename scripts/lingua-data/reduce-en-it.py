@@ -47,8 +47,10 @@ the rows after it — contractions read as pointers (D11: 55 rows, 54 lemmas gai
 two signals agree on (D2: 199), the missing main part of speech and rows of descriptions opened on the
 English Wiktionary's first sense (D3a: 76, D3b: 45), the reviewed rows `FIRST_RUN` and `CORRECTIONS`
 (D4, D12: 55), repeats last (D10a: 369). Together, over the pinned sources, the design measured 1,035
-rows changed, 618 in their first sense, coverage 92.1 / 83.1 / 70.6 %. A reviewed row that finds
-nothing is named on the summary line.
+rows changed, 618 in their first sense, coverage 92.1 / 83.1 / 70.6 %. Round 2 (the specialist's review
+of the gloss diff, the owner's, 2026-10-26) holds a reviewed row from D2 and D3, adds 15 reviewed rows
+and narrows D5, D6 and D8 by a word each: 1,027 rows changed against change 36's, 613 in their first
+sense, the coverage as round 1's. A reviewed row that finds nothing is named on the summary line.
 
 Outputs, in `--work`: `gloss.tsv`, `senses.tsv`, `mwe.tsv`, `NOTICE` and `manifest.json` — and
 `measures.json`, the translation-table share (D9), which `pack_sources.py split` files nowhere: it is
