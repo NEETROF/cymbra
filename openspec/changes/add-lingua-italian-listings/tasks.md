@@ -19,9 +19,9 @@
 ## 4. Gates
 
 - [x] 4.1 `openspec validate add-lingua-italian-listings --strict` passes; `python3 scripts/openspec_archive_order.py add-lingua-italian-listings` names its prerequisites; the MODIFIED blocks re-copied from `add-lingua-french-listings` as it then stands.
-- [ ] 4.2 `docs/lingua/italian-programme.md` row 21's status names this change's pull requests.
+- [x] 4.2 `docs/lingua/italian-programme.md` row 21's status names this change's pull requests.
 
 ## 5. Owner
 
-- [ ] 5.1 [manual] The owner reads the drafts (M9) and answers the design's Open Questions 1 to 4.
+- [x] 5.1 [manual] The owner reads the drafts (M9) and answers the design's Open Questions 1 to 4. Settled by the owner on 2026-10-25: the drafts stand, the French description version A (« Le web en anglais, espagnol ou italien : mots inconnus surlignés, pourcentage honnête. Hors ligne et privé. »); `mots` gives way to `italien`; the Chrome Web Store's French screenshots unchanged; #994 the owner's to merge and to paste.
 - [ ] 5.2 [manual] With change 20's release: the App Store fr-FR capture on an Italian page (D8), the listings pasted after the site deploy that publishes it-fr's figures, and what each dashboard shows recorded (I12, M18).
