@@ -258,6 +258,19 @@ describe("helpers", () => {
     const spanish = { download: 51_993_524, stored: 74_762_516, twoModels: true };
     expect(costText(spanish)).toContain("Télécharge 52,0 Mo une fois");
     expect(costText(spanish)).toContain("environ 340 Mo de mémoire");
+    // A reader of Italian alone: it-fr's route, it-en then en-fr, summed from the catalogue — two models'
+    // memory (enable-lingua-italian D6).
+    const italian = { download: 51_994_773, stored: 73_837_254, twoModels: true };
+    expect(costText(italian)).toBe(
+      "Traduit tes phrases sur cet appareil, sans rien envoyer. Télécharge 52,0 Mo une fois, puis utilise " +
+        "environ 340 Mo de mémoire pendant la traduction. Réglage propre à cet appareil.",
+    );
+    // A reader of English, Spanish and Italian: en-fr, es-en and it-en, three models held two at a time —
+    // the memory of two, the download of three.
+    const three = { download: 78_235_825, stored: 110_851_343, twoModels: true };
+    expect(costText(three)).toContain("Télécharge 78,2 Mo une fois");
+    expect(costText(three)).toContain("environ 340 Mo de mémoire");
+    expect(costText(three)).not.toContain("200 Mo");
     expect(stateText({ phase: "failed", reason: "storage" }, COST)).toContain("(36,7 Mo)");
     expect(stateText({ phase: "failed", reason: "storage" })).toBe(
       "Pas assez de place sur cet appareil pour le modèle.",

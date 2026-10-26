@@ -144,8 +144,8 @@ export function isPaintedClass(cls: TokenClass): cls is "Learning" | "Unknown" {
 }
 
 /** A language the engine can study, as its ISO 639-1 tag (generalise-lingua-extension-port); French
- *  since enable-lingua-french lists its pairs. */
-export type StudiedLanguage = "en" | "es" | "fr";
+ *  since enable-lingua-french lists its pairs, Italian since enable-lingua-italian lists it-fr. */
+export type StudiedLanguage = "en" | "es" | "fr" | "it";
 
 /** A language the engine glosses in — the reader's native language — as its ISO 639-1 tag
  *  (generalise-lingua-native-language). */

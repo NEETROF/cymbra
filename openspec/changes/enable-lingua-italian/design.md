@@ -36,7 +36,8 @@ listed in the proposal's Impact, not a fact today — on `main` today are only t
   glossed, recorded, read aloud and translated for them.
 - The French description and the host app's French activation page name Italian.
 - Nothing moves for English- and Spanish-native readers, and nothing of the six pairs.
-- Released on its own, after a release that reads backup schema 4 is live on every store.
+- Released in one release with `ship-lingua-pack-bases-once`'s lighter dictionaries (extension 1.11.0,
+  host app 1.9.0), fixed forward (D4, D12: the owner's decision of 2026-10-25).
 
 **Non-Goals:**
 - it-en and it-es (stage 2: changes 25 and 30), the Italian interface and en-it (stage 3), fr-it and
@@ -160,7 +161,7 @@ change 17 (`refine-lingua-it-fr-glosses`) has merged — the defects change 16's
 species names among the expressions, `della`, `del`'s note, the letter `te`, the glosses repeating a
 word across parts of speech) fixed before French readers see them, as fr-es's were by
 `refine-lingua-fr-es-glosses` (the owner, 2026-10-09). Open Question 1 asks the owner to confirm the
-same rule for it-fr.
+same rule for it-fr. *Answered: it-fr is listed after change 17, which merged (#1062).*
 
 ### D3 — The extension's Italian: one type, one name, no new surface
 
@@ -192,17 +193,26 @@ things come with the type, because nothing else can write them:
   the document's language out*, names each language's list and is MODIFIED (D13).
 - **The test-local `NAMES`** of `test/native-language-view.spec.ts` gains Italian.
 
-### D4 — Backup v4 reaches a store before Italian does
+### D4 — Backup v4, and one release fixed forward
 
 Once a reader studies Italian, their stored backup is schema 4 (change 5's D7), written only then; a
 reader who studies no Italian keeps 1, 2 or 3, byte for byte. A build released before change 5's
-implementation refuses schema 4 by name. Were this change's release withdrawn, the stores would serve
-the previous release again: if that one predated change 5, a reader of Italian would find their
-extension refusing its own state. So the first release cut after change 5's implementation — which
-reads schema 4 — is live on the Chrome Web Store, addons.mozilla.org and, in the host app, the App
-Store before this change's release. A rollback then lands on a build that keeps the reader's Italian
-records: its `profile.ts` drops `Italian` from what the surfaces read, the core keeps the records in
-the backup, and this change's next release finds them. The dogfood checks it once (D11, step 10).
+implementation — extension 1.10.1, host app 1.8.1 — refuses schema 4 by name.
+
+**The owner's decision of 2026-10-25: one release, fixed forward.** No release reading schema 4
+goes to the stores before Italian does: the next release, extension 1.11.0 and host app 1.9.0
+(release-please's #1036), carries both `ship-lingua-pack-bases-once`'s lighter dictionaries (#1037)
+and Italian for French speakers. A serious problem after it is fixed in a new version; there is no
+rollback to 1.10.1, and the App Store has none anyway.
+
+*Recorded risk, accepted by the owner.* Were 1.11.0 withdrawn and 1.10.1 served again, a reader of
+Italian would find their extension refusing its own state: 1.10.1 reads schemas 1 to 3, so a
+restored file shows « Fichier de sauvegarde non reconnu. », a stored one stops the surfaces from
+starting (`hydrateEngine`), and sync leaves aside the records of a language the device does not
+accept. A reader who studies no Italian keeps a schema 1–3 backup and is unaffected. The design first
+proposed a schema-4 release live on every store before this one, so that a rollback would land on a
+build that keeps Italian's records; the owner chose one release instead. The dogfood checks the
+in-place update from 1.10.1 (D11, step 10), not a rollback.
 
 ### D5 — Translation as M15 settled it
 
@@ -211,7 +221,8 @@ then en-fr (change 2), two models in one engine as es-fr and fr-es; the model ho
 the owner has redeployed it after change 2 (its task 4.1), which `check_model_host` verifies before
 any delivery. Marks: if change 19 measured it-fr on the first tier, `MARKED_PAIRS` already lists it,
 inert until now; below the tier, M15 offers it-fr's translation without a mark unless the owner
-decided otherwise at change 19's figures (Open Question 2). Nothing in `model-manifest.json` or
+decided otherwise at change 19's figures (Open Question 2). *Settled by change 19's figures: 93 of 97,
+3 % withheld, on the first tier — it-fr is marked.* Nothing in `model-manifest.json` or
 `markup.ts` changes but the comments that say « until change 20 ». Change 2's scenario *Every reader
 today* says a French-native reader « downloads, stores and loads as before »: it gains « and the it-en
 model too once they accept Italian » (D13).
@@ -263,6 +274,10 @@ what French readers are told they can study:
 
   The English and Spanish pages do not move. `test/apple-activation-page.spec.ts` follows: the French
   page names « anglais », « espagnol » and « italien », in that order.
+
+*The owner's answer, 2026-10-25 (Open Question 3): version A, the recommended draft — « Le web en
+anglais, espagnol ou italien : mots inconnus surlignés, pourcentage honnête. Hors ligne et privé. » —;
+the activation page takes the drafts above.*
 
 ### D8 — The published coverage, and the site
 
@@ -325,6 +340,9 @@ programmes' changes in the code (*Measured*).
 
 ### D11 — The dogfood pass, before merge
 
+*Moved by the owner on 2026-10-26: the pass runs on the complete release (changes 20, 25 and 30),
+before the release pull request (#1036) merges, not before this change does.*
+
 On Chrome and Firefox (macOS), Firefox for Android, Safari (macOS, iOS), with a package built from
 this branch with the real packs, on test accounts, in the French interface:
 1. A new install in a browser in French: native preset French, English studied; « Langues étudiées »
@@ -338,37 +356,75 @@ this branch with the real packs, on test accounts, in the French interface:
 4. Read-aloud, change 15's checklist (its task 4.1): Alice on macOS and iOS, Google's Italian voice
    on Chrome, Android's on Firefox for Android, an installed Windows Italian voice on Chrome for
    Windows if one is at hand; « l' » heard with its word, « è » heard as the verb.
-5. A Catalan, a Galician, a Sicilian and a Venetian page: not read as Italian (change 8); a word
-   card on a page declaring `scn` not read in Italian (D3).
-6. « Traduction étendue »: the download and « environ 340 Mo » with Italian alone and with English,
-   Spanish and Italian; it-en downloaded once; Italian selections translated, marked if it-fr is
-   listed in `MARKED_PAIRS`; the worker's memory with Spanish and Italian studied, read from the
-   browser's task manager and on the iPhone; absent on Firefox for Android. On an account granted
-   it, « Traduction en ligne » on an Italian sentence, once the backend is deployed (D5).
+5. Neighbour pages, not read as Italian (change 8), the riskiest first — Corsican (83.2 % of its
+   blocks read as Italian without the guard, 57.9 % with it) and Neapolitan (71.3 %, 27.8 %), then
+   Sicilian (66.4 % with it) and Venetian, and a Latin or a Romanian page —, and a Catalan and a
+   Galician page. A word card on a page declaring `scn` is not read in Italian (D3): on a Sicilian
+   Wikipedia page, with Spanish and Italian ticked, a selected word's card never says « Mot
+   italien ».
+6. « Traduction étendue », on every target, Firefox for Android included (the engine ships there):
+   the download and « environ 340 Mo » with Italian alone (52,0 Mo) and with English, Spanish and
+   Italian (78,2 Mo); it-en downloaded once; Italian selections translated and marked (it-fr is in
+   `MARKED_PAIRS`); the worker's memory with Spanish and Italian studied, read from the browser's
+   task manager, on the iPhone and on the 4 GB tablet; on Firefox for Android, the cold start and a
+   frozen tab that comes back. On an account granted it, « Traduction en ligne » on an Italian
+   sentence, once the backend is deployed (D5).
 7. An English- and a Spanish-native install: Italian never offered; no Italian base fetched (the
    network panel).
 8. A French-native install of the last store release, updated in place by this build: nothing
    asked, nothing moved; Italian offered, not added.
 9. Sync: an Italian card captured on one French-native device shows on a second of the same account;
    an English-native device of the account pulls no Italian card; the day's statistic stored under
-   `it`.
-10. On Chrome (macOS), after step 1's reader has Italian cards: the previous store release loaded in
-    place of this build (D4) starts and keeps reading English — a reader of Italian alone too —, and
-    this build reloaded finds the Italian cards.
+   `it`. A device still on the previous release gets no Italian card and shows no error, then gets
+   them once updated.
+10. The in-place update from the store's 1.10.1 to this build, on every target where it can be done
+    before the stores (D4: no rollback): the profile, the deck, the statuses, the statistics and the
+    session kept; Italian offered, not added.
 11. The library: an Italian EPUB shelved under Italian.
-12. The host app's activation page on the iPhone and the Mac, the device in French: Italian named,
-    step 3 followed as written to Italian's level; an Italian card reviewed in the app (#925).
+12. The host app, the device in French: on the iPhone, the activation page names Italian and its step
+    3, followed as written, reaches Italian's level; on the Mac, which has no step 3, the lede names
+    Italian. In the app, an Italian card reviewed (#925), Statistiques with Italian, and the review's
+    translation fallback on an Italian card.
+13. « Traduction étendue » already on for English and Spanish, then Italian ticked: only it-en's
+    26,2 Mo to download, the setting's text moving to 78,2 Mo; Italian unticked, it-en deleted.
+14. Three studied languages (English, Spanish, Italian) in one session on Safari for iOS and Firefox
+    for Android: the pill and the popup follow the page's language, and no page reloads in a loop.
+15. What `ship-lingua-pack-bases-once` (#1037) changed for every reader, since the same release
+    carries it (D12): each pair's base and layer loaded, the second studied language's on demand;
+    the six earlier pairs working as in 1.10.1, their glosses unchanged; the host app's Révision and
+    Statistiques reading `assets/bases/`, with translations. The owner's prepared checklist for 1.11.0
+    (blocks A1–A12, B6) is reused, its « no trace of Italian » becoming « Italian offered to French
+    speakers alone ».
 
 The owner runs it on their devices, with Claude where a session can drive the browser; the findings
 go to the pull request.
 
 ### D12 — The release, TestFlight first
 
-Released on its own, after the release that reads backup schema 4 (D4), so that a regression is
-attributed to one audience, as `enable-lingua-french` was (the owner, 2026-10-09). TestFlight first. The store
-submission that first carries Italian carries change 21's listings and D7's description; the site is
-deployed after the merge, with it-fr's figures, before the listings are pasted. Each submission is
-the owner's (I12, M18).
+One release, the owner's decision of 2026-10-25 (D4): extension 1.11.0 and host app 1.9.0 carry
+`ship-lingua-pack-bases-once`'s lighter dictionaries and Italian for French speakers together, after
+one dogfood covering both (D11), fixed forward. The order:
+
+1. change 17 (`refine-lingua-it-fr-glosses`) merged;
+2. change 21 (`add-lingua-italian-listings`, #1057) merged, then this change, together;
+3. the backend deployed with online translation's Italian (#1061, `backend` 0.40.0; the deploy is the
+   owner's, by hand);
+4. the release pull request (#1036), its notes curated for readers — Italian for French speakers and
+   the lighter download, not the internal pull requests' titles — and merged by the owner after the
+   dogfood;
+5. TestFlight first;
+6. the stores, the first submission carrying Italian with change 21's listings and D7's description;
+7. the site deployed at submission, with it-fr's figures.
+
+Each merge of a release and each submission is the owner's (I12, M18). *Superseded:* the proposal
+released Italian on its own after a schema-4 release, as `enable-lingua-french` was (the owner,
+2026-10-09), so that a regression would be attributed to one audience; the single release trades that
+for one dogfood and one store review.
+
+*The owner's decision of 2026-10-26:* the release also carries changes 25 and 30 (Italian for
+English and Spanish speakers), and this change merges ahead of it without its dogfood (D11), which
+moves to the end — one pass over the complete release, French, English and Spanish speakers, before
+the release pull request (#1036) merges.
 
 ### D13 — Requirements true of their time, rewritten here
 
@@ -420,7 +476,10 @@ empty but for READMEs.
 
 - **it-fr's glosses read wrong in places** → change 17 before the list (D2), the owner's sample
   (change 16's 6.1), the dogfood (D11).
-- **A rollback after Italian** → D4: the previous store release reads schema 4.
+- **A rollback after Italian** → none: one release, fixed forward (D4, the owner, 2026-10-25). A
+  1.10.1 served again would refuse an Italian reader's schema-4 state; accepted.
+- **Two changes in one release** → one dogfood covering both (D11, step 15); a regression is
+  read against both #1037's dictionaries and Italian.
 - **Package size** → one base and one layer more for every reader, on 13.0 MB zipped today
   (*Measured*); fetched only by a French-native reader of Italian.
 - **Change 21 not yet in** → the site's build fails on the coverage file (D8): change 21 is a
@@ -433,9 +492,10 @@ empty but for READMEs.
 ## Migration Plan
 
 Nothing to migrate: an installed reader keeps their native language, studied languages and backup
-version; Italian is offered, never added. Merged with the owner's go-ahead; released by the owner,
-TestFlight first, with change 21's listings, after the release that reads schema 4. Rollback: the
-previous release, which reads an Italian reader's state (D4).
+version; Italian is offered, never added. Merged with the owner's go-ahead after change 21 — ahead of
+the release and its dogfood, the owner's decision of 2026-10-26 —; released
+by the owner in 1.11.0 / 1.9.0 with #1037's lighter dictionaries, TestFlight first, with change 21's
+listings (D12). No rollback: a problem is fixed in a new version (D4).
 
 ## Effort
 
@@ -455,11 +515,15 @@ Total 3.85–7.75.
 
 For the owner:
 1. **it-fr after its refinement** (D2): it-fr listed only once change 17 has merged, as fr-es was.
-   Recommended.
+   Recommended. *Answered: listed after change 17, merged (#1062).*
 2. **it-fr below the marks' tier** (D5): if change 19 measures it-fr short of the first tier,
    translation offered without a mark (M15's default), or not offered for it-fr. Settled at change
-   19's figures.
+   19's figures. *Settled: 93 of 97, 3 % withheld, on the first tier — it-fr is marked.*
 3. **The description and the activation page** (D7): the recommended draft « Le web en anglais,
    espagnol ou italien : … Hors ligne et privé. », the one that keeps « Lisez » and drops « et
-   privé », or other words within 112 characters; and the page's drafts (M9).
-4. **One release for it-fr** (D12): released on its own, as French was. Recommended.
+   privé », or other words within 112 characters; and the page's drafts (M9). *Settled by the owner
+   on 2026-10-25: version A, the recommended draft; the activation page takes the drafts (D7).*
+4. **One release for it-fr** (D12): released on its own, as French was. *Decided by the owner on
+   2026-10-25: one release with #1037's lighter dictionaries, fixed forward (D4, D12); settled on
+   2026-10-26: that one release also carries changes 25 and 30, Italian for English and Spanish
+   speakers.*

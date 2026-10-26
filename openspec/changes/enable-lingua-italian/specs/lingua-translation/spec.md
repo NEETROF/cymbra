@@ -23,11 +23,11 @@ The translation setting SHALL state the memory of two models when the reader's p
 
 #### Scenario: A French speaker reading Italian
 - **WHEN** it-fr is listed and a reader whose native language is French accepts Italian alone
-- **THEN** the setting says, in the French interface, that it downloads it-en's and en-fr's files once, their sum read from the catalogue, and uses « environ 340 Mo », the two models it-fr's route goes through
+- **THEN** the setting says, in the French interface, that it downloads 52,0 Mo once — it-en's and en-fr's files, their sum read from the catalogue — and uses « environ 340 Mo », the two models it-fr's route goes through
 
 #### Scenario: A French speaker reading English, Spanish and Italian
 - **WHEN** it-fr is listed and a reader whose native language is French accepts English, Spanish and Italian
-- **THEN** the setting says, in the French interface, that it downloads en-fr's, es-en's and it-en's files once, their sum read from the catalogue, and uses « environ 340 Mo », the engine holding two of the three at a time
+- **THEN** the setting says, in the French interface, that it downloads 78,2 Mo once — en-fr's, es-en's and it-en's files, their sum read from the catalogue — and uses « environ 340 Mo », the engine holding two of the three at a time
 
 ### Requirement: Translation models are listed in one catalogue, with a route per pair
 The package SHALL carry one catalogue of the translation models it may download, each file pinned by its address, its size as served, its decompressed size and the sha256 of its decompressed bytes, and SHALL give for each pair the route of models that translates its studied language into its native language, in order. A route SHALL be keyed `<studied>-<native>`, SHALL name only models of the catalogue, SHALL start from the pair's studied language, SHALL chain each model's target to the next model's source, and SHALL end in the pair's native language; a catalogue that breaks any of these SHALL be refused, and nothing SHALL be fetched from it. The assembly of the model host, its mirror releases and the check run before a package is submitted SHALL cover every model of the catalogue.

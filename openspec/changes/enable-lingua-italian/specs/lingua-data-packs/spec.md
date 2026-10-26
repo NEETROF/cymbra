@@ -62,7 +62,7 @@ The extension's build SHALL read the language pairs it ships from one list, whos
 - **THEN** Italian is never offered, and neither it-fr's layer nor the Italian base is fetched
 
 ### Requirement: Italian's forms and frequencies
-Italian's studied tables SHALL be reduced by its reference pair, it-fr, from the English Wiktionary's Italian section as derived from the English edition's dump, and committed once, in `tables/it/`. A form SHALL come from the inflections a lemma's entry lists or from the form-of links of the form's own entry, never from an inflection the dictionary marks alternative, obsolete, archaic, rare, dated, misspelt, nonstandard or abbreviated, nor from a row naming a derived word — a diminutive, augmentative, pejorative, derogatory or endearing form, or an adjective's adverb —, nor from a row of a verb carrying a clitic other than the reflexive one, alone or in a cluster, nor from a gender or number marker an entry lists among its forms, and a form whose candidate is itself a form of another word SHALL reach that word when both links are of one part of speech. A conjugation-table form SHALL be read without the stress marks the table writes on it — a non-final mark always, a final one only where the entry carrying the verb's form-of link for that cell is the bare spelling —; a table row written with its reflexive pronoun SHALL give its bare form as the candidate, under the plain verb where the section has one and under the reflexive lemma otherwise, a reflexive lemma whose plain verb the section has being no lemma of the tables and a reflexive-only lemma's clitic-bearing rows giving their bare base under it; a multi-word lemma's cells, a canonical row's bracketed auxiliary and a row listing alternatives SHALL give no form. When Morph-it! is among the pinned sources — kept only where the measurement shows it adds without moving the gates, the owner settling it —, a form it lists under a lemma the tables rank, which the Wiktionary lists under no lemma, SHALL join the table, and a form the Wiktionary reads SHALL never be moved by it. Each form SHALL map to one lemma, chosen by a reviewed override list, then by its counts in MarkIT's training and development sections, then by the form's own entry, then by the lemma's frequency, then alphabetically; a form that is a name and a commoner word SHALL keep the commoner reading. The tables SHALL serve Italian's tokenisation as change 6 writes it: every word its pre-pass writes SHALL be a form, each elided piece a form of the word it stands for by the reviewed table, the articulated prepositions of `di` lemmas of their own with `dell'` a form of `dello`, the other articulated prepositions neither forms nor ranks — `dai` excepted, a form of *dare* with no rank, the verb the pre-pass reads `dai` and `da'` as by their context —, each truncation a form of its word, and no plain word beginning with an elided piece nor any verb form carrying clitics a form. The ranks SHALL be wordfreq's Italian order over the 60,000 commonest lemmas whose own form reads as themselves, dense, wordfreq's stems of the elided pieces and truncations that are no word of their own, and its tokens beginning with an elided piece, no words — `un` and the apocopated forms written without an apostrophe (`buon`, `nessun`) words —, a hyphenated word ranked only on MarkIT's evidence. `tables/it/studied.json` SHALL name it-fr as Italian's reference pair; `tags.tsv` SHALL hold the one canonical tag until change 13's pool, and `lexical.tsv` SHALL hold nothing until change 11's acronym rows and change 16's dictionary words; the it-fr pack SHALL be built from the committed tables, whole and in parts, and checked against its pin in the extension's checks as the six pairs' are; the update workflow SHALL offer it-fr and publish its sources release; a package SHALL carry it-fr only once the list of shipped pairs names it; and nothing of the six pairs' tables, pins and goldens, nor the Italian baseline's fixture and golden, SHALL move.
+Italian's studied tables SHALL be reduced by its reference pair, it-fr, from the English Wiktionary's Italian section as derived from the English edition's dump, and committed once, in `tables/it/`. A form SHALL come from the inflections a lemma's entry lists or from the form-of links of the form's own entry, never from an inflection the dictionary marks alternative, obsolete, archaic, rare, dated, misspelt, nonstandard or abbreviated, nor from a row naming a derived word — a diminutive, augmentative, pejorative, derogatory or endearing form, an adjective's adverb, a noun's relational adjective, a name's demonym or a plural noun's `plural-of` row —, nor from a row of a name's entry, nor from a sense naming its entry such a derived word, nor from a feminine noun's masculine row the form's own entry does not name (`signorini`, *signorino*'s plural, from *signorina*'s table), nor from a row whose form is one of its table's own tags (« archaic », « subjunctive »), nor from a row of a table Italian's readings set aside — the Classical Roman Dialect's, *essere*'s usage notes — where the form's own entry names another ranked word (`avi` and `ava`, *avo*'s plural and feminine), nor from a row of a verb carrying a clitic other than the reflexive one, alone or in a cluster, nor from a gender or number marker an entry lists among its forms, and a form whose candidate is itself a form of another word SHALL reach that word when both links are of one part of speech, unless the form is the candidate's plural and the candidate itself a noun's plural (`viti`, the plural of `vite`, reaches no *vita*; `faccie`, a misspelling of the plural `facce`, still reaches *faccia*). A conjugation-table form SHALL be read without the stress marks the table writes on it — a non-final mark always, a final one only where the entry carrying the verb's form-of link for that cell is the bare spelling —; a table row written with its reflexive pronoun SHALL give its bare form as the candidate, under the plain verb where the section has one and under the reflexive lemma otherwise, a reflexive lemma whose plain verb the section has being no lemma of the tables and a reflexive-only lemma's clitic-bearing rows giving their bare base under it; a multi-word lemma's cells, a canonical row's bracketed auxiliary and a row listing alternatives SHALL give no form. Morph-it! is among the pinned sources — kept by the owner on 2026-10-23, the measurement showing it adds without moving a gate down —: a form it lists under a lemma the tables rank, which the Wiktionary lists under no lemma, SHALL join the table, and a form the Wiktionary reads SHALL never be moved by it. Each form SHALL map to one lemma, chosen by a reviewed override list, then by its counts in MarkIT's training and development sections, then by the form's own entry — which counts only by a meaning when a verb's table gives the form as a person of a mood and the form's own entries hold only that verb's inflection written without its tag, an ellipsis, or another part of speech's pointer the section marks obsolete, archaic, literary, poetic, dated or colloquial (`sto`, `vado`, `sapete`), never for a participle, an alternative infinitive, an abbreviation, a contraction, a function word's homograph, a form another word's entry names as its inflection or a form the section heads as an acronym —, then by the lemma's frequency, then alphabetically; before it, a form whose own lemma entries are names alone and which another word's entry reads SHALL read as that word, and every other form SHALL be left to those rules. The tables SHALL serve Italian's tokenisation as change 6 writes it: every word its pre-pass writes SHALL be a form, each elided piece a form of the word it stands for by the reviewed table, the articulated prepositions of `di` lemmas of their own with `dell'` a form of `dello`, the other articulated prepositions neither forms nor ranks — `dai` excepted, a form of *dare* with no rank, the verb the pre-pass reads `dai` and `da'` as by their context —, each truncation a form of its word, and no plain word beginning with an elided piece nor any verb form carrying clitics a form. The ranks SHALL be wordfreq's Italian order over the 60,000 commonest lemmas whose own form reads as themselves, dense, wordfreq's stems of the elided pieces and truncations that are no word of their own, and its tokens beginning with an elided piece, no words — `cent` and the apocopes written without an apostrophe words —, a hyphenated word ranked only on MarkIT's evidence; each apocope written without an apostrophe SHALL be a form of its word alone by a reviewed table (`un` → *uno*, `bel` → *bello*, `san` → *santo*, `signor` → *signore*; the euphonic `od` → *o* with them), whatever the section's own entries for it say. `tables/it/studied.json` SHALL name it-fr as Italian's reference pair; `tags.tsv` SHALL hold the one canonical tag until change 13's pool, and `lexical.tsv` SHALL hold nothing until change 11's acronym rows and change 16's dictionary words; the it-fr pack SHALL be built from the committed tables, whole and in parts, and checked against its pin in the extension's checks as the six pairs' are; the update workflow SHALL offer it-fr and publish its sources release; a package SHALL carry it-fr only once the list of shipped pairs names it; and nothing of the six pairs' tables, pins and goldens, nor the Italian baseline's fixture, SHALL move, the Italian baseline's golden only by a re-bless its pull request lists.
 
 #### Scenario: A participle's agreement
 - **WHEN** the tables are reduced over an entry listing `creduta` only as the feminine of the participle `creduto`, filed under *credere*, and `creduta` is looked up
@@ -89,8 +89,16 @@ Italian's studied tables SHALL be reduced by its reference pair, it-fr, from the
 - **THEN** it maps to the one the treebanks' counts favour, else the form's own entry, else the commoner lemma, and the tables name the rule that decided
 
 #### Scenario: A name and a word
-- **WHEN** `bianca` is both the name and the feminine of *bianco*
-- **THEN** it keeps the commoner reading by wordfreq, *bianco*, as the tables record
+- **WHEN** `ti` is a surname's entry and the pronoun's, which MarkIT counts as itself
+- **THEN** it reads as the pronoun, the names rule leaving it to the counts; and `bianca`, the name, a cue ball and the feminine of *bianco*, reads as *bianco* by its reviewed override row
+
+#### Scenario: An apocope
+- **WHEN** `bel`'s entry is a meaning (« preconsonantal masculine singular form of bello ») and `san`'s own entry is the Greek letter
+- **THEN** `bel` reads as *bello* and `san` as *santo* by the reviewed apocope table, and neither is ranked
+
+#### Scenario: A name alone, spelled like a word
+- **WHEN** `bambini` is a surname's entry and the plural *bambino*'s entry lists
+- **THEN** it reads as *bambino*, and no rank goes to the surname
 
 #### Scenario: The elided pieces are forms
 - **WHEN** `lo`, `una`, `questo`, `anche` and `dello` are looked up
@@ -114,7 +122,7 @@ Italian's studied tables SHALL be reduced by its reference pair, it-fr, from the
 
 #### Scenario: wordfreq's elision stems
 - **WHEN** wordfreq ranks `l`, `d`, `po`, `dell'acqua`, `un` and `buon` among its commonest words
-- **THEN** `l`, `d`, `po` and `dell'acqua` are no lemmas of the tables, `un` and `buon` are words, and the ranks close up
+- **THEN** `l`, `d`, `po` and `dell'acqua` are no lemmas of the tables, `un` and `buon` are forms of *uno* and *buono*, and the ranks close up
 
 #### Scenario: The reference and the pipeline
 - **WHEN** the tables are committed
@@ -122,8 +130,52 @@ Italian's studied tables SHALL be reduced by its reference pair, it-fr, from the
 
 #### Scenario: Nothing else moves
 - **WHEN** the tables are committed
-- **THEN** the six pairs' tables, pins and goldens and the Italian baseline's fixture and golden are byte for byte what they were
+- **THEN** the six pairs' tables, pins and goldens and the Italian baseline's fixture are byte for byte what they were, and its golden moves only by a re-bless the pull request lists
 
 #### Scenario: Every rank on its own lemma
 - **WHEN** the it-fr pack is built from the committed tables
 - **THEN** every ranked lemma's own form reads as itself, and the pack gives each lemma its own rank
+
+#### Scenario: A verb's first person read as its verb
+- **WHEN** the English section gives `vado` the noun « alternative form of guado », marked obsolete and poetic, and the verb « first-person singular present indicative of andare », and `sapete` only « (you) know », an inflection of *sapere* written without its tag
+- **THEN** `vado` is a form of *andare* and `sapete` of *sapere*, and neither is a lemma of its own
+
+#### Scenario: What the own-entry rule leaves
+- **WHEN** `dee` is the plural of `dea` and an old form of `deve`, `cogli` the contraction of `con gli` and a form of *cogliere*, and `elisa` the feminine of the participle `eliso`
+- **THEN** each keeps the lemma the other rules give it, none read as *dovere*, *cogliere* or *elidere* by this rule
+
+#### Scenario: No chain through a plural
+- **WHEN** the English section gives `viti` as the plural of `vite`, and `vite` as a noun of its own and as the plural of `vita`, which reads `vite` as its form
+- **THEN** `viti` is no form of *vita*, and leaves the tables
+
+#### Scenario: A chain through a feminine
+- **WHEN** `maestre` is the plural of `maestra`, the feminine of `maestro`
+- **THEN** `maestre` is still a form of *maestro*
+
+#### Scenario: A feminine noun's masculine row
+- **WHEN** `signorina`'s table lists `signorini` as its masculine plural, `signorini` being the plural of `signorino`, and *eco*'s lists its masculine plural `echi`, whose own entry names *eco*
+- **THEN** `signorini` is a form of *signorino*, and `echi` still of *eco*
+
+#### Scenario: The dialect's table
+- **WHEN** *avere*'s Classical Roman Dialect table lists `avi` and `ava`, whose own entries name *avo*, and *essere*'s lists `son`, whose own entry names `sono`
+- **THEN** `avi` and `ava` are forms of *avo*, and `son` still of *essere*
+
+#### Scenario: A table's tag is no form
+- **WHEN** *essere*'s usage notes list the rows « archaic » and « subjunctive » as cells
+- **THEN** neither is a form of the tables
+
+#### Scenario: An override row
+- **WHEN** the override list reads `usa` as *usare*, for its reason, and the adjective `uso` lists `usa` as its feminine
+- **THEN** `usa` is a form of *usare*
+
+#### Scenario: A plural noun of its own
+- **WHEN** the override list reads `dati` as *dati*, the plural noun the English section heads « data », and `dato` reads as *dare*, MarkIT counting it 9 times so
+- **THEN** `dati` is a lemma of its own with its own rank, and `dato` stays a form of *dare*
+
+#### Scenario: An apocope and a euphonic form
+- **WHEN** `signor` is « Variante de signore » and `od` the euphonic `o` before a vowel
+- **THEN** `signor` reads as *signore* and `od` as *o* by the reviewed table, and neither is ranked
+
+#### Scenario: The gates after the forms
+- **WHEN** it-fr's tables are reduced with these rules
+- **THEN** UD Italian-PUD reads at least 98.5 % of its words, 90.5 % of its content words and 97 % of its auxiliaries

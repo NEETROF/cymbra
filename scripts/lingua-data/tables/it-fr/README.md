@@ -2,8 +2,10 @@
 
 The reduced tables of Cymbra Lingua's Italian→French data pack, committed so that every build makes
 the same pack with no download, and so that a change to the dictionary is a pull request whose diff
-shows it (add-lingua-italian-forms-tables, change 9 of `docs/lingua/italian-programme.md`). No
-extension package carries the pack yet: `packs.json` does not list it-fr.
+shows it (add-lingua-italian-forms-tables, change 9 of `docs/lingua/italian-programme.md`).
+Extension packages carry the pack since `enable-lingua-italian` (change 20) lists it-fr in
+`apps/lingua-extension/packs.json`, which it does because these tables stand at or above their
+coverage floor (add-lingua-pack-it-fr, change 16).
 
 They are in two folders (split-lingua-pack-tables-by-language). it-fr is Italian's reference pair
 (`../it/studied.json`, the programme's I5): its reduction writes Italian's own tables in `../it/`,
@@ -496,8 +498,9 @@ Italian CEFR word list can be shipped: the *Profilo della lingua italiana* is no
 licensed Italian list was found. Italian's levels are estimated from frequency, as Spanish's and
 French's are, and the manifest says `levels_estimated`: the extension labels them estimated and the
 ladder borrows English's typical vocabularies, saying so — no code of their own; Italian is shown by
-those paths once change 20 widens the extension's studied languages. No list is read, measured against
-or committed; a licence request for one stays the owner's.
+those paths since the Italian programme's change 20 (enable-lingua-italian) widened the extension's
+studied languages. No list is read, measured against or committed; a licence request for one stays
+the owner's.
 
 **The derivation** (D1). The lemmas of `../it/freq.tsv`, in rank order then lemma, take English's
 level sizes — 1,020 A1, 1,158 A2, 2,015 B1, 2,347 B2, 886 C1, 876 C2: 8,302 lemmas — skipping those a

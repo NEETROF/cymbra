@@ -2723,7 +2723,8 @@ fn spec_scenario_the_reference_and_the_pipeline() {
     // proper noun's senses alone — and change 11's acronym rows (add-lingua-pack-it-fr D5,
     // keep-lingua-italian-acronyms-and-names D6); level.tsv holds change 14's estimated levels
     // (add-lingua-italian-levels), which the manifest says are estimated; the pack builds whole and
-    // in parts to its pin; no package lists it-fr (change 20 lists it).
+    // in parts to its pin; a package carries it-fr once the list of shipped pairs names it, which
+    // it does since enable-lingua-italian.
     let it = tables().join("it");
     assert_eq!(json(&it.join(STUDIED_RECORD))["reference"], "it-fr");
     let pin = std::fs::read_to_string(it.join("tags.tsv")).unwrap();
@@ -2733,7 +2734,7 @@ fn spec_scenario_the_reference_and_the_pipeline() {
         &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../apps/lingua-extension/packs.json"),
     );
     assert!(
-        !packs["pairs"]
+        packs["pairs"]
             .as_array()
             .unwrap()
             .iter()

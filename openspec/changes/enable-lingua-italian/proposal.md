@@ -52,9 +52,10 @@ whose backend refuses any pair with Italian.
 - **The published coverage** (D8): `gloss_coverage.py --write` publishes it-fr's figures; the site's
   French Lingua page and home card then name Italian from change 21's description, with no code
   change here.
-- **Backup v4 in readers' hands** (D4): a release reading schema 4 — the first cut after change 5's
-  implementation — is live on every store before this change's release, so a rollback keeps an Italian
-  reader's data.
+- **Backup v4 and one release** (D4, D12): by the owner's decision of 2026-10-25, no schema-4 release
+  goes first: extension 1.11.0 and host app 1.9.0 carry `ship-lingua-pack-bases-once`'s lighter
+  dictionaries and Italian together, fixed forward. A 1.10.1 served again would refuse an Italian
+  reader's schema-4 state: a recorded risk, accepted.
 - **Requirements true of their time** (D13): change 9's « no package SHALL list it-fr », change 4's
   list, change 2's *Every reader today*, the guard requirement's lists of neighbours, and two of
   `enable-lingua-french`'s (*Guided activation*'s French page, the memory sentence) MODIFIED, each
@@ -122,15 +123,16 @@ does not move.
     Italian on the site (D8).
   - The model host redeployed with it-en (change 2's task 4.1), and the backend deployed with
     online translation's Italian (D5).
-  - A release that reads backup schema 4 live on the Chrome Web Store, addons.mozilla.org and the App
-    Store (D4).
+  - No earlier release (D4): the release pull request carries this change with #1037's lighter
+    dictionaries, its notes curated for readers before it merges (task 7.3).
   - The owner's readings: the description and the activation page's drafts (M9), change 19's
     figures (Open Question 2), change 16's sample.
   - Test accounts for the dogfood.
   - Change 21's listings in the same submission (D12).
-- **Release.** The first packages in which Italian is studied, released on their own (Open Question
-  4), TestFlight first; the site deployed after the merge, with it-fr's figures, before the listings
-  are pasted. Nothing is submitted by this pull request.
+- **Release.** The first packages in which Italian is studied — extension 1.11.0 and host app 1.9.0,
+  with #1037's lighter dictionaries, in one release (the owner, 2026-10-25; D12) —, after one dogfood
+  covering both; TestFlight first; the site deployed at submission, with it-fr's figures. Nothing is
+  submitted by this pull request.
 - **Order.** After every stage-1 change and change 21's implementation; before stage 2 (it-en, it-es),
   which widens nothing this change has not. Archived after the changes of `.openspec.yaml`.
 - **Effort, against 4–7.5 ideal days**: 3.85–7.75 (design, *Effort*), the dogfood the uncertain part.

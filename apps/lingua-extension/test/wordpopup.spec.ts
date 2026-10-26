@@ -265,6 +265,52 @@ describe("a French word's card, for readers of English and Spanish (enable-lingu
   }
 });
 
+describe("an Italian word's card, for readers of French (enable-lingua-italian D3)", () => {
+  /** The card of « parli » (parlare), seen apart from its dictionary form, in the French interface. */
+  const italian = () => {
+    const card = createCard(undefined, "fr");
+    const fin = (Mood: string, Person: string) => ({
+      pos: "VERB",
+      features: { Mood, Number: "Sing", Person, Tense: "Pres", VerbForm: "Fin" },
+    });
+    card.show(
+      content({
+        language: "it",
+        headword: "parlare",
+        surface: "parli",
+        gloss: "parler",
+        sentence: "Parli troppo in fretta.",
+        grammar: {
+          gloss: null,
+          senses: [],
+          readings: [fin("Ind", "2"), fin("Sub", "1"), fin("Sub", "2"), fin("Sub", "3")],
+          others: [],
+          pieces: [],
+        },
+      }),
+      () => {},
+    );
+    return card.el;
+  };
+
+  it("the lines are French, every Italian word in them says it is Italian, the moods named apart", () => {
+    const el = italian();
+    expect(el.querySelector(".headword")?.getAttribute("lang")).toBe("it");
+    const marked = [...el.querySelectorAll("[lang]")].filter((node) => node !== el);
+    expect(marked.length).toBeGreaterThan(1);
+    expect(marked.map((node) => [node.textContent, node.getAttribute("lang")])).toEqual(
+      expect.arrayContaining([
+        ["parlare", "it"],
+        ["parli", "it"],
+      ]),
+    );
+    expect(marked.every((node) => node.getAttribute("lang") === "it")).toBe(true);
+    expect(el.querySelector(".grammar-line")?.textContent).toBe(
+      "2e personne du singulier du présent de l’indicatif et 1re, 2e et 3e personnes du singulier du présent du subjonctif de parlare",
+    );
+  });
+});
+
 describe("a card that waits for the engine", () => {
   it("shows a pending card with the headword, the kind line and a waiting line, but no action", () => {
     const card = createCard();

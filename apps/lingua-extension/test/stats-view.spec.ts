@@ -600,3 +600,45 @@ describe("stats for a reader of French, English- or Spanish-native (enable-lingu
     expect(pick(".ladder-scope").textContent).toContain("tomado del inglés, cuyos tamaños de nivel retoma el francés.");
   });
 });
+
+describe("stats for a French-native reader of Italian (enable-lingua-italian D3)", () => {
+  /** A French-native reader studying `studied` on the seven pairs, Italian's levels estimated and its sizes English's. */
+  async function readerOf(studied: StudiedLanguage[]): Promise<FakePort> {
+    packs.shipped = ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr"];
+    const port = levelledPort({
+      levelsEstimated: async function (this: { language: StudiedLanguage }) {
+        return this.language !== "en";
+      },
+      levelLadder: async function (this: { language: StudiedLanguage }) {
+        return ladder(10).map((row) => (this.language === "it" ? { ...row, typicalFrom: "en" as const } : row));
+      },
+    });
+    port.nativeLanguage = async () => "fr";
+    await port.setStudiedLanguages(studied);
+    return port;
+  }
+
+  const languages = (): string[] =>
+    [...root.querySelectorAll(".stats-languages button")].map((b) => b.textContent ?? "");
+
+  it("a reader of English and Italian: Italian named, « Mon niveau d'italien estimé », its note and English's sizes, in French", async () => {
+    await mountStats(root, await readerOf(["en", "it"]), fakeArea(), "it", "fr");
+
+    expect(languages()).toEqual(["Anglais", "Italien"]);
+    expect(root.querySelector(".stats-languages button.active")?.textContent).toBe("Italien");
+    expect(pick(".ladder-head .mlabel").textContent).toBe("Mon niveau d'italien estimé");
+    expect(pick(".ladder-estimate").textContent).toBe(
+      "Niveaux estimés d'après la fréquence des mots, faute de liste CEFR libre de droits pour l'italien.",
+    );
+    expect(pick(".ladder-scope").textContent).toContain(
+      "repris de l'anglais, dont l'italien reprend les tailles de niveaux.",
+    );
+  });
+
+  it("a reader of English, Spanish and Italian: the three named in the profile's order", async () => {
+    await mountStats(root, await readerOf(["en", "es", "it"]), fakeArea(), "en", "fr");
+
+    expect(languages()).toEqual(["Anglais", "Espagnol", "Italien"]);
+    expect(root.querySelector(".stats-languages button.active")?.textContent).toBe("Anglais");
+  });
+});
