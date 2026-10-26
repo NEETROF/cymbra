@@ -437,6 +437,45 @@ whichever of 37, 47 and 51 is implemented later re-copies the earlier one's bloc
 `archiveAfter` (the programme's rule). On `main` today neither 47 nor 51 is implemented, so this block
 is change 36's.
 
+## Implementation
+
+Measured on 2026-10-26 by the reduction itself — `build.sh --reduce en-it` over en-it's pinned release
+`lingua-pack-sources-en-it-2026.10.26`, fetched again into a scratch folder (every asset checked by its
+sha256) and read with `python3 -I`, Python 3.12 and `requirements-reduce.txt` —, whose tables the
+dispatch of task 3.1 is to write byte for byte:
+
+- **Together**: the figures of *Measured*, byte for byte the prototype's tables (`gloss.tsv` `affa8fec…`,
+  `senses.tsv` `293e12ab…`, `mwe.tsv` `9767baf4…`, `NOTICE` unchanged): **1,035 rows** (154 / 314 / 402 /
+  165), **618 in their first sense** (103 / 197 / 243 / 75), 69 of the 300 commonest (58 in their first
+  sense); 54 lemmas gained (33 of the 5,000, 6 of the 300), none lost; 9 expressions; coverage **92.1 /
+  83.1 / 70.6 %** against the floor 89.4 / 80.8 / 68.3. With no rule (`--rules ""`), the committed tables
+  byte for byte. The pack 1,550,318 B (`744b36e5…`, from 1,553,528 B), its base English's, byte for byte
+  (935,260 B), its layer 615,283 B (`2bd2e798…`), at `pack_version` `2026.10.26+df788f5.fb7962e`. The 468
+  changed rows of the 5,000 commonest are listed in the pull request, each with the rules that change it
+  alone.
+- **Each rule alone** (`reduce-en-it.py --rules <rule>`), as *Measured* gives it: D6 73 (55), D8 60 (5),
+  D9's wiki text 1, D13 3 (2), D9's expansions 72 (70; `cqc` lost alone), D5 59 (55), D10b 1, D11 55 (54
+  gained), D2 199, D3a 76, D3b 45, the reviewed rows 55 (49), D10a 369 (13). **D7 alone moves 2
+  expressions, not 5** (`gun powder` « polvere pirica », `ice pack` « banchisa; … »): *Measured* counted
+  with them the plurals' and the alternative form's frames, which are D5's (`dvd players`, `snow chains`,
+  `space bars`, `torpedo boats`, `per cent`); together the 9 are the prototype's.
+- **The reviewed rows**: every op names the source it reads — the section's row as `native_side` wrote it,
+  a table's words, an expression's row (`lot`'s « molto, parecchio », *a lot*'s) — and is checked against
+  it; one that finds nothing is named on the reduction's summary line and writes nothing. All 57 rows
+  fired. `firm`'s « ditta » is an item of the section's « comitiva, ditta », which the same row drops.
+- **D11, as implemented**: a contraction whose row is another contraction's pointer, borrowed through its
+  entry, reads its own full form — `doesn't` alone, as *Measured*.
+- **The review's judged rows**: the tables are the prototype's, word for word, so *Measured*'s reading of
+  them holds unchanged (the 300 commonest 0 % wrong with the owner's answers); the specialist's reading of
+  the gloss diff confirms it or names what misses (task 4.1).
+- **The misspelling census** (task 1.7), `measure/en_it_misspellings.py` — the words of the 5,000
+  commonest's rows that `tables/it/forms.tsv` does not hold, under 1.5 Zipf on wordfreq's Italian list:
+  312 words of 231 rows on change 36's tables (the design's 262 of 218 counted with another cut), 289 of
+  217 on these; **no word new** — the rules bring none in —, so nothing is added to `CORRECTIONS`.
+- **The golden and the card**, re-blessed locally over these tables: `en-it.golden` moves 70 probes,
+  each by its gloss, row or the pack's line (`some`, `that`, `can`, `will`, `its`, `make`, `go`, `do`,
+  `don't`, `won't` among them); `word-card-en-it.txt` moves 31 blocks; no other baseline or snapshot moves.
+
 ## Settled by the owner (2026-10-26)
 
 - **Q1, contractions** (task 0.1): (a), pointers to the full form — « contrazione di you are » —, the
