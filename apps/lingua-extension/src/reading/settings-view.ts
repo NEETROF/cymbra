@@ -440,7 +440,7 @@ export function mountSettings(
     return { step, b };
   });
   rateGroup.append(...rateButtons.map(({ b }) => b));
-  const rateRow = el("div", "set-display-row");
+  const rateRow = el("div", "set-display-row set-rate-row");
   rateRow.append(el("span", undefined, copy.speechRate), rateGroup);
   const showRate = (rate: SpeechRate): void => {
     for (const { step, b } of rateButtons) b.setAttribute("aria-pressed", String(step === rate));
