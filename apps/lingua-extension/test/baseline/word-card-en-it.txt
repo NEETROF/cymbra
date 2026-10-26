@@ -1,0 +1,483 @@
+### phrase-gloss give up
+expression: give up
+page 1/1:
+  [—] cedere, abbandonare, rinunciare; arrendersi
+### phrase-gloss look forward to
+expression: look forward to
+page 1/1:
+  [—] non vedere l'ora
+### phrase-gloss run out of
+row: run out — essere a corto, esaurire, finire
+### phrase-gloss put up with
+expression: put up with
+page 1/1:
+  [—] sopportare, tollerare
+### phrase-gloss break the ice
+expression: break the ice
+page 1/1:
+  [—] rompere il ghiaccio
+### phrase-gloss by and large
+expression: by and large
+page 1/1:
+  [—] in generale, in linea di massima
+### phrase-gloss in spite of
+expression: in spite of
+page 1/1:
+  [—] nonostante, sebbene, malgrado
+### phrase-gloss as a matter of fact
+expression: as a matter of fact
+page 1/1:
+  [—] difatti, in realtà
+### phrase-gloss take care of
+expression: take care of
+page 1/1:
+  [—] prendersi cura di qualcuno; gestire
+### phrase-gloss on the other hand
+expression: on the other hand
+page 1/1:
+  [—] dall'altro, dall'altro lato
+### phrase-gloss once in a blue moon
+expression: once in a blue moon
+page 1/1:
+  [—] una volta ogni morte di papa, ogni morte di papa
+### phrase-gloss a piece of cake
+row: piece of cake — gioco da ragazzi, semplice
+### phrase-gloss make up your mind
+row: make up — comporsi, recuperare, improvvisare
+row: mind — mente
+### phrase-gloss get over it
+row: get over — superare, vincere
+### phrase-gloss turn off the lights
+row: turn off — spegnere
+row: light — leggero, non pesante
+### phrase-gloss in order to
+expression: in order to
+page 1/1:
+  [—] per; al fine di; affinché
+### phrase-gloss He has more patience than anyone I know.
+row: patience — pazienza
+row: i know — lo so
+### phrase-gloss We ate dinner early.
+row: eat — pasto
+row: dinner — cena, pranzo
+row: early — mattiniero, mattutino
+### phrase-gloss The wind was too strong.
+row: wind — vento
+row: too — anche
+row: strong — forte
+### phrase-gloss don't
+rows: (none)
+### phrase-gloss won't they
+rows: (none)
+### phrase-gloss state-of-the-art
+row: state — di stato, dello stato, statale, pubblico
+row: art — arte
+### phrase-gloss Le phare se dressait
+rows: (none)
+### phrase-gloss El faro se alzaba
+row: el — elle
+row: faro — faraone
+### phrase-gloss The whole thing went over the top.
+row: whole — intero, integrale
+row: thing — oggetto, cosa
+row: go over — esaminare
+row: top — cima, culmine, apice, sù
+### phrase-gloss He was standing in front of the house.
+row: stand — stare in piedi
+row: in front of — davanti a
+row: house — casa
+### phrase-gloss They were picking up and running off.
+row: pick up — raccogliere
+row: run off — stampare
+### word-grammar went go
+grammar: passato semplice di go
+page 1/1:
+  [sostantivo] l'atto dell'andare; turno; prova; esprime approvazione o il permesso di fare qualcosa
+  [verbo] andare; andarsene; procedere; diventare
+row: l'atto dell'andare
+### word-grammar gone go
+grammar: participio passato di go
+page 1/1:
+  [sostantivo] l'atto dell'andare; turno; prova; esprime approvazione o il permesso di fare qualcosa
+  [verbo] andare; andarsene; procedere; diventare
+row: l'atto dell'andare
+### word-grammar goes go
+grammar: plurale e terza persona singolare del presente semplice di go
+page 1/1:
+  [sostantivo] l'atto dell'andare; turno; prova; esprime approvazione o il permesso di fare qualcosa
+  [verbo] andare; andarsene; procedere; diventare
+row: l'atto dell'andare
+### word-grammar has have
+grammar: terza persona singolare del presente semplice di have
+page 1/2:
+  [verbo] avere, possedere, prendere; avere/essere, usato come verbo ausiliare nei tempi perfetti; in certi casi, fare; (seguito dal verbo all'infinito) dovere
+page 2/2:
+  [verbo] prendere, mangiare, bere
+row: avere, possedere, prendere
+### word-grammar had have
+grammar: passato semplice e participio passato di have
+page 1/2:
+  [verbo] avere, possedere, prendere; avere/essere, usato come verbo ausiliare nei tempi perfetti; in certi casi, fare; (seguito dal verbo all'infinito) dovere
+page 2/2:
+  [verbo] prendere, mangiare, bere
+row: avere, possedere, prendere
+### word-grammar are be
+grammar: presente semplice di be
+page 1/1:
+  [verbo] essere; stare
+row: essere
+### word-grammar was be
+grammar: passato semplice di be
+page 1/1:
+  [verbo] essere; stare
+row: essere
+### word-grammar better good
+grammar: comparativo di good
+grammar: può anche essere il comparativo di well
+page 1/1:
+  [aggettivo] buono
+  [sostantivo] bene
+row: buono
+### word-grammar best good
+grammar: superlativo di good
+grammar: può anche essere il superlativo di well
+page 1/1:
+  [aggettivo] buono
+  [sostantivo] bene
+row: buono
+### word-grammar worse bad
+grammar: comparativo di bad
+grammar: può anche essere il comparativo di ill
+page 1/1:
+  [aggettivo] cattivo
+  [sostantivo] una persona cattiva; il cattivo, il male
+row: cattivo
+### word-grammar children child
+grammar: plurale di child
+page 1/1:
+  [sostantivo] bambino; figlio
+row: bambino
+### word-grammar mice mouse
+grammar: plurale di mouse
+page 1/1:
+  [sostantivo] topo, sorcio; mouse
+row: topo, sorcio
+### word-grammar leaves leave
+grammar: plurale e terza persona singolare del presente semplice di leave
+grammar: può anche essere il plurale di leaf
+page 1/1:
+  [sostantivo] permesso, licenza, aspettativa
+  [verbo] andare via, andarsene; lasciare; lasciare in eredità
+row: permesso, licenza, aspettativa
+### word-grammar leaves leaf
+grammar: plurale di leaf
+page 1/1:
+  [sostantivo] foglia; foglio
+row: foglia
+### word-grammar read read
+grammar: può anche essere il passato semplice e il participio passato di read
+page 1/1:
+  [sostantivo] lettura
+  [verbo] leggere
+row: lettura
+### word-grammar lead lead
+page 1/1:
+  [aggettivo] primo; principale; d'apertura
+  [sostantivo] essere al primo posto; vantaggio; prendere l'iniziativa
+  [verbo] guidare, condurre; condurre, portare
+row: primo
+### word-grammar led lead
+grammar: passato semplice e participio passato di lead
+page 1/1:
+  [aggettivo] primo; principale; d'apertura
+  [sostantivo] essere al primo posto; vantaggio; prendere l'iniziativa
+  [verbo] guidare, condurre; condurre, portare
+row: primo
+### word-grammar ate eat
+grammar: passato semplice di eat
+page 1/1:
+  [sostantivo] pasto
+  [verbo] mangiare
+row: pasto
+### word-grammar more more
+gloss: (none)
+### word-grammar thought think
+grammar: passato semplice e participio passato di think
+page 1/1:
+  [verbo] pensare, riflettere; ritenere, supporre
+row: pensare, riflettere
+### word-grammar thought thought
+gloss: (none)
+### word-grammar running run
+grammar: forma in -ing di run
+page 1/1:
+  [verbo] amministrare, condurre (un'azienda); correre; fluire
+  [sostantivo] corsa; smagliatura; giro (in macchina)
+row: amministrare, condurre (un'azienda)
+### word-grammar ran run
+grammar: passato semplice di run
+page 1/1:
+  [verbo] amministrare, condurre (un'azienda); correre; fluire
+  [sostantivo] corsa; smagliatura; giro (in macchina)
+row: amministrare, condurre (un'azienda)
+### word-grammar feet foot
+grammar: plurale di foot
+page 1/1:
+  [sostantivo] piede, pedule, zampa; piede, unità di misura di lunghezza nel mondo anglosassone; piedi di; piedino; fanteria; piede
+  [verbo] pagare il conto di
+row: piede, pedule, zampa
+### word-grammar lying lie
+grammar: forma in -ing di lie
+page 1/1:
+  [sostantivo] menzogna, bugia, fandonia, frottola, panzana
+  [verbo] mentire, dire bugie (anche to tell lies); giacere
+row: menzogna, bugia, fandonia, frottola, panzana
+### word-grammar lay lie
+grammar: passato semplice di lie
+page 1/1:
+  [sostantivo] menzogna, bugia, fandonia, frottola, panzana
+  [verbo] mentire, dire bugie (anche to tell lies); giacere
+row: menzogna, bugia, fandonia, frottola, panzana
+### word-grammar lay lay
+gloss: (none)
+### word-grammar saw see
+grammar: passato semplice di see
+page 1/1:
+  [verbo] vedere
+  [sostantivo] diocesi, sede di una diocesi; carica di un vescovo
+row: vedere
+### word-grammar saw saw
+gloss: (none)
+### word-grammar don't do
+grammar: «don't» = do + not
+page 1/4:
+  [sostantivo] festa, festicciola; taglio di capelli, acconciatura (abbreviazione di hairdo)
+  [verbo] fare, compiere
+page 2/4:
+  [verbo] stare (bene/male), passarsela, andare, procedere (in un certo modo)
+page 3/4:
+  [verbo] utilizzato per realizzare la forma interrogativa di tutti i verbi, tranne be e altri ausiliari; fare, preparare, allestire, acconciare
+page 4/4:
+  [verbo] bastare, essere sufficiente; utilizzato, in forma negativa, per realizzare la forma negativa di tutti i verbi, tranne be e altri ausiliari
+row: festa, festicciola
+### word-grammar won't will
+grammar: «won't» = will + not
+page 1/1:
+  [sostantivo] volontà; testamento
+  [verbo] usato per esprimere un'intenzione di fare qualcosa nel futuro, o un'aspettativa di qualche evento nel futuro; trasmettere; volere
+row: volontà
+### word-grammar children's child
+page 1/1:
+  [sostantivo] bambino; figlio
+row: bambino
+### word-grammar to to
+page 1/1:
+  [preposizione] a (con movimento); per (complemento di fine)
+row: a (con movimento)
+### word-grammar a a
+page 1/2:
+  [determinante] un, uno, una, un' (si usa solamente davanti a parole che iniziano per consonante, davanti a vocale si usa an)
+page 2/2:
+  [sostantivo] sigla che nella blasonatura in trick indica il metallo argento
+row: un, uno, una, un' (si usa solamente davanti a parole che iniziano per…
+### word-grammar in in
+page 1/1:
+  [preposizione] in
+row: in
+### word-grammar for for
+page 1/1:
+  [preposizione] per, poiché, durante
+row: per, poiché, durante
+### word-grammar that that
+page 1/2:
+  [avverbio] così
+  [congiunzione] introduce una proposizione che è il soggetto o l'oggetto di un verbo
+  [pronome] quello, quella; che, il quale, la quale, i quali, le quali
+page 2/2:
+  [pronome] il quale, la quale, i quali, le quali, cui
+row: così
+### word-grammar have have
+page 1/2:
+  [verbo] avere, possedere, prendere; avere/essere, usato come verbo ausiliare nei tempi perfetti; in certi casi, fare; (seguito dal verbo all'infinito) dovere
+page 2/2:
+  [verbo] prendere, mangiare, bere
+row: avere, possedere, prendere
+### word-grammar by by
+page 1/1:
+  [aggettivo] passanti; vicino
+  [avverbio] secondario
+  [preposizione] da; in, per, con; secondo, a; attraverso, per, tramite, da; presso
+row: passanti
+### word-grammar but but
+page 1/1:
+  [avverbio] solo, solamente
+  [congiunzione] ma, però
+  [preposizione] tranne
+row: solo, solamente
+### word-grammar or or
+page 1/1:
+  [congiunzione] o, ovvero
+  [sostantivo] oro
+row: o, ovvero
+### word-grammar all all
+page 1/1:
+  [aggettivo] tutto; ogni; ognuno; ogni cosa
+  [avverbio] completamente
+row: tutto
+### word-grammar one one
+page 1/2:
+  [aggettivo] uno / uno; solo; stesso
+  [pronome] uno, una persona generica; il primo di due elementi
+  [sostantivo] la cifra 1; persona od oggetto che possiede una determinata qualità
+page 2/2:
+  [sostantivo] riprende un sostantivo già menzionato
+row: uno / uno
+### word-grammar can can
+page 1/1:
+  [sostantivo] latta, lattina, scatola, barattolo; annaffiatoio; scatoletta; cesso; natica
+row: latta, lattina, scatola, barattolo
+### word-grammar will will
+page 1/1:
+  [sostantivo] volontà; testamento
+  [verbo] usato per esprimere un'intenzione di fare qualcosa nel futuro, o un'aspettativa di qualche evento nel futuro; trasmettere; volere
+row: volontà
+### word-grammar just just
+page 1/1:
+  [aggettivo] appena; giusto; equanime
+  [avverbio] soltanto
+row: appena
+### word-grammar like like
+page 1/1:
+  [preposizione] come, simile
+  [verbo] piacere; gradire, prediligere
+row: come, simile
+### word-grammar about about
+page 1/1:
+  [preposizione] a proposito di
+row: a proposito di
+### word-grammar up up
+page 1/1:
+  [avverbio] su
+row: su
+### word-grammar out out
+page 1/1:
+  [avverbio] fuori
+  [aggettivo] assente; spento
+row: fuori
+### word-grammar no no
+page 1/1:
+  [congiunzione] no
+row: no
+### word-grammar her her
+page 1/1:
+  [pronome] di lei, suo
+row: di lei, suo
+### word-grammar time time
+page 1/1:
+  [sostantivo] tempo; ora; what's the time?: che ore sono?; volta; epoca
+  [verbo] cronometrare
+row: tempo
+### word-grammar new new
+page 1/1:
+  [aggettivo] nuovo; attuale, corrente
+  [sostantivo] il nuovo
+row: nuovo
+### word-grammar some some
+page 1/1:
+  [aggettivo] molti, tanti
+  [sostantivo] la folla
+  [pronome] molti, molte
+row: molti, tanti
+### word-grammar now now
+page 1/1:
+  [avverbio] adesso, attualmente, ora; allora
+  [preposizione] adesso che, ora che
+  [sostantivo] il presente
+row: adesso, attualmente, ora
+### word-grammar other other
+page 1/1:
+  [aggettivo] altro
+row: altro
+### word-grammar its its
+page 1/1:
+  [aggettivo] possessivo di it
+row: possessivo di it
+### word-grammar good good
+page 1/1:
+  [aggettivo] buono
+  [sostantivo] bene
+row: buono
+### word-grammar only only
+page 1/1:
+  [aggettivo] solo; unico
+  [avverbio] solamente, esclusivamente; soltanto; solo, soltanto, appena
+  [congiunzione] solo, ma, però; solo che, senonché, se non fosse (stato) che
+row: solo
+### word-grammar after after
+page 1/1:
+  [aggettivo] seguente; successivo
+  [avverbio] dopo, poi, in seguito
+  [preposizione] dopo; dopo, nonostante, malgrado
+row: seguente
+### word-grammar first first
+page 1/2:
+  [aggettivo] corrisponde al numero cardinale 1, primo
+  [sostantivo] una persona o cosa che occupa la prima posizione, primo; prima marcia; una novità, qualcosa che non è mai successo
+page 2/2:
+  [sostantivo] la prima base
+  [avverbio] dapprima, innanzitutto
+row: corrisponde al numero cardinale 1, primo
+### word-grammar see see
+page 1/1:
+  [verbo] vedere
+  [sostantivo] diocesi, sede di una diocesi; carica di un vescovo
+row: vedere
+### word-grammar over over
+page 1/1:
+  [avverbio] al di sopra
+  [aggettivo] finito; terminato; troppo; che avanza
+  [preposizione] su; sopra; al di sopra di
+row: al di sopra
+### word-grammar think think
+page 1/1:
+  [verbo] pensare, riflettere; ritenere, supporre
+row: pensare, riflettere
+### word-grammar any any
+page 1/1:
+  [aggettivo] qualche, un po' di; nessuno; qualsiasi; tutto, ogni
+  [avverbio] un po'; per niente
+row: qualche, un po' di
+### word-grammar back back
+page 1/2:
+  [sostantivo] schiena, dorso; retro, rovescio
+  [aggettivo] posteriore, di dietro; arretrato
+  [avverbio] dietro, indietro, posteriormente; di ritorno
+  [verbo] andare indietro, indietreggiare, arretrare
+page 2/2:
+  [verbo] ritornare (indietro rispetto ad un precedente movimento)
+row: schiena, dorso
+### word-grammar want want
+page 1/1:
+  [verbo] volere
+  [sostantivo] esigenza
+row: volere
+### word-grammar go go
+page 1/1:
+  [sostantivo] l'atto dell'andare; turno; prova; esprime approvazione o il permesso di fare qualcosa
+  [verbo] andare; andarsene; procedere; diventare
+row: l'atto dell'andare
+### word-grammar well well
+page 1/1:
+  [sostantivo] bene, benessere, pozzo, sano, interamente, ebbene, allora; pozzo
+row: bene, benessere, pozzo, sano, interamente, ebbene, allora
+### word-grammar way way
+page 1/1:
+  [sostantivo] cammino; strada; direzione
+row: cammino
+### word-grammar much much
+page 1/1:
+  [aggettivo] molto
+  [pronome] molto, tanto
+row: molto
+### phrase-gloss reader She will lead the expedition
+row: expedition — spedizione
