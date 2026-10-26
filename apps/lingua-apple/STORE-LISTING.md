@@ -133,7 +133,8 @@ anglais,espagnol,vocabulaire,lecture,traduction,extension,apprendre,mots,révisi
 
 ### fr-FR, with Italian (95 / 100; 96 bytes)
 
-From change 20's release (add-lingua-italian-listings, D3) — the design's draft, option A below.
+From change 20's release (add-lingua-italian-listings, D3) — the design's draft, option A below,
+settled by the owner on 2026-10-25.
 Apple counts this field in bytes (an accented letter takes two): with `italien,` added, the list
 would be 101 bytes, so one word gives way. Neither the app's name nor its category says
 « extension », so it stays.
@@ -142,8 +143,9 @@ would be 101 bytes, so one word gives way. Neither the app's name nor its catego
 anglais,espagnol,italien,vocabulaire,lecture,traduction,extension,apprendre,révision,CECRL,deck
 ```
 
-The owner chooses (Open Question 2). Apple's search indexes the subtitle with the keywords, so a
-word in both is paid for twice:
+The owner chose A on 2026-10-25 (Open Question 2): `mots` gives way to `italien`. The options
+weighed — Apple's search indexes the subtitle with the keywords, so a word in both is paid for
+twice:
 
 | Option | Subtitle | Keywords | Count |
 |---|---|---|---|
@@ -155,8 +157,8 @@ word in both is paid for twice:
 C drops `anglais,espagnol,italien,` (25 bytes), which the subtitle already indexes, and so keeps both
 `mots` and `deck` with 24 bytes to spare; D keeps every word too (`vocabulaire` moves to the
 subtitle) with 11 to spare, and its subtitle says what the app does rather than which languages.
-Recommended: **C** — the subtitle a store visitor reads names the three languages, and no keyword
-is lost. If the owner chooses it, the block above becomes C's list.
+C was recommended — the subtitle a store visitor reads names the three languages, and no keyword
+is lost — and A chosen: the block above is A's list.
 
 French takes the place of « review » in English and of « repaso » in Spanish
 (add-lingua-french-listings, *Measured*): at 99 and 98 of 100, the lists had no room for one more

@@ -81,14 +81,14 @@ Lingua reads French.
 summary names Italian: « Lisez l'anglais et l'espagnol » no longer says what a French speaker
 studies, and `yarn check:version` fails it once it-fr is listed. Change 20 commits it to
 `_locales/fr/messages.json` and `manifest.json`'s French literal in **the pull request that lists
-it-fr**, not before, as change 52 committed the English and Spanish ones. Its recommended draft (its
-D7 and Open Question 3, the owner's words, M9), 107 characters:
+it-fr**, not before, as change 52 committed the English and Spanish ones. Its draft A (its D7 and
+Open Question 3, the owner's words, M9), settled by the owner on 2026-10-25, 107 characters:
 
 > Le web en anglais, espagnol ou italien : mots inconnus surlignés, pourcentage honnête. Hors ligne et privé.
 
-Should the owner choose change 20's other draft — « Lisez l'anglais, l'espagnol et l'italien sur le
-web : mots inconnus surlignés, pourcentage honnête. Hors ligne. » (111) — or other words, this quote
-follows what change 20 commits. The English and Spanish summaries do not move with Italian: no pair
+Change 20's other draft — « Lisez l'anglais, l'espagnol et l'italien sur le web : mots inconnus
+surlignés, pourcentage honnête. Hors ligne. » (111) — was not chosen; should change 20 commit other
+words, this quote follows what it commits. The English and Spanish summaries do not move with Italian: no pair
 glossed in English or Spanish studies it.
 
 **What a summary names is checked.** `yarn check:version` (`tool/check_version.mjs`, run by
@@ -480,7 +480,7 @@ the App Store's fr-FR texts' among them:
 | « En espagnol et en italien, la carte nomme aussi le temps et le genre… (« passé simple », « nom féminin ») »                                                         | FR                | the French renderer's Italian tenses (`TENSES.it`, `src/i18n/fr/grammar.ts`, change 18), pinned by `test/baseline/word-card-it-fr.txt` (« fu »: « 3e personne du singulier du passé simple d'essere »; « legge »: « [nom féminin] Loi »); Italian's genders and tenses from `tables/it/grammar.tsv` (change 13)                                                                                                                                                               |
 | « l'espagnol et l'italien passent par l'anglais »; « 52,0 Mo avec l'espagnol ou l'italien, 78,2 Mo avec les deux »                                                    | FR                | route `it-fr` = `it-en/base-memory/2.0` then `en-fr/base-memory/2.0` (`model-manifest.json`, change 2): it-en 23,301,774 + 2,532,929 + 407,598 = 26,242,301 B, with en-fr's 25,752,472 B = 51,994,773 B, « 52,0 Mo » as es-fr's 51,993,524 B; Spanish and Italian studied (with or without English): en-fr + es-en + it-en = 78,235,825 B, « 78,2 Mo » — the setting takes each model once (`modelsFor`) and rounds as the texts do (`megabytes`)                             |
 | Italian's translation offered, the selection marked in it                                                                                                             | FR                | it-fr in `MARKED_PAIRS` (`src/translate/markup.ts`): 93 of its 97 shown marks right, 3 % withheld, the programme's first tier (change 19, `measure-lingua-it-fr-translation-marks`; `tool/marks/README.md`)                                                                                                                                                                                                                                                                   |
-| « Pour l'espagnol et l'italien, le dictionnaire français est un peu moins complet que pour l'anglais » (M6)                                                           | FR                | it-fr 89.2 / 81.8 / 73.3 % of the 5,000 / 10,000 / 20,000 commonest lemmas glossed (change 16, 32,691 glossed lemmas, `tables/it-fr/README.md`) against en-fr's 95.1 / 90.1 / 78.9 %: under it at each top, as es-fr's 87.6 / 77.2 / 63.7 %; change 20 publishes the figures (`gloss_coverage.py --write`) on cymbra.app/lingua                                                                                                                                               |
+| « Pour l'espagnol et l'italien, le dictionnaire français est un peu moins complet que pour l'anglais » (M6)                                                           | FR                | it-fr 89.4 / 82.0 / 73.4 % of the 5,000 / 10,000 / 20,000 commonest lemmas glossed (change 16, refreshed by change 17, #1062; `gloss_coverage.py --pair it-fr`, `tables/it-fr/README.md`) against en-fr's 95.1 / 90.1 / 78.9 %: under it at each top, as es-fr's 87.6 / 77.2 / 63.7 %; change 20 publishes the figures (`gloss_coverage.py --write`) on cymbra.app/lingua                                                                                                     |
 | Italian's levels estimated from word frequency (the App Store's fr-FR RÉVISER)                                                                                        | FR                | `levels_estimated` in it-fr's pack (`tables/it-fr/manifest.json`, change 14), « Niveau d'italien estimé » (`levelTitleEstimated`, `src/i18n/fr/languages.ts`)                                                                                                                                                                                                                                                                                                                 |
 | « Pour l'espagnol ou l'italien, cochez-le dans les Réglages de l'extension, onglet Langue, puis choisissez son niveau. » (the App Store's fr-FR step 3)               | FR                | change 20's activation page, `fr.step3` (`apps/lingua-apple/Shared (App)/Resources/copy.js`, its D7 draft), in the description's register: vous where the page says tu                                                                                                                                                                                                                                                                                                        |
 | « une voix d'Italie pour la lecture à voix haute » (the App Store's fr-FR « What's New »)                                                                             | FR                | `PREFERRED_REGIONS.it` (`src/reading/speech.ts`, change 15): a voice of Italy ranked before another region's of the same quality                                                                                                                                                                                                                                                                                                                                              |
@@ -533,7 +533,8 @@ the reader in « E-ink contrasté » beside the reader; the stores do not carry 
 
 Italian studied adds no capture (add-lingua-italian-listings, D8): the `fr` set is at the Chrome Web
 Store's cap of five, its second capture on a Spanish page; moving that one to an Italian page would
-need Italian capture fixtures and move the site's alt texts (that change's Open Question 3). The App
+need Italian capture fixtures and move the site's alt texts (that change's Open Question 3, settled
+by the owner on 2026-10-25: the `fr` set unchanged). The App
 Store's fr-FR set gains one on an Italian page (`apps/lingua-apple/STORE-LISTING.md`).
 
 Where a dashboard takes screenshots per language, the `fr` set goes under the French listing, the
@@ -917,8 +918,8 @@ step keeps the summary, which this one moves.
    `cymbra-lingua-chromium-<version>.zip`, from its GitHub Release, uploaded through the dashboard
    (Package › Upload new package), which submits nothing.
 2. **`fr` replaced.** The default language still `en`. Under `fr`: the French description **FR,
-   with Italian** above, and the `fr` screenshots unchanged unless the owner moved one to an Italian page
-   (_Graphics_). Check that the French summary reads as change 20 committed it (_Summary_).
+   with Italian** above, and the `fr` screenshots unchanged (_Graphics_; the owner's answer of
+   2026-10-25). Check that the French summary reads as change 20 committed it (_Summary_).
 3. **`en` and `es`, one sentence each.** Under `en` and `es`: the English description and the
    Spanish one with fr-es, as above with Italian — each changed only in its sentence on what French
    speakers study.
