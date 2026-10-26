@@ -83,7 +83,9 @@ describe("the word card in Italian, of an English word", () => {
   });
 
   it("A form with two readings, in one statement", () => {
-    expect(lines("en", "walk", "walked", [PAST, PARTICIPLE])).toEqual(["passato semplice e participio passato di walk"]);
+    expect(lines("en", "walk", "walked", [PAST, PARTICIPLE])).toEqual([
+      "passato semplice e participio passato di walk",
+    ]);
   });
 
   it("A form spelled like its dictionary form, as a possibility, each name with its article", () => {
@@ -165,7 +167,11 @@ describe("the word card in Italian, of a Spanish word", () => {
       "prima e terza persona singolare dell'indicativo imperfetto di hablar",
     ]);
     expect(
-      lines("es", "hablar", "x", [fin("Sub", "1", "Sing", "Pres"), fin("Sub", "2", "Sing", "Pres"), fin("Sub", "3", "Sing", "Pres")]),
+      lines("es", "hablar", "x", [
+        fin("Sub", "1", "Sing", "Pres"),
+        fin("Sub", "2", "Sing", "Pres"),
+        fin("Sub", "3", "Sing", "Pres"),
+      ]),
     ).toEqual(["prima, seconda e terza persona singolare del congiuntivo presente di hablar"]);
   });
 
@@ -193,7 +199,11 @@ describe("the word card in Italian, of a Spanish word", () => {
 
   it("The order of tenses: the subjunctive before the imperative; the singular before the plural", () => {
     expect(
-      lines("es", "hablar", "hable", [fin("Imp", "3", "Sing"), fin("Sub", "1", "Sing", "Pres"), fin("Sub", "3", "Sing", "Pres")]),
+      lines("es", "hablar", "hable", [
+        fin("Imp", "3", "Sing"),
+        fin("Sub", "1", "Sing", "Pres"),
+        fin("Sub", "3", "Sing", "Pres"),
+      ]),
     ).toEqual([
       "prima e terza persona singolare del congiuntivo presente e terza persona singolare dell'imperativo di hablar",
     ]);
@@ -221,29 +231,37 @@ describe("the word card in Italian, of a Spanish word", () => {
 
   it("The gerund, the participle's agreement and the infinitive", () => {
     expect(lines("es", "hablar", "hablando", [GERUND])).toEqual(["gerundio di hablar"]);
-    const part = (features: Record<string, string>) => name(verb({ Tense: "Past", VerbForm: "Part", ...features }), "es");
+    const part = (features: Record<string, string>) =>
+      name(verb({ Tense: "Past", VerbForm: "Part", ...features }), "es");
     expect(part({ Gender: "Masc", Number: "Sing" })).toBe("participio passato");
     expect(part({ Gender: "Fem", Number: "Sing" })).toBe("participio passato femminile");
     expect(part({ Gender: "Fem", Number: "Plur" })).toBe("participio passato femminile plurale");
     expect(part({ Gender: "Masc", Number: "Plur" })).toBe("participio passato maschile plurale");
     expect(renderer.readingName(INFINITIVE, "es")).toEqual({ article: "l'", name: "infinito" });
-    expect(lines("es", "hablar", "hablado", [PARTICIPLE, INFINITIVE])).toEqual(["participio passato e infinito di hablar"]);
+    expect(lines("es", "hablar", "hablado", [PARTICIPLE, INFINITIVE])).toEqual([
+      "participio passato e infinito di hablar",
+    ]);
   });
 
   it("The dictionary form itself: no line, and the other dictionary form named with « la »", () => {
     expect(lines("es", "hablar", "hablar", [INFINITIVE])).toEqual([]);
     expect(lines("es", "casa", "casa", [noun("Fem", "Sing")])).toEqual([]);
-    expect(lines("es", "vino", "vino", [noun("Masc", "Sing")], [{ lemma: "venir", readings: [fin("Ind", "3", "Sing", "Past")] }])).toEqual([
-      "può anche essere la terza persona singolare del passato remoto di venir",
-    ]);
+    expect(
+      lines(
+        "es",
+        "vino",
+        "vino",
+        [noun("Masc", "Sing")],
+        [{ lemma: "venir", readings: [fin("Ind", "3", "Sing", "Past")] }],
+      ),
+    ).toEqual(["può anche essere la terza persona singolare del passato remoto di venir"]);
   });
 
   it("A plural read in both numbers gives no line; a noun used only in the plural keeps its own", () => {
     expect(lines("es", "crisis", "crisis", [noun("Fem", "Plur"), noun("Fem", "Sing")])).toEqual([]);
-    expect(lines("es", "gafas", "gafas", [noun("Fem", "Plur")], [{ lemma: "gafa", readings: [noun("Fem", "Plur")] }])).toEqual([
-      "può anche essere il femminile plurale di gafas",
-      "può anche essere il femminile plurale di gafa",
-    ]);
+    expect(
+      lines("es", "gafas", "gafas", [noun("Fem", "Plur")], [{ lemma: "gafa", readings: [noun("Fem", "Plur")] }]),
+    ).toEqual(["può anche essere il femminile plurale di gafas", "può anche essere il femminile plurale di gafa"]);
   });
 });
 
@@ -302,7 +320,9 @@ describe("the word card in Italian, of a French word", () => {
     expect(lines("fr", "parler", "parlant", [PRESENT_PARTICIPLE])).toEqual(["participio presente di parler"]);
     const past = (Gender: string, Number: string) => verb({ Gender, Number, Tense: "Past", VerbForm: "Part" });
     expect(lines("fr", "parler", "parlé", [past("Masc", "Sing")])).toEqual(["participio passato di parler"]);
-    expect(lines("fr", "diriger", "dirigée", [past("Fem", "Sing")])).toEqual(["participio passato femminile di diriger"]);
+    expect(lines("fr", "diriger", "dirigée", [past("Fem", "Sing")])).toEqual([
+      "participio passato femminile di diriger",
+    ]);
   });
 
   it("Two genders of one number named once: « sommes »", () => {
@@ -352,14 +372,18 @@ describe("the word card in Italian, of an Italian word (the row M2 reserves)", (
     expect(lines("it", "parlare", "parlerebbe", [fin("Cnd", "3", "Sing")])).toEqual([
       "terza persona singolare del condizionale presente di parlare",
     ]);
-    expect(lines("it", "parlare", "parlassi", [fin("Sub", "1", "Sing", "Imp"), fin("Sub", "2", "Sing", "Imp")])).toEqual([
-      "prima e seconda persona singolare del congiuntivo imperfetto di parlare",
-    ]);
+    expect(
+      lines("it", "parlare", "parlassi", [fin("Sub", "1", "Sing", "Imp"), fin("Sub", "2", "Sing", "Imp")]),
+    ).toEqual(["prima e seconda persona singolare del congiuntivo imperfetto di parlare"]);
   });
 
   it("The indicative and the subjunctive said once (« parliamo »), apart where their persons differ (« parli »)", () => {
     expect(
-      lines("it", "parlare", "parliamo", [fin("Imp", "1", "Plur"), fin("Ind", "1", "Plur", "Pres"), fin("Sub", "1", "Plur", "Pres")]),
+      lines("it", "parlare", "parliamo", [
+        fin("Imp", "1", "Plur"),
+        fin("Ind", "1", "Plur", "Pres"),
+        fin("Sub", "1", "Plur", "Pres"),
+      ]),
     ).toEqual([
       "prima persona plurale dell'indicativo o congiuntivo presente e prima persona plurale dell'imperativo di parlare",
     ]);
@@ -380,13 +404,19 @@ describe("the word card in Italian, of an Italian word (the row M2 reserves)", (
     expect(lines("it", "parlare", "parlanti", [verb({ Number: "Plur", Tense: "Pres", VerbForm: "Part" })])).toEqual([
       "participio presente di parlare",
     ]);
-    expect(lines("it", "credere", "creduta", [verb({ Gender: "Fem", Number: "Sing", Tense: "Past", VerbForm: "Part" })])).toEqual([
-      "participio passato femminile di credere",
-    ]);
+    expect(
+      lines("it", "credere", "creduta", [verb({ Gender: "Fem", Number: "Sing", Tense: "Past", VerbForm: "Part" })]),
+    ).toEqual(["participio passato femminile di credere"]);
     expect(lines("it", "pentirsi", "pentire", [INFINITIVE])).toEqual(["infinito di pentirsi"]);
-    expect(lines("it", "parlante", "parlante", [noun("Masc", "Sing")], [{ lemma: "parlare", readings: [PRESENT_PARTICIPLE] }])).toEqual([
-      "può anche essere il participio presente di parlare",
-    ]);
+    expect(
+      lines(
+        "it",
+        "parlante",
+        "parlante",
+        [noun("Masc", "Sing")],
+        [{ lemma: "parlare", readings: [PRESENT_PARTICIPLE] }],
+      ),
+    ).toEqual(["può anche essere il participio presente di parlare"]);
   });
 
   it("Treccani's names, the mood before the tense", () => {
@@ -437,7 +467,12 @@ describe("the line's grammar in Italian", () => {
 
   it("« può anche essere » takes each name's article: « il », « l' », « la »", () => {
     expect(
-      lines("es", "x", "x", [PARTICIPLE, GERUND, fin("Ind", "3", "Sing", "Pres"), { pos: "ADJ", features: { Degree: "Sup" } }]),
+      lines("es", "x", "x", [
+        PARTICIPLE,
+        GERUND,
+        fin("Ind", "3", "Sing", "Pres"),
+        { pos: "ADJ", features: { Degree: "Sup" } },
+      ]),
     ).toEqual([
       "può anche essere il participio passato, il gerundio, la terza persona singolare dell'indicativo presente e il superlativo di x",
     ]);
@@ -501,8 +536,11 @@ describe("the line's grammar in Italian", () => {
 
   it("A card with no language names English forms", () => {
     expect(
-      shown({ headword: "hablar", surface: "hablaba", grammar: grammar({ readings: [fin("Ind", "1", "Sing", "Imp")] }) })
-        .lines,
+      shown({
+        headword: "hablar",
+        surface: "hablaba",
+        grammar: grammar({ readings: [fin("Ind", "1", "Sing", "Imp")] }),
+      }).lines,
     ).toEqual([]);
   });
 

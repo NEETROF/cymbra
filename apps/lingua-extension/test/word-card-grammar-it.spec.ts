@@ -38,14 +38,21 @@ function lines(pair: string, name: string): string[] {
   expect(probe, `${pair} ${name}`).toBeDefined();
   const block = renderGrammar(probe!, grammar, studied);
   // The block is in the pinned text, whole and once.
-  expect(pinned().split(/\n(?=#{2,3} )/).filter((b) => b === block.join("\n"))).toHaveLength(1);
+  expect(
+    pinned()
+      .split(/\n(?=#{2,3} )/)
+      .filter((b) => b === block.join("\n")),
+  ).toHaveLength(1);
   return block.slice(1).map((line) => line.replace(/^grammar: /, ""));
 }
 
 describe("the Italian renderer's grammar lines, over the en-es, es-en, fr-en and it-fr goldens", () => {
   it("renders every grammar probe as the snapshot pins it", async () => {
     for (const [pair, , count] of GOLDENS) {
-      expect(ALL.get(pair)!.filter((p) => p.kind === "word-grammar"), pair).toHaveLength(count);
+      expect(
+        ALL.get(pair)!.filter((p) => p.kind === "word-grammar"),
+        pair,
+      ).toHaveLength(count);
     }
     await expect(pinned()).toMatchFileSnapshot("./baseline/word-card-grammar-it.txt");
   });
@@ -65,7 +72,9 @@ describe("the Italian renderer's grammar lines, over the en-es, es-en, fr-en and
     expect(lines("en-es", "running run")).toEqual(["forma in -ing di run"]);
     expect(lines("en-es", "gone go")).toEqual(["participio passato di go"]);
     expect(lines("en-es", "has have")).toEqual(["terza persona singolare del presente semplice di have"]);
-    expect(lines("en-es", "read read")).toEqual(["può anche essere il passato semplice e il participio passato di read"]);
+    expect(lines("en-es", "read read")).toEqual([
+      "può anche essere il passato semplice e il participio passato di read",
+    ]);
   });
 
   it("Spanish forms, by the Italian name of the same tense", () => {
