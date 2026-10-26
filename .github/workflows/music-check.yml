@@ -43,8 +43,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      # apt mirrors swing this step between 30 s and 12 min; caching the .debs removes both
+      # `apt-get update` and the downloads on a hit.
       - name: Install Linux build deps (native Rust lib via cargokit + Linux desktop + headless display + protoc for gRPC codegen)
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev ninja-build libgtk-3-dev libsecret-1-dev clang cmake pkg-config xvfb lcov protobuf-compiler
+        uses: awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: libasound2-dev ninja-build libgtk-3-dev libsecret-1-dev clang cmake pkg-config xvfb lcov protobuf-compiler
+          version: 1
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: subosito/flutter-action@v2
@@ -74,8 +79,8 @@ jobs:
       # at build time), so CI regenerates it and fails on drift rather than
       # overwriting it silently — a stale asset would under/over-report what
       # third-party Rust code actually ships.
-      - name: Install cargo-about
-        run: cargo install cargo-about --locked --features cli
+      # Prebuilt binary: `cargo install` compiled it from source on every run (~1.5 min).
+      - uses: taiki-e/install-action@cargo-about
       - name: Regenerate Rust license notices and check for drift
         run: |
           melos run gen-licenses
