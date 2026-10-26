@@ -343,6 +343,27 @@ fn spec_scenario_a_pack_of_another_native_language_is_skipped_and_named() {
 }
 
 #[test]
+fn a_pack_glossed_in_italian_placed_by_hand_is_skipped_and_named() {
+    // add-lingua-italian-native-language D1: Italian is a native language the core knows, so
+    // an `*-it` pack placed by hand is listed as skipped instead of ignored silently.
+    let es_it = glossed_in(ES_PACK_BYTES, "it");
+    let (dir, files) = installed(
+        "italian-native",
+        &[("pack.lingua", PACK_BYTES), ("es-it.lingua", &es_it)],
+    );
+    let library = Library::from_files(files);
+    assert_eq!(library.languages(), vec![EN]);
+    assert_eq!(library.skipped().len(), 1);
+    assert_eq!(library.skipped()[0].native, NativeLanguage::Italian);
+    assert_eq!(
+        skipped_notice(library.skipped(), library.native()),
+        "Pack ignoré : es-it.lingua — traduit en italien, alors que le plugin suit les packs \
+         traduits en français.\n"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn spec_scenario_today_s_installs_show_no_notice() {
     for (name, files) in [
         ("english-alone", vec![("pack.lingua", PACK_BYTES)]),

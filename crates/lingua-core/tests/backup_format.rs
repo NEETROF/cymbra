@@ -31,7 +31,7 @@
 //! refuse as unsupported.
 
 use lingua_core::analysis::language::StudiedLanguage;
-use lingua_core::decks::{Card, EncounterSource, LinguaState, Provenance, RestoreError};
+use lingua_core::decks::{Card, EncounterSource, LinguaState, Provenance};
 use lingua_core::knowledge::{CefrLevel, KnownSource, NativeLanguage, Status};
 
 const EN: StudiedLanguage = StudiedLanguage::English;
@@ -337,8 +337,9 @@ fn a_backup_below_version_4_names_italian_nowhere() {
     // add-lingua-italian-baseline D7, held by the files rather than by the list of maps
     // `backup_version` reads: every language name of a backup holding a record in each
     // per-language map, turned into Italian one at a time and restored, is written again in
-    // version 4 — but the native language's, which is refused, Italian being no native language
-    // (D3). A per-language map added to the state but not to the version trigger fails here as
+    // version 4 — but the native language's: Italian is a native language since
+    // add-lingua-italian-native-language, and an Italian native alone keeps the file's version
+    // (that change's D4: a version 2 file studying English or Spanish). A per-language map added to the state but not to the version trigger fails here as
     // soon as `english_state` holds a record in it: its Italian entry would be written in a file
     // that a build reading version 3 reads and cannot parse.
     let mut renamed = 0;
@@ -357,7 +358,19 @@ fn a_backup_below_version_4_names_italian_nowhere() {
                 let file = format!("{}\"Italian\"{}", &backup[..at], &backup[at + name.len()..]);
                 let native = backup[..at].ends_with("\"native_language\": ");
                 match LinguaState::from_backup(&file) {
-                    Err(RestoreError::Malformed(_)) if native => {}
+                    Ok(restored) if native => {
+                        assert_eq!(
+                            restored.profile.native_language,
+                            NativeLanguage::Italian,
+                            "{file}"
+                        );
+                        assert_eq!(
+                            restored.backup_version(),
+                            state.backup_version(),
+                            "an Italian native moved the version:\n{}",
+                            restored.to_backup()
+                        );
+                    }
                     Ok(restored) if !native => {
                         let written = restored.to_backup();
                         assert_eq!(
