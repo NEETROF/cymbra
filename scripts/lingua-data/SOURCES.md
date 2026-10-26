@@ -1132,6 +1132,58 @@ table. **Committed** by the update of 2026.10.26 (`lingua-pack-update` run 40324
 `lingua-pack-sources-en-it-2026.10.26`), byte for byte the study: the pack 1,553,528 B, its base
 English's one (935,260 B, en-es's), its layer 618,493 B.
 
+### EN → IT: en-it's glosses refined (refine-lingua-en-it-glosses)
+
+Change 37 of `docs/lingua/italian-programme.md`: rules of en-it's own module, `reduce_english_it.py`,
+imported by `reduce-en-it.py` alone, each measured alone against change 36's committed rows; no shared
+or Italian-edition module edited, no new source — the part of speech's evidence is what en-it's pin
+already holds: the two translation tables and wordfreq's Italian and English lists, credited in its
+notice. Its rule digest gains the module: an edit of it re-pins en-it and no other pair.
+
+- **the section** (D5–D9, D13): a frame before the translation out when short items follow (`my` « il
+  mio, la mia, i miei, le mie »); a name's note off a word with a common entry, a given name's note read
+  « Giovanni (nome) » (it-es's short form, the owner's); a pointer's wording; a heraldic sense wherever
+  it stands, and a tincture's; an abbreviation's English expansion, unless the word keeps no Italian
+  sense or four of its senses or more are expansions alone; a wiki's text; a state's code beside another
+  sense — a sense D7, D9 or D13 would take that is the word's only one stays;
+- **the tables** (D10b): an item holding « ə » out, a one-letter item joined to the word before it
+  (`mx` « signor/a »);
+- **the rows** (D2, D3, D10a, D11): a row of two classes of parts of speech or more opens on the class
+  the English Wiktionary's first translated sense names when its best word in either table rates 0.5
+  Zipf above the row's first class's on wordfreq's Italian list, a verb never yielding to a noun; a row
+  missing that class (never an adjective's row opened on a verb), or whose first sense describes and
+  shares no word with either table (the table's word at Zipf 3 or more), opens on the English
+  Wiktionary's first sense, at most three words, none English, no interjection's, no lemma under three
+  letters; a sense whose every item an earlier one holds, « X / X », an item repeated inside a sense out;
+  a contraction no source glosses reads as a pointer, « contrazione di you are » — the section's frame,
+  the full form composed by rule, **generated**, no Italian word written (task 0.1, the owner's) —, and
+  `doesn't` its own full form;
+- **`FIRST_RUN`** (D4): 34 rows open on a sense a source writes — `that`, `this`, `an`, `me`, `can`,
+  `will`, `do`, `very`, `even`, `still`, `down`, `big`, `course`, `take`, `after`, `feel`, `money`,
+  `way`, `set`, `since`, `read`, `run`, `about`, `through`, `cock`, `cervix`, `inquisition`,
+  `connection` (« collegamento » the inverted table's, the rest the direct one's), `large`,
+  `preservative`, `former`, `none`, `bye`, `conductor`;
+- **`CORRECTIONS`** (D12): 23 rows — the false friends `prove`, `disposable`, `ultimately`, `editor`,
+  `fabric`, `firm`, `passionate`, `sacred`; the pages copied from another word, `some` (*many*'s) and
+  `trash` (*thrash*'s senses); `media`'s English sentences; `tide`, `whiplash`, `tory`; the misspellings
+  « squaglia » (`scale`), « referenzia » (`he`), « grupo » (`social`), « sù » (`top`), « stazine »
+  (`station`), « orundo » (`original`), « armoia » (`sort`), and `head`'s « capoccia » opening the row;
+  and `lot` « molto, parecchio (a lot) », the expression *a lot*'s words with « (a lot) » **written by a
+  person** (task 0.2, the owner's, `BY_A_PERSON`). Each op names the source it reads and the page it is
+  reported to — the Italian Wiktionary's English entry for a section's slip (https://it.wiktionary.org/wiki/some,
+  …/trash, …/scale, …), the English Wiktionary's entry for a table's word —; one that finds nothing is
+  named on the reduction's summary line, and the tests over the committed tables fail.
+
+**Predicted at implementation** (2026-10-26, reduced locally by `build.sh --reduce en-it` from the
+pinned release `lingua-pack-sources-en-it-2026.10.26`, Python 3.12 and `requirements-reduce.txt`),
+byte for byte the design's prototype: 1,035 rows of `gloss.tsv` change (154 / 314 / 402 / 165 of the
+1,000 / 5,000 / 20,000 commonest and beyond), 618 in their first sense; 54 lemmas gained, none lost; 9
+expressions; coverage **92.1 / 83.1 / 70.6 %**; `gloss.tsv` `affa8fec…`, `senses.tsv` `293e12ab…`,
+`mwe.tsv` `9767baf4…`, `NOTICE` unchanged; the pack 1,550,318 B (`744b36e5…`), its base English's,
+byte for byte (935,260 B), its layer 615,283 B (`2bd2e798…`), at `pack_version`
+`2026.10.26+df788f5.fb7962e`. Only en-it re-pins: `tables/en/` and the nine other pairs' tables, pins
+and packs do not move.
+
 ## The editions' dumps
 
 kaikki is read at **one address per Wiktionary edition** — the English, French and Spanish ones,
