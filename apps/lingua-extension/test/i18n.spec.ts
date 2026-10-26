@@ -617,22 +617,15 @@ function shape(value: unknown): unknown {
  */
 const TEXT_SURFACES = SURFACES.filter((surface) => surface !== "grammar");
 
-/** The surfaces each language has a module for: every one, but Italian's `grammar`, change 34's (D2). */
-const SURFACES_OF: Record<"fr" | Draft, readonly string[]> = {
-  fr: SURFACES,
-  en: SURFACES,
-  es: SURFACES,
-  it: TEXT_SURFACES,
-};
-
 describe("the drafts are whole", () => {
-  it("has a module for every surface in every language, and no other — Italian's grammar aside", () => {
+  // Italian's `grammar` too, since add-lingua-italian-card-wording (D6).
+  it("has a module for every surface in every language, and no other", () => {
     for (const language of ["fr", ...DRAFTS] as const) {
       const found = Object.keys(modules)
         .filter((p) => p.includes(`/${language}/`))
         .map((p) => p.replace(/.*\//, "").replace(/\.ts$/, ""))
         .sort();
-      expect(found, language).toEqual([...SURFACES_OF[language]].sort());
+      expect(found, language).toEqual([...SURFACES].sort());
     }
   });
 
@@ -718,8 +711,9 @@ describe("the drafts are whole", () => {
       "ripreso dall'italiano, di cui l'inglese riprende le dimensioni dei livelli.",
     );
     // « tu », never « Lei »; the reader's gender never assumed (« Connecté » is « Accesso effettuato »).
+    // The text modules: `grammar` is a renderer (add-lingua-italian-card-wording), checked as one below.
     const italian = Object.keys(modules)
-      .filter((path) => path.includes("/it/"))
+      .filter((path) => path.includes("/it/") && !path.endsWith("/grammar.ts"))
       .flatMap((path) => texts(Object.values(modules[path]!)[0], path, new Map()).map((t) => t.text));
     for (const text of italian) {
       expect(text, text).not.toMatch(/\b(?:Lei|La preghiamo|Suo|Sua)\b/);
@@ -771,7 +765,7 @@ describe("the grammar modules are renderers (generalise-lingua-card-wording D2)"
   });
   const fr = catalogue("fr", "grammar") as unknown as GrammarRenderer;
 
-  for (const language of ["en", "es"] as const) {
+  for (const language of ["en", "es", "it"] as const) {
     it(`${language} says what the French says, in other words`, () => {
       const draft = catalogue(language, "grammar") as unknown as GrammarRenderer;
       for (const tag of [PAST, THIRD, { pos: "NOUN", features: { Number: "Plur" } }]) {

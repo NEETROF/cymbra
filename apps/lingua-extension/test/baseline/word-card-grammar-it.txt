@@ -1,0 +1,517 @@
+## en-es, en studied
+### word-grammar went go
+grammar: passato semplice di go
+### word-grammar gone go
+grammar: participio passato di go
+### word-grammar goes go
+grammar: plurale e terza persona singolare del presente semplice di go
+### word-grammar has have
+grammar: terza persona singolare del presente semplice di have
+### word-grammar had have
+grammar: passato semplice e participio passato di have
+### word-grammar are be
+grammar: presente semplice di be
+### word-grammar was be
+grammar: passato semplice di be
+### word-grammar better good
+grammar: comparativo di good
+grammar: può anche essere il comparativo di well
+### word-grammar best good
+grammar: superlativo di good
+grammar: può anche essere il superlativo di well
+### word-grammar worse bad
+grammar: comparativo di bad
+grammar: può anche essere il comparativo di ill
+### word-grammar children child
+grammar: plurale di child
+### word-grammar mice mouse
+grammar: plurale di mouse
+### word-grammar leaves leave
+grammar: plurale e terza persona singolare del presente semplice di leave
+grammar: può anche essere il plurale di leaf
+### word-grammar leaves leaf
+grammar: plurale di leaf
+### word-grammar read read
+grammar: può anche essere il passato semplice e il participio passato di read
+### word-grammar lead lead
+### word-grammar led lead
+grammar: passato semplice e participio passato di lead
+### word-grammar ate eat
+grammar: passato semplice di eat
+### word-grammar more more
+### word-grammar thought think
+grammar: passato semplice e participio passato di think
+### word-grammar thought thought
+### word-grammar running run
+grammar: forma in -ing di run
+### word-grammar ran run
+grammar: passato semplice di run
+### word-grammar feet foot
+grammar: plurale di foot
+### word-grammar lying lie
+grammar: forma in -ing di lie
+### word-grammar lay lie
+grammar: passato semplice di lie
+### word-grammar lay lay
+### word-grammar saw see
+grammar: passato semplice di see
+### word-grammar saw saw
+### word-grammar don't do
+grammar: «don't» = do + not
+### word-grammar won't will
+grammar: «won't» = will + not
+### word-grammar children's child
+### word-grammar to to
+### word-grammar a a
+### word-grammar in in
+### word-grammar for for
+### word-grammar that that
+### word-grammar have have
+### word-grammar by by
+### word-grammar but but
+### word-grammar or or
+### word-grammar all all
+### word-grammar one one
+### word-grammar can can
+### word-grammar will will
+### word-grammar just just
+### word-grammar like like
+### word-grammar about about
+### word-grammar up up
+### word-grammar out out
+### word-grammar no no
+### word-grammar her her
+### word-grammar time time
+### word-grammar new new
+### word-grammar some some
+### word-grammar now now
+### word-grammar other other
+### word-grammar its its
+### word-grammar good good
+### word-grammar only only
+### word-grammar after after
+### word-grammar first first
+### word-grammar see see
+### word-grammar over over
+### word-grammar think think
+### word-grammar any any
+### word-grammar back back
+### word-grammar want want
+### word-grammar go go
+### word-grammar well well
+### word-grammar way way
+### word-grammar much much
+## es-en, es studied
+### word-grammar fue ser
+grammar: terza persona singolare del passato remoto di ser
+grammar: può anche essere la terza persona singolare del passato remoto di ir
+### word-grammar fue ir
+grammar: terza persona singolare del passato remoto di ir
+### word-grammar era ser
+grammar: prima e terza persona singolare dell'indicativo imperfetto di ser
+### word-grammar es ser
+grammar: terza persona singolare dell'indicativo presente di ser
+### word-grammar tengo tener
+grammar: prima persona singolare dell'indicativo presente di tener
+### word-grammar hizo hacer
+grammar: terza persona singolare del passato remoto di hacer
+### word-grammar dijo decir
+grammar: terza persona singolare del passato remoto di decir
+### word-grammar puedo poder
+grammar: prima persona singolare dell'indicativo presente di poder
+### word-grammar vino venir
+grammar: terza persona singolare del passato remoto di venir
+### word-grammar vino vino
+grammar: può anche essere la terza persona singolare del passato remoto di venir
+### word-grammar como comer
+grammar: prima persona singolare dell'indicativo presente di comer
+### word-grammar como como
+grammar: può anche essere la prima persona singolare dell'indicativo presente di comer
+### word-grammar casas casa
+grammar: femminile plurale di casa
+grammar: può anche essere la seconda persona singolare dell'indicativo presente di casar
+### word-grammar buen bueno
+grammar: maschile singolare di bueno
+### word-grammar gran grande
+grammar: maschile e femminile singolare di grande
+### word-grammar primer primero
+grammar: maschile singolare di primero
+### word-grammar dámelo dar
+### word-grammar levantarme levantar
+### word-grammar hablaba hablar
+grammar: prima e terza persona singolare dell'indicativo imperfetto di hablar
+### word-grammar hable hablar
+grammar: prima e terza persona singolare del congiuntivo presente e terza persona singolare dell'imperativo di hablar
+### word-grammar cantaríamos cantar
+grammar: prima persona plurale del condizionale presente di cantar
+### word-grammar tuviera tener
+grammar: prima e terza persona singolare del congiuntivo imperfetto di tener
+### word-grammar rápidas rápido
+grammar: femminile plurale di rápido
+### word-grammar al a
+grammar: «al» = a + el
+### word-grammar del de
+grammar: «del» = de + el
+### word-grammar mesas mesa
+grammar: femminile plurale di mesa
+### word-grammar fríelas freír
+### word-grammar hubieran haber
+grammar: terza persona plurale del congiuntivo imperfetto di haber
+### word-grammar que que
+### word-grammar a a
+### word-grammar no no
+### word-grammar por por
+### word-grammar para para
+grammar: può anche essere la terza persona singolare dell'indicativo presente e la seconda persona singolare dell'imperativo di parar
+grammar: può anche essere la prima e terza persona singolare del congiuntivo presente e la terza persona singolare dell'imperativo di parir
+### word-grammar su su
+### word-grammar más más
+### word-grammar pero pero
+### word-grammar o o
+### word-grammar este este
+### word-grammar todo todo
+### word-grammar ya ya
+### word-grammar yo yo
+### word-grammar ser ser
+### word-grammar sobre sobre
+grammar: può anche essere la prima e terza persona singolare del congiuntivo presente e la terza persona singolare dell'imperativo di sobrar
+### word-grammar qué qué
+### word-grammar dos dos
+grammar: può anche essere il maschile plurale di do
+### word-grammar bien bien
+### word-grammar hasta hasta
+### word-grammar hacer hacer
+### word-grammar ahora ahora
+### word-grammar nada nada
+grammar: può anche essere la terza persona singolare dell'indicativo presente e la seconda persona singolare dell'imperativo di nadar
+### word-grammar ni ni
+### word-grammar donde donde
+### word-grammar solo solo
+### word-grammar algo algo
+### word-grammar mucho mucho
+### word-grammar tan tan
+### word-grammar ese ese
+### word-grammar mismo mismo
+### word-grammar cada cada
+### word-grammar estado estado
+grammar: può anche essere il participio passato di estar
+### word-grammar año año
+### word-grammar otro otro
+### word-grammar menos menos
+### word-grammar tanto tanto
+### word-grammar antes antes
+grammar: può anche essere il maschile plurale di ante
+### word-grammar poco poco
+### word-grammar cómo cómo
+### word-grammar hecho hecho
+grammar: può anche essere il participio passato di hacer
+grammar: può anche essere la prima persona singolare dell'indicativo presente di hechar
+## fr-en, fr studied
+### word-grammar est être
+grammar: terza persona singolare dell'indicativo presente di être
+### word-grammar sont être
+grammar: terza persona plurale dell'indicativo presente di être
+### word-grammar était être
+grammar: terza persona singolare dell'indicativo imperfetto di être
+### word-grammar fut être
+grammar: terza persona singolare del passato remoto di être
+### word-grammar soyez être
+grammar: seconda persona plurale del congiuntivo presente e seconda persona plurale dell'imperativo di être
+### word-grammar été être
+grammar: participio passato di être
+### word-grammar été été
+### word-grammar a avoir
+grammar: terza persona singolare dell'indicativo presente di avoir
+### word-grammar ai avoir
+grammar: prima persona singolare dell'indicativo presente di avoir
+### word-grammar as avoir
+grammar: seconda persona singolare dell'indicativo presente di avoir
+### word-grammar eût avoir
+grammar: terza persona singolare del congiuntivo imperfetto di avoir
+### word-grammar va aller
+grammar: terza persona singolare dell'indicativo presente e seconda persona singolare dell'imperativo di aller
+### word-grammar allez aller
+grammar: seconda persona plurale dell'indicativo presente e seconda persona plurale dell'imperativo di aller
+### word-grammar fait faire
+grammar: participio passato e terza persona singolare dell'indicativo presente di faire
+### word-grammar faites faire
+grammar: participio passato femminile plurale, seconda persona plurale dell'indicativo presente e seconda persona plurale dell'imperativo di faire
+### word-grammar pût pouvoir
+grammar: terza persona singolare del congiuntivo imperfetto di pouvoir
+### word-grammar dit dire
+grammar: participio passato, terza persona singolare dell'indicativo presente e terza persona singolare del passato remoto di dire
+### word-grammar vînmes venir
+### word-grammar prenez prendre
+grammar: seconda persona plurale dell'indicativo presente e seconda persona plurale dell'imperativo di prendre
+### word-grammar porte porter
+grammar: prima e terza persona singolare dell'indicativo o congiuntivo presente e seconda persona singolare dell'imperativo di porter
+### word-grammar porte porte
+### word-grammar vis vivre
+grammar: prima e seconda persona singolare dell'indicativo presente e seconda persona singolare dell'imperativo di vivre
+### word-grammar vis voir
+grammar: prima e seconda persona singolare del passato remoto di voir
+### word-grammar couvent couver
+grammar: terza persona plurale dell'indicativo o congiuntivo presente di couver
+### word-grammar couvent couvent
+grammar: può anche essere la terza persona plurale dell'indicativo o congiuntivo presente di couver
+### word-grammar fils fils
+grammar: può anche essere il maschile plurale di fil
+### word-grammar au au
+grammar: «au» = à + le
+### word-grammar du du
+### word-grammar l'homme homme
+grammar: «l'homme» = le + homme
+### word-grammar l’ le
+### word-grammar au à
+grammar: «au» = à + le
+### word-grammar CA CA
+### word-grammar recu recevoir
+grammar: participio passato di recevoir
+### word-grammar arrete arrêter
+grammar: participio passato, prima e terza persona singolare dell'indicativo o congiuntivo presente e seconda persona singolare dell'imperativo di arrêter
+### word-grammar arreté arrêter
+grammar: participio passato di arrêter
+### word-grammar grand-mere grand-mère
+grammar: femminile singolare di grand-mère
+### word-grammar parle parler
+grammar: prima e terza persona singolare dell'indicativo o congiuntivo presente e seconda persona singolare dell'imperativo di parler
+### word-grammar parles parler
+grammar: seconda persona singolare dell'indicativo o congiuntivo presente di parler
+### word-grammar parlent parler
+grammar: terza persona plurale dell'indicativo o congiuntivo presente di parler
+### word-grammar parlait parler
+grammar: terza persona singolare dell'indicativo imperfetto di parler
+### word-grammar parlera parler
+grammar: terza persona singolare del futuro semplice di parler
+### word-grammar parlerait parler
+grammar: terza persona singolare del condizionale presente di parler
+### word-grammar parlant parler
+grammar: participio presente di parler
+### word-grammar parlé parler
+grammar: participio passato di parler
+### word-grammar dirigée diriger
+grammar: participio passato femminile di diriger
+### word-grammar finissions finir
+grammar: prima persona plurale dell'indicativo o congiuntivo imperfetto e prima persona plurale del congiuntivo presente di finir
+### word-grammar sommes être
+grammar: prima persona plurale dell'indicativo presente di être
+grammar: può anche essere il maschile e femminile plurale di somme
+grammar: può anche essere la seconda persona singolare dell'indicativo o congiuntivo presente di sommer
+### word-grammar suis être
+grammar: prima persona singolare dell'indicativo presente di être
+grammar: può anche essere la prima e seconda persona singolare dell'indicativo presente e la seconda persona singolare dell'imperativo di suivre
+### word-grammar grandes grand
+grammar: femminile plurale di grand
+### word-grammar maisons maison
+grammar: femminile plurale di maison
+### word-grammar cette ce
+grammar: femminile singolare di ce
+### word-grammar les le
+### word-grammar meilleures meilleur
+grammar: femminile plurale di meilleur
+grammar: può anche essere il comparativo di bien
+grammar: può anche essere il comparativo di bon
+### word-grammar moindre petit
+grammar: comparativo di petit
+### word-grammar millions million
+### word-grammar temps temps
+### word-grammar heureux heureux
+### word-grammar de de
+### word-grammar le le
+### word-grammar en en
+### word-grammar des des
+### word-grammar un un
+### word-grammar que que
+### word-grammar pas pas
+### word-grammar qui qui
+### word-grammar ce ce
+### word-grammar sur sur
+### word-grammar par par
+### word-grammar on on
+### word-grammar plus plus
+grammar: può anche essere il participio passato maschile plurale e la prima e seconda persona singolare del passato remoto di plaire
+grammar: può anche essere il participio passato maschile plurale di pleuvoir
+### word-grammar avec avec
+### word-grammar mais mais
+grammar: può anche essere il maschile plurale di mai
+### word-grammar ça ça
+### word-grammar tu tu
+grammar: può anche essere il participio passato di taire
+### word-grammar son son
+### word-grammar si si
+### word-grammar tout tout
+### word-grammar nous nous
+### word-grammar comme comme
+### word-grammar être être
+### word-grammar bien bien
+### word-grammar même même
+### word-grammar aussi aussi
+### word-grammar deux deux
+### word-grammar leur leur
+### word-grammar moi moi
+### word-grammar quand quand
+### word-grammar après après
+### word-grammar avoir avoir
+### word-grammar non non
+### word-grammar alors alors
+### word-grammar peu peu
+### word-grammar autre autre
+### word-grammar rien rien
+### word-grammar dire dire
+### word-grammar monde monde
+### word-grammar fois fois
+grammar: può anche essere il femminile plurale di foi
+## it-fr, it studied
+### word-grammar è essere
+grammar: terza persona singolare dell'indicativo presente di essere
+### word-grammar sono essere
+grammar: prima persona singolare dell'indicativo presente e terza persona plurale dell'indicativo presente di essere
+### word-grammar era essere
+grammar: terza persona singolare dell'indicativo imperfetto di essere
+### word-grammar fu essere
+grammar: terza persona singolare del passato remoto di essere
+### word-grammar sia essere
+grammar: prima, seconda e terza persona singolare del congiuntivo presente di essere
+### word-grammar fosse essere
+grammar: terza persona singolare del congiuntivo imperfetto di essere
+grammar: può anche essere il femminile plurale di fossa
+### word-grammar sarebbe essere
+grammar: terza persona singolare del condizionale presente di essere
+### word-grammar ha avere
+grammar: terza persona singolare dell'indicativo presente di avere
+### word-grammar ebbe avere
+grammar: terza persona singolare del passato remoto di avere
+### word-grammar abbia avere
+grammar: prima, seconda e terza persona singolare del congiuntivo presente di avere
+### word-grammar andò andare
+grammar: terza persona singolare del passato remoto di andare
+### word-grammar va andare
+grammar: terza persona singolare dell'indicativo presente e seconda persona singolare dell'imperativo di andare
+### word-grammar fa fare
+grammar: terza persona singolare dell'indicativo presente e seconda persona singolare dell'imperativo di fare
+### word-grammar disse dire
+grammar: terza persona singolare del passato remoto di dire
+### word-grammar porta portare
+grammar: terza persona singolare dell'indicativo presente e seconda persona singolare dell'imperativo di portare
+grammar: può anche essere il participio passato femminile di porgere
+### word-grammar porta porta
+### word-grammar legge leggere
+grammar: terza persona singolare dell'indicativo presente di leggere
+### word-grammar legge legge
+grammar: può anche essere la terza persona singolare dell'indicativo presente di leggere
+### word-grammar sale salire
+grammar: terza persona singolare dell'indicativo presente di salire
+### word-grammar sale sale
+grammar: può anche essere il femminile plurale di sala
+grammar: può anche essere la terza persona singolare dell'indicativo presente di salire
+### word-grammar vite vita
+grammar: femminile plurale di vita
+### word-grammar del del
+### word-grammar al a
+grammar: «al» = a + il
+### word-grammar l'uomo uomo
+grammar: «l'uomo» = lo + uomo
+### word-grammar l’ lo
+### word-grammar l’ il
+### word-grammar dirmelo dire
+### word-grammar vattene andare
+### word-grammar NATO NATO
+### word-grammar dai dare
+grammar: seconda persona singolare dell'indicativo presente e seconda persona singolare dell'imperativo di dare
+### word-grammar dai da
+grammar: «dai» = da + i
+### word-grammar mo' mò
+### word-grammar parlo parlare
+grammar: prima persona singolare dell'indicativo presente di parlare
+### word-grammar parli parlare
+grammar: seconda persona singolare dell'indicativo presente e prima, seconda e terza persona singolare del congiuntivo presente di parlare
+### word-grammar parla parlare
+grammar: terza persona singolare dell'indicativo presente e seconda persona singolare dell'imperativo di parlare
+### word-grammar parliamo parlare
+grammar: prima persona plurale dell'indicativo o congiuntivo presente e prima persona plurale dell'imperativo di parlare
+### word-grammar mangiate mangiare
+grammar: participio passato femminile plurale, seconda persona plurale dell'indicativo o congiuntivo presente e seconda persona plurale dell'imperativo di mangiare
+grammar: può anche essere il femminile plurale di mangiata
+### word-grammar parlate parlare
+grammar: participio passato femminile plurale, seconda persona plurale dell'indicativo presente e seconda persona plurale dell'imperativo di parlare
+grammar: può anche essere il femminile plurale di parlata
+### word-grammar parlavo parlare
+grammar: prima persona singolare dell'indicativo imperfetto di parlare
+### word-grammar parlò parlare
+grammar: terza persona singolare del passato remoto di parlare
+### word-grammar parlerò parlare
+grammar: prima persona singolare del futuro semplice di parlare
+### word-grammar parlerei parlare
+grammar: prima persona singolare del condizionale presente di parlare
+### word-grammar parlerebbe parlare
+grammar: terza persona singolare del condizionale presente di parlare
+### word-grammar parlassi parlare
+grammar: prima e seconda persona singolare del congiuntivo imperfetto di parlare
+### word-grammar parlando parlare
+grammar: gerundio di parlare
+### word-grammar parlanti parlare
+grammar: participio presente di parlare
+grammar: può anche essere il plurale e il maschile plurale di parlante
+### word-grammar parlante parlante
+grammar: può anche essere il participio presente di parlare
+### word-grammar parlato parlare
+grammar: participio passato di parlare
+### word-grammar creduta credere
+grammar: participio passato femminile di credere
+### word-grammar case casa
+grammar: femminile plurale di casa
+### word-grammar rosse rosso
+grammar: femminile plurale di rosso
+### word-grammar grandi grande
+grammar: plurale e maschile e femminile plurale di grande
+### word-grammar tali tale
+grammar: può anche essere il maschile plurale di talo
+### word-grammar minore piccolo
+grammar: comparativo di piccolo
+### word-grammar mila mille
+### word-grammar città città
+### word-grammar di di
+### word-grammar che che
+### word-grammar come come
+grammar: può anche essere il femminile plurale di coma
+### word-grammar lo lo
+### word-grammar o o
+### word-grammar questo questo
+### word-grammar ci ci
+### word-grammar solo solo
+### word-grammar essere essere
+### word-grammar io io
+### word-grammar tutto tutto
+### word-grammar cosa cosa
+### word-grammar fatto fatto
+grammar: può anche essere il participio passato di fare
+### word-grammar prima prima
+grammar: può anche essere il femminile singolare di primo
+### word-grammar loro loro
+### word-grammar dopo dopo
+### word-grammar uno uno
+### word-grammar ne ne
+### word-grammar poi poi
+### word-grammar quello quello
+### word-grammar ancora ancora
+grammar: può anche essere la terza persona singolare dell'indicativo presente e la seconda persona singolare dell'imperativo di ancorare
+### word-grammar molto molto
+### word-grammar mai mai
+### word-grammar ora ora
+### word-grammar quanto quanto
+### word-grammar dove dove
+### word-grammar quindi quindi
+### word-grammar secondo secondo
+### word-grammar proprio proprio
+### word-grammar altro altro
+### word-grammar bene bene
+### word-grammar vi vi
+### word-grammar qui qui
+### word-grammar stesso stesso
+### word-grammar grande grande
+### word-grammar fine fine
+grammar: può anche essere il femminile plurale di fino
+### word-grammar tuo tuo
+### word-grammar avere avere
+### word-grammar fino fino
+### word-grammar meglio meglio

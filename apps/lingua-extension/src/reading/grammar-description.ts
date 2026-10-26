@@ -6,7 +6,7 @@ import type { GrammarBlocks, GrammarLine, Named, StudiedLanguageCode } from "../
 // dictionary form left out on its own card — and with it its plural, where the card also reads the
 // form in the singular, for every studied language (refine-lingua-card-invariable-plurals D2) —, the
 // other dictionary forms and the pieces. A renderer per interface language
-// (`src/i18n/{fr,en,es}/grammar.ts`) says it in that language's words; this module holds the
+// (`src/i18n/{fr,en,es,it}/grammar.ts`) says it in that language's words; this module holds the
 // decisions every renderer shares — what is named at all, and how a line is composed from its parts
 // — so a renderer can only word what the French card names, never more.
 
