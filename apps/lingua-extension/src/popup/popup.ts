@@ -154,6 +154,8 @@ function render(stats: PageStats | null, onReader: boolean): void {
 }
 
 let settings: SettingsView | null = null;
+/** The language of the page this popup opened on: the voice to hear is its, not the reader's first. */
+let pageLanguage: string | null = null;
 
 /**
  * Réglages: the shared view, mounted the first time they open. Its engine port and speaker
@@ -169,7 +171,11 @@ async function showSettings(tab?: SettingsTab): Promise<void> {
     settings = mountSettings($("settings-body"), port, storageArea, {
       persist: async () => saveBackup(store, await port.backup()),
       store,
-      speaker: createSpeaker(browserSpeechEngine(), await readingLanguage(port), storedVoicePreference(storageArea)),
+      speaker: createSpeaker(
+        browserSpeechEngine(),
+        await readingLanguage(port).then((first) => () => pageLanguage ?? first),
+        storedVoicePreference(storageArea),
+      ),
       // Safari: the host app now shows the provider's sheet; the next open collects the token.
       onHandedOff: () => window.close(),
       // The language read with this page's first storage read (localise-lingua-settings D1).
@@ -260,6 +266,9 @@ async function refreshDeck(stats: PageStats | null): Promise<void> {
 async function refresh(enabled = true): Promise<void> {
   const stats = (await send({ type: "getStats" })) as PageStats | null;
   hasReader = stats !== null;
+  const was = pageLanguage;
+  pageLanguage = stats?.language ?? null;
+  if (pageLanguage !== was) void settings?.refresh();
   if (enabled) render(stats, await activeTabIsReader());
   await refreshDeck(stats);
 }

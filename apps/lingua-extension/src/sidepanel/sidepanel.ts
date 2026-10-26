@@ -39,7 +39,7 @@ const port = createLinguaPort();
 /** The reader's language (add-lingua-studied-language-profile), read after every restore. */
 let language: StudiedLanguage = DEFAULT_LANGUAGE;
 /** This page's own synthesiser, for the Réglages voice preview. */
-const speaker = createSpeaker(browserSpeechEngine(), () => language, storedVoicePreference(area));
+const speaker = createSpeaker(browserSpeechEngine(), () => beside ?? language, storedVoicePreference(area));
 
 /**
  * Where Révision opens beside the active tab's document — a book's own language, else the page's —
@@ -82,9 +82,12 @@ function openToSort(): void {
 let windowId: number | undefined;
 /** The language each tab's reading session last announced with its figures. */
 const announced = new Map<number, string>();
+/** The active tab's page language, when its reading session announced one: the voice to hear is its. */
+let beside: string | null = null;
 
 /** The page beside the panel changed: Révision opens in its language, now if it is shown. */
 function followActiveTab(): void {
+  void settings?.refresh(); // Réglages' voices are the page's language's
   if (!review) return;
   review.pageChanged();
   if (current === "review" && !review.reviewing()) void review.refresh();
@@ -199,10 +202,15 @@ async function main(): Promise<void> {
   // language once its reading session has found it (refine-lingua-review-language D3).
   windowId = (await chrome.windows.getCurrent()).id;
   chrome.tabs.onActivated.addListener((info) => {
-    if (info.windowId === windowId) followActiveTab();
+    if (info.windowId !== windowId) return;
+    beside = announced.get(info.tabId) ?? null;
+    followActiveTab();
   });
   chrome.tabs.onUpdated.addListener((tabId, change, tab) => {
-    if (change.status === "loading") announced.delete(tabId);
+    if (change.status === "loading") {
+      announced.delete(tabId);
+      if (tab.windowId === windowId && tab.active) beside = null;
+    }
     if (tab.windowId === windowId && tab.active && change.status === "complete") followActiveTab();
   });
   chrome.runtime.onMessage.addListener((message: unknown, sender) => {
@@ -211,7 +219,10 @@ async function main(): Promise<void> {
     if (msg?.type !== "stats" || typeof msg.language !== "string" || tab?.id == null) return;
     if (announced.get(tab.id) === msg.language) return;
     announced.set(tab.id, msg.language);
-    if (tab.windowId === windowId && tab.active) followActiveTab();
+    if (tab.windowId === windowId && tab.active) {
+      beside = msg.language;
+      followActiveTab();
+    }
   });
   void requestSync("surface");
   try {
