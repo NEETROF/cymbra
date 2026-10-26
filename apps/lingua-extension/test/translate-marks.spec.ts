@@ -373,8 +373,60 @@ describe("A pair's marks are measured before they are shown", () => {
     expect(firstTier(strict)).toBe(true);
   });
 
+  it("An English selection, judged in Italian: en-it, the English selections through the en-it model alone, is listed on its own figures — 94 of 96, 4 % withheld, judged by two agent judges (measure-lingua-en-it-translation-marks D2, D3, D4, D5)", () => {
+    expect(nativeOf("en-it")).toBe("it");
+    expect(judged("en-it")).toEqual({ correct: 94, shown: 96, withheld: 4, total: 100 });
+    // The tier verdict against the list: on the tier, so listed — inert until the Italian programme's
+    // change 45 (enable-lingua-italian-speakers) lists en-it in packs.json (D4).
+    expect(firstTier(judged("en-it"))).toBe(true);
+    expect(MARKED_PAIRS.includes("en-it")).toBe(firstTier(judged("en-it")));
+    // Its own measurement, on en-fr's and en-es's selections: the same ids, another model, another
+    // native language.
+    const lines = results("en-it");
+    expect(lines.map((line) => line.id)).toEqual(results("en-fr").map((line) => line.id));
+    expect(lines.map((line) => line.id)).toEqual(results("en-es").map((line) => line.id));
+    expect(judged("en-it")).not.toEqual(judged("en-fr"));
+    expect(judged("en-it")).not.toEqual(judged("en-es"));
+    // No request trapped and every fragment reconciled.
+    expect(lines.every((line) => line.trapped === false && line.alone !== null && line.alone !== "")).toBe(true);
+    // The experiment filled: tables/en-it/gloss.tsv holds glosses (changes 36 and 37).
+    expect(lines.every((line) => line.gloss !== null)).toBe(true);
+    expect(lines.find((line) => line.k === 0)?.gloss?.marks).toEqual(["transizione"]);
+    // An English selection marked in the Italian sentence: « make up » → « costituiscono », where
+    // en-fr marked « qui » (the criteria's example, step 57).
+    expect(lines.find((line) => line.k === 57)?.marks).toEqual(["costituiscono"]);
+    // Two judges, the second blind to the first: the one line they disagreed on committed wrong with
+    // both verdicts (k 70), and the tier held with the doubtful lines committed correct counted wrong
+    // too (88 / 96).
+    const rows = readFileSync(join(marks, "judged-en-it.tsv"), "utf8")
+      .split("\n")
+      .slice(1)
+      .filter((row) => row !== "")
+      .map((row) => row.split("\t"));
+    const disagreed = rows
+      .filter((row) => row[5] === "wrong" && row[6]!.startsWith("doubtful: A "))
+      .map((row) => row[0]);
+    expect(disagreed).toEqual(["70"]);
+    const doubtful = rows.filter((row) => row[5] === "correct" && row[6]!.startsWith("doubtful")).map((row) => row[0]);
+    expect(doubtful).toEqual(["18", "22", "32", "33", "75", "77"]);
+    const strict = { ...judged("en-it"), correct: judged("en-it").correct - doubtful.length };
+    expect(strict.correct).toBe(88);
+    expect(firstTier(strict)).toBe(true);
+  });
+
   it("structural: the list is the judged pairs on the first tier — every listed pair judged, a judged pair listed exactly when its committed judgment reaches the tier, a pair with no judged file not listed (measure-lingua-it-fr-translation-marks D4)", () => {
-    expect(MARKED_PAIRS).toEqual(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en", "it-es"]);
+    expect(MARKED_PAIRS).toEqual([
+      "en-fr",
+      "es-fr",
+      "es-en",
+      "en-es",
+      "fr-en",
+      "fr-es",
+      "it-fr",
+      "it-en",
+      "it-es",
+      "en-it",
+    ]);
     for (const pair of MARKED_PAIRS) expect(judgedPairs(), pair).toContain(pair);
     for (const pair of judgedPairs()) expect(MARKED_PAIRS.includes(pair), pair).toBe(firstTier(judged(pair)));
     expect(existsSync(join(marks, "judged-de-fr.tsv"))).toBe(false);
