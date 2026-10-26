@@ -4013,6 +4013,29 @@ fn spec_scenario_en_it_s_glosses_refined() {
         );
     }
     assert!(glossed["make"].ends_with("; marca"), "en-it: make");
+    // Round 2 (the specialist's review of the gloss diff): a reviewed row holds its order, and the rows
+    // read worse open on a source's words.
+    for (lemma, gloss) in [
+        ("henry", "Enrico (nome); henry"),
+        ("intense", "intenso"),
+        ("spare", "di scorta, di ricambio; risparmiare; ricambio"),
+        ("whenever", "ogni volta che; in qualsiasi momento"),
+        ("ash", "cenere; frassino; cenerino"),
+    ] {
+        assert_eq!(glossed[lemma], gloss, "en-it: {lemma}");
+    }
+    for (lemma, opening) in [
+        ("cop", "poliziotto; "),
+        ("express", "esprimere; "),
+        ("cope", "affrontare, far fronte; resistere, fronteggiare; "),
+        ("so", "così, molto; "),
+    ] {
+        assert!(
+            glossed[lemma].starts_with(opening),
+            "en-it: {lemma} « {} »",
+            glossed[lemma]
+        );
+    }
     assert!(
         glossed["csi"].starts_with("California Security Institute; "),
         "a list of expansions stays"
