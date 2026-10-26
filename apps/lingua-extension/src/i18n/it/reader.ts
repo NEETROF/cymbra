@@ -1,0 +1,70 @@
+import type { reader as fr } from "../fr/reader.ts";
+
+// The book reader's copy in Italian — a draft after the French (src/i18n/README.md;
+// add-lingua-italian-interface D1). Italian has `many` for a round million, which takes « di »
+// (« 1.000.000 di pagine »).
+
+export const reader: typeof fr = {
+  pageTitle: "Biblioteca — Cymbra Lingua",
+  title: "Biblioteca",
+  importButton: "Importa un libro (EPUB)",
+  empty:
+    "La tua biblioteca è vuota. Importa un libro EPUB senza DRM: resta su questo dispositivo e si apre anche offline.",
+  importing: "Importazione in corso…",
+  otherLanguages: "Altre lingue",
+  imported: (title) => `«${title}» è nella tua biblioteca.`,
+  alreadyThere: (title) => `«${title}» era già nella tua biblioteca.`,
+  importProtected: "Questo libro è protetto da DRM: Cymbra Lingua non può aprirlo.",
+  importNotEpub: "Questo file non è un libro EPUB.",
+  importUnreadable: "Questo file non può essere letto: forse è incompleto o danneggiato.",
+  importStorage: "Non c'è più spazio sufficiente su questo dispositivo per conservare questo libro.",
+  persistenceRefused:
+    "Il tuo browser non garantisce di conservare i tuoi libri: se lo spazio scarseggia, potrebbe cancellarli. Potrai sempre importarli di nuovo.",
+  open: (title) => `Apri «${title}»`,
+  remove: "Elimina",
+  removeConfirm: (title) => `Eliminare «${title}»? Le carte che ne hai ricavato restano nel tuo mazzo.`,
+  removeYes: "Sì, elimina",
+  cancel: "Annulla",
+  missing: "Questo libro non è più nella tua biblioteca.",
+  openFailed: "Non è stato possibile aprire questo libro.",
+  back: "Biblioteca",
+  toc: "Indice",
+  display: "Aa",
+  displayTitle: "Dimensione del testo e pagina",
+  fullscreen: "Schermo intero",
+  leaveFullscreen: "Esci dallo schermo intero",
+  noToc: "Questo libro non ha un indice.",
+  settings: "Impostazioni",
+  prev: "Pagina precedente",
+  next: "Pagina successiva",
+  percentTitle: "Parole conosciute in questo capitolo",
+  untitled: "Libro senza titolo",
+  progressTitle: "Percentuale o pagine rimanenti",
+  chapterPagesLeft: {
+    one: (n) => `Capitolo: ${n} pagina rimanente`,
+    many: (n) => `Capitolo: ${n} di pagine rimanenti`,
+    other: (n) => `Capitolo: ${n} pagine rimanenti`,
+  },
+  chapterLastPage: "Capitolo: ultima pagina",
+  bookPagesLeft: {
+    one: (n) => `Libro: ≈ ${n} pagina rimanente`,
+    many: (n) => `Libro: ≈ ${n} di pagine rimanenti`,
+    other: (n) => `Libro: ≈ ${n} pagine rimanenti`,
+  },
+  bookLastPage: "Libro: ultima pagina",
+  recapChapter: (chapter) => `Fine di «${chapter}»`,
+  recapIntro: "Le parole che hai consultato in questo capitolo. Tieni quelle che vuoi ripassare.",
+  recapAll: "Parole da smistare",
+  recapAllIntro: "Le parole che hai consultato in questo libro e non hai ancora smistato.",
+  recapNoChapter: "Senza capitolo",
+  recapAdd: "+ Mazzo",
+  recapKnown: "La conosco",
+  recapLeave: "Lascia così",
+  recapLater: "Più tardi",
+  recapClose: "Chiudi",
+  toSort: {
+    one: (n) => `${n} da smistare`,
+    other: (n) => `${n} da smistare`,
+  },
+  toSortTitle: "Le parole consultate in questo libro, da smistare",
+};

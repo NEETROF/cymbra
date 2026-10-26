@@ -3,6 +3,7 @@ import { DEFAULT_LANGUAGE } from "../analyzer/pairs.ts";
 import type { CefrLevel, LevelRow, StudiedLanguage, VocabularyEstimate } from "../analyzer/types.ts";
 import { stats as enStats } from "../i18n/en/stats.ts";
 import { stats as esStats } from "../i18n/es/stats.ts";
+import { stats as itStats } from "../i18n/it/stats.ts";
 import { stats as frStats } from "../i18n/fr/stats.ts";
 import {
   DEFAULT_INTERFACE_LANGUAGE,
@@ -23,8 +24,8 @@ import { cumulativeTotals, estimatedPosition, roughCount } from "./model.ts";
 /** The statistics' copy: the catalogue's `stats` module, in the interface language (its French the default). */
 export type StatsCopy = typeof frStats;
 
-/** The statistics' copy by interface language: the one place that holds all three. */
-const STATS_COPY: Record<InterfaceLanguage, StatsCopy> = { fr: frStats, en: enStats, es: esStats };
+/** The statistics' copy by interface language: the one place that holds them all. */
+const STATS_COPY: Record<InterfaceLanguage, StatsCopy> = { fr: frStats, en: enStats, es: esStats, it: itStats };
 
 /** The statistics' module for the interface language — the ladder's, the view's, and the standalone tab's page. */
 export function statsCopy(language: InterfaceLanguage): StatsCopy {

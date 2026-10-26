@@ -14,12 +14,13 @@ import type { NativeLanguage } from "../analyzer/types.ts";
  * gloss in is one the interface speaks, and no other. The day an override parts them (M2's
  * reservation), this is where they part.
  *
- * Italian is a native language before it is an interface language
- * (add-lingua-italian-native-language D2): the alias is restored with the Italian interface
- * (add-lingua-italian-interface), and until then every table keyed by interface language stays
- * French, English and Spanish.
+ * Italian is a native language before the interface is shown in it: the type is the native
+ * language again (add-lingua-italian-interface D5), every table keyed by interface language holds
+ * Italian, but `INTERFACE_LANGUAGES` gains `it` only when the Italian interface is shown
+ * (add-lingua-italian-interface D6, the Italian programme's change 45). Until then a stored `it` reads
+ * French, and no surface shows the Italian catalogue.
  */
-export type InterfaceLanguage = Exclude<NativeLanguage, "it">;
+export type InterfaceLanguage = NativeLanguage;
 
 export const INTERFACE_LANGUAGES: readonly InterfaceLanguage[] = ["fr", "en", "es"];
 
@@ -35,20 +36,10 @@ export function isNativeLanguage(value: unknown): value is NativeLanguage {
   return (NATIVE_LANGUAGES as readonly unknown[]).includes(value);
 }
 
-/**
- * The interface language a native language is served in: itself, but Italian, served in English
- * — the fallback M13 names — until the Italian interface exists (add-lingua-italian-native-language
- * D2). Unreachable while no pair is glossed in Italian: a profile naming a native language with no
- * pair is read as French before it reaches here.
- */
-export function interfaceOf(native: NativeLanguage): InterfaceLanguage {
-  return native === "it" ? "en" : native;
-}
-
 /** What a device that never wrote the key reads: every installed reader stays in French. */
 export const DEFAULT_INTERFACE_LANGUAGE: InterfaceLanguage = "fr";
 
-/** The key, in chrome.storage.local, holding `fr`, `en` or `es`. */
+/** The key, in chrome.storage.local, holding `fr`, `en` or `es` — or `it`, read as French until change 45. */
 export const INTERFACE_LANGUAGE_KEY = "cymbra-lingua-interface-language";
 
 export function isInterfaceLanguage(value: unknown): value is InterfaceLanguage {

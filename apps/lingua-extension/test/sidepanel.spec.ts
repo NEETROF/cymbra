@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { sidepanel as enSidepanel } from "@/i18n/en/sidepanel.ts";
 import { sidepanel as esSidepanel } from "@/i18n/es/sidepanel.ts";
+import { sidepanel as itSidepanel } from "@/i18n/it/sidepanel.ts";
 import { sidepanel as frSidepanel } from "@/i18n/fr/sidepanel.ts";
 import { COPY_PENDING_ATTR, fillPageInLanguage, INTERFACE_LANGUAGE_KEY, type InterfaceLanguage } from "@/i18n/index.ts";
 import { reloadOnView, toSortOf, viewToRestore } from "@/sidepanel/panel.ts";
@@ -21,7 +22,12 @@ const HTML = readFileSync(join(root, "src/sidepanel/sidepanel.html"), "utf8");
 const CSS = readFileSync(join(root, "src/sidepanel/sidepanel.css"), "utf8");
 
 /** The page's modules by interface language, as sidepanel.ts picks them. */
-const SIDEPANEL: Record<InterfaceLanguage, typeof frSidepanel> = { fr: frSidepanel, en: enSidepanel, es: esSidepanel };
+const SIDEPANEL: Record<InterfaceLanguage, typeof frSidepanel> = {
+  fr: frSidepanel,
+  en: enSidepanel,
+  es: esSidepanel,
+  it: itSidepanel,
+};
 
 function page(): Document {
   return new DOMParser().parseFromString(HTML, "text/html");

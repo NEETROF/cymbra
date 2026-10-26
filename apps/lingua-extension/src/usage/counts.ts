@@ -270,6 +270,9 @@ export const LEAVING_PAGES: Record<InterfaceLanguage, string> = {
   fr: "https://cymbra.app/lingua/au-revoir/",
   en: "https://cymbra.app/en/lingua/goodbye/",
   es: "https://cymbra.app/es/lingua/adios/",
+  // No Italian leaving page before the Italian programme's change 41: the English one, already
+  // pinned, until change 45 moves it to /it/ (add-lingua-italian-interface D5).
+  it: "https://cymbra.app/en/lingua/goodbye/",
 };
 
 /** The uninstall address while counting is on: the leaving page, with the browser and version only. */

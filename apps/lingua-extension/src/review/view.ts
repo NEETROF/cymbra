@@ -2,6 +2,7 @@ import { languageName } from "../analyzer/language-labels.ts";
 import type { Rating, ReviewCard, ReviewSummary } from "../analyzer/port.ts";
 import { review as enReview } from "../i18n/en/review.ts";
 import { review as esReview } from "../i18n/es/review.ts";
+import { review as itReview } from "../i18n/it/review.ts";
 import { review as frReview } from "../i18n/fr/review.ts";
 import {
   DEFAULT_INTERFACE_LANGUAGE,
@@ -37,8 +38,8 @@ import { keepable, keepCandidate, KEEP_MAX_UNITS, type ReviewTranslation } from 
 /** The review's copy: the catalogue's `review` module, in the interface language (its French the default). */
 export type ReviewCopy = typeof frReview;
 
-/** The review's copy by interface language: the one place that holds all three. */
-const REVIEW_COPY: Record<InterfaceLanguage, ReviewCopy> = { fr: frReview, en: enReview, es: esReview };
+/** The review's copy by interface language: the one place that holds them all. */
+const REVIEW_COPY: Record<InterfaceLanguage, ReviewCopy> = { fr: frReview, en: enReview, es: esReview, it: itReview };
 
 /** The review's module for the interface language — the render's, and the page's around it. */
 export function reviewCopy(language: InterfaceLanguage): ReviewCopy {

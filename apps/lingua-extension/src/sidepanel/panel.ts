@@ -1,6 +1,7 @@
 import type { LinguaPort } from "../analyzer/port.ts";
 import { sidepanel as enSidepanel } from "../i18n/en/sidepanel.ts";
 import { sidepanel as esSidepanel } from "../i18n/es/sidepanel.ts";
+import { sidepanel as itSidepanel } from "../i18n/it/sidepanel.ts";
 import { sidepanel as frSidepanel } from "../i18n/fr/sidepanel.ts";
 import { fillPageInLanguage, type InterfaceLanguage } from "../i18n/index.ts";
 import { inSettings, mountReview, type ReviewOnlineSource, type ReviewPage } from "../review/review-page.ts";
@@ -19,6 +20,7 @@ const SIDEPANEL_COPY: Record<InterfaceLanguage, typeof frSidepanel> = {
   fr: frSidepanel,
   en: enSidepanel,
   es: esSidepanel,
+  it: itSidepanel,
 };
 
 /** What the panel's start is handed: the areas, the engine, and Révision's clock and page. */

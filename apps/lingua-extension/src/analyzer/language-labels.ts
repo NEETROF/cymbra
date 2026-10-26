@@ -1,6 +1,7 @@
 import { languages as en } from "../i18n/en/languages.ts";
 import { languages as es } from "../i18n/es/languages.ts";
 import { languages as fr, type LanguageWords } from "../i18n/fr/languages.ts";
+import { languages as it } from "../i18n/it/languages.ts";
 import type { InterfaceLanguage } from "../i18n/index.ts";
 import type { NativeLanguage, StudiedLanguage } from "./types.ts";
 
@@ -12,8 +13,8 @@ import type { NativeLanguage, StudiedLanguage } from "./types.ts";
 // name anywhere but the catalogue's modules, so a surface always names the language it speaks of,
 // in the language it speaks.
 
-/** The catalogue's `languages` module by interface language: the one place that holds all three. */
-const MODULES: Record<InterfaceLanguage, typeof fr> = { fr, en, es };
+/** The catalogue's `languages` module by interface language: the one place that holds them all. */
+const MODULES: Record<InterfaceLanguage, typeof fr> = { fr, en, es, it };
 
 /**
  * A language the catalogue names: a studied language, or a native one — French among them, whose
@@ -50,13 +51,14 @@ function words(language: InterfaceLanguage, named: NamedLanguage): LanguageWords
 
 /**
  * The gender of the noun the word card's language line puts the language after, by interface
- * language — the catalogue's `selection.readAs`: « mot » is masculine, « palabra » feminine, and
+ * language — the catalogue's `selection.readAs`: « mot » is masculine, « palabra » and « parola » feminine, and
  * English agrees in nothing (read-lingua-card-in-another-studied-language D4).
  */
 const READ_AS_NOUN: Record<InterfaceLanguage, "masculine" | "feminine"> = {
   fr: "masculine",
   en: "masculine",
   es: "feminine",
+  it: "feminine",
 };
 
 /**

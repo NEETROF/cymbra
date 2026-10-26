@@ -1,16 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
 import { nativeLanguageName } from "@/analyzer/language-labels.ts";
-import { SHIPPED_PAIRS } from "@/analyzer/pairs.ts";
+import { SHIPPED_PAIRS, shippedNatives } from "@/analyzer/pairs.ts";
 import type { NativeLanguage } from "@/analyzer/types.ts";
 import {
   INTERFACE_LANGUAGE_KEY,
   INTERFACE_LANGUAGES,
-  interfaceOf,
+  interfaceLanguage,
   isInterfaceLanguage,
   isNativeLanguage,
   NATIVE_LANGUAGES,
 } from "@/i18n/language.ts";
 import { encodeAppOps, parseAppOps } from "@/state/app-relay.ts";
+import { PRIVACY_POLICY_URLS } from "@/translate/online.ts";
+import { LEAVING_PAGES } from "@/usage/counts.ts";
 import {
   changeNativeLanguage,
   NATIVE_LANGUAGE_MESSAGE,
@@ -67,12 +69,29 @@ describe("the native list and the interface list (D2, D3)", () => {
     for (const unknown of ["de", "pt", "IT", "", null, undefined, 3]) expect(isNativeLanguage(unknown)).toBe(false);
   });
 
-  it("serves Italian in English, the others in themselves — unreachable while no pair is glossed in Italian", () => {
-    expect(interfaceOf("it")).toBe("en");
-    for (const native of INTERFACE_LANGUAGES) expect(interfaceOf(native)).toBe(native);
-    // No shipped pair is glossed in Italian: a profile naming it is read as French before the mapping.
+  it("reads a stored Italian interface as French until the Italian interface is shown (add-lingua-italian-interface D6)", async () => {
+    expect(await interfaceLanguage(fakeArea({ [INTERFACE_LANGUAGE_KEY]: "it" }))).toBe("fr");
+    // No shipped pair is glossed in Italian: a profile naming it is read as French before the key is written.
     expect(SHIPPED_PAIRS.filter((pair) => pair.endsWith("-it"))).toEqual([]);
     expect(nativeLanguageOf(backupOf("Italian"))).toBe("fr");
+  });
+});
+
+describe("The Italian interface, written before it is shown (add-lingua-italian-interface D6)", () => {
+  it("lists every native language of the shipped pairs among the interface languages", () => {
+    // A build listing a pair glossed in Italian without \`it\` in INTERFACE_LANGUAGES would show French:
+    // change 45 lists both, or neither.
+    for (const native of shippedNatives()) expect(INTERFACE_LANGUAGES, native).toContain(native);
+  });
+
+  it("keeps the interface languages French, English and Spanish, a stored Italian reading French", async () => {
+    expect(INTERFACE_LANGUAGES).not.toContain("it");
+    expect(await interfaceLanguage(fakeArea({ [INTERFACE_LANGUAGE_KEY]: "it" }))).toBe("fr");
+  });
+
+  it("sends the Italian links to the English pages until the site has Italian ones (D5)", () => {
+    expect(PRIVACY_POLICY_URLS.it).toBe(PRIVACY_POLICY_URLS.en);
+    expect(LEAVING_PAGES.it).toBe(LEAVING_PAGES.en);
   });
 });
 
@@ -155,16 +174,17 @@ describe("the store's record and reason (D3)", () => {
     );
   });
 
-  it("mirrors an Italian native as English, the interface it is served in (D2)", async () => {
+  it("mirrors an Italian native as Italian, read as French until it is shown (add-lingua-italian-interface D5, D6)", async () => {
     const prefs = fakeArea();
     await rememberInterfaceLanguage(fakeArea({ [ROOT_KEY]: { v: 2, backup: backupOf("Italian") } }), prefs, WITH_EN_IT);
-    expect(prefs.store[INTERFACE_LANGUAGE_KEY]).toBe("en");
+    expect(prefs.store[INTERFACE_LANGUAGE_KEY]).toBe("it");
+    expect(await interfaceLanguage(prefs)).toBe("fr");
 
     const mirroredPrefs = fakeArea();
     const owned = ownerArea(fakeArea(), () => {}, mirroredPrefs, WITH_EN_IT);
     await owned.set({ [ROOT_KEY]: { v: 2, backup: backupOf("Italian") } });
     await owned.mirrored();
-    expect(mirroredPrefs.store[INTERFACE_LANGUAGE_KEY]).toBe("en");
+    expect(mirroredPrefs.store[INTERFACE_LANGUAGE_KEY]).toBe("it");
   });
 });
 

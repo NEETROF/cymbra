@@ -548,9 +548,15 @@ describe("the ladder's functions, handed the interface language", () => {
       [2, `≈${NBSP}2 palabras`, " (2 de ellas confirmadas)"],
       [1234, `≈${NBSP}1234 palabras`, " (1234 de ellas confirmadas)"],
     ],
+    it: [
+      [0, `≈${NBSP}0 parole`, " (di cui 0 confermate)"],
+      [1, `≈${NBSP}1 parola`, " (di cui 1 confermata)"],
+      [2, `≈${NBSP}2 parole`, " (di cui 2 confermate)"],
+      [1234, `≈${NBSP}1234 parole`, " (di cui 1234 confermate)"],
+    ],
   };
 
-  for (const language of ["fr", "en", "es"] as const) {
+  for (const language of ["fr", "en", "es", "it"] as const) {
     it(`counts an estimate and its confirmed words in ${language}'s plural forms: 0, 1, 2, 1234`, () => {
       const copy = statsCopy(language);
       for (const [n, approx, confirmed] of COUNTS[language]) {

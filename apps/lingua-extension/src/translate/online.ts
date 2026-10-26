@@ -38,6 +38,9 @@ export const PRIVACY_POLICY_URLS = {
   fr: "https://cymbra.app/confidentialite/",
   en: "https://cymbra.app/en/privacy/",
   es: "https://cymbra.app/es/privacidad/",
+  // The site has no Italian privacy page before the Italian programme's change 41: the English one,
+  // already pinned, until change 45 moves it to /it/ (add-lingua-italian-interface D5).
+  it: "https://cymbra.app/en/privacy/",
 } as const;
 
 /** Its own message type: an online translation never queues behind the engine's, nor the reverse. */
