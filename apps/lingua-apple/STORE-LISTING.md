@@ -27,11 +27,13 @@ Italian — the it-en pair of `enable-lingua-italian-for-english-speakers`, its 
 English speakers (change 25's release)_; the en-GB text is the en-US text, word for word
 (M10: US English). **es-ES** and **es-MX** are written for Spanish speakers, who study English —
 the en-es pair of `enable-lingua-spanish-speakers` (change 35), the first release carrying
-`_locales/es` (M13's rule applied to Spanish) — and French if change 52 lists fr-es; the es-MX text
+`_locales/es` (M13's rule applied to Spanish) — and French if change 52 lists fr-es — and, from the
+Italian programme's change 30, Italian — the it-es pair of `enable-lingua-italian-for-spanish-speakers`,
+its texts in _Italian for Spanish speakers (change 30's release)_; the es-MX text
 is the es-ES text, word for word (M10: tú, neutral Spanish, no vosotros, the RAE's numbers —
 « 25,4 MB »). The locales are M16's, settled by the owner on 2026-10-09; French studied adds none: a
 French speaker cannot study French, and fr-en is glossed in English, fr-es in Spanish. Nor does
-Italian studied: it-fr is glossed in French, it-en in English, and Italian listings, with the it-IT locale, are the
+Italian studied: it-fr is glossed in French, it-en in English, it-es in Spanish, and Italian listings, with the it-IT locale, are the
 Italian programme's stage 3 (I9).
 
 With fr-FR primary, a storefront whose language has no localisation shows the French listing: a
@@ -66,17 +68,20 @@ offer it-fr's translation, the TRADUCTION ÉTENDUE paragraph reads as before («
 l'anglais », « 52,0 Mo avec l'espagnol ») and the « What's New » paragraph loses its last clause;
 should the figures change 20 publishes not stand under en-fr's, the dictionary sentence reads
 « Pour l'espagnol, … » again. Nothing in these texts uses the superscript e (U+1D49), which App
-Store Connect refuses.
+Store Connect refuses. Changes 26 and 31 add Italian for English and for Spanish speakers in
+sections of their own (_Italian for English speakers (change 25's release)_, _Italian for Spanish
+speakers (change 30's release)_), and one release carries changes 20, 25 and 30 (the owner,
+2026-10-26): the texts labelled **current** serve only a submission made before it.
 
 ## Fields
 
 | Field | Limit | fr-FR | en-US, en-GB | es-ES, es-MX |
 |---|---|---|---|---|
 | Name | 30 | `Cymbra Lingua` (13) | `Cymbra Lingua` (13) | `Cymbra Lingua` (13) |
-| Subtitle | 30 | current (until Italian ships) `Anglais et espagnol en lisant` (29); with Italian `Anglais, espagnol ou italien` (28) | `Spanish and French as you read` (30); from change 25, `Spanish, French or Italian` (26) | with fr-es `Inglés y francés mientras lees` (30); without, `Aprende inglés mientras lees` (28) |
-| Promotional text | 170 | current 154 characters; with Italian 165 — below | 130 characters; from change 25, 139 — below | with fr-es 146 characters; without, 133 — below |
-| Description | 4000 | current 3186 characters; with Italian 3299 (3310 from change 25) — below | 3046 characters; from change 25, 3136 — below | with fr-es 3437 characters (3447 from change 25); without, 3015 — below |
-| Keywords | 100 | current 92 characters (93 bytes); with Italian 95 (96 bytes) — below | 99 characters; from change 25, 96 — below | with fr-es 90 characters (94 bytes); without, 89 (92 bytes) — below |
+| Subtitle | 30 | current (until Italian ships) `Anglais et espagnol en lisant` (29); with Italian `Anglais, espagnol ou italien` (28) | `Spanish and French as you read` (30); from change 25, `Spanish, French or Italian` (26) | with fr-es `Inglés y francés mientras lees` (30); without, `Aprende inglés mientras lees` (28); from change 30, `Inglés, francés o italiano` (26) |
+| Promotional text | 170 | current 154 characters; with Italian 165 — below | 130 characters; from change 25, 139 — below | with fr-es 146 characters; without, 133; from change 30, 159 — below |
+| Description | 4000 | current 3186 characters; with Italian 3299 (3310 from change 25) — below | 3046 characters; from change 25, 3136 — below | with fr-es 3437 characters (3447 from change 25, 3617 from change 30); without, 3015 — below |
+| Keywords | 100 | current 92 characters (93 bytes); with Italian 95 (96 bytes) — below | 99 characters; from change 25, 96 — below | with fr-es 90 characters (94 bytes); without, 89 (92 bytes); from change 30, 90 (94 bytes) — below |
 | Support URL | — | `https://cymbra.app/support/` | `https://cymbra.app/en/support/` | `https://cymbra.app/es/soporte/` — the owner's choice, below |
 | Marketing URL | — | `https://cymbra.app/lingua/` | `https://cymbra.app/en/lingua/` | `https://cymbra.app/es/lingua/` |
 | Privacy policy | — | `https://cymbra.app/confidentialite/` | `https://cymbra.app/en/privacy/` | `https://cymbra.app/es/privacidad/` |
@@ -99,7 +104,11 @@ and gives the contact address. Change 29 left the choice to the owner — `/es/s
 The en-US and en-GB columns' « from change 25 » figures are the texts of _Italian for English
 speakers (change 25's release)_ (add-lingua-italian-english-listings), pasted with that release;
 there too the es-ES/es-MX and fr-FR descriptions' last lines, which say English speakers learn
-Italian.
+Italian. The es-ES and es-MX column's « from change 30 » figures are the texts of _Italian for
+Spanish speakers (change 30's release)_ (add-lingua-italian-spanish-listings), pasted with that
+release. One release carries changes 20, 25 and 30 (the owner, 2026-10-26), so every locale's text
+with Italian — fr-FR's, en-US's and es-ES's — is pasted with it, the review notes being change 30's
+block, which names all three audiences.
 
 ## Promotional text
 
@@ -410,7 +419,9 @@ Its last line names Italian for French speakers from change 20's release
 (add-lingua-italian-listings, D4, +10); nothing offers Italian to a Spanish speaker, who cannot
 study it. Until then (current, 3427) it reads « La interfaz está en español para los
 hispanohablantes, que aprenden inglés y francés; en francés para los francohablantes, que aprenden
-inglés y español; y en inglés para los anglohablantes, que aprenden español y francés. »
+inglés y español; y en inglés para los anglohablantes, que aprenden español y francés. » From change
+30's release, the text to paste is _Description, es-ES and es-MX_ in _Italian for Spanish speakers
+(change 30's release)_ (3617), which names Italian for Spanish speakers too.
 
 ### es-ES, es-MX, without fr-es (3015 / 4000)
 
@@ -728,179 +739,20 @@ touches this file:
 | fr-FR | _to record_ | _to record_ | _to record_ | |
 | Review notes | _to record_ | _to record_ | _to record_ | |
 
-## What's New — 1.8.1
-
-Submitted on 2026-10-16: iOS build 260, macOS build 261, in the five locales (en-GB as en-US, es-MX
-as es-ES), released automatically once approved. 1.8.0 never left TestFlight: its page called a
-local backend (#963), so 1.8.1 is the first public build since 1.7.0 and its notes cover both. What
-a reader sees change: signing in from the app, with an email and a password too (add-lingua-app-email-signin),
-the app syncing its own reviews (add-lingua-app-deck-sync), editing and ending a review
-(add-lingua-card-edit, the end of a session in progress), a translation kept on the card, the count
-on the toolbar icon and the anonymous counts (add-lingua-usage-counts). Online translation is still
-not listed: a beta opened per account. The anonymous counts are said, as they are on by default in
-Safari. Every label is quoted from `apps/lingua-extension/src/i18n/`. The promotional text was pasted
-again (es-ES and es-MX with fr-es), and the review notes carried over from 1.7.0 unchanged.
-
-### fr-FR (755 / 4000)
-
-```
-Connexion dans l'app : connectez-vous avec Apple, Google ou une adresse e-mail et un mot de passe. Les révisions faites dans l'app se synchronisent avec vos autres appareils.
-
-Révision : « Modifier la carte » corrige une carte pendant la révision, et « Terminer » arrête la séance en cours. Une traduction trouvée à la révision est gardée sur la carte.
-
-Dans Safari, l'icône de l'extension peut afficher le nombre de cartes à réviser (Réglages › Afficher les cartes à réviser sur l'icône).
-
-Comptages anonymes : l'extension envoie quelques comptages d'utilisation, jamais ce que vous lisez. Vous pouvez les couper dans Réglages (Envoyer des comptages anonymes).
-
-Corrections, dont la traduction des verbes modaux anglais et la ponctuation autour des mots.
-```
-
-### en-US, en-GB (555 / 4000)
-
-```
-Sign in from the app: with Apple, Google, or an email address and a password. Reviews done in the app sync with your other devices.
-
-Review: "Edit card" corrects a card during review, and "End" stops the session in progress. A translation found at review stays on the card.
-
-In Safari, the extension's icon can show the number of cards to review (Settings › Show the cards to review on the icon).
-
-Anonymous usage counts: the extension sends a few usage counts, never what you read. You can turn them off in Settings (Send anonymous usage counts).
-
-Fixes.
-```
-
-### es-ES, es-MX (638 / 4000)
-
-```
-Inicio de sesión en la app: con Apple, Google o una dirección de correo y una contraseña. Los repasos hechos en la app se sincronizan con tus otros dispositivos.
-
-Repaso: «Editar la tarjeta» corrige una tarjeta durante el repaso, y «Terminar» detiene la sesión en curso. Una traducción encontrada en el repaso se guarda en la tarjeta.
-
-En Safari, el icono de la extensión puede mostrar el número de tarjetas por repasar (Ajustes › Mostrar las tarjetas por repasar en el icono).
-
-Recuentos anónimos: la extensión envía algunos recuentos de uso, nunca lo que lees. Puedes desactivarlos en Ajustes (Enviar recuentos anónimos).
-
-Correcciones.
-```
-
-## What's New — 1.7.0
-
-Submitted on 2026-10-13: iOS build 240, macOS build 241, in the five locales (en-GB as en-US, es-MX
-as es-ES). What a reader sees change since 1.6.0: the app reviews the deck (add-lingua-apple-review),
-the review of refine-lingua-review-session, add-lingua-review-practice and
-add-lingua-review-repeat-hint, the review translation, the chapter recap and the pages left. Online
-translation is not listed: it is a beta opened per account, said in the review notes only. Every
-label is quoted from `apps/lingua-extension/src/i18n/`, except one: App Store Connect refuses « ᵉ »
-(U+1D49) as an invalid character, so the French notes write « 2e passage » where the review says
-« 2ᵉ passage ». The promotional text is not carried over to a new version: paste it again with
-each one.
-
-### fr-FR (869 / 4000)
-
-```
-L'app Cymbra Lingua révise votre deck : ouvrez-la pour réviser les mots capturés dans Safari, sur iPhone, iPad et Mac.
-
-Révision repensée : des séances courtes de 10 cartes, les plus fragiles d'abord. La carte montre la phrase où vous avez rencontré le mot, avec deux réponses, « Pas su » et « Su », et « Ne plus me le montrer ». Une carte ratée revient dans la séance (« À revoir · 2e passage »). Les nouveaux mots entrent en révision à votre rythme (Réglages › Nouveaux mots par jour). Rien à réviser ? « S'entraîner quand même », sans rien décaler.
-
-Une carte sans traduction dans le dictionnaire est traduite à la révision, sur l'appareil, si la traduction étendue est activée.
-
-Livres : à la fin d'un chapitre, triez les mots que vous avez regardés. Le pied de page affiche les pages restantes d'un toucher.
-
-Corrections, dont une déconnexion inattendue du compte.
-```
-
-### en-US, en-GB (779 / 4000)
-
-```
-The Cymbra Lingua app now reviews your deck: open it to review the words you captured in Safari, on iPhone, iPad and Mac.
-
-Review, redesigned: short sessions of 10 cards, the most fragile first. The card shows the sentence where you met the word, with two answers, "Didn't know" and "Knew it", and "Don't show it again". A missed card comes back in the session ("Again · 2nd time"). New words enter review at your pace (Settings › New words per day). Nothing due? "Practice anyway", without moving any schedule.
-
-A card the dictionary has no translation for is translated at review, on your device, when extended translation is on.
-
-Books: at the end of a chapter, sort the words you looked up. The footer shows the pages left, at a tap.
-
-Fixes, including an unexpected sign-out.
-```
-
-### es-ES, es-MX (880 / 4000)
-
-```
-La app Cymbra Lingua ahora repasa tu mazo: ábrela para repasar las palabras que guardaste en Safari, en iPhone, iPad y Mac.
-
-Repaso renovado: sesiones cortas de 10 tarjetas, las más frágiles primero. La tarjeta muestra la frase donde encontraste la palabra, con dos respuestas, «No la sabía» y «La sabía», y «No volver a mostrarla». Una tarjeta fallada vuelve en la sesión («Otra vez · 2.ª vez»). Las palabras nuevas entran en el repaso a tu ritmo (Ajustes › Palabras nuevas al día). ¿Nada que repasar? «Practicar de todos modos», sin mover ninguna fecha.
-
-Una tarjeta sin traducción en el diccionario se traduce en el repaso, en tu dispositivo, si la traducción ampliada está activada.
-
-Libros: al final de un capítulo, clasifica las palabras que consultaste. El pie de página muestra las páginas restantes con un toque.
-
-Correcciones, entre ellas un cierre de sesión inesperado.
-```
-
-## What's New — 1.5.0 (696 / 4000)
-
-Submitted on 2026-10-07: iOS build 210, macOS build 211. The app now ships the Spanish → French
-pair beside the English one (`apps/lingua-extension/packs.json`). The first paragraph is the
-Spanish paragraph of add-lingua-spanish-listings; the rest is what a Safari reader sees change
-since 1.4.0.
-
-```
-Espagnol : lisez aussi l'espagnol. Cochez-le dans Réglages › Langue : mots surlignés, carte avec le temps et le genre, niveaux estimés, une voix d'Espagne pour la lecture à voix haute, et la traduction étendue en passant par l'anglais.
-
-Révision : elle se fait dans la langue de la page ou du livre ouvert, et ses compteurs suivent cette langue.
-
-Carte de mot : la fréquence réelle du mot dans l'usage courant, et un bouton pour écouter aussi sa forme du dictionnaire.
-
-Traduction étendue : votre sélection est mise en gras dans la phrase traduite, en espagnol comme en anglais, et les appels de note des pages sont ignorés.
-
-Corrections, dont les statistiques qui restent dans la langue choisie.
-```
-
-## What's New — 1.4.0 (830 / 4000)
-
-The extension inside the app goes from 1.3.0 to 1.6.0. Only what a Safari reader can see: the
-Spanish work of 1.5.0–1.6.0 is not listed, as the app still ships the English → French pair
-alone (`apps/lingua-extension/packs.json`), and Safari offers no « Lier Google / Apple ».
-
-```
-Réglages réorganisés en quatre onglets : Langue, Apparence, Pages & livres, Données.
-
-Compte : connexion et déconnexion directement dans Réglages › Données. Nouveau « Comptes connectés » : ajoutez un mot de passe à un compte créé avec Apple ou Google, pour vous connecter aussi par e-mail, ou retirez une méthode de connexion.
-
-Couleurs : choisissez celles du surlignage et de la page, avec des préréglages pour liseuse à encre électronique. La taille du texte agrandit aussi toute l'interface.
-
-Livres : les pages peuvent glisser en tournant, et le lecteur passe en plein écran sur Mac.
-
-Carte de mot : la forme du mot (temps, pluriel…) et une traduction rangée par nature.
-
-Statistiques : les mots enseignés et estimés à chaque niveau, de A1 à C2.
-
-Corrections, dont le menu de l'extension sur iPad, désormais large et défilant.
-```
-
-## What's New — 1.1.0 (373 / 4000)
-
-```
-Première version publique.
-
-Lecture assistée sur iPhone, iPad et Mac : surlignage des mots que vous n'avez pas encore marqués, traduction et rareté au toucher, capture d'expressions, révision par répétition espacée, et une estimation de votre vocabulaire du A1 au C2.
-
-Vos données restent sur l'appareil ; le compte Cymbra est facultatif et ne sert qu'à la synchronisation.
-```
-
 ## Italian for Spanish speakers (change 30's release)
 
 The Italian programme's change 30 (`enable-lingua-italian-for-spanish-speakers`) lists it-es, after
 it-en: Spanish speakers study English, French and Italian, glossed in Spanish, the interface in
 Spanish — Italian through English, it-en then en-es. Change 31 (`add-lingua-italian-spanish-listings`)
 writes what this listing says to them, implemented before change 30 as change 26
-(`add-lingua-italian-english-listings`) is before change 25. Every text below is a draft for the
-owner (M9), true of change 30's release and pasted with it, after the site deploy that publishes
-it-es's figures (I12, M18); until then the texts to paste are changes 21's and 26's — a submission
-before change 30's (change 45's, should en-it be released first) included (D8). The es-ES texts are
-change 26's, changed wherever they say what a Spanish speaker studies (D2); es-MX is es-ES word for
-word. The fr-FR and en-US descriptions do not move: their last lines name no Spanish speakers. Each
-count is the text's length as App Store Connect counts it (_Locales_).
+(`add-lingua-italian-english-listings`) is before change 25. Every text below is a draft the owner
+read on 2026-10-25 (M9), true of change 30's release and pasted with it, after the site deploy that
+publishes it-es's figures (I12, M18). One release carries changes 20, 25 and 30 (the owner,
+2026-10-26), so these texts are pasted together with changes 21's fr-FR and 26's en-US texts; a
+submission made before it pastes changes 21's and 26's alone (D8). The es-ES texts are change 26's,
+changed wherever they say what a Spanish speaker studies (D2); es-MX is es-ES word for word. The
+fr-FR and en-US descriptions do not move: their last lines name no Spanish speakers. Each count is
+the text's length as App Store Connect counts it (_Locales_).
 
 The figures are `main`'s when they were written (change 31, D5; `apps/lingua-extension/STORE-LISTING.md`,
 _Italian for Spanish speakers_, gives the bytes and the claims): it-es's route, it-en then en-es,
@@ -1081,6 +933,9 @@ pages do not move.
 
 ### The dashboards, change 30's submission
 
+One release carries changes 20, 25 and 30 (the owner, 2026-10-26), so this is one submission with
+change 25's (_The dashboards, change 25's submission_, above) and change 20's: fr-FR's, en-US's and
+en-GB's texts with Italian pasted in the same pass, and change 30's review notes in place of theirs.
 With change 30's release, after the site deploy that publishes it-es's figures: under es-ES and es-MX,
 the subtitle, promotional text, keywords, description, « What's New » and the Italian capture above;
 the review notes above; under it-IT, if change 46 is live, its description's line on Spanish speakers
@@ -1093,6 +948,166 @@ pull request that next touches this file:
 | es-ES | _to record_ | _to record_ | _to record_ | |
 | es-MX | _to record_ | _to record_ | _to record_ | |
 | Review notes | _to record_ | _to record_ | _to record_ | |
+
+## What's New — 1.8.1
+
+Submitted on 2026-10-16: iOS build 260, macOS build 261, in the five locales (en-GB as en-US, es-MX
+as es-ES), released automatically once approved. 1.8.0 never left TestFlight: its page called a
+local backend (#963), so 1.8.1 is the first public build since 1.7.0 and its notes cover both. What
+a reader sees change: signing in from the app, with an email and a password too (add-lingua-app-email-signin),
+the app syncing its own reviews (add-lingua-app-deck-sync), editing and ending a review
+(add-lingua-card-edit, the end of a session in progress), a translation kept on the card, the count
+on the toolbar icon and the anonymous counts (add-lingua-usage-counts). Online translation is still
+not listed: a beta opened per account. The anonymous counts are said, as they are on by default in
+Safari. Every label is quoted from `apps/lingua-extension/src/i18n/`. The promotional text was pasted
+again (es-ES and es-MX with fr-es), and the review notes carried over from 1.7.0 unchanged.
+
+### fr-FR (755 / 4000)
+
+```
+Connexion dans l'app : connectez-vous avec Apple, Google ou une adresse e-mail et un mot de passe. Les révisions faites dans l'app se synchronisent avec vos autres appareils.
+
+Révision : « Modifier la carte » corrige une carte pendant la révision, et « Terminer » arrête la séance en cours. Une traduction trouvée à la révision est gardée sur la carte.
+
+Dans Safari, l'icône de l'extension peut afficher le nombre de cartes à réviser (Réglages › Afficher les cartes à réviser sur l'icône).
+
+Comptages anonymes : l'extension envoie quelques comptages d'utilisation, jamais ce que vous lisez. Vous pouvez les couper dans Réglages (Envoyer des comptages anonymes).
+
+Corrections, dont la traduction des verbes modaux anglais et la ponctuation autour des mots.
+```
+
+### en-US, en-GB (555 / 4000)
+
+```
+Sign in from the app: with Apple, Google, or an email address and a password. Reviews done in the app sync with your other devices.
+
+Review: "Edit card" corrects a card during review, and "End" stops the session in progress. A translation found at review stays on the card.
+
+In Safari, the extension's icon can show the number of cards to review (Settings › Show the cards to review on the icon).
+
+Anonymous usage counts: the extension sends a few usage counts, never what you read. You can turn them off in Settings (Send anonymous usage counts).
+
+Fixes.
+```
+
+### es-ES, es-MX (638 / 4000)
+
+```
+Inicio de sesión en la app: con Apple, Google o una dirección de correo y una contraseña. Los repasos hechos en la app se sincronizan con tus otros dispositivos.
+
+Repaso: «Editar la tarjeta» corrige una tarjeta durante el repaso, y «Terminar» detiene la sesión en curso. Una traducción encontrada en el repaso se guarda en la tarjeta.
+
+En Safari, el icono de la extensión puede mostrar el número de tarjetas por repasar (Ajustes › Mostrar las tarjetas por repasar en el icono).
+
+Recuentos anónimos: la extensión envía algunos recuentos de uso, nunca lo que lees. Puedes desactivarlos en Ajustes (Enviar recuentos anónimos).
+
+Correcciones.
+```
+
+## What's New — 1.7.0
+
+Submitted on 2026-10-13: iOS build 240, macOS build 241, in the five locales (en-GB as en-US, es-MX
+as es-ES). What a reader sees change since 1.6.0: the app reviews the deck (add-lingua-apple-review),
+the review of refine-lingua-review-session, add-lingua-review-practice and
+add-lingua-review-repeat-hint, the review translation, the chapter recap and the pages left. Online
+translation is not listed: it is a beta opened per account, said in the review notes only. Every
+label is quoted from `apps/lingua-extension/src/i18n/`, except one: App Store Connect refuses « ᵉ »
+(U+1D49) as an invalid character, so the French notes write « 2e passage » where the review says
+« 2ᵉ passage ». The promotional text is not carried over to a new version: paste it again with
+each one.
+
+### fr-FR (869 / 4000)
+
+```
+L'app Cymbra Lingua révise votre deck : ouvrez-la pour réviser les mots capturés dans Safari, sur iPhone, iPad et Mac.
+
+Révision repensée : des séances courtes de 10 cartes, les plus fragiles d'abord. La carte montre la phrase où vous avez rencontré le mot, avec deux réponses, « Pas su » et « Su », et « Ne plus me le montrer ». Une carte ratée revient dans la séance (« À revoir · 2e passage »). Les nouveaux mots entrent en révision à votre rythme (Réglages › Nouveaux mots par jour). Rien à réviser ? « S'entraîner quand même », sans rien décaler.
+
+Une carte sans traduction dans le dictionnaire est traduite à la révision, sur l'appareil, si la traduction étendue est activée.
+
+Livres : à la fin d'un chapitre, triez les mots que vous avez regardés. Le pied de page affiche les pages restantes d'un toucher.
+
+Corrections, dont une déconnexion inattendue du compte.
+```
+
+### en-US, en-GB (779 / 4000)
+
+```
+The Cymbra Lingua app now reviews your deck: open it to review the words you captured in Safari, on iPhone, iPad and Mac.
+
+Review, redesigned: short sessions of 10 cards, the most fragile first. The card shows the sentence where you met the word, with two answers, "Didn't know" and "Knew it", and "Don't show it again". A missed card comes back in the session ("Again · 2nd time"). New words enter review at your pace (Settings › New words per day). Nothing due? "Practice anyway", without moving any schedule.
+
+A card the dictionary has no translation for is translated at review, on your device, when extended translation is on.
+
+Books: at the end of a chapter, sort the words you looked up. The footer shows the pages left, at a tap.
+
+Fixes, including an unexpected sign-out.
+```
+
+### es-ES, es-MX (880 / 4000)
+
+```
+La app Cymbra Lingua ahora repasa tu mazo: ábrela para repasar las palabras que guardaste en Safari, en iPhone, iPad y Mac.
+
+Repaso renovado: sesiones cortas de 10 tarjetas, las más frágiles primero. La tarjeta muestra la frase donde encontraste la palabra, con dos respuestas, «No la sabía» y «La sabía», y «No volver a mostrarla». Una tarjeta fallada vuelve en la sesión («Otra vez · 2.ª vez»). Las palabras nuevas entran en el repaso a tu ritmo (Ajustes › Palabras nuevas al día). ¿Nada que repasar? «Practicar de todos modos», sin mover ninguna fecha.
+
+Una tarjeta sin traducción en el diccionario se traduce en el repaso, en tu dispositivo, si la traducción ampliada está activada.
+
+Libros: al final de un capítulo, clasifica las palabras que consultaste. El pie de página muestra las páginas restantes con un toque.
+
+Correcciones, entre ellas un cierre de sesión inesperado.
+```
+
+## What's New — 1.5.0 (696 / 4000)
+
+Submitted on 2026-10-07: iOS build 210, macOS build 211. The app now ships the Spanish → French
+pair beside the English one (`apps/lingua-extension/packs.json`). The first paragraph is the
+Spanish paragraph of add-lingua-spanish-listings; the rest is what a Safari reader sees change
+since 1.4.0.
+
+```
+Espagnol : lisez aussi l'espagnol. Cochez-le dans Réglages › Langue : mots surlignés, carte avec le temps et le genre, niveaux estimés, une voix d'Espagne pour la lecture à voix haute, et la traduction étendue en passant par l'anglais.
+
+Révision : elle se fait dans la langue de la page ou du livre ouvert, et ses compteurs suivent cette langue.
+
+Carte de mot : la fréquence réelle du mot dans l'usage courant, et un bouton pour écouter aussi sa forme du dictionnaire.
+
+Traduction étendue : votre sélection est mise en gras dans la phrase traduite, en espagnol comme en anglais, et les appels de note des pages sont ignorés.
+
+Corrections, dont les statistiques qui restent dans la langue choisie.
+```
+
+## What's New — 1.4.0 (830 / 4000)
+
+The extension inside the app goes from 1.3.0 to 1.6.0. Only what a Safari reader can see: the
+Spanish work of 1.5.0–1.6.0 is not listed, as the app still ships the English → French pair
+alone (`apps/lingua-extension/packs.json`), and Safari offers no « Lier Google / Apple ».
+
+```
+Réglages réorganisés en quatre onglets : Langue, Apparence, Pages & livres, Données.
+
+Compte : connexion et déconnexion directement dans Réglages › Données. Nouveau « Comptes connectés » : ajoutez un mot de passe à un compte créé avec Apple ou Google, pour vous connecter aussi par e-mail, ou retirez une méthode de connexion.
+
+Couleurs : choisissez celles du surlignage et de la page, avec des préréglages pour liseuse à encre électronique. La taille du texte agrandit aussi toute l'interface.
+
+Livres : les pages peuvent glisser en tournant, et le lecteur passe en plein écran sur Mac.
+
+Carte de mot : la forme du mot (temps, pluriel…) et une traduction rangée par nature.
+
+Statistiques : les mots enseignés et estimés à chaque niveau, de A1 à C2.
+
+Corrections, dont le menu de l'extension sur iPad, désormais large et défilant.
+```
+
+## What's New — 1.1.0 (373 / 4000)
+
+```
+Première version publique.
+
+Lecture assistée sur iPhone, iPad et Mac : surlignage des mots que vous n'avez pas encore marqués, traduction et rareté au toucher, capture d'expressions, révision par répétition espacée, et une estimation de votre vocabulaire du A1 au C2.
+
+Vos données restent sur l'appareil ; le compte Cymbra est facultatif et ne sert qu'à la synchronisation.
+```
 
 ## Review notes (App Review Information)
 
@@ -1142,6 +1157,13 @@ audience" (−68); "Third-party material" lost « for Spanish » and « for both
 deletion path, every external service and every source are still there. Without fr-es,
 « Spanish speakers English and French, » reads « Spanish speakers English, » and « ; French to
 Spanish chains two » goes.
+
+Italian adds a block per release that lists it: change 20's (_For change 20's submission, Italian
+studied_, below) names it for French speakers; change 25's (_Italian for English speakers (change
+25's release)_) for English speakers; change 30's (_Italian for Spanish speakers (change 30's
+release)_, 3970) for Spanish speakers, its route note « a pair through English chains two » and its
+sources Wikidata Lexemes and the nine Wiktionaries it-es reads. One release carries changes 20, 25
+and 30 (the owner, 2026-10-26), so change 30's block is the one pasted with it.
 
 M15 is settled: extended translation opens with each pair; should change 52 not offer one, its
 models go from the OPTIONAL paragraph and the count only falls.
@@ -1484,9 +1506,10 @@ la barre d'adresse et choisis ton niveau d'anglais. Pour l'espagnol ou l'italien
 Réglages de l'extension, onglet Langue, puis choisis son niveau. »* The fr-FR description's step 3
 follows it in its own register (« Pour l'espagnol ou l'italien, cochez-le dans les Réglages de
 l'extension, onglet Langue, puis choisissez son niveau. »); should the owner word the page otherwise
-at change 20, the description's step 3 follows that wording. The Spanish page does not move; the
-English page names Italian from change 25 — _What the app itself says, for English speakers of
-Italian_, above, and the en-US description's step 3 with it.
+at change 20, the description's step 3 follows that wording. The English page names Italian from
+change 25 — _What the app itself says, for English speakers of Italian_, above, and the en-US
+description's step 3 with it —, and the Spanish page from change 30 — _What the app itself says,
+for Spanish speakers of Italian_, above, and the es-ES description's step 3 with it.
 
 ## Screenshots — what the slots actually asked for
 
