@@ -437,12 +437,122 @@ whichever of 37, 47 and 51 is implemented later re-copies the earlier one's bloc
 `archiveAfter` (the programme's rule). On `main` today neither 47 nor 51 is implemented, so this block
 is change 36's.
 
+### D17 — Round 2: the rows the specialist's review read worse (the owner's, 2026-10-26)
+
+The specialist's review of the gloss diff (PR #1088): of the 300 commonest, 0 wrong and 30 partly right
+(9.8 %); of the 468 changed rows of the 5,000 commonest, 15 read worse, all minor — 11 of them D2's, by
+one mechanism (a moved block opens on its source's first sense: `cope` « dotare di cimasa », `shine`
+« fare luce con », `express` « autobus », `piece` « porzione »), and `cop`, `flash` led by a verb. The
+owner chose to fix them in the same pull request, by rule where a rule passes the criteria, else by
+reviewed rows of sources' words, and to write no Italian for the contractions.
+
+**D2's narrowings, each measured against round 1 by the criteria above** (rows changed among the ranks
+1–1,000 / 1,001–5,000 / 5,001–20,000 / beyond, read by this design's reader):
+
+| Variant | Rows | Read | Kept? |
+|---|---|---|---|
+| A moved block opens on the sense holding the table's first word, else its commonest | 29 (3 / 15 / 10 / 1) | about 10 better (`shine`, `chance`, `youth`, `navy`, `pin`, `sniff`), 10 worse (`mean` « volere », `size` « taglia », `lie` « giacere », `assembly`, `recall`, `overnight`, `consult`, `poke`) | no |
+| The same, only when the block's first sense holds no table word | 11 (0 / 5 / 5 / 1) | 5 better (`shine`, `pin`, `tread`, `shuffle`, `grope`), 5 worse (`recall` « richiamare », `overnight`, `poke`, `overflow`, `thumbnail`); `cop` « prendere » | no |
+| A class scored by its first table word, not its best | 55 (14 / 16 / 20 / 5) | mostly worse: `by` « passanti », `mean` « media », `save` « salvo », `lie`, `hurt` « dolore » | no |
+| No move when the row opens on a sense of unknown part of speech | 6 (1 / 5 / 0 / 0) | 3 better (`piece`, `glass`, `graph`), 3 worse (`path` « patologia », `bid`, `pin`) | no |
+| No move when the moved block opens on a description | 8 (1 / 2 / 4 / 1) | 4 better (`whatsoever`, `bugger`, `mulatto`, `maiden`), 3 worse (`rid`, `sniff`, `simmer`) | no |
+
+*A verb never yields to a noun* is not what moved `cop` and `flash`: they move toward the verb because a
+generic word of the verb's table rates high (« prendere », « apparire »); the clause only keeps a noun
+from overtaking a row that opens on a verb, as measured. **D2 stays as measured**; the rows it reads
+worse are reviewed rows.
+
+**Kept, each measured alone against round 1:**
+- **A reviewed row is never moved by D2 or D3** (it-es's D2e): 3 rows — `former` « ex…; il primo (dei
+  due)…; creatore… » (better), `that` (no worse), `trash` (its last sense, *thrash*'s « battere,
+  percuotere, colpire », kept now that D3b no longer adds a ninth sense: `CORRECTIONS` drops it).
+- **`FIRST_RUN`, 13 rows**, every word a source's: `cop` « poliziotto », `whenever` « ogni volta che »,
+  `flash` « fulmine, lampo », `epic` « epico », `piece` « pezzo », `graph` « grafico », `whatsoever`
+  « qualsiasi, qualsivoglia », `shine` « brillare, splendere », `cope` « affrontare, far fronte;
+  resistere, fronteggiare » (the direct table's, then the section's), `express` « esprimere » (the direct
+  table's), `joint` « articolazione, giuntura » (the direct table's and the section's), `stir`
+  « mescolare, agitare » (the direct table's), `forum` « forum » (the direct table's).
+- **`CORRECTIONS`, 2 rows**: `spare` « di scorta, di ricambio; risparmiare; ricambio » (the direct
+  table's, D3a's « superfluo, ulteriore » misleading), `intense` « intenso » (the section's two English
+  sentences, Webster's, out; the direct table's word).
+- **D6**: a given name's note stays, read short, on a word whose only common sense is the word itself — 1
+  row, `henry` « Enrico (nome); henry ». Keeping it on every common word moves 4 (`jack`, `eve`, `venus`
+  « Venere; Venere (nome) », a repeat): narrowed.
+- **D8**: « armi parlanti », canting arms, is heraldry's wording — 1 row, `ash` « cenere; frassino;
+  cenerino ».
+- **D5**: « rafforzativo » opens a frame — 1 row, `so` « così, molto; … ».
+
+**Left, each with its reason**: `will` opens on its auxiliary's description, which no Italian word
+translates; `play`, `kind`, `party`, `early`, `court` open on a minor sense of the section's order, which
+no rule this round measured reaches — for change 37's successors. The words no source gives, not written
+(the owner's answer): `cope`'s « farcela » and « (a) », `spare`'s « libero » (*spare time*), the
+contractions' Italian (« tu sei, voi siete »).
+
+**Together** (round 2 against change 36's rows): **1,027 rows** (152 / 308 / 402 / 165), **613 in their
+first sense** (103 / 192 / 243 / 75), 69 of the 300 commonest; 54 lemmas gained, none lost; 9 expressions;
+coverage 92.1 / 83.1 / 70.6 %, as round 1's. Against round 1, 20 rows move (4 / 15 / 1 / 0), none for
+the worse as this reader reads them; the 300 commonest stay 0 % wrong (`that` and `so` move, both right).
+
+## Implementation
+
+Measured on 2026-10-26 by the reduction itself — `build.sh --reduce en-it` over en-it's pinned release
+`lingua-pack-sources-en-it-2026.10.26`, fetched again into a scratch folder (every asset checked by its
+sha256) and read with `python3 -I`, Python 3.12 and `requirements-reduce.txt` —, whose tables the
+dispatch of task 3.1 is to write byte for byte:
+
+- **Together**: the figures of *Measured*, byte for byte the prototype's tables (`gloss.tsv` `affa8fec…`,
+  `senses.tsv` `293e12ab…`, `mwe.tsv` `9767baf4…`, `NOTICE` unchanged): **1,035 rows** (154 / 314 / 402 /
+  165), **618 in their first sense** (103 / 197 / 243 / 75), 69 of the 300 commonest (58 in their first
+  sense); 54 lemmas gained (33 of the 5,000, 6 of the 300), none lost; 9 expressions; coverage **92.1 /
+  83.1 / 70.6 %** against the floor 89.4 / 80.8 / 68.3. With no rule (`--rules ""`), the committed tables
+  byte for byte. The pack 1,550,318 B (`744b36e5…`, from 1,553,528 B), its base English's, byte for byte
+  (935,260 B), its layer 615,283 B (`2bd2e798…`), at `pack_version` `2026.10.26+df788f5.fb7962e`. The 468
+  changed rows of the 5,000 commonest are listed in the pull request, each with the rules that change it
+  alone.
+- **Each rule alone** (`reduce-en-it.py --rules <rule>`), as *Measured* gives it: D6 73 (55), D8 60 (5),
+  D9's wiki text 1, D13 3 (2), D9's expansions 72 (70; `cqc` lost alone), D5 59 (55), D10b 1, D11 55 (54
+  gained), D2 199, D3a 76, D3b 45, the reviewed rows 55 (49), D10a 369 (13). **D7 alone moves 2
+  expressions, not 5** (`gun powder` « polvere pirica », `ice pack` « banchisa; … »): *Measured* counted
+  with them the plurals' and the alternative form's frames, which are D5's (`dvd players`, `snow chains`,
+  `space bars`, `torpedo boats`, `per cent`); together the 9 are the prototype's.
+- **The reviewed rows**: every op names the source it reads — the section's row as `native_side` wrote it,
+  a table's words, an expression's row (`lot`'s « molto, parecchio », *a lot*'s) — and is checked against
+  it; one that finds nothing is named on the reduction's summary line and writes nothing. All 57 rows
+  fired. `firm`'s « ditta » is an item of the section's « comitiva, ditta », which the same row drops.
+- **D11, as implemented**: a contraction whose row is another contraction's pointer, borrowed through its
+  entry, reads its own full form — `doesn't` alone, as *Measured*.
+- **The review's judged rows**: the tables are the prototype's, word for word, so *Measured*'s reading of
+  them holds unchanged (the 300 commonest 0 % wrong with the owner's answers); the specialist's reading of
+  the gloss diff confirms it or names what misses (task 4.1).
+- **The misspelling census** (task 1.7), `measure/en_it_misspellings.py` — the words of the 5,000
+  commonest's rows that `tables/it/forms.tsv` does not hold, under 1.5 Zipf on wordfreq's Italian list:
+  312 words of 231 rows on change 36's tables (the design's 262 of 218 counted with another cut), 289 of
+  217 on these; **no word new** — the rules bring none in —, so nothing is added to `CORRECTIONS`.
+- **The golden and the card**, re-blessed locally over these tables: `en-it.golden` moves 70 probes,
+  each by its gloss, row or the pack's line (`some`, `that`, `can`, `will`, `its`, `make`, `go`, `do`,
+  `don't`, `won't` among them); `word-card-en-it.txt` moves 31 blocks; no other baseline or snapshot moves.
+
+**Round 2, measured the same way** (2026-10-26, `build.sh --reduce en-it` over the same pinned release,
+the rules of D17): 1,027 rows against change 36's (152 / 308 / 402 / 165), 613 in their first sense (103
+/ 192 / 243 / 75), 69 of the 300 commonest; 54 lemmas gained, none lost; 9 expressions; coverage 92.1 /
+83.1 / 70.6 %. Against round 1, 20 rows (4 / 15 / 1 / 0), each listed in the pull request: `that`, `so`,
+`former`, `piece`, `henry`, `joint`, `express`, `whenever`, `flash`, `intense`, `forum`, `cop`, `epic`,
+`spare`, `shine`, `ash`, `graph`, `cope`, `whatsoever`, `stir`. Every reviewed row fired. `gloss.tsv`
+`dcf37238…`, `senses.tsv` `ede1bb63…`, `mwe.tsv` and `NOTICE` as round 1's; the pack 1,550,149 B
+(`fd8adda6…`), its layer 615,114 B (`cc38c3ce…`), at `pack_version` `2026.10.26+0a3353d.fb7962e`. The
+golden moves against round 1 in the pack's line, 6 analyses and `a piece of cake`'s and `that`'s probes;
+the card in `that`'s block alone.
+
 ## Settled by the owner (2026-10-26)
 
 - **Q1, contractions** (task 0.1): (a), pointers to the full form — « contrazione di you are » —, the
   frame the source's, the full form composed by rule, no Italian word invented (D11).
 - **Q2, `lot`** (task 0.2): (a), `lot` opens on « molto, parecchio (a lot) », « (a lot) » written by a
   person and marked so (D12).
+
+- **Round 2** (2026-10-26, after the specialist's review of the gloss diff): fix the rows read worse in
+  this pull request, before it merges — a rule where one passes the criteria, else reviewed rows of
+  sources' words (D17) —, and write no Italian for the contractions' pointers.
 
 ## Settled by rule, not asked
 
