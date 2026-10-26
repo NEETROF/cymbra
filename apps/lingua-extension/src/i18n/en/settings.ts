@@ -19,7 +19,7 @@ export const settings: typeof fr = {
   readAloud: "Read aloud",
   readingVoice: "Reading voice",
   speechRate: "Reading speed",
-  speechRateSteps: { 0.5: "Very slow", 0.75: "Slow", 1: "Normal" },
+  speechRateSteps: { 0.25: "Ultra slow", 0.5: "Very slow", 0.75: "Slow", 1: "Normal" },
   listen: "▶ Listen",
   stop: "■ Stop",
   onDeviceNote: "Voices installed on this device: the text read never leaves the device.",

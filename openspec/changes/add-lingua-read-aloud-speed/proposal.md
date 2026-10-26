@@ -17,7 +17,7 @@ back office, the site and the backend are untouched: no `.proto`, no migration, 
 ## What Changes
 
 - **A "Vitesse de lecture" choice in the "Lecture à voix haute" block of Réglages**, next to the
-  voice choice: a short list of presets — very slow, slow, normal — with *normal* the default. It
+  voice choice: a short list of presets — ultra slow, very slow, slow, normal — with *normal* the default. It
   applies to every listen button on the card and to the "hear this voice" preview in Réglages, so
   the reader judges the speed on the same sentence they will hear on a page.
 - **One speed for all languages.** Unlike the voice (which is per studied language, because voice

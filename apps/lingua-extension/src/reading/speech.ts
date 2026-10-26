@@ -57,8 +57,8 @@ export interface SpeechSettings {
   readonly rate: SpeechRate;
 }
 
-/** The speaking rates « Vitesse de lecture » offers: very slow, slow, normal. */
-export const SPEECH_RATES = [0.5, 0.75, 1] as const;
+/** The speaking rates « Vitesse de lecture » offers: ultra slow, very slow, slow, normal. */
+export const SPEECH_RATES = [0.25, 0.5, 0.75, 1] as const;
 
 export type SpeechRate = (typeof SPEECH_RATES)[number];
 

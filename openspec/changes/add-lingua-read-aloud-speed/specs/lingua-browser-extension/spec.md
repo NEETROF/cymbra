@@ -2,7 +2,7 @@
 
 ### Requirement: The reader chooses the speaking rate of read-aloud
 The "Lecture à voix haute" block of Réglages SHALL offer a choice of speaking rate among a short
-list of presets — very slow, slow, normal — with normal selected until the
+list of presets — ultra slow, very slow, slow, normal — with normal selected until the
 reader chooses otherwise. Every reading SHALL be spoken at the chosen rate: the listen buttons of
 the word card and the selection card, and the preview of a voice in Réglages. The rate SHALL be
 one choice per device for every studied language, kept as a preference and never as the reader's

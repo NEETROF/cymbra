@@ -24,7 +24,7 @@ export const settings = {
   readAloud: "Lecture à voix haute",
   readingVoice: "Voix de lecture",
   speechRate: "Vitesse de lecture",
-  speechRateSteps: { 0.5: "Très lent", 0.75: "Lent", 1: "Normal" },
+  speechRateSteps: { 0.25: "Ultra lent", 0.5: "Très lent", 0.75: "Lent", 1: "Normal" },
   listen: "▶ Écouter",
   stop: "■ Arrêter",
   onDeviceNote: "Voix installées sur cet appareil : le texte lu ne quitte pas l'appareil.",

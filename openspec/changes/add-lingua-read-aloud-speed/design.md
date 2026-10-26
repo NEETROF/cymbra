@@ -27,8 +27,8 @@ non-goal, confirmed on 2026-09-23. This change reverses that, for a stated need.
 ## Decisions
 
 **D1 — A short list of presets, not a slider.** The block is a place to choose a voice, not an
-instrument. Three presets — 0.5× (very slow), 0.75× (slow), 1× (default) — answer the actual request
-(slower for a learner), in two steps because a beginner is more likely to find one slow step
+instrument. Four presets — 0.25× (ultra slow), 0.5× (very slow), 0.75× (slow), 1× (default) — answer the actual request
+(slower for a learner), in three steps because a beginner is more likely to find one slow step
 insufficient than to want to go faster. No faster step: nobody asked, and speed does not help to
 parse a sentence. A slider invites
 fiddling over a sentence that lasts three seconds, needs a live preview to make sense of, and is
@@ -62,7 +62,7 @@ tunes the speed against the very sentence they will hear, not against a differen
 
 ## Risks / Trade-offs
 
-- **"0.5× is slow" is not the same on every voice.** Chrome's remote and local voices, macOS and
+- **"0.25× is slow" is not the same on every voice.** Chrome's remote and local voices, macOS and
   iOS voices and Android's engine scale differently, and some clamp at a floor. The presets are a
   starting point, confirmed on the devices during the on-device pass; if one platform makes the
   lowest step unusable the list changes, not the mechanism.
@@ -80,6 +80,6 @@ and harmless.
 
 ## Open Questions
 
-1. The exact preset values (0.5 / 0.75 / 1) are a proposal, to be confirmed on the devices.
+1. The exact preset values (0.25 / 0.5 / 0.75 / 1) are a proposal, to be confirmed on the devices.
 2. Whether Firefox for Android honours `rate` through Android's engine — read in the on-device
    pass (task 4.1), not decided ahead.

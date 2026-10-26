@@ -435,13 +435,18 @@ describe("Réglages — Lecture à voix haute", () => {
     const s = mountVoices(voiceFixture("chrome-macos"));
     await settle();
     const buttons = rateButtons(s.block);
-    expect(buttons.map((b) => b.textContent)).toEqual(["Très lent", "Lent", "Normal"]);
-    expect(buttons.map((b) => b.getAttribute("aria-pressed"))).toEqual(["false", "false", "true"]);
+    expect(buttons.map((b) => b.textContent)).toEqual(["Ultra lent", "Très lent", "Lent", "Normal"]);
+    expect(buttons.map((b) => b.getAttribute("aria-pressed"))).toEqual(["false", "false", "false", "true"]);
     buttons[0].click();
     await settle();
     expect(s.area.store[SPEECH_RATE_KEY]).toBe(0.5);
     s.fake.prefer({ rate: 0.5 });
-    expect(rateButtons(s.block).map((b) => b.getAttribute("aria-pressed"))).toEqual(["true", "false", "false"]);
+    expect(rateButtons(s.block).map((b) => b.getAttribute("aria-pressed"))).toEqual([
+      "false",
+      "true",
+      "false",
+      "false",
+    ]);
   });
 
   it("previews a voice at the chosen rate", async () => {

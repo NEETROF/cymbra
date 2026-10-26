@@ -754,7 +754,7 @@ describe("a voice per studied language (add-lingua-language-choice D4)", () => {
 
 describe("the speaking rate (add-lingua-read-aloud-speed)", () => {
   it("reads a stored value as one of the steps, else normal", () => {
-    expect([0.5, 0.75, 1].map(speechRateOf)).toEqual([0.5, 0.75, 1]);
+    expect([0.25, 0.5, 0.75, 1].map(speechRateOf)).toEqual([0.25, 0.5, 0.75, 1]);
     for (const odd of [undefined, null, 0, 1.2, 10, "0.5", NaN]) expect(speechRateOf(odd)).toBe(1);
   });
 
