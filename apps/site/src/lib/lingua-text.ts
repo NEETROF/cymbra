@@ -80,6 +80,10 @@ interface LinguaTable {
   captionOneNative: string;
   captionPerPair: string;
   commonestWords: string;
+  /**
+   * Where the glosses come from: Wiktionary, and Wikidata for Italian since it-es ships
+   * (enable-lingua-italian-for-spanish-speakers; add-lingua-italian-spanish-listings D6, option a).
+   */
   glossesOrigin: string;
   translationServes: string;
   translationNotYet: string;
@@ -182,7 +186,7 @@ const fr: LinguaTable = {
     "La part des mots les plus courants qui ont une définition dans la langue du lecteur, mesurée de la même façon pour chaque paire, sur les dictionnaires livrés avec l'extension.",
   commonestWords: "Mots les plus courants",
   glossesOrigin:
-    "Les définitions viennent du Wiktionnaire et de traductions écrites par des personnes, jamais d'une traduction automatique.",
+    "Les définitions viennent du Wiktionnaire et, pour l'italien, aussi de Wikidata, écrites par des personnes, jamais par une traduction automatique.",
   translationServes: " La traduction étendue, facultative, traduit {served}.",
   translationNotYet: " Pas encore pour {unserved}.",
   throughEnglish: " (en passant par l'anglais)",
@@ -295,7 +299,7 @@ const en: LinguaTable = {
   captionPerPair:
     "The share of the commonest words that have a gloss in the reader's language, measured the same way for each pair, in the dictionaries the extension ships.",
   commonestWords: "Commonest words",
-  glossesOrigin: "Glosses come from Wiktionary and from translations written by people, never from machine translation.",
+  glossesOrigin: "Glosses come from Wiktionary and, for Italian, also from Wikidata, written by people, never by machine translation.",
   translationServes: " Extended translation, optional, serves {served}.",
   translationNotYet: " Not yet for {unserved}.",
   throughEnglish: " (through English)",
@@ -409,7 +413,7 @@ const es: LinguaTable = {
     "La proporción de las palabras más frecuentes que tienen una definición en la lengua del lector, medida de la misma manera para cada par, en los diccionarios que se entregan con la extensión.",
   commonestWords: "Palabras más frecuentes",
   glossesOrigin:
-    "Las definiciones proceden del Wikcionario y de traducciones escritas por personas, nunca de una traducción automática.",
+    "Los significados proceden del Wikcionario y, para el italiano, también de Wikidata, escritos por personas, nunca por una traducción automática.",
   translationServes: " La traducción ampliada, opcional, traduce {served}.",
   translationNotYet: " Pendiente: {unserved}.",
   throughEnglish: " (pasando por el inglés)",
