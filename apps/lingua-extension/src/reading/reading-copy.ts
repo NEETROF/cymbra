@@ -9,6 +9,7 @@ import { card as itCard } from "../i18n/it/card.ts";
 import { drawer as esDrawer } from "../i18n/es/drawer.ts";
 import { drawer as itDrawer } from "../i18n/it/drawer.ts";
 import { grammar as esGrammar } from "../i18n/es/grammar.ts";
+import { grammar as itGrammar } from "../i18n/it/grammar.ts";
 import { hud as esHud } from "../i18n/es/hud.ts";
 import { hud as itHud } from "../i18n/it/hud.ts";
 import { selection as esSelection } from "../i18n/es/selection.ts";
@@ -44,10 +45,9 @@ const COPY: Record<InterfaceLanguage, ReadingCopy> = {
   fr: { hud: frHud, drawer: frDrawer, card: frCard, selection: frSelection, grammar: frGrammar },
   en: { hud: enHud, drawer: enDrawer, card: enCard, selection: enSelection, grammar: enGrammar },
   es: { hud: esHud, drawer: esDrawer, card: esCard, selection: esSelection, grammar: esGrammar },
-  // Italian's renderer of readings is change 34's (add-lingua-italian-card-wording): until then an
-  // Italian interface words a card's grammar with the English renderer, M13's fallback
-  // (add-lingua-italian-interface D2) — unreachable before the Italian interface is shown.
-  it: { hud: itHud, drawer: itDrawer, card: itCard, selection: itSelection, grammar: enGrammar },
+  // Italian's renderer of readings names forms in Italian grammar's terms (add-lingua-italian-card-wording
+  // D6) — unreachable before the Italian interface is shown (the Italian programme's change 45).
+  it: { hud: itHud, drawer: itDrawer, card: itCard, selection: itSelection, grammar: itGrammar },
 };
 
 /**

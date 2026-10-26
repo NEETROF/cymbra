@@ -5,8 +5,8 @@ Every text the extension shows lives here, once per language: `fr/<surface>.ts`,
 `card`, `selection`, `sidepanel`, `review`, `stats`, `settings`, `studied-languages`,
 `native-language`, `colours`, `display`, `translation`, `account-setting`, `account`,
 `account-errors`, `onboarding`, `reader`, `sync`, `languages`, `grammar`, `app`, `badge` (`SURFACES`,
-`index.ts`). Italian has every one but `grammar`, its renderer of readings being
-add-lingua-italian-card-wording's (the Italian programme's change 34). The French module is the source;
+`index.ts`). Italian's renderer of readings, `it/grammar.ts`, is add-lingua-italian-card-wording's
+(the Italian programme's change 34). The French module is the source;
 the English, Spanish and Italian ones are typed after it (`export const popup: typeof fr = { … }`), so
 a key missing in a translation does not compile (`yarn typecheck`). `test/i18n.spec.ts` checks the rest at
 runtime: no empty entry, every slot taken, nothing left in French outside the texts that are the same
@@ -67,7 +67,7 @@ has a table for every studied language: the French renderer's French, which no F
 is shown, serves the interface override M2 reserves and the enumeration of what each renderer names,
 as the English renderer's English and the Spanish renderer's Spanish do; its Italian is the first
 table of a studied language whose moods merge that a French-native reader is shown. The rule that a
-draft is typed after the French covers code here: `en/grammar.ts` and `es/grammar.ts` are `typeof fr`, so the compiler checks
+draft is typed after the French covers code here: `en/grammar.ts`, `es/grammar.ts` and `it/grammar.ts` are `typeof fr`, so the compiler checks
 the functions; `test/grammar-description.spec.ts` checks that every renderer names what the French
 names, no more, and `test/i18n.spec.ts` checks the drafts as renderers rather than as texts. The
 French renderer is the card's wording before the catalogue, byte for byte; `reading/grammar-labels.ts`
@@ -195,6 +195,18 @@ keeps its dash (« Account — Cymbra Lingua »). Numbers through `it-IT` (`form
 ICU groups it. A percentage with no space (« 96% »), in every surface's form. Dates through `it-IT`
 (`04/10/2026`, `4 ottobre 2026`), hours « 14:05 ». A round million is `many` and takes « di »
 (« 1.000.000 di carte »); 0 is `other`. Ordinals « 7º », « 2ª ».
+
+The word card's grammar (`it/grammar.ts`, add-lingua-italian-card-wording): Italian's forms by
+Treccani's names, the mood before the tense (« indicativo imperfetto », « congiuntivo presente »,
+« passato remoto », « futuro semplice », « condizionale presente »); French's and Spanish's by the
+Italian name of the same tense (the passé simple and the pretérito perfecto simple are « passato
+remoto »; Spanish's future subjunctive « congiuntivo futuro (futuro de subjuntivo) »); English's as the
+Italian Wiktionary names them (« presente semplice », « passato semplice », « participio passato ») and
+« forma in -ing ». Persons read « terza persona singolare », several of one tense named once (« prima e
+terza persona singolare »); « di » contracts with a tense's article (« del passato remoto »,
+« dell'indicativo imperfetto ») and never elides before a word of the page (« di eat »); « può anche
+essere » takes each name's article (« il passato semplice », « l'infinito », « la forma in -ing »).
+Pinned on the real packs' readings by `test/word-card-grammar-it.spec.ts`, grammar lines only.
 
 Elision and contraction, where a message is built from parts: the languages carry their article
 (« l'inglese », « lo spagnolo », « il francese », « l'italiano ») and `languages.ts`'s private `da()`
