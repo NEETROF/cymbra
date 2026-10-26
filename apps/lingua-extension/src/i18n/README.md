@@ -211,7 +211,10 @@ carta (card — « scheda » is the browser's tab), ripasso / ripassare, parole 
 parole in apprendimento (« mots en cours »), evidenziazione (surlignage), livello, QCER (CEFR), pannello
 laterale, biblioteca, nome utente (pseudo), account collegati, sincronizzazione, badge (pastille),
 pacchetto (the dictionary pack), modello, traduzione estesa / online. The voice help's Windows and
-macOS menu paths and Firefox's consent name are unverified (`it/settings.ts`).
+macOS menu paths and Firefox's consent name are unverified (`it/settings.ts`). Provisional choices of the owner
+(2026-10-26), checked when the interface is shown (change 45): « nome utente », where Music says
+« Handle »; « Stats » in the HUD and the drawer, as the Spanish; the unverified paths stay marked until
+change 45 or 44 checks them.
 
 ## What is the same everywhere
 

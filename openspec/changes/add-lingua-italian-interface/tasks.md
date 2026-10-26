@@ -20,7 +20,7 @@ Implemented after change 32.
 ## 4. The Italian reviewer (I2)
 
 - [x] 4.1 `.claude/agents/lingua-italian-reviewer.md`: read-only tools, the criteria and the report format of D8.
-- [ ] 4.2 [agent] The Italian reviewer reads every module and the README section; its findings applied in this pull request and its report pasted in its description before merge (D8). The pass ran and its findings are applied (5 must-fix, 25 suggestions, all but « Stats » taken); left open until the report is in the pull request's description.
+- [x] 4.2 [agent] The Italian reviewer reads every module and the README section; its findings applied in this pull request and its report pasted in its description before merge (D8). The pass found 30 findings (5 must-fix, 25 suggestions), all applied but « Stats »; its report goes into the pull request's description. Provisional choices of the owner (2026-10-26), checked at change 45: « nome utente » kept (Music says « Handle »); « Stats » kept in the HUD and the drawer; the voice help's menu paths and Firefox's consent name stay marked unverified, checked at change 45 or 44.
 
 ## 5. Gates
 
