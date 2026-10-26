@@ -8,6 +8,7 @@ alternates:
   fr: /confidentialite
   en: /en/privacy
   es: /es/privacidad
+  it: /it/privacy
 ---
 
 La presente política explica qué datos personales tratan los **servicios Cymbra**

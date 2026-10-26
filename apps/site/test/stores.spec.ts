@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { LANGS } from "../src/lib/i18n";
 import {
   LINGUA_APP_STORE,
   LINGUA_CHROME_WEB_STORE,
@@ -32,6 +33,9 @@ describe("store links", () => {
     expect(musicStores("es")[2].label).toBe("Windows / Linux — próximamente");
     expect(linguaStores("fr")[1].label).toBe("Firefox (ordinateur et Android)");
     expect(linguaStores("en")[1].label).toBe("Firefox (desktop and Android)");
+    // The Italian labels (change: add-site-italian-locale).
+    expect(linguaStores("it").map((l) => l.label)).toEqual(["Chrome", "Firefox (computer e Android)", "Safari (iPhone, iPad, Mac)"]);
+    expect(musicStores("it")[2].label).toBe("Windows / Linux — in arrivo");
   });
 
   it("points Lingua at its three published listings, Safari's App Store record among them", () => {
@@ -42,7 +46,7 @@ describe("store links", () => {
   });
 
   it("names Firefox for Android, and says each Lingua button's store for the page's choice (change: add-site-lingua-showcase, D11)", () => {
-    for (const lang of ["fr", "en", "es"] as const) {
+    for (const lang of LANGS) {
       const links = linguaStores(lang);
       expect(links.map((l) => l.store)).toEqual(["chrome", "firefox", "safari"]);
       expect(links[1].label).toContain("Android");

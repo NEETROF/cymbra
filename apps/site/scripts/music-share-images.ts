@@ -1,5 +1,5 @@
 // Generates the share preview of each Music page (change: add-site-music-showcase, D5):
-// `yarn gen:music-share`. A 1200×630 image per language — the iPad staff capture,
+// `yarn gen:music-share` (`yarn gen:music-share it` for one language). A 1200×630 image per language — the iPad staff capture,
 // cropped, under the page's headline — written to `src/assets/music/<lang>/share.png`
 // and committed, so the build stays a pure copy. Vite gives the built file a content
 // hash, so a new image is a new URL and no chat app keeps showing the old one.
@@ -8,7 +8,7 @@ import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
-import { LANGS } from "../src/lib/i18n.ts";
+import { LANGS, isLang, type Lang } from "../src/lib/i18n.ts";
 import {
   CAPTURE_SOURCE,
   MEDIA_DIR,
@@ -68,7 +68,16 @@ function overlay(headline: string, sub: string): Buffer {
 </svg>`);
 }
 
-for (const lang of LANGS) {
+// The languages to make, every one by default: `yarn gen:music-share it` makes Italian's
+// files alone, so that adding a language moves none of the others' (change:
+// add-site-italian-locale, D4).
+const asked = process.argv.slice(2);
+for (const arg of asked) {
+  if (!isLang(arg)) throw new Error(`not a site language: ${arg} (one of ${LANGS.join(", ")})`);
+}
+const langs: readonly Lang[] = asked.length ? (asked as Lang[]) : LANGS;
+
+for (const lang of langs) {
   const { headline, sub } = SHARE_COPY[lang];
   const capture = resolve(store, CAPTURE_SOURCE, lang, "03_staff.png");
   const out = resolve(site, MEDIA_DIR, lang, SHARE_FILE);

@@ -10,6 +10,7 @@ import {
   esOr,
   fill,
   frenchHomeLinguaCard,
+  italianHomeLinguaCard,
   LINGUA_TEXT,
   type LinguaPageText,
   linguaPageText,
@@ -775,6 +776,9 @@ describe("the French home's Lingua card follows the shipped pairs (change: add-s
 });
 
 describe("the captures' words (change: add-site-lingua-showcase, D10, D11)", () => {
+  // French, English and Spanish: the languages `plan.mjs` captures. Italian's showcase strings are
+  // type stubs until change 45 captures the extension in Italian and rewrites them (change:
+  // add-site-italian-locale, D6), and joins them here then.
   const LANGS = ["fr", "en", "es"] as const;
   const extension = (path: string) => readFileSync(resolve(__dirname, `../../lingua-extension/src/i18n/${path}`), "utf8");
   const label = (lang: string, module: string, key: string) =>
@@ -826,5 +830,102 @@ describe("the captures' words (change: add-site-lingua-showcase, D10, D11)", () 
     }
     expect(showcase.video.caption).toContain(quoted[lang](label(lang, "card", "known")!));
     expect(showcase.shots["reader-eink"].alt).toContain(quoted[lang](label(lang, "colours", "presetEinkMono")!));
+  });
+});
+
+describe("the Italian table (change: add-site-italian-locale, D6)", () => {
+  // en-it, the pair change 45 lists (Italian speakers study English), beside the nine pairs: the
+  // Italian page it builds, in Italian numbers and with each language's article.
+  const withEnIt = shipped(
+    { tops: NINE_PAIRS.tops, glossed: { ...NINE_PAIRS.glossed, "en-it": [91.4, 82.8, 70.3] } },
+    { ...ROUTES, "en-it": ["en-it/base-memory/2.0"] },
+  );
+
+  it("leads with its readers, Italian speakers studying English, then the other readers", () => {
+    const t = linguaPageText("it", withEnIt, noDiscord);
+    expect(t.description).toContain("le parole in inglese che non conosci ancora");
+    expect(t.heroNote).toContain("Pensata per italofoni che imparano l'inglese.");
+    expect(t.heroNote).toContain(
+      "Anche per francofoni che imparano l'inglese, lo spagnolo o l'italiano: l'interfaccia e le traduzioni sono in francese.",
+    );
+    expect(t.closing.body).toContain('<a href="/it/music">Cymbra Music</a>');
+  });
+
+  it("writes numbers as Italian does: 5000 solid, 20.000 grouped, 96% with no space", () => {
+    const t = linguaPageText("it", withEnIt, noDiscord);
+    expect(t.coverage.head).toEqual(["Parole più comuni", "5000", "10.000", "20.000"]);
+    expect(t.coverage.rows[0]).toEqual(["Inglese → italiano", "91%", "83%", "70%"]);
+  });
+
+  it("contracts « da » and « a » with each language's article", () => {
+    const { note } = linguaPageText("it", withEnIt, noDiscord).coverage;
+    for (const words of ["dall'inglese all'italiano", "dallo spagnolo al francese", "dal francese allo spagnolo", "dall'italiano all'inglese"]) {
+      expect(note).toContain(words);
+    }
+  });
+
+  it("names the card's tense and gender and the estimated levels, never for English", () => {
+    const t = linguaPageText("it", withEnIt, noDiscord);
+    expect(card(t, "click").body).toContain(" In spagnolo, in italiano e in francese, la carta indica anche il tempo verbale e il genere.");
+    expect(card(t, "level").body).toContain(" Per lo spagnolo, l'italiano e il francese, i livelli sono stimati");
+    expect(card(t, "level").title).toContain("QCER");
+  });
+
+  it("quotes the word card's three buttons as the Italian card labels them, «» without inner spaces", () => {
+    const catalogue = readFileSync(resolve(__dirname, "../../lingua-extension/src/i18n/it/card.ts"), "utf8");
+    const body = card(linguaPageText("it", withEnIt, noDiscord), "click").body;
+    for (const key of ["known", "addToDeck", "ignore"]) {
+      const text = catalogue.match(new RegExp(`^  ${key}: "([^"]+)",$`, "m"))?.[1];
+      expect(text, `it/card.ts ${key}`).toBeTruthy();
+      expect(body).toContain(`«${text}»`);
+    }
+  });
+
+  it("is built only with its readers' pair (D3, as Spanish's)", () => {
+    expect(() => linguaPageText("it", nine, noDiscord)).toThrow("the it page is built only with a pair glossed in its language");
+  });
+
+  it("names Italian speakers in the French, English and Spanish tables", () => {
+    expect(LINGUA_TEXT.fr.speakers.it).toBe("italophones");
+    expect(LINGUA_TEXT.en.speakers.it).toBe("Italian speakers");
+    expect(LINGUA_TEXT.es.speakers.it).toBe("italohablantes");
+  });
+});
+
+describe("the Italian home's Lingua card follows the shipped pairs (change: add-site-italian-locale, D4)", () => {
+  it("before a pair glossed in Italian: every language read, its readers, and the English Lingua page", () => {
+    const { body, href } = italianHomeLinguaCard(nine.pairs);
+    expect(body).toBe(
+      "Leggi il web in inglese, in spagnolo, in francese o in italiano, con le parole che non conosci ancora evidenziate direttamente nella pagina. Una percentuale onesta per pagina, un clic per la traduzione e il tuo vocabolario, che si costruisce da solo. Pensata per francofoni, anglofoni e ispanofoni, con l'interfaccia e le traduzioni nella propria lingua.",
+    );
+    expect(href).toBe("/en/lingua");
+  });
+
+  it("with today's two French-glossed pairs: French speakers alone", () => {
+    expect(italianHomeLinguaCard(today.pairs).body).toMatch(/^Leggi il web in inglese o in spagnolo, .* Pensata per francofoni, con l'interfaccia/);
+  });
+
+  it("once en-it ships: English, read with an Italian gloss, no audience, and /it/lingua", () => {
+    const pairs = shipped({ tops: NINE_PAIRS.tops, glossed: { ...NINE_PAIRS.glossed, "en-it": [91.4, 82.8, 70.3] } }).pairs;
+    const { body, href } = italianHomeLinguaCard(pairs);
+    expect(body).toMatch(/^Leggi il web in inglese, con le parole/);
+    expect(body).not.toContain("Pensata per");
+    expect(href).toBe("/it/lingua");
+  });
+
+  it("refuses a language its table cannot name", () => {
+    const pairs = shipped({ tops: [1], glossed: { "de-fr": [1] } }, {}).pairs;
+    expect(() => italianHomeLinguaCard(pairs)).toThrow('the it table has no name for the language "de"');
+  });
+});
+
+describe("the Italian note on pairs extended translation does not serve yet (review of change 41)", () => {
+  it("reads whole whether a pair is named by its studied language or by both", () => {
+    const one = shipped({ tops: [5000], glossed: { "en-it": [90] } }, {});
+    expect(linguaPageText("it", one, noDiscord).coverage.note).toContain(" Non ancora disponibile: l'inglese.");
+    const two = shipped({ tops: [5000], glossed: { "en-it": [90], "en-fr": [95] } }, {});
+    expect(linguaPageText("it", two, noDiscord).coverage.note).toContain(
+      " Non ancora disponibile: dall'inglese all'italiano e dall'inglese al francese.",
+    );
   });
 });

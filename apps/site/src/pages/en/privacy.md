@@ -6,6 +6,7 @@ alternates:
   fr: /confidentialite
   en: /en/privacy
   es: /es/privacidad
+  it: /it/privacy
 updated: 16/10/2026
 ---
 

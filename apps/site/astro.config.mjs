@@ -7,17 +7,19 @@ import vue from '@astrojs/vue';
 import { sitemapEntries, sitemapXml } from './src/lib/sitemap.ts';
 
 // French at the root, English under `/en/`, Spanish under `/es/` (change:
-// add-site-spanish-locale) — each language with its own slugs, and each page naming its
+// add-site-spanish-locale), Italian under `/it/` (change: add-site-italian-locale) — each
+// language with its own slugs, and each page naming its
 // translations through `alternates` (see `src/layouts/Base.astro`).
 const DEFAULT_LOCALE = 'fr';
-const LOCALES = ['fr', 'en', 'es'];
+const LOCALES = ['fr', 'en', 'es', 'it'];
 
 // Astro gives `src/pages/404.astro` its special treatment only at the root: it writes
 // `dist/404.html` there, but `src/pages/en/404.astro` is an ordinary page and lands on
 // `dist/en/404/index.html`. Cloudflare Pages serves the nearest `404.html` walking up
 // the requested path, so without this an unmatched `/en/...` would answer with the
 // FRENCH not-found page. Copy it into place, for every non-default locale (change:
-// pin-music-site-url-contract; `es` by add-site-spanish-locale).
+// pin-music-site-url-contract; `es` by add-site-spanish-locale, `it` by
+// add-site-italian-locale).
 function localised404() {
   return {
     name: 'cymbra:localised-404',
