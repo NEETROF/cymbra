@@ -1172,16 +1172,22 @@ notice. Its rule digest gains the module: an edit of it re-pins en-it and no oth
   person** (task 0.2, the owner's, `BY_A_PERSON`). Each op names the source it reads and the page it is
   reported to — the Italian Wiktionary's English entry for a section's slip (https://it.wiktionary.org/wiki/some,
   …/trash, …/scale, …), the English Wiktionary's entry for a table's word —; one that finds nothing is
-  named on the reduction's summary line, and the tests over the committed tables fail.
+  named on the reduction's summary line, and the tests over the committed tables fail;
+- **round 2** (the specialist's review of the gloss diff, the owner's, 2026-10-26): a reviewed row is
+  never moved by D2 or D3; `FIRST_RUN` gains `cop`, `whenever`, `flash`, `epic`, `piece`, `graph`,
+  `whatsoever`, `shine`, `cope`, `express`, `joint`, `stir`, `forum`, and `CORRECTIONS` `spare` and
+  `intense` (Webster's English sentences, https://it.wiktionary.org/wiki/intense), every word a source's;
+  D6 keeps a given name on a word that only names itself (`henry`), D8 reads « armi parlanti » as
+  heraldry, D5 « rafforzativo » as a frame.
 
 **Predicted at implementation** (2026-10-26, reduced locally by `build.sh --reduce en-it` from the
 pinned release `lingua-pack-sources-en-it-2026.10.26`, Python 3.12 and `requirements-reduce.txt`),
-byte for byte the design's prototype: 1,035 rows of `gloss.tsv` change (154 / 314 / 402 / 165 of the
-1,000 / 5,000 / 20,000 commonest and beyond), 618 in their first sense; 54 lemmas gained, none lost; 9
-expressions; coverage **92.1 / 83.1 / 70.6 %**; `gloss.tsv` `affa8fec…`, `senses.tsv` `293e12ab…`,
-`mwe.tsv` `9767baf4…`, `NOTICE` unchanged; the pack 1,550,318 B (`744b36e5…`), its base English's,
-byte for byte (935,260 B), its layer 615,283 B (`2bd2e798…`), at `pack_version`
-`2026.10.26+df788f5.fb7962e`. Only en-it re-pins: `tables/en/` and the nine other pairs' tables, pins
+round 1 byte for byte the design's prototype (1,035 rows); with round 2, 1,027 rows of `gloss.tsv`
+change (152 / 308 / 402 / 165 of the 1,000 / 5,000 / 20,000 commonest and beyond), 613 in their first
+sense; 54 lemmas gained, none lost; 9 expressions; coverage **92.1 / 83.1 / 70.6 %**; `gloss.tsv`
+`dcf37238…`, `senses.tsv` `ede1bb63…`, `mwe.tsv` `9767baf4…`, `NOTICE` unchanged; the pack 1,550,149 B
+(`fd8adda6…`), its base English's, byte for byte (935,260 B), its layer 615,114 B (`cc38c3ce…`), at
+`pack_version` `2026.10.26+0a3353d.fb7962e`. Only en-it re-pins: `tables/en/` and the nine other pairs' tables, pins
 and packs do not move.
 
 ## The editions' dumps

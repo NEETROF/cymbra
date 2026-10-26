@@ -23,10 +23,10 @@ alone. en-it's reduction reads them as committed and computes nothing of them.
 
 ## What is in them
 
-The tables of snapshot `2026.10.26` (`pack_version` `2026.10.26+df788f5.fb7962e`), first reduced by the
+The tables of snapshot `2026.10.26` (`pack_version` `2026.10.26+0a3353d.fb7962e`), first reduced by the
 update of that day (`lingua-pack-update` run 40324469757, change 36), then reduced again at the same pin
-with change 37's rules (refine-lingua-en-it-glosses, mode `reduce`; *How it is read* below), byte for
-byte the local forecast:
+with change 37's rules (refine-lingua-en-it-glosses, mode `reduce`, round 2; *How it is read* below),
+byte for byte the local forecast:
 
 - **Italian glosses for 21,580 lemmas** of English's 40,685 (53.0 %): 54 contractions read as pointers,
   composed by rule (change 37's D11), and as before 13,677 from the Italian
@@ -55,8 +55,8 @@ byte the local forecast:
   10,565, a pointer's word 10 / 18 / 28, the direct table 292 / 895 / 2,807, the inverted table 39 / 163
   / 665, unglossed 430 / 1,724 / 5,935. **The table share**: of the 8,276 lemmas glossed among the
   10,000 commonest, 12.8 % take their gloss from a table (895 direct, 163 inverted); en-es's, 26.0 %.
-- **The pack**: 1,550,318 B (1,553,528 B before change 37); its base, English's, 935,260 B (en-es's byte
-  for byte), its layer 615,283 B (618,493 B).
+- **The pack**: 1,550,149 B (1,553,528 B before change 37); its base, English's, 935,260 B (en-es's byte
+  for byte), its layer 615,114 B (618,493 B).
 
 ## How it is read: change 37's rules
 
@@ -79,10 +79,21 @@ move. Each rule measured alone against change 36's rows — rows changed among t
 | D2, the part of speech two signals agree on | 199 (33 / 80 / 69 / 17) | 199 | `make` « fare, creare, fabbricare; …; marca » |
 | D3a, the missing main part of speech | 76 (2 / 10 / 46 / 18) | 76 | `rescue` « salvare; salvataggio », `treat` « trattare; … » |
 | D3b, a row of descriptions | 45 (2 / 6 / 27 / 10) | 45 | `its` « suo; possessivo di it », `should` « dovere; … » |
-| D4, D12, the reviewed rows (`FIRST_RUN` 34, `CORRECTIONS` 23) | 55 (35 / 13 / 6 / 1) | 49 | `that` « quello, quella; che, il quale… », `can` « potere; latta… », `some` « qualche, alcuni, alcune; del, della » |
+| D4, D12, the reviewed rows (round 1: `FIRST_RUN` 34, `CORRECTIONS` 23) | 55 (35 / 13 / 6 / 1) | 49 | `that` « quello, quella; che, il quale… », `can` « potere; latta… », `some` « qualche, alcuni, alcune; del, della » |
 | D10a, repeats | 369 (37 / 104 / 141 / 87) | 13 | `national` « nazionale » |
 
-**Together: 1,035 rows change** (154 / 314 / 402 / 165), **618 in their first sense** (103 / 197 / 243 /
+**Round 2** (the specialist's review of the gloss diff, the owner's, 2026-10-26: 15 of the 468 changed
+rows of the 5,000 commonest read worse): a reviewed row is never moved by D2 or D3; `FIRST_RUN` gains 13
+rows (`cop` « poliziotto », `shine` « brillare, splendere », `cope` « affrontare, far fronte; resistere,
+fronteggiare », `express` « esprimere », `joint` « articolazione, giuntura », `stir` « mescolare,
+agitare », `forum`, `whenever`, `flash`, `epic`, `piece`, `graph`, `whatsoever`) and `CORRECTIONS` 2
+(`spare` « di scorta, di ricambio; risparmiare; ricambio », `intense` « intenso »), every word a
+source's; D6 keeps a given name on a word that only names itself (`henry` « Enrico (nome); henry »), D8
+reads « armi parlanti » as heraldry (`ash`), D5 « rafforzativo » as a frame (`so`). No narrowing of D2
+passed the criteria; D2 is as measured. Against round 1, 20 rows move (4 / 15 / 1 / 0), none for the
+worse.
+
+**Together: 1,027 rows change** (152 / 308 / 402 / 165), **613 in their first sense** (103 / 192 / 243 /
 75), 69 of the 300 commonest; 54 lemmas gained, none lost; 9 expressions (`dvd players` « lettori DVD »,
 `south african` « sudafricano; … »). The reviewed rows' words are their sources' — the section's, a
 table's, an expression's —, each op checked against the source it names and named on the reduction's
@@ -103,7 +114,8 @@ summary line when it finds nothing (none did). Two kinds of gloss are not a sour
 Change 36's list (its D10), after change 37:
 - **Fixed**: names' notes on common words, state codes beside another sense, function words described
   (`my`, `its`, `should`; `will` opens on its auxiliary's description, partly right), labels before a
-  colon (frames), heraldic senses anywhere, unglossed contractions, the pages copied from another word
+  colon (frames; `so` in round 2), heraldic senses anywhere (`ash`'s canting arms in round 2), English
+  text (`intense` in round 2), unglossed contractions, the pages copied from another word
   (`some`, `trash`), the false friends the review named, nine misspellings, English expansions and text
   (`uk`, `media`), repeats and split forms.
 - **Left, each with its reason** (change 37's D13): the 18 state codes that are the code's only sense
@@ -112,10 +124,14 @@ Change 36's list (its D10), after change 37:
   pin does not record); `ashamed` « confuso », `reckless` « impavido; spericolato », `sahara`
   « sahariano », `mr`'s description, `oh`, `aw`; `hurt`'s « torta (di azzurro) », a heraldic sense
   neither tagged nor worded so; `very`'s suffixes among its items.
-- **Read worse by a rule**, within its measured 4 to 1, for the specialist's review of the gloss diff:
-  D2's `joint`, `graph`, `cope`, `whatsoever`, `stir`, `bugger`; D3's `queer`, `woodland`, `flirt`,
-  `nag`, `woof`, `jive`, `forum`, `swat`, `nigga`; D6's `henry` (its common entry, the unit, keeps « Enrico »
-  off); D9's `maga`, and `bbc`, `cnn`, `cbs`, `nbc`, `espn`, `hbo`, `noaa` keeping only a description.
+- **Read worse by a rule**, within its measured 4 to 1: the specialist's 15 of the 5,000 are reviewed
+  rows since round 2 (`former`, `piece`, `henry`, `joint`, `express`, `whenever`, `flash`, `forum`,
+  `cop`, `epic`, `spare`, `shine`, `graph`, `cope`, `whatsoever`, and the sampled `stir`); left past
+  them: D2's `bugger`; D3's `queer`, `woodland`, `flirt`, `nag`, `woof`, `jive`, `swat`, `nigga`; D9's
+  `maga`, and `bbc`, `cnn`, `cbs`, `nbc`, `espn`, `hbo`, `noaa` keeping only a description.
+- **Left after round 2**: `play`, `kind`, `party`, `early`, `court` open on a minor sense of the section's
+  order; the words no source gives, not written (the owner's): `cope`'s « farcela », `spare`'s « libero »,
+  the contractions' Italian.
 - **The misspelling census** (`../../measure/en_it_misspellings.py`, against `tables/it/forms.tsv`,
   under 1.5 Zipf): 312 words of 231 rows of the 5,000 before change 37, 289 of 217 after, none new —
   nearly all real Italian, which no rule may take.
