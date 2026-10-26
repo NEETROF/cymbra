@@ -24,10 +24,10 @@ before the figures):
   (`side`), English expansions (`uk` « United Kingdom : Regno Unito »), wiki text, a split form (`mx`
   « signorə, signor, a »), repeated senses (`national` « nazionale; nazionale »).
 - **Wrong words** (F, I): misspellings (« squaglia », « sù », « grupo », « referenzia »), a page copied
-  from another word (`some` « molti, tanti; la folla »), false friends (`disposable` « disponibile »,
+  from another word (`some` « molti, tanti; la folla », `trash` with *thrash*'s senses), false friends (`disposable` « disponibile »,
   `editor` « editore/editrice », `fabric` « ordito »).
-- **Contractions**: 57 of the 5,000 commonest unglossed (`you're`, `that's`), `doesn't` reading
-  `don't`'s « contrazione di do not ».
+- **Contractions**: 33 of the 5,000 commonest unglossed (`you're`, `that's`; the other 24 words with an
+  apostrophe left unglossed are genitives), `doesn't` reading `don't`'s « contrazione di do not ».
 
 ## What Changes
 
@@ -39,27 +39,32 @@ loads; `reduce_common.py` and the Italian edition's rules do not move (design D1
   (`but` « ma, però; … », `make` « fare, creare, fabbricare; … », `mean` « voler dire, significare; … »,
   `country` « paese, terreno, campagna; … », `go` « andare; … »).
 - **The missing main sense** (D3): the table's first sense opens a row that lacks that part of speech
-  (`prove` « dimostrare, provare; … », `treat`, `rescue`) or that only describes (`its` « suo; … »,
-  `should` « dovere; … », `trash` « spazzatura… »): 152 rows.
-- **`FIRST_RUN`** (D4): 33 reviewed rows for the commonest grammatical words and the rows no rule tells
+  (`prove` « dimostrare, provare; … », `treat`, `rescue` « salvare; … ») or that only describes (`its`
+  « suo; … », `should` « dovere; … »), never for an interjection: 76 and 45 rows.
+- **`FIRST_RUN`** (D4): 34 reviewed rows for the commonest grammatical words and the rows no rule tells
   apart (`that` « quello, quella; che… », `can` « potere; … », `an` « un, uno, una, un' », `me`
-  « mi, me », `down` « giù; … », `still` « ancora, tuttora; … »), every word a source's.
+  « mi, me », `down` « giù; … », `still` « ancora, tuttora; … », `bye` « ciao, addio »), every word a
+  source's.
 - **Clean-up** (D5–D10, D13): frames out (`my` « il mio, la mia… »), names' notes off common words and
   given names short (`john` « Giovanni (nome) »), pointers, heraldry anywhere and tinctures, English
   expansions (`uk` « Regno Unito »), wiki text, a state's code beside another sense, whole repeated
   senses, split forms (`mx` « signor/a »).
-- **`CORRECTIONS`** (D12): 21 reviewed rows — the false friends (`disposable` « monouso, usa e
-  getta »), the copied page (`some` « qualche, alcuni, alcune; … »), English text (`media`), nine
-  misspellings —, every word a source's.
+- **`CORRECTIONS`** (D12): 23 reviewed rows — the false friends (`disposable` « monouso, usa e
+  getta »), the copied pages (`some` « qualche, alcuni, alcune; … », `trash` « spazzatura, immondizia,
+  rifiuti; scartare »), English text (`media`), nine misspellings —, every word a source's but `lot`'s
+  « (a lot) », written by a person (task 0.2: `lot` « molto, parecchio (a lot); lotto; … »).
 - **Contractions** (D11, task 0.1): read as the pointers the section writes for those it glosses —
-  `you're` « contrazione di you are », `doesn't` « contrazione di does not »: 58 lemmas gained.
+  `you're` « contrazione di you are », `i'd` « contrazione di I would; … », `how'd` « contrazione di
+  how did; … », `doesn't` « contrazione di does not »: 54 lemmas gained, 33 of the 5,000. These rows are
+  composed by our rule, not given by a source: the frame « contrazione di » is the source's, the English
+  full form the rule's, no Italian word is invented; they are listed as generated.
 - **The card in Italian** (D15): change 36's open task 4.3, `word-card-en-it.spec.ts` and its snapshot,
   now that changes 33 and 34 are on `main`, re-blessed with the golden.
-- **One re-reduction** (D14): together, without D11, **1,005 rows change** (138 / 301 / 400 / 166), 587
-  in their first sense, no lemma gained or lost, coverage **91.4 / 82.8 / 70.3 %** as now; with D11,
-  1,064 rows, 58 lemmas gained, **92.0 / 83.2 / 70.6 %**. On the review's judged rows, the 300 commonest
-  read wrong **0.7 %** (from 7.7 %) — `lot` and `doesn't` —, 0 with the owner's two answers, partly
-  right about 11 % (from 19.7 %), as this design's reader reads them, for the specialist to confirm.
+- **One re-reduction** (D14): together, with the owner's answers, **1,035 rows change** (154 / 314 /
+  402 / 165), 618 in their first sense, 54 lemmas gained and none lost, coverage **92.1 / 83.1 /
+  70.6 %**; without D11 and `lot`'s row, 979 rows and the coverage as now. On the review's judged rows,
+  the 300 commonest read wrong **0 %** (from 7.7 %), partly right about 11 % (from 19.7 %), as this
+  design's reader reads them, for the specialist to confirm.
 
 ## Capabilities
 
@@ -76,8 +81,9 @@ None.
   - MODIFIED, copied whole from the open change that holds it, *English is glossed in Italian from the
     Italian Wiktionary's English section and the two Wiktionaries' translation tables*
     (`add-lingua-pack-en-it`): the first source glosses a lemma but where en-it's rules reorder or open
-    its row; a gloss a reviewed table writes is a source's or marked as a person's; en-it's own module's
-    digest scenario.
+    its row; a gloss a reviewed table writes is a source's or marked as a person's; two scenarios added,
+    *A section's row a table's words open* (`rescue` « salvare; salvataggio ») and *A rule of en-it's
+    own* (the digest).
   - This change archives after `add-lingua-pack-en-it` (`archiveAfter`). Changes 47 and 51 hold their
     own copies of that requirement: whichever of the three is implemented later re-copies the other's
     block and names it in `archiveAfter` (D16).
@@ -102,6 +108,6 @@ None.
 - **Release.** Silent: no package lists en-it before change 45.
 - **Order.** After change 36 (on `main`, its requirement open); before change 45; either side of
   changes 47 and 51 (D16).
-- **The owner's**: two questions (tasks 0.1–0.2: contractions, `lot`); the gloss diff after the
-  specialist's review, the golden's and the card's moved lines (task 4.1).
+- **The owner's**: two questions, answered (a) on 2026-10-26 (tasks 0.1–0.2: contractions as pointers,
+  `lot` « molto, parecchio (a lot) »); the gloss diff after the specialist's review, the golden's and the card's moved lines (task 4.1).
 - **Effort**: 4–5.5 ideal days (design, *Effort*), against the programme's 2–4.
