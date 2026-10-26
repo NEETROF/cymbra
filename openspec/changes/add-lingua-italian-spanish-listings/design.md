@@ -413,3 +413,9 @@ For the owner:
   section quotes; the activation page keeps its drafted `lede` and step 3.
 
 Nothing counted moves: every answer is the draft the files already carried, but the summary's quote.
+
+**One release** (the owner, 2026-10-26). Changes 20, 25 and 30 ship in one release, so D8's « pasted
+with change 30's release » is that release: the texts of changes 21, 26 and 31 are pasted together,
+the single fields and the review notes being this change's, and a submission before it pastes
+changes 21's and 26's alone. #1057, #1058, #1074 and #1075 merged that day: the site's tests and the
+notes changes 21 and 26 edit in place were done on `main`, the sections moved after change 26's.
