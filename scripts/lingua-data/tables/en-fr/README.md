@@ -11,12 +11,13 @@ words — are kept once, in `../en/`, for every pair studying English. en-fr is 
 pair (`../en/studied.json`): its reduction writes `../en/`, and this folder's `pin.json` records the
 sources of both.
 
-One other pair reads `../en/`: **en-es** (`../en-es/`, English glossed in Spanish,
-add-lingua-pack-en-es), which reduces its own native side from it and computes nothing of it. Its
-`pin.json` records en-fr as the reference and the sha256 of each of `../en/`'s six tables its build
-read: when en-fr's reduction moves one, en-es is reduced again after en-fr, and until it is the checks
-fail naming en-es and the table (`en-es: en/level.tsv`). A change to en-fr's rules that moves no
-table of `../en/` leaves en-es's pin and pack as they are.
+Two other pairs read `../en/`: **en-es** (`../en-es/`, English glossed in Spanish,
+add-lingua-pack-en-es) and **en-it** (`../en-it/`, English glossed in Italian, add-lingua-pack-en-it),
+each of which reduces its own native side from it and computes nothing of it. Each `pin.json` records
+en-fr as the reference and the sha256 of each of `../en/`'s tables its build read: when en-fr's
+reduction moves one, en-es and en-it are reduced again after en-fr, and until they are the checks fail
+naming the pair and the table (`en-es: en/level.tsv`). A change to en-fr's rules that moves no table of
+`../en/` leaves their pins and packs as they are.
 
 In this folder:
 
@@ -115,15 +116,15 @@ Never by hand — except `../en/tags.tsv` and `../en/studied.json`, which no red
 so editing it changes how each of them stores them. Its pull request says so, and every pair
 studying English reads that one file. `../en/` is written by en-fr's reduction alone: a change there
 — new sources, new rules, or a lemma en-fr glosses, which moves the dictionary words — reaches every
-pair studying English, en-es today, whose packs are recorded again in the same pull request
+pair studying English, en-es and en-it today, whose packs are recorded again in the same pull request
 (`lingua-pack-update` reduces them along with en-fr, after it).
 
 - **Take in upstream changes**: dispatch `lingua-pack-update` with `mode=update`. It reads today's
   sources — kaikki as the French Wiktionary's dump (737 MB gzipped), from which it derives the
   English entries in one pass and keeps no dump (`../../SOURCES.md`, *The editions' dumps*) —,
   keeps the derived file as the release `lingua-pack-sources-en-fr-<snapshot>`, whose notes name
-  the dump by its address, regeneration date and sha256, reduces, then reduces en-es again from
-  its own pinned sources, pushes the branch `lingua-pack/en-fr/<snapshot>`, and writes a report of
+  the dump by its address, regeneration date and sha256, reduces, then reduces en-es and en-it again
+  from their own pinned sources, pushes the branch `lingua-pack/en-fr/<snapshot>`, and writes a report of
   what changes. Open the pull request from the link in its summary; releases keep these tables
   until it is merged. The pin committed today names kaikki's per-language extract of the French
   Wiktionary's English section (2026-09-24), from before the dumps: it stays readable as it is

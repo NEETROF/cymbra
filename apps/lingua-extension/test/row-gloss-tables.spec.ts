@@ -57,8 +57,10 @@ describe("the selection card's rows over the committed French glosses", () => {
 // its Spanish ones (add-lingua-pack-fr-es D10): none of its 19,050 rows is empty or ends on an opening
 // mark. Since an expression's gloss keeps its senses whole (keep-lingua-expression-glosses-whole), its
 // row is cut as a word's is: the checks read every pair's expressions too — measured, none empty, none
-// ending on an opening mark.
-const PAIRS = ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"];
+// ending on an opening mark. en-it joins them with its Italian glosses (add-lingua-pack-en-it D8), before
+// any package lists it: none of its 21,526 word rows and 13,423 expression rows is empty or ends on an
+// opening mark, the Italian edition's « included.
+const PAIRS = ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "en-it"];
 const TABLES_READ = ["gloss.tsv", "mwe.tsv"];
 
 /** The marks a row must not end on, before its ellipsis: the openers of every edition the packs read. */

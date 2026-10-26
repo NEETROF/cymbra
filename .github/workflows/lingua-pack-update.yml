@@ -8,7 +8,9 @@ name: lingua-pack-update
 # writes tables/it/ — since add-lingua-italian-forms-tables, it→en — which reads tables/it/ as
 # committed, reduced after it-fr — since add-lingua-pack-it-en, it→es — which reads it too, reduced
 # after it-fr, its sources the Spanish and Italian Wiktionaries, Wikidata's Lexemes and seven
-# Wiktionaries' tables as a pivot — since add-lingua-pack-it-es).
+# Wiktionaries' tables as a pivot — since add-lingua-pack-it-es, en→it — which reads tables/en/ as
+# committed, reduced after en-fr, its sources the Italian Wiktionary's English section and the two
+# Wiktionaries' translation tables — since add-lingua-pack-en-it).
 #
 # Releases never read upstream: they build the pack from the tables committed under
 # scripts/lingua-data/tables/<pair>/ and its studied language's tables/<studied>/, and check it
@@ -84,7 +86,7 @@ on:
       pair:
         description: "The language pair whose tables to propose (a <studied>-<native> folder of scripts/lingua-data/tables); a studied language's reference brings the pairs that read it; all = every pair, mode reduce or dry."
         type: choice
-        options: [en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr, it-en, it-es, all]
+        options: [en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr, it-en, it-es, en-it, all]
         default: en-fr
       expect:
         description: "any = report what moved; identical = fail on any byte the rules were not meant to move (mode reduce only)."
@@ -106,7 +108,7 @@ permissions:
 # again, en-fr writes tables/en/ and reduces en-es again (add-lingua-pack-en-es D1: en-es reads
 # tables/en/ as committed and pins its digest) — so a reference's and its reader's dispatches
 # never propose the reader's folder on two branches at once: the `es` group for es-fr and es-en,
-# the `en` group for en-fr and en-es, the `fr` group for fr-en and fr-es, which reads tables/fr/
+# the `en` group for en-fr, en-es and en-it (add-lingua-pack-en-it D8), the `fr` group for fr-en and fr-es, which reads tables/fr/
 # (add-lingua-french-forms-tables D10, add-lingua-pack-fr-es D10), the `it` group for it-fr, which
 # writes tables/it/, it-en and it-es, which read it (add-lingua-pack-it-en D3, add-lingua-pack-it-es
 # D1), and the Italian pairs to come (add-lingua-italian-forms-tables D9). `all` (modes reduce and dry) and the monthly dry run have a group
@@ -404,8 +406,9 @@ jobs:
           # D9): it runs over the committed it-fr tables since add-lingua-pack-it-fr, so an it-fr
           # update moves it, and its engine holds the real en-fr pack beside, so an en-fr update
           # moves its `beside en-fr` line. And it-en's (add-lingua-pack-it-en D9), which moves with
-          # it-en and with Italian's studied tables; and it-es's (add-lingua-pack-it-es D11), likewise.
-          LINGUA_BLESS=1 cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline --test fr_es_baseline --test italian_baseline --test it_en_baseline --test it_es_baseline
+          # it-en and with Italian's studied tables; and it-es's (add-lingua-pack-it-es D11), likewise;
+          # and en-it's (add-lingua-pack-en-it D8), which moves with en-it and with English's studied tables.
+          LINGUA_BLESS=1 cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline --test fr_es_baseline --test italian_baseline --test it_en_baseline --test it_es_baseline --test en_it_baseline
           # The extension's snapshots follow them (add-lingua-english-card-wording D2, D4,
           # add-lingua-spanish-card-wording D2): the English card's lines over the es-en golden's
           # grammar probes, the Spanish card's over the en-es golden's, the French card's in

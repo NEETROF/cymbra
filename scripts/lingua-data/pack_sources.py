@@ -256,6 +256,9 @@ EDITIONS = {
             # it-es's pivot (add-lingua-it-es-pivot-sources D2): the Italian and Spanish words the
             # English entries' tables list, kept together by sense — its size measured at the first update.
             "kaikki-en-pivot-it-es.jsonl": ("pivot", "en", "it", "es"),
+            # en-it's direct fallback (add-lingua-pack-en-it D2, D7): the Italian translations the
+            # English entries list.
+            "kaikki-en-traductions-it.jsonl": ("translations", "en", "it"),
         },
     },
     # The French Wiktionary: 736,590,407 B gzipped (regenerated 2026-10-02 00:10).
@@ -302,8 +305,8 @@ EDITIONS = {
     },
     # The Italian Wiktionary: 43,849,715 B gzipped (regenerated 2026-10-21) (add-lingua-pack-it-fr D3).
     # Its dump writes an entry's translations on the entry, each with its `lang_code` and `word`, the
-    # shape `derive` reads. Its English section (en-it, stage 3) and its French section (fr-it, stage 4)
-    # will join this catalogue with the pairs that read them.
+    # shape `derive` reads. Its French section (fr-it, stage 4) will join this catalogue with the pair
+    # that reads it.
     "it": {
         "url": "https://kaikki.org/itwiktionary/raw-wiktextract-data.jsonl.gz",
         "files": {
@@ -317,6 +320,11 @@ EDITIONS = {
             "kaikki-it-traductions-es.jsonl": ("translations", "it", "es"),
             # Its Spanish entries, which it-es reads backwards (D3) — es-it's definitions to come.
             "kaikki-it-Spagnolo.jsonl": ("entries", "es"),
+            # en-it's glosses and expressions: its English section, whose definitions gloss first,
+            # read with the Italian edition's rules (add-lingua-pack-en-it D2, D7). Its English
+            # translations above are en-it's inverted fallback, read backwards, under the name and
+            # kind it-en registered.
+            "kaikki-it-Inglese.jsonl": ("entries", "en"),
         },
     },
     # The five other Wiktionaries of it-es's pivot (add-lingua-it-es-pivot-sources D2, the programme's
@@ -438,6 +446,14 @@ DUMPS = {
         "pl": ("kaikki-pl-pivot-it-es.jsonl",),
         "nl": ("kaikki-nl-pivot-it-es.jsonl",),
         "wikidata": ("wikidata-lexemes-it-es.jsonl",),
+    },
+    # en-it (add-lingua-pack-en-it D2, D7), in en-es's order: the Italian Wiktionary's English
+    # section, whose definitions gloss first, and the English translations its Italian entries list,
+    # read backwards; the Italian translations the English Wiktionary's English entries list, the
+    # direct fallback. English's studied side is tables/en/ as committed: nothing pinned at a commit.
+    "en-it": {
+        "it": ("kaikki-it-Inglese.jsonl", "kaikki-it-traductions-en.jsonl"),
+        "en": ("kaikki-en-traductions-it.jsonl",),
     },
 }
 # The source record of a pin written before the dumps: kaikki's per-language extract, kept whole as

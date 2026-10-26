@@ -333,6 +333,52 @@ fn the_it_es_fixture_is_the_italian_fixture_glossed_in_spanish() {
 }
 
 #[test]
+fn the_en_it_fixture_is_the_en_es_fixture_glossed_in_italian() {
+    // add-lingua-pack-en-it D8: hand-written in the en-es fixture's layout, its English forms, ranks,
+    // readings, levels, senses and pin byte for byte, its words and expressions glossed in Italian,
+    // stamped with English's analyser version, so that `yarn gen:pack` can build en-it once the list
+    // names it (change 45) — its base the en-es fixture's.
+    let root = testdata_dir().parent().unwrap().to_path_buf();
+    for table in [
+        "forms.tsv",
+        "freq.tsv",
+        "grammar.tsv",
+        "level.tsv",
+        "senses.tsv",
+        "tags.tsv",
+    ] {
+        assert_eq!(
+            std::fs::read(root.join("en-it").join(table)).unwrap(),
+            std::fs::read(root.join("en-es").join(table)).unwrap(),
+            "{table}"
+        );
+    }
+    let spanish = inputs_from_dir(&root.join("en-es")).expect("read the en-es fixture");
+    let inputs = inputs_from_dir(&root.join("en-it")).expect("read the en-it fixture");
+    assert_eq!(inputs.meta.native, "it");
+    assert_eq!(inputs.meta.analyzer_version, spanish.meta.analyzer_version);
+    let lemmas =
+        |glosses: &[(String, String)]| glosses.iter().map(|(l, _)| l.clone()).collect::<Vec<_>>();
+    assert_eq!(lemmas(&inputs.glosses), lemmas(&spanish.glosses));
+    assert_eq!(lemmas(&inputs.expressions), lemmas(&spanish.expressions));
+    let bytes = build_pack(&inputs).expect("build");
+    assert!(bytes.len() < MAX_PACK_BYTES);
+    let pack = Pack::load(&bytes).expect("the core loads a pack glossed in Italian");
+    assert_eq!(pack.studied(), StudiedLanguage::English);
+    assert_eq!(pack.meta().analyzer_version, ANALYZER_VERSION);
+    assert_eq!(pack.meta().pair_key(), "en-it");
+    assert_eq!(pack.lexicon().lemma_of("running"), Some("run"));
+    assert_eq!(pack.gloss("run"), Some("correre"));
+    assert_eq!(pack.gloss("can"), Some("lattina; potere, sapere"));
+    let split = build_split(&inputs).expect("split");
+    assert_eq!(
+        split.base,
+        build_split(&spanish).expect("split en-es").base,
+        "one base for English"
+    );
+}
+
+#[test]
 fn pipeline_reads_the_optional_expression_table() {
     let inputs = inputs_from_dir(&testdata_dir()).expect("read testdata");
     // `mwe.tsv` reaches the builder as the reducer wrote it, spellings and all:
@@ -560,7 +606,8 @@ fn the_fixtures_build_whole_as_recorded_and_split_by_their_pin() {
     // enable-lingua-italian-for-english-speakers D1 adds it-en's, the it-fr fixture glossed in
     // English, born with the same pin.
     // enable-lingua-italian-for-spanish-speakers D1 adds it-es's, the it-fr fixture glossed in
-    // Spanish, born with the same pin.
+    // Spanish, born with the same pin. add-lingua-pack-en-it D8 adds en-it's, the en-es fixture glossed
+    // in Italian, born with en-es's pin.
     let root = testdata_dir().parent().unwrap().to_path_buf();
     for (pair, size, sha256) in [
         (
@@ -607,6 +654,11 @@ fn the_fixtures_build_whole_as_recorded_and_split_by_their_pin() {
             "it-es",
             7112,
             "d1bf4b65a2f071e24ea32558622e0f643e44cbfb535ca1e0bef3b83c53439e2a",
+        ),
+        (
+            "en-it",
+            1991,
+            "ee0074087116d9537a5ffefaf0550dc826423a40cd3a8084871aac69948bbc60",
         ),
     ] {
         let inputs = inputs_from_dir(&root.join(pair)).unwrap_or_else(|e| panic!("{pair}: {e}"));
