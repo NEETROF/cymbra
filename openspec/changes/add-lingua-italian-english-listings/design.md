@@ -191,7 +191,10 @@ percentage. Offline and private. » (108), and its activation page takes D6's dr
 Open Question 2 is settled by change 24's figures (above, D5); change 23 has merged. Change 21 was not
 on `main` then (#1057, merged with change 20's #1058 after the owner's dogfood): the listing texts went
 into a section of their own in each file, which a rebase on #1057 merges, and the site's test and the
-notes change 21 edits in place wait on its merge.
+notes change 21 edits in place waited on its merge. Both merged on 2026-10-26; the change was then
+rebased, its site test applied and those notes edited to name Italian for English speakers. The
+owner chose the Spanish support address then too, `/es/soporte/`; and changes 20, 25 and 30 ship in
+one release (the owner, 2026-10-26).
 
 ### D9 — Requirements true of their time
 
