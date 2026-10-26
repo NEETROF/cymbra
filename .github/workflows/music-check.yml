@@ -80,7 +80,10 @@ jobs:
       # overwriting it silently — a stale asset would under/over-report what
       # third-party Rust code actually ships.
       # Prebuilt binary: `cargo install` compiled it from source on every run (~1.5 min).
-      - uses: taiki-e/install-action@cargo-about
+      # Pinned to the version `cargo install` resolved, so the notices below stay byte-identical.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-about@0.9.3
       - name: Regenerate Rust license notices and check for drift
         run: |
           melos run gen-licenses
