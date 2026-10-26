@@ -45,8 +45,8 @@ y privado. »), is 119 characters, over Apple's 112.
   shipped » requirement RENAMED, and change 22's it-en twin likewise in change 25's delta.
 - **Against change 45** (D13): whichever of the two is implemented second re-copies the first's blocks
   and names it in `archiveAfter`; change 45's D1 says the same.
-- **A dogfood pass** (D10) in the Spanish interface. it-es is released on its own, TestFlight first,
-  with change 31's listings (D11).
+- **A dogfood pass** (D10) in the Spanish interface. it-es is released in one release with changes 20
+  and 25, TestFlight first, with change 31's listings (D11).
 
 ## Capabilities
 
@@ -84,13 +84,14 @@ None.
   - Untouched: the backend, ID, Music, Live and the back office, and the packs, tables and goldens.
 - **Prerequisites, the owner's:**
   - changes 27 (at or above its floor), 28 and 29 implemented;
-  - change 20 implemented and released;
+  - change 20 implemented (released with this change and change 25, D11);
   - changes 25 and 26 implemented;
   - change 31 implemented: its listing texts, and its home-card and table scenarios;
   - the owner's readings (M9) and answers (Open Questions);
   - test accounts.
-- **Release**: on its own, TestFlight first, with change 31's listings. This pull request submits
-  nothing.
+- **Release**: one release carrying changes 20, 25 and 30, dogfooded in full before the release pull
+  request (#1036) merges (the owner, 2026-10-26); TestFlight first, with changes 21's, 26's and 31's
+  listings. This pull request submits nothing.
 - **Order**: after changes 20, 25–29 and 31's implementation (D13). Archived after the changes of
   `.openspec.yaml`.
 - **Effort, against 4–7.5 ideal days**: 3.25–6.5 (design, *Effort*).

@@ -1,6 +1,6 @@
 # Tasks
 
-Implemented once the prerequisites of proposal.md (Impact) are on `main`: changes 25–29 and 31, and change 20 released.
+Implemented once the prerequisites of proposal.md (Impact) are on `main`: changes 20, 25–29 and 31 (change 20 released with this change and change 25, D11).
 
 ## 1. The list
 
@@ -40,19 +40,19 @@ Implemented once the prerequisites of proposal.md (Impact) are on `main`: change
 - [x] 3.2 `copy.js`: the `es` `lede` and `step3` (D6), its header comment and the `es` table's comment. `apple-activation-page.spec.ts`: the Spanish page names inglés, francés and italiano, in that order, and its comment follows.
   - D6's drafts (OQ1). The French and English tables untouched; `apple-activation-page.spec.ts` gains *Italian for a Spanish speaker*, and change 25's « the Spanish page names no Italian » is dropped.
 - [x] 3.3 The comments and documents of D9 (`git grep -n "enable-lingua-italian-for-spanish-speakers\|change 30"`), keeping the Italian programme's hits.
-  - `README.md` (nine layers and four bases, 13.4 MB), `REVIEWERS.md` (thirteen files, what a Spanish-speaking reader downloads), `TRANSLATION.md` (it-es's route shipped, marked; the three-model table's Spanish row holds), `tool/marks/README.md`, `src/translate/markup.ts`, `src/app/translation.ts`, `src/i18n/README.md`, `scripts/lingua-data/SOURCES.md`, `tables/it-es/README.md`, `tool/check_variants.mjs`, `test/word-card-it-es.spec.ts`, `test/translate-marks.spec.ts`. « change 30 » also names other programmes' change 30 (`apps/site/test/support/lingua.ts`, the store listings, older proposals): left. The site's `glossesOrigin` sentences are change 31's (its D6), not this change's: untouched.
+  - `README.md` (nine layers and four bases, 13.4 MB), `REVIEWERS.md` (thirteen files, what a Spanish-speaking reader downloads), `TRANSLATION.md` (it-es's route shipped, marked; the three-model table's Spanish row holds), `tool/marks/README.md`, `src/translate/markup.ts`, `src/app/translation.ts`, `src/i18n/README.md`, `scripts/lingua-data/SOURCES.md`, `tables/it-es/README.md`, `tool/check_variants.mjs`, `test/word-card-it-es.spec.ts`, `test/translate-marks.spec.ts`. « change 30 » also names other programmes' change 30 (`apps/site/test/support/lingua.ts`, the store listings, older proposals): left. The site's three `glossesOrigin` sentences (French, English, Spanish, `src/lib/lingua-text.ts`) name Wikidata for Italian, as change 31's D6 leaves them to this change (the owner's option a): « Los significados proceden del Wikcionario y, para el italiano, también de Wikidata, escritos por personas, nunca por una traducción automática. », the French and English said the same way; `test/lingua-text.spec.ts` and the page fixtures follow.
 
 ## 4. Checks
 
 - [x] 4.1 In `apps/lingua-extension`: `yarn gen:pack`, `yarn gen:pack:real`, `yarn lint`, `yarn format:check`, `yarn typecheck`, `yarn test`, `yarn build`, `yarn check:variants`, `yarn check:version`. Each zipped package's size goes in the pull request.
-  - All green on the stacked base (`yarn fetch:engine` first). 168 files, 4,567 tests, lines 98.4 %; the variant check passes on the fixture and the real parts; `check:version` passes for fr, en and es. Zipped as the release zips them: Chromium 13,878,533 B, Firefox 13,861,409 B, Safari 13,863,990 B (it-es's layer 345,542 B unzipped). Parts: nine layers and four bases, 13,389,166 B.
+  - All green, on the stacked base and again on `main` after the rebase (`yarn fetch:engine` first). 168 files, 4,567 tests, lines 98.4 %; the variant check passes on the fixture and the real parts; `check:version` passes for fr, en and es. Zipped as the release zips them: Chromium 13,878,533 B, Firefox 13,861,409 B, Safari 13,863,990 B (it-es's layer 345,542 B unzipped). Parts: nine layers and four bases, 13,389,166 B.
 - [x] 4.2 Nothing else moves:
   - `cargo test -p lingua-pack` and `cargo test -p lingua-wasm`, every baseline without re-blessing;
   - `git diff --stat origin/main -- crates/lingua-core crates/lingua-wasm scripts/lingua-data/tables ':!*README.md'` is empty;
   - `cargo fmt --all --check` and `cargo clippy --workspace --all-targets -- -D warnings`.
   - `cargo test -p lingua-pack -p lingua-wasm`: 394 passed, no baseline re-blessed (it-es's fixture pin is a new row); the tables diff against `origin/main` is empty; fmt and clippy clean.
 - [ ] 4.3 The Python tests and `gloss_coverage.py --check`. In `apps/site`: `node test/support/refresh-lingua-fixtures.mjs`, `test/astro/lingua-page.spec.ts` counting a row per listed pair (nine to eleven), `yarn test`, `yarn build`, `yarn check:routes`. The `lingua-apple-build` workflow green, `CFBundleLocalizations` unchanged by this change.
-  - Python 1,179 tests OK; `--check` passes. The site needs change 21's names of Italian (#1057) and changes 26's and 31's site patches, none on this base. Run on a scratch merge with #1057 and both patches: fixtures refreshed (the French and English pages gain an « Italien → espagnol » / « Italian → Spanish » row; `taken-with.json` carries it-es), `lingua-page.spec.ts` counting nine rows, `yarn test` (254), `yarn build`, `yarn check:routes` (61) green; the Spanish home card reads « Lee la web en inglés, en francés o en italiano… »; the four files copied here. `lingua-apple-build` runs in CI only: waits for the pull request; no Apple project file is touched.
+  - Rebased on `main` (changes 20, 21, 25, 26 and 31 merged, 2026-10-26). Python 1,198 tests OK; `--check` passes. Site on the branch itself: fixtures refreshed (the French and English pages gain an « Italien → espagnol » / « Italian → Spanish » row and name Wikidata; `taken-with.json` carries it-es), `lingua-page.spec.ts` counting nine rows, `yarn test` (254), `yarn build`, `yarn check:routes` (61), `yarn check` (0 errors), `yarn typecheck` green; the Spanish home card reads « Lee la web en inglés, en francés o en italiano… ». Read at 375 px: `/lingua/`, `/en/lingua/` and `/es/lingua/` 375 px wide, the nine-row table 335 px in a box of 335; at 320 px the page 320, the tables 300–326 px in a box of 280. `lingua-apple-build`'s steps run locally (macOS): `swift test`, the release tools, the languages phase, the Safari variant and the app page, the iOS simulator and macOS builds, the bundle checks — `CFBundleLocalizations` `en,es,fr`, the shipped natives, unchanged. CI's own run waits for the pull request.
 - [ ] 4.4 OpenSpec:
   - `openspec validate enable-lingua-italian-for-spanish-speakers --strict`;
   - the archive order, `refine-lingua-it-es-glosses` named;
@@ -64,5 +64,5 @@ Implemented once the prerequisites of proposal.md (Impact) are on `main`: change
 
 - [ ] 5.1 [manual] The pass of design D10 on the five targets, in the Spanish interface, with the sample of pivot glosses.
 - [ ] 5.2 [manual] The owner reads the drafts (D6, M9) and answers the Open Questions, Open Question 2 at change 29's figures.
-- [ ] 5.3 [manual] The owner's go-ahead before merge. Released on its own, TestFlight first, with change 31's listings, the site deployed first; each submission the owner's (D11).
+- [ ] 5.3 [manual] The owner's go-ahead before merge. One release carries changes 20, 25 and 30, dogfooded in full before #1036 merges (the owner, 2026-10-26); TestFlight first, with change 31's listings, the site deployed first; each submission the owner's (D11).
 - [ ] 5.4 Change 30 marked done in `docs/lingua/italian-programme.md`.
