@@ -437,6 +437,62 @@ whichever of 37, 47 and 51 is implemented later re-copies the earlier one's bloc
 `archiveAfter` (the programme's rule). On `main` today neither 47 nor 51 is implemented, so this block
 is change 36's.
 
+### D17 — Round 2: the rows the specialist's review read worse (the owner's, 2026-10-26)
+
+The specialist's review of the gloss diff (PR #1088): of the 300 commonest, 0 wrong and 30 partly right
+(9.8 %); of the 468 changed rows of the 5,000 commonest, 15 read worse, all minor — 11 of them D2's, by
+one mechanism (a moved block opens on its source's first sense: `cope` « dotare di cimasa », `shine`
+« fare luce con », `express` « autobus », `piece` « porzione »), and `cop`, `flash` led by a verb. The
+owner chose to fix them in the same pull request, by rule where a rule passes the criteria, else by
+reviewed rows of sources' words, and to write no Italian for the contractions.
+
+**D2's narrowings, each measured against round 1 by the criteria above** (rows changed among the ranks
+1–1,000 / 1,001–5,000 / 5,001–20,000 / beyond, read by this design's reader):
+
+| Variant | Rows | Read | Kept? |
+|---|---|---|---|
+| A moved block opens on the sense holding the table's first word, else its commonest | 29 (3 / 15 / 10 / 1) | about 10 better (`shine`, `chance`, `youth`, `navy`, `pin`, `sniff`), 10 worse (`mean` « volere », `size` « taglia », `lie` « giacere », `assembly`, `recall`, `overnight`, `consult`, `poke`) | no |
+| The same, only when the block's first sense holds no table word | 11 (0 / 5 / 5 / 1) | 5 better (`shine`, `pin`, `tread`, `shuffle`, `grope`), 5 worse (`recall` « richiamare », `overnight`, `poke`, `overflow`, `thumbnail`); `cop` « prendere » | no |
+| A class scored by its first table word, not its best | 55 (14 / 16 / 20 / 5) | mostly worse: `by` « passanti », `mean` « media », `save` « salvo », `lie`, `hurt` « dolore » | no |
+| No move when the row opens on a sense of unknown part of speech | 6 (1 / 5 / 0 / 0) | 3 better (`piece`, `glass`, `graph`), 3 worse (`path` « patologia », `bid`, `pin`) | no |
+| No move when the moved block opens on a description | 8 (1 / 2 / 4 / 1) | 4 better (`whatsoever`, `bugger`, `mulatto`, `maiden`), 3 worse (`rid`, `sniff`, `simmer`) | no |
+
+*A verb never yields to a noun* is not what moved `cop` and `flash`: they move toward the verb because a
+generic word of the verb's table rates high (« prendere », « apparire »); the clause only keeps a noun
+from overtaking a row that opens on a verb, as measured. **D2 stays as measured**; the rows it reads
+worse are reviewed rows.
+
+**Kept, each measured alone against round 1:**
+- **A reviewed row is never moved by D2 or D3** (it-es's D2e): 3 rows — `former` « ex…; il primo (dei
+  due)…; creatore… » (better), `that` (no worse), `trash` (its last sense, *thrash*'s « battere,
+  percuotere, colpire », kept now that D3b no longer adds a ninth sense: `CORRECTIONS` drops it).
+- **`FIRST_RUN`, 13 rows**, every word a source's: `cop` « poliziotto », `whenever` « ogni volta che »,
+  `flash` « fulmine, lampo », `epic` « epico », `piece` « pezzo », `graph` « grafico », `whatsoever`
+  « qualsiasi, qualsivoglia », `shine` « brillare, splendere », `cope` « affrontare, far fronte;
+  resistere, fronteggiare » (the direct table's, then the section's), `express` « esprimere » (the direct
+  table's), `joint` « articolazione, giuntura » (the direct table's and the section's), `stir`
+  « mescolare, agitare » (the direct table's), `forum` « forum » (the direct table's).
+- **`CORRECTIONS`, 2 rows**: `spare` « di scorta, di ricambio; risparmiare; ricambio » (the direct
+  table's, D3a's « superfluo, ulteriore » misleading), `intense` « intenso » (the section's two English
+  sentences, Webster's, out; the direct table's word).
+- **D6**: a given name's note stays, read short, on a word whose only common sense is the word itself — 1
+  row, `henry` « Enrico (nome); henry ». Keeping it on every common word moves 4 (`jack`, `eve`, `venus`
+  « Venere; Venere (nome) », a repeat): narrowed.
+- **D8**: « armi parlanti », canting arms, is heraldry's wording — 1 row, `ash` « cenere; frassino;
+  cenerino ».
+- **D5**: « rafforzativo » opens a frame — 1 row, `so` « così, molto; … ».
+
+**Left, each with its reason**: `will` opens on its auxiliary's description, which no Italian word
+translates; `play`, `kind`, `party`, `early`, `court` open on a minor sense of the section's order, which
+no rule this round measured reaches — for change 37's successors. The words no source gives, not written
+(the owner's answer): `cope`'s « farcela » and « (a) », `spare`'s « libero » (*spare time*), the
+contractions' Italian (« tu sei, voi siete »).
+
+**Together** (round 2 against change 36's rows): **1,027 rows** (152 / 308 / 402 / 165), **613 in their
+first sense** (103 / 192 / 243 / 75), 69 of the 300 commonest; 54 lemmas gained, none lost; 9 expressions;
+coverage 92.1 / 83.1 / 70.6 %, as round 1's. Against round 1, 20 rows move (4 / 15 / 1 / 0), none for
+the worse as this reader reads them; the 300 commonest stay 0 % wrong (`that` and `so` move, both right).
+
 ## Implementation
 
 Measured on 2026-10-26 by the reduction itself — `build.sh --reduce en-it` over en-it's pinned release
@@ -482,6 +538,10 @@ dispatch of task 3.1 is to write byte for byte:
   frame the source's, the full form composed by rule, no Italian word invented (D11).
 - **Q2, `lot`** (task 0.2): (a), `lot` opens on « molto, parecchio (a lot) », « (a lot) » written by a
   person and marked so (D12).
+
+- **Round 2** (2026-10-26, after the specialist's review of the gloss diff): fix the rows read worse in
+  this pull request, before it merges — a rule where one passes the criteria, else reviewed rows of
+  sources' words (D17) —, and write no Italian for the contractions' pointers.
 
 ## Settled by rule, not asked
 
