@@ -1,7 +1,7 @@
 import type { CardOp, LinguaPort, StatusOp } from "../analyzer/port.ts";
 import type { NativeLanguage } from "../analyzer/types.ts";
 import { FLAGS_KEY, flagOn, type FlagValues } from "../flags/store.ts";
-import { INTERFACE_LANGUAGE_KEY, isInterfaceLanguage } from "../i18n/language.ts";
+import { INTERFACE_LANGUAGE_KEY, isNativeLanguage } from "../i18n/language.ts";
 import { ONLINE_TRANSLATION_FLAG } from "../translate/online.ts";
 import { TRANSLATION_HOST_KEY } from "../translate/setting.ts";
 import {
@@ -222,7 +222,7 @@ function dayCountsOf(raw: unknown): DayReviewCounts {
     if (!/^\d+$/.test(day)) continue;
     for (const [language, counts] of Object.entries(object(byLanguage))) {
       const c = object(counts);
-      if (!isInterfaceLanguage(c.native)) continue;
+      if (!isNativeLanguage(c.native)) continue;
       const reviews = count(c.reviews);
       const wordsLearned = count(c.wordsLearned);
       if (reviews === 0 && wordsLearned === 0) continue;

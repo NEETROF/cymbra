@@ -81,13 +81,19 @@ export function listedLanguageName(language: InterfaceLanguage, studied: NamedLa
 }
 
 /**
- * A native language named in its own language — « Français », "English", « Español » — the same in
- * every interface language (add-lingua-native-language-choice D4): a reader finds their own language
- * whatever the interface speaks.
+ * A native language named in its own language — « Français », "English", « Español », « Italiano »
+ * — the same in every interface language (add-lingua-native-language-choice D4,
+ * add-lingua-italian-native-language D3): a reader finds their own language whatever the interface
+ * speaks.
  */
 export function nativeLanguageName(language: InterfaceLanguage, native: NativeLanguage): string {
   const names = MODULES[language].ownNames;
-  const entries: Record<NativeLanguage, string> = { fr: names.french, en: names.english, es: names.spanish };
+  const entries: Record<NativeLanguage, string> = {
+    fr: names.french,
+    en: names.english,
+    es: names.spanish,
+    it: names.italian,
+  };
   return entries[native];
 }
 

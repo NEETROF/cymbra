@@ -1,6 +1,12 @@
 import { DEFAULT_NATIVE, pairsOf, SHIPPED_PAIRS } from "../analyzer/pairs.ts";
 import type { NativeLanguage } from "../analyzer/types.ts";
-import { INTERFACE_LANGUAGE_KEY, type InterfaceLanguage, isInterfaceLanguage } from "../i18n/language.ts";
+import {
+  INTERFACE_LANGUAGE_KEY,
+  type InterfaceLanguage,
+  interfaceOf,
+  isInterfaceLanguage,
+  isNativeLanguage,
+} from "../i18n/language.ts";
 import { isStorageFull } from "./auth-errors.ts";
 import { DAILY_KEY, DAY_ONLY_DAILY_KEY, PER_LANGUAGE_DAILY_KEY, RETIRED_DAILY_KEY } from "./dailystats.ts";
 import { type AsyncStorageArea, loadStored, nativeLanguageOfStored, ROOT_KEY, STORAGE_VERSION } from "./storage.ts";
@@ -109,7 +115,7 @@ export class StaleNativeLanguageError extends Error {
  * as a profile naming one is read (`nativeLanguageOf`, M22) — or null when nothing is recorded.
  */
 function recordedNative(value: unknown, pairs: readonly string[]): NativeLanguage | null {
-  if (!isInterfaceLanguage(value)) return null;
+  if (!isNativeLanguage(value)) return null;
   return pairsOf(value, pairs).length > 0 ? value : DEFAULT_NATIVE;
 }
 
@@ -124,7 +130,7 @@ export interface StoreChange {
 /** Whether a stored change names a reason this build knows: an unknown one is no reason. */
 function reasonOf(value: unknown): StoreChangeReason | undefined {
   const reason = value as Partial<NativeLanguageChange> | null | undefined;
-  return reason?.type === "native-language" && isInterfaceLanguage(reason.native)
+  return reason?.type === "native-language" && isNativeLanguage(reason.native)
     ? { type: "native-language", native: reason.native }
     : undefined;
 }
@@ -219,7 +225,7 @@ export async function rememberInterfaceLanguage(
   const held = await preferences.get(INTERFACE_LANGUAGE_KEY);
   if (isInterfaceLanguage(held[INTERFACE_LANGUAGE_KEY])) return;
   const got = await area.get(ROOT_KEY);
-  await preferences.set({ [INTERFACE_LANGUAGE_KEY]: nativeLanguageOfStored(got[ROOT_KEY], pairs) });
+  await preferences.set({ [INTERFACE_LANGUAGE_KEY]: interfaceOf(nativeLanguageOfStored(got[ROOT_KEY], pairs)) });
 }
 
 /** The owner's handle: a store whose backup writes also keep the interface language's key in step. */
@@ -356,7 +362,7 @@ export function ownerArea(
   };
   const mirror = async (): Promise<void> => {
     due = false;
-    await write(latestNative ?? nativeLanguageOfStored(latest, pairs));
+    await write(interfaceOf(latestNative ?? nativeLanguageOfStored(latest, pairs)));
   };
 
   return {
@@ -389,7 +395,7 @@ export function ownerArea(
         if (change) {
           // Before the announcement, after any mirror already due: the language the change names,
           // which is the one this backup's profile names — nothing to parse.
-          const language = change.native;
+          const language = interfaceOf(change.native);
           chain = chain.then(() => write(language));
           await chain;
         } else if (!due) {

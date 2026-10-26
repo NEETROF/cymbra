@@ -28,6 +28,7 @@ const NATIVE_NAMES: ReadonlyMap<unknown, NativeLanguage> = new Map<unknown, Nati
   ["French", "fr"],
   ["English", "en"],
   ["Spanish", "es"],
+  ["Italian", "it"],
 ]);
 
 const ENGLISH: StudiedLanguage[] = ["en"];

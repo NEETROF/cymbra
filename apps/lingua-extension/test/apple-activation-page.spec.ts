@@ -12,6 +12,7 @@ import { drawer as esDrawer } from "@/i18n/es/drawer.ts";
 import { settings as esSettings } from "@/i18n/es/settings.ts";
 import { drawer as frDrawer } from "@/i18n/fr/drawer.ts";
 import { settings as frSettings } from "@/i18n/fr/settings.ts";
+import type { InterfaceLanguage } from "@/i18n/language.ts";
 
 // The Safari host app's activation page (apps/lingua-apple, localise-lingua-apple-host D2): Main.html
 // keeps its French text in place, each text under a data-copy key; copy.js holds the page's copy per
@@ -88,7 +89,7 @@ const LANGUAGES = ["fr", "en", "es"];
 
 /** The first language a native language's pairs study, as its page writes it inside a sentence. */
 const named1 = (native: string): string =>
-  languageName(native as NativeLanguage, studiedOf(pairsOf(native)[0]!) as NativeLanguage).toLowerCase();
+  languageName(native as InterfaceLanguage, studiedOf(pairsOf(native)[0]!) as NativeLanguage).toLowerCase();
 
 describe("the activation page's copy table", () => {
   const { copy, document } = load();
@@ -126,7 +127,7 @@ describe("the activation page's copy table", () => {
     // Italian (en-fr, es-fr, it-fr), English natives Spanish, French and Italian (es-en, fr-en, it-en), Spanish
     // natives English, French and Italian (en-es, fr-es, it-es) — read from the bundle's list, named as
     // the extension names them.
-    const named = (native: NativeLanguage) =>
+    const named = (native: InterfaceLanguage) =>
       pairsOf(native).map((pair) => languageName(native, studiedOf(pair) as StudiedLanguage).toLowerCase());
     expect(named("fr")).toEqual(["anglais", "espagnol", "italien"]);
     expect(named("en")).toEqual(["spanish", "french", "italian"]);

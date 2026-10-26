@@ -117,6 +117,12 @@ describe("the native language of a stored backup", () => {
     expect(nativeLanguageOf("null", MIXED)).toBe("fr");
   });
 
+  it("reads Italian, a native language since add-lingua-italian-native-language, once a pair is glossed in it", () => {
+    expect(nativeLanguageOf(native("Italian"), ["en-fr", "en-it"])).toBe("it");
+    // No shipped pair is glossed in Italian: read as French, as any native language with no pair.
+    expect(nativeLanguageOf(native("Italian"))).toBe("fr");
+  });
+
   it("is French for a native language no listed pair is glossed in", () => {
     expect(nativeLanguageOf(native("English"), ["en-fr", "es-fr"])).toBe("fr");
     expect(nativeLanguageOf(native("Spanish"), ["en-fr", "es-en"])).toBe("fr");
