@@ -293,11 +293,11 @@ class EnglishGlossedInItalian(unittest.TestCase):
         for path in Path(_HERE).glob("reduce[-_]*.py"):
             shutil.copy(path, copy / path.name)
         committed = sorted(p.parent.name for p in (Path(_HERE) / "tables").glob("*/pin.json"))
-        self.assertNotIn("en-it", committed)
-        before = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in [*committed, "en-it"]}
+        self.assertIn("en-it", committed)
+        before = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in committed}
         module = copy / "reduce_edition_it.py"
         module.write_text(module.read_text(encoding="utf-8") + "\n# edited\n", encoding="utf-8")
-        after = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in [*committed, "en-it"]}
+        after = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in committed}
         self.assertEqual([pair for pair in before if before[pair] != after[pair]], ["en-it"])
 
 

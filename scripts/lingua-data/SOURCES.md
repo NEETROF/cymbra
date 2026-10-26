@@ -1128,7 +1128,9 @@ definitions alone, 90.6 / 81.1 / 67.0 with the direct table), less two points â€
 settled by the owner on 2026-10-26, before the first committed measurement (D6, task 0.1). 21,526 glosses
 of 40,685 lemmas: 13,677 from the section (55 through a pointer), 6,125 from the direct table, 1,724
 from the inverted one; 13,423 expressions; 12.8 % of the 8,276 glossed among the 10,000 commonest from a
-table.
+table. **Committed** by the update of 2026.10.26 (`lingua-pack-update` run 40324469757, the release
+`lingua-pack-sources-en-it-2026.10.26`), byte for byte the study: the pack 1,553,528 B, its base
+English's one (935,260 B, en-es's), its layer 618,493 B.
 
 ## The editions' dumps
 

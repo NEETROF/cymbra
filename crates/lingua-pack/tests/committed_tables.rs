@@ -114,7 +114,7 @@ fn section_of<'a>(sections: &'a [(String, Vec<u8>)], name: &str) -> Option<&'a [
 fn every_committed_pair_holds_to_its_studied_language() {
     let pairs = check_committed_tables(&tables()).unwrap_or_else(|e| panic!("{e}"));
     for pair in [
-        "en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr",
+        "en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "en-it",
     ] {
         assert!(pairs.iter().any(|p| p == pair), "{pair} is read");
     }
@@ -2120,7 +2120,7 @@ fn spec_scenario_the_committed_pairs_give_each_level_to_its_own_lemma() {
         assert_eq!(carried, table.len(), "{pair}");
     }
     for pair in [
-        "en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr",
+        "en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "en-it",
     ] {
         assert_eq!(
             level_table(&tables().join(studied_of(pair))).len(),
@@ -3840,5 +3840,172 @@ fn spec_scenario_it_es_is_shipped_once_italian_is_enabled_for_spanish_speakers()
             .join("../../scripts/lingua-data/testdata/it-es")
             .is_dir(),
         "it-es's fixture, for test builds"
+    );
+}
+
+// en-it (add-lingua-pack-en-it, the Italian programme's change 36): English glossed in Italian, the first
+// pair glossed in Italian, from the Italian Wiktionary's English section and the two Wiktionaries'
+// translation tables. Its first update wrote its folder whole (D7); no package lists it before change 45.
+
+/// en-it's pack, whole and as its base and layer, built once per test binary.
+fn en_it() -> &'static (Vec<u8>, SplitPack) {
+    static EN_IT: OnceLock<(Vec<u8>, SplitPack)> = OnceLock::new();
+    EN_IT.get_or_init(|| {
+        let inputs =
+            inputs_from_tables(&tables(), "en-it").unwrap_or_else(|e| panic!("en-it: {e}"));
+        build_whole_and_split(&inputs).unwrap_or_else(|e| panic!("split en-it: {e}"))
+    })
+}
+
+#[test]
+fn spec_scenario_english_glossed_in_italian() {
+    // Its folder holds exactly a pair's file set — its native side, pin and README —, its manifest
+    // studies English glossed in Italian with English's analyser and CEFR levels (not estimated), and
+    // its studied side is tables/en, which en-fr writes. Its pin records its own pack and parts and —
+    // a reader pair's record — en-fr as the reference and the sha256 of each studied table it was
+    // built on, as committed; its rules are its reducer, the shared rules and the Italian edition's (D1).
+    let mut own: Vec<String> = PAIR_SIDE.iter().map(|t| (*t).to_owned()).collect();
+    own.extend(["pin.json".to_owned(), "README.md".to_owned()]);
+    own.sort();
+    assert_eq!(files(&tables().join("en-it")), own, "en-it/");
+    let manifest = json(&tables().join("en-it/manifest.json"));
+    assert_eq!(manifest["meta"]["studied"], "en");
+    assert_eq!(manifest["meta"]["native"], "it");
+    assert_eq!(
+        manifest["meta"]["analyzer_version"],
+        lingua_core::analysis::ANALYZER_VERSION
+    );
+    assert!(manifest["meta"].get("levels_estimated").is_none());
+    let pairs = check_committed_tables(&tables()).unwrap_or_else(|e| panic!("{e}"));
+    assert!(pairs.iter().any(|p| p == "en-it"), "en-it is read");
+
+    let pin = json(&tables().join("en-it/pin.json"));
+    let (whole, split) = en_it();
+    assert_eq!(
+        pin["pack"]["sha256"],
+        sha256_hex(whole).as_str(),
+        "en-it: pin.json"
+    );
+    assert_eq!(pin["pack"]["size"], whole.len());
+    assert_eq!(pin["base"]["sha256"], sha256_hex(&split.base).as_str());
+    assert_eq!(pin["layer"]["sha256"], sha256_hex(&split.layer).as_str());
+    assert!(whole.len() < MAX_PACK_BYTES);
+    assert!(Pack::assemble(&split.base, &split.layer).is_ok());
+    // One base for English: en-it's is the one en-es's pin records, byte for byte.
+    assert_eq!(
+        pin["base"]["sha256"],
+        json(&tables().join("en-es/pin.json"))["base"]["sha256"],
+        "en-it ships English's one base"
+    );
+    assert_eq!(pin["studied"]["reference"], "en-fr");
+    for name in STUDIED_SIDE.iter().chain(&["lexical.tsv", "tags.tsv"]) {
+        let committed = std::fs::read(tables().join("en").join(name)).unwrap();
+        assert_eq!(
+            pin["studied"]["tables"][name],
+            sha256_hex(&committed).as_str(),
+            "en-it: en/{name}"
+        );
+    }
+    assert_eq!(
+        pin["reducer"]["files"],
+        serde_json::json!([
+            "reduce-en-it.py",
+            "reduce_common.py",
+            "reduce_edition_it.py"
+        ])
+    );
+    // Its own fetch, under its own release: the Italian Wiktionary's English section and English
+    // translations, the English Wiktionary's Italian translations; nothing pinned at a commit.
+    let sources = pin["sources"].as_object().unwrap();
+    assert_eq!(
+        sources.keys().map(String::as_str).collect::<Vec<_>>(),
+        ["kaikki-en", "kaikki-it", "wordfreq"]
+    );
+    let release = pin["sources"]["kaikki-it"]["release"].as_str().unwrap();
+    assert_eq!(release, "lingua-pack-sources-en-it-2026.10.26");
+    assert_eq!(pin["sources"]["kaikki-en"]["release"], release);
+    assert!(pin["sources"]["kaikki-it"]["files"]["kaikki-it-Inglese.jsonl"].is_object());
+    assert!(pin["sources"]["kaikki-it"]["files"]["kaikki-it-traductions-en.jsonl"].is_object());
+    assert!(pin["sources"]["kaikki-en"]["files"]["kaikki-en-traductions-it.jsonl"].is_object());
+    // Its dictionary words are en-fr's; its levels English's CEFR lists.
+    let pack = Pack::load(whole).unwrap();
+    assert_eq!(pack.pair().key(), "en-it");
+    assert!(!pack.meta().levels_estimated);
+    assert_eq!(
+        pack.dictionary_words(),
+        Pack::load(shipped("en-fr")).unwrap().dictionary_words(),
+        "en-it's dictionary words are en-fr's"
+    );
+    // A definition first, then each table (D2); a translator's note out; listed once.
+    let glossed = tsv(&tables().join("en-it/gloss.tsv"));
+    for (lemma, gloss) in [
+        ("house", "casa; alloggiare"),
+        ("interior", "interiore, interno"),
+        ("enrichment", "arricchimento"),
+        ("misinformation", "disinformazione"),
+        ("left-hand", "sinistro"),
+        ("i", "io"),
+    ] {
+        assert_eq!(glossed[lemma], gloss, "en-it: {lemma}");
+    }
+    let mwe = tsv(&tables().join("en-it/mwe.tsv"));
+    assert_eq!(
+        mwe["give up"],
+        "cedere, abbandonare, rinunciare; arrendersi"
+    );
+    assert_eq!(mwe["arms of alliance"], "arma d'alleanza");
+}
+
+#[test]
+fn spec_scenario_the_credits_of_en_it() {
+    // en-it's notice names both sides' sources: the studied side as en-es's notice credits it and the
+    // native side — the Italian Wiktionary's definitions and English translations, the English
+    // Wiktionary's Italian translations, wordfreq's Italian list. The pack carries it.
+    let notice = std::fs::read_to_string(tables().join("en-it/NOTICE")).unwrap();
+    let notice = notice.split_whitespace().collect::<Vec<_>>().join(" ");
+    for credit in [
+        "ESDB (English Speller Database, SCOWLv2, en-wl/wordlist)",
+        "WordNet, used by ESDB",
+        "wordfreq (English and Italian frequency lists)",
+        "Robyn Speer",
+        "Italian Wiktionary (itwiktionary)",
+        "English translations its Italian entries list",
+        "English Wiktionary (enwiktionary)",
+        "Italian translations its English entries list",
+        "French Wiktionary (frwiktionary)",
+        "which lemmas en-fr glosses: the dictionary words",
+        "CEFR-J: The CEFR-J Wordlist Version 1.5",
+        "Octanove: Octanove Vocabulary Profile C1/C2 v1.0",
+    ] {
+        assert!(notice.contains(credit), "en-it/NOTICE names {credit:?}");
+    }
+    let manifest = json(&tables().join("en-it/manifest.json"));
+    assert_eq!(
+        manifest["meta"]["licences"][2],
+        "kaikki / itwiktionary, enwiktionary, frwiktionary (CC BY-SA 4.0 + GFDL)"
+    );
+    let pack = Pack::load(&en_it().0).unwrap();
+    for credit in ["itwiktionary", "enwiktionary", "frwiktionary", "CEFR-J"] {
+        assert!(
+            pack.notice().contains(credit),
+            "the pack's notice names {credit:?}"
+        );
+    }
+}
+
+#[test]
+fn spec_scenario_en_it_is_not_shipped() {
+    // No package lists en-it while the list of shipped pairs does not name it (D11): change 45, the
+    // Italian interface, lists it. Its fixture, `testdata/en-it/`, is there for the test builds.
+    let packs = json(
+        &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../apps/lingua-extension/packs.json"),
+    );
+    let pairs = packs["pairs"].as_array().unwrap();
+    assert!(!pairs.iter().any(|p| p == "en-it"), "{pairs:?}");
+    assert!(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../scripts/lingua-data/testdata/en-it")
+            .is_dir(),
+        "en-it's fixture"
     );
 }

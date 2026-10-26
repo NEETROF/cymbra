@@ -4391,8 +4391,8 @@ class TheItalianEdition(Entries):
         self.assertEqual(Path(out).read_text(encoding="utf-8"), src.read_text(encoding="utf-8"))
 
     def test_spec_scenario_the_italian_edition_s_rules_edited(self):
-        # Every committed pair loads the one edition whose senses are its definitions, and none loads
-        # the Italian one: editing it moves no committed pair's rule digest (D1). Every committed pin
+        # Every committed pair loads the one edition whose senses are its definitions, and none but en-it
+        # loads the Italian one: editing it moves no other committed pair's rule digest (D1). Every committed pin
         # records the rules and the pack_version its tables were reduced under.
         editions = {
             "en-fr": "reduce_edition_fr.py",
@@ -4404,6 +4404,8 @@ class TheItalianEdition(Entries):
             "en-es": "reduce_edition_es.py",
             "fr-es": "reduce_edition_es.py",
             "it-es": "reduce_edition_es.py",
+            # en-it (add-lingua-pack-en-it D1), the first pair glossed from the Italian Wiktionary.
+            "en-it": "reduce_edition_it.py",
         }
         pairs = sorted(p.name for p in (Path(_HERE) / "tables").iterdir() if (p / "pin.json").is_file())
         self.assertEqual(pairs, sorted(editions))
@@ -4419,7 +4421,8 @@ class TheItalianEdition(Entries):
         copy.mkdir()
         for path in Path(_HERE).glob("reduce[-_]*.py"):
             (copy / path.name).write_bytes(path.read_bytes())
-        before = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in editions}
+        others = [pair for pair, edition in editions.items() if edition != "reduce_edition_it.py"]
+        before = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in others}
         for old, new in (
             ('_NO_LONGER_USED = frozenset({"obsolete", ', "_NO_LONGER_USED = frozenset({"),
             ("    capitalised=False,\n", "    capitalised=True,\n"),
@@ -4428,7 +4431,7 @@ class TheItalianEdition(Entries):
             text = module.read_text(encoding="utf-8")
             self.assertIn(old, text)
             module.write_text(text.replace(old, new), encoding="utf-8")
-            self.assertEqual({pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in editions}, before, new)
+            self.assertEqual({pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in others}, before, new)
         # en-it (add-lingua-pack-en-it D1), the first pair glossed from the Italian Wiktionary, loads it, and
         # moves with it; no committed pair does.
         reader = copy / "reduce-en-it.py"
@@ -4441,7 +4444,7 @@ class TheItalianEdition(Entries):
         module = copy / "reduce_edition_it.py"
         module.write_text(module.read_text(encoding="utf-8") + "\n# edited\n", encoding="utf-8")
         self.assertNotEqual(ps.rules_sha256(reader), moved)
-        self.assertEqual({pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in editions}, before)
+        self.assertEqual({pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in others}, before)
 
 
 if __name__ == "__main__":

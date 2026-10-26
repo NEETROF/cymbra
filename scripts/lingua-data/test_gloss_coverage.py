@@ -521,8 +521,7 @@ class OnePairTest(unittest.TestCase):
     # English section and both tables, less two points; settled by the owner on 2026-10-26 (task 0.1) —, in
     # the requirement *en-it is committed beside English's studied tables, held to a coverage floor, and
     # not shipped*, read where it stands: the change's delta until it is archived, the capability's spec
-    # after. The reduce job's `--pair en-it` step joins the workflow with the tables, in the update's pull
-    # request: before them the step has nothing to measure.
+    # after.
     EN_IT_REQUIREMENT = re.compile(r"en-it SHALL gloss at least ([\d.]+), ([\d.]+) and ([\d.]+) % of the 5,000")
 
     def en_it_requirement(self) -> tuple[float, ...]:
@@ -546,6 +545,12 @@ class OnePairTest(unittest.TestCase):
             self.assertNotEqual(coverage.FLOORS["en-it"], self.en_it_requirement())
         # Its own floor, not en-es's: en-es's would fail en-it at the 10,000 (D6).
         self.assertNotEqual(coverage.FLOORS["en-it"], coverage.FLOORS["en-es"])
+
+    def test_spec_scenario_en_it_s_floor_in_one_place(self) -> None:
+        # The reduce job measures en-it against FLOORS alone: it passes no `--floor`.
+        job = (coverage.ROOT / ".github/workflows/lingua-extension-check.yml").read_text(encoding="utf-8")
+        self.assertIn("python scripts/lingua-data/gloss_coverage.py --pair en-it\n", job)
+        self.assertNotIn("--pair en-it --floor", job)
 
     def test_spec_scenario_en_it_under_the_floor(self) -> None:
         # en-it's committed tables measuring under its floor (made up): the checks fail, naming the pair,
