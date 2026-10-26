@@ -179,6 +179,12 @@ be the list's. The site needs no code change (change 21's tables):
 - the site's fixtures are refreshed from the built pages, and `test/astro/lingua-page.spec.ts` counts
   a row per listed pair: nine, ten or eleven as en-it and fr-it are listed.
 
+**Where the glosses come from** (`glossesOrigin`, change 31's D6 and task 1.3, the owner's option a):
+the Spanish sentence names Wikidata once it-es is listed — « Los significados proceden del Wikcionario
+y, para el italiano, también de Wikidata, escritos por personas, nunca por una traducción automática. »
+The French and English sentences are unchanged (the owner, 2026-10-26): only it-es uses Wikidata, so on
+the French and English pages, whose readers' Italian is it-fr's and it-en's, the claim would be false.
+
 The Spanish home card, which is data-driven, reads « Lee la web en inglés, en francés o en italiano… »
 from this pull request's coverage file. Change 31 is implemented first, as change 26 is before change
 25. It modifies the card's requirement, the listings' and the table's, so none of them reads false once

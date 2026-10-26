@@ -81,8 +81,9 @@ interface LinguaTable {
   captionPerPair: string;
   commonestWords: string;
   /**
-   * Where the glosses come from: Wiktionary, and Wikidata for Italian since it-es ships
-   * (enable-lingua-italian-for-spanish-speakers; add-lingua-italian-spanish-listings D6, option a).
+   * Where the glosses come from. The Spanish sentence names Wikidata for Italian since it-es ships
+   * (enable-lingua-italian-for-spanish-speakers; add-lingua-italian-spanish-listings D6, option a);
+   * the French and English do not, since only it-es uses Wikidata (the owner, 2026-10-26).
    */
   glossesOrigin: string;
   translationServes: string;
@@ -186,7 +187,7 @@ const fr: LinguaTable = {
     "La part des mots les plus courants qui ont une définition dans la langue du lecteur, mesurée de la même façon pour chaque paire, sur les dictionnaires livrés avec l'extension.",
   commonestWords: "Mots les plus courants",
   glossesOrigin:
-    "Les définitions viennent du Wiktionnaire et, pour l'italien, aussi de Wikidata, écrites par des personnes, jamais par une traduction automatique.",
+    "Les définitions viennent du Wiktionnaire et de traductions écrites par des personnes, jamais d'une traduction automatique.",
   translationServes: " La traduction étendue, facultative, traduit {served}.",
   translationNotYet: " Pas encore pour {unserved}.",
   throughEnglish: " (en passant par l'anglais)",
@@ -299,7 +300,7 @@ const en: LinguaTable = {
   captionPerPair:
     "The share of the commonest words that have a gloss in the reader's language, measured the same way for each pair, in the dictionaries the extension ships.",
   commonestWords: "Commonest words",
-  glossesOrigin: "Glosses come from Wiktionary and, for Italian, also from Wikidata, written by people, never by machine translation.",
+  glossesOrigin: "Glosses come from Wiktionary and from translations written by people, never from machine translation.",
   translationServes: " Extended translation, optional, serves {served}.",
   translationNotYet: " Not yet for {unserved}.",
   throughEnglish: " (through English)",

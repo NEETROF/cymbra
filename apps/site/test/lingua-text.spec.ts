@@ -89,7 +89,7 @@ describe("today's pairs: the pages read as before", () => {
       [`20${NNBSP}000`, `79${NBSP}%`, `64${NBSP}%`],
     ]);
     expect(table.note).toBe(
-      "Les définitions viennent du Wiktionnaire et, pour l'italien, aussi de Wikidata, écrites par des personnes, jamais par une traduction automatique. La traduction étendue, facultative, traduit l'anglais et l'espagnol (en passant par l'anglais).",
+      "Les définitions viennent du Wiktionnaire et de traductions écrites par des personnes, jamais d'une traduction automatique. La traduction étendue, facultative, traduit l'anglais et l'espagnol (en passant par l'anglais).",
     );
   });
 
@@ -308,10 +308,10 @@ describe("the coverage table and the translation note per pair (D4)", () => {
 
   it("says, per pair, whether extended translation serves it, directly or through English", () => {
     expect(linguaPageText("en", matrix, noDiscord).coverage.note).toBe(
-      "Glosses come from Wiktionary and, for Italian, also from Wikidata, written by people, never by machine translation. Extended translation, optional, serves Spanish to English, English to French, Spanish to French (through English) and English to Spanish.",
+      "Glosses come from Wiktionary and from translations written by people, never from machine translation. Extended translation, optional, serves Spanish to English, English to French, Spanish to French (through English) and English to Spanish.",
     );
     expect(linguaPageText("fr", matrix, noDiscord).coverage.note).toBe(
-      "Les définitions viennent du Wiktionnaire et, pour l'italien, aussi de Wikidata, écrites par des personnes, jamais par une traduction automatique. La traduction étendue, facultative, traduit l'anglais vers le français, l'espagnol vers le français (en passant par l'anglais), l'espagnol vers l'anglais et l'anglais vers l'espagnol.",
+      "Les définitions viennent du Wiktionnaire et de traductions écrites par des personnes, jamais d'une traduction automatique. La traduction étendue, facultative, traduit l'anglais vers le français, l'espagnol vers le français (en passant par l'anglais), l'espagnol vers l'anglais et l'anglais vers l'espagnol.",
     );
     expect(linguaPageText("es", matrix, noDiscord).coverage.note).toBe(
       "Los significados proceden del Wikcionario y, para el italiano, también de Wikidata, escritos por personas, nunca por una traducción automática. La traducción ampliada, opcional, traduce del inglés al español, del inglés al francés, del español al francés (pasando por el inglés) y del español al inglés.",
@@ -497,7 +497,7 @@ describe("Italian studied: it-fr beside the six pairs (change: add-lingua-italia
     ]);
     // it-fr's route goes through English (change 2): « (en passant par l'anglais) ».
     expect(table.note).toBe(
-      "Les définitions viennent du Wiktionnaire et, pour l'italien, aussi de Wikidata, écrites par des personnes, jamais par une traduction automatique. La traduction étendue, facultative, traduit l'anglais vers le français, l'espagnol vers le français (en passant par l'anglais), l'italien vers le français (en passant par l'anglais), l'espagnol vers l'anglais, le français vers l'anglais, l'anglais vers l'espagnol et le français vers l'espagnol (en passant par l'anglais).",
+      "Les définitions viennent du Wiktionnaire et de traductions écrites par des personnes, jamais d'une traduction automatique. La traduction étendue, facultative, traduit l'anglais vers le français, l'espagnol vers le français (en passant par l'anglais), l'italien vers le français (en passant par l'anglais), l'espagnol vers l'anglais, le français vers l'anglais, l'anglais vers l'espagnol et le français vers l'espagnol (en passant par l'anglais).",
     );
   });
 
