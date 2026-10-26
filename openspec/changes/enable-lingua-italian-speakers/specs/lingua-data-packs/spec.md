@@ -6,10 +6,10 @@
 ## MODIFIED Requirements
 
 ### Requirement: The shipped pairs are one list
-The extension's build SHALL read the language pairs it ships from one list, whose first pair glossed in a native language gives that native language's default studied language, and SHALL build each listed pair's layer, and its studied language's base, from the pair's committed tables, each checked against the pair's own recorded sha256. It SHALL refuse a base whose analyser version is not the version of its studied language, and a layer whose `base_version` is not its base's. Every package of a release SHALL carry exactly the listed pairs' layers and their studied languages' bases, one of each, byte-identical across Chromium, Firefox and Safari. The list SHALL hold en-fr, es-fr, es-en, en-es then fr-en, followed by fr-es once fr-es's tables are committed at or above its coverage floor, then it-fr, then it-en, then en-it, and a package whose list is anything else SHALL be refused. A listed pair held to a coverage floor SHALL measure at or above it on its committed tables.
+The extension's build SHALL read the language pairs it ships from one list, whose first pair glossed in a native language gives that native language's default studied language, and SHALL build each listed pair's layer, and its studied language's base, from the pair's committed tables, each checked against the pair's own recorded sha256. It SHALL refuse a base whose analyser version is not the version of its studied language, and a layer whose `base_version` is not its base's. Every package of a release SHALL carry exactly the listed pairs' layers and their studied languages' bases, one of each, byte-identical across Chromium, Firefox and Safari. The list SHALL hold en-fr, es-fr, es-en, en-es then fr-en, followed by fr-es once fr-es's tables are committed at or above its coverage floor, then it-fr, then it-en, then it-es once its tables are committed at or above its coverage floor, then en-it, and a package whose list is anything else SHALL be refused. A listed pair held to a coverage floor SHALL measure at or above it on its committed tables.
 
 #### Scenario: Building the listed packs
-- **WHEN** a release builds its parts with the list holding en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr, it-en then en-it
+- **WHEN** a release builds its parts with the list holding en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr, it-en, it-es then en-it
 - **THEN** it builds each pair's layer and each language's base — the Italian one among them — from their own tables, each sha256 is the one that pair's pin records, and the package carries those layers and bases and no other
 
 #### Scenario: A pack built for another analyser generation of its language
@@ -21,7 +21,7 @@ The extension's build SHALL read the language pairs it ships from one list, whos
 - **THEN** the build fails with a message naming the pair and what to add
 
 #### Scenario: A list widened too early
-- **WHEN** a package is built with a list other than en-fr, es-fr, es-en, en-es then fr-en, with fr-es after them or not as its floor allows, then it-fr, it-en and en-it
+- **WHEN** a package is built with a list other than en-fr, es-fr, es-en, en-es then fr-en, with fr-es after them or not as its floor allows, then it-fr and it-en, then it-es or not as its floor allows, then en-it
 - **THEN** the variant check refuses it
 
 #### Scenario: English unchanged
@@ -46,7 +46,7 @@ The extension's build SHALL read the language pairs it ships from one list, whos
 
 #### Scenario: French for English speakers alone
 - **WHEN** fr-es's first committed measurement fell under its floor, so that no fr-es table is committed
-- **THEN** fr-en is followed by it-fr, it-en and en-it, no package carries fr-es, and a reader whose native language is Spanish is offered English alone
+- **THEN** fr-en is followed by it-fr, it-en, it-es and en-it as listed, no package carries fr-es, and a reader whose native language is Spanish is offered English, and Italian once it-es is listed
 
 #### Scenario: No French for French speakers
 - **WHEN** a reader whose native language is French uses a package built with this list
@@ -69,8 +69,12 @@ The extension's build SHALL read the language pairs it ships from one list, whos
 - **THEN** Spanish stays their default studied language, Italian is offered after French, and an Italian page is read through it-en, the Italian base and it-en's layer fetched on first need
 
 #### Scenario: No Italian for Spanish speakers
-- **WHEN** a reader whose native language is Spanish uses a package built with this list
+- **WHEN** no listed pair studies Italian glossed in Spanish, and a reader whose native language is Spanish uses a package built with the list
 - **THEN** Italian is never offered, and neither Italian layer nor the Italian base is fetched
+
+#### Scenario: Spanish speakers learning Italian
+- **WHEN** it-es is listed and a reader whose native language is Spanish uses a package built with this list
+- **THEN** English stays their default studied language, Italian is offered after French — after English where fr-es is not listed —, and an Italian page is read through it-es, the Italian base and it-es's layer fetched on first need
 
 #### Scenario: Italian speakers learning English
 - **WHEN** a reader whose browser is in Italian installs a package built with this list

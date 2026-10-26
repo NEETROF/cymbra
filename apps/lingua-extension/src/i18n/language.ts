@@ -14,23 +14,21 @@ import type { NativeLanguage } from "../analyzer/types.ts";
  * gloss in is one the interface speaks, and no other. The day an override parts them (M2's
  * reservation), this is where they part.
  *
- * Italian is a native language before the interface is shown in it: the type is the native
- * language again (add-lingua-italian-interface D5), every table keyed by interface language holds
- * Italian, but `INTERFACE_LANGUAGES` gains `it` only when the Italian interface is shown
- * (add-lingua-italian-interface D6, the Italian programme's change 45). Until then a stored `it` reads
- * French, and no surface shows the Italian catalogue.
+ * Italian joined once en-it shipped (enable-lingua-italian-speakers D1): it was a native language
+ * before the interface was shown in it (add-lingua-italian-interface D5, D6), every table keyed by
+ * interface language already holding Italian.
  */
 export type InterfaceLanguage = NativeLanguage;
 
-export const INTERFACE_LANGUAGES: readonly InterfaceLanguage[] = ["fr", "en", "es"];
+export const INTERFACE_LANGUAGES: readonly InterfaceLanguage[] = ["fr", "en", "es", "it"];
 
 /**
  * The native languages this build knows (add-lingua-italian-native-language D3): the interface
- * languages, and Italian. What a guard reading "is a native language" reads — the offer, the
- * native-language message, the stored record and reason, the app's day counts — rather than
- * `INTERFACE_LANGUAGES`.
+ * languages, Italian among them since enable-lingua-italian-speakers. What a guard reading "is a
+ * native language" reads — the offer, the native-language message, the stored record and reason,
+ * the app's day counts — rather than `INTERFACE_LANGUAGES`, so that the two can part again.
  */
-export const NATIVE_LANGUAGES: readonly NativeLanguage[] = [...INTERFACE_LANGUAGES, "it"];
+export const NATIVE_LANGUAGES: readonly NativeLanguage[] = [...INTERFACE_LANGUAGES];
 
 export function isNativeLanguage(value: unknown): value is NativeLanguage {
   return (NATIVE_LANGUAGES as readonly unknown[]).includes(value);
@@ -39,7 +37,7 @@ export function isNativeLanguage(value: unknown): value is NativeLanguage {
 /** What a device that never wrote the key reads: every installed reader stays in French. */
 export const DEFAULT_INTERFACE_LANGUAGE: InterfaceLanguage = "fr";
 
-/** The key, in chrome.storage.local, holding `fr`, `en` or `es` — or `it`, read as French until change 45. */
+/** The key, in chrome.storage.local, holding `fr`, `en`, `es` or `it`. */
 export const INTERFACE_LANGUAGE_KEY = "cymbra-lingua-interface-language";
 
 export function isInterfaceLanguage(value: unknown): value is InterfaceLanguage {

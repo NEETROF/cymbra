@@ -765,6 +765,23 @@ describe("WasmAnalyzerPort packs", () => {
       ]);
     });
 
+    it("reads English through en-it for an Italian reader: the English base and en-it's layer on first need, never another English layer (enable-lingua-italian-speakers D1)", async () => {
+      const TEN = ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en", "it-es", "en-it"];
+      const pack = (pair: string) => `ext://assets/packs/${pair}.lingua`;
+      const base = (studied: string) => `ext://assets/bases/${studied}.lingua`;
+
+      const italian = packGlue();
+      const it = new WasmAnalyzerPort(italian.load, TEN, async () => "it");
+      await it.for("en").analyse(["The house"]);
+      await it.for("en").analyse(["The lighthouse"]);
+      // English's base and en-it's layer, fetched once.
+      expect(packs()).toEqual([base("en"), pack("en-it")]);
+      expect(italian.calls).toEqual([
+        ["analyse", ["en"]],
+        ["analyse", ["en"]],
+      ]);
+    });
+
     it("answers the native language without fetching a pack", async () => {
       const glue = packGlue();
       const port = new WasmAnalyzerPort(glue.load, MIXED, async () => "en");

@@ -162,10 +162,10 @@ describe("the stores' summary names what its readers can study (add-lingua-frenc
     "The web in Spanish, French or Italian: unknown words highlighted, an honest percentage. Offline and private.";
   // enable-lingua-italian-for-spanish-speakers lists it-es after it-en.
   const WITH_IT_ES = [...WITH_IT_EN, "it-es"];
-  // Change 45 lists en-it after it-es: the first pair glossed in Italian (localise-lingua-manifest-italian).
+  // enable-lingua-italian-speakers lists en-it after it-es: the first pair glossed in Italian (localise-lingua-manifest-italian).
   const WITH_EN_IT = [...WITH_IT_ES, "en-it"];
-  // The Italian description, naming English alone: en-it is the only pair glossed in Italian change 45
-  // ships; fr-it and es-it rewrite it to name French and Spanish.
+  // The Italian description, naming English alone: en-it is the only pair glossed in Italian
+  // enable-lingua-italian-speakers ships; fr-it and es-it rewrite it to name French and Spanish.
   const IT_DESCRIPTION =
     "Leggi il web in inglese: parole sconosciute evidenziate, percentuale reale. Offline e senza tracciamento.";
   // The Spanish description that names Italian (enable-lingua-italian-for-spanish-speakers D6, the

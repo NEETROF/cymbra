@@ -75,14 +75,17 @@ describe("interfaceLanguageTeller", () => {
     expect(send).toHaveBeenCalledWith({ type: "interface.language", language: "es" });
   });
 
-  it("tells no Italian while the interface is not shown in it (localise-lingua-apple-host-italian D5)", async () => {
-    // The host app keeps `it` from this change on; the extension keeps the change inert by never
-    // sending it until INTERFACE_LANGUAGES lists it (the Italian programme's change 45).
-    expect(INTERFACE_LANGUAGES).not.toContain("it");
+  it("tells Italian now the interface is shown in it (localise-lingua-apple-host-italian D5, enable-lingua-italian-speakers D3)", async () => {
+    // The host app kept `it` since localise-lingua-apple-host-italian; the extension sends it once
+    // INTERFACE_LANGUAGES lists it.
+    expect(INTERFACE_LANGUAGES).toContain("it");
     const send = vi.fn<NativeSend>(async () => ({}));
     const tell = interfaceLanguageTeller(send);
     await tell("it");
-    expect(send).not.toHaveBeenCalled();
+    expect(send).toHaveBeenCalledWith({ type: "interface.language", language: "it" });
+    // Still a language the key actually holds: no other spelling.
+    await tell("IT");
+    expect(told(send)).toEqual(["it"]);
   });
 
   it("tells a language once, and again only once it changes", async () => {

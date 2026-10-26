@@ -2,7 +2,7 @@
 // the Chrome Web Store / addons.mozilla.org screenshots, made from the real extension. Run on a
 // developer's machine, never in CI (README.md, "Captures").
 //
-//   yarn capture                 every interface language (fr, en, es)
+//   yarn capture                 every interface language (fr, en, es, it)
 //   yarn capture --only=fr,en    some of them
 //   yarn capture --headed        watch it (the window opens)
 //   yarn capture --no-video      the stills alone
@@ -53,6 +53,7 @@ import {
   LEVEL,
   LOCALE,
   READER_LEVELS,
+  secondShot,
   SEED_REVIEW,
   STORE_SHOTS,
   STUDIED,
@@ -422,7 +423,7 @@ async function boxOf(page, selectors) {
 
 async function shots({ dist, origin, language, work, epubs }) {
   const copy = await catalogue(language);
-  const [first, second] = STUDIED[language];
+  const [first] = STUDIED[language];
   const browser = await preparedBrowser({ dist, language, work });
   const { context, panel } = browser;
   const boxes = {};
@@ -439,10 +440,12 @@ async function shots({ dist, origin, language, work, epubs }) {
       log(language, `card: « ${word} »`);
     });
 
-    // second — the second studied language's article, a card open, with its translation.
+    // second — the second studied language's article, or a second article in the one studied
+    // (enable-lingua-italian-speakers D5), a card open, with its translation.
     await step(language, "second", async () => {
-      const page = await openArticle(context, origin, second);
-      const word = await firstHighlighted(page, wordsFor(language, second).second, language, "second");
+      const second = secondShot(language);
+      const page = await openArticle(context, origin, second.page);
+      const word = await firstHighlighted(page, second.words, language, "second");
       boxes.second = await openCard(page, word);
       const gloss = await cardGloss(page, word, copy);
       const problems = glossProblems(gloss);
@@ -493,22 +496,26 @@ async function shots({ dist, origin, language, work, epubs }) {
       log(language, `review: « ${gloss.text} »`);
     });
 
-    // stats — the statistics page on the first studied language: its picker must offer it.
+    // stats — the statistics page on the first studied language: its picker must offer it. A reader
+    // of one studied language has no picker (enable-lingua-italian-speakers D5).
     await step(language, "stats", async () => {
       const page = await context.newPage();
       await page.goto(extensionUrl("stats.html"));
       await page.locator("html:not([data-copy-pending])").waitFor();
-      const picker = page.locator(`.stats-languages button[data-language="${first}"]`);
-      await picker.waitFor({ timeout: 10_000 });
-      if (!(await picker.getAttribute("class"))?.includes("active")) await picker.click();
-      await page.locator(`.stats-languages button.active[data-language="${first}"]`).waitFor({ timeout: 10_000 });
+      const withPicker = STUDIED[language].length > 1;
+      if (withPicker) {
+        const picker = page.locator(`.stats-languages button[data-language="${first}"]`);
+        await picker.waitFor({ timeout: 10_000 });
+        if (!(await picker.getAttribute("class"))?.includes("active")) await picker.click();
+        await page.locator(`.stats-languages button.active[data-language="${first}"]`).waitFor({ timeout: 10_000 });
+      }
       await page.locator("#stats-root .ladder-slot > *").first().waitFor({ timeout: 10_000 });
       await page.waitForTimeout(1500);
       // The site's crop: the heading, the picker, the vocabulary and the ladder with its notes —
       // not « Renforcer un niveau » nor the marked words, which the window would cut.
       boxes.stats = await boxOf(page, [
         "main h1",
-        ".stats-languages",
+        ...(withPicker ? [".stats-languages"] : []),
         "#stats-root .vocab-slot",
         "#stats-root .ladder-slot",
       ]);
@@ -703,13 +710,16 @@ async function recordSeed({ dist, origin, language, epubs }) {
   const { context } = browser;
   try {
     await step(language, "seed", async () => {
-      // The install's welcome: the second studied language, then B1 for each.
+      // The install's welcome: the second studied language, if the reader has one, then B1 for each.
       const onboarding = await onboardingPage(context);
       await onboarding.locator("html:not([data-copy-pending])").waitFor();
-      const box = onboarding.locator(`#languages-section input[data-language="${second}"]`);
-      await box.waitFor();
-      if (!(await box.isChecked())) await box.check();
-      await waitFor(async () => (await onboarding.locator("#level-rows > div").count()) === 2, 10_000);
+      if (second !== undefined) {
+        const box = onboarding.locator(`#languages-section input[data-language="${second}"]`);
+        await box.waitFor();
+        if (!(await box.isChecked())) await box.check();
+      }
+      const studiedCount = STUDIED[language].length;
+      await waitFor(async () => (await onboarding.locator("#level-rows > div").count()) === studiedCount, 10_000);
       const rows = onboarding.locator("#level-rows > div");
       for (let i = 0; i < (await rows.count()); i++) {
         await rows.nth(i).locator(`button[data-lvl="${LEVEL}"]`).click();
@@ -718,10 +728,7 @@ async function recordSeed({ dist, origin, language, epubs }) {
       await onboarding.close();
 
       // Words marked known and added to the deck, on each studied language's page.
-      for (const [studied, share] of [
-        [first, 1],
-        [second, 0.5],
-      ]) {
+      for (const [studied, share] of [[first, 1], ...(second !== undefined ? [[second, 0.5]] : [])]) {
         const page = await openArticle(context, origin, studied);
         const plan = wordsFor(language, studied);
         const before = [...new Set((await highlightedWords(page)).map((w) => w.text.toLowerCase()))];

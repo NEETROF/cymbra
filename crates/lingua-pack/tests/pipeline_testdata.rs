@@ -336,8 +336,8 @@ fn the_it_es_fixture_is_the_italian_fixture_glossed_in_spanish() {
 fn the_en_it_fixture_is_the_en_es_fixture_glossed_in_italian() {
     // add-lingua-pack-en-it D8: hand-written in the en-es fixture's layout, its English forms, ranks,
     // readings, levels, senses and pin byte for byte, its words and expressions glossed in Italian,
-    // stamped with English's analyser version, so that `yarn gen:pack` can build en-it once the list
-    // names it (change 45) — its base the en-es fixture's.
+    // stamped with English's analyser version, so that `yarn gen:pack` builds en-it now the list
+    // names it (change 45, enable-lingua-italian-speakers) — its base the en-es fixture's.
     let root = testdata_dir().parent().unwrap().to_path_buf();
     for table in [
         "forms.tsv",

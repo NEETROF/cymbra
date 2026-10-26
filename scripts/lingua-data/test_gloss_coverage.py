@@ -505,10 +505,11 @@ class OnePairTest(unittest.TestCase):
             self.assertNotIn("it-es", published["glossed"])
 
     def test_it_es_is_listed_and_published_once_listed(self) -> None:
-        # enable-lingua-italian-for-spanish-speakers D1, D2, D7: packs.json lists it-es last, after
-        # it-en, and the site's file carries its committed figures, at or above FLOORS["it-es"].
-        self.assertEqual(coverage.shipped_pairs()[-1], "it-es")
+        # enable-lingua-italian-for-spanish-speakers D1, D2, D7: packs.json lists it-es right after
+        # it-en — last until enable-lingua-italian-speakers listed en-it after it —, and the site's file
+        # carries its committed figures, at or above FLOORS["it-es"].
         pairs = coverage.shipped_pairs()
+        self.assertEqual(pairs[pairs.index("it-en") + 1], "it-es")
         self.assertLess(pairs.index("it-en"), pairs.index("it-es"))
         published = json.loads(coverage.SITE_DATA.read_text(encoding="utf-8"))
         self.assertIn("it-es", published["glossed"])
@@ -520,8 +521,8 @@ class OnePairTest(unittest.TestCase):
     # tables are committed — the study's figures on English's committed ranks with the Italian Wiktionary's
     # English section and both tables, less two points; settled by the owner on 2026-10-26 (task 0.1) —, in
     # the requirement *en-it is committed beside English's studied tables, held to a coverage floor, and
-    # not shipped*, read where it stands: the change's delta until it is archived, the capability's spec
-    # after.
+    # shipped once Italian is an interface language* (renamed by enable-lingua-italian-speakers), read
+    # where it stands: the change's delta until it is archived, the capability's spec after.
     EN_IT_REQUIREMENT = re.compile(r"en-it SHALL gloss at least ([\d.]+), ([\d.]+) and ([\d.]+) % of the 5,000")
 
     def en_it_requirement(self) -> tuple[float, ...]:
@@ -576,18 +577,29 @@ class OnePairTest(unittest.TestCase):
             self.assertEqual((code, err), (0, ""), "90.0 % holds it")
 
     def test_spec_scenario_en_it_s_floor_holds(self) -> None:
-        # On the committed tables, once its first update commits them: at least FLOORS' entry at every
-        # top, and published nowhere — no package lists en-it before Italian is an interface language
-        # (change 45).
+        # On the committed tables: at least FLOORS' entry at every top, and published once a package
+        # lists en-it — enable-lingua-italian-speakers (change 45) lists it once Italian is an interface
+        # language (its D1, D6) —, nowhere before.
         published = json.loads(coverage.SITE_DATA.read_text(encoding="utf-8"))
-        self.assertNotIn("en-it", coverage.shipped_pairs())
-        self.assertNotIn("en-it", published["glossed"])
-        if not (coverage.TABLES / "en-it" / "gloss.tsv").is_file():
-            return
         code, out, err = self.run_main(coverage.TABLES, "--pair", "en-it")
         self.assertEqual((code, err), (0, ""))
         measured = json.loads(out)["glossed"]["en-it"]
         for top, share, floor in zip(coverage.TOPS, measured, coverage.FLOORS["en-it"]):
+            self.assertGreaterEqual(share, floor, f"the {top:,} commonest lemmas")
+        if "en-it" in coverage.shipped_pairs():
+            self.assertEqual(published["glossed"]["en-it"], measured)
+        else:
+            self.assertNotIn("en-it", published["glossed"])
+
+    def test_en_it_is_listed_and_published_once_listed(self) -> None:
+        # enable-lingua-italian-speakers D1, D6: packs.json lists en-it last, after it-es, and the site's
+        # file carries its committed figures, at or above FLOORS["en-it"].
+        pairs = coverage.shipped_pairs()
+        self.assertEqual(pairs[-1], "en-it")
+        self.assertEqual(pairs[pairs.index("it-es") + 1], "en-it")
+        published = json.loads(coverage.SITE_DATA.read_text(encoding="utf-8"))
+        self.assertIn("en-it", published["glossed"])
+        for top, share, floor in zip(coverage.TOPS, published["glossed"]["en-it"], coverage.FLOORS["en-it"]):
             self.assertGreaterEqual(share, floor, f"the {top:,} commonest lemmas")
 
 
@@ -608,14 +620,15 @@ class ListedFloorsTest(unittest.TestCase):
     def test_every_listed_pair_with_a_floor_stands_at_or_above_it(self) -> None:
         listed = [pair for pair in coverage.shipped_pairs() if pair in coverage.FLOORS]
         # es-en, en-es, fr-en, fr-es, it-fr (enable-lingua-italian D2), it-en
-        # (enable-lingua-italian-for-english-speakers D2) and it-es
-        # (enable-lingua-italian-for-spanish-speakers D2) each have a floor; en-fr and es-fr, published
-        # before floors, none.
-        candidates = ["es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en", "it-es"]
+        # (enable-lingua-italian-for-english-speakers D2), it-es
+        # (enable-lingua-italian-for-spanish-speakers D2) and en-it (enable-lingua-italian-speakers D6)
+        # each have a floor; en-fr and es-fr, published before floors, none.
+        candidates = ["es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en", "it-es", "en-it"]
         self.assertEqual(listed, [pair for pair in candidates if pair in coverage.shipped_pairs()])
         self.assertIn("it-fr", listed)
         self.assertIn("it-en", listed)
         self.assertIn("it-es", listed)
+        self.assertIn("en-it", listed)
         self.assertEqual(self.under_floors(coverage.TABLES, coverage.PACKS), [])
 
     def test_spec_scenario_a_listed_pair_under_its_floor(self) -> None:

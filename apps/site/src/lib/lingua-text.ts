@@ -467,8 +467,9 @@ const es: LinguaTable = {
 // numbers (« 20.000 », « 5000 », « 96% »), QCER for the scale, Lingua's Italian labels
 // (`apps/lingua-extension/src/i18n/it/card.ts`: «La conosco», «+ Mazzo», «Ignora», guillemets
 // without inner spaces). The Italian page is built only once a pair glossed in Italian ships
-// (en-it, change 45), so it always has readers (`madeFor` null, as Spanish's). Until then the
-// table serves the types and the Italian home's Lingua card (`italianHomeLinguaCard`).
+// (en-it, change 45, enable-lingua-italian-speakers), so it always has readers (`madeFor` null, as
+// Spanish's). Before it, the table served the types and the Italian home's Lingua card
+// (`italianHomeLinguaCard`).
 const it: LinguaTable = {
   names: { en: "inglese", es: "spagnolo", fr: "francese", it: "italiano" },
   speakers: { it: "italofoni", en: "anglofoni", es: "ispanofoni", fr: "francofoni" },
@@ -543,13 +544,14 @@ const it: LinguaTable = {
   closingHeading: "E la musica?",
   closingBody:
     'Lingua condivide il suo account, la sua filosofia e il suo rispetto per i tuoi dati con <a href="{music}">Cymbra Music</a>, disponibile sull\'App Store e su Google Play.',
-  // Type stubs (D6): no Italian capture exists yet. The Italian reader studies English alone;
-  // change 45 (enable-lingua-italian-speakers) captures the extension in Italian, rewrites these
-  // against its captures and brings the page's media with en-it. Nothing here is shown before.
+  // Written against the Italian captures (enable-lingua-italian-speakers, D5, D10; change 41's
+  // stubs rewritten): the Italian reader studies English alone, so the second capture is a second
+  // English page (`tool/capture/plan.mjs`, `SECOND_PAGES`). The labels quoted are the Italian
+  // extension's (`it/review.ts`, `it/card.ts`, `it/colours.ts`).
   showcase: {
     heading: "In immagini",
     hero: {
-      alt: "Una pagina in inglese letta con Cymbra Lingua: le parole sconosciute sono evidenziate, il badge indica la quota di parole conosciute ed è aperta la carta di un verbo, con la sua forma del dizionario, il suo tempo verbale e la sua traduzione.",
+      alt: "Una pagina in inglese letta con Cymbra Lingua: le parole sconosciute sono evidenziate, il badge indica la quota di parole conosciute ed è aperta la carta di un verbo, con la forma del dizionario, il tempo verbale e la traduzione.",
     },
     video: {
       label: "Dimostrazione di Cymbra Lingua, senza audio",
@@ -558,11 +560,11 @@ const it: LinguaTable = {
     },
     shots: {
       second: {
-        alt: "Un'altra pagina in inglese, con l'interfaccia in italiano: la carta di una parola indica la sua traduzione.",
-        caption: "Ogni pagina, letta nella sua lingua.",
+        alt: "Un altro articolo in inglese, con l'interfaccia in italiano: la carta di un sostantivo ne indica la traduzione.",
+        caption: "Ogni pagina in inglese, evidenziata allo stesso modo.",
       },
       review: {
-        alt: "Il pannello di ripasso aperto sulla pagina: una carta girata, con la frase in cui è comparsa la parola, la sua traduzione e le due risposte possibili.",
+        alt: "Il pannello di ripasso aperto sulla pagina: una carta girata, con la frase in cui è comparsa la parola, la traduzione e le due risposte «Non la sapevo» e «La sapevo».",
         caption: "Il ripasso, in un pannello aperto sulla pagina.",
       },
       stats: {
@@ -570,11 +572,11 @@ const it: LinguaTable = {
         caption: "Il tuo livello, sulla scala QCER.",
       },
       reader: {
-        alt: "Il lettore di libri EPUB dell'estensione, aperto sul primo capitolo di Orgoglio e pregiudizio in inglese, con le parole sconosciute evidenziate.",
+        alt: "Il lettore di libri EPUB dell'estensione, aperto sul primo capitolo di Orgoglio e pregiudizio, in lingua originale, con le parole sconosciute evidenziate.",
         caption: "I tuoi libri EPUB, evidenziati allo stesso modo.",
       },
       "reader-eink": {
-        alt: "La stessa pagina del lettore con il set di colori per e-ink: nero su bianco, le parole sottolineate con un tratto spesso.",
+        alt: "La stessa pagina del lettore con il set di colori «E-ink contrastato»: nero su bianco, le parole sottolineate con un tratto spesso.",
         caption: "Un set di colori per i tablet a inchiostro elettronico.",
       },
     },

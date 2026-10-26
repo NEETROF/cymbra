@@ -50,14 +50,14 @@ export const PINNED_ROUTES: PinnedRoute[] = [
   // Store console fields. Editing these is a listing change, not a build.
   { path: "/support/", pinnedBy: "App Store Connect support URL, fr", source: "App Store Connect — per platform × locale" },
   { path: "/en/support/", pinnedBy: "App Store Connect support URL, en/it/es", source: "App Store Connect — per platform × locale" },
-  { path: "/en/delete-account/", pinnedBy: "Play data-deletion URL, and Apple's account-deletion requirement; and Lingua's deletion link for every interface language but French and Spanish", source: "Play Console — app content; apps/lingua-extension/src/account/flow.ts" },
+  { path: "/en/delete-account/", pinnedBy: "Play data-deletion URL, and Apple's account-deletion requirement; and Lingua's deletion link for the English interface, and for a browser in a language the site has no deletion page in (French, Spanish and Italian each have theirs since enable-lingua-italian-speakers)", source: "Play Console — app content; apps/lingua-extension/src/account/locale.ts — `deleteAccountUrl` (re-exported by src/account/flow.ts)" },
   { path: "/music/", pinnedBy: "Marketing URL (ASC) / Website (Play), fr", source: "App Store Connect + Play Console" },
   { path: "/en/music/", pinnedBy: "Marketing URL (ASC) / Website (Play), en/it/es", source: "App Store Connect + Play Console" },
 
   // Compiled into shipped Lingua builds and their listings' fields (change:
   // add-site-spanish-locale). The extension opens the deletion page of the reader's
   // interface language; the listings' Homepage / Marketing URL is the Lingua page.
-  { path: "/suppression-compte/", pinnedBy: "Lingua — deletion link, French interface; and the App Review notes", source: "apps/lingua-extension/src/account/flow.ts; apps/lingua-apple/STORE-LISTING.md" },
+  { path: "/suppression-compte/", pinnedBy: "Lingua — deletion link, French interface; and the App Review notes", source: "apps/lingua-extension/src/account/locale.ts — `deleteAccountUrl` (re-exported by src/account/flow.ts); apps/lingua-apple/STORE-LISTING.md" },
   { path: "/es/eliminar-cuenta/", pinnedBy: "Lingua — deletion link, Spanish interface", source: "apps/lingua-extension/src/account/locale.ts — `deleteAccountUrl`, where localise-lingua-account-onboarding (change 17) moves it and keys it on the interface language" },
   { path: "/lingua/", pinnedBy: "Lingua — Homepage of the Chrome Web Store and AMO listings, Marketing URL (ASC)", source: "apps/lingua-extension/STORE-LISTING.md; apps/lingua-apple/STORE-LISTING.md" },
 
@@ -68,9 +68,12 @@ export const PINNED_ROUTES: PinnedRoute[] = [
   { path: "/en/lingua/goodbye/", pinnedBy: "Lingua — uninstall page, compiled into Chromium and Firefox builds (English interface)", source: "apps/lingua-extension/src/usage/counts.ts — `LEAVING_PAGES`, registered by `setUninstallURL` (add-lingua-usage-counts, D12)" },
   { path: "/es/lingua/adios/", pinnedBy: "Lingua — uninstall page, compiled into Chromium and Firefox builds (Spanish interface)", source: "apps/lingua-extension/src/usage/counts.ts — `LEAVING_PAGES`, registered by `setUninstallURL` (add-lingua-usage-counts, D12)" },
 
-  // The Italian pages, pinned ahead of the clients about to compile them (change:
+  // The Italian pages, pinned ahead of the clients that compile them (change:
   // add-site-italian-locale, D3): the extension's Italian interface (change 45 of the
-  // Italian programme) and Cymbra ID's Italian e-mails (change 43).
+  // Italian programme, enable-lingua-italian-speakers) and Cymbra ID's Italian e-mails
+  // (change 43). The Italian Lingua page is the it-IT App Store listing's Marketing URL
+  // (add-lingua-italian-audience-listings, change 46), pinned with the build that lists en-it.
+  { path: "/it/lingua/", pinnedBy: "Lingua — Marketing URL of the it-IT App Store listing (change 46)", source: "apps/lingua-apple/STORE-LISTING.md" },
   { path: "/it/termini/", pinnedBy: "Cymbra ID e-mail footer, it (change 43)", source: "backend/platform/src/email_template/mod.rs" },
   { path: "/it/privacy/", pinnedBy: "Cymbra ID e-mail footer, it (change 43); Lingua — privacy link, Italian interface (change 45)", source: "backend/platform/src/email_template/mod.rs; apps/lingua-extension/src/translate/online.ts — `PRIVACY_POLICY_URLS`" },
   { path: "/it/elimina-account/", pinnedBy: "Lingua — deletion link, Italian interface (change 45)", source: "apps/lingua-extension/src/account/locale.ts — `deleteAccountUrl`" },

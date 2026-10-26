@@ -7,7 +7,11 @@ Nothing here is shipped in a package.
 
 `en.html`, `es.html` and `fr.html` are one article, « The quiet return of the night train », written
 for the purpose in each studied language (about 450 words, B1–B2 vocabulary), on a neutral layout
-(`page.css`) with no publication's name, logo or brand. `pointer.js` draws a pointer for the demo
+(`page.css`) with no publication's name, logo or brand. `en-2.html`, « The little libraries on the
+corner », is a second English article (about 400 words), written for the purpose too, for a reader
+who studies English alone: the Italian set's `second` shot opens it where a second studied language
+would stand (`SECOND_PAGES` in `tool/capture/plan.mjs`, enable-lingua-italian-speakers D5); nothing is
+seeded on it. `pointer.js` draws a pointer for the demo
 video only (`?pointer`): a recorded video shows no mouse. They are the repository's own work,
 licensed like it (Apache-2.0).
 
@@ -32,9 +36,10 @@ plain-text conventions were undone: illustrations' captions dropped, `_italics_`
 
 ## `state/` — the reader's state, recorded by the product
 
-`fr.json`, `en.json` and `es.json` are backups in the extension's own format, written by Réglages ›
-Données › Sauvegarder during `yarn capture --record-seed` (`tool/capture/plan.mjs` says what it
-does): the native language (which sets the interface language), two studied languages at level B1,
+`fr.json`, `en.json`, `es.json` and `it.json` are backups in the extension's own format, written by
+Réglages › Données › Sauvegarder during `yarn capture --record-seed` (`tool/capture/plan.mjs` says what
+it does): the native language (which sets the interface language), two studied languages at level B1
+(one, English, for the Italian reader),
 about twelve cards with the sentences they were met in, a few dozen words marked known, a short
 review, and the book's names marked « Ignorer » in the EPUB reader. They are re-recorded when the
 fixtures or the plan change; an older one is migrated forward on restore, as a reader's backup is.
