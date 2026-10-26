@@ -53,6 +53,6 @@ figures, and by the precedents already settled (design, *Settled by rule, not as
 
 - [x] 6.1 [manual] **Round 2, the owner's choice.** The specialist read the gloss diff: of the 300 commonest, 0 wrong and 30 partly right; 15 of the 468 changed rows of the 5,000 commonest worse, all minor. Done 2026-10-26: fix them in this pull request, by rule where one passes the criteria, else by reviewed rows of sources' words; no Italian written for the contractions (Guillaume).
 - [x] 6.2 D2's narrowings measured against round 1 (design D17), none kept; a reviewed row never moved by D2 or D3; `FIRST_RUN` 13 rows and `CORRECTIONS` 2 rows, every word a source's, `trash`'s last sense dropped; D6's given name on a word naming itself (`henry`), D8's « armi parlanti » (`ash`), D5's « rafforzativo » (`so`). Tests: `cop` and `spare` held from D2 and D3, `intense`, `henry`, `ash`, `so`.
-- [ ] 6.3 [coordinator-dispatched] `lingua-pack-update` in mode `reduce` for en-it on `impl/refine-lingua-en-it-glosses-r2`; the golden and the card re-blessed by it once.
-- [ ] 6.4 On the `-post` branch: the figures, the README, `SOURCES.md` and the committed-table tests after the round-2 tables; every row that changes against round 1 listed in the pull request.
+- [x] 6.3 [coordinator-dispatched] `lingua-pack-update` in mode `reduce` for en-it on `impl/refine-lingua-en-it-glosses-r2`; the golden and the card re-blessed by it once.
+- [x] 6.4 On the `-post` branch: the figures, the README, `SOURCES.md` and the committed-table tests after the round-2 tables; every row that changes against round 1 listed in the pull request.
 - [ ] 6.5 [manual] The round-2 gloss diff read by the owner.

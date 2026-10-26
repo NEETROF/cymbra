@@ -532,6 +532,17 @@ dispatch of task 3.1 is to write byte for byte:
   each by its gloss, row or the pack's line (`some`, `that`, `can`, `will`, `its`, `make`, `go`, `do`,
   `don't`, `won't` among them); `word-card-en-it.txt` moves 31 blocks; no other baseline or snapshot moves.
 
+**Round 2, measured the same way** (2026-10-26, `build.sh --reduce en-it` over the same pinned release,
+the rules of D17): 1,027 rows against change 36's (152 / 308 / 402 / 165), 613 in their first sense (103
+/ 192 / 243 / 75), 69 of the 300 commonest; 54 lemmas gained, none lost; 9 expressions; coverage 92.1 /
+83.1 / 70.6 %. Against round 1, 20 rows (4 / 15 / 1 / 0), each listed in the pull request: `that`, `so`,
+`former`, `piece`, `henry`, `joint`, `express`, `whenever`, `flash`, `intense`, `forum`, `cop`, `epic`,
+`spare`, `shine`, `ash`, `graph`, `cope`, `whatsoever`, `stir`. Every reviewed row fired. `gloss.tsv`
+`dcf37238…`, `senses.tsv` `ede1bb63…`, `mwe.tsv` and `NOTICE` as round 1's; the pack 1,550,149 B
+(`fd8adda6…`), its layer 615,114 B (`cc38c3ce…`), at `pack_version` `2026.10.26+0a3353d.fb7962e`. The
+golden moves against round 1 in the pack's line, 6 analyses and `a piece of cake`'s and `that`'s probes;
+the card in `that`'s block alone.
+
 ## Settled by the owner (2026-10-26)
 
 - **Q1, contractions** (task 0.1): (a), pointers to the full form — « contrazione di you are » —, the
