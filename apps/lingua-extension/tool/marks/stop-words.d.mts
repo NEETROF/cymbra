@@ -9,6 +9,7 @@ export declare const fold: (s: string) => string;
 export declare const FRENCH: StopWordSet;
 export declare const ENGLISH: StopWordSet;
 export declare const SPANISH: StopWordSet;
+export declare const ITALIAN: StopWordSet;
 
 /** The sets by native language, as the catalogue names one (a model's `to`). */
 export declare const STOP_WORDS: Readonly<Record<string, StopWordSet>>;

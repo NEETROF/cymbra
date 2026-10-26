@@ -3,9 +3,9 @@
 // translated sentence are both written in — skipped when the gloss's words are looked for in the
 // sentence, since an article, a preposition or an auxiliary is in every sentence and would mark the
 // wrong place. One set per native language (measure-lingua-translation-matrix-marks D1): the
-// French set as en-fr and es-fr were measured with it, an English set and a Spanish set, each of
-// articles, prepositions, conjunctions, pronouns and auxiliaries. The harness picks the set of the
-// language its route translates into.
+// French set as en-fr and es-fr were measured with it, an English set, a Spanish set and an Italian
+// set (measure-lingua-en-it-translation-marks D1), each of articles, prepositions, conjunctions,
+// pronouns and auxiliaries. The harness picks the set of the language its route translates into.
 //
 // Authored by category, so that test/translate-measure.spec.ts can hold each word to the committed
 // tables (scripts/lingua-data/tables): a function word has a function-class reading in a senses
@@ -55,8 +55,26 @@ export const SPANISH = Object.freeze({
     "ser es son era eran fue fueron sido estar está están estaba estaban haber ha han había habían hay he hemos",
 });
 
+/**
+ * The Italian set: the native language of en-it, fr-it and es-it. The experiment splits text on any
+ * non-letter (measure.mjs), so « dell'acqua » reads « dell » and « acqua »: the elided pieces are
+ * here without their apostrophe — « l », « un », « dell », « all », « dall », « nell », « sull »,
+ * « quest », « quell » — and so is every articulated preposition, whole.
+ */
+export const ITALIAN = Object.freeze({
+  articles: "il lo la i gli le l un uno una",
+  prepositions:
+    "di a da in con su per tra fra del dello della dei degli delle dell al allo alla ai agli alle all dal dallo dalla dai dagli dalle dall nel nello nella nei negli nelle nell sul sullo sulla sui sugli sulle sull",
+  conjunctions: "e ed o ma che se come quando perché anche né",
+  pronouns:
+    "io tu lui lei noi voi loro egli esso essa essi mi ti si ci vi ne li suo sua suoi sue mio mia miei mie nostro nostra questo questa questi queste quest quello quella quelli quelle quell cui chi quale quali",
+  negation: "non",
+  auxiliaries:
+    "essere è sono era erano fu furono stato stata stati state sia avere ha hanno aveva avevano ho abbiamo avuto viene vengono venne",
+});
+
 /** The sets by native language, as the catalogue names one (a model's `to`). */
-export const STOP_WORDS = Object.freeze({ fr: FRENCH, en: ENGLISH, es: SPANISH });
+export const STOP_WORDS = Object.freeze({ fr: FRENCH, en: ENGLISH, es: SPANISH, it: ITALIAN });
 
 /** Every word of a set, by category, as authored. */
 export function wordsOf(set) {
