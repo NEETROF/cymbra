@@ -437,7 +437,7 @@ describe("Réglages — Lecture à voix haute", () => {
     const buttons = rateButtons(s.block);
     expect(buttons.map((b) => b.textContent)).toEqual(["Ultra lent", "Très lent", "Lent", "Normal"]);
     expect(buttons.map((b) => b.getAttribute("aria-pressed"))).toEqual(["false", "false", "false", "true"]);
-    buttons[0].click();
+    buttons[1].click();
     await settle();
     expect(s.area.store[SPEECH_RATE_KEY]).toBe(0.5);
     s.fake.prefer({ rate: 0.5 });
