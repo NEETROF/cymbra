@@ -153,6 +153,12 @@ describe("the stores' summary names what its readers can study (add-lingua-frenc
   const WITH_FR_EN = [...STAGE_2, "fr-en"];
   const WITH_FR_ES = [...WITH_FR_EN, "fr-es"];
   const WITH_IT_FR = [...WITH_FR_ES, "it-fr"];
+  // enable-lingua-italian-for-english-speakers lists it-en after it-fr.
+  const WITH_IT_EN = [...WITH_IT_FR, "it-en"];
+  // The English description that names Italian (enable-lingua-italian-for-english-speakers D6, the
+  // owner's version A): the earlier lists are read with change 52's, EN_DRAFT.
+  const EN_ITALIAN =
+    "The web in Spanish, French or Italian: unknown words highlighted, an honest percentage. Offline and private.";
   // The French description change 52 shipped, before enable-lingua-italian named Italian, and the
   // draft that names it (enable-lingua-italian D7): the earlier lists are read with the former.
   const FR_FRENCH =
@@ -170,8 +176,8 @@ describe("the stores' summary names what its readers can study (add-lingua-frenc
   /** The locales as change 35 shipped them: English and Spanish naming no French. */
   const stage2 = reading("es", ES_STAGE_2, reading("en", EN_STAGE_2, locales52));
 
-  it("commits the drafts with the French pairs (enable-lingua-french D7)", () => {
-    expect(locales.en?.extensionDescription?.message).toBe(EN_DRAFT);
+  it("commits the drafts with the French pairs (enable-lingua-french D7), the English one since replaced by the one naming Italian", () => {
+    expect(locales.en?.extensionDescription?.message).toBe(EN_ITALIAN);
     expect(locales.es?.extensionDescription?.message).toBe(ES_DRAFT);
   });
 
@@ -267,22 +273,49 @@ describe("the stores' summary names what its readers can study (add-lingua-frenc
   });
 
   it("it-fr listed with change 52's French description fails for French, in both homes; with the draft it passes", () => {
-    const problems = summaryProblems(manifest52, locales52, WITH_IT_FR);
+    const problems = summaryProblems(manifest52, reading("en", EN_DRAFT, locales52), WITH_IT_FR);
     expect(problems).toHaveLength(2);
     expect(problems[0]).toContain("the fr description (_locales/fr/messages.json) names Anglais and Espagnol while");
     expect(problems[0]).toContain("(en-fr, es-fr, it-fr) study Anglais, Espagnol and Italien");
     expect(problems[0]).toContain("it does not name Italien");
     expect(problems[1]).toContain("the fr description (manifest.json) names Anglais and Espagnol while");
-    expect(summaryProblems(manifest, locales, WITH_IT_FR)).toEqual([]);
+    expect(summaryProblems(manifest, reading("en", EN_DRAFT), WITH_IT_FR)).toEqual([]);
   });
 
   it("the French draft before it-fr is listed fails for French: it names Italian, which no French-glossed pair studies", () => {
-    const problems = summaryProblems(manifest, locales, WITH_FR_ES);
+    const problems = summaryProblems(manifest, reading("en", EN_DRAFT), WITH_FR_ES);
     expect(problems).toHaveLength(2);
     expect(problems[0]).toContain(
       "the fr description (_locales/fr/messages.json) names Anglais, Espagnol and Italien while",
     );
     expect(problems[0]).toContain("it names Italien, which no shipped pair glossed in fr studies");
+  });
+
+  it("commits the English description naming Italian with it-en, within Apple's limit (enable-lingua-italian-for-english-speakers D6)", () => {
+    expect(EN_ITALIAN).toHaveLength(108);
+    expect(localeProblems(manifest, locales)).toEqual([]);
+    // The direct wording would not fit: 114 characters (design D6).
+    expect(
+      "Read Spanish, French and Italian on the web: unknown words highlighted, an honest percentage. Offline and private.",
+    ).toHaveLength(114);
+  });
+
+  it("it-en listed with change 52's English description fails for English; with the one naming Italian it passes", () => {
+    const problems = summaryProblems(manifest, reading("en", EN_DRAFT), WITH_IT_EN);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain("the en description (_locales/en/messages.json) names Spanish and French while");
+    expect(problems[0]).toContain("(es-en, fr-en, it-en) study Spanish, French and Italian");
+    expect(problems[0]).toContain("it does not name Italian");
+    expect(summaryProblems(manifest, locales, WITH_IT_EN)).toEqual([]);
+  });
+
+  it("the English description naming Italian before it-en is listed fails for English: it names Italian, which no English-glossed pair studies", () => {
+    const problems = summaryProblems(manifest, locales, WITH_IT_FR);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain(
+      "the en description (_locales/en/messages.json) names Spanish, French and Italian while",
+    );
+    expect(problems[0]).toContain("it names Italian, which no shipped pair glossed in en studies");
   });
 
   it("matches a name whole and whatever its case", () => {
@@ -291,6 +324,7 @@ describe("the stores' summary names what its readers can study (add-lingua-frenc
     expect(namedLanguages("fr", "italienne")).toEqual([]);
     expect(namedLanguages("en", "READ SPANISH; french too")).toEqual(["es", "fr"]);
     expect(namedLanguages("en", "Spanishness, Frenchified, Englishes")).toEqual([]);
+    expect(namedLanguages("en", "The web in Spanish, French or ITALIAN")).toEqual(["es", "fr", "it"]);
     expect(namedLanguages("es", "Lee INGLÉS y francés")).toEqual(["en", "fr"]);
     expect(namedLanguages("es", "inglesa")).toEqual([]);
   });

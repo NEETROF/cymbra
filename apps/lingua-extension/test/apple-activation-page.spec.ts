@@ -121,15 +121,15 @@ describe("the activation page's copy table", () => {
     for (const key of copy.FRAGMENTS) expect(copy.COPY.fr[key]).toContain("<strong>");
   });
 
-  it("names every language a native language's pairs study, in the pairs' order, and never its own (enable-lingua-french D7, enable-lingua-italian D7)", () => {
+  it("names every language a native language's pairs study, in the pairs' order, and never its own (enable-lingua-french D7, enable-lingua-italian D7, enable-lingua-italian-for-english-speakers D6)", () => {
     // Each page speaks to the natives of its language: French natives study English, Spanish and
-    // Italian (en-fr, es-fr, it-fr), English natives Spanish and French (es-en, fr-en), Spanish
+    // Italian (en-fr, es-fr, it-fr), English natives Spanish, French and Italian (es-en, fr-en, it-en), Spanish
     // natives English and French (en-es, fr-es) — read from the bundle's list, named as the extension
     // names them.
     const named = (native: NativeLanguage) =>
       pairsOf(native).map((pair) => languageName(native, studiedOf(pair) as StudiedLanguage).toLowerCase());
     expect(named("fr")).toEqual(["anglais", "espagnol", "italien"]);
-    expect(named("en")).toEqual(["spanish", "french"]);
+    expect(named("en")).toEqual(["spanish", "french", "italian"]);
     expect(named("es")).toEqual(["inglés", "francés"]);
     for (const native of ["fr", "en", "es"] as const) {
       const own = languageName(native, native).toLowerCase();
@@ -177,10 +177,23 @@ describe("the activation page's copy table", () => {
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
     for (const text of [lede, step3]) expect(text.toLowerCase()).not.toContain("français");
-    // The English and Spanish pages name no Italian: no pair of Italian is glossed in their languages.
-    for (const language of ["en", "es"]) {
-      for (const key of ["lede", "step3"]) expect(copy.COPY[language][key].toLowerCase()).not.toMatch(/itali/);
-    }
+    // The Spanish page names no Italian: no pair of Italian is glossed in Spanish (change 30's).
+    for (const key of ["lede", "step3"]) expect(copy.COPY.es[key].toLowerCase()).not.toMatch(/itali/);
+  });
+
+  it("Italian for an English speaker: Spanish, French or Italian, Spanish's level first (enable-lingua-italian-for-english-speakers D6)", () => {
+    const { lede, step3 } = copy.COPY.en;
+    expect(lede).toContain("in Spanish, French or Italian");
+    const order = [
+      "choose your level of spanish",
+      "for french or italian",
+      `<strong>${enDrawer.settings}</strong>`,
+      `<strong>${enSettings.tabLanguage}</strong>`,
+      "choose its level",
+    ].map((part) => step3.toLowerCase().indexOf(part.toLowerCase()));
+    expect(order.every((i) => i >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    for (const text of [lede, step3]) expect(text.toLowerCase()).not.toContain("english");
   });
 
   it("is in English and Spanish no copy of the French", () => {

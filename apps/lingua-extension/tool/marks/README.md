@@ -309,7 +309,7 @@ blind second one.
 | **fr-en, engine, judged in English** | **95 / 96 — 99.0 %**     | **4 %**  | **First tier: marked (shipped since change 52)**                                |
 | **fr-es, engine (pivot fr→en→es)**   | **90 / 91 — 98.9 %**     | **9 %**  | **First tier: marked (shipped since change 52)**                                |
 | **it-fr, engine (pivot it→en→fr)**   | **93 / 97 — 95.9 %**     | **3 %**  | **First tier: marked (shipped since the Italian programme's change 20)**        |
-| **it-en, engine, judged in English** | **94 / 97 — 96.9 %**     | **3 %**  | **First tier: marked (listed, inert until the Italian programme's change 25)**  |
+| **it-en, engine, judged in English** | **94 / 97 — 96.9 %**     | **3 %**  | **First tier: marked (shipped since the Italian programme's change 25)**        |
 | **it-es, engine (pivot it→en→es)**   | **90 / 95 — 94.7 %**     | **5 %**  | **First tier: marked (listed, inert until the Italian programme's change 30)**  |
 | es-fr, gloss-located (experiment)    | 76 / 78 — 97.4 %         | 22 %     | —                                                                               |
 | en-fr, gloss-located (experiment)    | 76 / 79 — 96.2 %         | 21 %     | —                                                                               |
@@ -384,7 +384,7 @@ What these numbers say:
   it twice (k 7, k 96). Run twice, the results were byte for byte the same.
 - **it-en is on the first tier** through its one model: 94 of its 97 shown marks correct, 3 withheld —
   listed in `MARKED_PAIRS`, inert until the Italian programme's change 25
-  (`enable-lingua-italian-for-english-speakers`) lists it-en in `packs.json`. Its three wrong marks, by
+  (`enable-lingua-italian-for-english-speakers`) listed it-en in `packs.json`, marked since. Its three wrong marks, by
   `k`: « comprendono », rendered « understand » in the wrong sense, marked « who » (k 57, as it-fr's
   « qui » and en-fr's « make » were); « sveglia » marked « alarm » alone, half of « alarm clock »
   (k 78); and « agli sgoccioli », rendered « in its infarest » — a garbled non-word —, marked « its »

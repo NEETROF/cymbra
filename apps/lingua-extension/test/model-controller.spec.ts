@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
-import { readerPairs } from "@/analyzer/pairs.ts";
+import { readerPairs, SHIPPED_PAIRS } from "@/analyzer/pairs.ts";
 import { ModelController, type ModelHostAccess } from "@/translate/host/model-controller.ts";
 import { type ModelCatalogue, type ModelManifest, parseCatalogue } from "@/translate/host/model-manifest.ts";
 import { MODEL_STATE_KEY, type SettingArea, TRANSLATION_HOST_KEY } from "@/translate/setting.ts";
@@ -862,15 +862,55 @@ describe("the committed catalogue: a reader of French downloads, keeps and loads
     for (const pair of pairs) expect(await controller.ready(pair)).toBe(true);
   });
 
-  it("A French-native reader who has not accepted Italian downloads nothing of it-en; no English or Spanish reader ever does (enable-lingua-italian D9)", async () => {
-    for (const pairs of [of(["en", "es"], "fr"), of(["es", "fr", "it"], "en"), of(["en", "fr", "it"], "es")]) {
+  it("A French-native reader who has not accepted Italian downloads nothing of it-en; no Spanish reader ever does, nor an English one on enable-lingua-italian's list (enable-lingua-italian D9)", async () => {
+    /** enable-lingua-italian's list, before it-en: no pair of Italian glossed in English. */
+    const ITALIAN = SHIPPED_PAIRS.filter((pair) => pair !== "it-en");
+    for (const pairs of [
+      of(["en", "es"], "fr"),
+      of(["es", "fr", "it"], "en", ITALIAN),
+      of(["es", "fr"], "en"),
+      of(["en", "fr", "it"], "es"),
+    ]) {
       const { controller, host } = setup({ pairs, catalogue: async () => committed });
       await controller.enable();
       expect(host.startDownload).toHaveBeenCalledOnce();
       expect(host.startDownload.mock.calls[0]![0]).not.toContain(IT_EN);
     }
-    expect(of(["it"], "en")).toEqual([]);
+    expect(of(["it"], "en", ITALIAN)).toEqual([]);
     expect(of(["it"], "es")).toEqual([]);
+  });
+
+  // enable-lingua-italian-for-english-speakers D5: Italian studied by readers of English. it-en is its
+  // one model; a reader of Spanish, French and Italian needs three, held two at a time — the memory of two.
+
+  it("An English-native reader of Italian alone: it-en's one model, 26 242 301 bytes, one model's memory (enable-lingua-italian-for-english-speakers D5)", async () => {
+    const italian = of(["it"], "en");
+    expect(italian).toEqual(["it-en"]);
+    const { controller, host, setting, downloaded } = setup({ pairs: italian, catalogue: async () => committed });
+    const status = await controller.enable();
+    expect(host.startDownload).toHaveBeenCalledWith([IT_EN]);
+    expect(status.cost).toEqual({ download: 26_242_301, stored: 37_088_127 });
+    expect(status.cost?.twoModels).toBeFalsy();
+    await downloaded();
+    expect(setting().state).toEqual({ phase: "ready", models: [IT_EN], pairs: ["it-en"] });
+    expect(await controller.ready("it-en")).toBe(true);
+  });
+
+  it("An English-native reader of Spanish, French and Italian: es-en, fr-en and it-en, 78 718 068 bytes, two models' memory (enable-lingua-italian-for-english-speakers D5)", async () => {
+    const pairs = of(["es", "fr", "it"], "en");
+    expect(pairs).toEqual(["es-en", "fr-en", "it-en"]);
+    const { controller, host, setting, downloaded } = setup({ pairs, catalogue: async () => committed });
+    const status = await controller.enable();
+    expect(host.startDownload).toHaveBeenCalledWith([ES_EN, FR_EN, IT_EN]);
+    expect(status.cost).toEqual({
+      download: 26_241_052 + 26_234_715 + 26_242_301,
+      stored: 37_014_089 + 37_200_311 + 37_088_127,
+      twoModels: true,
+    });
+    expect(status.cost?.download).toBe(78_718_068);
+    await downloaded();
+    expect(setting().state).toEqual({ phase: "ready", models: [ES_EN, FR_EN, IT_EN], pairs });
+    for (const pair of pairs) expect(await controller.ready(pair)).toBe(true);
   });
 
   it("A reader of the earlier pairs reads what they read before, on the bundle's list", async () => {

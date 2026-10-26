@@ -26,8 +26,8 @@ function appWith(packs: unknown): string {
 }
 
 describe("the shipped pairs", () => {
-  it("ships en-fr, es-fr, es-en, en-es, fr-en and fr-es then it-fr, each native language's default first (enable-lingua-italian)", () => {
-    expect(shippedPairs()).toEqual(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr"]);
+  it("ships en-fr, es-fr, es-en, en-es, fr-en and fr-es then it-fr and it-en, each native language's default first (enable-lingua-italian, enable-lingua-italian-for-english-speakers)", () => {
+    expect(shippedPairs()).toEqual(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en"]);
   });
 
   it("refuses a list it could not build from", () => {
@@ -51,6 +51,13 @@ describe("the shipped pairs", () => {
     expect(shippedStudied(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"])).toEqual(["en", "es", "fr"]);
     // enable-lingua-italian D1: it-fr adds Italian's base, after French's.
     expect(shippedStudied(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr"])).toEqual([
+      "en",
+      "es",
+      "fr",
+      "it",
+    ]);
+    // enable-lingua-italian-for-english-speakers D1: it-en adds a layer, Italian's base already there.
+    expect(shippedStudied(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en"])).toEqual([
       "en",
       "es",
       "fr",

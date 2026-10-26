@@ -48,6 +48,8 @@ const COST = { download: 25_752_472, stored: 36_749_127 };
 const SIX = ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"];
 /** The seven pairs, Italian last: packs.json since enable-lingua-italian. */
 const SEVEN = [...SIX, "it-fr"];
+/** The eight pairs, it-en last: packs.json since enable-lingua-italian-for-english-speakers. */
+const EIGHT = [...SEVEN, "it-en"];
 /** A language the reader added, whose model is still to download. */
 const missing = (total: number): ModelState => ({
   phase: "missing",
@@ -782,6 +784,24 @@ describe("the level blocks name the language in the interface language", () => {
       expect(r.offered.map(([language]) => language)).toEqual(studied);
     },
   );
+
+  it('An English-native reader of Spanish and Italian on the eight pairs: Spanish, French then Italian offered, "Estimated Italian level" and its note (enable-lingua-italian-for-english-speakers D3)', async () => {
+    const r = await mountWithFrench("en", "en", ["es", "it"], EIGHT);
+    expect(r.offered).toEqual([
+      ["es", true],
+      ["fr", false],
+      ["it", true],
+    ]);
+    expect(r.levelTitles).toEqual(["Estimated Spanish level", "Estimated Italian level"]);
+    expect(r.block("Estimated Italian level").querySelector(".set-estimate")?.textContent).toBe(
+      "Levels estimated from word frequency, as no freely licensed CEFR list exists for Italian.",
+    );
+  });
+
+  it("A Spanish-native reader on the eight pairs: never Italian (enable-lingua-italian-for-english-speakers D8)", async () => {
+    const r = await mountWithFrench("es", "es", ["en", "fr"], EIGHT);
+    expect(r.offered.map(([language]) => language)).toEqual(["en", "fr"]);
+  });
 
   it("Every reader today: the French titles and note, byte for byte", async () => {
     const r = await mountLevels(undefined);

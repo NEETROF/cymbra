@@ -3283,7 +3283,8 @@ fn spec_scenario_every_italian_pack_says_so() {
 
 // it-en (add-lingua-pack-it-en, the Italian programme's change 22): Italian's first reader pair, the
 // native side alone, read against tables/it/ as committed (D1). Its first update wrote its folder
-// whole; no package lists it before change 25 (D10).
+// whole; no package listed it before change 25 (enable-lingua-italian-for-english-speakers), which
+// lists it (D10).
 
 /// it-en's pack, whole and as its base and layer, built once per test binary.
 fn it_en() -> &'static (Vec<u8>, SplitPack) {
@@ -3495,25 +3496,20 @@ fn spec_scenario_the_credits_of_it_en() {
 }
 
 #[test]
-fn spec_scenario_it_en_is_not_shipped() {
-    // No package lists it-en while the list of shipped pairs does not name it (D10): change 25
-    // lists it, with its `testdata/it-en/`, which nothing builds before.
+fn spec_scenario_it_en_is_shipped_once_italian_is_enabled_for_english_speakers() {
+    // No package listed it-en while the list of shipped pairs did not name it (D10); change 25
+    // (enable-lingua-italian-for-english-speakers D1) lists it, last, with its `testdata/it-en/`,
+    // the it-fr fixture glossed in English.
     let packs = json(
         &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../apps/lingua-extension/packs.json"),
     );
-    if packs["pairs"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .any(|p| p == "it-en")
-    {
-        return;
-    }
+    let pairs = packs["pairs"].as_array().unwrap();
+    assert_eq!(pairs.last().unwrap(), "it-en", "{pairs:?}");
     assert!(
-        !PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../scripts/lingua-data/testdata/it-en")
-            .exists(),
-        "a fixture of it-en before a package lists it"
+            .is_dir(),
+        "it-en's fixture, for test builds"
     );
 }
 

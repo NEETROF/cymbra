@@ -355,6 +355,18 @@ describe("The committed catalogue's routes: a model is deleted only when a third
     expect(pairs(residency).sort()).toEqual(["es-en", "fr-en"]);
   });
 
+  it("An English-native reader of Spanish, French and Italian: es-en, fr-en, it-en, es-en — three one-model routes, two held at a time, the least recently used giving way (enable-lingua-italian-for-english-speakers D5, D9)", () => {
+    const IT_EN = "it-en/base-memory/2.0";
+    expect(committed("it-en")).toEqual({ pair: "it-en", models: [IT_EN] });
+    const { steps, residency } = walk(["es-en", "fr-en", "it-en", "es-en"]);
+    expect(steps[0]).toMatchObject({ evict: [], drop: [] });
+    expect(steps[1]).toMatchObject({ evict: [], drop: [] });
+    expect(steps[2]).toEqual({ pair: "it-en", evict: [ES_EN], drop: ["es-en"], held: [FR_EN, IT_EN] });
+    expect(steps[3]).toEqual({ pair: "es-en", evict: [FR_EN], drop: ["fr-en"], held: [IT_EN, ES_EN] });
+    for (const step of steps.slice(1)) expect(step.held, step.pair).toHaveLength(MODEL_BOUND);
+    expect(pairs(residency).sort()).toEqual(["es-en", "it-en"]);
+  });
+
   it("A French-native reader of English and Spanish, as before: en-fr and es-fr, nothing deleted", () => {
     const { steps } = walk(["en-fr", "es-fr", "en-fr", "es-fr"]);
     for (const step of steps) expect(step, step.pair).toMatchObject({ evict: [], drop: [] });
