@@ -1332,7 +1332,7 @@ to `_locales/it`, never here.
 The French, English and Spanish summaries do not move with en-it: what their readers study is
 unchanged.
 
-### IT (3,116 / 16,000 characters)
+### IT (3,100 / 16,000 characters)
 
 For Italian speakers, who study English (en-it, from change 45). Its last-but-one paragraph says what
 other readers study, with it-es: the one release carries change 30 (the owner, 2026-10-26).
@@ -1364,8 +1364,8 @@ Impostazioni li disattiva.
 **Traduzione estesa** (facoltativa, disattivata per impostazione predefinita, su Chrome, Firefox
 (computer e Android) e Safari): la tua selezione viene tradotta in italiano nel contesto della sua
 frase, direttamente dall'inglese, sul tuo dispositivo, con il motore di Firefox Translations. Se
-attivi la traduzione estesa, il modello di traduzione (26,5 MB) viene scaricato una sola volta dai
-server di Cymbra; il testo delle pagine che leggi resta comunque sul tuo dispositivo. Se la disattivi, il modello viene
+attivi la traduzione estesa, il modello di traduzione (26,5 MB) si scarica da Cymbra una sola volta;
+il testo delle pagine che leggi resta comunque sul tuo dispositivo. Se la disattivi, il modello viene
 eliminato.
 
 Quante parole inglesi spiega in italiano il nostro dizionario? Le cifre sono pubblicate su
@@ -1386,7 +1386,7 @@ l'inglese, il francese e l'italiano agli ispanofoni, in spagnolo.
 Cymbra Lingua è disponibile su Chrome, su Firefox (computer e Android) e come app per Safari (iPhone,
 iPad, Mac).
 
-_Without it-es_ (3,104; only for a submission of change 45 made before change 30's, which the one
+_Without it-es_ (3,088; only for a submission of change 45 made before change 30's, which the one
 release rules out): the last-but-one paragraph's last clause reads « e l'inglese e il francese agli
 ispanofoni, in spagnolo. » (change 31's _The Italian texts' line on what Spanish speakers study_).
 

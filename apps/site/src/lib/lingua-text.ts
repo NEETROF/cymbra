@@ -493,7 +493,7 @@ const it: LinguaTable = {
     {
       key: "highlight",
       title: "🖍️ Evidenziazione nella pagina",
-      body: "Le parole sconosciute compaiono evidenziate direttamente nella pagina, senza alterare il sito che stai leggendo.",
+      body: "Le parole sconosciute compaiono evidenziate direttamente nella pagina, senza compromettere il sito che stai leggendo.",
     },
     {
       key: "percentage",
@@ -508,7 +508,7 @@ const it: LinguaTable = {
     {
       key: "deck",
       title: "🗂️ Mazzo e ripasso",
-      body: "Le parole e le espressioni che acquisisci diventano carte, con la frase in cui le hai incontrate. Il ripasso si fa nel riquadro laterale.",
+      body: "Le parole e le espressioni che salvi diventano carte, con la frase in cui le hai incontrate. Il ripasso si fa nel riquadro laterale.",
     },
     {
       key: "offline",
@@ -518,7 +518,7 @@ const it: LinguaTable = {
     {
       key: "level",
       title: "📈 Il tuo livello, sulla scala QCER",
-      body: "Una stima del tuo vocabolario, riferita alla scala A1→C2 e non a un distintivo fatto in casa.",
+      body: "Una stima del tuo vocabolario, riferita alla scala A1→C2 e non a un distintivo inventato da noi.",
     },
     {
       key: "account",

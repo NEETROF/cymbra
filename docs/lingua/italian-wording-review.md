@@ -39,7 +39,7 @@ from the French; a **suggestion** is a more natural wording of a correct sentenc
 | README « Italian », unverified list | « Fissa » missing | must-fix | Applied |
 | `app.ts` `syncFailed` | « partiranno » copies « partiront » | suggestion | Applied: « verranno inviati più tardi » |
 | `card.ts` and `stats.ts` `relearn`, `stats.ts` `markedNote` | « Rimetti da imparare » is clumsy | suggestion | Applied: « Segna come da imparare »; « Segnane una come «da imparare» per vederla di nuovo evidenziata. » |
-| `colours.ts` `paperBackground`, `paperChosenText`, `paperText` | « Pagina carta » can be heard as "card page" | suggestion | Applied: « Pagina Carta: … », the theme's name capitalised |
+| `colours.ts` `paperBackground`, `paperChosenText`, `paperText` | « Pagina carta » can be heard as "card page" | suggestion | Applied, as the verification pass refined it: « Tema Carta: … », and « Tema Scuro: … » for its pair |
 | `languages.ts` `borrowedTypicalNote` | « riprende le dimensioni dei livelli » calques « tailles » and echoes « ripreso » | suggestion | Applied: « di cui lo spagnolo adotta il numero di parole per livello » |
 | `onboarding.ts` `stepPin` | « barra del browser » → Chrome's and Firefox's « barra degli strumenti » | suggestion | Applied |
 | `onboarding.ts` `accountLead` | « i loro stati » after « mazzo » reads as the deck's | suggestion | Applied: « le tue parole, il loro stato e il tuo mazzo » (and the site's account card with it) |
@@ -67,7 +67,7 @@ from the French; a **suggestion** is a more natural wording of a correct sentenc
 | Design D1 | « cattura la selezione » named as change 39's word; what shipped is « acquisisci la selezione » | must-fix | Applied: D1 corrected; the glossary's `capture` accepts « acquisisci », refuses « cattura » |
 | `SignInCopy` `it.appLede` | « lo stesso account di Safari » reads as Safari's own account | suggestion | Applied: « Usa lo stesso account che usi in Safari. » (`swift test` green) |
 | E-mail `code_note`, `outro`, `subject` (the first handed from change 43) | « codice di reimpostazione », « la reimpostazione », « la password di Cymbra » | suggestions | **Not edited here** (design, Non-Goals: Cymbra ID untouched); the owner's question 5 |
-| Glossary | a settings tab is named by its path, never « scheda » | suggestion | Recorded (`settings`) |
+| Glossary | a settings tab is named by its path, never « scheda » | suggestion | Recorded (`settings`, `tab`) |
 | `_locales/it` | 105 / 112; commands 65, 49, 36 characters, each holding Réglages' words | — | No finding |
 
 ### The site (pass 4: 2 must-fix, 7 suggestions)
@@ -93,10 +93,10 @@ from the French; a **suggestion** is a more natural wording of a correct sentenc
 | `lingua-text.ts` `percentage` card, `HOME_IT.read` | « percentuale onesta » reads "a fair cut"; `_locales/it` chose « reale » | must-fix (×2) | Applied, with the three tests that quote it; glossary `true-percentage` |
 | `lingua-text.ts` `deck` card | « pannello laterale » | must-fix | Applied: « riquadro laterale » |
 | README terms; design D1 | the same « pannello laterale »; « cattura » | must-fix (×2) | Applied (pass 1, pass 3) |
-| `deck` card | « che metti da parte » → the product's verb | suggestion | Applied: « che acquisisci » |
-| `highlight` card | « sul posto », « senza rompere nulla » | suggestion | Applied: « Evidenziazione nella pagina », « senza alterare il sito » |
+| `deck` card | « che metti da parte » → the product's verb | suggestion | Applied, then refined by the verification pass: « che salvi » (« acquisire una parola » reads as "learn it" in prose) |
+| `highlight` card | « sul posto », « senza rompere nulla » | suggestion | Applied: « Evidenziazione nella pagina », « senza compromettere il sito » (the verification pass: highlighting does alter the page) |
 | `click` card | a second colon | suggestion | Applied: the three buttons in parentheses |
-| `level` card | « badge fatto in casa » beside the pill's « badge » | suggestion | Applied: « distintivo fatto in casa » |
+| `level` card | « badge fatto in casa » beside the pill's « badge » | suggestion | Applied: « distintivo inventato da noi » (the verification pass: « fatto in casa » is said of food) |
 | `account` card | « i tuoi stati » | suggestion | Applied, with onboarding's order: « le tue parole, il loro stato e il tuo mazzo » |
 | `genderCard` | « In italiano, … » reads as the interface | suggestion | Applied: « Per le parole in {inStudied}, … », its test updated |
 | captions, `glossesOrigin` | « definizione » for a gloss | suggestion | Applied: « traduzione », « I significati provengono dal Wikizionario » |
@@ -113,7 +113,7 @@ from the French; a **suggestion** is a more natural wording of a correct sentenc
 | apple What's New | « ogni parola inglese mostra il suo significato » over-claims (92.1 / 83.1 / 70.6 %) | must-fix | Applied: « le parole inglesi mostrano il loro significato » |
 | site × 2, design D1 | as passes 3 and 5 | must-fix | Applied |
 | ext §4 | « i tuoi file … I tuoi libri » | suggestion | Applied |
-| ext §6, apple « TRADUZIONE ESTESA » | « all'interno », « dal motore », « scaricato da Cymbra » | suggestion | Applied: « nel contesto », « con il motore », « una sola volta dai server di Cymbra » |
+| ext §6, apple « TRADUZIONE ESTESA » | « all'interno », « dal motore », « scaricato da Cymbra » (agent or source?) | suggestion | Applied: « nel contesto », « con il motore », « si scarica da Cymbra una sola volta » — the impersonal « si » reads « da » as the source; the verification pass refused « dai server di Cymbra » (Cloudflare hosts the files) |
 | ext §7, apple | « I nostri dati » | suggestion | Applied: « Le cifre sono pubblicate » |
 | ext §9 | « che vi hanno accesso » | suggestion | Applied: « per gli account abilitati » |
 | ext permissions note | `scripting` left out of the unchanged list | suggestion | Applied |
@@ -122,8 +122,8 @@ from the French; a **suggestion** is a more natural wording of a correct sentenc
 | apple keywords | « inglese » repeats the subtitle | suggestion | **Kept**: the owner's option A for French pays twice on purpose |
 | Unverified | Apple's paths; « riquadro laterale » also pasted on AMO, where Firefox has none (every language) | — | The owner's checklist; question 6 |
 
-The counts after the corrections, by each file's own rules: Chrome Web Store and AMO Italian 3,116 /
-16,000 (3,104 without it-es, 2,596 withheld); App Store it-IT description 3,196 / 4,000 (3,184,
+The counts after the corrections, by each file's own rules: Chrome Web Store and AMO Italian 3,100 /
+16,000 (3,088 without it-es, 2,596 withheld); App Store it-IT description 3,180 / 4,000 (3,168,
 2,751), What's New 423 / 4,000 (346 without the voice, 303 without translation); the other fields
 unchanged.
 
@@ -150,8 +150,21 @@ unchanged.
    change 34's D4 and produced three must-fixes answered above. Recommendation: say U+0027 for the
    extension's Italian in `.claude/agents/lingua-italian-reviewer.md` (left to the owner: it is the
    agent's configuration).
+8. **Safari's word for its tabs**: the activation page and the App Store text say « schede »; Safari's
+   Italian may say « pannelli ». Recommendation: check in the dogfood (checklist E12), then correct
+   both in change 55 if so.
 
-## Verification pass
+## Verification pass (pass 7: 2 must-fix, 9 suggestions)
 
-A seventh pass read every corrected string, the glossary and its page. Its findings and what was done
-with them are below.
+A seventh pass read every corrected string, the glossary and its page.
+
+| Where | Finding | Level | Done |
+|---|---|---|---|
+| Glossary `level`, `account` | « grado » and « conto » refused would fail « in grado di », « tenere conto di » | must-fix (×2) | Applied: dropped |
+| Glossary, other refusals | « passaggio/i », « salvataggio », « opzioni », « configurazione », « parola chiave » have other senses | suggestion | Applied: dropped, with « ignota/e » and « sincronia »; the page states the rule (a refused form only ever means the concept; another sense takes an exception) |
+| Glossary `library` | « libreria » can mean a collection (Treccani) | suggestion | Applied: the reason restated |
+| `colours.ts` | « Pagina Carta » beside « Pagina scura » | suggestion | Applied: « Tema Carta », « Tema Scuro » |
+| `grammar.ts` `list` | a joined name before the last still takes « e » (« maschile e femminile plurale e plurale di x ») | suggestion | **Answered**: the names keep the pack's order, which every renderer follows; « plurale » closes the joined name (pass 2), and no golden line produces it |
+| Site `highlight`, `deck`, `level` cards | « alterare », « acquisisci », « fatto in casa » | suggestion (×3) | Applied (pass 5's rows above) |
+| Both listings, « TRADUZIONE ESTESA » | « dai server di Cymbra » claims more than « from Cymbra » | suggestion (×2) | Applied: « si scarica da Cymbra una sola volta » |
+| Unverified | Safari's Italian may call tabs « pannelli », not « schede » | — | The glossary's `tab` reason corrected; the activation page and the App Store text keep « schede » until the owner's dogfood (checklist E12) |

@@ -57,7 +57,7 @@
       "fr": ["carte", "cartes"],
       "it": ["carta", "carte"],
       "itRejected": ["flashcard", "flashcards"],
-      "why": "The interface's word (I6 rule 3): « carta », never « scheda », which is the browser's tab. « flashcard » stays a search keyword of the App Store listing, not the interface's name. « Carta » is also the Paper theme's name (French « Papier »), capitalised where it names the theme (« Pagina Carta: sfondo »), so no rule refuses « carta ».",
+      "why": "The interface's word (I6 rule 3): « carta », never « scheda », which is the browser's tab. « flashcard » stays a search keyword of the App Store listing, not the interface's name. « Carta » is also the Paper theme's name (French « Papier »), capitalised where it names the theme (« Tema Carta: sfondo »), so no rule refuses « carta ».",
       "exceptions": []
     },
     {
@@ -66,7 +66,7 @@
       "fr": ["onglet", "onglets"],
       "it": ["scheda", "schede"],
       "itRejected": ["tab", "linguetta"],
-      "why": "Chrome's, Firefox's and Safari's Italian word (a platform's word, precedence 4); never used for a card. A settings tab is named by its path, « Impostazioni › Dati », not « scheda ».",
+      "why": "Chrome's and Firefox's Italian word (a platform's word, precedence 4); never used for a card. Safari's Italian may call its tabs « pannelli » (unverified, the owner's checklist E12): the activation page keeps « schede » until the dogfood says otherwise, « pannello » being Lingua's panels. A settings tab is named by its path, « Impostazioni › Dati », not « scheda ».",
       "exceptions": []
     },
     {
@@ -88,7 +88,7 @@
       "en": "the extension's settings (Réglages), and the device's Settings app",
       "fr": ["réglages", "réglage"],
       "it": ["impostazioni", "impostazione"],
-      "itRejected": ["opzioni", "configurazione"],
+      "itRejected": [],
       "why": "Music's word (precedence 2), « Impostazioni », which is also iOS's and Chrome's. Safari's « preferenze » before macOS 13 answers the French « préférences », not this concept. A settings tab is named by its path, as the French writes it (« Impostazioni › Dati », « Impostazioni → Dati »), never « scheda Dati »; the activation page's step 3 will name « Impostazioni › Lingua » so when changes 50 and 54 give it a second sentence.",
       "exceptions": []
     },
@@ -142,7 +142,7 @@
         "comptes"
       ],
       "it": ["account"],
-      "itRejected": ["conto"],
+      "itRejected": [],
       "why": "Music's word (precedence 2): « account », invariable. The French « compte » is also the verb « compter », so only its nominal uses are forms here.",
       "exceptions": []
     },
@@ -169,7 +169,7 @@
       "en": "a password",
       "fr": ["mot de passe"],
       "it": ["password"],
-      "itRejected": ["parola d'ordine", "parola chiave", "parola segreta"],
+      "itRejected": ["parola d'ordine", "parola segreta"],
       "why": "Music's word (precedence 2): « password », feminine (« la password »).",
       "exceptions": []
     },
@@ -205,8 +205,8 @@
       "en": "an unknown word",
       "fr": ["inconnu", "inconnue", "inconnus", "inconnues"],
       "it": ["sconosciuta", "sconosciute", "sconosciuto", "sconosciuti"],
-      "itRejected": ["ignota", "ignote", "ignoto", "ignoti"],
-      "why": "The interface's word: « parole sconosciute »; « ignota » is literary.",
+      "itRejected": [],
+      "why": "The interface's word: « parole sconosciute »; « ignota » is literary, but not refused: it has other senses (« causa ignota »).",
       "exceptions": []
     },
     {
@@ -232,7 +232,7 @@
       "en": "a reader's level",
       "fr": ["niveau", "niveaux"],
       "it": ["livello", "livelli"],
-      "itRejected": ["grado"],
+      "itRejected": [],
       "why": "The interface's word (I6 rule 3).",
       "exceptions": []
     },
@@ -300,7 +300,7 @@
       "en": "synchronising",
       "fr": ["synchroniser", "synchronise", "synchronisent", "synchronisé", "synchronisation", "sync"],
       "it": ["sincronizza", "sincronizzare", "sincronizzano", "sincronizzato", "sincronizzati", "sincronizzazione"],
-      "itRejected": ["sync", "sincronia"],
+      "itRejected": ["sync"],
       "why": "The interface's word; the French clipping « sync » is written out.",
       "exceptions": []
     },
@@ -309,7 +309,7 @@
       "en": "a backup",
       "fr": ["sauvegarde", "sauvegarder"],
       "it": ["backup"],
-      "itRejected": ["salvataggio", "copia di sicurezza"],
+      "itRejected": ["copia di sicurezza"],
       "why": "The interface's word, as Italian software writes it (« Esegui il backup »).",
       "exceptions": []
     },
@@ -328,7 +328,7 @@
       "fr": ["bibliothèque"],
       "it": ["biblioteca"],
       "itRejected": ["libreria"],
-      "why": "The interface's word: « biblioteca », a collection of books; « libreria » is a bookshop or a bookcase.",
+      "why": "The interface's word: « biblioteca », the reader's collection of books. « libreria » can mean one too (Treccani's first sense, « raccolta di libri »; Apple Libri's word, unverified), but it also reads as a bookshop or a bookcase, so the interface keeps one word and refuses the other.",
       "exceptions": []
     },
     {
@@ -390,14 +390,9 @@
       "en": "the usage counts' steps",
       "fr": ["étape", "étapes"],
       "it": ["tappa", "tappe"],
-      "itRejected": ["passaggio", "passaggi"],
-      "why": "The interface's word (change 33's review unified « passaggi » into « tappe »).",
-      "exceptions": [
-        {
-          "key": "review.repeat()",
-          "reason": "« passaggio » there is a card's showing (« 2º passaggio », French « 2ᵉ passage »), not a step."
-        }
-      ]
+      "itRejected": [],
+      "why": "The interface's word (change 33's review unified « passaggi » into « tappe »); « passaggio » stays free for its other senses (a card's « 2º passaggio »), so it is not refused.",
+      "exceptions": []
     },
     {
       "id": "usage-counts",

@@ -990,7 +990,7 @@ unchanged; the support address `/it/assistenza/`.
 | Name | 30 | `Cymbra Lingua` (13) — the brand, kept: « lingua » is an ordinary Italian word, so the name already indexes it |
 | Subtitle | 30 | `Impara l'inglese leggendo` (25) |
 | Promotional text | 170 | 133 characters, below — re-pasted with every version |
-| Description | 4000 | 3196 characters, below |
+| Description | 4000 | 3180 characters, below |
 | Keywords | 100 | 99 characters (99 bytes), below |
 | What's New | 4000 | 423 characters (346 without the voice), below |
 | Support URL | — | `https://cymbra.app/it/assistenza/` (_provisional_; the owner's question: `/it/assistenza/` or `/en/support/`) |
@@ -1019,7 +1019,7 @@ search.
 inglese,vocabolario,lettura,traduzione,estensione,imparare,ripasso,QCER,lingue,flashcard,dizionario
 ```
 
-### Description, it-IT (3196 / 4000)
+### Description, it-IT (3180 / 4000)
 
 The es-ES text without fr-es, written for a reader of Italian who studies English, with what the
 other texts added since (the anonymous counts, the last line's four audiences). Its steps follow the
@@ -1030,7 +1030,7 @@ Italian catalogue (`apps/lingua-extension/src/i18n/it/card.ts`: « La conosco »
 « Ignora »; « Un badge », `showPercentPill`); its grammar the Italian renderer (`src/i18n/it/grammar.ts`:
 « passato semplice di go », pinned by `test/baseline/word-card-en-it.txt`); its size the model
 catalogue (en-it 2.1, « 26,5 MB »). English's levels are not estimated (CEFR-J and Octanove), named
-QCER. The last line is the form with it-es (the one release carries change 30); without it-es (3184),
+QCER. The last line is the form with it-es (the one release carries change 30); without it-es (3168),
 its last clause reads « e in spagnolo per gli ispanofoni, che imparano l'inglese e il francese. »
 
 ```
@@ -1053,7 +1053,7 @@ I TUOI LIBRI
 Importa i tuoi libri EPUB senza DRM nella biblioteca dell'estensione e leggili offline, con la stessa evidenziazione. Restano sul tuo dispositivo.
 
 TRADUZIONE ESTESA (FACOLTATIVA)
-La tua selezione viene tradotta in italiano nel contesto della sua frase, direttamente dall'inglese, sul tuo dispositivo, con il motore di Firefox Translations, incluso nell'app. Se attivi la traduzione estesa, il modello di traduzione (26,5 MB) viene scaricato una sola volta dai server di Cymbra; il testo delle pagine che leggi resta comunque sul tuo dispositivo. Se la disattivi, il modello viene eliminato.
+La tua selezione viene tradotta in italiano nel contesto della sua frase, direttamente dall'inglese, sul tuo dispositivo, con il motore di Firefox Translations, incluso nell'app. Se attivi la traduzione estesa, il modello di traduzione (26,5 MB) si scarica da Cymbra una sola volta; il testo delle pagine che leggi resta comunque sul tuo dispositivo. Se la disattivi, il modello viene eliminato.
 
 LA TUA LETTURA RESTA TUA
 I dizionari e i motori di analisi e di traduzione sono nell'app, e tutto funziona offline. Ciò che leggi non lascia mai il tuo dispositivo. L'estensione può inviare conteggi anonimi (installazione, primi passi, ritorni) senza alcun identificativo; un interruttore nelle Impostazioni dell'estensione li disattiva.
