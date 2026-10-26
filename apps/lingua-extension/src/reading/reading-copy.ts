@@ -5,10 +5,14 @@ import { grammar as enGrammar } from "../i18n/en/grammar.ts";
 import { hud as enHud } from "../i18n/en/hud.ts";
 import { selection as enSelection } from "../i18n/en/selection.ts";
 import { card as esCard } from "../i18n/es/card.ts";
+import { card as itCard } from "../i18n/it/card.ts";
 import { drawer as esDrawer } from "../i18n/es/drawer.ts";
+import { drawer as itDrawer } from "../i18n/it/drawer.ts";
 import { grammar as esGrammar } from "../i18n/es/grammar.ts";
 import { hud as esHud } from "../i18n/es/hud.ts";
+import { hud as itHud } from "../i18n/it/hud.ts";
 import { selection as esSelection } from "../i18n/es/selection.ts";
+import { selection as itSelection } from "../i18n/it/selection.ts";
 import { card as frCard } from "../i18n/fr/card.ts";
 import { drawer as frDrawer } from "../i18n/fr/drawer.ts";
 import { grammar as frGrammar } from "../i18n/fr/grammar.ts";
@@ -25,7 +29,7 @@ import type { CardCopy } from "./wordpopup.ts";
 // language — and the word card's grammar renderer (generalise-lingua-card-wording D2), which the
 // card reads here by the same language as its copy, so the two cannot disagree. Each surface holds
 // its own French module as its default — a session built without any reads French — and this is the
-// one place that holds all three languages of the five.
+// one place that holds every language of the five.
 
 export interface ReadingCopy {
   hud: HudCopy;
@@ -40,6 +44,10 @@ const COPY: Record<InterfaceLanguage, ReadingCopy> = {
   fr: { hud: frHud, drawer: frDrawer, card: frCard, selection: frSelection, grammar: frGrammar },
   en: { hud: enHud, drawer: enDrawer, card: enCard, selection: enSelection, grammar: enGrammar },
   es: { hud: esHud, drawer: esDrawer, card: esCard, selection: esSelection, grammar: esGrammar },
+  // Italian's renderer of readings is change 34's (add-lingua-italian-card-wording): until then an
+  // Italian interface words a card's grammar with the English renderer, M13's fallback
+  // (add-lingua-italian-interface D2) — unreachable before the Italian interface is shown.
+  it: { hud: itHud, drawer: itDrawer, card: itCard, selection: itSelection, grammar: enGrammar },
 };
 
 /**

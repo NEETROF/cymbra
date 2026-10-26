@@ -10,6 +10,7 @@ import {
   formatDate,
   formatNumber,
   formatPercent,
+  formatTime,
   type GrammarRenderer,
   INTERFACE_LANGUAGE_KEY,
   type InterfaceLanguage,
@@ -30,6 +31,12 @@ import { popup as frPopup } from "@/i18n/fr/popup.ts";
 import { review as frReview } from "@/i18n/fr/review.ts";
 import { review as enReview } from "@/i18n/en/review.ts";
 import { review as esReview } from "@/i18n/es/review.ts";
+import { review as itReview } from "@/i18n/it/review.ts";
+import { popup as itPopup } from "@/i18n/it/popup.ts";
+import { account as itAccount } from "@/i18n/it/account.ts";
+import { languages as itLanguages } from "@/i18n/it/languages.ts";
+import { sync as itSync } from "@/i18n/it/sync.ts";
+import { borrowedTypicalNote } from "@/analyzer/language-labels.ts";
 import { colours as enColours } from "@/i18n/en/colours.ts";
 import { card as frCard } from "@/i18n/fr/card.ts";
 import { colours as frColours } from "@/i18n/fr/colours.ts";
@@ -41,8 +48,8 @@ import { account as frAccount } from "@/i18n/fr/account.ts";
 import { lineText } from "@/reading/grammar-description.ts";
 
 // The catalogue (add-lingua-interface-language): the key every surface reads before its copy, the
-// helpers a count and a figure go through, and the parity of the English and Spanish drafts with the
-// French source — what the compiler says about the key set, this says about the values.
+// helpers a count and a figure go through, and the parity of the English, Spanish and Italian drafts
+// with the French source — what the compiler says about the key set, this says about the values.
 
 const NNBSP = "\u202F";
 const NBSP = "\u00A0";
@@ -125,6 +132,18 @@ describe("a count in each language", () => {
     expect(plural("es", 3, esReview.remaining)).toBe("3 tarjetas por repasar");
   });
 
+  it("A count in Italian: one and other, the counts written « 1 » and « 3 » (add-lingua-italian-interface)", () => {
+    const rules = new Intl.PluralRules("it-IT");
+    expect(rules.select(1)).toBe("one");
+    expect(rules.select(3)).toBe("other");
+    expect(plural("it", 1, itReview.remaining)).toBe("1 carta da ripassare");
+    expect(plural("it", 3, itReview.remaining)).toBe("3 carte da ripassare");
+    // A round million is `many`, and takes « di »; 0 is `other`, unlike French.
+    expect(rules.select(1_000_000)).toBe("many");
+    expect(plural("it", 1_000_000, itReview.remaining)).toBe("1.000.000 di carte da ripassare");
+    expect(plural("it", 0, itReview.remaining)).toBe("0 carte da ripassare");
+  });
+
   it("A French format Intl would change: the raw count, the megabytes, the minutes", () => {
     expect(plural("fr", 1234, frReview.remaining)).toBe("1234 carte(s) à revoir");
     expect(plural("en", 1234, enReview.remaining)).toBe("1,234 cards to review");
@@ -143,6 +162,17 @@ describe("a count in each language", () => {
     const twoForms: PluralForms = { one: (n) => `one ${n}`, other: (n) => `other ${n}` };
     expect(plural("fr", 1_000_000, twoForms)).toBe("other 1000000");
     expect(plural("fr", 0, twoForms)).toBe("one 0");
+  });
+
+  it("formats a figure as Italian writes it: « 20.000 », four digits ungrouped (Open Question 1)", () => {
+    expect(formatNumber("it", 20_000)).toBe("20.000");
+    expect(formatNumber("it", 1_234_567)).toBe("1.234.567");
+    expect(formatNumber("it", 5000)).toBe("5000");
+    expect(formatNumber("it", 9999)).toBe("9999");
+    expect(formatNumber("it", 25.8, { minimumFractionDigits: 1, maximumFractionDigits: 1 })).toBe("25,8");
+    expect(formatCount("it", 5000)).toBe("5000");
+    expect(formatCount("it", 12_345)).toBe("12.345");
+    expect(itPopup.review(formatCount("it", 12_345))).toBe("Ripassa (12.345)");
   });
 
   it("formats a figure as each language writes it, the Spanish as the RAE does", () => {
@@ -178,6 +208,11 @@ describe("a count in each language", () => {
     expect(formatPercent("es", 96, "tight")).toBe(`96${NNBSP}%`);
   });
 
+  it("writes an Italian percentage tight in every form, never the French « 110 % »", () => {
+    expect(formatPercent("it", 96, "tight")).toBe("96%");
+    expect(formatPercent("it", 110, "spaced")).toBe("110%");
+  });
+
   it("writes a date through each language's locale", () => {
     const date = new Date(2026, 9, 4);
     const long = { day: "numeric", month: "long", year: "numeric" } as const;
@@ -186,6 +221,12 @@ describe("a count in each language", () => {
     expect(formatDate("en", date, long)).toBe("October 4, 2026");
     expect(formatDate("es", date)).toBe("4/10/2026");
     expect(formatDate("es", date, long)).toBe("4 de octubre de 2026");
+    expect(formatDate("it", date)).toBe("04/10/2026");
+    expect(formatDate("it", date, long)).toBe("4 ottobre 2026");
+    expect(formatTime("it", new Date(2026, 9, 4, 14, 5))).toBe("14:05");
+    // The two dates are worded without an article, which would elide before « 8 » and « 11 » (D4).
+    expect(itAccount.linkedOn(formatDate("it", new Date(2026, 9, 8), long))).toBe("Collegato: 8 ottobre 2026");
+    expect(itSync.lastSyncOn(formatDate("it", date))).toBe("Ultima sincronizzazione: 04/10/2026.");
   });
 
   it("names a region in each language, French as Réglages named it, the code where none is known", () => {
@@ -193,6 +234,8 @@ describe("a count in each language", () => {
     expect(regionName("fr", "GB")).toBe("Royaume-Uni");
     expect(regionName("en", "GB")).toBe("United Kingdom");
     expect(regionName("es", "US")).toBe("Estados Unidos");
+    expect(regionName("it", "US")).toBe("Stati Uniti");
+    expect(regionName("it", "GB")).toBe("Regno Unito");
     expect(regionName("es", "LATN")).toBe("LATN"); // a script, not a region: the runtime refuses it
   });
 
@@ -355,6 +398,7 @@ describe("a page filled from the catalogue (localise-lingua-reading-surfaces D2)
       fr: copy,
       en: { ...copy, settings: "Settings" },
       es: { ...copy, settings: "Ajustes" },
+      it: { ...copy, settings: "Impostazioni" },
     };
     const area = (items: Record<string, unknown>) => ({ get: async (key: string) => ({ [key]: items[key] }) });
 
@@ -434,7 +478,7 @@ describe("a slot message rendered around a node", () => {
 // — Parity of the drafts with the French (D6) —
 
 type Catalogue = Record<string, unknown>;
-const modules = import.meta.glob<Catalogue>("../src/i18n/{fr,en,es}/*.ts", { eager: true });
+const modules = import.meta.glob<Catalogue>("../src/i18n/{fr,en,es,it}/*.ts", { eager: true });
 
 function catalogue(language: InterfaceLanguage, surface: string): Catalogue {
   const mod = modules[`../src/i18n/${language}/${surface}.ts`];
@@ -486,17 +530,26 @@ const SAME_EVERYWHERE = new Set([
   "Italiano",
 ]);
 
-/** Texts a language happens to share with the French, and no other. */
-const SAME_AS_FRENCH: Record<"en" | "es", Set<string>> = {
+/** The drafts typed after the French. */
+const DRAFTS = ["en", "es", "it"] as const;
+type Draft = (typeof DRAFTS)[number];
+
+/**
+ * Texts a language happens to share with the French, and no other draft — or shares with the French
+ * and another draft, but not every one (« Email », which the Spanish writes « Correo electrónico »).
+ */
+const SAME_AS_FRENCH: Record<Draft, Set<string>> = {
   en: new Set(["Email", "Option", "Double", "+ Deck", "CEFR"]),
   es: new Set(),
+  it: new Set(["Email"]),
 };
 
 /** Slot messages whose text is only their parts and a symbol — the same shape in every language. */
 const SAME_SHAPE_EVERYWHERE = new Set(["@α", "▶ α", "α → β", "α / β", `≈${NBSP}α`, "α…", "α — β", "α β"]);
-const SAME_SHAPE_AS_FRENCH: Record<"en" | "es", Set<string>> = {
+const SAME_SHAPE_AS_FRENCH: Record<Draft, Set<string>> = {
   en: new Set(),
   es: new Set(),
+  it: new Set(),
 };
 
 /**
@@ -564,14 +617,22 @@ function shape(value: unknown): unknown {
  */
 const TEXT_SURFACES = SURFACES.filter((surface) => surface !== "grammar");
 
+/** The surfaces each language has a module for: every one, but Italian's `grammar`, change 34's (D2). */
+const SURFACES_OF: Record<"fr" | Draft, readonly string[]> = {
+  fr: SURFACES,
+  en: SURFACES,
+  es: SURFACES,
+  it: TEXT_SURFACES,
+};
+
 describe("the drafts are whole", () => {
-  it("has a module for every surface in every language, and no other", () => {
-    for (const language of ["fr", "en", "es"] as const) {
+  it("has a module for every surface in every language, and no other — Italian's grammar aside", () => {
+    for (const language of ["fr", ...DRAFTS] as const) {
       const found = Object.keys(modules)
         .filter((p) => p.includes(`/${language}/`))
         .map((p) => p.replace(/.*\//, "").replace(/\.ts$/, ""))
         .sort();
-      expect(found, language).toEqual([...SURFACES].sort());
+      expect(found, language).toEqual([...SURFACES_OF[language]].sort());
     }
   });
 
@@ -579,12 +640,11 @@ describe("the drafts are whole", () => {
     describe(surface, () => {
       const fr = catalogue("fr", surface);
 
-      it("has the French key set in English and in Spanish, plural forms and slots included", () => {
-        expect(shape(catalogue("en", surface))).toEqual(shape(fr));
-        expect(shape(catalogue("es", surface))).toEqual(shape(fr));
+      it("has the French key set in English, Spanish and Italian, plural forms and slots included", () => {
+        for (const language of DRAFTS) expect(shape(catalogue(language, surface)), language).toEqual(shape(fr));
       });
 
-      for (const language of ["en", "es"] as const) {
+      for (const language of DRAFTS) {
         it(`The drafts are whole: ${language} is full, takes every slot, and is not the French`, () => {
           const slots = slotsOf(fr, surface);
           const draft = texts(catalogue(language, surface), surface, slots);
@@ -611,12 +671,12 @@ describe("the drafts are whole", () => {
   }
 
   it("the lists of texts that are the same everywhere name only texts that are", () => {
-    const equal = { en: new Set<string>(), es: new Set<string>() };
+    const equal: Record<Draft, Set<string>> = { en: new Set(), es: new Set(), it: new Set() };
     for (const surface of TEXT_SURFACES) {
       const fr = catalogue("fr", surface);
       const slots = slotsOf(fr, surface);
       const source = new Map(texts(fr, surface, slots).map((t) => [t.path, t.text]));
-      for (const language of ["en", "es"] as const) {
+      for (const language of DRAFTS) {
         for (const { path, text } of texts(catalogue(language, surface), surface, slots)) {
           if (source.get(path) === text) equal[language].add(text);
         }
@@ -625,11 +685,11 @@ describe("the drafts are whole", () => {
     for (const text of [...SAME_EVERYWHERE, ...SAME_SHAPE_EVERYWHERE]) {
       expect(equal.en.has(text) && equal.es.has(text), `« ${text} » is not the same everywhere`).toBe(true);
     }
-    for (const language of ["en", "es"] as const) {
+    for (const language of DRAFTS) {
       for (const text of [...SAME_AS_FRENCH[language], ...SAME_SHAPE_AS_FRENCH[language]]) {
         expect(equal[language].has(text), `${language}: « ${text} » is not the French`).toBe(true);
-        const other = language === "en" ? "es" : "en";
-        expect(equal[other].has(text), `« ${text} » is the same in both: list it as same everywhere`).toBe(false);
+        const everyDraft = DRAFTS.every((draft) => equal[draft].has(text));
+        expect(everyDraft, `« ${text} » is the same in every draft: list it as same everywhere`).toBe(false);
       }
     }
   });
@@ -640,6 +700,32 @@ describe("the drafts are whole", () => {
     expect(esReview.start).not.toBe("Réviser");
     expect(enReview.start).toBe("Review");
     expect(esReview.start).toBe("Repasar");
+    expect(itReview.start).toBe("Ripassa");
+  });
+
+  it("Italian writes as Italian does (add-lingua-italian-interface D4): QCER, its contractions, no gender assumed", () => {
+    expect(itLanguages.levelScale).toBe("QCER");
+    expect(borrowedTypicalNote("it", "es", "en")).toBe(
+      "ripreso dall'inglese, di cui lo spagnolo riprende l'ampiezza dei livelli.",
+    );
+    expect(borrowedTypicalNote("it", "en", "es")).toBe(
+      "ripreso dallo spagnolo, di cui l'inglese riprende l'ampiezza dei livelli.",
+    );
+    expect(borrowedTypicalNote("it", "en", "fr")).toBe(
+      "ripreso dal francese, di cui l'inglese riprende l'ampiezza dei livelli.",
+    );
+    expect(borrowedTypicalNote("it", "en", "it")).toBe(
+      "ripreso dall'italiano, di cui l'inglese riprende l'ampiezza dei livelli.",
+    );
+    // « tu », never « Lei »; the reader's gender never assumed (« Connecté » is « Accesso effettuato »).
+    const italian = Object.keys(modules)
+      .filter((path) => path.includes("/it/"))
+      .flatMap((path) => texts(Object.values(modules[path]!)[0], path, new Map()).map((t) => t.text));
+    for (const text of italian) {
+      expect(text, text).not.toMatch(/\b(?:Lei|La preghiamo|Suo|Sua)\b/);
+      expect(text, text).not.toMatch(/\b(?:connesso|connessa|uscito|uscita)\b/i);
+      expect(text, text).not.toMatch(/\bBenvenut[oa]\b/); // « il benvenuto », the noun, is genderless
+    }
   });
 
   it("calls a draft with the French message's parts, so a parameter it dropped is seen", () => {

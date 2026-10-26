@@ -1,0 +1,102 @@
+import type { account as fr } from "../fr/account.ts";
+
+// The account page's copy in Italian — a draft after the French (src/i18n/README.md;
+// add-lingua-italian-interface D1). « Connecté » is worded without a gender (D4); the date after
+// « Collegato il » is written without an article that would have to elide (« Collegato: … »).
+
+export const account: typeof fr = {
+  pageTitle: "Account — Cymbra Lingua",
+  heading: "Cymbra Lingua",
+  pageFootnote:
+    "Il tuo account Cymbra è lo stesso di Cymbra Music. Senza account, l'estensione funziona interamente su questo dispositivo.",
+
+  erased:
+    "I tuoi dati di Lingua sono stati cancellati. Gli altri tuoi dispositivi li cancelleranno alla prossima sincronizzazione.",
+  providerLocal: "Email e password",
+  verifyFirst: "Il tuo indirizzo email non è ancora verificato. Inserisci il codice ricevuto via email.",
+  codeSent: (email) => `Abbiamo inviato un codice di verifica a ${email}.`,
+  verifiedSignIn: "Indirizzo verificato. Accedi.",
+  verifiedSignedIn: "Indirizzo verificato, accesso effettuato.",
+  verified: "Indirizzo verificato.",
+  newCodeSent: "Abbiamo inviato un nuovo codice.",
+  resetCodeSent: (email) => `Se esiste un account per ${email}, ti abbiamo appena inviato un codice a quell'indirizzo.`,
+  passwordChanged: "Password modificata. Accedi con quella nuova.",
+  finishInApp: "Completa l'accesso nell'app Cymbra Lingua, poi torna qui.",
+  linked: (provider) => `${provider} è collegato al tuo account.`,
+  methodRemoved: (provider) => `Metodo rimosso: ${provider}.`,
+  passwordSet: (email) => `Password impostata: puoi accedere anche con ${email}, su tutti i tuoi browser.`,
+  handleSaved: (handle) => `Fatto: il tuo nome utente è @${handle}.`,
+  signedOut: "Disconnessione effettuata. Accedi con un altro account o creane uno.",
+
+  handleEmpty: (max) => `Da 1 a ${max} lettere o numeri.`,
+  handleChecking: "Verifica in corso…",
+  handleAvailable: "Disponibile!",
+  handleTaken: "Questo nome utente è già preso: provane un altro.",
+  handleUnchecked: "Impossibile verificare in questo momento: puoi comunque confermare.",
+  continueWithGoogle: "Continua con Google",
+  continueWithApple: "Continua con Apple",
+  orWithEmail: "oppure con la tua email",
+  yourData: "I tuoi dati",
+  eraseWarning:
+    "Le tue parole, il tuo livello, il tuo mazzo e le tue statistiche di Lingua verranno cancellati sul server e su tutti " +
+    "i tuoi dispositivi. È definitivo. Il tuo account Cymbra e Cymbra Music non vengono toccati.",
+  eraseYes: "Sì, cancella i miei dati di Lingua",
+  cancel: "Annulla",
+  eraseLead: "Cancella ciò che Lingua ha registrato per questo account, senza eliminare l'account.",
+  erase: "Cancella i miei dati di Lingua…",
+  deleteFootnote:
+    "Eliminare il tuo account Cymbra lo elimina per tutte le app Cymbra, Music compresa. " +
+    "Per rimuovere solo Lingua, usa «Cancella i miei dati di Lingua».",
+  deleteAccount: "Elimina il mio account Cymbra",
+  linkedOn: (date) => `Collegato: ${date}`,
+  removeAsk: (provider) => `Rimuovere ${provider} dal tuo account?`,
+  remove: "Rimuovi",
+  setPassword: "Imposta una password",
+  setPasswordLead:
+    "Aggiungi un'email e una password per accedere anche con l'email, ad esempio su un browser senza " +
+    "Google né Apple. Ti invieremo un codice per verificare l'indirizzo.",
+  email: "Email",
+  password: "Password",
+  setPasswordSubmit: "Imposta la password",
+  verifyEmail: "Verifica il tuo indirizzo email",
+  codeSentTo: (email) => `Inserisci il codice inviato a ${email}`,
+  verificationCode: "Codice di verifica",
+  validate: "Conferma",
+  restart: "Ricomincia",
+  connectedLead: "I metodi di accesso collegati al tuo account Cymbra, gli stessi di Cymbra Music.",
+  retry: "Riprova",
+  back: "Indietro",
+  linkGoogle: "Collega Google",
+  linkApple: "Collega Apple",
+  signIn: "Accedi",
+  forgotPassword: "Password dimenticata?",
+  createAccount: "Crea un account",
+  createAccountTitle: "Crea un account Cymbra",
+  signUpLead: "Ritrova le tue parole, il tuo mazzo e le tue statistiche su tutti i tuoi dispositivi.",
+  createMyAccount: "Crea il mio account",
+  haveAccount: "Ho già un account",
+  verify: "Verifica",
+  resendCode: "Invia di nuovo il codice",
+  useAnotherEmail: "Usa un'altra email",
+  forgotTitle: "Password dimenticata",
+  forgotLead: "Indica la tua email: ti inviamo un codice per scegliere una nuova password.",
+  sendCode: "Invia un codice",
+  backToSignIn: "Torna all'accesso",
+  newPasswordTitle: "Nuova password",
+  codeByEmail: "Codice ricevuto via email",
+  newPassword: "Nuova password",
+  changePassword: "Modifica la password",
+  resendACode: "Invia un nuovo codice",
+  chooseHandle: "Scegli il tuo nome utente",
+  handleLead: "Il tuo nome utente identifica il tuo account Cymbra, lo stesso di Cymbra Music. Lo ritroverai ovunque.",
+  handle: "Nome utente",
+  continue: "Continua",
+  handleFootnote: "Senza nome utente, questo account non viene conservato.",
+  useAnotherAccount: "Usa un altro account",
+  signedInTitle: "Accesso effettuato",
+  handleAt: (handle) => `@${handle}`,
+  signedInLead:
+    "Le tue parole, il tuo mazzo e le tue statistiche si sincronizzano tra i tuoi dispositivi. Puoi chiudere questa scheda.",
+  signOut: "Esci",
+  connectedAccounts: "Account collegati",
+};

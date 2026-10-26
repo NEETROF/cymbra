@@ -7,12 +7,19 @@ import { studiedLanguages as enStudiedLanguages } from "../i18n/en/studied-langu
 import { sync as enSync } from "../i18n/en/sync.ts";
 import { translation as enTranslation } from "../i18n/en/translation.ts";
 import { accountSetting as esAccountSetting } from "../i18n/es/account-setting.ts";
+import { accountSetting as itAccountSetting } from "../i18n/it/account-setting.ts";
 import { colours as esColours } from "../i18n/es/colours.ts";
+import { colours as itColours } from "../i18n/it/colours.ts";
 import { display as esDisplay } from "../i18n/es/display.ts";
+import { display as itDisplay } from "../i18n/it/display.ts";
 import { settings as esSettings } from "../i18n/es/settings.ts";
+import { settings as itSettings } from "../i18n/it/settings.ts";
 import { studiedLanguages as esStudiedLanguages } from "../i18n/es/studied-languages.ts";
+import { studiedLanguages as itStudiedLanguages } from "../i18n/it/studied-languages.ts";
 import { sync as esSync } from "../i18n/es/sync.ts";
+import { sync as itSync } from "../i18n/it/sync.ts";
 import { translation as esTranslation } from "../i18n/es/translation.ts";
+import { translation as itTranslation } from "../i18n/it/translation.ts";
 import { accountSetting as frAccountSetting } from "../i18n/fr/account-setting.ts";
 import { colours as frColours } from "../i18n/fr/colours.ts";
 import { display as frDisplay } from "../i18n/fr/display.ts";
@@ -28,7 +35,7 @@ import { translation as frTranslation } from "../i18n/fr/translation.ts";
 // or a date. Each block holds its own French module as its default, so a spec, or a host with no
 // language yet (the onboarding page), mounts what it mounted before, and a block's entry pays for no
 // other language; a caller that hands a block a language hands it that language's module too (the
-// reader's "Aa" panel). This is the one place that holds all three languages of the seven.
+// reader's "Aa" panel). This is the one place that holds every language of the seven.
 
 export type SettingsModule = typeof frSettings;
 export type StudiedLanguagesCopy = typeof frStudiedLanguages;
@@ -75,6 +82,15 @@ const COPY: Record<InterfaceLanguage, SettingsCopy> = {
     translation: esTranslation,
     accountSetting: esAccountSetting,
     sync: esSync,
+  },
+  it: {
+    settings: itSettings,
+    studiedLanguages: itStudiedLanguages,
+    colours: itColours,
+    display: itDisplay,
+    translation: itTranslation,
+    accountSetting: itAccountSetting,
+    sync: itSync,
   },
 };
 

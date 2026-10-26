@@ -9,7 +9,7 @@ import {
 // The catalogue's helpers (add-lingua-interface-language D1, D2, D4): how a count picks its
 // plural form, how a number, a percentage, a date and a region are written in each language, how a
 // page is filled from a module, and how a slot message is rendered around the parts a surface draws
-// apart. No surface's copy is mapped here — a surface imports its own `./{fr,en,es}/<surface>.ts`
+// apart. No surface's copy is mapped here — a surface imports its own `./{fr,en,es,it}/<surface>.ts`
 // and picks by the interface language — so importing this module costs an entry nothing but these
 // functions.
 
@@ -79,7 +79,7 @@ export const SURFACES: readonly Surface[] = [
 
 /**
  * The forms of a counted message, by `Intl.PluralRules` category, each a function of the number
- * as the language writes it. French and Spanish have `many` (a round million, in current CLDR),
+ * as the language writes it. French, Spanish and Italian have `many` (a round million, in current CLDR),
  * English has not: a missing `many` falls back to `other`. In French every form carries the same
  * string, the current one — « 3 carte(s) à revoir » — so a French module writes it twice.
  */
@@ -167,7 +167,7 @@ export interface GrammarRenderer {
   join(items: readonly string[]): string;
 }
 
-const LOCALES: Record<InterfaceLanguage, string> = { fr: "fr-FR", en: "en-US", es: "es-ES" };
+const LOCALES: Record<InterfaceLanguage, string> = { fr: "fr-FR", en: "en-US", es: "es-ES", it: "it-IT" };
 
 const rules = new Map<InterfaceLanguage, Intl.PluralRules>();
 
@@ -188,9 +188,13 @@ const NARROW_NO_BREAK_SPACE = "\u202F";
  * `fr-FR` (« 20 000 », a narrow no-break space between the groups); English through `en-US`
  * ("20,000"); Spanish as the RAE writes it, which `es-ES` does not: no grouping below ten
  * thousand (« 5000 »), then groups of three parted by a narrow no-break space (« 20 000 »),
- * a comma before the decimals (« 25,8 »).
+ * a comma before the decimals (« 25,8 »). Italian through `it-IT` (« 20.000 », « 25,8 »), with no
+ * grouping under five digits (« 5000 », the owner's answer of 2026-10-22,
+ * add-lingua-italian-interface D3), pinned with `useGrouping: "min2"` so that no browser's ICU
+ * groups it.
  */
 export function formatNumber(language: InterfaceLanguage, n: number, options?: Intl.NumberFormatOptions): string {
+  if (language === "it") return n.toLocaleString(LOCALES.it, { useGrouping: "min2", ...options });
   if (language !== "es") return n.toLocaleString(LOCALES[language], options);
   const plain = n.toLocaleString(LOCALES.es, { ...options, useGrouping: false });
   return plain.replace(
@@ -201,8 +205,8 @@ export function formatNumber(language: InterfaceLanguage, n: number, options?: I
 
 /**
  * A count as the interface language writes it: in French the raw figure the surfaces write today
- * (« 1234 », never a grouped « 1 234 »), in English and Spanish through `formatNumber` ("1,234",
- * « 1234 », « 12 345 »). A count is not a measure: French has always written it bare.
+ * (« 1234 », never a grouped « 1 234 »), in English, Spanish and Italian through `formatNumber`
+ * ("1,234", « 1234 », « 12 345 », « 12.345 »). A count is not a measure: French has always written it bare.
  */
 export function formatCount(language: InterfaceLanguage, n: number): string {
   return language === "fr" ? String(n) : formatNumber(language, n);
@@ -211,23 +215,31 @@ export function formatCount(language: InterfaceLanguage, n: number): string {
 /**
  * How a French surface writes a percentage today: the popup and the HUD « 45% », the reader's
  * text size « 45 % » with a plain space. The form only decides the French (M23 keeps each
- * surface's); Spanish always parts the sign with a narrow no-break space, English never.
+ * surface's); Spanish always parts the sign with a narrow no-break space, English and Italian never
+ * (« 96% », add-lingua-italian-interface D3). An exhaustive switch: the next interface language
+ * does not fall into the French branch unseen.
  */
 export type PercentForm = "tight" | "spaced";
 
 export function formatPercent(language: InterfaceLanguage, n: number, form: PercentForm): string {
   const number = formatNumber(language, n);
-  if (language === "es") return `${number}${NARROW_NO_BREAK_SPACE}%`;
-  if (language === "en") return `${number}%`;
-  return form === "spaced" ? `${number} %` : `${number}%`;
+  switch (language) {
+    case "es":
+      return `${number}${NARROW_NO_BREAK_SPACE}%`;
+    case "en":
+    case "it":
+      return `${number}%`;
+    case "fr":
+      return form === "spaced" ? `${number} %` : `${number}%`;
+  }
 }
 
-/** A date as the interface language writes it: `fr-FR` as the surfaces do today, `en-US`, `es-ES`. */
+/** A date as the interface language writes it: `fr-FR` as the surfaces do today, `en-US`, `es-ES`, `it-IT`. */
 export function formatDate(language: InterfaceLanguage, date: Date, options?: Intl.DateTimeFormatOptions): string {
   return date.toLocaleDateString(LOCALES[language], options);
 }
 
-/** An hour and its minutes as the interface language writes them: « 14:05 », "2:05 PM", « 14:05 ». */
+/** An hour and its minutes as the interface language writes them: « 14:05 », "2:05 PM", « 14:05 », « 14:05 ». */
 export function formatTime(language: InterfaceLanguage, date: Date): string {
   return date.toLocaleTimeString(LOCALES[language], { hour: "numeric", minute: "2-digit" });
 }
@@ -391,7 +403,7 @@ export function renderAround(element: Element, message: string, node: Node): voi
 /**
  * A counted message: the form `Intl.PluralRules` picks for `n` in the language, given the number
  * as the language writes it — in French the raw count the surfaces write today (« 1234 carte(s) »,
- * never a grouped « 1 234 »), in English and Spanish the formatted one. A surface that already
+ * never a grouped « 1 234 »), in English, Spanish and Italian the formatted one. A surface that already
  * writes the figure its own way (the ladder's « 20 000 mots ») passes it as `formatted`.
  */
 export function plural(

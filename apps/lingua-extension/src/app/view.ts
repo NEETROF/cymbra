@@ -1,5 +1,6 @@
 import { app as enApp } from "../i18n/en/app.ts";
 import { app as esApp } from "../i18n/es/app.ts";
+import { app as itApp } from "../i18n/it/app.ts";
 import { app as frApp } from "../i18n/fr/app.ts";
 import { formatDate, formatNumber, formatTime, type InterfaceLanguage } from "../i18n/index.ts";
 import type { AppAccountName } from "./account.ts";
@@ -9,7 +10,7 @@ import type { AppModelView } from "./translation.ts";
 // What the Cymbra Lingua app's home shows of its own beside the extension's Révision
 // (add-lingua-apple-review): how old the deck is.
 
-const APP_COPY: Record<InterfaceLanguage, typeof frApp> = { fr: frApp, en: enApp, es: esApp };
+const APP_COPY: Record<InterfaceLanguage, typeof frApp> = { fr: frApp, en: enApp, es: esApp, it: itApp };
 
 export function appCopy(language: InterfaceLanguage): typeof frApp {
   return APP_COPY[language];

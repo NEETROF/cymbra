@@ -16,7 +16,7 @@ import { settings } from "@/i18n/fr/settings.ts";
 // its own — recognised by the block titles the builder uses, as a text node in HTML or as a
 // string literal in code. The titles are the catalogue's (localise-lingua-settings D2): the
 // builder writes `settingBlock(copy.<key>)`, and the French entries of those keys are what a copy
-// of Réglages would hold. The catalogue itself, in its three languages, is the one place — its
+// of Réglages would hold. The catalogue itself, in each of its languages, is the one place — its
 // `settings` module alone, in each language, holds a title. And every host hands the view the
 // interface language (localise-lingua-settings D1): a host that forgot would show Réglages in French
 // to every reader, and no French assertion would notice. The same for the two views that name the
@@ -161,7 +161,7 @@ describe("the views that name languages, handed the interface language", () => {
         // The language is the identifier naming it — never a bare code, nor the default (below).
         expect(call, `${path}: hand ${view} the interface language — ${call}`).toMatch(/\binterfaceLanguage\b/);
         expect(call, `${path}: a language code is a default in disguise — ${call}`).not.toMatch(
-          /["'](fr|en|es)["']\s*,?\s*\)$/,
+          /["'](fr|en|es|it)["']\s*,?\s*\)$/,
         );
       }
     });
@@ -184,7 +184,7 @@ describe("the views that name languages, handed the interface language", () => {
 // — In the catalogue, a title lives in its language's `settings` module alone —
 
 type Catalogue = Record<string, unknown>;
-const modules = import.meta.glob<Catalogue>("../src/i18n/{fr,en,es}/*.ts", { eager: true });
+const modules = import.meta.glob<Catalogue>("../src/i18n/{fr,en,es,it}/*.ts", { eager: true });
 
 /** The plain texts of a module, nested objects included (a message's output is its parts'). */
 function plainTexts(value: unknown): string[] {
@@ -208,7 +208,7 @@ function catalogueTexts(path: string, module: Catalogue): string[] {
 }
 
 describe("the block titles, once per language in the catalogue", () => {
-  for (const language of ["fr", "en", "es"] as const satisfies readonly InterfaceLanguage[]) {
+  for (const language of ["fr", "en", "es", "it"] as const satisfies readonly InterfaceLanguage[]) {
     const own = (name: string): Catalogue =>
       Object.values(modules[`../src/i18n/${language}/${name}.ts`]!)[0] as Catalogue;
     const languageTitles = TITLE_KEYS.map((key) => own("settings")[key] as string);

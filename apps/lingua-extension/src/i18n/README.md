@@ -1,12 +1,14 @@
-# The interface's copy — one catalogue, three languages
+# The interface's copy — one catalogue, one module per surface and language
 
 Every text the extension shows lives here, once per language: `fr/<surface>.ts`, `en/<surface>.ts`,
-`es/<surface>.ts`, one module per surface (`popup`, `hud`, `drawer`, `card`, `selection`,
-`sidepanel`, `review`, `stats`, `settings`, `studied-languages`, `native-language`, `colours`,
-`display`, `translation`, `account-setting`, `account`, `account-errors`, `onboarding`, `reader`,
-`sync`, `languages`, `grammar`). The French module is the source;
-the English and Spanish ones are typed after it (`export const popup: typeof fr = { … }`), so a key
-missing in a translation does not compile (`yarn typecheck`). `test/i18n.spec.ts` checks the rest at
+`es/<surface>.ts`, `it/<surface>.ts`, one module per surface — 24 of them: `popup`, `hud`, `drawer`,
+`card`, `selection`, `sidepanel`, `review`, `stats`, `settings`, `studied-languages`,
+`native-language`, `colours`, `display`, `translation`, `account-setting`, `account`,
+`account-errors`, `onboarding`, `reader`, `sync`, `languages`, `grammar`, `app`, `badge` (`SURFACES`,
+`index.ts`). Italian has every one but `grammar`, its renderer of readings being
+add-lingua-italian-card-wording's (the Italian programme's change 34). The French module is the source;
+the English, Spanish and Italian ones are typed after it (`export const popup: typeof fr = { … }`), so
+a key missing in a translation does not compile (`yarn typecheck`). `test/i18n.spec.ts` checks the rest at
 runtime: no empty entry, every slot taken, nothing left in French outside the texts that are the same
 in every language. `test/lint-copy.spec.ts` refuses a French literal in `src/` outside this
 directory, except in the files its baseline names — the surfaces still holding their copy, which the
@@ -21,7 +23,7 @@ named in `<language>/languages.ts` alone, and the surfaces ask `src/analyzer/lan
 interface language they read (`add-lingua-native-language-labels`); `test/lint-language-labels.spec.ts` refuses
 one in a string literal anywhere else in `src/`, the other catalogue modules included, the engine's enum names
 (`state/profile.ts`) being its one exception. The level scale is `languages.levelScale`: « CEFR » in French and
-English, « MCER » in Spanish (M19).
+English, « MCER » in Spanish (M19), « QCER » in Italian (I6).
 
 A copy site with no French literal is beyond the lint: a format whose output is French. The one the
 inventory found, `src/reading/speech.ts`'s `voiceLabel` — a voice's region named through
@@ -108,8 +110,8 @@ language in a `lang` of their own.
   message renders through either helper.
 - **A count** is a `PluralForms` object, `{ one, many?, other }`, each form a function of the
   number _as the language writes it_: `plural(language, n, forms)` picks the form through
-  `Intl.PluralRules`. French and Spanish have `many` (a round million); English has not, and a
-  missing `many` falls back to `other`. In French every form carries the current string
+  `Intl.PluralRules`. French, Spanish and Italian have `many` (a round million); English has not,
+  and a missing `many` falls back to `other`. In French every form carries the current string
   (« 3 carte(s) à revoir »): the French module writes it under `one` and `other`, through
   `pluralForms(…)` so that a translation may add `many`.
 - **Keys are named by meaning, in English** — `review.reveal`, not `afficherLaReponse` — so a
@@ -175,11 +177,47 @@ _imperativo_; _participio_, _gerundio_, _infinitivo_. For English forms, the nam
 teaching of English gives them, never a Spanish tense's: _pasado simple_, _presente simple_,
 _participio pasado_ (the Spanish Wiktionary's English form-of wording) and « forma en -ing ».
 
+## Italian
+
+Written before it is shown (add-lingua-italian-interface): `INTERFACE_LANGUAGES` gains `it` with the
+Italian programme's change 45, which shows it; until then a stored `it` reads French and no surface
+reads these modules. Drafted by an agent and reviewed by the dedicated Italian reviewer
+(`.claude/agents/lingua-italian-reviewer.md`, I2), the owner reading it on the five targets from
+change 45.
+
+Tu, never Lei (I6): the imperative is the tu form (_scegli_, _riprova_, _accedi di nuovo_). The reader
+is addressed without a gender: « Accesso effettuato », never « connesso/a »; « Ti diamo il
+benvenuto », never « Benvenuto/a ». Guillemets « » with no inner space; no space before « : ; ? ! »;
+the French's « — » between two clauses becomes a colon, as in Spanish — but a page or window title
+keeps its dash (« Account — Cymbra Lingua »). Numbers through `it-IT` (`formatNumber("it", n)`):
+« 20.000 », « 1.234.567 », a comma before the decimals (« 25,8 »), and no grouping under five digits
+(« 5000 », the owner's answer of 2026-10-22), pinned with `useGrouping: "min2"` so that no browser's
+ICU groups it. A percentage with no space (« 96% »), in every surface's form. Dates through `it-IT`
+(`04/10/2026`, `4 ottobre 2026`), hours « 14:05 ». A round million is `many` and takes « di »
+(« 1.000.000 di carte »); 0 is `other`. Ordinals « 7º », « 2ª ».
+
+Elision and contraction, where a message is built from parts: the languages carry their article
+(« l'inglese », « lo spagnolo », « il francese », « l'italiano ») and `languages.ts`'s private `da()`
+contracts « da » with it (« dall'inglese », « dallo spagnolo », « dal francese »), as Spanish's `de()`
+does « de »; a date is written without an article, which would elide before « 8 » and « 11 »
+(« Collegato: 8 ottobre 2026 », « Ultima sincronizzazione: 04/10/2026 »); an hour follows « alle
+ore », whose article never elides (« alle ore 13:05 »); a count follows the feminine plural article
+« le », which never elides (« le 20.000 parole »). The word card's language line agrees with
+« parola » (« Parola spagnola »: `READ_AS_NOUN.it` is feminine).
+
+Terms, from Cymbra Music's Italian (`apps/music/lib/l10n/app_it.arb`) where it has them:
+Impostazioni (Réglages), Accedi / Esci, Annulla, Riprova, account, Email, Password; and mazzo (deck),
+carta (card — « scheda » is the browser's tab), ripasso / ripassare, parole conosciute / sconosciute,
+parole in apprendimento (« mots en cours »), evidenziazione (surlignage), livello, QCER (CEFR), pannello
+laterale, biblioteca, nome utente (pseudo), account collegati, sincronizzazione, badge (pastille),
+pacchetto (the dictionary pack), modello, traduzione estesa / online. The voice help's Windows and
+macOS menu paths and Firefox's consent name are unverified (`it/settings.ts`).
+
 ## What is the same everywhere
 
 Names and symbols need no translation and are allowed to equal the French: « Cymbra Lingua », the
 icons (« — », « ⚙ », « ✕ »…), the separators, « Aa », the key names that are the same in the
 language (« Alt », « S »), « Google », « Apple », the voice previews (spoken in the studied language),
 the native languages named each in its own language (« Français », “English”, « Español »:
-`languages.ownNames`, the choice of add-lingua-native-language-choice).
+`languages.ownNames`, the choice of add-lingua-native-language-choice, « Italiano » among them).
 `test/i18n.spec.ts` lists them, and refuses any other translation equal to its French.
