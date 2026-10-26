@@ -35,7 +35,7 @@ export const BASELINE: readonly string[] = [];
 
 /** Literals that name a language but are data, by file: the engine's enum names (state/profile.ts). */
 export const EXCEPTIONS: Readonly<Record<string, readonly string[]>> = {
-  "src/state/profile.ts": ["French", "English", "Spanish"],
+  "src/state/profile.ts": ["French", "English", "Spanish", "Italian"],
 };
 
 /**
