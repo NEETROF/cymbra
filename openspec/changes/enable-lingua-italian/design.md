@@ -161,7 +161,7 @@ change 17 (`refine-lingua-it-fr-glosses`) has merged — the defects change 16's
 species names among the expressions, `della`, `del`'s note, the letter `te`, the glosses repeating a
 word across parts of speech) fixed before French readers see them, as fr-es's were by
 `refine-lingua-fr-es-glosses` (the owner, 2026-10-09). Open Question 1 asks the owner to confirm the
-same rule for it-fr.
+same rule for it-fr. *Answered: it-fr is listed after change 17, which merged (#1062).*
 
 ### D3 — The extension's Italian: one type, one name, no new surface
 
@@ -221,7 +221,8 @@ then en-fr (change 2), two models in one engine as es-fr and fr-es; the model ho
 the owner has redeployed it after change 2 (its task 4.1), which `check_model_host` verifies before
 any delivery. Marks: if change 19 measured it-fr on the first tier, `MARKED_PAIRS` already lists it,
 inert until now; below the tier, M15 offers it-fr's translation without a mark unless the owner
-decided otherwise at change 19's figures (Open Question 2). Nothing in `model-manifest.json` or
+decided otherwise at change 19's figures (Open Question 2). *Settled by change 19's figures: 93 of 97,
+3 % withheld, on the first tier — it-fr is marked.* Nothing in `model-manifest.json` or
 `markup.ts` changes but the comments that say « until change 20 ». Change 2's scenario *Every reader
 today* says a French-native reader « downloads, stores and loads as before »: it gains « and the it-en
 model too once they accept Italian » (D13).
@@ -273,6 +274,10 @@ what French readers are told they can study:
 
   The English and Spanish pages do not move. `test/apple-activation-page.spec.ts` follows: the French
   page names « anglais », « espagnol » and « italien », in that order.
+
+*The owner's answer, 2026-10-25 (Open Question 3): version A, the recommended draft — « Le web en
+anglais, espagnol ou italien : mots inconnus surlignés, pourcentage honnête. Hors ligne et privé. » —;
+the activation page takes the drafts above.*
 
 ### D8 — The published coverage, and the site
 
@@ -334,6 +339,9 @@ at implementation, keeping only the Italian programme's hits — « change 20 »
 programmes' changes in the code (*Measured*).
 
 ### D11 — The dogfood pass, before merge
+
+*Moved by the owner on 2026-10-26: the pass runs on the complete release (changes 20, 25 and 30),
+before the release pull request (#1036) merges, not before this change does.*
 
 On Chrome and Firefox (macOS), Firefox for Android, Safari (macOS, iOS), with a package built from
 this branch with the real packs, on test accounts, in the French interface:
@@ -413,6 +421,11 @@ released Italian on its own after a schema-4 release, as `enable-lingua-french` 
 2026-10-09), so that a regression would be attributed to one audience; the single release trades that
 for one dogfood and one store review.
 
+*The owner's decision of 2026-10-26:* the release also carries changes 25 and 30 (Italian for
+English and Spanish speakers), and this change merges ahead of it without its dogfood (D11), which
+moves to the end — one pass over the complete release, French, English and Spanish speakers, before
+the release pull request (#1036) merges.
+
 ### D13 — Requirements true of their time, rewritten here
 
 Four requirements of open changes say what this change ends:
@@ -479,7 +492,8 @@ empty but for READMEs.
 ## Migration Plan
 
 Nothing to migrate: an installed reader keeps their native language, studied languages and backup
-version; Italian is offered, never added. Merged with the owner's go-ahead, with change 21; released
+version; Italian is offered, never added. Merged with the owner's go-ahead after change 21 — ahead of
+the release and its dogfood, the owner's decision of 2026-10-26 —; released
 by the owner in 1.11.0 / 1.9.0 with #1037's lighter dictionaries, TestFlight first, with change 21's
 listings (D12). No rollback: a problem is fixed in a new version (D4).
 
@@ -501,12 +515,15 @@ Total 3.85–7.75.
 
 For the owner:
 1. **it-fr after its refinement** (D2): it-fr listed only once change 17 has merged, as fr-es was.
-   Recommended.
+   Recommended. *Answered: listed after change 17, merged (#1062).*
 2. **it-fr below the marks' tier** (D5): if change 19 measures it-fr short of the first tier,
    translation offered without a mark (M15's default), or not offered for it-fr. Settled at change
-   19's figures.
+   19's figures. *Settled: 93 of 97, 3 % withheld, on the first tier — it-fr is marked.*
 3. **The description and the activation page** (D7): the recommended draft « Le web en anglais,
    espagnol ou italien : … Hors ligne et privé. », the one that keeps « Lisez » and drops « et
-   privé », or other words within 112 characters; and the page's drafts (M9).
+   privé », or other words within 112 characters; and the page's drafts (M9). *Settled by the owner
+   on 2026-10-25: version A, the recommended draft; the activation page takes the drafts (D7).*
 4. **One release for it-fr** (D12): released on its own, as French was. *Decided by the owner on
-   2026-10-25: one release with #1037's lighter dictionaries, fixed forward (D4, D12).*
+   2026-10-25: one release with #1037's lighter dictionaries, fixed forward (D4, D12); settled on
+   2026-10-26: that one release also carries changes 25 and 30, Italian for English and Spanish
+   speakers.*
