@@ -58,7 +58,7 @@ page 1/1:
 row: patience — pazienza
 row: i know — lo so
 ### phrase-gloss We ate dinner early.
-row: eat — pasto
+row: eat — mangiare
 row: dinner — cena, pranzo
 row: early — mattiniero, mattutino
 ### phrase-gloss The wind was too strong.
@@ -70,7 +70,7 @@ rows: (none)
 ### phrase-gloss won't they
 rows: (none)
 ### phrase-gloss state-of-the-art
-row: state — di stato, dello stato, statale, pubblico
+row: state — stato, condizione, condizioni, situazione
 row: art — arte
 ### phrase-gloss Le phare se dressait
 rows: (none)
@@ -81,7 +81,7 @@ row: faro — faraone
 row: whole — intero, integrale
 row: thing — oggetto, cosa
 row: go over — esaminare
-row: top — cima, culmine, apice, sù
+row: top — cima, culmine, apice
 ### phrase-gloss He was standing in front of the house.
 row: stand — stare in piedi
 row: in front of — davanti a
@@ -92,21 +92,21 @@ row: run off — stampare
 ### word-grammar went go
 grammar: passato semplice di go
 page 1/1:
-  [sostantivo] l'atto dell'andare; turno; prova; esprime approvazione o il permesso di fare qualcosa
   [verbo] andare; andarsene; procedere; diventare
-row: l'atto dell'andare
+  [sostantivo] l'atto dell'andare; turno; prova; esprime approvazione o il permesso di fare qualcosa
+row: andare
 ### word-grammar gone go
 grammar: participio passato di go
 page 1/1:
-  [sostantivo] l'atto dell'andare; turno; prova; esprime approvazione o il permesso di fare qualcosa
   [verbo] andare; andarsene; procedere; diventare
-row: l'atto dell'andare
+  [sostantivo] l'atto dell'andare; turno; prova; esprime approvazione o il permesso di fare qualcosa
+row: andare
 ### word-grammar goes go
 grammar: plurale e terza persona singolare del presente semplice di go
 page 1/1:
-  [sostantivo] l'atto dell'andare; turno; prova; esprime approvazione o il permesso di fare qualcosa
   [verbo] andare; andarsene; procedere; diventare
-row: l'atto dell'andare
+  [sostantivo] l'atto dell'andare; turno; prova; esprime approvazione o il permesso di fare qualcosa
+row: andare
 ### word-grammar has have
 grammar: terza persona singolare del presente semplice di have
 page 1/2:
@@ -177,9 +177,9 @@ row: foglia
 ### word-grammar read read
 grammar: può anche essere il passato semplice e il participio passato di read
 page 1/1:
-  [sostantivo] lettura
   [verbo] leggere
-row: lettura
+  [sostantivo] lettura
+row: leggere
 ### word-grammar lead lead
 page 1/1:
   [aggettivo] primo; principale; d'apertura
@@ -196,9 +196,9 @@ row: primo
 ### word-grammar ate eat
 grammar: passato semplice di eat
 page 1/1:
-  [sostantivo] pasto
   [verbo] mangiare
-row: pasto
+  [sostantivo] pasto
+row: mangiare
 ### word-grammar more more
 gloss: (none)
 ### word-grammar thought think
@@ -211,33 +211,33 @@ gloss: (none)
 ### word-grammar running run
 grammar: forma in -ing di run
 page 1/1:
-  [verbo] amministrare, condurre (un'azienda); correre; fluire
+  [verbo] correre; amministrare, condurre (un'azienda); fluire
   [sostantivo] corsa; smagliatura; giro (in macchina)
-row: amministrare, condurre (un'azienda)
+row: correre
 ### word-grammar ran run
 grammar: passato semplice di run
 page 1/1:
-  [verbo] amministrare, condurre (un'azienda); correre; fluire
+  [verbo] correre; amministrare, condurre (un'azienda); fluire
   [sostantivo] corsa; smagliatura; giro (in macchina)
-row: amministrare, condurre (un'azienda)
+row: correre
 ### word-grammar feet foot
 grammar: plurale di foot
 page 1/1:
-  [sostantivo] piede, pedule, zampa; piede, unità di misura di lunghezza nel mondo anglosassone; piedi di; piedino; fanteria; piede
+  [sostantivo] piede, pedule, zampa; piede, unità di misura di lunghezza nel mondo anglosassone; piedi di; piedino; fanteria
   [verbo] pagare il conto di
 row: piede, pedule, zampa
 ### word-grammar lying lie
 grammar: forma in -ing di lie
 page 1/1:
-  [sostantivo] menzogna, bugia, fandonia, frottola, panzana
   [verbo] mentire, dire bugie (anche to tell lies); giacere
-row: menzogna, bugia, fandonia, frottola, panzana
+  [sostantivo] menzogna, bugia, fandonia, frottola, panzana
+row: mentire, dire bugie (anche to tell lies)
 ### word-grammar lay lie
 grammar: passato semplice di lie
 page 1/1:
-  [sostantivo] menzogna, bugia, fandonia, frottola, panzana
   [verbo] mentire, dire bugie (anche to tell lies); giacere
-row: menzogna, bugia, fandonia, frottola, panzana
+  [sostantivo] menzogna, bugia, fandonia, frottola, panzana
+row: mentire, dire bugie (anche to tell lies)
 ### word-grammar lay lay
 gloss: (none)
 ### word-grammar saw see
@@ -251,21 +251,22 @@ gloss: (none)
 ### word-grammar don't do
 grammar: «don't» = do + not
 page 1/4:
-  [sostantivo] festa, festicciola; taglio di capelli, acconciatura (abbreviazione di hairdo)
   [verbo] fare, compiere
+  [sostantivo] festa, festicciola; taglio di capelli, acconciatura (abbreviazione di hairdo)
 page 2/4:
   [verbo] stare (bene/male), passarsela, andare, procedere (in un certo modo)
 page 3/4:
   [verbo] utilizzato per realizzare la forma interrogativa di tutti i verbi, tranne be e altri ausiliari; fare, preparare, allestire, acconciare
 page 4/4:
   [verbo] bastare, essere sufficiente; utilizzato, in forma negativa, per realizzare la forma negativa di tutti i verbi, tranne be e altri ausiliari
-row: festa, festicciola
+row: fare, compiere
 ### word-grammar won't will
 grammar: «won't» = will + not
 page 1/1:
+  [verbo] usato per esprimere un'intenzione di fare qualcosa nel futuro, o un'aspettativa di qualche evento nel futuro
   [sostantivo] volontà; testamento
-  [verbo] usato per esprimere un'intenzione di fare qualcosa nel futuro, o un'aspettativa di qualche evento nel futuro; trasmettere; volere
-row: volontà
+  [verbo] trasmettere; volere
+row: usato per esprimere un'intenzione di fare qualcosa nel futuro, o un'aspettativa…
 ### word-grammar children's child
 page 1/1:
   [sostantivo] bambino; figlio
@@ -275,10 +276,8 @@ page 1/1:
   [preposizione] a (con movimento); per (complemento di fine)
 row: a (con movimento)
 ### word-grammar a a
-page 1/2:
+page 1/1:
   [determinante] un, uno, una, un' (si usa solamente davanti a parole che iniziano per consonante, davanti a vocale si usa an)
-page 2/2:
-  [sostantivo] sigla che nella blasonatura in trick indica il metallo argento
 row: un, uno, una, un' (si usa solamente davanti a parole che iniziano per…
 ### word-grammar in in
 page 1/1:
@@ -290,12 +289,12 @@ page 1/1:
 row: per, poiché, durante
 ### word-grammar that that
 page 1/2:
-  [avverbio] così
-  [congiunzione] introduce una proposizione che è il soggetto o l'oggetto di un verbo
   [pronome] quello, quella; che, il quale, la quale, i quali, le quali
+  [congiunzione] introduce una proposizione che è il soggetto o l'oggetto di un verbo
+  [avverbio] così
 page 2/2:
   [pronome] il quale, la quale, i quali, le quali, cui
-row: così
+row: quello, quella
 ### word-grammar have have
 page 1/2:
   [verbo] avere, possedere, prendere; avere/essere, usato come verbo ausiliare nei tempi perfetti; in certi casi, fare; (seguito dal verbo all'infinito) dovere
@@ -304,20 +303,19 @@ page 2/2:
 row: avere, possedere, prendere
 ### word-grammar by by
 page 1/1:
+  [preposizione] da; in, per, con; secondo, a; attraverso, per, tramite, da; presso
   [aggettivo] passanti; vicino
   [avverbio] secondario
-  [preposizione] da; in, per, con; secondo, a; attraverso, per, tramite, da; presso
-row: passanti
+row: da
 ### word-grammar but but
 page 1/1:
-  [avverbio] solo, solamente
   [congiunzione] ma, però
+  [avverbio] solo, solamente
   [preposizione] tranne
-row: solo, solamente
+row: ma, però
 ### word-grammar or or
 page 1/1:
   [congiunzione] o, ovvero
-  [sostantivo] oro
 row: o, ovvero
 ### word-grammar all all
 page 1/1:
@@ -326,21 +324,23 @@ page 1/1:
 row: tutto
 ### word-grammar one one
 page 1/2:
-  [aggettivo] uno / uno; solo; stesso
+  [aggettivo] uno; solo; stesso
   [pronome] uno, una persona generica; il primo di due elementi
   [sostantivo] la cifra 1; persona od oggetto che possiede una determinata qualità
 page 2/2:
   [sostantivo] riprende un sostantivo già menzionato
-row: uno / uno
+row: uno
 ### word-grammar can can
 page 1/1:
+  [verbo] potere
   [sostantivo] latta, lattina, scatola, barattolo; annaffiatoio; scatoletta; cesso; natica
-row: latta, lattina, scatola, barattolo
+row: potere
 ### word-grammar will will
 page 1/1:
+  [verbo] usato per esprimere un'intenzione di fare qualcosa nel futuro, o un'aspettativa di qualche evento nel futuro
   [sostantivo] volontà; testamento
-  [verbo] usato per esprimere un'intenzione di fare qualcosa nel futuro, o un'aspettativa di qualche evento nel futuro; trasmettere; volere
-row: volontà
+  [verbo] trasmettere; volere
+row: usato per esprimere un'intenzione di fare qualcosa nel futuro, o un'aspettativa…
 ### word-grammar just just
 page 1/1:
   [aggettivo] appena; giusto; equanime
@@ -353,8 +353,8 @@ page 1/1:
 row: come, simile
 ### word-grammar about about
 page 1/1:
-  [preposizione] a proposito di
-row: a proposito di
+  [preposizione] su, riguardo; a proposito di
+row: su, riguardo
 ### word-grammar up up
 page 1/1:
   [avverbio] su
@@ -384,10 +384,9 @@ page 1/1:
 row: nuovo
 ### word-grammar some some
 page 1/1:
-  [aggettivo] molti, tanti
-  [sostantivo] la folla
-  [pronome] molti, molte
-row: molti, tanti
+  [determinante] qualche, alcuni, alcune
+  [pronome] del, della
+row: qualche, alcuni, alcune
 ### word-grammar now now
 page 1/1:
   [avverbio] adesso, attualmente, ora; allora
@@ -400,8 +399,9 @@ page 1/1:
 row: altro
 ### word-grammar its its
 page 1/1:
+  [determinante] suo
   [aggettivo] possessivo di it
-row: possessivo di it
+row: suo
 ### word-grammar good good
 page 1/1:
   [aggettivo] buono
@@ -415,18 +415,16 @@ page 1/1:
 row: solo
 ### word-grammar after after
 page 1/1:
-  [aggettivo] seguente; successivo
   [avverbio] dopo, poi, in seguito
-  [preposizione] dopo; dopo, nonostante, malgrado
-row: seguente
+  [aggettivo] seguente; successivo
+  [preposizione] dopo, nonostante, malgrado
+row: dopo, poi, in seguito
 ### word-grammar first first
-page 1/2:
-  [aggettivo] corrisponde al numero cardinale 1, primo
-  [sostantivo] una persona o cosa che occupa la prima posizione, primo; prima marcia; una novità, qualcosa che non è mai successo
-page 2/2:
-  [sostantivo] la prima base
+page 1/1:
+  [aggettivo] primo
+  [sostantivo] una persona o cosa che occupa la prima posizione, primo; prima marcia; una novità, qualcosa che non è mai successo; la prima base
   [avverbio] dapprima, innanzitutto
-row: corrisponde al numero cardinale 1, primo
+row: primo
 ### word-grammar see see
 page 1/1:
   [verbo] vedere
@@ -463,17 +461,17 @@ page 1/1:
 row: volere
 ### word-grammar go go
 page 1/1:
-  [sostantivo] l'atto dell'andare; turno; prova; esprime approvazione o il permesso di fare qualcosa
   [verbo] andare; andarsene; procedere; diventare
-row: l'atto dell'andare
+  [sostantivo] l'atto dell'andare; turno; prova; esprime approvazione o il permesso di fare qualcosa
+row: andare
 ### word-grammar well well
 page 1/1:
-  [sostantivo] bene, benessere, pozzo, sano, interamente, ebbene, allora; pozzo
+  [sostantivo] bene, benessere, pozzo, sano, interamente, ebbene, allora
 row: bene, benessere, pozzo, sano, interamente, ebbene, allora
 ### word-grammar way way
 page 1/1:
-  [sostantivo] cammino; strada; direzione
-row: cammino
+  [sostantivo] via, modo, maniera; cammino; strada; direzione
+row: via, modo, maniera
 ### word-grammar much much
 page 1/1:
   [aggettivo] molto
