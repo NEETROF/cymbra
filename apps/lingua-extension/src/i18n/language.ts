@@ -13,10 +13,37 @@ import type { NativeLanguage } from "../analyzer/types.ts";
  * decision — the interface language is the native language (M2), so a language the engine can
  * gloss in is one the interface speaks, and no other. The day an override parts them (M2's
  * reservation), this is where they part.
+ *
+ * Italian is a native language before it is an interface language
+ * (add-lingua-italian-native-language D2): the alias is restored with the Italian interface
+ * (add-lingua-italian-interface), and until then every table keyed by interface language stays
+ * French, English and Spanish.
  */
-export type InterfaceLanguage = NativeLanguage;
+export type InterfaceLanguage = Exclude<NativeLanguage, "it">;
 
 export const INTERFACE_LANGUAGES: readonly InterfaceLanguage[] = ["fr", "en", "es"];
+
+/**
+ * The native languages this build knows (add-lingua-italian-native-language D3): the interface
+ * languages, and Italian. What a guard reading "is a native language" reads — the offer, the
+ * native-language message, the stored record and reason, the app's day counts — rather than
+ * `INTERFACE_LANGUAGES`.
+ */
+export const NATIVE_LANGUAGES: readonly NativeLanguage[] = [...INTERFACE_LANGUAGES, "it"];
+
+export function isNativeLanguage(value: unknown): value is NativeLanguage {
+  return (NATIVE_LANGUAGES as readonly unknown[]).includes(value);
+}
+
+/**
+ * The interface language a native language is served in: itself, but Italian, served in English
+ * — the fallback M13 names — until the Italian interface exists (add-lingua-italian-native-language
+ * D2). Unreachable while no pair is glossed in Italian: a profile naming a native language with no
+ * pair is read as French before it reaches here.
+ */
+export function interfaceOf(native: NativeLanguage): InterfaceLanguage {
+  return native === "it" ? "en" : native;
+}
 
 /** What a device that never wrote the key reads: every installed reader stays in French. */
 export const DEFAULT_INTERFACE_LANGUAGE: InterfaceLanguage = "fr";

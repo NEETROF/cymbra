@@ -483,6 +483,7 @@ const SAME_EVERYWHERE = new Set([
   "Français",
   "English",
   "Español",
+  "Italiano",
 ]);
 
 /** Texts a language happens to share with the French, and no other. */

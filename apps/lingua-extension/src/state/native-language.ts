@@ -8,7 +8,7 @@ import {
   studiedOf,
 } from "../analyzer/pairs.ts";
 import type { NativeLanguage, StudiedLanguage } from "../analyzer/types.ts";
-import { type InterfaceLanguage, isInterfaceLanguage } from "../i18n/language.ts";
+import { type InterfaceLanguage, isNativeLanguage } from "../i18n/language.ts";
 import { nativeLanguageOf, studiedLanguagesOf } from "./profile.ts";
 import { type AsyncStorageArea, loadStored, ROOT_KEY, STORAGE_VERSION } from "./storage.ts";
 import { type StoreChangeReason, watchStore } from "./store.ts";
@@ -81,15 +81,6 @@ export async function markNativeLanguageChosen(preferences: Pick<AsyncStorageAre
  */
 export async function onExtensionInstalled(reason: string, preferences: Pick<AsyncStorageArea, "set">): Promise<void> {
   if (reason === "update") await markNativeLanguageChosen(preferences);
-}
-
-/**
- * Whether `value` names a native language this build knows. The interface languages are the native
- * languages — `InterfaceLanguage` is `NativeLanguage` (add-lingua-interface-language): the reader's
- * interface speaks their native language — so the one list serves both.
- */
-function isNativeLanguage(value: unknown): value is NativeLanguage {
-  return isInterfaceLanguage(value);
 }
 
 /** Whether the choice is shown anywhere: two native languages or more have a shipped pair (D1). */

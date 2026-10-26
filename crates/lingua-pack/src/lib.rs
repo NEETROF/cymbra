@@ -2973,7 +2973,7 @@ mod tests {
 
     #[test]
     fn spec_scenario_a_native_language_the_core_does_not_know_is_refused_at_build() {
-        for tag in ["de", "it", "FR", ""] {
+        for tag in ["de", "pt", "FR", ""] {
             let mut inp = inputs();
             inp.meta.native = tag.into();
             assert_eq!(

@@ -114,6 +114,7 @@ pub fn native_name(native: NativeLanguage) -> &'static str {
         NativeLanguage::French => "français",
         NativeLanguage::English => "anglais",
         NativeLanguage::Spanish => "espagnol",
+        NativeLanguage::Italian => "italien",
     }
 }
 

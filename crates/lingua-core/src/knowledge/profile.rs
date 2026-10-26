@@ -40,14 +40,18 @@ pub enum NativeLanguage {
     English,
     /// Spanish.
     Spanish,
+    /// Italian (add-lingua-italian-native-language): known before any pair is
+    /// glossed in it.
+    Italian,
 }
 
 impl NativeLanguage {
     /// Every native language the core knows, in declaration order.
-    pub const ALL: [NativeLanguage; 3] = [
+    pub const ALL: [NativeLanguage; 4] = [
         NativeLanguage::French,
         NativeLanguage::English,
         NativeLanguage::Spanish,
+        NativeLanguage::Italian,
     ];
 
     /// ISO-639-1 tag used in pair keys and pack file names.
@@ -56,6 +60,7 @@ impl NativeLanguage {
             NativeLanguage::French => "fr",
             NativeLanguage::English => "en",
             NativeLanguage::Spanish => "es",
+            NativeLanguage::Italian => "it",
         }
     }
 
@@ -69,9 +74,8 @@ impl NativeLanguage {
     /// language never studies. `None` for a language the core cannot analyse;
     /// every native language it knows is studied too since French became one
     /// (add-lingua-french-baseline), so a French-native reader never studies
-    /// French. Italian is studied and no native language yet
-    /// (add-lingua-italian-baseline D3): no native language maps to it, and every
-    /// reader may study it.
+    /// French. Italian, native too since add-lingua-italian-native-language,
+    /// answers Italian: an Italian-native reader never studies Italian.
     pub fn studied(self) -> Option<StudiedLanguage> {
         StudiedLanguage::from_tag(self.tag())
     }
@@ -217,9 +221,9 @@ mod tests {
         }
         assert_eq!(
             NativeLanguage::ALL.map(NativeLanguage::tag),
-            ["fr", "en", "es"]
+            ["fr", "en", "es", "it"]
         );
-        for unknown in ["de", "it", "pt", "FR", "", "en-fr"] {
+        for unknown in ["de", "pt", "IT", "FR", "", "en-fr"] {
             assert_eq!(NativeLanguage::from_tag(unknown), None, "{unknown:?}");
         }
     }
@@ -229,23 +233,35 @@ mod tests {
         assert_eq!(NativeLanguage::English.studied(), Some(EN));
         assert_eq!(NativeLanguage::Spanish.studied(), Some(ES));
         assert_eq!(NativeLanguage::French.studied(), Some(FR));
+        assert_eq!(
+            NativeLanguage::Italian.studied(),
+            Some(StudiedLanguage::Italian)
+        );
     }
 
     #[test]
-    fn no_native_language_maps_to_italian() {
-        // add-lingua-italian-baseline D3: Italian is a studied language and no native language
-        // before change 32, so every reader may study it, and an `it` gloss tag names no native.
+    fn italian_answers_studied_as_italian() {
+        // add-lingua-italian-native-language D1 (rewriting add-lingua-italian-baseline D3's
+        // test): Italian is native too, so it maps to the studied Italian, an `it` tag names
+        // it, and every reader but an Italian native may study it.
         const IT: StudiedLanguage = StudiedLanguage::Italian;
-        assert!(
-            NativeLanguage::ALL
-                .iter()
-                .all(|native| native.studied() != Some(IT))
+        assert_eq!(NativeLanguage::Italian.studied(), Some(IT));
+        assert_eq!(
+            NativeLanguage::from_tag(IT.tag()),
+            Some(NativeLanguage::Italian)
         );
-        assert_eq!(NativeLanguage::from_tag(IT.tag()), None);
         for native in NativeLanguage::ALL {
             let mut profile = Profile::english_for_french();
-            assert_eq!(profile.set(native, vec![IT]), Ok(()), "{native:?}");
-            assert_eq!(profile, Profile::studying(native, IT));
+            if native == NativeLanguage::Italian {
+                assert_eq!(
+                    profile.set(native, vec![IT]),
+                    Err(ProfileError::NativeStudied(IT))
+                );
+                assert!(profile.is_default(), "a refused choice leaves the profile");
+            } else {
+                assert_eq!(profile.set(native, vec![IT]), Ok(()), "{native:?}");
+                assert_eq!(profile, Profile::studying(native, IT));
+            }
         }
         // A French-native reader studying Italian, the it-fr reader of change 16 on.
         let mut french = Profile::english_for_french();
@@ -260,6 +276,28 @@ mod tests {
             }
             .key(),
             "it-fr"
+        );
+    }
+
+    #[test]
+    fn spec_scenario_an_italian_native() {
+        // lingua-knowledge-model, *L1/L2 profile*: an Italian native studying English keeps
+        // Italian as the native language; adding Italian to the studied languages is refused.
+        const IT: StudiedLanguage = StudiedLanguage::Italian;
+        let mut profile = Profile::studying(NativeLanguage::Italian, EN);
+        assert_eq!(profile.native_language, NativeLanguage::Italian);
+        assert_eq!(
+            profile.set_studied_languages(vec![EN, IT]),
+            Err(ProfileError::NativeStudied(IT))
+        );
+        assert_eq!(profile, Profile::studying(NativeLanguage::Italian, EN));
+        assert_eq!(
+            LanguagePair {
+                studied: EN,
+                native: NativeLanguage::Italian
+            }
+            .key(),
+            "en-it"
         );
     }
 
