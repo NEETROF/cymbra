@@ -1,0 +1,70 @@
+---
+import Base from '../../layouts/Base.astro';
+import Community from '../../components/Community.astro';
+import { linguaPairs } from '../../lib/lingua-pairs';
+import { italianHomeLinguaCard } from '../../lib/lingua-text';
+
+// The Italian home page (change: add-site-italian-locale, D4): the French page translated
+// (« tu », no gender assumed of the reader), static, no island. Its Lingua card alone is
+// built from the shipped pairs, on the Spanish home's rule: it names the languages read with
+// an Italian gloss and opens `/it/lingua` once such a pair ships (en-it, change 45), and until
+// then names every language read and its readers and opens `/en/lingua`, never telling an
+// Italian speaker that Lingua explains words in Italian before it does. Inserted with
+// `set:html`: the builder escapes what it fills in.
+const lingua = italianHomeLinguaCard(linguaPairs());
+---
+
+<Base
+  title="Cymbra — imparare facendo pratica, non ripassando"
+  description="Cymbra crea due app: Music, per imparare la musica con il tuo strumento collegato, e Lingua, per arricchire il tuo vocabolario leggendo il web."
+  lang="it"
+  alternates={{ fr: '/', en: '/en/', es: '/es/', it: '/it/' }}
+>
+  <section class="hero container">
+    <h1>Imparare facendo pratica, <span class="gradient">non ripassando</span></h1>
+    <p class="tagline">
+      Cymbra crea due app costruite sulla stessa idea: si progredisce in ciò che si fa già.
+      Davanti al tuo strumento, o davanti a una pagina web.
+    </p>
+  </section>
+
+  <section id="prodotti" class="products-grid container">
+    <article class="product">
+      <p class="kicker">Cymbra Music · iOS, iPadOS, macOS, Android</p>
+      <h2>🎹 Music</h2>
+      <p>
+        Collega la tua tastiera MIDI e suona: l'app segue lo spartito in tempo reale, ti
+        dice cosa è giusto e ti fa avanzare lezione dopo lezione.
+      </p>
+      <a class="btn btn-primary" href="/it/music">Scopri Music</a>
+    </article>
+
+    <article class="product">
+      <p class="kicker">Cymbra Lingua · estensione per il browser <span class="badge">beta</span></p>
+      <h2>📖 Lingua</h2>
+      <p set:html={lingua.body} />
+      <a class="btn btn-ghost" href={lingua.href}>Scopri Lingua</a>
+    </article>
+  </section>
+
+  <Community lang="it" />
+
+  <section id="funzioni" class="features container">
+    <div class="card">
+      <h3>🪪 Un solo account</h3>
+      <p>Il tuo account Cymbra ti segue da un'app all'altra, su tutti i tuoi dispositivi.</p>
+    </div>
+    <div class="card">
+      <h3>🔒 Rispetto della tua privacy</h3>
+      <p>Dati ospitati in Francia (UE), nessuna rivendita, nessun tracker pubblicitario.</p>
+    </div>
+    <div class="card">
+      <h3>📴 Funziona offline</h3>
+      <p>L'analisi e la riproduzione avvengono sul tuo dispositivo: nessun andirivieni con il server a ogni nota o a ogni parola.</p>
+    </div>
+    <div class="card">
+      <h3>🎯 Riscontro immediato</h3>
+      <p>Nessun quiz scollegato dalla realtà: il riscontro arriva mentre suoni o mentre leggi.</p>
+    </div>
+  </section>
+</Base>

@@ -243,7 +243,7 @@ describe("LeaveReasonIsland", () => {
   });
 
   it("the thanks the plain form comes back to have one id per language", () => {
-    expect(THANKS_ID).toEqual({ fr: "merci", en: "thanks", es: "gracias" });
+    expect(THANKS_ID).toEqual({ fr: "merci", en: "thanks", es: "gracias", it: "grazie" });
   });
 
   it("speaks each site language, six answers each", async () => {

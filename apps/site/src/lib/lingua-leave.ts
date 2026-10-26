@@ -53,6 +53,7 @@ export const THANKS_ID: Record<Lang, string> = {
   fr: "merci",
   en: "thanks",
   es: "gracias",
+  it: "grazie",
 };
 
 /**
@@ -69,6 +70,7 @@ export const SUPPORT_HREF: Record<Lang, string> = {
   fr: "/support",
   en: "/en/support",
   es: "/es/soporte",
+  it: "/it/assistenza",
 };
 
 export interface LinguaLeaveClient {

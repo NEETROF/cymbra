@@ -1,8 +1,9 @@
 ---
 import Base from './Base.astro';
+import CourtesyNotice from '../components/CourtesyNotice.astro';
 import { LANGS, isLang, type Lang } from '../lib/i18n';
 
-// The Markdown pages (privacy, terms, support) in fr, en and es. Each names its
+// The Markdown pages (privacy, terms, support) in fr, en, es and it. Each names its
 // translations in its front matter (`alternates`, forwarded to Base — change:
 // add-site-spanish-locale), so its language switch and `hreflang` open the same page
 // in the other language, not the home page.
@@ -18,16 +19,24 @@ const alternates: Partial<Record<Lang, string>> | undefined = frontmatter.altern
 if (!alternates?.[lang]) {
   throw new Error(`${frontmatter.title}: the front matter must name the page's alternates, its own (${lang}) included`);
 }
+// An Italian legal page names the French page it translates (`frenchOriginal`), which
+// prevails: the notice sits directly under the title (change: add-site-italian-locale, D2).
+const frenchOriginal: string | undefined = frontmatter.frenchOriginal;
+if (frenchOriginal && frenchOriginal !== alternates.fr) {
+  throw new Error(`${frontmatter.title}: \`frenchOriginal\` must be the page's French alternate (${alternates.fr}) — got ${frenchOriginal}`);
+}
 const UPDATED: Record<Lang, string> = {
   fr: 'Dernière mise à jour :',
   en: 'Last updated :',
   es: 'Última actualización:',
+  it: 'Ultimo aggiornamento:',
 };
 ---
 
 <Base title={`${frontmatter.title} — Cymbra`} description={frontmatter.description} lang={lang} alternates={alternates}>
   <article class="container prose">
     <h1>{frontmatter.title}</h1>
+    {frenchOriginal && <CourtesyNotice lang={lang} href={frenchOriginal} />}
     {frontmatter.updated && <p class="updated">{UPDATED[lang]} {frontmatter.updated}</p>}
     <slot />
   </article>

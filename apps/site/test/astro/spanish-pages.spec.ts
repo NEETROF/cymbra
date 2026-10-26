@@ -52,7 +52,7 @@ const linkOf = (html: string, where: "nav" | "footer", label: string) => {
 };
 const hreflangs = (html: string) => [...html.matchAll(/<link rel="alternate" hreflang="([a-z]+)" href="([^"]+)">/g)].map((m) => [m[1], m[2]]);
 const switchTo = (html: string) =>
-  [...(html.match(/<nav class="nav-links">(.*?)<\/nav>/s)?.[1] ?? "").matchAll(/<a href="([^"]+)">(FR|EN|ES)<\/a>/g)].map((m) => [m[2], m[1]]);
+  [...(html.match(/<nav class="nav-links">(.*?)<\/nav>/s)?.[1] ?? "").matchAll(/<a href="([^"]+)">(FR|EN|ES|IT)<\/a>/g)].map((m) => [m[2], m[1]]);
 const main = (html: string) => html.match(/<main>(.*?)<\/main>/s)?.[1] ?? "";
 
 let container: AstroContainer;
@@ -74,7 +74,7 @@ describe("/es/ with today's pairs", () => {
     expect(linkOf(html, "nav", "Lingua")).toBe("/en/lingua");
   });
 
-  it("is Spanish, its brand opens /es/, and it names its French and English twins", async () => {
+  it("is Spanish, its brand opens /es/, and it names its French, English and Italian twins", async () => {
     shipToday();
     const html = await render(SpanishHome);
     expect(html).toContain('<html lang="es">');
@@ -84,10 +84,12 @@ describe("/es/ with today's pairs", () => {
       ["fr", "https://cymbra.app/"],
       ["en", "https://cymbra.app/en/"],
       ["es", "https://cymbra.app/es/"],
+      ["it", "https://cymbra.app/it/"],
     ]);
     expect(switchTo(html)).toEqual([
       ["FR", "/"],
       ["EN", "/en/"],
+      ["IT", "/it/"],
     ]);
     expect(main(html)).toContain('<section id="productos" class="products-grid container">');
     expect(main(html)).toContain('<section id="funciones" class="features container">');
@@ -137,10 +139,12 @@ describe("/es/music/", () => {
       ["fr", "https://cymbra.app/music/"],
       ["en", "https://cymbra.app/en/music/"],
       ["es", "https://cymbra.app/es/music/"],
+      ["it", "https://cymbra.app/it/music/"],
     ]);
     expect(switchTo(html)).toEqual([
       ["FR", "/music"],
       ["EN", "/en/music"],
+      ["IT", "/it/music"],
     ]);
     expect(main(html)).toContain('<a class="btn btn-primary" href="https://apps.apple.com/app/id6789557194" rel="noopener">App Store (iOS, iPadOS, macOS)</a>');
     expect(main(html)).toContain("Windows / Linux — próximamente");
