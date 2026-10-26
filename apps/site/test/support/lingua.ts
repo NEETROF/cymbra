@@ -34,6 +34,8 @@ export const ROUTES: Routes = {
   "it-fr": ["it-en/base-memory/2.0", "en-fr/base-memory/2.0"],
   // Italian's for English speakers (the same change 2): it-en alone, the direct model of its pair.
   "it-en": ["it-en/base-memory/2.0"],
+  // Italian's for Spanish speakers (the same change 2): through English, it-en then en-es.
+  "it-es": ["it-en/base-memory/2.0", "en-es/base-memory/2.1"],
 };
 
 /**
@@ -81,4 +83,16 @@ export const SEVEN_PAIRS: Coverage = {
 export const EIGHT_PAIRS: Coverage = {
   tops: TODAY.tops,
   glossed: { ...SEVEN_PAIRS.glossed, "it-en": [91.3, 84.2, 75.8] },
+};
+
+/**
+ * The eight pairs and the one the Italian programme's change 30
+ * (enable-lingua-italian-for-spanish-speakers) lists after them: it-es (Italian for Spanish
+ * speakers), with the figures its committed tables measured (changes 27 and 28,
+ * add-lingua-pack-it-es, refine-lingua-it-es-glosses). Change 31
+ * (add-lingua-italian-spanish-listings) writes the pages' scenarios for it.
+ */
+export const NINE_PAIRS: Coverage = {
+  tops: TODAY.tops,
+  glossed: { ...EIGHT_PAIRS.glossed, "it-es": [85.2, 76.1, 65.1] },
 };
