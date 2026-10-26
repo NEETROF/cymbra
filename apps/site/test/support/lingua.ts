@@ -29,6 +29,9 @@ export const ROUTES: Routes = {
   // English to Spanish. A route of a pair a list does not ship is never read.
   "fr-en": ["fr-en/base-memory/2.0"],
   "fr-es": ["fr-en/base-memory/2.0", "en-es/base-memory/2.1"],
+  // Italian's for French speakers (the Italian programme's change 2,
+  // add-lingua-italian-translation-models): through English, it-en then en-fr.
+  "it-fr": ["it-en/base-memory/2.0", "en-fr/base-memory/2.0"],
 };
 
 /**
@@ -53,4 +56,15 @@ export const WITH_FR_EN: Coverage = {
 export const SIX_PAIRS: Coverage = {
   tops: TODAY.tops,
   glossed: { ...WITH_FR_EN.glossed, "fr-es": [83.2, 70.8, 56.8] },
+};
+
+/**
+ * The six pairs and the one the Italian programme's change 20 (enable-lingua-italian) lists after
+ * them: it-fr (Italian for French speakers), with the figures its committed tables measured
+ * (change 16, add-lingua-pack-it-fr; refreshed by change 17, #1062). Change 21
+ * (add-lingua-italian-listings) writes the pages for it.
+ */
+export const SEVEN_PAIRS: Coverage = {
+  tops: TODAY.tops,
+  glossed: { ...SIX_PAIRS.glossed, "it-fr": [89.4, 82.0, 73.4] },
 };

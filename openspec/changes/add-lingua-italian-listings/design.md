@@ -239,9 +239,13 @@ test, the 375 px check) 0.5–1; the back office 0.1; docs 0.1. 1.45–2.45.
 ## Open Questions
 
 For the owner:
-1. **The drafts** (D3–D5): as written, or other words (M9).
-2. **The keywords** (D3): `mots` gives way to `italien` (recommended), or `deck` does.
+1. **The drafts** (D3–D5): as written, or other words (M9). **Settled by the owner on 2026-10-25:
+   the drafts stand; the French description is version A, « Le web en anglais, espagnol ou italien :
+   mots inconnus surlignés, pourcentage honnête. Hors ligne et privé. »**
+2. **The keywords** (D3): `mots` gives way to `italien` (recommended), or `deck` does. **Settled
+   on 2026-10-25: `mots` gives way to `italien`.**
 3. **The Chrome Web Store's French screenshots** (D8): unchanged (recommended), or the second
-   capture moved to an Italian page.
+   capture moved to an Italian page. **Settled on 2026-10-25: unchanged.**
 4. **The review notes for the next submission** (D5): #994 records them, outside this programme; it
-   is the owner's to merge and to paste.
+   is the owner's to merge and to paste. **Settled on 2026-10-25: #994 is the owner's to merge and
+   to paste.**

@@ -220,9 +220,12 @@ describe("languageLabel (change: add-admin-lingua-language-labels)", () => {
     expect(languageLabel("es", f.t, f.te)).toBe("Espagnol");
     // French, studied from change 52 (change: add-lingua-french-listings, D13).
     expect(languageLabel("fr", f.t, f.te)).toBe("Français");
+    // Italian, studied from the Italian programme's change 20 (change: add-lingua-italian-listings, D7).
+    expect(languageLabel("it", f.t, f.te)).toBe("Italien");
     expect(languageLabel("en", e.t, e.te)).toBe("English");
     expect(languageLabel("es", e.t, e.te)).toBe("Spanish");
     expect(languageLabel("fr", e.t, e.te)).toBe("French");
+    expect(languageLabel("it", e.t, e.te)).toBe("Italian");
   });
 
   it("keeps the code of a language the console has no name for", () => {

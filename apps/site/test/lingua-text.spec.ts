@@ -18,7 +18,7 @@ import {
   STUDIED,
   studiedLanguage,
 } from "../src/lib/lingua-text";
-import { MATRIX, ROUTES, SIX_PAIRS, TODAY, WITH_FR_EN } from "./support/lingua";
+import { MATRIX, ROUTES, SEVEN_PAIRS, SIX_PAIRS, TODAY, WITH_FR_EN } from "./support/lingua";
 import { STUDIED as CAPTURED } from "../../lingua-extension/tool/capture/plan.mjs";
 
 // The words around the data (change: add-site-lingua-matrix-pages, D2 and D4), built from
@@ -39,6 +39,7 @@ const today = shipped(TODAY);
 const matrix = shipped(MATRIX);
 const withFrEn = shipped(WITH_FR_EN);
 const six = shipped(SIX_PAIRS);
+const seven = shipped(SEVEN_PAIRS);
 const discord = { discordUrl: "https://discord.gg/example" };
 const noDiscord = { discordUrl: null };
 const card = (t: LinguaPageText, key: CardKey) => t.cards.find((c) => c.key === key)!;
@@ -261,10 +262,10 @@ describe("the Spanish home's Lingua card follows the shipped pairs (change: exte
   });
 
   it("refuses a language the Spanish table does not name, and an empty list, at build time", () => {
-    const italian = shipped({ tops: MATRIX.tops, glossed: { "it-fr": [1, 1, 1] } }, {});
-    expect(() => spanishHomeLinguaCard(italian.pairs)).toThrow(/the es table has no name for the language "it"/);
-    const forItalians = shipped({ tops: MATRIX.tops, glossed: { "en-it": [1, 1, 1] } }, {});
-    expect(() => spanishHomeLinguaCard(forItalians.pairs)).toThrow(/the es table has no speakers for the language "it"/);
+    const german = shipped({ tops: MATRIX.tops, glossed: { "de-fr": [1, 1, 1] } }, {});
+    expect(() => spanishHomeLinguaCard(german.pairs)).toThrow(/the es table has no name for the language "de"/);
+    const forGermans = shipped({ tops: MATRIX.tops, glossed: { "en-de": [1, 1, 1] } }, {});
+    expect(() => spanishHomeLinguaCard(forGermans.pairs)).toThrow(/the es table has no speakers for the language "de"/);
     expect(() => spanishHomeLinguaCard([])).toThrow(/no shipped pair to describe/);
   });
 });
@@ -394,19 +395,22 @@ describe("each studied language's card and levels, one sentence each (change: ad
     }
     expect(studiedLanguage("en")).toEqual({ namesTenseAndGender: false, levelsEstimated: false });
     expect(studiedLanguage("fr")).toEqual({ namesTenseAndGender: true, levelsEstimated: true });
+    // Italian (change: add-lingua-italian-listings, D1): its card names the tense and the gender
+    // (changes 13 and 18), its levels are estimated (change 14).
+    expect(studiedLanguage("it")).toEqual({ namesTenseAndGender: true, levelsEstimated: true });
   });
 
   it("refuses a studied language the table does not describe, naming it, at build time", () => {
-    expect(() => studiedLanguage("it")).toThrow(/STUDIED does not describe the studied language "it"/);
+    expect(() => studiedLanguage("de")).toThrow(/STUDIED does not describe the studied language "de"/);
     expect(() => studiedLanguage("constructor")).toThrow(/does not describe the studied language "constructor"/);
     // A language the French table could name but `STUDIED` does not describe fails the page.
     const names = LINGUA_TEXT.fr.names;
-    names.it = "italien";
+    names.de = "allemand";
     try {
-      const italian = shipped({ tops: MATRIX.tops, glossed: { "it-fr": [1, 1, 1] } }, {});
-      expect(() => linguaPageText("fr", italian, noDiscord)).toThrow(/does not describe the studied language "it"/);
+      const german = shipped({ tops: MATRIX.tops, glossed: { "de-fr": [1, 1, 1] } }, {});
+      expect(() => linguaPageText("fr", german, noDiscord)).toThrow(/does not describe the studied language "de"/);
     } finally {
-      delete names.it;
+      delete names.de;
     }
   });
 });
@@ -452,6 +456,85 @@ describe("the coverage table at a phone's width (change: add-lingua-french-listi
   });
 });
 
+describe("Italian studied: it-fr beside the six pairs (change: add-lingua-italian-listings, D1, D2)", () => {
+  /** What the page appends to a card: its body after the table's own sentence. */
+  const appended = (t: LinguaPageText, lang: "fr" | "en" | "es", key: CardKey) =>
+    card(t, key).body.slice(LINGUA_TEXT[lang].cards.find((c) => c.key === key)!.body.length);
+
+  it("French: the audience, the card and the levels name Italian after English and Spanish", () => {
+    const t = linguaPageText("fr", seven, noDiscord);
+    expect(t.tagline).toMatch(/^Une extension navigateur qui surligne les mots d'anglais, d'espagnol ou d'italien que vous ne connaissez pas encore/);
+    expect(t.description).toBe(
+      "Une extension navigateur qui surligne, sur la page que vous lisez, les mots d'anglais, d'espagnol ou d'italien que vous ne connaissez pas encore. Analyse hors-ligne, aucun compte requis.",
+    );
+    expect(t.heroNote).toBe(
+      "Disponible sur Chrome, Edge et les navigateurs Chromium, sur Firefox (ordinateur et Android) et sur Safari (iPhone, iPad, Mac). Conçue pour les francophones qui apprennent l'anglais, l'espagnol ou l'italien. Aussi pour les anglophones qui apprennent l'espagnol ou le français : l'interface et les traductions sont en anglais. Aussi pour les hispanophones qui apprennent l'anglais ou le français : l'interface et les traductions sont en espagnol.",
+    );
+    expect(card(t, "languages").title).toBe("🧭 Anglais, espagnol et italien → français · Espagnol et français → anglais · Anglais et français → espagnol");
+    expect(appended(t, "fr", "click")).toBe(" En espagnol, en italien et en français, la carte nomme aussi le temps et le genre.");
+    expect(appended(t, "fr", "level")).toBe(
+      " Pour l'espagnol, l'italien et le français, les niveaux sont estimés d'après la fréquence des mots, faute de liste CEFR libre de droits.",
+    );
+    // English is never among them (*English is never said to be estimated*).
+    expect(appended(t, "fr", "click")).not.toMatch(/anglais/i);
+    expect(appended(t, "fr", "level")).not.toMatch(/anglais/i);
+  });
+
+  it("French: seven rows, English → French, Spanish → French and Italian → French first", () => {
+    const { coverage: table } = linguaPageText("fr", seven, noDiscord);
+    expect(table.perPair).toBe(true);
+    expect(table.head).toEqual(["Mots les plus courants", `5${NNBSP}000`, `10${NNBSP}000`, `20${NNBSP}000`]);
+    expect(table.rows).toEqual([
+      ["Anglais → français", `95${NBSP}%`, `90${NBSP}%`, `79${NBSP}%`],
+      ["Espagnol → français", `88${NBSP}%`, `77${NBSP}%`, `64${NBSP}%`],
+      ["Italien → français", `89${NBSP}%`, `82${NBSP}%`, `73${NBSP}%`],
+      ["Espagnol → anglais", `90${NBSP}%`, `80${NBSP}%`, `70${NBSP}%`],
+      ["Français → anglais", `94${NBSP}%`, `87${NBSP}%`, `76${NBSP}%`],
+      ["Anglais → espagnol", `96${NBSP}%`, `91${NBSP}%`, `80${NBSP}%`],
+      ["Français → espagnol", `83${NBSP}%`, `71${NBSP}%`, `57${NBSP}%`],
+    ]);
+    // it-fr's route goes through English (change 2): « (en passant par l'anglais) ».
+    expect(table.note).toBe(
+      "Les définitions viennent du Wiktionnaire et de traductions écrites par des personnes, jamais d'une traduction automatique. La traduction étendue, facultative, traduit l'anglais vers le français, l'espagnol vers le français (en passant par l'anglais), l'italien vers le français (en passant par l'anglais), l'espagnol vers l'anglais, le français vers l'anglais, l'anglais vers l'espagnol et le français vers l'espagnol (en passant par l'anglais).",
+    );
+  });
+
+  it("French: without it-fr's route, the note says Italian is not translated yet", () => {
+    const { "it-fr": _, ...routes } = ROUTES;
+    expect(linguaPageText("fr", shipped(SEVEN_PAIRS, routes), noDiscord).coverage.note).toMatch(
+      / Pas encore pour l'italien vers le français\.$/,
+    );
+  });
+
+  // One order on every page (the requirement's « the page's readers' pairs first »): the readers'
+  // studied languages, then the other readers'. Italian is French speakers' alone, so it follows
+  // Spanish on the French page and French on the English one.
+  it("English and Spanish: Italian named in their sentences, for French speakers, never offered to their readers", () => {
+    const en = linguaPageText("en", seven, noDiscord);
+    expect(en.heroNote).toContain(" Also for French speakers learning English, Spanish or Italian: the interface and the translations are in French.");
+    expect(en.heroNote).toMatch(/Made for English speakers learning Spanish or French\./);
+    expect(appended(en, "en", "click")).toBe(" In Spanish, French and Italian, the card also names the tense and the gender.");
+    expect(appended(en, "en", "level")).toBe(
+      " For Spanish, French and Italian, the levels are estimated from word frequency, as no CEFR list can be shipped freely.",
+    );
+    expect(en.coverage.rows.map((row) => row[0])).toContain("Italian → French");
+    const es = linguaPageText("es", seven, noDiscord);
+    expect(es.heroNote).toContain(" También para francohablantes que aprenden inglés, español o italiano: la interfaz y las traducciones están en francés.");
+    expect(es.heroNote).toMatch(/Pensada para hispanohablantes que aprenden inglés o francés\./);
+    expect(appended(es, "es", "click")).toBe(" En francés, en español y en italiano, la tarjeta también indica el tiempo verbal y el género.");
+    expect(appended(es, "es", "level")).toMatch(/^ Para el francés, el español y el italiano, los niveles se estiman/);
+    expect(es.coverage.rows.map((row) => row[0])).toContain("Italiano → francés");
+    // The tagline names what the page's own readers study: no Italian for English or Spanish speakers.
+    expect(en.tagline).not.toMatch(/Italian/);
+    expect(es.tagline).not.toMatch(/italiano/);
+  });
+
+  it("the English and Spanish homes' cards do not move", () => {
+    expect(englishHomeLinguaCard(seven.pairs)).toEqual(englishHomeLinguaCard(six.pairs));
+    expect(spanishHomeLinguaCard(seven.pairs)).toEqual(spanishHomeLinguaCard(six.pairs));
+  });
+});
+
 describe("the English home's Lingua card follows the shipped pairs (change: add-lingua-french-listings, D9)", () => {
   const REST =
     "with the words you do not know yet highlighted in place. An honest per-page percentage, one click for the meaning, and a vocabulary that builds itself as you read.";
@@ -479,8 +562,8 @@ describe("the English home's Lingua card follows the shipped pairs (change: add-
 
 describe("nothing but the site's own text reaches set:html", () => {
   it("refuses a language the table has no name for, at build time", () => {
-    const italian = shipped({ tops: MATRIX.tops, glossed: { "it-fr": [1, 1, 1] } }, {});
-    expect(() => linguaPageText("fr", italian, noDiscord)).toThrow(/no name for the language "it"/);
+    const german = shipped({ tops: MATRIX.tops, glossed: { "de-fr": [1, 1, 1] } }, {});
+    expect(() => linguaPageText("fr", german, noDiscord)).toThrow(/no name for the language "de"/);
   });
 
   it("names a language from the table's own entries, never from the object's prototype", () => {
@@ -563,6 +646,13 @@ describe("the French home's Lingua card follows the shipped pairs (change: add-s
   it("today's pairs: English or Spanish, and the French Lingua page", () => {
     expect(frenchHomeLinguaCard(today.pairs)).toEqual({ body: `Lisez le web en anglais ou en espagnol, ${REST}`, href: "/lingua" });
     expect(frenchHomeLinguaCard(six.pairs).body).toBe(`Lisez le web en anglais ou en espagnol, ${REST}`);
+  });
+
+  it("it-fr beside the six pairs (the Italian programme's change 20): English, Spanish or Italian", () => {
+    expect(frenchHomeLinguaCard(seven.pairs)).toEqual({
+      body: `Lisez le web en anglais, en espagnol ou en italien, ${REST}`,
+      href: "/lingua",
+    });
   });
 
   it("en-fr alone: English", () => {

@@ -20,10 +20,13 @@ Constants:
 | Firefox add-on id | `lingua@cymbra.app`                                                                                                                           |
 
 **Listing languages.** A text in each native language a shipped pair is glossed in: French, for
-French speakers, who study English and Spanish; English, for English speakers, who study Spanish
+French speakers, who study English and Spanish, and Italian from the Italian programme's change 20
+(it-fr, `enable-lingua-italian`); English, for English speakers, who study Spanish
 (es-en, from change 34) and French (fr-en, from change 52); Spanish, for Spanish speakers, who study
 English (en-es, from change 35) and French if change 52 lists fr-es (M6). A French speaker cannot
-study French, so no French text offers it. The interface speaks the reader's native language, so
+study French, so no French text offers it. Only French speakers study Italian: the English and
+Spanish texts say so in one sentence and offer it to no reader of theirs (add-lingua-italian-listings,
+D4); Italian adds no listing language. The interface speaks the reader's native language, so
 each text names what its readers study. The listing's default language follows `default_locale`:
 English from change 34 (M13), and still English once `_locales/es` ships — see _The dashboards'
 languages_.
@@ -74,7 +77,19 @@ Lingua reads French.
 
 > Lee inglés y francés en la web: palabras desconocidas resaltadas, porcentaje honesto. Sin conexión y privado.
 
-The French summary does not move: a French speaker studies no French.
+**From the Italian programme's change 20** (`enable-lingua-italian`), which lists it-fr, the French
+summary names Italian: « Lisez l'anglais et l'espagnol » no longer says what a French speaker
+studies, and `yarn check:version` fails it once it-fr is listed. Change 20 commits it to
+`_locales/fr/messages.json` and `manifest.json`'s French literal in **the pull request that lists
+it-fr**, not before, as change 52 committed the English and Spanish ones. Its draft A (its D7 and
+Open Question 3, the owner's words, M9), settled by the owner on 2026-10-25, 107 characters:
+
+> Le web en anglais, espagnol ou italien : mots inconnus surlignés, pourcentage honnête. Hors ligne et privé.
+
+Change 20's other draft — « Lisez l'anglais, l'espagnol et l'italien sur le web : mots inconnus
+surlignés, pourcentage honnête. Hors ligne. » (111) — was not chosen; should change 20 commit other
+words, this quote follows what it commits. The English and Spanish summaries do not move with Italian: no pair
+glossed in English or Spanish studies it.
 
 **What a summary names is checked.** `yarn check:version` (`tool/check_version.mjs`, run by
 `lingua-extension-check`) fails when, for a native language a shipped pair is glossed in, its
@@ -117,7 +132,8 @@ glossed in that language does.
 ## Description
 
 One text per listing language, each written for its readers: French speakers study English and
-Spanish; English speakers Spanish (change 34) and French (change 52); Spanish speakers English
+Spanish, and Italian from the Italian programme's change 20; English speakers Spanish (change 34) and
+French (change 52); Spanish speakers English
 (change 35), and French if change 52 lists fr-es. Every claim in the English and Spanish texts below
 is one change 52 ships; they are pasted with its release (M18), after the site deploy that publishes
 fr-en's (and fr-es's) figures, under the dashboards' `en` and `es` (see _The dashboards' languages:
@@ -132,9 +148,11 @@ before it predated the « Traduction en ligne » paragraph).
 The Spanish text is written twice (add-lingua-french-listings, D1): **with fr-es**, French named
 everywhere a Spanish reader's languages are; **without fr-es**, change 37's text with its last line
 alone made true (English speakers study Spanish and French). The owner pastes the variant that
-matches the release. The French text names no other audience and is unchanged but for one line:
-« Plusieurs langues à la fois… » is gone, by the owner's decision of 2026-10-10 (no listing text
-speaks of price; change 53b took the line out of the extension and the site).
+matches the release. Change 52 listed fr-es (`packs.json`): the variant without it is history, kept
+as written and not edited since. The French text names no other audience; add-lingua-french-listings
+changed one line of it: « Plusieurs langues à la fois… » is gone, by the owner's decision of
+2026-10-10 (no listing text speaks of price; change 53b took the line out of the extension and the
+site).
 
 Each text's local-analysis paragraph carries the sentence of add-lingua-usage-counts (design Q5,
 accepted by the owner on 2026-10-14) where it promised that, with no account and no extended
@@ -142,7 +160,26 @@ translation, nothing reached the network — the anonymous counts make that fals
 its account paragraph names the counts beside « Traduction en ligne ». The four counts were
 re-measured with it, the same way.
 
-**FR** — for French speakers (2,835 / 16,000 characters)
+**Italian studied** (add-lingua-italian-listings, the Italian programme's change 21). The French
+text names Italian beside English and Spanish (D3): the languages highlighted, the card's tense and
+gender, the route through English and its sizes, the dictionary sentence. The English text and the
+Spanish one with fr-es say, in one sentence each, that French speakers study Italian too (D4). Each
+Italian claim is one change 20 (`enable-lingua-italian`) ships, in the claims table below; the texts
+are pasted with its release, after the site deploy that publishes it-fr's figures (I12, M18), and
+the owner reviews their wording (M9). Until then — the next submission included, which comes
+before change 20's — the French text to paste is **FR, current (until Italian ships)**, kept below
+word for word, and the English and Spanish texts' next-to-last lines read as each one's heading
+says. The figures are `main`'s when the texts were written (D6): it-en's served
+size from the model catalogue (change 2), it-fr's committed coverage (change 16) and its marks
+(change 19: 93 of 97 right, 3 % withheld — the first tier, so it-fr's translation is offered and
+marked, and change 20's Open Question 2 does not arise). Two French sentences hang on a figure, and
+each is written to be swapped whole: should change 20 not offer it-fr's translation, the
+**Traduction étendue** paragraph reads « l'espagnol passe par l'anglais » and « (25,8 Mo pour
+l'anglais, 52,0 Mo avec l'espagnol) » again; should the figures change 20 publishes not stand under
+en-fr's at each top, the dictionary sentence reads « Pour l'espagnol, … » again.
+
+**FR, current (until Italian ships)** — for French speakers, who study English and Spanish
+(2,835 / 16,000 characters). The text to paste until change 20's release.
 
 Cymbra Lingua surligne, sur la page que vous lisez, les mots d'anglais ou d'espagnol que vous ne
 connaissez pas encore — sans rien changer à la mise en page. Un pourcentage vous dit quelle part du
@@ -189,8 +226,60 @@ vous appuyez dessus ; personne ne la conserve.
 Cymbra Lingua est disponible sur Chrome, sur Firefox (ordinateur et Android) et dans l'app Safari
 (iPhone, iPad, Mac).
 
+**FR, with Italian** — for French speakers, who study English and Spanish, and Italian (it-fr, from
+the Italian programme's change 20); pasted with change 20's release (2,924 / 16,000 characters)
+
+Cymbra Lingua surligne, sur la page que vous lisez, les mots d'anglais, d'espagnol ou d'italien que
+vous ne connaissez pas encore — sans rien changer à la mise en page. Un pourcentage vous dit quelle
+part du texte vous est familière, calculée sur ce que vous avez réellement marqué, pas sur une
+estimation.
+
+Choisissez dans les Réglages les langues que vous apprenez : chaque page est lue dans la sienne.
+
+Cliquez un mot surligné : sa traduction, sa forme du dictionnaire et sa rareté dans l'usage courant.
+En espagnol et en italien, la carte nomme aussi le temps et le genre, comme on les apprend en classe
+(« passé simple », « nom féminin »). Puis décidez : « Je connais », « + Deck » pour le réviser plus
+tard, ou « Ignorer ». Sélectionnez plusieurs mots et appuyez sur Alt+L pour capturer une expression
+entière avec sa phrase.
+
+Les cartes que vous créez se révisent dans un panneau, à côté de votre lecture ou dans la barre
+latérale, avec une répétition espacée qui décide toute seule du bon moment.
+
+Lisez aussi vos livres : importez vos fichiers EPUB sans DRM dans la bibliothèque de
+l'extension et lisez-les, hors ligne, avec le même surlignage, page par page — une tablette à
+encre électronique comprise. Vos livres restent sur votre appareil.
+
+**L'analyse est locale.** Les dictionnaires et le moteur tournent dans votre navigateur, et
+l'extension fonctionne hors ligne. Ce que vous lisez ne quitte jamais votre appareil. Lingua peut
+envoyer des comptages anonymes — installation, premiers pas, retours —, sans aucun identifiant ; un
+interrupteur dans les Réglages les coupe.
+
+**Traduction étendue** (facultative, désactivée par défaut, sur Chrome, Firefox (ordinateur et
+Android) et Safari) : votre sélection est traduite dans sa phrase, sur votre appareil, par le moteur de
+Firefox Translations ; l'espagnol et l'italien passent par l'anglais. L'activer télécharge une fois
+les modèles de traduction depuis Cymbra (25,8 Mo pour l'anglais, 52,0 Mo avec l'espagnol ou
+l'italien, 78,2 Mo avec les deux) ; le texte des pages ne quitte toujours pas votre appareil. La
+désactiver supprime les modèles.
+
+Pour l'espagnol et l'italien, le dictionnaire français est un peu moins complet que pour l'anglais :
+nos chiffres sont publiés sur cymbra.app/lingua.
+
+Créez un compte Cymbra si — et seulement si — vous voulez retrouver vos mots et vos cartes sur
+vos autres appareils. Avec la Traduction en ligne ci-dessous et les comptages anonymes, c'est la
+seule chose qui quitte votre machine, et vous pouvez effacer ces données depuis les Réglages sans
+supprimer votre compte.
+
+**Traduction en ligne** (désactivée par défaut, pour les comptes qui y ont accès) : un bouton
+envoie à un service de traduction en ligne la phrase que vous voulez mieux traduire, seulement quand
+vous appuyez dessus ; personne ne la conserve.
+
+Cymbra Lingua est disponible sur Chrome, sur Firefox (ordinateur et Android) et dans l'app Safari
+(iPhone, iPad, Mac).
+
 **EN** — for English speakers, who study Spanish (es-en, from change 34) and French (fr-en, from
-change 52) (2,903 / 16,000 characters)
+change 52) (2,912 / 16,000 characters with Italian). Its next-to-last line names Italian for French
+speakers, from change 20's release; until then (current, 2,903) it reads « The interface is in
+English. Cymbra Lingua also teaches English and Spanish to French speakers, in French. »
 
 Cymbra Lingua highlights, right on the page you are reading, the Spanish or French words you don't
 know yet — without changing the layout. A percentage tells you how much of the text is familiar,
@@ -236,14 +325,17 @@ and you can erase it from Settings without deleting your account.
 you want translated better to an online translation service, only when you press it; nobody keeps
 it.
 
-The interface is in English. Cymbra Lingua also teaches English and Spanish to French speakers, in
-French.
+The interface is in English. Cymbra Lingua also teaches English, Spanish and Italian to French
+speakers, in French.
 
 Cymbra Lingua is available on Chrome, on Firefox (desktop and Android) and as a Safari app (iPhone,
 iPad, Mac).
 
 **ES, with fr-es** — for Spanish speakers, who study English (en-es, from change 35) and French
-(fr-es, from change 52) (3,416 / 16,000 characters)
+(fr-es, from change 52) (3,426 / 16,000 characters with Italian). Its next-to-last line names
+Italian for French speakers, from change 20's release; until then (current, 3,416) it reads « La
+interfaz está en español. Cymbra Lingua también enseña inglés y español a los francohablantes, en
+francés, y español y francés a los anglohablantes, en inglés. »
 
 Cymbra Lingua resalta, en la misma página que estás leyendo, las palabras en inglés o en francés que
 todavía no conoces, sin cambiar el diseño de la página. Un porcentaje te dice qué parte del texto te
@@ -292,14 +384,15 @@ de tu dispositivo, y puedes borrar esos datos desde los Ajustes sin eliminar tu 
 a un servicio de traducción en línea la frase que quieres traducir mejor, solo cuando lo pulsas;
 nadie la conserva.
 
-La interfaz está en español. Cymbra Lingua también enseña inglés y español a los francohablantes, en
-francés, y español y francés a los anglohablantes, en inglés.
+La interfaz está en español. Cymbra Lingua también enseña inglés, español e italiano a los
+francohablantes, en francés, y español y francés a los anglohablantes, en inglés.
 
 Cymbra Lingua está disponible en Chrome, en Firefox (escritorio y Android) y como app de Safari
 (iPhone, iPad, Mac).
 
-**ES, without fr-es** — for Spanish speakers, who study English (en-es, from change 35), if change 52
-lists fr-en alone: change 37's text, its last line naming what English speakers study
+**ES, without fr-es** — history: change 52 listed fr-es, so this variant is a record, kept as
+written and not edited for Italian. For Spanish speakers, who study English (en-es, from change 35),
+if change 52 listed fr-en alone: change 37's text, its last line naming what English speakers study
 (2,940 / 16,000 characters)
 
 Cymbra Lingua resalta, en la misma página que estás leyendo, las palabras en inglés que todavía no
@@ -351,7 +444,9 @@ Cymbra Lingua está disponible en Chrome, en Firefox (escritorio y Android) y co
 
 What the English and Spanish texts check against, so that they promise nothing the packages do not
 do — each claim and the file that makes it true once change 52 lists fr-en (and fr-es) in
-`packs.json`, after es-en and en-es:
+`packs.json`, after es-en and en-es; and the French text's Italian claims (add-lingua-italian-listings,
+D4), true once the Italian programme's change 20 lists it-fr after them — the rows whose text is FR,
+the App Store's fr-FR texts' among them:
 
 | Claim                                                                                                                                                                 | Text              | Where it is true                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -378,8 +473,17 @@ do — each claim and the file that makes it true once change 52 lists fr-en (an
 | « Para el francés, el diccionario es algo menos completo que para el inglés » (M6)                                                                                    | ES with fr-es     | fr-es 83.2 / 70.8 / 56.8 % of the 5,000 / 10,000 / 20,000 commonest lemmas glossed (change 49) against en-es's 93.0 / 85.0 / 71.7 % (change 22), re-measured at change 52's commit — the French text's sentence about Spanish (es-fr 87.6 / 77.2 / 63.7 against en-fr 95.1 / 90.1 / 78.9), transposed. fr-en (93.6 / 86.9 / 76.3, change 48) stands beside es-en's 93.0 / 86.5 / 76.5: the English text says nothing of it                                                    |
 | The account: optional, erasable from Settings without deleting it                                                                                                     | EN, ES            | "Manage my data" / « Gestionar mis datos » (`manageData`, `src/i18n/{en,es}/settings.ts`), "Erase my Lingua data…" / « Borrar mis datos de Lingua… » (`erase`, `src/i18n/{en,es}/account.ts`)                                                                                                                                                                                                                                                                                 |
 | Who learns what: French speakers English and Spanish; English speakers Spanish and French; Spanish speakers English (and French)                                      | EN, ES            | `packs.json` after change 52: en-fr, es-fr, es-en, en-es, fr-en (, fr-es)                                                                                                                                                                                                                                                                                                                                                                                                     |
+| French speakers study Italian too: "English, Spanish and Italian to French speakers" / « inglés, español e italiano a los francohablantes »                           | EN, ES            | `packs.json` after change 20: en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr — it-fr glossed in French; no pair glossed in English or Spanish studies Italian (it-en and it-es are the Italian programme's stage 2), so neither text offers it to its readers                                                                                                                                                                                                                |
 | Spanish stays the language an English reader starts in, English a Spanish reader's                                                                                    | EN, ES            | `defaultPair` is a native's first listed pair: change 52 lists fr-en after es-en and fr-es after en-es (add-lingua-french-listings, D12)                                                                                                                                                                                                                                                                                                                                      |
 | No « Several languages at once »                                                                                                                                      | EN, ES            | a listing speaks of no price (add-lingua-french-listings, D2): the texts carry the French text's first sentence about the languages chosen in Settings, never a line about price — and the line itself has left the extension, in every interface language (change 53b)                                                                                                                                                                                                       |
+| « les mots d'anglais, d'espagnol ou d'italien »: Italian highlighted for French speakers                                                                              | FR                | a French-native reader's pairs are en-fr, es-fr and it-fr once change 20 lists it-fr (`pairsOf("fr")`, `src/analyzer/pairs.ts`), Italian offered in Réglages › Langue after English and Spanish (`offerFor`, `src/reading/studied-languages-view.ts`); Italian tokenised, analysed and guarded from its neighbours by the Italian programme's changes 6–8                                                                                                                     |
+| « En espagnol et en italien, la carte nomme aussi le temps et le genre… (« passé simple », « nom féminin ») »                                                         | FR                | the French renderer's Italian tenses (`TENSES.it`, `src/i18n/fr/grammar.ts`, change 18), pinned by `test/baseline/word-card-it-fr.txt` (« fu »: « 3e personne du singulier du passé simple d'essere »; « legge »: « [nom féminin] Loi »); Italian's genders and tenses from `tables/it/grammar.tsv` (change 13)                                                                                                                                                               |
+| « l'espagnol et l'italien passent par l'anglais »; « 52,0 Mo avec l'espagnol ou l'italien, 78,2 Mo avec les deux »                                                    | FR                | route `it-fr` = `it-en/base-memory/2.0` then `en-fr/base-memory/2.0` (`model-manifest.json`, change 2): it-en 23,301,774 + 2,532,929 + 407,598 = 26,242,301 B, with en-fr's 25,752,472 B = 51,994,773 B, « 52,0 Mo » as es-fr's 51,993,524 B; Spanish and Italian studied (with or without English): en-fr + es-en + it-en = 78,235,825 B, « 78,2 Mo » — the setting takes each model once (`modelsFor`) and rounds as the texts do (`megabytes`)                             |
+| Italian's translation offered, the selection marked in it                                                                                                             | FR                | it-fr in `MARKED_PAIRS` (`src/translate/markup.ts`): 93 of its 97 shown marks right, 3 % withheld, the programme's first tier (change 19, `measure-lingua-it-fr-translation-marks`; `tool/marks/README.md`)                                                                                                                                                                                                                                                                   |
+| « Pour l'espagnol et l'italien, le dictionnaire français est un peu moins complet que pour l'anglais » (M6)                                                           | FR                | it-fr 89.4 / 82.0 / 73.4 % of the 5,000 / 10,000 / 20,000 commonest lemmas glossed (change 16, refreshed by change 17, #1062; `gloss_coverage.py --pair it-fr`, `tables/it-fr/README.md`) against en-fr's 95.1 / 90.1 / 78.9 %: under it at each top, as es-fr's 87.6 / 77.2 / 63.7 %; change 20 publishes the figures (`gloss_coverage.py --write`) on cymbra.app/lingua                                                                                                     |
+| Italian's levels estimated from word frequency (the App Store's fr-FR RÉVISER)                                                                                        | FR                | `levels_estimated` in it-fr's pack (`tables/it-fr/manifest.json`, change 14), « Niveau d'italien estimé » (`levelTitleEstimated`, `src/i18n/fr/languages.ts`)                                                                                                                                                                                                                                                                                                                 |
+| « Pour l'espagnol ou l'italien, cochez-le dans les Réglages de l'extension, onglet Langue, puis choisissez son niveau. » (the App Store's fr-FR step 3)               | FR                | change 20's activation page, `fr.step3` (`apps/lingua-apple/Shared (App)/Resources/copy.js`, its D7 draft), in the description's register: vous where the page says tu                                                                                                                                                                                                                                                                                                        |
+| « une voix d'Italie pour la lecture à voix haute » (the App Store's fr-FR « What's New »)                                                                             | FR                | `PREFERRED_REGIONS.it` (`src/reading/speech.ts`, change 15): a voice of Italy ranked before another region's of the same quality                                                                                                                                                                                                                                                                                                                                              |
 
 M15 is settled: extended translation opens with each pair. Should change 52 not offer one, its
 clause goes from each text and every count only falls; recount before pasting.
@@ -427,6 +531,12 @@ cannot show; both hold the same card and the same two answers. The fifth slot is
 the second slot already shows the second studied language. The site shows these captures too, with
 the reader in « E-ink contrasté » beside the reader; the stores do not carry that one.
 
+Italian studied adds no capture (add-lingua-italian-listings, D8): the `fr` set is at the Chrome Web
+Store's cap of five, its second capture on a Spanish page; moving that one to an Italian page would
+need Italian capture fixtures and move the site's alt texts (that change's Open Question 3, settled
+by the owner on 2026-10-25: the `fr` set unchanged). The App
+Store's fr-FR set gains one on an Italian page (`apps/lingua-apple/STORE-LISTING.md`).
+
 Where a dashboard takes screenshots per language, the `fr` set goes under the French listing, the
 `en` set under the English one and the `es` set under the Spanish one; where it keeps one set for
 every language, the owner chooses which set it keeps.
@@ -452,11 +562,13 @@ install presets the English interface, studying Spanish — the native language 
 browser's, French or Spanish when the browser is in one and English for any other language
 (`add-lingua-native-language-choice`, D4), and Spanish stays an English reader's first language
 once change 52 lists fr-en after es-en — step 6 says how to add French and how to reach the Spanish
-and French interfaces, with the Spanish labels of steps 1, 2 and 4. It is true from change 52 and
-pasted with its release, the same text whether fr-es ships or not; until then the dashboards keep
-the text change 35 pasted (this file's version before add-lingua-french-listings).
+and French interfaces, with the Spanish labels of steps 1, 2 and 4, and, from the Italian
+programme's change 20, that the French interface studies Italian too. Two texts follow: **current
+(until Italian ships)**, true today and pasted at every submission before change 20's, and **with
+Italian**, pasted with change 20's release.
 
-The field caps at 1000 characters; the text below is 998. Change 35's text measured 996, so the
+The field caps at 1000 characters; the current text is 998, the one with Italian 993. Change 35's
+text measured 996, so the
 French path — « "Languages studied" > "French" adds French pages; » — was paid for by cutting
 wording, and no step a reviewer needs (add-lingua-french-listings, D4): « No account is needed:
 signing in only syncs a reader's words » became « No account needed: signing in only syncs words »,
@@ -466,6 +578,14 @@ is still there: the level and why it matters, the two ways to highlight, the pil
 three actions, capture and review, French, and the way to each interface. Each line break counts
 one character, as everywhere in this file: a dashboard that counted one as two would put the text at
 1,005 — read its counter on paste.
+
+Italian (add-lingua-italian-listings, D5) is « "Français" English, Spanish and Italian » in step 6
+(+9), paid for by cutting wording, and no step a reviewer needs: step 1's « Pick a level, e.g.
+B1, at » became « Pick a level (B1) at », and « With none, every word is highlighted and the score
+reads 0%. » became « With none, every word is highlighted, the score 0%. » (−14). The text with
+Italian is 993 / 1,000 — 1,000 if a dashboard counted each line break as two.
+
+**Current (until Italian ships)** (998 / 1,000):
 
 ```
 No account needed: signing in only syncs words across devices. The interface follows the browser: French, Spanish, else English (studying Spanish).
@@ -478,7 +598,20 @@ No account needed: signing in only syncs words across devices. The interface fol
 6. Popup gear ("Settings") > "Language": "Languages studied" > "French" adds French pages; "Español" to study English, "Français" English and Spanish. In Spanish, steps 1-5 on English pages: "Elige tu nivel de inglés", "Analizar esta página", "La conozco".
 ```
 
-Every label above is quoted from the source, not from memory: the level prompts from
+**With Italian** (993 / 1,000; from change 20's release):
+
+```
+No account needed: signing in only syncs words across devices. The interface follows the browser: French, Spanish, else English (studying Spanish).
+
+1. Pick a level (B1) at "What's your Spanish level?" (welcome tab) or "Choose your Spanish level" (popup). With none, every word is highlighted, the score 0%.
+2. Open a Spanish article. On Chrome, click "Analyze this page" in the popup, or grant "Always highlight (every page)".
+3. Words above that level are highlighted; the pill shows the share of the page you know.
+4. Click one for its card: English translation, dictionary form, frequency, and "I know it", "+ Deck", "Ignore".
+5. Alt+L captures a selected phrase; Alt+Shift+S or the popup's "Review" opens the review panel.
+6. Popup gear ("Settings") > "Language": "Languages studied" > "French" adds French pages; "Español" to study English, "Français" English, Spanish and Italian. In Spanish, steps 1-5 on English pages: "Elige tu nivel de inglés", "Analizar esta página", "La conozco".
+```
+
+Every label above is quoted from the source, not from memory (both texts): the level prompts from
 `src/i18n/en/languages.ts` with the language "Spanish" (`levelQuestion`, the welcome tab's;
 `chooseLevelPrompt`, the popup's); "Analyze this page", "Always highlight (every page)", "Review"
 and "Settings" (the gear's label) from the popup's copy, `src/i18n/en/popup.ts`; the three word
@@ -494,6 +627,8 @@ label sends the reviewer looking for a control that does not exist.
 
 ## Single purpose (Chrome Web Store)
 
+**Current (until Italian ships)** (593 characters):
+
 Cymbra Lingua has one purpose: helping a reader understand and learn the vocabulary of the language
 they study — Spanish or French for English speakers, English or French for Spanish speakers, English
 or Spanish for French speakers — in what they are already reading. Every feature serves it —
@@ -502,10 +637,23 @@ a deck, and reviewing that deck — on the web page they are reading, and in the
 themselves (DRM-free EPUB files, read in the extension's own reader page, with the same
 highlighting).
 
-593 characters, from change 52 with fr-es. Without fr-es, « English or French for Spanish
-speakers » reads « English for Spanish speakers » (583). The field is one per item, in English,
-pasted with change 52's release; until then it is change 35's (« Spanish for English speakers,
-English for Spanish speakers, English or Spanish for French speakers »).
+**With Italian** (602 characters; from change 20's release):
+
+Cymbra Lingua has one purpose: helping a reader understand and learn the vocabulary of the language
+they study — Spanish or French for English speakers, English or French for Spanish speakers, English,
+Spanish or Italian for French speakers — in what they are already reading. Every feature serves it —
+highlighting unknown words, showing a word's translation on click, capturing words and phrases into
+a deck, and reviewing that deck — on the web page they are reading, and in the books they import
+themselves (DRM-free EPUB files, read in the extension's own reader page, with the same
+highlighting).
+
+The text with Italian is 602 characters, from the Italian programme's change 20, which lists it-fr
+(add-lingua-italian-listings, D5). The field is one per item, in English, pasted with change 20's
+release; until then it is the current one, change 52's, « English or Spanish for French speakers »
+(593). Change 52's variant without fr-es,
+« English for Spanish speakers » (583), is history: change 52 listed fr-es. Before change 52, the
+field was change 35's (« Spanish for English speakers, English for Spanish speakers, English or
+Spanish for French speakers »).
 
 ## Permission justifications (Chrome Web Store)
 
@@ -513,9 +661,10 @@ Each answer names the user-visible feature and the code path, because that is wh
 against the bundle. The fields are one per item, in English, whatever the listing's languages: a
 label is quoted in each interface that shows it — English for English speakers, who study Spanish
 and French; Spanish for Spanish speakers, who study English, and French if change 52 lists fr-es;
-French for French speakers, who study English and Spanish. French studied adds no permission and no
-label: its readers' interface is English or Spanish. Code paths are named by function, not by line,
-so that they survive the next edit.
+French for French speakers, who study English and Spanish, and Italian from the Italian programme's
+change 20. French studied adds no permission and no label: its readers' interface is English or
+Spanish. Nor does Italian: its readers' interface is French, whose labels are quoted already. Code
+paths are named by function, not by line, so that they survive the next edit.
 
 The book reader (`reader.html`, `src/reader/`) **added no permission**: the file picker, the
 IndexedDB database that keeps the books and an extension page of its own need none, and nothing
@@ -573,17 +722,19 @@ agrees to the counts never sends it a request.
 
 ## Remote code
 
-None. Everything the extension runs ships inside the package, including both WebAssembly engines —
-the analysis engine and the translation engine — the language packs, one per pair (`packs.json`:
-en-fr, es-fr; from changes 34 and 35, es-en and en-es; from change 52, fr-en, and fr-es if its
-tables stand at or above their floor), and the book renderer (foliate-js,
-vendored under `vendor/`). No script and no WebAssembly is fetched at runtime; the content security
+None. Everything the extension runs ships inside the package, including both WebAssembly engines
+(the analysis engine and the translation engine), the language data — a base per studied language
+(`assets/bases/`) and a layer per listed pair (`assets/packs/`), which the engine assembles at load
+(the Italian programme's changes 3 and 4) — one per pair of `packs.json` (en-fr, es-fr, es-en,
+en-es, fr-en, fr-es, and it-fr from that programme's change 20) — and the book renderer (foliate-js, vendored
+under `vendor/`). No script and no WebAssembly is fetched at runtime; the content security
 policy is `script-src 'self' 'wasm-unsafe-eval'`. A book's own scripts never run: its pages are
 rendered under that same policy (`test/reader-csp.spec.ts`).
 
 The only files downloaded at runtime are **data**: the translation models' weights, the ones the
-reader's pairs need (`model-manifest.json`, `routes`) — for a French speaker, en-fr, and es-en when
-they study Spanish, since Spanish goes through English; for an English speaker reading Spanish,
+reader's pairs need (`model-manifest.json`, `routes`) — for a French speaker, en-fr, es-en when
+they study Spanish and it-en (`it-en/base-memory/2.0`, from change 20) when they study Italian, since
+both go through English; for an English speaker reading Spanish,
 es-en alone, the direct model of its pair; for a Spanish speaker reading English, en-es alone
 (`en-es/base-memory/2.1`), the direct model of its pair; for an English speaker reading French,
 fr-en alone (`fr-en/base-memory/2.0`), the direct model of its pair; for a Spanish speaker reading
@@ -752,3 +903,38 @@ the site deploy that publishes fr-en's (and fr-es's) figures:
 | ------------------ | ----------- | ----------------------------- | ------------------ | ------------------------------------------ | ----- |
 | Chrome Web Store   | _to record_ | _to record_                   | _to record_        | _to record_                                |       |
 | addons.mozilla.org | _to record_ | _to record_                   | _to record_        | _to record_                                |       |
+
+## The dashboards' languages: Italian studied (change 20's submission)
+
+The Italian programme's change 20 (`enable-lingua-italian`) adds no language to what the dashboards
+read: its package carries `_locales/fr`, `en` and `es`, as change 52's did, `default_locale` still
+`en` (M13). What moves is the French summary — change 20's, in `_locales/fr` and `manifest.json`
+(_Summary_) — and the French listing's text, so this submission is made by hand too, in this order
+(the owner's, M18; task 5.2 of add-lingua-italian-listings), after the site deploy that publishes
+it-fr's figures (I12). `add-lingua-french-listings`' procedure does not fit as it stands: its French
+step keeps the summary, which this one moves.
+
+1. **Upload without publishing**, as change 34's step 1: the tag's
+   `cymbra-lingua-chromium-<version>.zip`, from its GitHub Release, uploaded through the dashboard
+   (Package › Upload new package), which submits nothing.
+2. **`fr` replaced.** The default language still `en`. Under `fr`: the French description **FR,
+   with Italian** above, and the `fr` screenshots unchanged (_Graphics_; the owner's answer of
+   2026-10-25). Check that the French summary reads as change 20 committed it (_Summary_).
+3. **`en` and `es`, one sentence each.** Under `en` and `es`: the English description and the
+   Spanish one with fr-es, as above with Italian — each changed only in its sentence on what French
+   speakers study.
+   Check that both summaries are unchanged.
+4. **The single fields replaced.** The single purpose and the test instructions **with Italian**,
+   and the remote-code answer, as above; the permission justifications are unchanged.
+5. **Submit for review** from the dashboard.
+6. **addons.mozilla.org**: dispatch `lingua-extension-release` with the tag, `publish` ticked and
+   `stores: firefox`. After the submission, paste the French description into the French locale, the
+   English one into the English (US) locale and the Spanish one into the Spanish locale change 35's
+   procedure recorded, and check the French summary.
+7. **Record both results below**, in the pull request that next touches this file, reading each
+   dashboard's own counter as the text is pasted.
+
+| Dashboard          | Checked on  | Default language after upload | French summary | Listing texts (fr, en, es) | Screenshots (fr) | Notes |
+| ------------------ | ----------- | ----------------------------- | -------------- | -------------------------- | ---------------- | ----- |
+| Chrome Web Store   | _to record_ | _to record_                   | _to record_    | _to record_                | _to record_      |       |
+| addons.mozilla.org | _to record_ | _to record_                   | _to record_    | _to record_                | _to record_      |       |
