@@ -59,8 +59,8 @@ smettere di usare il servizio ed eliminare il tuo account in qualsiasi momento.
 
 ## 7. Legge applicabile
 
-I presenti termini sono regolati dal **diritto francese**. Qualsiasi controversia è di
-competenza dei tribunali competenti.
+I presenti termini sono regolati dal **diritto francese**. Qualsiasi controversia è
+devoluta ai tribunali competenti.
 
 ## 8. Contatti
 
@@ -84,9 +84,9 @@ Cymbra Music ti permette di caricare i tuoi contenuti, in particolare **spartiti
 **suoni di pianoforte** (*soundfont*).
 
 - Mettendo a disposizione un contenuto, **certifichi di esserne l'autore, oppure che
-  appartiene al pubblico dominio** (o a una licenza libera che ne autorizza l'uso e la
+  appartiene al pubblico dominio** (o è distribuito con una licenza libera che ne autorizza l'uso e la
   messa a disposizione), **oppure che lo importi per il tuo solo uso personale**. Indichi
-  questo motivo e lo confermi con una **casella di spunta dedicata a ogni caricamento di
+  questo motivo e lo confermi con un'**apposita casella di spunta, a ogni caricamento di
   file**.
 - Un contenuto importato **per il tuo solo uso personale** resta **strettamente
   privato**: è visibile solo a te, non viene mai condiviso e non può essere proposto al

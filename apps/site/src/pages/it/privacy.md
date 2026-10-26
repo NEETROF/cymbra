@@ -49,7 +49,7 @@ community Cymbra (server Discord) cifre di attività **aggregate**, calcolate a 
 dall'uso dei servizi: ad esempio il numero di partite giocate, la precisione media, gli
 spartiti valutati e i brani più suonati di Cymbra Music, le parole lette, imparate e
 ripassate in Cymbra Lingua, o la quota di ciascun metodo di accesso tra i nuovi account.
-Queste cifre non contengono **né nomi, né nomi utente, né identificativi, né numeri di
+Queste cifre non contengono **né nomi, né nomi utente, né identificativi, né il numero delle
 persone**. Finché la community è piccola, una cifra può tuttavia riflettere l'attività di
 pochissime persone.
 
@@ -77,10 +77,10 @@ Condividiamo lo stretto necessario con fornitori che agiscono per nostro conto:
   statistiche aggregate su abbonamenti e ricavi. Riceve un **identificativo di account
   opaco**, informazioni tecniche sull'applicazione e sul dispositivo e i dati della
   transazione forniti dallo store (prodotto, prezzo, valuta, paese, date): mai il tuo nome,
-  la tua email, il tuo pseudonimo né i tuoi dati di pagamento. Questo trasferimento fuori
+  la tua email, il tuo nome utente né i tuoi dati di pagamento. Questo trasferimento fuori
   dall'UE è disciplinato dalle clausole contrattuali tipo della Commissione europea
-  (accordo sul trattamento dei dati firmato con RevenueCat). La sua scheda viene eliminata
-  quando elimini il tuo account.
+  (accordo sul trattamento dei dati firmato con RevenueCat). Il tuo profilo presso RevenueCat viene
+  eliminato quando elimini il tuo account.
 - **Paddle** (venditore ufficiale, Regno Unito/UE): solo se ti abboni da Linux, Windows o
   dal sito web. Incassa, fattura e ci notifica lo stato dell'abbonamento associato a un
   identificativo opaco.
@@ -144,7 +144,7 @@ verrà modificata di conseguenza. In caso di modifica importante, te ne informer
 
 ## Allegato A — Cymbra Music
 
-Il servizio **Cymbra Music** ti permette di caricare i tuoi contenuti. A tale titolo, in
+Il servizio **Cymbra Music** ti permette di caricare i tuoi contenuti. Per questo, in
 aggiunta al §2, trattiamo:
 
 | Dato | Origine | Finalità |
@@ -161,7 +161,7 @@ aggiunta al §2, trattiamo:
 
 ## Allegato B — Cymbra Lingua
 
-**Cymbra Lingua** (estensione del browser e app per Safari) evidenzia, nelle pagine che
+**Cymbra Lingua** (estensione per il browser e app per Safari) evidenzia, nelle pagine che
 leggi, le parole che non conosci ancora nelle lingue che studi. In aggiunta al §2:
 
 **Cosa resta sul tuo dispositivo.** Il testo delle pagine viene analizzato **sul tuo
@@ -220,7 +220,7 @@ Cymbra Lingua, la Traduzione online richiede di accedere **nell'app** (con Apple
 la tua email e la tua password): l'app apre allora una propria sessione del tuo account,
 distinta da quella dell'estensione, che puoi chiudere dall'app.
 
-**Traduzione tenuta.** Una traduzione automatica (sul dispositivo o online) viene
+**Traduzione che tieni.** Una traduzione automatica (sul dispositivo o online) viene
 conservata solo se, durante il ripasso, scegli di tenere la traduzione della parola come
 traduzione della sua carta: viene conservata solo questa parola tradotta, sulla carta, e
 sincronizzata con essa; la frase tradotta non lo è mai. Una traduzione che non tieni non
@@ -250,8 +250,8 @@ dell'estensione (ad esempio 1.10).
   livello.
 - **Nessun indirizzo IP conservato.** In deroga ai log tecnici del §2 e del §5, Cymbra
   non conserva l'indirizzo di rete di questi invii né nel suo database, né nei suoi log, né
-  in quelli del server che le inoltra le richieste (il suo «reverse proxy»). Serve solo a
-  rifiutare gli invii a raffica, soltanto in memoria, in una forma offuscata che viene
+  in quelli del server che le inoltra le richieste (il suo «reverse proxy»). Serve soltanto, e solo
+  in memoria, a respingere gli invii a raffica, in una forma offuscata che viene
   dimenticata dopo un'ora.
 - **Inviati appena avvengono.** Ogni conteggio lascia il tuo dispositivo nel momento in cui
   avviene oppure, se non è potuto partire, all'avvio o all'uso successivo dell'estensione.
@@ -303,11 +303,11 @@ disattivati, non si apre nessuna pagina.
 |---|---|---|
 | Stato di ogni parola (conosciuta, in apprendimento, ignorata) e livello dichiarato, per ogni lingua studiata | tu | ritrovare i tuoi progressi sui tuoi dispositivi |
 | Mazzo di ripasso, per ogni lingua studiata: la parola, la frase in cui l'hai trovata, la sua traduzione (quella del dizionario, o la traduzione automatica della parola che hai scelto di tenere, mai una frase tradotta), la lingua di questa traduzione e il suo stato di ripasso, **senza** l'indirizzo della pagina | tu | ripassare su tutti i tuoi dispositivi |
-| Statistiche per giorno e per lingua studiata (parole imparate, ripassi, numero di parole lette e, tra queste, di parole nuove), con la tua lingua madre di quel giorno (quella delle traduzioni) | calcolate sul dispositivo | mostrare le tue statistiche; cifre d'uso **aggregate** per far funzionare il servizio e, senza nomi né numeri di persone, pubblicate nei canali della community Cymbra (vedi §2) |
+| Statistiche per giorno e per lingua studiata (parole imparate, ripassi, numero di parole lette e, tra queste, di parole nuove), con la tua lingua madre di quel giorno (quella delle traduzioni) | calcolate sul dispositivo | mostrare le tue statistiche; cifre d'uso **aggregate** per far funzionare il servizio e, senza nomi né il numero delle persone, pubblicate nei canali della community Cymbra (vedi §2) |
 | Identificativo di installazione casuale | generato dall'estensione, e dall'app Cymbra Lingua per sé stessa | distinguere due dispositivi durante la sincronizzazione |
 
 È l'estensione a sincronizzare questi dati. Se accedi **anche nell'app Cymbra Lingua**, con
-l'account che usa l'estensione di Safari, l'app sincronizza essa stessa gli stati e le
+l'account usato dall'estensione di Safari, l'app sincronizza essa stessa gli stati e le
 carte dei ripassi fatti nell'app, con una propria sessione e un proprio identificativo di
 installazione, con lo stesso contenuto (senza indirizzo di pagina); le statistiche del
 giorno passano sempre dall'estensione. Non viene raccolto nient'altro.

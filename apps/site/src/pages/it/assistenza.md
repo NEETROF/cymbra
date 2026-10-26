@@ -27,7 +27,7 @@ Per aiutarci a risponderti in fretta, indica se possibile:
 
 ### Il mio abbonamento
 
-Un abbonamento si gestisce dallo store che lo ha incassato:
+Un abbonamento si gestisce dallo store in cui lo hai sottoscritto:
 
 - **App Store**: Impostazioni → il tuo nome → *Abbonamenti*;
 - **Google Play**: Play Store → il tuo profilo → *Pagamenti e abbonamenti*;

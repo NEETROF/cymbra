@@ -480,7 +480,7 @@ const it: LinguaTable = {
   tagline:
     "Un'estensione per il browser che evidenzia le parole {ofStudied} che non conosci ancora, direttamente nella pagina. Nessuna app da aprire, nessuna sessione di ripasso da programmare: leggi e impari.",
   platforms:
-    "Disponibile su Chrome, Edge e gli altri browser Chromium, su Firefox (computer e Android) e su Safari (iPhone, iPad, Mac).",
+    "Disponibile su Chrome, su Edge e sugli altri browser Chromium, su Firefox (computer e Android) e su Safari (iPhone, iPad, Mac).",
   forReaders: "Pensata per {speakers} che imparano {learnStudied}.",
   // The Italian page is built only once a pair glossed in Italian ships (D3): it always has readers.
   madeFor: null,
@@ -491,7 +491,7 @@ const it: LinguaTable = {
   cards: [
     {
       key: "highlight",
-      title: "🖍️ Evidenziate sul posto",
+      title: "🖍️ Evidenziazione sul posto",
       body: "Le parole sconosciute compaiono evidenziate direttamente nella pagina, senza rompere nulla del sito che stai leggendo.",
     },
     {
@@ -507,11 +507,11 @@ const it: LinguaTable = {
     {
       key: "deck",
       title: "🗂️ Mazzo e ripasso",
-      body: "Le parole e le espressioni che acquisisci diventano carte, con la frase in cui le hai incontrate. Il ripasso si fa nel pannello laterale.",
+      body: "Le parole e le espressioni che metti da parte diventano carte, con la frase in cui le hai incontrate. Il ripasso si fa nel pannello laterale.",
     },
     {
       key: "offline",
-      title: "📴 Offline per scelta",
+      title: "📴 Offline fin dalla progettazione",
       body: "L'analisi avviene nel tuo browser, con un dizionario integrato. Nessuna pagina letta viene inviata altrove.",
     },
     {
@@ -538,7 +538,7 @@ const it: LinguaTable = {
   glossesOrigin:
     "Le definizioni provengono dal Wikizionario e da traduzioni scritte da persone, mai da una traduzione automatica.",
   translationServes: " La traduzione estesa, facoltativa, traduce {served}.",
-  translationNotYet: " Non ancora per {unserved}.",
+  translationNotYet: " Non ancora disponibile: {unserved}.",
   throughEnglish: " (passando per l'inglese)",
   closingHeading: "E la musica?",
   closingBody:
@@ -547,7 +547,7 @@ const it: LinguaTable = {
   // change 45 (enable-lingua-italian-speakers) captures the extension in Italian, rewrites these
   // against its captures and brings the page's media with en-it. Nothing here is shown before.
   showcase: {
-    heading: "Guardala all'opera",
+    heading: "In immagini",
     hero: {
       alt: "Una pagina in inglese letta con Cymbra Lingua: le parole sconosciute sono evidenziate, il badge indica la quota di parole conosciute ed è aperta la carta di un verbo, con la sua forma del dizionario, il suo tempo verbale e la sua traduzione.",
     },
@@ -964,8 +964,8 @@ export function spanishHomeLinguaCard(pairs: LinguaPair[]): HomeLinguaCard {
 // every language Lingua reads and the speakers it is made for, links `/en/lingua`, and never
 // says that Lingua explains words in Italian.
 const HOME_IT = {
-  read: "Leggi il web {ofStudied} con le parole che non conosci ancora evidenziate direttamente nella pagina. Una percentuale onesta per pagina, un clic per la traduzione e il tuo vocabolario, che si costruisce da solo.",
-  audience: " Pensata per {speakers}, con l'interfaccia e le traduzioni nella loro lingua.",
+  read: "Leggi il web {ofStudied}, con le parole che non conosci ancora evidenziate direttamente nella pagina. Una percentuale onesta per pagina, un clic per la traduzione e il tuo vocabolario, che si costruisce da solo.",
+  audience: " Pensata per {speakers}, con l'interfaccia e le traduzioni nella propria lingua.",
 };
 
 /**

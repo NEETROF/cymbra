@@ -65,7 +65,7 @@ describe("/it/ before any pair glossed in Italian", () => {
     const html = await render(ItalianHome);
     const card = linguaCard(html);
     expect(card.body).toBe(
-      "Leggi il web in inglese, in spagnolo, in francese o in italiano con le parole che non conosci ancora evidenziate direttamente nella pagina. Una percentuale onesta per pagina, un clic per la traduzione e il tuo vocabolario, che si costruisce da solo. Pensata per francofoni, anglofoni e ispanofoni, con l'interfaccia e le traduzioni nella loro lingua.",
+      "Leggi il web in inglese, in spagnolo, in francese o in italiano, con le parole che non conosci ancora evidenziate direttamente nella pagina. Una percentuale onesta per pagina, un clic per la traduzione e il tuo vocabolario, che si costruisce da solo. Pensata per francofoni, anglofoni e ispanofoni, con l'interfaccia e le traduzioni nella propria lingua.",
     );
     // Never that Lingua explains words in Italian before a pair glossed in Italian ships.
     expect(card.body).not.toMatch(/traduzioni in italiano|in italiano:/);
@@ -102,7 +102,7 @@ describe("/it/ once en-it ships: Italian speakers study English", () => {
     const html = await render(ItalianHome);
     const card = linguaCard(html);
     expect(card.body).toBe(
-      "Leggi il web in inglese con le parole che non conosci ancora evidenziate direttamente nella pagina. Una percentuale onesta per pagina, un clic per la traduzione e il tuo vocabolario, che si costruisce da solo.",
+      "Leggi il web in inglese, con le parole che non conosci ancora evidenziate direttamente nella pagina. Una percentuale onesta per pagina, un clic per la traduzione e il tuo vocabolario, che si costruisce da solo.",
     );
     expect(card.body).not.toContain("Pensata per");
     expect(card.href).toBe("/it/lingua");

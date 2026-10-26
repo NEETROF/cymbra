@@ -896,19 +896,19 @@ describe("the Italian home's Lingua card follows the shipped pairs (change: add-
   it("before a pair glossed in Italian: every language read, its readers, and the English Lingua page", () => {
     const { body, href } = italianHomeLinguaCard(nine.pairs);
     expect(body).toBe(
-      "Leggi il web in inglese, in spagnolo, in francese o in italiano con le parole che non conosci ancora evidenziate direttamente nella pagina. Una percentuale onesta per pagina, un clic per la traduzione e il tuo vocabolario, che si costruisce da solo. Pensata per francofoni, anglofoni e ispanofoni, con l'interfaccia e le traduzioni nella loro lingua.",
+      "Leggi il web in inglese, in spagnolo, in francese o in italiano, con le parole che non conosci ancora evidenziate direttamente nella pagina. Una percentuale onesta per pagina, un clic per la traduzione e il tuo vocabolario, che si costruisce da solo. Pensata per francofoni, anglofoni e ispanofoni, con l'interfaccia e le traduzioni nella propria lingua.",
     );
     expect(href).toBe("/en/lingua");
   });
 
   it("with today's two French-glossed pairs: French speakers alone", () => {
-    expect(italianHomeLinguaCard(today.pairs).body).toMatch(/^Leggi il web in inglese o in spagnolo .* Pensata per francofoni, con l'interfaccia/);
+    expect(italianHomeLinguaCard(today.pairs).body).toMatch(/^Leggi il web in inglese o in spagnolo, .* Pensata per francofoni, con l'interfaccia/);
   });
 
   it("once en-it ships: English, read with an Italian gloss, no audience, and /it/lingua", () => {
     const pairs = shipped({ tops: NINE_PAIRS.tops, glossed: { ...NINE_PAIRS.glossed, "en-it": [91.4, 82.8, 70.3] } }).pairs;
     const { body, href } = italianHomeLinguaCard(pairs);
-    expect(body).toMatch(/^Leggi il web in inglese con le parole/);
+    expect(body).toMatch(/^Leggi il web in inglese, con le parole/);
     expect(body).not.toContain("Pensata per");
     expect(href).toBe("/it/lingua");
   });
@@ -916,5 +916,16 @@ describe("the Italian home's Lingua card follows the shipped pairs (change: add-
   it("refuses a language its table cannot name", () => {
     const pairs = shipped({ tops: [1], glossed: { "de-fr": [1] } }, {}).pairs;
     expect(() => italianHomeLinguaCard(pairs)).toThrow('the it table has no name for the language "de"');
+  });
+});
+
+describe("the Italian note on pairs extended translation does not serve yet (review of change 41)", () => {
+  it("reads whole whether a pair is named by its studied language or by both", () => {
+    const one = shipped({ tops: [5000], glossed: { "en-it": [90] } }, {});
+    expect(linguaPageText("it", one, noDiscord).coverage.note).toContain(" Non ancora disponibile: l'inglese.");
+    const two = shipped({ tops: [5000], glossed: { "en-it": [90], "en-fr": [95] } }, {});
+    expect(linguaPageText("it", two, noDiscord).coverage.note).toContain(
+      " Non ancora disponibile: dall'inglese all'italiano e dall'inglese al francese.",
+    );
   });
 });

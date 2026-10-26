@@ -139,7 +139,7 @@ export const VIDEO_COPY: Record<
   },
   it: {
     heading: "Guardala suonare",
-    text: "Un brano suonato su una tastiera MIDI, in Modalità attesa: lo spartito aspetta la nota giusta, poi passa alle note che cadono. Il suono è quello dell'app.",
+    text: "Un brano suonato su una tastiera MIDI, in modalità attesa: lo spartito aspetta la nota giusta, poi passa alle note che cadono. Il suono è quello dell'app.",
     listen: "🔊 Ascolta",
     mute: "🔇 Disattiva l'audio",
     label: "Video: Cymbra Music segue un brano suonato su una tastiera MIDI",
