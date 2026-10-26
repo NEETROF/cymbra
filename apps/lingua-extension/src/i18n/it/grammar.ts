@@ -226,6 +226,8 @@ export const grammar: typeof fr = {
     const { pos, gender } = senseOf(tag);
     const name = pos ? PARTS_OF_SPEECH[pos] : undefined;
     if (!name) return null;
+    // « sostantivo di genere comune »: « sostantivo comune » would read as a common noun (I2's review).
+    if (gender === "Com") return `${name} di genere comune`;
     const named = gender ? GENDERS[gender] : undefined;
     return named ? `${name} ${named}` : name;
   },

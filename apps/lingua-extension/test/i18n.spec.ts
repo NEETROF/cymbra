@@ -719,6 +719,8 @@ describe("the drafts are whole", () => {
       expect(text, text).not.toMatch(/\b(?:Lei|La preghiamo|Suo|Sua)\b/);
       expect(text, text).not.toMatch(/\b(?:connesso|connessa|uscito|uscita)\b/i);
       expect(text, text).not.toMatch(/\bBenvenut[oa]\b/); // « il benvenuto », the noun, is genderless
+      // One apostrophe across the Italian interface, U+0027 (add-lingua-italian-card-wording D4).
+      expect(text, text).not.toContain("\u2019");
     }
   });
 

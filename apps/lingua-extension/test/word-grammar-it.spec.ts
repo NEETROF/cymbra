@@ -530,6 +530,9 @@ describe("the line's grammar in Italian", () => {
       "verbo",
     ]);
     expect(heading("NOUN", "Masc")).toBe("sostantivo maschile");
+    // « sostantivo comune » is a common noun: the common gender is said as such.
+    expect(heading("NOUN", "Com")).toBe("sostantivo di genere comune");
+    expect(heading("PRON", "Neut")).toBe("pronome neutro");
     for (const pos of ["PUNCT", "SYM", "X", "WORD"]) expect(heading(pos), pos).toBeNull();
     expect(renderer.senseHeading(undefined)).toBeNull();
   });

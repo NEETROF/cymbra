@@ -13,6 +13,6 @@
 
 ## 3. Review and gates
 
-- [ ] 3.1 [agent] The Italian reviewer agent's pass over the names and the snapshot (D8): « condizionale presente » for Spanish, « determinante »; its findings applied or answered with a source in the pull request.
+- [x] 3.1 [agent] The Italian reviewer agent's pass over the names and the snapshot (D8): « condizionale presente » for Spanish, « determinante »; its findings applied or answered with a source in the pull request. Done: 0 must-fix, 5 suggestions; « condizionale presente », « determinante » and the mood before the tense kept; « sostantivo di genere comune » and the catalogue's two U+2019 apostrophes applied; the comma join, the tense named once across numbers (both shared with the English and Spanish renderers) and the schoolbook check of « presente semplice » / « forma in -ing » handed to change 44.
 - [x] 3.2 In `apps/lingua-extension`: `yarn lint`, `yarn format:check`, `yarn typecheck`, `yarn test`, `yarn build`; every existing card snapshot byte for byte.
 - [x] 3.3 `openspec validate add-lingua-italian-card-wording --strict`; the archive order; the two MODIFIED blocks re-copied as changes 33 and 18 then stand; `docs/lingua/italian-programme.md` row 34's status.
