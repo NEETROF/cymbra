@@ -9,10 +9,10 @@
 // study French, so no French interface shows these words today; this module carries them because
 // the English and Spanish ones are typed after it.
 //
-// `italian` is there for Italian's voices (add-lingua-italian-read-aloud D3): the read-aloud block
-// names a speaker reading Italian before Italian is a studied language (enable-lingua-italian,
-// change 20), and the level titles take its `of` and `the` from then. Its preview is in Italian
-// whatever the interface, as each preview is in its own language.
+// `italian` came for Italian's voices (add-lingua-italian-read-aloud D3): the read-aloud block named a
+// speaker reading Italian before Italian was a studied language, and the level titles take its `of`
+// and `the` since enable-lingua-italian made it one. Its preview is in Italian whatever the
+// interface, as each preview is in its own language.
 
 /** One studied language, in the forms the sentences take. */
 export interface LanguageWords {

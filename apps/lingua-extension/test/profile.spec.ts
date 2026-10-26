@@ -27,12 +27,42 @@ describe("the studied languages of a stored backup", () => {
     expect(studiedLanguagesOf(version2(["French"]))).toEqual(["fr"]);
   });
 
+  it("reads Italian, which a reader of French studies since enable-lingua-italian", () => {
+    // A version 4 backup — the engine writes 4 once the profile names Italian (add-lingua-italian-baseline
+    // D7) — of a French-native reader who studies English then Italian: read as both, in their order.
+    const version4 = JSON.stringify(
+      { schema_version: 4, profile: { native_language: "French", studied_languages: ["English", "Italian"] } },
+      null,
+      2,
+    );
+    expect(studiedLanguagesOf(version4)).toEqual(["en", "it"]);
+    expect(nativeLanguageOf(version4)).toBe("fr");
+    expect(studiedLanguagesOf(version2(["Italian"]))).toEqual(["it"]);
+    expect(studiedLanguagesOf(version2(["Italian", "Spanish", "English"]))).toEqual(["it", "es", "en"]);
+  });
+
+  it("reads Italian, which a reader of English studies since enable-lingua-italian-for-english-speakers", () => {
+    // A version 4 backup of an English-native reader who studies Spanish then Italian: read as both, in
+    // their order, English native.
+    const version4 = JSON.stringify(
+      { schema_version: 4, profile: { native_language: "English", studied_languages: ["Spanish", "Italian"] } },
+      null,
+      2,
+    );
+    expect(studiedLanguagesOf(version4)).toEqual(["es", "it"]);
+    expect(nativeLanguageOf(version4)).toBe("en");
+    expect(nativeLanguageOf(version4, ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en"])).toBe(
+      "en",
+    );
+  });
+
   it("reads a backup without a profile as English — every reader of English alone", () => {
     expect(studiedLanguagesOf(JSON.stringify({ schema_version: 1, knowledge: {} }))).toEqual(["en"]);
   });
 
   it("leaves out a language this build does not know, and falls back on English", () => {
     expect(studiedLanguagesOf(version2(["Portuguese", "Spanish"]))).toEqual(["es"]);
+    expect(studiedLanguagesOf(version2(["German", "Italian"]))).toEqual(["it"]);
     expect(studiedLanguagesOf(version2(["Portuguese"]))).toEqual(["en"]);
     expect(studiedLanguagesOf(version2("Spanish"))).toEqual(["en"]);
   });

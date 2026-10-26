@@ -253,16 +253,30 @@ const nowSeconds = (): number => Math.floor(Date.now() / 1000);
 
 /**
  * The three-letter codes (ISO 639-2) some packages declare for the shipped languages, and for the
- * neighbours the detection guards keep out of them (`GUARDED`, read-lingua-card-in-another-studied-language D7).
+ * neighbours the detection guards keep out of them (`GUARDED`, read-lingua-card-in-another-studied-language D7):
+ * Italian's, Sardinian's, Corsican's and Latin's since enable-lingua-italian (D3) — an Italian book
+ * declaring `ita` is shelved and read as Italian —, and the four ISO 639-3 languages of the Sardinian
+ * macrolanguage (`srd`), Logudorese, Campidanese, Sassarese and Gallurese, read as Sardinian, which
+ * Italian's guard keeps out (Sassarese and Gallurese, nearer Corsican, are kept out either way).
+ * Venetian, Sicilian, Neapolitan and Friulian have no two-letter code and are declared in three.
+ * `fra` stays unmapped.
  */
 const THREE_LETTER: Record<string, string> = {
   eng: "en",
   spa: "es",
+  ita: "it",
   cat: "ca",
   glg: "gl",
   oci: "oc",
   ron: "ro",
   rum: "ro",
+  srd: "sc",
+  src: "sc",
+  sro: "sc",
+  sdc: "sc",
+  sdn: "sc",
+  cos: "co",
+  lat: "la",
 };
 
 /**
@@ -276,6 +290,10 @@ export const GUARDED: Readonly<Partial<Record<StudiedLanguage, readonly string[]
   es: ["ca", "gl", "oc"],
   // add-lingua-french-detection-guard (change 42): Catalan, Occitan and Romanian are not read as French.
   fr: ["ca", "oc", "ro"],
+  // add-lingua-italian-detection-guard (the Italian programme's change 8), as its implementation
+  // settled them (#1042, the owner's decisions of 2026-10-23): Catalan, Galician, Venetian, Sicilian,
+  // Neapolitan, Sardinian, Corsican, Friulian, Latin, Occitan and Romanian are not read as Italian.
+  it: ["ca", "gl", "vec", "scn", "nap", "sc", "co", "fur", "la", "oc", "ro"],
 };
 
 /** What decides which other languages a word card may be read in (`otherStudiedLanguages`). */

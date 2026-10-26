@@ -125,16 +125,16 @@ and for growth across the corpus, not against the worker's. The soak does not ch
 bound of `engine-worker.ts` either: a run loads one route and deletes nothing — and a deletion
 would not show in RSS anyway, since a wasm instance's linear memory never shrinks; the bound caps
 growth, with the freed blocks reused by the next model built. The catalogue lists six models
-(en-fr, es-en, en-es, fr-en, it-en, en-it). Every native language's shipped pairs need two at most —
-en-fr and es-en for French, es-en and fr-en for English, en-es and fr-en for Spanish — so a reader
-who keeps their native language never makes a third today: the eviction runs when the native
-language changes while the worker lives (add-lingua-french-translation D3), which production meets
-since changes 34, 35 and 52 shipped the matrix's pairs. With Italian's six routes, the pairs glossed
-in each native language need three — en-fr, es-en and it-en for French; es-en, fr-en and it-en for
-English; en-es, fr-en and it-en for Spanish; en-it, fr-en and es-en for Italian — still loaded two at
-a time, a route's: once Italian's pairs ship, a reader who keeps their native language makes the
-worker delete a model only when a third pair's route needs the room
-(add-lingua-italian-translation-models D2).
+(en-fr, es-en, en-es, fr-en, it-en, en-it). The matrix's shipped pairs need two at most per native
+language — en-fr and es-en for French, es-en and fr-en for English, en-es and fr-en for Spanish — and
+the eviction runs when the native language changes while the worker lives
+(add-lingua-french-translation D3), which production meets since changes 34, 35 and 52 shipped the
+matrix's pairs. With Italian's six routes, the pairs glossed in each native language need three —
+en-fr, es-en and it-en for French; es-en, fr-en and it-en for English; en-es, fr-en and it-en for
+Spanish; en-it, fr-en and es-en for Italian — still loaded two at a time, a route's: a reader who keeps
+their native language makes the worker delete a model only when a third pair's route needs the room
+(add-lingua-italian-translation-models D2), which a French-native reader of English, Spanish and
+Italian meets since the Italian programme's change 20 (enable-lingua-italian) shipped it-fr.
 
 ## Judging
 
@@ -308,8 +308,8 @@ blind second one.
 | **en-es, engine, judged in Spanish** | **96 / 96 — 100 %**      | **4 %**  | **First tier: marked (shipped since change 35)**                                |
 | **fr-en, engine, judged in English** | **95 / 96 — 99.0 %**     | **4 %**  | **First tier: marked (shipped since change 52)**                                |
 | **fr-es, engine (pivot fr→en→es)**   | **90 / 91 — 98.9 %**     | **9 %**  | **First tier: marked (shipped since change 52)**                                |
-| **it-fr, engine (pivot it→en→fr)**   | **93 / 97 — 95.9 %**     | **3 %**  | **First tier: marked (listed, inert until the Italian programme's change 20)**  |
-| **it-en, engine, judged in English** | **94 / 97 — 96.9 %**     | **3 %**  | **First tier: marked (listed, inert until the Italian programme's change 25)**  |
+| **it-fr, engine (pivot it→en→fr)**   | **93 / 97 — 95.9 %**     | **3 %**  | **First tier: marked (shipped since the Italian programme's change 20)**        |
+| **it-en, engine, judged in English** | **94 / 97 — 96.9 %**     | **3 %**  | **First tier: marked (shipped since the Italian programme's change 25)**        |
 | **it-es, engine (pivot it→en→es)**   | **90 / 95 — 94.7 %**     | **5 %**  | **First tier: marked (listed, inert until the Italian programme's change 30)**  |
 | es-fr, gloss-located (experiment)    | 76 / 78 — 97.4 %         | 22 %     | —                                                                               |
 | en-fr, gloss-located (experiment)    | 76 / 79 — 96.2 %         | 21 %     | —                                                                               |
@@ -361,7 +361,7 @@ What these numbers say:
   built per run, every fragment reconciled.
 - **it-fr is on the first tier** through two models, it-en then en-fr: 93 of its 97 shown marks
   correct, 3 withheld — listed in `MARKED_PAIRS`, inert until the Italian programme's change 20
-  (`enable-lingua-italian`) lists it-fr in `packs.json`. Its four wrong marks, by `k`: « isole »
+  (`enable-lingua-italian`) listed it-fr in `packs.json`, marked since. Its four wrong marks, by `k`: « isole »
   marked « granit » instead of « îles » (k 38), « battaglia » marked « au » alone instead of
   « combat » (k 52), « comprendono » marked « qui » (k 57, as en-fr's « make » was) and « rilasciò »
   marked the auxiliary « a » alone instead of « a sorti » (k 69). Its three withheld: « gran parte della »
@@ -384,7 +384,7 @@ What these numbers say:
   it twice (k 7, k 96). Run twice, the results were byte for byte the same.
 - **it-en is on the first tier** through its one model: 94 of its 97 shown marks correct, 3 withheld —
   listed in `MARKED_PAIRS`, inert until the Italian programme's change 25
-  (`enable-lingua-italian-for-english-speakers`) lists it-en in `packs.json`. Its three wrong marks, by
+  (`enable-lingua-italian-for-english-speakers`) listed it-en in `packs.json`, marked since. Its three wrong marks, by
   `k`: « comprendono », rendered « understand » in the wrong sense, marked « who » (k 57, as it-fr's
   « qui » and en-fr's « make » were); « sveglia » marked « alarm » alone, half of « alarm clock »
   (k 78); and « agli sgoccioli », rendered « in its infarest » — a garbled non-word —, marked « its »

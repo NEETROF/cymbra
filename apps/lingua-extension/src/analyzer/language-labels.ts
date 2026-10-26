@@ -18,12 +18,11 @@ const MODULES: Record<InterfaceLanguage, typeof fr> = { fr, en, es };
 /**
  * A language the catalogue names: a studied language, or a native one — French among them, whose
  * voices the read-aloud block spoke of before French was a studied language
- * (add-lingua-french-read-aloud D4), and a studied one too since enable-lingua-french — or Italian,
- * whose voices the read-aloud block speaks of before enable-lingua-italian widens the studied
- * languages (add-lingua-italian-read-aloud D3): the level titles, keyed by the studied language,
- * name it only from then.
+ * (add-lingua-french-read-aloud D4), and a studied one too since enable-lingua-french. Italian, which
+ * the read-aloud block spoke of before it was studied (add-lingua-italian-read-aloud D3), is a
+ * studied language since enable-lingua-italian, which dropped its explicit arm here.
  */
-export type NamedLanguage = StudiedLanguage | NativeLanguage | "it";
+export type NamedLanguage = StudiedLanguage | NativeLanguage;
 
 /** The languages the catalogue names, by code: what `isNamedLanguage` reads a plain tag against. */
 const NAMED: Record<NamedLanguage, true> = { en: true, es: true, fr: true, it: true };

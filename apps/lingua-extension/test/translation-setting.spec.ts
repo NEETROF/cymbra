@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { translation as COPY } from "@/i18n/fr/translation.ts";
+import { settingsCopy } from "@/reading/settings-copy.ts";
 import { mountSettings } from "@/reading/settings-view.ts";
 import {
   costText,
@@ -258,6 +259,31 @@ describe("helpers", () => {
     const spanish = { download: 51_993_524, stored: 74_762_516, twoModels: true };
     expect(costText(spanish)).toContain("Télécharge 52,0 Mo une fois");
     expect(costText(spanish)).toContain("environ 340 Mo de mémoire");
+    // A reader of Italian alone: it-fr's route, it-en then en-fr, summed from the catalogue — two models'
+    // memory (enable-lingua-italian D6).
+    const italian = { download: 51_994_773, stored: 73_837_254, twoModels: true };
+    expect(costText(italian)).toBe(
+      "Traduit tes phrases sur cet appareil, sans rien envoyer. Télécharge 52,0 Mo une fois, puis utilise " +
+        "environ 340 Mo de mémoire pendant la traduction. Réglage propre à cet appareil.",
+    );
+    // A reader of English, Spanish and Italian: en-fr, es-en and it-en, three models held two at a time —
+    // the memory of two, the download of three.
+    const three = { download: 78_235_825, stored: 110_851_343, twoModels: true };
+    expect(costText(three)).toContain("Télécharge 78,2 Mo une fois");
+    expect(costText(three)).toContain("environ 340 Mo de mémoire");
+    expect(costText(three)).not.toContain("200 Mo");
+    // An English reader of Italian alone: it-en's one model — one model's memory
+    // (enable-lingua-italian-for-english-speakers D5).
+    const english = settingsCopy("en").translation;
+    const italianAlone = costText({ download: 26_242_301, stored: 37_088_127 }, "en", english);
+    expect(italianAlone).toContain("Downloads 26.2 MB once");
+    expect(italianAlone).toContain("about 200 MB of memory");
+    // An English reader of Spanish, French and Italian: es-en, fr-en and it-en, three one-model routes
+    // held two at a time — the memory of two, the download of three.
+    const threeEnglish = costText({ download: 78_718_068, stored: 111_302_527, twoModels: true }, "en", english);
+    expect(threeEnglish).toContain("Downloads 78.7 MB once");
+    expect(threeEnglish).toContain("about 340 MB of memory");
+    expect(threeEnglish).not.toContain("about 200 MB");
     expect(stateText({ phase: "failed", reason: "storage" }, COST)).toContain("(36,7 Mo)");
     expect(stateText({ phase: "failed", reason: "storage" })).toBe(
       "Pas assez de place sur cet appareil pour le modèle.",

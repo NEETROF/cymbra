@@ -149,6 +149,13 @@ text names no other audience. The texts kept for a release without fr-es are not
   93.9 / 87.2 / 76.8) favours it-en — 85.3 / 77.5 / 68.7 strict —, so the committed figures decide.
 - **Translation**: if change 24's figures and the owner withhold it-en's translation, its clauses go.
 
+Taken on `main` at `53da44cf4` (2026-10-25): it-en is 26,242,301 B, « 26.2 MB », so « 26.2 MB each »
+holds; its committed coverage is 91.3 / 84.2 / 75.8 %, under es-en's and fr-en's at each top (by 1.7,
+2.3 and 0.7 points against es-en, 2.6, 3.0 and 1.0 against fr-en). By this rule the dictionary
+sentence would be written; **the owner decided on 2026-10-25 to leave it out** of both descriptions,
+the gap being 0.7 to 3.0 points only — as fr-en got none beside es-en; change 24 put it-en on the marks' first tier (94 of 97 correct, 3 % withheld), which answers
+change 25's Open Question 2: its translation is offered, marked, and every translation clause stays.
+
 ### D6 — The claims table
 
 The extension file's « what each claim rests on » gains rows: Italian highlighted for English speakers
@@ -177,6 +184,17 @@ Implemented after change 21, after changes 22, 23 and 24 and the owner's answer 
 Question 2 — the figures of D5 —, and before change 25 lists it-en, as change 21 is before change 20: its site test and its
 scenarios are true once it-en is listed, and its listing texts are pasted with change 25's release after
 the site deploy that publishes it-en's figures (I12, M18).
+
+Change 25's Open Questions were answered before this change was implemented (2026-10-25): its English
+summary is version A, « The web in Spanish, French or Italian: unknown words highlighted, an honest
+percentage. Offline and private. » (108), and its activation page takes D6's drafts (the owner); its
+Open Question 2 is settled by change 24's figures (above, D5); change 23 has merged. Change 21 was not
+on `main` then (#1057, merged with change 20's #1058 after the owner's dogfood): the listing texts went
+into a section of their own in each file, which a rebase on #1057 merges, and the site's test and the
+notes change 21 edits in place waited on its merge. Both merged on 2026-10-26; the change was then
+rebased, its site test applied and those notes edited to name Italian for English speakers. The
+owner chose the Spanish support address then too, `/es/soporte/`; and changes 20, 25 and 30 ship in
+one release (the owner, 2026-10-26).
 
 ### D9 — Requirements true of their time
 
@@ -225,3 +243,8 @@ For the owner:
 4. **The review notes**: without an Italian step (recommended), or with one and two more cuts.
 5. **The Chrome Web Store's English screenshots**: unchanged (recommended), or the second capture moved
    to an Italian page.
+
+**Answered by the owner on 2026-10-25**: 1, the drafts as written, the subtitle `Spanish, French or
+Italian`; 2, `words` and `deck` give way; 3–5, as drafted (the voice kept, no Italian step for the
+reviewer, the English captures unchanged). And, beyond these, the dictionary sentence on Italian is
+left out of both descriptions (D5).

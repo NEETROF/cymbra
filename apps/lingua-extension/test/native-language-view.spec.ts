@@ -30,7 +30,7 @@ const TODAY = ["en-fr", "es-fr"];
 /** es-en shipping beside them (change 34). */
 const MIXED = ["en-fr", "es-fr", "es-en"];
 /** The engine's names for the languages (state/profile.ts). */
-const NAMES = { fr: "French", en: "English", es: "Spanish" } as const;
+const NAMES = { fr: "French", en: "English", es: "Spanish", it: "Italian" } as const;
 
 const settle = async (): Promise<void> => {
   for (let i = 0; i < 4; i++) await new Promise((resolve) => setTimeout(resolve, 0));

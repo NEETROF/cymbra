@@ -52,14 +52,17 @@ glossed in Spanish ships — `linguaHref('es')` (`src/lib/lingua-pairs.ts`) poin
 Spanish nav, footer and not-found page at it then, and at `/en/lingua` until then. The
 Spanish home's Lingua card follows the same pairs (`spanishHomeLinguaCard`,
 `src/lib/lingua-text.ts`): once a pair glossed in Spanish ships it names the languages read
-with a Spanish gloss and opens `/es/lingua`; until then it names every language read and
+with a Spanish gloss — « Lee la web en inglés… » with en-es, « …en inglés o en francés… » with
+fr-es beside it, « …en inglés, en francés o en italiano… » with it-es beside them (the Italian
+programme's change 30; `add-lingua-italian-spanish-listings`, D1) — and opens `/es/lingua`; until then it names every language read and
 the speakers it is made for (« Pensada para francohablantes… ») and opens `/en/lingua`, so
 it never tells a Spanish speaker that Lingua explains words in Spanish before it does.
 
 The English home's Lingua card follows the same rule (`englishHomeLinguaCard`, change
 `add-lingua-french-listings`, D9): once a pair glossed in English ships it names the
 languages read with an English gloss — "Read the web in Spanish…" with es-en, "…in Spanish or
-French…" with fr-en beside it — and until then it is the paragraph written for French
+French…" with fr-en beside it, "…in Spanish, French or Italian…" with it-en beside them (the
+Italian programme's change 25; `add-lingua-italian-english-listings`, D1) — and until then it is the paragraph written for French
 speakers, « Read the English web… », byte for byte. Its button always opens `/en/lingua`. The
 French home's card names the languages read with a French gloss, in `packs.json`'s order —
 « Lisez le web en anglais ou en espagnol… » (`frenchHomeLinguaCard`, change
@@ -74,8 +77,9 @@ appends one sentence to the click card and one to the level card naming, togethe
 studied languages of the shipped pairs that have the property, the page's readers' first —
 « En espagnol et en français, la carte nomme aussi le temps et le genre », "For Spanish and
 French, the levels are estimated…", « En francés y en español… » on `/es/lingua` once fr-es
-ships, « En espagnol, en italien et en français… » once it-fr does, and "In Spanish, French
-and Italian…" on `/en/lingua`. One rule orders both: the page's readers' studied languages first, in
+ships, « En espagnol, en italien et en français… » once it-fr does, "In Spanish, French
+and Italian…" on `/en/lingua`, and « En francés, en italiano y en español… » on `/es/lingua` once
+it-es ships. One rule orders both: the page's readers' studied languages first, in
 `packs.json`'s order, then the other readers' in the site's language order — so Italian, which only
 French speakers study, comes before French on the French page and after it on the English one. A
 shipped pair whose studied language the table does not describe fails the build. The

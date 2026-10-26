@@ -5,7 +5,7 @@ import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
 import { languageName } from "@/analyzer/language-labels.ts";
 import { pairsOf, studiedOf } from "@/analyzer/pairs.ts";
-import type { NativeLanguage } from "@/analyzer/types.ts";
+import type { NativeLanguage, StudiedLanguage } from "@/analyzer/types.ts";
 import { drawer as enDrawer } from "@/i18n/en/drawer.ts";
 import { settings as enSettings } from "@/i18n/en/settings.ts";
 import { drawer as esDrawer } from "@/i18n/es/drawer.ts";
@@ -121,14 +121,15 @@ describe("the activation page's copy table", () => {
     for (const key of copy.FRAGMENTS) expect(copy.COPY.fr[key]).toContain("<strong>");
   });
 
-  it("names every language a native language's pairs study, in the pairs' order, and never its own (enable-lingua-french D7)", () => {
-    // Each page speaks to the natives of its language: French natives study English and Spanish
-    // (en-fr, es-fr), English natives Spanish and French (es-en, fr-en), Spanish natives English and
-    // French (en-es, fr-es) — read from the bundle's list, named as the extension names them.
+  it("names every language a native language's pairs study, in the pairs' order, and never its own (enable-lingua-french D7, enable-lingua-italian D7, enable-lingua-italian-for-english-speakers D6)", () => {
+    // Each page speaks to the natives of its language: French natives study English, Spanish and
+    // Italian (en-fr, es-fr, it-fr), English natives Spanish, French and Italian (es-en, fr-en, it-en), Spanish
+    // natives English and French (en-es, fr-es) — read from the bundle's list, named as the extension
+    // names them.
     const named = (native: NativeLanguage) =>
-      pairsOf(native).map((pair) => languageName(native, studiedOf(pair) as NativeLanguage).toLowerCase());
-    expect(named("fr")).toEqual(["anglais", "espagnol"]);
-    expect(named("en")).toEqual(["spanish", "french"]);
+      pairsOf(native).map((pair) => languageName(native, studiedOf(pair) as StudiedLanguage).toLowerCase());
+    expect(named("fr")).toEqual(["anglais", "espagnol", "italien"]);
+    expect(named("en")).toEqual(["spanish", "french", "italian"]);
     expect(named("es")).toEqual(["inglés", "francés"]);
     for (const native of ["fr", "en", "es"] as const) {
       const own = languageName(native, native).toLowerCase();
@@ -161,6 +162,38 @@ describe("the activation page's copy table", () => {
       expect(first, language).toBeGreaterThanOrEqual(0);
       expect(first, language).toBeLessThan(step3.toLowerCase().indexOf(drawer.settings.toLowerCase()));
     }
+  });
+
+  it("Every language a French speaker can study: English, Spanish or Italian, English's level first (enable-lingua-italian D7)", () => {
+    const { lede, step3 } = copy.COPY.fr;
+    expect(lede).toContain("en anglais, en espagnol ou en italien");
+    const order = [
+      "choisis ton niveau d’anglais",
+      "pour l’espagnol ou l’italien",
+      `<strong>${frDrawer.settings}</strong>`,
+      `<strong>${frSettings.tabLanguage}</strong>`,
+      "choisis son niveau",
+    ].map((part) => step3.toLowerCase().indexOf(part.toLowerCase()));
+    expect(order.every((i) => i >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    for (const text of [lede, step3]) expect(text.toLowerCase()).not.toContain("français");
+    // The Spanish page names no Italian: no pair of Italian is glossed in Spanish (change 30's).
+    for (const key of ["lede", "step3"]) expect(copy.COPY.es[key].toLowerCase()).not.toMatch(/itali/);
+  });
+
+  it("Italian for an English speaker: Spanish, French or Italian, Spanish's level first (enable-lingua-italian-for-english-speakers D6)", () => {
+    const { lede, step3 } = copy.COPY.en;
+    expect(lede).toContain("in Spanish, French or Italian");
+    const order = [
+      "choose your level of spanish",
+      "for french or italian",
+      `<strong>${enDrawer.settings}</strong>`,
+      `<strong>${enSettings.tabLanguage}</strong>`,
+      "choose its level",
+    ].map((part) => step3.toLowerCase().indexOf(part.toLowerCase()));
+    expect(order.every((i) => i >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    for (const text of [lede, step3]) expect(text.toLowerCase()).not.toContain("english");
   });
 
   it("is in English and Spanish no copy of the French", () => {

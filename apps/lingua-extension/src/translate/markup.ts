@@ -24,8 +24,8 @@
  * generalise-lingua-translation-routes-by-pair D4). A listed pair ships, or is listed ahead of its
  * readers and inert until a change lists it in packs.json: es-en and en-es until changes 34 and 35
  * shipped them, fr-en and fr-es until change 52 (enable-lingua-french), it-fr until the Italian
- * programme's change 20 (enable-lingua-italian), it-en until its change 25
- * (enable-lingua-italian-for-english-speakers), and it-es until its change 30
+ * programme's change 20 (enable-lingua-italian) shipped it, it-en until its change 25
+ * (enable-lingua-italian-for-english-speakers) shipped it, and it-es until its change 30
  * (enable-lingua-italian-for-spanish-speakers).
  */
 export const MARKED_PAIRS: readonly string[] = [

@@ -81,8 +81,11 @@ export interface AppTranslation {
  * The reader's pairs the app's models follow (add-lingua-italian-baseline, task 7.1): the listed pair
  * of their native language that studies each of their studied languages, in their order — the pairs
  * the extension's own models follow (`readerPairs`, routes-by-pair D5) —, never each studied language
- * paired with the native one. A language no listed pair studies is left out: Italian, which the core
- * knows and the catalogue routes before any Italian pair ships, is never offered nor fetched.
+ * paired with the native one. A language no listed pair of the reader's native language studies is
+ * left out: Italian, which the core knows and the catalogue routes for every pair, is offered and
+ * fetched through it-fr for a French-native reader since enable-lingua-italian, through it-en for an
+ * English-native one since enable-lingua-italian-for-english-speakers, and never for a Spanish-native
+ * one.
  */
 export async function appPairs(
   port: Pick<LinguaPort, "studiedLanguages" | "nativeLanguage">,

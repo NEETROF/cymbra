@@ -18,7 +18,7 @@ import {
   STUDIED,
   studiedLanguage,
 } from "../src/lib/lingua-text";
-import { MATRIX, ROUTES, SEVEN_PAIRS, SIX_PAIRS, TODAY, WITH_FR_EN } from "./support/lingua";
+import { EIGHT_PAIRS, MATRIX, NINE_PAIRS, ROUTES, SEVEN_PAIRS, SIX_PAIRS, TODAY, WITH_FR_EN } from "./support/lingua";
 import { STUDIED as CAPTURED } from "../../lingua-extension/tool/capture/plan.mjs";
 
 // The words around the data (change: add-site-lingua-matrix-pages, D2 and D4), built from
@@ -40,6 +40,8 @@ const matrix = shipped(MATRIX);
 const withFrEn = shipped(WITH_FR_EN);
 const six = shipped(SIX_PAIRS);
 const seven = shipped(SEVEN_PAIRS);
+const eight = shipped(EIGHT_PAIRS);
+const nine = shipped(NINE_PAIRS);
 const discord = { discordUrl: "https://discord.gg/example" };
 const noDiscord = { discordUrl: null };
 const card = (t: LinguaPageText, key: CardKey) => t.cards.find((c) => c.key === key)!;
@@ -532,6 +534,112 @@ describe("Italian studied: it-fr beside the six pairs (change: add-lingua-italia
   it("the English and Spanish homes' cards do not move", () => {
     expect(englishHomeLinguaCard(seven.pairs)).toEqual(englishHomeLinguaCard(six.pairs));
     expect(spanishHomeLinguaCard(seven.pairs)).toEqual(spanishHomeLinguaCard(six.pairs));
+  });
+});
+
+describe("Italian for English speakers: it-en beside the seven pairs (change: add-lingua-italian-english-listings, D1)", () => {
+  // The Italian programme's change 25 lists it-en after it-fr; nothing in the site's code moves for
+  // it: the English home card, the pages' audiences and the table are built from the shipped pairs.
+  it("the English home card: Spanish, French or Italian, and the English Lingua page", () => {
+    expect(englishHomeLinguaCard(eight.pairs)).toEqual({
+      body: "Read the web in Spanish, French or Italian with the words you do not know yet highlighted in place. An honest per-page percentage, one click for the meaning, and a vocabulary that builds itself as you read.",
+      href: "/en/lingua",
+    });
+  });
+
+  it("English: the audience names Italian, and eight rows, Spanish → English, French → English and Italian → English first", () => {
+    const t = linguaPageText("en", eight, noDiscord);
+    expect(t.tagline).toMatch(/^A browser extension that highlights the Spanish, French or Italian words you do not know yet/);
+    expect(t.heroNote).toMatch(/ Made for English speakers learning Spanish, French or Italian\. /);
+    expect(card(t, "languages").title).toBe("🧭 Spanish, French and Italian → English · English, Spanish and Italian → French · English and French → Spanish");
+    expect(t.coverage.rows.map((row) => row[0])).toEqual([
+      "Spanish → English",
+      "French → English",
+      "Italian → English",
+      "English → French",
+      "Spanish → French",
+      "Italian → French",
+      "English → Spanish",
+      "French → Spanish",
+    ]);
+    expect(t.coverage.rows[2]).toEqual(["Italian → English", "91%", "84%", "76%"]);
+    // it-en's route is its own model (change 2): no « (through English) ».
+    expect(t.coverage.note).toContain(" French to English, Italian to English, English to French,");
+  });
+
+  it("French and Spanish: Italian named among English speakers' languages, offered to no Spanish speaker", () => {
+    const fr = linguaPageText("fr", eight, noDiscord);
+    expect(fr.heroNote).toContain(" Aussi pour les anglophones qui apprennent l'espagnol, le français ou l'italien : l'interface et les traductions sont en anglais.");
+    expect(fr.coverage.rows.map((row) => row[0])).toContain("Italien → anglais");
+    const es = linguaPageText("es", eight, noDiscord);
+    expect(es.heroNote).toContain(" También para anglohablantes que aprenden español, francés o italiano: la interfaz y las traducciones están en inglés.");
+    expect(es.heroNote).toMatch(/Pensada para hispanohablantes que aprenden inglés o francés\./);
+    expect(es.tagline).not.toMatch(/italiano/);
+    expect(es.coverage.rows.map((row) => row[0])).toContain("Italiano → inglés");
+  });
+
+  it("the Spanish and French homes' cards do not move", () => {
+    expect(spanishHomeLinguaCard(eight.pairs)).toEqual(spanishHomeLinguaCard(seven.pairs));
+    expect(frenchHomeLinguaCard(eight.pairs)).toEqual(frenchHomeLinguaCard(seven.pairs));
+  });
+});
+
+describe("Italian for Spanish speakers: it-es beside the eight pairs (change: add-lingua-italian-spanish-listings, D1)", () => {
+  // The Italian programme's change 30 lists it-es after it-en; nothing in the site's code moves for
+  // it: the Spanish home card, the pages' audiences and the table are built from the shipped pairs.
+  it("the Spanish home card: English, French or Italian, no audience, and the Spanish Lingua page", () => {
+    const card = spanishHomeLinguaCard(nine.pairs);
+    expect(card).toEqual({
+      body: "Lee la web en inglés, en francés o en italiano con las palabras que aún no conoces resaltadas en la propia página. Un porcentaje honesto por página, un clic para la traducción y tu vocabulario, que se construye solo.",
+      href: "/es/lingua",
+    });
+    expect(card.body).not.toContain("Pensada para");
+  });
+
+  it("Spanish: the audience names Italian, and nine rows, English → Spanish, French → Spanish and Italian → Spanish first", () => {
+    const t = linguaPageText("es", nine, noDiscord);
+    expect(t.tagline).toMatch(/^Una extensión para el navegador que resalta las palabras en inglés, en francés o en italiano que todavía no conoces/);
+    expect(t.heroNote).toMatch(/ Pensada para hispanohablantes que aprenden inglés, francés o italiano\. /);
+    expect(card(t, "languages").title).toBe("🧭 Inglés, francés e italiano → español · Inglés, español e italiano → francés · Español, francés e italiano → inglés");
+    // The readers' studied languages first, in `packs.json`'s order, then the others': Italian now
+    // comes before Spanish on the Spanish page.
+    expect(card(t, "click").body).toMatch(/ En francés, en italiano y en español, la tarjeta también indica el tiempo verbal y el género\.$/);
+    expect(card(t, "level").body).toMatch(/ Para el francés, el italiano y el español, los niveles se estiman /);
+    expect(t.coverage.rows.map((row) => row[0])).toEqual([
+      "Inglés → español",
+      "Francés → español",
+      "Italiano → español",
+      "Inglés → francés",
+      "Español → francés",
+      "Italiano → francés",
+      "Español → inglés",
+      "Francés → inglés",
+      "Italiano → inglés",
+    ]);
+    expect(t.coverage.rows[2]).toEqual(["Italiano → español", `85${NNBSP}%`, `76${NNBSP}%`, `65${NNBSP}%`]);
+    // it-es's route goes through English (change 2): « (pasando por el inglés) ».
+    expect(t.coverage.note).toContain(" del francés al español (pasando por el inglés), del italiano al español (pasando por el inglés),");
+  });
+
+  it("French and English: Italian named among Spanish speakers' languages, and it-es's row", () => {
+    const fr = linguaPageText("fr", nine, noDiscord);
+    expect(fr.heroNote).toContain(" Aussi pour les hispanophones qui apprennent l'anglais, le français ou l'italien : l'interface et les traductions sont en espagnol.");
+    expect(card(fr, "languages").title).toBe("🧭 Anglais, espagnol et italien → français · Espagnol, français et italien → anglais · Anglais, français et italien → espagnol");
+    expect(fr.coverage.rows.map((row) => row[0])).toContain("Italien → espagnol");
+    const en = linguaPageText("en", nine, noDiscord);
+    expect(en.heroNote).toContain(" Also for Spanish speakers learning English, French or Italian: the interface and the translations are in Spanish.");
+    expect(card(en, "languages").title).toBe("🧭 Spanish, French and Italian → English · English, Spanish and Italian → French · English, French and Italian → Spanish");
+    expect(en.coverage.rows.map((row) => row[0])).toContain("Italian → Spanish");
+  });
+
+  it("Spanish: without it-es's route, the note says Italian into Spanish is not translated yet", () => {
+    const { "it-es": _, ...routes } = ROUTES;
+    expect(linguaPageText("es", shipped(NINE_PAIRS, routes), noDiscord).coverage.note).toMatch(/ Pendiente: del italiano al español\.$/);
+  });
+
+  it("the English and French homes' cards do not move", () => {
+    expect(englishHomeLinguaCard(nine.pairs)).toEqual(englishHomeLinguaCard(eight.pairs));
+    expect(frenchHomeLinguaCard(nine.pairs)).toEqual(frenchHomeLinguaCard(eight.pairs));
   });
 });
 

@@ -226,6 +226,30 @@ describe("the popup's page, filled from the catalogue", () => {
     expect(r.text("level-line")).toBe("Estimated Spanish level: Beginner");
   });
 
+  it("A French-native reader of Italian: the panel names Italian in French (enable-lingua-italian D3)", async () => {
+    const italian = { language: "it" as const, languages: ["it" as const], levelsEstimated: true };
+    let r = await rendered("fr", stats({ ...italian, analysable: false }));
+    expect(r.text("note")).toBe("Pas de texte italien détecté sur cette page.");
+    r = await rendered("fr", stats({ ...italian, needsLevel: true }));
+    expect(r.text("level-cta")).toBe("Choisis ton niveau d'italien");
+    r = await rendered("fr", stats(italian));
+    expect(r.text("level-line")).toBe("Niveau d'italien estimé : B1");
+    r = await rendered("fr", stats({ ...italian, analysable: false, languages: ["en", "it"] }));
+    expect(r.text("note")).toBe("Pas de texte dans tes langues détecté sur cette page.");
+  });
+
+  it("An English-native reader of Italian: the panel names Italian in English (enable-lingua-italian-for-english-speakers D3)", async () => {
+    const italian = { language: "it" as const, languages: ["it" as const], levelsEstimated: true };
+    let r = await rendered("en", stats({ ...italian, analysable: false }));
+    expect(r.text("note")).toBe("No Italian text found on this page.");
+    r = await rendered("en", stats({ ...italian, needsLevel: true }));
+    expect(r.text("level-cta")).toBe("Choose your Italian level");
+    r = await rendered("en", stats(italian));
+    expect(r.text("level-line")).toBe("Estimated Italian level: B1");
+    r = await rendered("en", stats({ ...italian, analysable: false, languages: ["es", "it"] }));
+    expect(r.text("note")).toBe("No text in your languages found on this page.");
+  });
+
   it("A reader of French, English- or Spanish-native: the panel names French in their language (enable-lingua-french D3)", async () => {
     const french = { language: "fr" as const, languages: ["fr" as const], levelsEstimated: true };
     let r = await rendered("en", stats({ ...french, analysable: false }));

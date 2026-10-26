@@ -13,9 +13,10 @@ import { lineText } from "@/reading/grammar-description.ts";
 // renderer in French school terms for Italian grammar, the English one in the English Wiktionary's
 // Italian form-of wording, the Spanish one in the RAE's terms (D2) —, the indicative and the
 // subjunctive of one tense said once where their persons are the same (D3), the gerund and the
-// present participle named (D4). No card is opened on an Italian word before change 20 widens the
-// extension's `StudiedLanguage`: the renderers are called with `it` studied, as the it-fr snapshot
-// calls the French one (`word-card-it-fr.spec.ts`). The readings are change 13's, in the order
+// present participle named (D4). A card is opened on an Italian word for a French-native reader since
+// the Italian programme's change 20 (enable-lingua-italian) widened the extension's `StudiedLanguage`;
+// the renderers are called here with `it` studied, as the it-fr snapshot calls the French one
+// (`word-card-it-fr.spec.ts`). The readings are change 13's, in the order
 // `tables/it/grammar.tsv` writes them.
 
 const grammar = (over: Partial<WordGrammar> = {}): WordGrammar => ({

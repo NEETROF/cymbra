@@ -1,7 +1,7 @@
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { Coverage, Routes } from "../../src/lib/lingua-pairs";
-import { MATRIX, ROUTES, TODAY } from "../support/lingua";
+import { MATRIX, NINE_PAIRS, ROUTES, TODAY } from "../support/lingua";
 
 // The Spanish home and Music pages rendered as the build renders them, through Astro's
 // Container API (change: extend-site-spanish-locale). As `lingua-page.spec.ts` does, the
@@ -10,7 +10,10 @@ import { MATRIX, ROUTES, TODAY } from "../support/lingua";
 // - today's pairs (en-fr, es-fr): the card names every language read and its readers, and
 //   opens the English Lingua page (D3);
 // - the matrix (es-en and en-es beside them): the card names English, read with a Spanish
-//   gloss, and opens `/es/lingua` — what the build will do once change 35 ships en-es.
+//   gloss, and opens `/es/lingua` — what the build will do once change 35 ships en-es;
+// - the nine pairs (en-es, fr-es and it-es among them, the Italian programme's change 30):
+//   English, French or Italian, read with a Spanish gloss, no audience, and `/es/lingua`
+//   (change: add-lingua-italian-spanish-listings, D1).
 // Whatever the pairs, the Spanish brand and « Music » open the Spanish pages (D5), and the
 // account and code links the English ones (D4).
 
@@ -105,6 +108,20 @@ describe("/es/ with the matrix: a pair glossed in Spanish ships", () => {
     expect(card.body).toBe(
       "Lee la web en inglés con las palabras que aún no conoces resaltadas en la propia página. Un porcentaje honesto por página, un clic para la traducción y tu vocabulario, que se construye solo.",
     );
+    expect(card.href).toBe("/es/lingua");
+    expect(linkOf(html, "nav", "Lingua")).toBe("/es/lingua");
+  });
+});
+
+describe("/es/ with it-es: Italian for Spanish speakers ships", () => {
+  it("names English, French or Italian, read with a Spanish gloss, no audience, and opens /es/lingua", async () => {
+    ship(NINE_PAIRS, ROUTES);
+    const html = await render(SpanishHome);
+    const card = linguaCard(html);
+    expect(card.body).toBe(
+      "Lee la web en inglés, en francés o en italiano con las palabras que aún no conoces resaltadas en la propia página. Un porcentaje honesto por página, un clic para la traducción y tu vocabulario, que se construye solo.",
+    );
+    expect(card.body).not.toContain("Pensada para");
     expect(card.href).toBe("/es/lingua");
     expect(linkOf(html, "nav", "Lingua")).toBe("/es/lingua");
   });

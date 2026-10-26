@@ -26,8 +26,8 @@ function appWith(packs: unknown): string {
 }
 
 describe("the shipped pairs", () => {
-  it("ships en-fr, es-fr, es-en, en-es then fr-en and fr-es, each native language's default first (enable-lingua-french)", () => {
-    expect(shippedPairs()).toEqual(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"]);
+  it("ships en-fr, es-fr, es-en, en-es, fr-en and fr-es then it-fr and it-en, each native language's default first (enable-lingua-italian, enable-lingua-italian-for-english-speakers)", () => {
+    expect(shippedPairs()).toEqual(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en"]);
   });
 
   it("refuses a list it could not build from", () => {
@@ -49,6 +49,20 @@ describe("the shipped pairs", () => {
     // ship-lingua-pack-bases-once D1: a base per studied language, named without a dash.
     expect(baseFile("en")).toBe("assets/bases/en.lingua");
     expect(shippedStudied(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"])).toEqual(["en", "es", "fr"]);
+    // enable-lingua-italian D1: it-fr adds Italian's base, after French's.
+    expect(shippedStudied(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr"])).toEqual([
+      "en",
+      "es",
+      "fr",
+      "it",
+    ]);
+    // enable-lingua-italian-for-english-speakers D1: it-en adds a layer, Italian's base already there.
+    expect(shippedStudied(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en"])).toEqual([
+      "en",
+      "es",
+      "fr",
+      "it",
+    ]);
     expect(shippedStudied(["es-en", "en-fr", "es-fr"])).toEqual(["es", "en"]);
     expect(studiedOf("en-fr")).toBe("en");
     expect(studiedOf("es-fr")).toBe("es");
@@ -193,7 +207,7 @@ describe("the build's check of the parts it ships (ship-lingua-pack-bases-once D
     );
   const check = (appDir: string) => () => assertPacksMatchEngine({ appDir, modRs: versions });
 
-  it("passes the six shipped pairs' layers and their three bases", () => {
+  it("passes the seven shipped pairs' layers and their four bases", () => {
     // Every pair packs.json lists, as gen:pack builds it for lingua-core's analyser of its language —
     // in a directory of its own: assets/ is generated, and absent from a fresh checkout until
     // `yarn gen:pack`.

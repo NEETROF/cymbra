@@ -4,8 +4,9 @@ The reduced tables Cymbra Lingua's Italian→English data pack is built from: It
 English, for English speakers studying Italian — the first reader pair of Italian
 (add-lingua-pack-it-en, change 22 of `docs/lingua/italian-programme.md`). They are committed so that
 every build makes the same pack with no download, and so that a change to the dictionary is a pull
-request whose diff shows it. No extension package carries the pack: `apps/lingua-extension/packs.json`
-does not list it-en until Italian is enabled for English speakers (change 25). Its glosses are refined by
+request whose diff shows it. Extension packages carry the pack since `enable-lingua-italian-for-english-speakers` (change 25) lists
+it-en in `apps/lingua-extension/packs.json`, which it does because these tables stand at or above their
+coverage floor (change 22) and were refined by change 23. Its glosses are refined by
 change 23 (`refine-lingua-it-en-glosses`), so that a row reads an Italian word's meanings in the order
 Italian uses them.
 

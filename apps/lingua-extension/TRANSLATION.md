@@ -49,20 +49,20 @@ taken again.
   reads both languages from the key and refuses a route that does not start from the one or end in
   the other.
 
-| Route   | Models, in order                                                        | Pair shipped?                           |
-| ------- | ----------------------------------------------------------------------- | --------------------------------------- |
-| `en-fr` | `en-fr/base-memory/2.0`                                                 | yes                                     |
-| `es-fr` | `es-en/base-memory/2.0`, then `en-fr/base-memory/2.0` — through English | yes                                     |
-| `es-en` | `es-en/base-memory/2.0`                                                 | yes, since change 34 (English speakers) |
-| `en-es` | `en-es/base-memory/2.1`                                                 | yes, since change 35 (Spanish speakers) |
-| `fr-en` | `fr-en/base-memory/2.0`                                                 | yes, since change 52 (French studied)   |
-| `fr-es` | `fr-en/base-memory/2.0`, then `en-es/base-memory/2.1` — through English | yes, since change 52 (French studied)   |
-| `it-en` | `it-en/base-memory/2.0`                                                 | not yet: the Italian programme's row 25 |
-| `en-it` | `en-it/base-memory/2.1`                                                 | not yet: the Italian programme's row 45 |
-| `it-fr` | `it-en/base-memory/2.0`, then `en-fr/base-memory/2.0` — through English | not yet: the Italian programme's row 20 |
-| `it-es` | `it-en/base-memory/2.0`, then `en-es/base-memory/2.1` — through English | not yet: the Italian programme's row 30 |
-| `fr-it` | `fr-en/base-memory/2.0`, then `en-it/base-memory/2.1` — through English | not yet: the Italian programme's row 50 |
-| `es-it` | `es-en/base-memory/2.0`, then `en-it/base-memory/2.1` — through English | not yet: the Italian programme's row 54 |
+| Route   | Models, in order                                                        | Pair shipped?                                                |
+| ------- | ----------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `en-fr` | `en-fr/base-memory/2.0`                                                 | yes                                                          |
+| `es-fr` | `es-en/base-memory/2.0`, then `en-fr/base-memory/2.0` — through English | yes                                                          |
+| `es-en` | `es-en/base-memory/2.0`                                                 | yes, since change 34 (English speakers)                      |
+| `en-es` | `en-es/base-memory/2.1`                                                 | yes, since change 35 (Spanish speakers)                      |
+| `fr-en` | `fr-en/base-memory/2.0`                                                 | yes, since change 52 (French studied)                        |
+| `fr-es` | `fr-en/base-memory/2.0`, then `en-es/base-memory/2.1` — through English | yes, since change 52 (French studied)                        |
+| `it-en` | `it-en/base-memory/2.0`                                                 | yes, since the Italian programme's row 25 (English speakers) |
+| `en-it` | `en-it/base-memory/2.1`                                                 | not yet: the Italian programme's row 45                      |
+| `it-fr` | `it-en/base-memory/2.0`, then `en-fr/base-memory/2.0` — through English | yes, since the Italian programme's row 20 (Italian studied)  |
+| `it-es` | `it-en/base-memory/2.0`, then `en-es/base-memory/2.1` — through English | not yet: the Italian programme's row 30                      |
+| `fr-it` | `fr-en/base-memory/2.0`, then `en-it/base-memory/2.1` — through English | not yet: the Italian programme's row 50                      |
+| `es-it` | `es-en/base-memory/2.0`, then `en-it/base-memory/2.1` — through English | not yet: the Italian programme's row 54                      |
 
 English and Spanish are translated into each other directly, one model each
 (`add-lingua-translation-matrix-models`). Mozilla publishes no fr↔es model. en-es is pinned at
@@ -95,15 +95,16 @@ it-en is 26,242,301 bytes to download and 37,088,127 on the device, en-it 26,509
 of each is the one Remote Settings publish for it→en 2.0 and en→it 2.1, and each model's the
 registry's `uncompressedHash`. it-fr downloads it-en's and en-fr's files (51,994,773 bytes), it-es
 it-en's and en-es's (51,615,655), fr-it fr-en's and en-it's (52,744,550), es-it es-en's and
-en-it's (52,750,887) — two models each, as es-fr and fr-es. No pair of `packs.json` studies Italian
-or is glossed in it, so no reader's pairs need these six routes: nothing is downloaded, kept or
-loaded for them until the Italian programme ships a pair — it-fr in the programme's row 20
-(`enable-lingua-italian`), it-en in row 25, it-es in row 30, en-it in row 45, fr-it in row 50 and
-es-it in row 54. The model host must serve both models before any package or App Store build whose
+en-it's (52,750,887) — two models each, as es-fr and fr-es. it-fr ships since the Italian
+programme's row 20 (`enable-lingua-italian`): a French-native reader who accepts Italian downloads
+it-en's model beside en-fr's, and no English- or Spanish-native reader ever does. No other pair of
+`packs.json` studies Italian or is glossed in it, so no reader's pairs need the five other routes:
+nothing is downloaded, kept or loaded for them until the programme ships their pairs — it-en in row
+25, it-es in row 30, en-it in row 45, fr-it in row 50 and es-it in row 54. The model host must serve both models before any package or App Store build whose
 catalogue names them is released: the owner dispatches `lingua-model-deploy` right after the merge,
 and until then the release gates refuse (`add-lingua-italian-translation-models` D6).
 
-With the matrix's six routes, every native language's shipped pairs need two models — the engine's
+With the matrix's six routes, every native language's shipped pairs needed two models — the engine's
 bound (see [What the engine holds](#what-the-engine-holds)):
 
 | Native  | Pairs        | Models       | Download               |
@@ -113,8 +114,11 @@ bound (see [What the engine holds](#what-the-engine-holds)):
 | Spanish | en-es, fr-es | en-es, fr-en | 51,608,069 B (51,6 MB) |
 
 With Italian's six routes, the pairs glossed in each native language need three models — still
-loaded two at a time, a route's (`add-lingua-italian-translation-models` D2). None of Italian's
-pairs ships yet, so no reader holds a third model today:
+loaded two at a time, a route's (`add-lingua-italian-translation-models` D2). Since
+`enable-lingua-italian`, a French-native reader of English, Spanish and Italian holds the first row
+below: three models, two at a time, and the setting says « environ 340 Mo », the memory of two
+(`enable-lingua-italian` D6); one of Italian alone downloads it-en's and en-fr's files, 51,994,773 B
+(52,0 Mo), « environ 340 Mo » too. The other rows wait for their Italian pairs:
 
 | Native  | Pairs               | Models              | Download               |
 | ------- | ------------------- | ------------------- | ---------------------- |
@@ -152,11 +156,11 @@ ahead of their readers, inert until changes 34 and 35 shipped them, and fr-en an
 change 52 shipped them. it-fr is measured through it-en then en-fr on the Italian selections and
 judged in French (the Italian programme's row 19, `measure-lingua-it-fr-translation-marks`): 93 of
 its 97 shown marks correct (89 of 97 with its doubtful lines counted wrong), 3 % withheld, on the first tier — listed ahead of its readers, inert
-until row 20 (`enable-lingua-italian`) lists it-fr in `packs.json`. it-en is measured on the same
-selections through its one model and judged in English (row 24,
+until row 20 (`enable-lingua-italian`) listed it-fr in `packs.json`, marked since. it-en is measured
+on the same selections through its one model and judged in English (row 24,
 `measure-lingua-it-en-translation-marks`): 94 of its 97 shown marks correct (92 of 97 with its
 doubtful lines counted wrong), 3 % withheld, on the first tier — listed ahead of its readers too,
-inert until row 25 (`enable-lingua-italian-for-english-speakers`) lists it-en. it-es is measured on
+inert until row 25 (`enable-lingua-italian-for-english-speakers`) listed it-en, marked since. it-es is measured on
 the same selections through it-en then en-es and judged in Spanish (row 29,
 `measure-lingua-it-es-translation-marks`): 90 of its 95 shown marks correct (86 of 95 with its
 doubtful lines counted wrong), 5 % withheld, on the first tier — a blind second judge agreed on every
@@ -200,9 +204,10 @@ after every build.
 
 Réglages → Traduction → « Traduction étendue ». Before ticking it says what it costs (25,8 Mo once,
 about 200 Mo of memory while translating). The memory is that of the models the reader's pairs need
-together: « environ 340 Mo » for two — a French-speaking reader of Spanish, whose route goes through
-English, or an English-speaking reader of Spanish and French, two direct routes — « environ 200 Mo »
-for one (enable-lingua-french D6). Ticking it shows the download's progress, with Annuler;
+together: « environ 340 Mo » for two or more — a French-speaking reader of Spanish or of Italian,
+whose route goes through English, an English-speaking reader of Spanish and French, two direct
+routes, or a French-speaking reader of English, Spanish and Italian, three models the engine holds two
+at a time (enable-lingua-italian D6) — « environ 200 Mo » for one (enable-lingua-french D6). Ticking it shows the download's progress, with Annuler;
 then « Prête ». A failure says why in French and offers Réessayer; a download whose host was torn
 down says « interrompu » and offers Reprendre; a model the browser removed offers Télécharger à
 nouveau. Nothing restarts on its own.
@@ -273,8 +278,9 @@ load and every failed one: a route dropped with a deleted model takes its other 
 
 A deletion does not lower what the worker holds in the operating system's eyes — a wasm instance's
 linear memory never shrinks — the bound caps growth, with the freed blocks reused by the next model
-built. The catalogue lists six models, but every native language's shipped pairs need two at most
-(the first table above), so a reader who keeps their native language never makes a third today: a Spanish-native
+built. The catalogue lists six models; every English- and Spanish-native reader's shipped pairs need
+two at most (the first table above), so such a reader who keeps their native language never makes a
+third: a Spanish-native
 reader of English and French holds en-es and fr-en, en-es serving both routes; an English-native
 reader of Spanish and French, es-en and fr-en. The deletion runs only when the native language
 changes while the worker lives — French to Spanish deletes en-fr and es-en for fr-es's two models;
@@ -286,9 +292,10 @@ the same holds of French's routes — an English-native reader of Spanish and Fr
 Spanish keeps fr-en, which fr-es goes through, and es-en is deleted for en-es. Once Italian's pairs
 ship, each native language's routes need three models (the second table above), loaded two at a
 time, and a reader who keeps their native language makes the worker delete one only when a third
-pair's route needs the room (`add-lingua-italian-translation-models` D2): a French-native reader of
-English, Spanish and Italian keeps en-fr, which their three routes go through, es-en and it-en taking
-turns beside it; a Spanish-native reader keeps en-es the same way, fr-en and it-en taking turns; an
+pair's route needs the room (`add-lingua-italian-translation-models` D2). Since
+`enable-lingua-italian` lists it-fr this runs in production for a French-native reader of English,
+Spanish and Italian, who keeps en-fr, which their three routes go through, es-en and it-en taking
+turns beside it; once the other Italian pairs ship, a Spanish-native reader keeps en-es the same way, fr-en and it-en taking turns; an
 Italian-native reader keeps en-it, fr-en and es-en taking turns; an English-native reader holds two
 of es-en, fr-en and it-en. A translation goes to the engine at once over a route the worker holds; over
 one it deleted since the channel loaded it, the worker answers `reload`, and the channel loads the
@@ -441,8 +448,10 @@ and in one instance: es-fr 66 / 72 / 288 ms and 562.1 MiB, en-fr 34 / 37 / 181 m
 this tool it-en costs what en-fr costs, and it-fr what es-fr costs. The machine's one-minute load
 average stayed between 2.5 and 3.1 during the runs. No selection of the committed Italian corpus
 trapped it-en 2.0 or it-fr in Node (V8) with this engine build, isolated or in one instance; the
-browsers' workers were not run. Row 20 (`enable-lingua-italian`) reads these figures; they decide
-nothing here, and a trap on another input still costs the reader one respawn.
+browsers' workers were not run. Row 20 (`enable-lingua-italian`) read these figures before listing
+it-fr: no trap, nothing to hold it back; the browsers' workers, and the memory with Spanish and Italian
+studied, are read in its dogfood (its D11, step 6). A trap on another input still costs the reader one
+respawn.
 
 The marks measurement of row 19 (`tool/measure_marks.mjs --pair it-fr`, the same day, machine,
 engine and models) asked every Italian selection twice through one engine: no request trapped, and

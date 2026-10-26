@@ -82,8 +82,11 @@ describe("relayTranslation", () => {
     expect(marks.map((m) => fr.slice(m.start, m.end))).toEqual(["maison"]);
   });
 
-  it("The shipped pairs today: en-fr and es-fr are marked, as before; es-en, en-es, fr-en and fr-es were listed ahead of their readers, and it-fr, it-en and it-es are, inert until the Italian programme's changes 20, 25 and 30 (routes-by-pair D4, matrix-marks D5, french-translation D7, it-fr-translation-marks D4, it-en-translation-marks D3, it-es-translation-marks D4)", () => {
+  it("The shipped pairs today: en-fr and es-fr are marked, as before; es-en, en-es, fr-en, fr-es, it-fr and it-en were listed ahead of their readers and ship marked since their packs are listed, and it-es is listed ahead of its readers, inert until the Italian programme's change 30 (routes-by-pair D4, matrix-marks D5, french-translation D7, it-fr-translation-marks D4, enable-lingua-italian D5, it-en-translation-marks D3, enable-lingua-italian-for-english-speakers D4, it-es-translation-marks D4)", () => {
     expect(MARKED_PAIRS).toEqual(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en", "it-es"]);
+    // Every marked pair ships, but those listed ahead of their readers.
+    expect(MARKED_PAIRS.filter((pair) => !SHIPPED_PAIRS.includes(pair))).toEqual(["it-es"]);
+    expect(SHIPPED_PAIRS).toContain("it-en"); // since enable-lingua-italian-for-english-speakers (D4)
     // Keyed by pair, never by studied language: a language alone is not in the list.
     expect(MARKED_PAIRS).not.toContain("en");
     expect(MARKED_PAIRS).not.toContain("es");
@@ -168,7 +171,8 @@ describe("relayTranslation", () => {
       selection: { start: 7, end: 13 }, // « caduta »
       language: "it",
     };
-    expect(MARKED_PAIRS).toContain("it-fr"); // 93 of 97, 3 % withheld; inert until change 20 lists it-fr
+    expect(MARKED_PAIRS).toContain("it-fr"); // 93 of 97, 3 % withheld
+    expect(SHIPPED_PAIRS).toContain("it-fr"); // since enable-lingua-italian (D5)
     const result = await relayTranslation(access, request, pairOf(request.language, "fr"));
     expect(pairs).toEqual(["it-fr", "it-fr"]);
     expect(seen).toEqual([
@@ -192,7 +196,8 @@ describe("relayTranslation", () => {
       selection: { start: 60, end: 69 }, // « battaglia »
       language: "it",
     };
-    expect(MARKED_PAIRS).toContain("it-en"); // 94 of 97, 3 % withheld; inert until change 25 lists it-en
+    expect(MARKED_PAIRS).toContain("it-en"); // 94 of 97, 3 % withheld; shipped since change 25 listed it-en
+    expect(SHIPPED_PAIRS).toContain("it-en"); // since enable-lingua-italian-for-english-speakers (D4)
     const result = await relayTranslation(access, request, pairOf(request.language, "en"));
     expect(pairs).toEqual(["it-en", "it-en"]);
     expect(seen).toEqual([

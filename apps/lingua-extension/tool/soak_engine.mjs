@@ -4,7 +4,8 @@
 // corpus id, how long a sentence took and how much memory the run reached. It is how a model is
 // tried before it ships (en-es before change 35; fr-en and fr-es before change 52; en-it through
 // en-it, fr-it and es-it before any Italian speaker is offered it; it-en through it-en and it-fr
-// before it-fr ships; it-es's chain, it-en then en-es, before it-es ships), and it never runs in CI:
+// before enable-lingua-italian shipped it-fr; it-es's chain, it-en then en-es, before it-es ships),
+// and it never runs in CI:
 // the programme's M25 says a manual tool, and a run costs ≈ 100 MB of models and about a minute.
 //
 // Usage: node --experimental-strip-types tool/soak_engine.mjs --pair <pair> --models <dir> [--limit N] [--isolate]

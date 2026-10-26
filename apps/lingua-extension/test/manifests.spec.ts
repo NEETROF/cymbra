@@ -24,6 +24,10 @@ const WITH_EN_ES = [...TODAY, "en-es"];
 const WITH_BOTH = [...WITH_ES_EN, "en-es"];
 /** That list beside the pairs studying French, last: packs.json since change 52 (enable-lingua-french). */
 const WITH_FRENCH = [...WITH_BOTH, "fr-en", "fr-es"];
+/** That list beside Italian glossed in French, last: packs.json since enable-lingua-italian. */
+const WITH_ITALIAN = [...WITH_FRENCH, "it-fr"];
+/** That list beside Italian glossed in English, last: packs.json since enable-lingua-italian-for-english-speakers. */
+const WITH_IT_EN = [...WITH_ITALIAN, "it-en"];
 
 type Manifest = Record<string, unknown> & {
   description: string;
@@ -252,8 +256,8 @@ describe("the manifest step once es-en ships (the scenario *An English-glossed p
     expect(manifest.default_locale).toBe("en");
   });
 
-  it("runs on packs.json, which lists es-en since change 34, en-es since change 35, then fr-en and fr-es since change 52 (enable-lingua-french)", () => {
-    expect(shippedPairs()).toEqual(WITH_FRENCH);
+  it("runs on packs.json, which lists es-en since change 34, en-es since change 35, fr-en and fr-es since change 52, then it-fr (enable-lingua-italian) and it-en (enable-lingua-italian-for-english-speakers)", () => {
+    expect(shippedPairs()).toEqual(WITH_IT_EN);
     for (const target of TARGETS) {
       const { manifest, locales } = step(target, shippedPairs());
       expect(locales).toEqual(["fr", "en", "es"]); // the shipped natives in listed order
@@ -284,6 +288,81 @@ describe("the manifest step once es-en ships (the scenario *An English-glossed p
       expect(exposed.resources).toEqual(expect.arrayContaining(french));
       exposed.resources = exposed.resources.filter((r) => !french.includes(r));
       expect(text(after.manifest)).toBe(text(before.manifest));
+    },
+  );
+
+  it.each(TARGETS)(
+    "%s: enable-lingua-italian adds it-fr's layer and Italian's base and moves nothing else of change 52's manifest",
+    (target) => {
+      // it-fr adds no native language (enable-lingua-italian D7): the same _locales, the same default.
+      const before = step(target, WITH_FRENCH);
+      const after = step(target, WITH_ITALIAN);
+      expect(after.locales).toEqual(before.locales);
+      expect(after.locales).toEqual(["fr", "en", "es"]);
+      expect(after.manifest.default_locale).toBe("en");
+      const exposed = (after.manifest.web_accessible_resources as { resources: string[] }[])[0]!;
+      const italian = ["assets/packs/it-fr.lingua", "assets/bases/it.lingua"];
+      expect(exposed.resources).toEqual(expect.arrayContaining(italian));
+      exposed.resources = exposed.resources.filter((r) => !italian.includes(r));
+      expect(text(after.manifest)).toBe(text(before.manifest));
+    },
+  );
+
+  it.each(TARGETS)(
+    "%s: enable-lingua-italian-for-english-speakers adds it-en's layer alone and moves nothing else of enable-lingua-italian's manifest",
+    (target) => {
+      // it-en adds no native language, and no base: Italian's is it-fr's (D1, D8).
+      const before = step(target, WITH_ITALIAN);
+      const after = step(target, WITH_IT_EN);
+      expect(after.locales).toEqual(before.locales);
+      expect(after.manifest.default_locale).toBe("en");
+      const exposed = (after.manifest.web_accessible_resources as { resources: string[] }[])[0]!;
+      expect(exposed.resources).toContain("assets/packs/it-en.lingua");
+      exposed.resources = exposed.resources.filter((r) => r !== "assets/packs/it-en.lingua");
+      expect(text(after.manifest)).toBe(text(before.manifest));
+    },
+  );
+
+  it.each(TARGETS)(
+    "%s: exposes the eight layers, then the four bases, once each (ship-lingua-pack-bases-once D4, enable-lingua-italian-for-english-speakers)",
+    (target) => {
+      const { manifest } = step(target, WITH_IT_EN);
+      const resources = (manifest.web_accessible_resources as { resources: string[] }[])[0]!.resources;
+      expect(resources.filter((r) => r.startsWith("assets/"))).toEqual([
+        "assets/packs/en-fr.lingua",
+        "assets/packs/es-fr.lingua",
+        "assets/packs/es-en.lingua",
+        "assets/packs/en-es.lingua",
+        "assets/packs/fr-en.lingua",
+        "assets/packs/fr-es.lingua",
+        "assets/packs/it-fr.lingua",
+        "assets/packs/it-en.lingua",
+        "assets/bases/en.lingua",
+        "assets/bases/es.lingua",
+        "assets/bases/fr.lingua",
+        "assets/bases/it.lingua",
+      ]);
+    },
+  );
+
+  it.each(TARGETS)(
+    "%s: exposes the seven layers, then the four bases, once each (ship-lingua-pack-bases-once D4, enable-lingua-italian)",
+    (target) => {
+      const { manifest } = step(target, WITH_ITALIAN);
+      const resources = (manifest.web_accessible_resources as { resources: string[] }[])[0]!.resources;
+      expect(resources.filter((r) => r.startsWith("assets/"))).toEqual([
+        "assets/packs/en-fr.lingua",
+        "assets/packs/es-fr.lingua",
+        "assets/packs/es-en.lingua",
+        "assets/packs/en-es.lingua",
+        "assets/packs/fr-en.lingua",
+        "assets/packs/fr-es.lingua",
+        "assets/packs/it-fr.lingua",
+        "assets/bases/en.lingua",
+        "assets/bases/es.lingua",
+        "assets/bases/fr.lingua",
+        "assets/bases/it.lingua",
+      ]);
     },
   );
 

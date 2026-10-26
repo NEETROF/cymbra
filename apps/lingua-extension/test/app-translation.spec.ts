@@ -234,18 +234,21 @@ describe("the app's pairs (add-lingua-italian-baseline, task 7.1)", () => {
     nativeLanguage: async () => native as "fr" | "en" | "es",
   });
 
-  it("are the listed pairs of the reader's native language, so over today's shipped list no Italian model is needed", async () => {
-    // The catalogue routes Italian's pairs (italian-translation-models); no listed pair studies Italian.
+  /** The list before enable-lingua-italian listed it-fr: change 52's, where no pair studies Italian. */
+  const FRENCH = ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"];
+
+  it("are the listed pairs of the reader's native language, so over the list before it-fr no Italian model is needed", async () => {
+    // The catalogue routes Italian's pairs (italian-translation-models); no pair of that list studies Italian.
     expect(Object.keys(committed.routes)).toEqual(expect.arrayContaining(["it-fr", "it-en", "it-es"]));
-    expect(SHIPPED_PAIRS.some((pair) => studiedOf(pair) === "it")).toBe(false);
+    expect(FRENCH.some((pair) => studiedOf(pair) === "it")).toBe(false);
     // Studied × native would have named it-fr, whose route fetches the it-en model.
     expect(modelsFor(committed, ["it-fr"]).map((m) => m.version)).toContain(IT_EN);
     for (const native of ["fr", "en", "es"]) {
       for (const studied of [["it"], ["it", "en"], ["es", "it"], ["en", "es", "fr", "it"]]) {
-        const pairs = await appPairs(port(studied, native));
+        const pairs = await appPairs(port(studied, native), FRENCH);
         const where = `${native}: ${studied.join(",")}`;
         expect(
-          pairs.every((pair) => SHIPPED_PAIRS.includes(pair)),
+          pairs.every((pair) => FRENCH.includes(pair)),
           where,
         ).toBe(true);
         expect(
@@ -258,13 +261,63 @@ describe("the app's pairs (add-lingua-italian-baseline, task 7.1)", () => {
       }
     }
     // A reader of English and Spanish keeps the pairs of before; one of Italian alone has none.
-    expect(await appPairs(port(["en", "es"], "fr"))).toEqual(["en-fr", "es-fr"]);
-    expect(await appPairs(port(["it"], "fr"))).toEqual([]);
+    expect(await appPairs(port(["en", "es"], "fr"), FRENCH)).toEqual(["en-fr", "es-fr"]);
+    expect(await appPairs(port(["it"], "fr"), FRENCH)).toEqual([]);
   });
 
-  it("offer a reader of Italian and English the English pair's models alone", async () => {
-    const s = setup({ pairs: () => appPairs(port(["it", "en"], "fr")), catalogue: async () => committed });
+  it("offer a reader of Italian and English the English pair's models alone, over the list before it-fr", async () => {
+    const s = setup({ pairs: () => appPairs(port(["it", "en"], "fr"), FRENCH), catalogue: async () => committed });
     const view = (await openAppTranslation(s.deps)).view();
     expect(view).toMatchObject({ phase: "offer", pairs: ["en-fr"] });
+  });
+
+  /** enable-lingua-italian's list: it-fr the one pair studying Italian. */
+  const ITALIAN = [...FRENCH, "it-fr"];
+
+  it("follow it-fr for a French-native reader of Italian once it is listed, and no English or Spanish reader's on its list (enable-lingua-italian D5, D9)", async () => {
+    expect(SHIPPED_PAIRS).toContain("it-fr");
+    expect(await appPairs(port(["it", "en"], "fr"))).toEqual(["it-fr", "en-fr"]);
+    expect(await appPairs(port(["it"], "fr"))).toEqual(["it-fr"]);
+    expect(modelsFor(committed, await appPairs(port(["it"], "fr"))).map((m) => m.version)).toEqual([
+      IT_EN,
+      "en-fr/base-memory/2.0",
+    ]);
+    for (const native of ["en", "es"]) {
+      for (const studied of [["it"], ["it", "en"], ["es", "it"], ["en", "es", "fr", "it"]]) {
+        // On enable-lingua-italian's list; since enable-lingua-italian-for-english-speakers, an English
+        // reader's Italian follows it-en (below), a Spanish reader's still nothing.
+        const pairs = await appPairs(port(studied, native), native === "en" ? ITALIAN : SHIPPED_PAIRS);
+        const where = `${native}: ${studied.join(",")}`;
+        expect(
+          pairs.every((pair) => SHIPPED_PAIRS.includes(pair)),
+          where,
+        ).toBe(true);
+        expect(
+          modelsFor(committed, pairs).map((m) => m.version),
+          where,
+        ).not.toContain(IT_EN);
+      }
+    }
+    // No reader's pairs need en-it: no listed pair is glossed in Italian.
+    for (const native of ["fr", "en", "es"]) {
+      const pairs = await appPairs(port(["en", "es", "fr", "it"], native));
+      expect(modelsFor(committed, pairs).map((m) => m.version)).not.toContain(EN_IT);
+    }
+  });
+
+  it("offer a French-native reader of Italian and English it-fr's and en-fr's models (enable-lingua-italian)", async () => {
+    const s = setup({ pairs: () => appPairs(port(["it", "en"], "fr")), catalogue: async () => committed });
+    const view = (await openAppTranslation(s.deps)).view();
+    expect(view).toMatchObject({ phase: "offer", pairs: ["it-fr", "en-fr"] });
+  });
+
+  it("follow it-en for an English-native reader of Italian once it is listed, its one model (enable-lingua-italian-for-english-speakers D4, D8)", async () => {
+    expect(SHIPPED_PAIRS).toContain("it-en");
+    expect(await appPairs(port(["es", "it"], "en"))).toEqual(["es-en", "it-en"]);
+    expect(await appPairs(port(["it"], "en"))).toEqual(["it-en"]);
+    expect(modelsFor(committed, await appPairs(port(["it"], "en"))).map((m) => m.version)).toEqual([IT_EN]);
+    const s = setup({ pairs: () => appPairs(port(["es", "it"], "en")), catalogue: async () => committed });
+    const view = (await openAppTranslation(s.deps)).view();
+    expect(view).toMatchObject({ phase: "offer", pairs: ["es-en", "it-en"] });
   });
 });
