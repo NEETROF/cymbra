@@ -308,7 +308,7 @@ blind second one.
 | **en-es, engine, judged in Spanish** | **96 / 96 — 100 %**      | **4 %**  | **First tier: marked (shipped since change 35)**                                |
 | **fr-en, engine, judged in English** | **95 / 96 — 99.0 %**     | **4 %**  | **First tier: marked (shipped since change 52)**                                |
 | **fr-es, engine (pivot fr→en→es)**   | **90 / 91 — 98.9 %**     | **9 %**  | **First tier: marked (shipped since change 52)**                                |
-| **it-fr, engine (pivot it→en→fr)**   | **93 / 97 — 95.9 %**     | **3 %**  | **First tier: marked (shipped since the Italian programme's change 20)**  |
+| **it-fr, engine (pivot it→en→fr)**   | **93 / 97 — 95.9 %**     | **3 %**  | **First tier: marked (shipped since the Italian programme's change 20)**        |
 | **it-en, engine, judged in English** | **94 / 97 — 96.9 %**     | **3 %**  | **First tier: marked (listed, inert until the Italian programme's change 25)**  |
 | **it-es, engine (pivot it→en→es)**   | **90 / 95 — 94.7 %**     | **5 %**  | **First tier: marked (listed, inert until the Italian programme's change 30)**  |
 | es-fr, gloss-located (experiment)    | 76 / 78 — 97.4 %         | 22 %     | —                                                                               |
