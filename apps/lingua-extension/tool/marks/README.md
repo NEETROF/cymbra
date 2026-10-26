@@ -31,7 +31,7 @@ English, Spanish or French selection, nor any committed result.
 | `corpus.json`          | The 400 selections, 100 per studied language (`lang`: en, es, fr, it), each step's four from one sentence: sentence id, token, word, offsets                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `engine.mjs`           | The pinned engine in Node with a route's models built as `engine-worker.ts` builds them: one markup string in, its translation out — shared by the harness and the soak                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `measure.mjs`          | The loop: each selection marked exactly as `relay.ts` marks it — tagged sentence, fragment alone, reconciled — and the experiment's mark; a trap answered per request, as the extension answers it                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `stop-words.mjs`       | The experiment's stop words per native language (fr, en, es): the function words skipped when the gloss is looked for in the sentence; the harness picks the route's native language's                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `stop-words.mjs`       | The experiment's stop words per native language (fr, en, es, it): the function words skipped when the gloss is looked for in the sentence; the harness picks the route's native language's                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `../measure_marks.mjs` | The harness: the pinned engine and the catalogue's models, the corpus of a pair's studied language through `measure.mjs` over that pair's route; writes `results-<pair>.jsonl`                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `../soak_engine.mjs`   | The soak (harden-lingua-translation-engine D4): a pair's route over the same corpus, reporting what trapped, the time per sentence and the memory high-water mark                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `results-<pair>.jsonl` | Per selection: the translated sentence (`translation`) with its marks bracketed (`shown`), the fragment's own translation (`alone`, null when it trapped twice, `""` for an empty fragment or one the route translated as nothing), and the experiment's mark (`gloss`, null when the pair's `tables/<pair>/gloss.tsv` is not committed or holds no gloss); a sentence the engine trapped on twice is `trapped: true` with no translation — `results-en-fr.jsonl`, `results-es-fr.jsonl`, `results-es-en.jsonl`, `results-en-es.jsonl`, `results-fr-en.jsonl`, `results-fr-es.jsonl`, `results-it-fr.jsonl`, `results-it-en.jsonl`, `results-it-es.jsonl` |
@@ -145,7 +145,8 @@ measure-lingua-it-fr-translation-marks D3 added the Italian examples below, take
 before it-fr was run, and moved no verdict; measure-lingua-it-en-translation-marks D2 added their
 English counterparts, anchored on verdicts already committed, before it-en was run, and moved no
 verdict; measure-lingua-it-es-translation-marks D3 added their Spanish counterparts, before it-es was
-run, and moved no verdict), and a pair is judged in its **native language** — French for en-fr, es-fr
+run, and moved no verdict; measure-lingua-en-it-translation-marks D3 added the English selections'
+Italian examples, before en-it was run, and moved no verdict), and a pair is judged in its **native language** — French for en-fr, es-fr
 and it-fr, English for es-en, fr-en and it-en, Spanish for en-es, fr-es and it-es. Through English,
 fr-es's mark crosses two alignments, as es-fr's does, and so do it-fr's, it-en then en-fr, and
 it-es's, it-en then en-es: each is judged against the rendering the reader sees, in the pair's native
@@ -272,6 +273,62 @@ sgoccioli », 98 « sospensione »). A verdict departing from both it-fr's and i
 - **A loose rendering the mark follows:** correct, flagged doubtful — en-es's k 18, 70 and 77 as a
   class, not as verdicts. The Italian words differ from the English ones there, so 70 « guionista »
   (« sceneggiatore ») and 98 « suspensión » (« sospensione ») are expected plainly correct.
+
+**English selections, judged in Italian** (measure-lingua-en-it-translation-marks D3): the rules above,
+with these examples from the corpus's English steps, written before en-it was run. en-it goes through
+its one model, as en-fr and en-es go through theirs. Nobody on the team reads Italian (the Italian
+programme's I13), so two agent judges read it (I2): judge A, the implementing agent, and judge B,
+the Italian reviewer agent, blind to A — it gets the results and these criteria, not A's verdicts.
+Each line is read against three references: the engine's sentence; UD Italian-PUD's human Italian for
+the same sentence (`pud.mjs`, fetched, never committed); and en-fr's and en-es's committed verdicts
+on the same step. A verdict departing from both precedents gives its reason. Where marked (PUD) the
+Italian below is UD Italian-PUD's; the rest are renderings the engine is likely to write.
+
+- **A past, compound or simple; a passive** — the auxiliary may be marked with the participle, never
+  alone. PUD's one-word passato remoto: 37 « vidi », 65 « conobbe », 69 « rilasciò », 81 « accusò »;
+  PUD's compound pasts: 17 « ha commentato », 25 « Ha detto »; the engine may write « ha visto »,
+  « ha incontrato »: the participle, with or without its auxiliary, is correct. Passives: 13 « sono
+  state pubblicate », 33 « Gli viene riconosciuto », 61 « si considera » (PUD). « ha », « è », « sono
+  state », « viene » or « si » alone is wrong (en-fr 17 « a suggéré », 30 « est mort », 65 « a
+  rencontré » with the auxiliary; en-fr 13 « diffusées », en-es 13 « publicaron » without).
+- **A dropped subject, a clitic:** 9 « Vorrebbe » or « (Gli) piacerebbe » is correct; « Gli » alone,
+  or an added « Egli » or « Lui » alone, is wrong (en-fr « aimerait », en-es « gustaría »; es-en k 25
+  « he » judged wrong); 97 « si incontrano » (PUD), with or without « si », never « si » alone.
+- **A phrasal verb or compound rendered by one Italian word:** 57 « costituiscono » or
+  « comprendono », « che » alone wrong (en-fr's one wrong mark, k 57 « qui »; en-es « conforman »);
+  77 « brancola » or « procede a tentoni », a loose rendering doubtful; 78 « sveglia » (en-fr 78
+  « réveil »); 54 « Capodanno » (« Nuovo » if « Anno Nuovo », never « Anno » alone); 3 « sudcoreana » or
+  « (della) Corea », never « Sud » alone; 94 « avamposti »; 75 « in grado », « riusciti » or
+  « potuto », never « furono » alone.
+- **An article or articulated preposition, carried but never alone:** 6 « della storia » (« della »
+  alone wrong), 66 « all'Università », 0 « della transizione », 12 « di emoglobina », 26 « di
+  risarcimento », 23 « erano mercati » (PUD: « mercati »; a mark also spanning « erano » doubtful),
+  10 « I medici », 52 « in battaglia », 59 « L'Esercito », 5 « quest'area », 62 « sull'origine »
+  (PUD) (en-fr « de l'histoire », « l'Université », « d'hémoglobine »; en-es « de compensación »,
+  « los médicos »).
+- **A noun modifier, an -ing form:** 22 « delle armi », « armi », « del tiro » or PUD's « dei
+  cacciatori » (a British "shooting lobby" is the field-sports lobby), « lobby » alone wrong (en-fr
+  « de tir », en-es « de tiro »); 83 « di successo », « tormentone » or « hit », « canzone » wrong;
+  1 « (di) insegnare » or « insegnando », « Invece di » alone wrong (en-fr « d'enseigner », en-es
+  « enseñar »).
+- **A possessive:** 24 « fermata » or « La mia fermata », « La mia » alone wrong, a mark also spanning
+  « prossima » doubtful; 58 « (i suoi) nemici », « suoi » alone wrong; 91 « ultimi », « (dei) suoi »
+  alone wrong (fr-en k 92; fr-en k 15 « their »).
+- **Gender and number never decide a verdict:** 93 « capitanata », 71 « stereotipata », 39, 15, 47,
+  67, 91, and 96 even rendered singular (en-fr « commandé », « stéréotypée »; en-es « estereotipada »).
+- **Expressions and loanwords:** 79 « (il) momento » or « ora », « Per » alone wrong; 99 « D'altra »,
+  « altra » or « Dall'altro », « parte » wrong (en-fr « D'autre »); 32 « punto », « epicentro » or
+  « Ground », « zero » wrong; 27 « Premium », and an expression rendering 82's « on its way out »,
+  count; 86 « l'unico » and 63 « ufficiale » are correct, though both precedents withheld these steps
+  (en-fr's k 32, 63, 86 and en-es's k 63, 86 withheld; en-es's k 32 « la zona » correct), so a mark
+  there is a new verdict with its reason.
+- **Loose renderings:** 18, 70, 77 are correct, and doubtful only if the Italian is loose — en-es's
+  doubtful lines; en-fr judged the same steps plainly correct (« bord », « que traceur », « tâtonne »).
+
+A line the two judges disagree on is committed `wrong`, its reason `doubtful: A …/B …`, so the
+committed figures are the strict ones; a line both call correct but loose is committed `correct`
+with a `doubtful:` reason, and `test/translate-marks.spec.ts` holds the tier with those counted
+wrong too (measure-lingua-en-it-translation-marks D3).
 
 A doubtful it-es line says so in `engine_reason`; where counting the doubtful lines wrong would take
 it-es below the first tier, they are committed `wrong` with their reason, so the committed figures are
