@@ -4,6 +4,7 @@ import { reviewOutlookJson } from "../analyzer/engine.ts";
 import { readingLanguage } from "../analyzer/pairs.ts";
 import { popup as enPopup } from "../i18n/en/popup.ts";
 import { popup as esPopup } from "../i18n/es/popup.ts";
+import { popup as itPopup } from "../i18n/it/popup.ts";
 import { popup as frPopup } from "../i18n/fr/popup.ts";
 import { DEFAULT_INTERFACE_LANGUAGE, fillPageInLanguage, type InterfaceLanguage } from "../i18n/index.ts";
 import { mountSettings, type SettingsTab, type SettingsView } from "../reading/settings-view.ts";
@@ -62,7 +63,7 @@ const storageArea: AsyncStorageArea = {
 const store: AsyncStorageArea = messagedArea();
 
 /** The popup's copy by interface language (localise-lingua-reading-surfaces D1). */
-const POPUP_COPY: Record<InterfaceLanguage, PopupCopy> = { fr: frPopup, en: enPopup, es: esPopup };
+const POPUP_COPY: Record<InterfaceLanguage, PopupCopy> = { fr: frPopup, en: enPopup, es: esPopup, it: itPopup };
 
 /** The interface language and the copy, read with the first storage read, before anything renders. */
 let language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE;

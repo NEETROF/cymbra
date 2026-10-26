@@ -69,9 +69,12 @@ function mount(opts: Options = {}) {
     openPage: (url) => opened.push(url),
     interfaceLanguage: opts.language ?? "fr",
   });
-  const label = { fr: "Traduction en ligne", en: "Online translation", es: "Traducción en línea" }[
-    opts.language ?? "fr"
-  ];
+  const label = {
+    fr: "Traduction en ligne",
+    en: "Online translation",
+    es: "Traducción en línea",
+    it: "Traduzione online",
+  }[opts.language ?? "fr"];
   const row = (): HTMLLabelElement | undefined =>
     [...container.querySelectorAll<HTMLLabelElement>("label.set-toggle")].find((l) => l.textContent === label);
   const part = (): HTMLElement => row()!.parentElement!;

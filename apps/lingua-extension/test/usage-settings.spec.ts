@@ -74,7 +74,12 @@ function mount(usage: UsageSwitchControls, language: InterfaceLanguage = "fr", o
     usage,
     onLevelSaved,
   });
-  const label = { fr: "Comptages anonymes", en: "Anonymous usage counts", es: "Recuentos anónimos" }[language];
+  const label = {
+    fr: "Comptages anonymes",
+    en: "Anonymous usage counts",
+    es: "Recuentos anónimos",
+    it: "Conteggi anonimi",
+  }[language];
   const block = (): HTMLElement =>
     [...container.querySelectorAll<HTMLElement>(".set-block")].find(
       (b) => b.querySelector(".set-label")?.textContent === label,

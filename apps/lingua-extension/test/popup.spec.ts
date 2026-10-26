@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { popup as enPopup } from "@/i18n/en/popup.ts";
 import { popup as esPopup } from "@/i18n/es/popup.ts";
+import { popup as itPopup } from "@/i18n/it/popup.ts";
 import { popup as frPopup } from "@/i18n/fr/popup.ts";
 import {
   COPY_PENDING_ATTR,
@@ -32,7 +33,7 @@ const HTML = readFileSync(join(root, "src/popup/popup.html"), "utf8");
 const CSS = readFileSync(join(root, "src/popup/popup.css"), "utf8");
 
 /** The popup's modules by interface language, as popup.ts picks them. */
-const POPUP: Record<InterfaceLanguage, typeof frPopup> = { fr: frPopup, en: enPopup, es: esPopup };
+const POPUP: Record<InterfaceLanguage, typeof frPopup> = { fr: frPopup, en: enPopup, es: esPopup, it: itPopup };
 
 function page(): Document {
   return new DOMParser().parseFromString(HTML, "text/html");

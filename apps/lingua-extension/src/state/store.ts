@@ -3,7 +3,6 @@ import type { NativeLanguage } from "../analyzer/types.ts";
 import {
   INTERFACE_LANGUAGE_KEY,
   type InterfaceLanguage,
-  interfaceOf,
   isInterfaceLanguage,
   isNativeLanguage,
 } from "../i18n/language.ts";
@@ -225,7 +224,7 @@ export async function rememberInterfaceLanguage(
   const held = await preferences.get(INTERFACE_LANGUAGE_KEY);
   if (isInterfaceLanguage(held[INTERFACE_LANGUAGE_KEY])) return;
   const got = await area.get(ROOT_KEY);
-  await preferences.set({ [INTERFACE_LANGUAGE_KEY]: interfaceOf(nativeLanguageOfStored(got[ROOT_KEY], pairs)) });
+  await preferences.set({ [INTERFACE_LANGUAGE_KEY]: nativeLanguageOfStored(got[ROOT_KEY], pairs) });
 }
 
 /** The owner's handle: a store whose backup writes also keep the interface language's key in step. */
@@ -362,7 +361,7 @@ export function ownerArea(
   };
   const mirror = async (): Promise<void> => {
     due = false;
-    await write(interfaceOf(latestNative ?? nativeLanguageOfStored(latest, pairs)));
+    await write(latestNative ?? nativeLanguageOfStored(latest, pairs));
   };
 
   return {
@@ -395,7 +394,7 @@ export function ownerArea(
         if (change) {
           // Before the announcement, after any mirror already due: the language the change names,
           // which is the one this backup's profile names — nothing to parse.
-          const language = interfaceOf(change.native);
+          const language = change.native;
           chain = chain.then(() => write(language));
           await chain;
         } else if (!due) {

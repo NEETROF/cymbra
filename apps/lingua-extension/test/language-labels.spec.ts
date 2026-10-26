@@ -166,6 +166,52 @@ describe("A Spanish-native reader", () => {
   });
 });
 
+describe("An Italian-native reader (add-lingua-italian-interface D1, D4)", () => {
+  // INTERFACE_LANGUAGES gains Italian with change 45 only: the loops below do not reach it, this does.
+  it("reads every message in Italian: « di inglese », « l'inglese », « voce inglese », the QCER", () => {
+    expect(every("it", "en")).toEqual({
+      languageName: "Inglese",
+      levelScale: "QCER",
+      levelTitle: "Livello di inglese",
+      levelTitleEstimated: "Livello di inglese stimato",
+      myLevelTitle: "Il mio livello di inglese",
+      myLevelTitleEstimated: "Il mio livello di inglese stimato",
+      estimatedLevelsNote:
+        "Livelli stimati in base alla frequenza delle parole, in mancanza di una lista QCER libera da diritti per l'inglese.",
+      borrowedTypicalNote: "ripreso dallo spagnolo, di cui l'inglese riprende le dimensioni dei livelli.",
+      levelName: "B1",
+      levelNameEstimated: "B1 (stimato)",
+      chooseLevelPrompt: "Scegli il tuo livello di inglese",
+      noTextDetected: "Nessun testo in inglese rilevato in questa pagina.",
+      noTextInYourLanguages: "Nessun testo nelle tue lingue rilevato in questa pagina.",
+      noVoiceInstalled: "Nessuna voce inglese è installata su questo dispositivo. ",
+      windowsVoiceLanguage: "Inglese (Stati Uniti)",
+      previewSentence: "This is how your pages will sound when Lingua reads them aloud.",
+      levelQuestion: "Qual è il tuo livello di inglese?",
+    });
+    expect(every("it", "es")).toMatchObject({
+      languageName: "Spagnolo",
+      levelTitleEstimated: "Livello di spagnolo stimato",
+      borrowedTypicalNote: "ripreso dall'inglese, di cui lo spagnolo riprende le dimensioni dei livelli.",
+      noTextDetected: "Nessun testo in spagnolo rilevato in questa pagina.",
+      noVoiceInstalled: "Nessuna voce spagnola è installata su questo dispositivo. ",
+      windowsVoiceLanguage: "Spagnolo (Spagna)",
+    });
+    expect(readAsForm("it", "es")).toBe("spagnola");
+    expect(readAsForm("it", "it")).toBe("italiana");
+    expect(listedLanguageName("it", "es")).toBe("spagnolo");
+    expect(estimatedLevelsNote("it", "fr")).toMatch(/per il francese\.$/);
+    expect(noVoiceInstalled("it", "it")).toBe("Nessuna voce italiana è installata su questo dispositivo. ");
+    for (const studied of STUDIED) {
+      for (const [key, text] of Object.entries(every("it", studied))) {
+        expect(text.trim(), `it/${studied}: ${key}`).not.toBe("");
+        if (["previewSentence", "levelName"].includes(key)) continue;
+        expect(text, `it/${studied}: ${key} is still the French`).not.toBe(every("fr", studied)[key]);
+      }
+    }
+  });
+});
+
 describe("every message, in every interface language, for every studied language", () => {
   for (const language of INTERFACE_LANGUAGES) {
     for (const studied of STUDIED) {

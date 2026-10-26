@@ -1,6 +1,7 @@
 import { isNamedLanguage, listedLanguageName } from "../analyzer/language-labels.ts";
 import { badge as enBadge } from "../i18n/en/badge.ts";
 import { badge as esBadge } from "../i18n/es/badge.ts";
+import { badge as itBadge } from "../i18n/it/badge.ts";
 import { badge as frBadge } from "../i18n/fr/badge.ts";
 import { formatCount, type InterfaceLanguage, plural } from "../i18n/index.ts";
 import type { LanguageCount } from "./review-outlook.ts";
@@ -29,7 +30,10 @@ export const BADGE_NEUTRAL_COLOUR = "#6a7091"; // --cymbra-lingua-faint
 const SAFARI_PER_TAB_BADGE = 18;
 
 /** The icon's copy by interface language. */
-const BADGE_COPY = { fr: frBadge, en: enBadge, es: esBadge } satisfies Record<InterfaceLanguage, typeof frBadge>;
+const BADGE_COPY = { fr: frBadge, en: enBadge, es: esBadge, it: itBadge } satisfies Record<
+  InterfaceLanguage,
+  typeof frBadge
+>;
 
 /** What the badge applies: its text (`null` inherits the global one), colour and, globally, title. */
 export interface BadgeLook {

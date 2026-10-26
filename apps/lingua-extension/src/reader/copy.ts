@@ -1,5 +1,6 @@
 import { reader as enReader } from "../i18n/en/reader.ts";
 import { reader as esReader } from "../i18n/es/reader.ts";
+import { reader as itReader } from "../i18n/it/reader.ts";
 import { reader as frReader } from "../i18n/fr/reader.ts";
 import { DEFAULT_INTERFACE_LANGUAGE, type InterfaceLanguage } from "../i18n/index.ts";
 import type { ImportFailure } from "./library.ts";
@@ -12,7 +13,7 @@ import type { ImportFailure } from "./library.ts";
 /** The catalogue's `reader` module, in one language. */
 export type ReaderModule = typeof frReader;
 
-const MODULES: Record<InterfaceLanguage, ReaderModule> = { fr: frReader, en: enReader, es: esReader };
+const MODULES: Record<InterfaceLanguage, ReaderModule> = { fr: frReader, en: enReader, es: esReader, it: itReader };
 
 /** The module for the interface language (reader.html's static text reads it). */
 export function readerModule(language: InterfaceLanguage): ReaderModule {

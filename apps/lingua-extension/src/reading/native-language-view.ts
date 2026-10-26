@@ -3,6 +3,7 @@ import { SHIPPED_PAIRS } from "../analyzer/pairs.ts";
 import type { NativeLanguage, StudiedLanguage } from "../analyzer/types.ts";
 import { nativeLanguage as enNativeLanguage } from "../i18n/en/native-language.ts";
 import { nativeLanguage as esNativeLanguage } from "../i18n/es/native-language.ts";
+import { nativeLanguage as itNativeLanguage } from "../i18n/it/native-language.ts";
 import { nativeLanguage as frNativeLanguage } from "../i18n/fr/native-language.ts";
 import type { InterfaceLanguage } from "../i18n/index.ts";
 import {
@@ -61,6 +62,7 @@ const COPY: Record<InterfaceLanguage, NativeLanguageCopy> = {
   fr: frNativeLanguage,
   en: enNativeLanguage,
   es: esNativeLanguage,
+  it: itNativeLanguage,
 };
 
 /** The choice's copy in the interface language: the catalogue's `native-language` module (D6). */
