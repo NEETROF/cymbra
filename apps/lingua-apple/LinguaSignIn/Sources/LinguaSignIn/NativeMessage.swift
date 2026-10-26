@@ -6,8 +6,9 @@ public enum NativeMessage {
     /// - `auth.takeIdToken` → `{provider, idToken}` for a waiting token, `{}` when none waits;
     /// - `auth.providers` → `{apple: true, google}`, Google once the app has a Google client;
     /// - `interface.language` `{language}` → `{language}`, the extension's interface language kept
-    ///   in `languages` for the activation page (localise-lingua-apple-host D2); one the app does
-    ///   not speak → `{error: "unknownLanguage"}`, nothing kept;
+    ///   in `languages` for the activation page (localise-lingua-apple-host D2), Italian included
+    ///   (localise-lingua-apple-host-italian D2: the extension sends it only once its interface is
+    ///   shown in Italian, change 45); one the app does not speak → `{error: "unknownLanguage"}`, nothing kept;
     /// - `review.saveState` `{state}` → `{}`, the extension's state kept in `review` for the app's
     ///   review (add-lingua-apple-review D3); a message without one → `{error: "badState"}`;
     /// - `review.readOps` → `{ops, writtenAt}`, the changes a review in the app made, or `{}`;

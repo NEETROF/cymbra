@@ -46,7 +46,8 @@ if [ -z "$development_language" ]; then
 fi
 
 # The natives of the shipped packs, each once, in the order the interface lists its languages
-# (src/i18n/language.ts: fr, en, es); a native the app has no copy for is declared after them,
+# (src/i18n/language.ts: fr, en, es, then it — localise-lingua-apple-host-italian D4); a native
+# the app has no copy for is declared after them,
 # so the plist says what ships, and Swift shows the fallback for it. A native is a language code,
 # 2–3 lowercase letters, and nothing else: it is written into the plist, and a name holding a
 # glob or a space must not reach the shell's word splitting.
@@ -69,9 +70,9 @@ natives=""
 while IFS= read -r native; do
   case $'\n'"$found" in *$'\n'"$native"$'\n'*) ;; *) continue ;; esac
   case " $natives " in *" $native "*) continue ;; esac
-  case "$native" in fr | en | es) ;; *) echo "warning: $native-native packs ship, but the app has no copy in $native (copy.js, SignInCopy)" >&2 ;; esac
+  case "$native" in fr | en | es | it) ;; *) echo "warning: $native-native packs ship, but the app has no copy in $native (copy.js, SignInCopy)" >&2 ;; esac
   natives="${natives:+$natives }$native"
-done < <(printf '%s\n' fr en es; printf '%s' "$found" | sort -u)
+done < <(printf '%s\n' fr en es it; printf '%s' "$found" | sort -u)
 if [ -z "$natives" ]; then
   echo "error: the packs in $packs_dir name no native language" >&2
   exit 1
