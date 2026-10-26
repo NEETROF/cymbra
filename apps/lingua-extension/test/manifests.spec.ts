@@ -30,6 +30,8 @@ const WITH_ITALIAN = [...WITH_FRENCH, "it-fr"];
 const WITH_IT_EN = [...WITH_ITALIAN, "it-en"];
 /** That list beside Italian glossed in Spanish, last: packs.json since enable-lingua-italian-for-spanish-speakers. */
 const WITH_IT_ES = [...WITH_IT_EN, "it-es"];
+/** That list beside the first Italian-glossed pair, en-it (change 45 lists it; localise-lingua-manifest-italian D3). */
+const WITH_EN_IT = [...WITH_IT_ES, "en-it"];
 
 type Manifest = Record<string, unknown> & {
   description: string;
@@ -60,8 +62,8 @@ function step(target: (typeof TARGETS)[number], pairs: readonly string[], own = 
 const text = (manifest: unknown) => `${JSON.stringify(manifest, null, 2)}\n`;
 
 describe("the committed messages (localise-lingua-manifest D1)", () => {
-  it("exist for French, English and Spanish, each holding every message a localised manifest references", () => {
-    expect(Object.keys(messages)).toEqual(["en", "es", "fr"]);
+  it("exist for French, English, Spanish and Italian, each holding every message a localised manifest references", () => {
+    expect(Object.keys(messages)).toEqual(["en", "es", "fr", "it"]);
     for (const [language, own] of Object.entries(messages)) {
       for (const key of LOCALISED_MESSAGES) {
         expect(typeof own[key]?.message, `${language}: ${key}`).toBe("string");
@@ -86,7 +88,30 @@ describe("the committed messages (localise-lingua-manifest D1)", () => {
     expect(messages.en![DESCRIPTION_MESSAGE]!.message).not.toMatch(/English/);
     expect(messages.es![DESCRIPTION_MESSAGE]!.message).toMatch(/inglés/);
     expect(messages.es![DESCRIPTION_MESSAGE]!.message).not.toMatch(/español/);
+    // Italian speakers study English (en-it; localise-lingua-manifest-italian D1).
+    expect(messages.it![DESCRIPTION_MESSAGE]!.message).toMatch(/inglese/);
+    expect(messages.it![DESCRIPTION_MESSAGE]!.message).not.toMatch(/italiano/i);
   });
+});
+
+describe("the Italian messages, inert until a pair glossed in Italian ships (localise-lingua-manifest-italian D3, D5)", () => {
+  it.each(TARGETS)("%s: today's list carries no `_locales/it`, and no manifest reads from it", (target) => {
+    const { locales } = step(target, shippedPairs());
+    expect(locales).not.toContain("it");
+  });
+
+  it.each(TARGETS)(
+    "%s: en-it listed carries `_locales/it` beside the other natives, English the default, every reference resolving",
+    (target) => {
+      const { manifest, locales } = step(target, WITH_EN_IT);
+      expect(locales).toEqual(["fr", "en", "es", "it"]);
+      expect(manifest.default_locale).toBe("en");
+      expect(manifest.description).toBe(`__MSG_${DESCRIPTION_MESSAGE}__`);
+      const references = [...new Set([...text(manifest).matchAll(/__MSG_(\w+)__/g)].map((m) => m[1]!))];
+      expect(references.sort()).toEqual([...LOCALISED_MESSAGES].sort());
+      for (const key of references) expect(messages.it![key]?.message, `it: ${key}`).toBeTruthy();
+    },
+  );
 });
 
 describe("the shipped natives decide the manifest's languages (D2)", () => {

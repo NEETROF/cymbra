@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
 import { languageName } from "@/analyzer/language-labels.ts";
-import { pairsOf, studiedOf } from "@/analyzer/pairs.ts";
+import { pairsOf, SHIPPED_PAIRS, studiedOf } from "@/analyzer/pairs.ts";
 import type { NativeLanguage, StudiedLanguage } from "@/analyzer/types.ts";
 import { drawer as enDrawer } from "@/i18n/en/drawer.ts";
 import { settings as enSettings } from "@/i18n/en/settings.ts";
@@ -12,11 +12,14 @@ import { drawer as esDrawer } from "@/i18n/es/drawer.ts";
 import { settings as esSettings } from "@/i18n/es/settings.ts";
 import { drawer as frDrawer } from "@/i18n/fr/drawer.ts";
 import { settings as frSettings } from "@/i18n/fr/settings.ts";
+import { drawer as itDrawer } from "@/i18n/it/drawer.ts";
+import { settings as itSettings } from "@/i18n/it/settings.ts";
 import type { InterfaceLanguage } from "@/i18n/language.ts";
 
 // The Safari host app's activation page (apps/lingua-apple, localise-lingua-apple-host D2): Main.html
 // keeps its French text in place, each text under a data-copy key; copy.js holds the page's copy per
-// language — the French byte for byte Main.html's (M23), the English and Spanish drafts after it —
+// language — the French byte for byte Main.html's (M23), the English, Spanish and Italian drafts after
+// it (localise-lingua-apple-host-italian D3) —
 // and fills the page on DOMContentLoaded in the language ViewController.swift injects before load,
 // saying it in `lang`. Script.js takes the macOS-before-13 variants from the same table. The page is
 // loaded here as the app loads it: window.linguaLanguage set first, copy.js then Script.js, deferred.
@@ -85,16 +88,28 @@ const BEFORE_13 = {
   stateOffPreferences: "Extension désactivée. Active-la dans les préférences de Safari, section Extensions.",
 };
 
-const LANGUAGES = ["fr", "en", "es"];
+const LANGUAGES = ["fr", "en", "es", "it"];
+
+/**
+ * The pairs a native language's page names: the shipped pairs, plus en-it, whose page this change
+ * holds ahead of the Italian programme's change 45 (localise-lingua-apple-host-italian D5) — so the
+ * Italian page is pinned now, and fails changes 50 and 54 until they rewrite it.
+ */
+const LISTED_PAIRS: readonly string[] = [...new Set([...SHIPPED_PAIRS, "en-it"])];
+const listed = (native: string): string[] => pairsOf(native, LISTED_PAIRS);
+
+/** The languages a native language's listed pairs study, in their order, as its page names them. */
+const named = (native: InterfaceLanguage): string[] =>
+  listed(native).map((pair) => languageName(native, studiedOf(pair) as StudiedLanguage).toLowerCase());
 
 /** The first language a native language's pairs study, as its page writes it inside a sentence. */
 const named1 = (native: string): string =>
-  languageName(native as InterfaceLanguage, studiedOf(pairsOf(native)[0]!) as NativeLanguage).toLowerCase();
+  languageName(native as InterfaceLanguage, studiedOf(listed(native)[0]!) as NativeLanguage).toLowerCase();
 
 describe("the activation page's copy table", () => {
   const { copy, document } = load();
 
-  it("holds the three languages, every key in each, nothing empty", () => {
+  it("holds the four languages, every key in each, nothing empty", () => {
     expect(Object.keys(copy.COPY).sort()).toEqual([...LANGUAGES].sort());
     const keys = Object.keys(copy.COPY.fr).sort();
     for (const language of LANGUAGES) {
@@ -122,17 +137,16 @@ describe("the activation page's copy table", () => {
     for (const key of copy.FRAGMENTS) expect(copy.COPY.fr[key]).toContain("<strong>");
   });
 
-  it("names every language a native language's pairs study, in the pairs' order, and never its own (enable-lingua-french D7, enable-lingua-italian D7, enable-lingua-italian-for-english-speakers D6, enable-lingua-italian-for-spanish-speakers D6)", () => {
+  it("names every language a native language's pairs study, in the pairs' order, and never its own (enable-lingua-french D7, enable-lingua-italian D7, enable-lingua-italian-for-english-speakers D6, enable-lingua-italian-for-spanish-speakers D6, localise-lingua-apple-host-italian D3)", () => {
     // Each page speaks to the natives of its language: French natives study English, Spanish and
     // Italian (en-fr, es-fr, it-fr), English natives Spanish, French and Italian (es-en, fr-en, it-en), Spanish
-    // natives English, French and Italian (en-es, fr-es, it-es) — read from the bundle's list, named as
-    // the extension names them.
-    const named = (native: InterfaceLanguage) =>
-      pairsOf(native).map((pair) => languageName(native, studiedOf(pair) as StudiedLanguage).toLowerCase());
+    // natives English, French and Italian (en-es, fr-es, it-es), Italian natives English (en-it) — read
+    // from the bundle's list plus en-it, named as the extension names them.
     expect(named("fr")).toEqual(["anglais", "espagnol", "italien"]);
     expect(named("en")).toEqual(["spanish", "french", "italian"]);
     expect(named("es")).toEqual(["inglés", "francés", "italiano"]);
-    for (const native of ["fr", "en", "es"] as const) {
+    expect(named("it")).toEqual(["inglese"]);
+    for (const native of ["fr", "en", "es", "it"] as const) {
       const own = languageName(native, native).toLowerCase();
       for (const key of ["lede", "step3"]) {
         const text = copy.COPY[native][key].toLowerCase();
@@ -152,16 +166,30 @@ describe("the activation page's copy table", () => {
 
   it("says, in its last step, where a second language is ticked: the extension's settings, its language tab", () => {
     // Réglages' first tab holds the studied languages' boxes and a level block per ticked language
-    // (settings-view.ts): the page names both as the extension does, in its language.
-    const places = { fr: [frDrawer, frSettings], en: [enDrawer, enSettings], es: [esDrawer, esSettings] } as const;
+    // (settings-view.ts): the page names both as the extension does, in its language — for a native
+    // with two listed pairs or more. A native with one pair (Italian, en-it) is held to choosing that
+    // language's level and names no Settings tab, as the one-language pages of the precedent did
+    // (localise-lingua-apple-host-italian D5).
+    const places = {
+      fr: [frDrawer, frSettings],
+      en: [enDrawer, enSettings],
+      es: [esDrawer, esSettings],
+      it: [itDrawer, itSettings],
+    } as const;
     for (const [language, [drawer, settings]] of Object.entries(places)) {
       const step3 = copy.COPY[language].step3;
-      expect(step3, language).toContain(`<strong>${drawer.settings}</strong>`);
-      expect(step3, language).toContain(`<strong>${settings.tabLanguage}</strong>`);
-      // The first language's level is chosen before the second is ticked.
+      if (listed(language).length === 0) continue;
       const first = step3.toLowerCase().indexOf(named1(language));
       expect(first, language).toBeGreaterThanOrEqual(0);
-      expect(first, language).toBeLessThan(step3.toLowerCase().indexOf(drawer.settings.toLowerCase()));
+      if (listed(language).length >= 2) {
+        expect(step3, language).toContain(`<strong>${drawer.settings}</strong>`);
+        expect(step3, language).toContain(`<strong>${settings.tabLanguage}</strong>`);
+        // The first language's level is chosen before the second is ticked.
+        expect(first, language).toBeLessThan(step3.toLowerCase().indexOf(drawer.settings.toLowerCase()));
+      } else {
+        expect(step3, language).not.toContain(drawer.settings);
+        expect(step3, language).not.toContain(`<strong>${settings.tabLanguage}</strong>`);
+      }
     }
   });
 
@@ -210,8 +238,15 @@ describe("the activation page's copy table", () => {
     for (const text of [lede, step3]) expect(text.toLowerCase()).not.toContain("español");
   });
 
-  it("is in English and Spanish no copy of the French", () => {
-    for (const language of ["en", "es"]) {
+  it("Italian for an Italian speaker: English, its level chosen, no Settings tab (localise-lingua-apple-host-italian D3)", () => {
+    const { lede, step3 } = copy.COPY.it;
+    expect(lede).toContain("Leggi il web in inglese:");
+    expect(step3).toContain("scegli il tuo livello di inglese");
+    for (const text of Object.values(copy.COPY.it)) expect(text.toLowerCase()).not.toContain("italiano");
+  });
+
+  it("is in English, Spanish and Italian no copy of the French", () => {
+    for (const language of ["en", "es", "it"]) {
       for (const [key, text] of Object.entries(copy.COPY[language])) {
         if (key !== "title") expect(text, `${language}.${key} left in French`).not.toBe(copy.COPY.fr[key]);
       }
@@ -223,6 +258,13 @@ describe("the activation page's copy table", () => {
     const spanish = Object.values(copy.COPY.es).join(" ");
     expect(spanish).not.toMatch(/\b(vosotros|vuestr[oa]s?|abrid|activad|recargad|elegid|pod[eé]is)\b/i);
     expect(spanish).toMatch(/\b(abre|activa|elige|recarga|puedes)\b/);
+  });
+
+  it("speaks Italian to the reader, not to readers nor formally (tu, no voi, no Lei)", () => {
+    const italian = Object.values(copy.COPY.it).join(" ");
+    expect(italian).not.toMatch(/\b(aprite|attivate|scegliete|ricaricate|potete|vostr[oaie])\b/i);
+    expect(italian).not.toMatch(/\b(Apra|Attivi|Scelga|Ricarichi|Può)\b/);
+    expect(italian).toMatch(/\b(Apri|Attiva|scegli|Ricarica|Puoi)\b/);
   });
 });
 
@@ -237,7 +279,7 @@ describe("filling the page", () => {
     }
   });
 
-  for (const language of ["en", "es"]) {
+  for (const language of ["en", "es", "it"]) {
     it(`fills the page in ${language} and says it in lang`, () => {
       const page = load(language);
       expect(page.document.documentElement.lang).toBe(language);

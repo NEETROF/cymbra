@@ -61,7 +61,7 @@ export const settings: typeof fr = {
   keyL: "L",
   keyPlus: "+",
   keyOr: "/",
-  shortcutSidePanel: (keys) => `${keys}: pannello laterale`,
+  shortcutSidePanel: (keys) => `${keys}: riquadro laterale`,
   shortcutDrawer: (keys) => `${keys}: pannello di ripasso sulla pagina`,
   shortcutCapture: (keys) => `${keys}: acquisisci la selezione`,
   shortcutReclassify: (keys) => `${keys} + clic (o pressione prolungata) su una parola: riclassificala`,
