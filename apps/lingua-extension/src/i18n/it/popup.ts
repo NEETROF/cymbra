@@ -31,17 +31,17 @@ export const popup: typeof fr = {
   accountAndSync: "Account e sincronizzazione",
   library: "Biblioteca (libri EPUB)",
   statistics: "Statistiche di apprendimento",
-  openBookForFigures: "Apri un libro della tua biblioteca per vederne i numeri.",
+  openBookForFigures: "Apri un libro della tua biblioteca per vederne le statistiche.",
   handleToChoose: "Nome utente da scegliere",
   syncOn: "Sincronizzazione attiva",
   beginner: "Principiante",
   handle: (handle) => `@${handle}`,
   // — The anonymous counts' first-run sentence (add-lingua-usage-counts D7) —
   usageInform:
-    "Lingua conta in forma anonima alcuni passaggi (installazione, primi passi, ritorni), senza alcun identificativo; nulla di ciò che leggi lascia il tuo dispositivo. Puoi disattivare questi conteggi in Impostazioni → Dati.",
+    "Lingua conta in forma anonima alcune tappe (installazione, primi passi, ritorni), senza alcun identificativo; nulla di ciò che leggi lascia il tuo dispositivo. Puoi disattivare questi conteggi in Impostazioni → Dati.",
   usageAsk:
-    "Permetti a Lingua di contare in forma anonima alcuni passaggi (installazione, primi passi, ritorni), senza alcun identificativo? Nulla di ciò che leggi lascia il tuo dispositivo, e potrai cambiare idea in Impostazioni → Dati.",
-  usageYes: "Sì, conta",
+    "Permetti a Lingua di contare in forma anonima alcune tappe (installazione, primi passi, ritorni), senza alcun identificativo? Nulla di ciò che leggi lascia il tuo dispositivo, e potrai cambiare idea in Impostazioni → Dati.",
+  usageYes: "Sì, consenti",
   usageNo: "No, grazie",
   usageYesDone: "Grazie! Puoi disattivare questi conteggi in qualsiasi momento in Impostazioni → Dati.",
   usageNoDone: "Fatto: non verrà contato nulla.",

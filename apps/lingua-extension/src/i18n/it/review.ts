@@ -115,5 +115,5 @@ export const review: typeof fr = {
   ratingAsk: "Una valutazione nello store del tuo browser aiuta altri lettori a trovare Cymbra Lingua.",
   ratingRate: "Valuta Cymbra Lingua",
   ratingLater: "Più tardi",
-  ratingNever: "Non chiedere più",
+  ratingNever: "Non chiedermelo più",
 };

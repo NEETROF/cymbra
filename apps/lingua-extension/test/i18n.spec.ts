@@ -706,16 +706,16 @@ describe("the drafts are whole", () => {
   it("Italian writes as Italian does (add-lingua-italian-interface D4): QCER, its contractions, no gender assumed", () => {
     expect(itLanguages.levelScale).toBe("QCER");
     expect(borrowedTypicalNote("it", "es", "en")).toBe(
-      "ripreso dall'inglese, di cui lo spagnolo riprende l'ampiezza dei livelli.",
+      "ripreso dall'inglese, di cui lo spagnolo riprende le dimensioni dei livelli.",
     );
     expect(borrowedTypicalNote("it", "en", "es")).toBe(
-      "ripreso dallo spagnolo, di cui l'inglese riprende l'ampiezza dei livelli.",
+      "ripreso dallo spagnolo, di cui l'inglese riprende le dimensioni dei livelli.",
     );
     expect(borrowedTypicalNote("it", "en", "fr")).toBe(
-      "ripreso dal francese, di cui l'inglese riprende l'ampiezza dei livelli.",
+      "ripreso dal francese, di cui l'inglese riprende le dimensioni dei livelli.",
     );
     expect(borrowedTypicalNote("it", "en", "it")).toBe(
-      "ripreso dall'italiano, di cui l'inglese riprende l'ampiezza dei livelli.",
+      "ripreso dall'italiano, di cui l'inglese riprende le dimensioni dei livelli.",
     );
     // « tu », never « Lei »; the reader's gender never assumed (« Connecté » is « Accesso effettuato »).
     const italian = Object.keys(modules)

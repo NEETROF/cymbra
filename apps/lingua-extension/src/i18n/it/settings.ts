@@ -9,7 +9,7 @@ import type { settings as fr } from "../fr/settings.ts";
 
 export const settings: typeof fr = {
   installVoiceHelp: (windowsLanguage, language) =>
-    `Per avere una voce sul dispositivo, senza cambiare la lingua del sistema né del browser: su Windows, Impostazioni › Data/ora e lingua › Lingua e area geografica › Aggiungi una lingua › ${windowsLanguage}, senza impostarla come lingua di visualizzazione, con la sintesi vocale; su macOS, Impostazioni di Sistema › Accessibilità › Contenuto letto › Voce di sistema › Gestisci voci › ${language}. Poi riavvia il browser.`,
+    `Per avere una voce sul dispositivo, senza cambiare la lingua del sistema né del browser: su Windows, Impostazioni › Data/ora e lingua › Lingua e area geografica › Aggiungi una lingua › ${windowsLanguage}, senza impostarla come lingua di visualizzazione, con la sintesi vocale; su macOS, Impostazioni di Sistema › Accessibilità › Contenuto letto ad alta voce › Voce di sistema › Gestisci voci › ${language}. Poi riavvia il browser.`,
   installVoiceHelpWithFallback: (help) => `${help} Se l'installazione non riesce, attiva le voci online qui sotto.`,
   nativeLanguage: "Lingua madre",
   studiedLanguages: "Lingue studiate",
@@ -32,19 +32,19 @@ export const settings: typeof fr = {
   infoIcon: "ⓘ",
   useRemoteVoices: "Usa le voci online del browser",
   remoteNote:
-    "Come ripiego: il testo letto viene inviato ai server del fornitore della voce (Google, per Chrome) e lascia il dispositivo. Una voce installata lo sostituisce non appena è disponibile.",
+    "Come ripiego: il testo letto viene inviato ai server del fornitore della voce (Google, per Chrome) e lascia il dispositivo. Appena disponibile, una voce installata prende il posto di quella online.",
   books: "Libri",
   openLibrary: "Apri la biblioteca",
   continuousFlow: "Scorrimento continuo (invece delle pagine)",
   booksNote: "I tuoi libri EPUB senza DRM, letti offline con l'evidenziazione. Restano su questo dispositivo.",
   display: "Visualizzazione",
   displayNote:
-    "Il testo dei libri e tutta l'interfaccia: carte, pannello, menu. Il tema vale anche per l'interfaccia; un preset e-ink la mantiene in nero su bianco.",
+    "Il testo dei libri e tutta l'interfaccia: carte, pannello, menu. Il tema vale anche per l'interfaccia; un set di colori e-ink la mantiene in nero su bianco.",
   colours: "Colori",
   translation: "Traduzione",
   onlineTranslation: "Traduzione online",
   onlineTranslationNote:
-    "Su richiesta, dalla carta di una selezione di più parole: la frase selezionata viene inviata a un servizio di traduzione esterno per essere tradotta, e non viene conservata da nessuno. Impostazione propria di questo dispositivo.",
+    "Su richiesta, dalla carta di una selezione di più parole: la frase selezionata viene inviata a un servizio di traduzione esterno per essere tradotta, e non viene conservata da nessuno. Impostazione valida solo su questo dispositivo.",
   privacyPolicy: "Informativa sulla privacy",
   usageCounts: "Conteggi anonimi",
   usageCountsToggle: "Invia conteggi anonimi",
@@ -81,7 +81,8 @@ export const settings: typeof fr = {
   restartFromServer: "Riparti dal server",
   eraseNote: "Per cancellare ovunque e in modo definitivo, usa «Cancella i miei dati di Lingua» nel tuo account.",
   manageData: "Gestisci i miei dati",
-  fullResetWarning: "Cancellare stati, mazzo di ripasso e progressi? Azione definitiva, esclusa la sincronizzazione.",
+  fullResetWarning:
+    "Cancellare stati, mazzo di ripasso e progressi? Azione definitiva, salvo per i dati sincronizzati.",
   tabLanguage: "Lingua",
   tabLook: "Aspetto",
   tabPages: "Pagine e libri",
@@ -91,8 +92,8 @@ export const settings: typeof fr = {
   otherVoices: "Altre voci",
   voiceLabel: (name, place) => `${name} — ${place}`,
   syncing: "Sincronizzazione…",
-  restarting: "Ripristino dal server…",
-  restarted: "Ripristinato dal server.",
+  restarting: "Recupero dal server…",
+  restarted: "Recuperato dal server.",
   partialResetDone: "Stati e calibrazione reimpostati.",
   dataErased: "Dati cancellati.",
   tabs: "Impostazioni",
@@ -104,11 +105,11 @@ export const settings: typeof fr = {
   rateNote: "Nello store in cui hai installato Cymbra Lingua.",
   newWordsPerDay: "Nuove parole al giorno",
   newWordsPerDayNote:
-    "Per ogni lingua studiata. Le parole aggiunte oltre il limite aspettano i giorni seguenti. Una sessione conta al massimo dieci carte.",
+    "Per ogni lingua studiata. Le parole aggiunte oltre il limite aspettano i giorni seguenti. Una sessione comprende al massimo dieci carte.",
   backupFile: "File di backup",
   backupFileNote:
     "Una copia completa dei tuoi dati di Lingua: mazzo, stati e livello. Il ripristino sostituisce lo stato attuale.",
-  backup: "Esegui backup",
+  backup: "Esegui il backup",
   restore: "Ripristina",
   restoreFromPanel: "Per ripristinare un file, apri le Impostazioni dal pannello di Lingua.",
   restored: "Backup ripristinato.",

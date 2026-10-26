@@ -30,7 +30,7 @@ export const stats: typeof fr = {
   addToDeck: "Aggiungi al mazzo",
   language: "Lingua",
   loading: "…",
-  days: (n) => `${n} g`,
+  days: (n) => `${n} gg`,
   agentNote: "Le sessioni dell'agente IA (plugin di Claude Code) non sono conteggiate qui.",
   noLevels: (scale) => `Livelli ${scale} non disponibili per questa lingua (pacchetto senza dati ${scale}).`,
   cardsAdded: (level) => ({
@@ -41,7 +41,7 @@ export const stats: typeof fr = {
   noCardsAdded: "Nessuna carta aggiunta: queste parole sono già seguite, nel tuo mazzo o senza traduzione.",
   known: "conosciuta",
   ignored: "ignorata",
-  relearn: "Da imparare di nuovo",
+  relearn: "Rimetti da imparare",
   markedTitle: "Parole segnate",
   noMarked: "Nessuna parola segnata «conosciuta» o «ignorata» per ora.",
   markedNote:
@@ -74,7 +74,7 @@ export const stats: typeof fr = {
     other: (n) => `≈\u00A0${n} parole`,
   },
   estimateNote: (source, dictionary, confirmed) =>
-    `Estrapolato ${source} e dalle tue parole segnate, fascia di frequenza per fascia, ${dictionary}${confirmed}.`,
+    `Estrapolato ${source} e dalle tue parole segnate, fascia per fascia di frequenza, ${dictionary}${confirmed}.`,
   estimatedLevel: (level) => `livello stimato ${level}`,
   thisLevel: "questo livello",
   common: "comuni",

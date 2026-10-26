@@ -19,8 +19,8 @@ export const translation: typeof fr = {
   memoryPivot: "circa 340 MB",
   memorySingle: "circa 200 MB",
   cost: (download, memory) =>
-    `Traduce le tue frasi su questo dispositivo, senza inviare nulla. Scarica ${download} una volta, poi usa ` +
-    `${memory} di memoria durante la traduzione. Impostazione propria di questo dispositivo.`,
+    `Traduce le tue frasi su questo dispositivo, senza inviare nulla. Richiede di scaricare ${download} una sola volta, ` +
+    `poi ${memory} di memoria durante la traduzione. Impostazione valida solo su questo dispositivo.`,
   failedNetwork: "Il download non è riuscito: nessuna connessione. Riprova quando sei online.",
   failedUnavailable: "Il download non è riuscito: il server non risponde. Riprova più tardi.",
   failedNotTheModel: "Il download non è riuscito: il file ricevuto non è il modello giusto. Riprova più tardi.",

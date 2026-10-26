@@ -5,5 +5,5 @@ import type { studiedLanguages as fr } from "../fr/studied-languages.ts";
 
 export const studiedLanguages: typeof fr = {
   studiedNote:
-    "Ogni pagina viene letta nella lingua, tra le tue, che contiene. La prima selezionata è quella predefinita per le impostazioni e le statistiche.",
+    "Ogni pagina viene letta in quella delle tue lingue che contiene. La prima selezionata è quella predefinita per le impostazioni e le statistiche.",
 };

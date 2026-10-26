@@ -14,10 +14,10 @@ export const accountSetting: typeof fr = {
   signedIn: "Accesso effettuato",
   handleMissing: "Nome utente da scegliere",
   handleCta: "Scegli il tuo nome utente per conservare questo account.",
-  handleOpen: "Scegli il mio nome utente",
+  handleOpen: "Scegli il nome utente",
   connected: "Account collegati",
   providerHint:
-    "Account creato con Google o Apple? Qui accedi con l'email dopo aver impostato una password in «Account collegati», da un browser che offre Google o Apple, oppure in Cymbra Music. Creare un account con lo stesso indirizzo ne creerebbe un secondo.",
+    "Hai creato l'account con Google o Apple? Per accedere qui con l'email, imposta prima una password in «Account collegati», da un browser che offre Google o Apple oppure in Cymbra Music. Creare un account con lo stesso indirizzo ne creerebbe un secondo.",
   signOut: "Esci",
   email: "Email",
   password: "Password",

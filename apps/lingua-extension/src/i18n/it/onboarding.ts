@@ -10,7 +10,7 @@ export const onboarding: typeof fr = {
   lead: "Evidenzia le parole che non conosci ancora mentre leggi, poi ripassale al momento giusto, senza lasciare la tua pagina.",
   whichLanguages: "Quali lingue stai imparando?",
   levelNote:
-    "Le parole al di sotto del tuo livello non verranno evidenziate. Nulla viene dato per scontato finché non hai scelto, e potrai cambiarlo in qualsiasi momento nelle impostazioni.",
+    "Le parole al di sotto del tuo livello non verranno evidenziate. Nessuna parola viene data per conosciuta finché non hai scelto, e potrai cambiarlo in qualsiasi momento nelle impostazioni.",
   toStart: "Per iniziare",
   stepPin: "Fissa l'icona di Cymbra Lingua nella barra del browser.",
   stepOpen: "Apri una pagina nella lingua che stai imparando e fai clic sull'icona per analizzarla.",
@@ -25,10 +25,10 @@ export const onboarding: typeof fr = {
   beginnerSaved: "Fatto: si parte da zero. Puoi chiudere questa scheda e iniziare a leggere.",
   // — The anonymous counts' first-run sentence (add-lingua-usage-counts D7) —
   usageInform:
-    "Lingua conta in forma anonima alcuni passaggi (installazione, primi passi, ritorni), senza alcun identificativo; nulla di ciò che leggi lascia il tuo dispositivo. Puoi disattivare questi conteggi in Impostazioni → Dati.",
+    "Lingua conta in forma anonima alcune tappe (installazione, primi passi, ritorni), senza alcun identificativo; nulla di ciò che leggi lascia il tuo dispositivo. Puoi disattivare questi conteggi in Impostazioni → Dati.",
   usageAsk:
-    "Permetti a Lingua di contare in forma anonima alcuni passaggi (installazione, primi passi, ritorni), senza alcun identificativo? Nulla di ciò che leggi lascia il tuo dispositivo, e potrai cambiare idea in Impostazioni → Dati.",
-  usageYes: "Sì, conta",
+    "Permetti a Lingua di contare in forma anonima alcune tappe (installazione, primi passi, ritorni), senza alcun identificativo? Nulla di ciò che leggi lascia il tuo dispositivo, e potrai cambiare idea in Impostazioni → Dati.",
+  usageYes: "Sì, consenti",
   usageNo: "No, grazie",
   usageYesDone: "Grazie! Puoi disattivare questi conteggi in qualsiasi momento in Impostazioni → Dati.",
   usageNoDone: "Fatto: non verrà contato nulla.",

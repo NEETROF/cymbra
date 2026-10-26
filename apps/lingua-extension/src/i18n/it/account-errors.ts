@@ -13,7 +13,7 @@ export const accountErrors: typeof fr = {
   sessionExpired: "La sessione è scaduta. Accedi di nuovo.",
   linkAlreadyLinked: (provider) => `Questo account ${provider} è già collegato a un altro account Cymbra.`,
   linkUnauthenticated: (provider) =>
-    `Il collegamento con ${provider} non è andato a buon fine. Riprova; se continua, accedi di nuovo.`,
+    `Il collegamento con ${provider} non è andato a buon fine. Riprova; se il problema persiste, accedi di nuovo.`,
   linkFailed: (provider) => `Impossibile collegare ${provider}. Riprova.`,
   wrongCredentials: "Email o password errate.",
   emailNotVerified: "Il tuo indirizzo email non è ancora verificato.",
@@ -34,5 +34,5 @@ export const accountErrors: typeof fr = {
   addressJustTaken: "Questo indirizzo è appena stato preso da un altro account. Ricomincia con un altro.",
   providerGoogle: "Google",
   providerApple: "Apple",
-  handleInvalid: (max) => `Da 1 a ${max} lettere o numeri soltanto (senza spazi né simboli).`,
+  handleInvalid: (max) => `Solo lettere o numeri, da 1 a ${max} (senza spazi né simboli).`,
 };

@@ -19,7 +19,7 @@ export const reader: typeof fr = {
   importUnreadable: "Questo file non può essere letto: forse è incompleto o danneggiato.",
   importStorage: "Non c'è più spazio sufficiente su questo dispositivo per conservare questo libro.",
   persistenceRefused:
-    "Il tuo browser non si è impegnato a conservare i tuoi libri: se dovesse mancare spazio, potrebbe cancellarli. Potrai sempre importarli di nuovo.",
+    "Il tuo browser non garantisce di conservare i tuoi libri: se lo spazio scarseggia, potrebbe cancellarli. Potrai sempre importarli di nuovo.",
   open: (title) => `Apri «${title}»`,
   remove: "Elimina",
   removeConfirm: (title) => `Eliminare «${title}»? Le carte che ne hai ricavato restano nel tuo mazzo.`,
@@ -59,7 +59,7 @@ export const reader: typeof fr = {
   recapNoChapter: "Senza capitolo",
   recapAdd: "+ Mazzo",
   recapKnown: "La conosco",
-  recapLeave: "Lascia",
+  recapLeave: "Lascia così",
   recapLater: "Più tardi",
   recapClose: "Chiudi",
   toSort: {

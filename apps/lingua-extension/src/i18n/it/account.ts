@@ -11,7 +11,7 @@ export const account: typeof fr = {
     "Il tuo account Cymbra è lo stesso di Cymbra Music. Senza account, l'estensione funziona interamente su questo dispositivo.",
 
   erased:
-    "I tuoi dati di Lingua sono stati cancellati. Gli altri tuoi dispositivi li cancelleranno alla prossima sincronizzazione.",
+    "I tuoi dati di Lingua sono stati cancellati. I tuoi altri dispositivi li cancelleranno alla prossima sincronizzazione.",
   providerLocal: "Email e password",
   verifyFirst: "Il tuo indirizzo email non è ancora verificato. Inserisci il codice ricevuto via email.",
   codeSent: (email) => `Abbiamo inviato un codice di verifica a ${email}.`,
@@ -79,7 +79,7 @@ export const account: typeof fr = {
   resendCode: "Invia di nuovo il codice",
   useAnotherEmail: "Usa un'altra email",
   forgotTitle: "Password dimenticata",
-  forgotLead: "Indica la tua email: ti inviamo un codice per scegliere una nuova password.",
+  forgotLead: "Inserisci la tua email: ti inviamo un codice per scegliere una nuova password.",
   sendCode: "Invia un codice",
   backToSignIn: "Torna all'accesso",
   newPasswordTitle: "Nuova password",
