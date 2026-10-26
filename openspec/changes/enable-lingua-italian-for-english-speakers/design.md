@@ -158,6 +158,8 @@ the app (#925). The owner runs it; findings to the pull request.
 On its own, TestFlight first, with change 26's listings; the site deployed after the merge with it-en's
 figures, before the listings are pasted; each submission the owner's (I12, M18).
 
+**Decided (owner, 2026-10-26):** one release carries changes 20, 25 and 30 — it-fr, it-en and it-es together —, not this change on its own; the owner dogfoods the complete release (D10's pass included) before the release pull request (#1036) merges.
+
 ### D12 — Requirements true of their time
 
 Change 20 holds three requirements this change widens: *The shipped pairs are one list* (it-en last; *A

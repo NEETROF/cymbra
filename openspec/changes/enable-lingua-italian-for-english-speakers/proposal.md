@@ -66,8 +66,9 @@ None.
   released; change 26 implemented — its listing texts and its home-card and table scenarios —, as
   change 21 is before change 20; the owner's readings (M9) and answers (Open Questions 2 and 3); test
   accounts.
-- **Release**: on its own, TestFlight first, with change 26's listings; nothing submitted by this pull
-  request.
+- **Release**: one release with changes 20 and 30 (the owner, 2026-10-26, design D11), dogfooded whole
+  before the release pull request merges; TestFlight first, with change 26's listings; nothing submitted
+  by this pull request.
 - **Order**: after changes 20, 22–24 and 26's implementation. Archived after the changes of
   `.openspec.yaml`.
 - **Effort, against 4–7.5 ideal days**: 3.25–6 (design, *Effort*).
