@@ -261,6 +261,18 @@ merge, as changes 33, 39, 40 and 46 do (I2).
   order is not kept: a rollback lands on a build without the Italian variant. Accepted: no Italian
   reader is in production.
 
+## Follow-ups (outside this change)
+
+Settled as defaults on 2026-10-26, each a small change of its own after this one:
+- **Pin `/en/lingua/` and `/es/lingua/`** in `apps/site/src/lib/pinned-routes.ts`: both are store
+  listings' marketing URLs, and only `/lingua/` and `/it/lingua/` are pinned (D6).
+- **The coverage table's column headers at 375 px**: `global.css`'s `overflow-wrap: anywhere` on
+  `.prose th` breaks « 5000 » and « 10.000 » mid-number on every language's page (seen on `/es/` before
+  this change, and on `/it/lingua/`); the page does not scroll sideways, so *The coverage table reads
+  at a phone's width* holds.
+- **The side panel's « Stats » tab in Italian** (the owner's provisional choice): kept or changed to
+  « Statistiche » at the dogfood.
+
 ## Migration Plan
 
 Readers update through the stores. An installed reader is unaffected unless their native language is
