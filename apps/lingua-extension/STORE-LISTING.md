@@ -14,7 +14,7 @@ Constants:
 | Name              | Cymbra Lingua                                                                                                                                 |
 | Homepage          | `https://cymbra.app/lingua/` (EN: `https://cymbra.app/en/lingua/`, ES: `https://cymbra.app/es/lingua/`)                                       |
 | Privacy policy    | `https://cymbra.app/confidentialite/` (EN: `https://cymbra.app/en/privacy/`, ES: `https://cymbra.app/es/privacidad/`) — Annex B covers Lingua |
-| Support           | `https://cymbra.app/support/` (EN: `https://cymbra.app/en/support/`, ES: the owner's choice, below)                                           |
+| Support           | `https://cymbra.app/support/` (EN: `https://cymbra.app/en/support/`, ES: `https://cymbra.app/es/soporte/`)                                    |
 | Category          | Chrome: _Education_ · AMO: _Language support_                                                                                                 |
 | Listing languages | French, English from change 34, Spanish from change 35 — see below                                                                            |
 | Firefox add-on id | `lingua@cymbra.app`                                                                                                                           |
@@ -22,20 +22,24 @@ Constants:
 **Listing languages.** A text in each native language a shipped pair is glossed in: French, for
 French speakers, who study English and Spanish, and Italian from the Italian programme's change 20
 (it-fr, `enable-lingua-italian`); English, for English speakers, who study Spanish
-(es-en, from change 34) and French (fr-en, from change 52); Spanish, for Spanish speakers, who study
-English (en-es, from change 35) and French if change 52 lists fr-es (M6). A French speaker cannot
-study French, so no French text offers it. Only French speakers study Italian: the English and
-Spanish texts say so in one sentence and offer it to no reader of theirs (add-lingua-italian-listings,
-D4); Italian adds no listing language. The interface speaks the reader's native language, so
+(es-en, from change 34) and French (fr-en, from change 52), and Italian from the Italian programme's
+change 25 (it-en, `enable-lingua-italian-for-english-speakers`); Spanish, for Spanish speakers, who
+study English (en-es, from change 35) and French if change 52 lists fr-es (M6). A French speaker
+cannot study French, so no French text offers it. Until change 25, only French speakers study
+Italian: the English and Spanish texts say so in one sentence and offer it to no reader of theirs
+(add-lingua-italian-listings, D4); from it, the English texts name Italian for their readers and the
+Spanish text says English speakers study it too, offering it to none of its readers
+(add-lingua-italian-english-listings; _Italian for English speakers (change 25's release)_).
+Italian adds no listing language. The interface speaks the reader's native language, so
 each text names what its readers study. The listing's default language follows `default_locale`:
 English from change 34 (M13), and still English once `_locales/es` ships — see _The dashboards'
 languages_.
 
 An « EN » or « ES » address goes in that language's listing where a dashboard takes the field per
 language, and the French one stays where it takes one for every language. The Spanish support
-address is the owner's choice (change 29): `https://cymbra.app/es/soporte/`, the Spanish
-translation of `/support/` — like it and `/en/support/`, a page about Cymbra Music that gives the
-contact address — or `https://cymbra.app/en/support/`. The Spanish homepage, `/es/lingua/`, is built
+address was left to the owner (change 29), who chose `https://cymbra.app/es/soporte/` on
+2026-10-25: the Spanish translation of `/support/` — like it and `/en/support/`, a page about Cymbra
+Music that gives the contact address — rather than `https://cymbra.app/en/support/`. The Spanish homepage, `/es/lingua/`, is built
 only once en-es is in the published figures (change 30, D3; change 35 writes them), so it goes in
 once the site is deployed after change 35.
 
@@ -132,8 +136,9 @@ glossed in that language does.
 ## Description
 
 One text per listing language, each written for its readers: French speakers study English and
-Spanish, and Italian from the Italian programme's change 20; English speakers Spanish (change 34) and
-French (change 52); Spanish speakers English
+Spanish, and Italian from the Italian programme's change 20; English speakers Spanish (change 34),
+French (change 52), and Italian from the Italian programme's change 25 — its texts in _Italian for
+English speakers (change 25's release)_, below; Spanish speakers English
 (change 35), and French if change 52 lists fr-es. Every claim in the English and Spanish texts below
 is one change 52 ships; they are pasted with its release (M18), after the site deploy that publishes
 fr-en's (and fr-es's) figures, under the dashboards' `en` and `es` (see _The dashboards' languages:
@@ -277,9 +282,10 @@ Cymbra Lingua est disponible sur Chrome, sur Firefox (ordinateur et Android) et 
 (iPhone, iPad, Mac).
 
 **EN** — for English speakers, who study Spanish (es-en, from change 34) and French (fr-en, from
-change 52) (2,912 / 16,000 characters with Italian). Its next-to-last line names Italian for French
-speakers, from change 20's release; until then (current, 2,903) it reads « The interface is in
-English. Cymbra Lingua also teaches English and Spanish to French speakers, in French. »
+change 52) (2,912 / 16,000 characters with Italian), until change 25's release, whose text naming
+Italian for English speakers is **EN, with Italian for English speakers**, below. Its next-to-last
+line names Italian for French speakers, from change 20's release; until then (current, 2,903) it
+reads « The interface is in English. Cymbra Lingua also teaches English and Spanish to French speakers, in French. »
 
 Cymbra Lingua highlights, right on the page you are reading, the Spanish or French words you don't
 know yet — without changing the layout. A percentage tells you how much of the text is familiar,
@@ -446,7 +452,9 @@ What the English and Spanish texts check against, so that they promise nothing t
 do — each claim and the file that makes it true once change 52 lists fr-en (and fr-es) in
 `packs.json`, after es-en and en-es; and the French text's Italian claims (add-lingua-italian-listings,
 D4), true once the Italian programme's change 20 lists it-fr after them — the rows whose text is FR,
-the App Store's fr-FR texts' among them:
+the App Store's fr-FR texts' among them. The English texts' Italian claims, true once change 25
+lists it-en after it-fr, are in a table of their own (_Italian for English speakers (change 25's
+release)_, _What the texts check against_).
 
 | Claim                                                                                                                                                                 | Text              | Where it is true                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -472,7 +480,7 @@ the App Store's fr-FR texts' among them:
 | The coverage figures at cymbra.app/en/lingua and cymbra.app/es/lingua                                                                                                 | EN, ES            | change 52 writes fr-en's (and fr-es's) figures into `apps/site/src/data/lingua-coverage.json` (`gloss_coverage.py --write`); change 30's pages lead with the reader's pairs                                                                                                                                                                                                                                                                                                   |
 | « Para el francés, el diccionario es algo menos completo que para el inglés » (M6)                                                                                    | ES with fr-es     | fr-es 83.2 / 70.8 / 56.8 % of the 5,000 / 10,000 / 20,000 commonest lemmas glossed (change 49) against en-es's 93.0 / 85.0 / 71.7 % (change 22), re-measured at change 52's commit — the French text's sentence about Spanish (es-fr 87.6 / 77.2 / 63.7 against en-fr 95.1 / 90.1 / 78.9), transposed. fr-en (93.6 / 86.9 / 76.3, change 48) stands beside es-en's 93.0 / 86.5 / 76.5: the English text says nothing of it                                                    |
 | The account: optional, erasable from Settings without deleting it                                                                                                     | EN, ES            | "Manage my data" / « Gestionar mis datos » (`manageData`, `src/i18n/{en,es}/settings.ts`), "Erase my Lingua data…" / « Borrar mis datos de Lingua… » (`erase`, `src/i18n/{en,es}/account.ts`)                                                                                                                                                                                                                                                                                 |
-| Who learns what: French speakers English and Spanish; English speakers Spanish and French; Spanish speakers English (and French)                                      | EN, ES            | `packs.json` after change 52: en-fr, es-fr, es-en, en-es, fr-en (, fr-es)                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Who learns what: French speakers English and Spanish; English speakers Spanish and French (and Italian from change 25, below); Spanish speakers English (and French)  | EN, ES            | `packs.json` after change 52: en-fr, es-fr, es-en, en-es, fr-en (, fr-es)                                                                                                                                                                                                                                                                                                                                                                                                     |
 | French speakers study Italian too: "English, Spanish and Italian to French speakers" / « inglés, español e italiano a los francohablantes »                           | EN, ES            | `packs.json` after change 20: en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr — it-fr glossed in French; no pair glossed in English or Spanish studies Italian (it-en and it-es are the Italian programme's stage 2), so neither text offers it to its readers                                                                                                                                                                                                                |
 | Spanish stays the language an English reader starts in, English a Spanish reader's                                                                                    | EN, ES            | `defaultPair` is a native's first listed pair: change 52 lists fr-en after es-en and fr-es after en-es (add-lingua-french-listings, D12)                                                                                                                                                                                                                                                                                                                                      |
 | No « Several languages at once »                                                                                                                                      | EN, ES            | a listing speaks of no price (add-lingua-french-listings, D2): the texts carry the French text's first sentence about the languages chosen in Settings, never a line about price — and the line itself has left the extension, in every interface language (change 53b)                                                                                                                                                                                                       |
@@ -583,7 +591,9 @@ Italian (add-lingua-italian-listings, D5) is « "Français" English, Spanish and
 (+9), paid for by cutting wording, and no step a reviewer needs: step 1's « Pick a level, e.g.
 B1, at » became « Pick a level (B1) at », and « With none, every word is highlighted and the score
 reads 0%. » became « With none, every word is highlighted, the score 0%. » (−14). The text with
-Italian is 993 / 1,000 — 1,000 if a dashboard counted each line break as two.
+Italian is 993 / 1,000 — 1,000 if a dashboard counted each line break as two. From change 25's
+release, the text **with Italian for English speakers** (988 / 1,000) adds Italian to step 6's box,
+for an English speaker (_Italian for English speakers (change 25's release)_).
 
 **Current (until Italian ships)** (998 / 1,000):
 
@@ -653,17 +663,19 @@ release; until then it is the current one, change 52's, « English or Spanish fo
 (593). Change 52's variant without fr-es,
 « English for Spanish speakers » (583), is history: change 52 listed fr-es. Before change 52, the
 field was change 35's (« Spanish for English speakers, English for Spanish speakers, English or
-Spanish for French speakers »).
+Spanish for French speakers »). From change 25's release, the text with Italian for English
+speakers (611) replaces it (_Italian for English speakers (change 25's release)_).
 
 ## Permission justifications (Chrome Web Store)
 
 Each answer names the user-visible feature and the code path, because that is what a reviewer checks
 against the bundle. The fields are one per item, in English, whatever the listing's languages: a
 label is quoted in each interface that shows it — English for English speakers, who study Spanish
-and French; Spanish for Spanish speakers, who study English, and French if change 52 lists fr-es;
+and French, and Italian from the Italian programme's change 25; Spanish for Spanish speakers, who study English, and French if change 52 lists fr-es;
 French for French speakers, who study English and Spanish, and Italian from the Italian programme's
 change 20. French studied adds no permission and no label: its readers' interface is English or
-Spanish. Nor does Italian: its readers' interface is French, whose labels are quoted already. Code
+Spanish. Nor does Italian: its readers' interface is French, or from change 25 English, whose labels
+are quoted already. Code
 paths are named by function, not by line, so that they survive the next edit.
 
 The book reader (`reader.html`, `src/reader/`) **added no permission**: the file picker, the
@@ -808,10 +820,10 @@ The Italian programme's change 25 (`enable-lingua-italian-for-english-speakers`)
 it-fr: English speakers study Spanish, French and Italian. Change 26
 (`add-lingua-italian-english-listings`) writes what this file says to them, and is implemented before
 change 25, as change 21 (`add-lingua-italian-listings`) is before change 20. Every text below is
-**change 21's text with Italian**, above once #1057 merges, changed where it says what an English
-speaker studies — Italian for French speakers is change 21's, kept word for word —, and pasted with
-change 25's release, after the site deploy that publishes it-en's figures (I12, M18). Until then the
-texts to paste are change 21's. Each is a draft for the owner (M9); each count is taken by this
+**change 21's text with Italian**, above, changed where it says what an English speaker studies —
+Italian for French speakers is change 21's, kept word for word —, and pasted with change 25's
+release, after the site deploy that publishes it-en's figures (I12, M18). Until then the texts to
+paste are change 21's. Each is a draft for the owner (M9); each count is taken by this
 file's rules (_Description_, _Test instructions_).
 
 The figures are `main`'s when the texts were written (change 26, D5): it-en's served size from the
@@ -992,37 +1004,6 @@ moving it to an Italian page would need Italian capture fixtures and move the si
 (change 26's Open Question 5). The App Store's en-US set gains one on an Italian page
 (`apps/lingua-apple/STORE-LISTING.md`).
 
-### The dashboards' languages: Italian for English speakers (change 25's submission)
-
-Change 25's package adds no language to what the dashboards read: it carries `_locales/fr`, `en` and
-`es`, `default_locale` still `en` (M13). What moves is the English summary — change 25's, in
-`_locales/en` (_Summary_, above) — and the English listing's text, so this submission is made by
-hand too, in this order (the owner's, M18; task 4.2 of add-lingua-italian-english-listings), after
-the site deploy that publishes it-en's figures (I12):
-
-1. **Upload without publishing**, as change 34's step 1: the tag's
-   `cymbra-lingua-chromium-<version>.zip`, from its GitHub Release, uploaded through the dashboard
-   (Package › Upload new package), which submits nothing.
-2. **`en` replaced.** The default language still `en`. Under `en`: **EN, with Italian for English
-   speakers** above, and the `en` screenshots unchanged unless the owner moved one to an Italian
-   page. Check that the English summary reads as change 25 committed it.
-3. **`es`, one sentence; `fr` unchanged.** Under `es`: the Spanish description with fr-es, its
-   next-to-last line as above. Under `fr`: nothing. Check that both summaries are unchanged.
-4. **The single fields replaced.** The single purpose, the remote-code answer and the test
-   instructions as above; the permission justifications are unchanged.
-5. **Submit for review** from the dashboard.
-6. **addons.mozilla.org**: dispatch `lingua-extension-release` with the tag, `publish` ticked and
-   `stores: firefox`. After the submission, paste the English description into the English (US)
-   locale and the Spanish one into the Spanish locale change 35's procedure recorded, and check the
-   English summary.
-7. **Record both results below**, in the pull request that next touches this file, reading each
-   dashboard's own counter as the text is pasted.
-
-| Dashboard          | Checked on  | Default language after upload | English summary | Listing texts (en, es) | Screenshots (en) | Notes |
-| ------------------ | ----------- | ----------------------------- | --------------- | ---------------------- | ---------------- | ----- |
-| Chrome Web Store   | _to record_ | _to record_                   | _to record_     | _to record_            | _to record_      |       |
-| addons.mozilla.org | _to record_ | _to record_                   | _to record_     | _to record_            | _to record_      |       |
-
 ## The dashboards' languages (change 34's first submission)
 
 The first package carrying `_locales` — change 34's, es-en (or change 35's, should en-es ship
@@ -1159,3 +1140,34 @@ step keeps the summary, which this one moves.
 | ------------------ | ----------- | ----------------------------- | -------------- | -------------------------- | ---------------- | ----- |
 | Chrome Web Store   | _to record_ | _to record_                   | _to record_    | _to record_                | _to record_      |       |
 | addons.mozilla.org | _to record_ | _to record_                   | _to record_    | _to record_                | _to record_      |       |
+
+## The dashboards' languages: Italian for English speakers (change 25's submission)
+
+Change 25's package adds no language to what the dashboards read: it carries `_locales/fr`, `en` and
+`es`, `default_locale` still `en` (M13). What moves is the English summary — change 25's, in
+`_locales/en` (_Summary_, above) — and the English listing's text, so this submission is made by
+hand too, in this order (the owner's, M18; task 4.2 of add-lingua-italian-english-listings), after
+the site deploy that publishes it-en's figures (I12):
+
+1. **Upload without publishing**, as change 34's step 1: the tag's
+   `cymbra-lingua-chromium-<version>.zip`, from its GitHub Release, uploaded through the dashboard
+   (Package › Upload new package), which submits nothing.
+2. **`en` replaced.** The default language still `en`. Under `en`: **EN, with Italian for English
+   speakers** (_Italian for English speakers (change 25's release)_), and the `en` screenshots
+   unchanged unless the owner moved one to an Italian page. Check that the English summary reads as change 25 committed it.
+3. **`es`, one sentence; `fr` unchanged.** Under `es`: the Spanish description with fr-es, its
+   next-to-last line as _ES, with fr-es: Italian for English speakers too_ says. Under `fr`: nothing. Check that both summaries are unchanged.
+4. **The single fields replaced.** The single purpose, the remote-code answer and the test
+   instructions with Italian for English speakers; the permission justifications are unchanged.
+5. **Submit for review** from the dashboard.
+6. **addons.mozilla.org**: dispatch `lingua-extension-release` with the tag, `publish` ticked and
+   `stores: firefox`. After the submission, paste the English description into the English (US)
+   locale and the Spanish one into the Spanish locale change 35's procedure recorded, and check the
+   English summary.
+7. **Record both results below**, in the pull request that next touches this file, reading each
+   dashboard's own counter as the text is pasted.
+
+| Dashboard          | Checked on  | Default language after upload | English summary | Listing texts (en, es) | Screenshots (en) | Notes |
+| ------------------ | ----------- | ----------------------------- | --------------- | ---------------------- | ---------------- | ----- |
+| Chrome Web Store   | _to record_ | _to record_                   | _to record_     | _to record_            | _to record_      |       |
+| addons.mozilla.org | _to record_ | _to record_                   | _to record_     | _to record_            | _to record_      |       |

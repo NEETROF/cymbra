@@ -22,14 +22,16 @@ Italian, the it-fr pair of `enable-lingua-italian` (change 20 of
 **en-US** and **en-GB** are written for English speakers, who study Spanish — the es-en pair of
 `enable-lingua-english-speakers` (change 34 of
 [the language matrix programme](../../docs/lingua/language-matrix-programme.md)) — and French — the
-fr-en pair of `enable-lingua-french` (change 52); the en-GB text is the en-US text, word for word
+fr-en pair of `enable-lingua-french` (change 52) — and, from the Italian programme's change 25,
+Italian — the it-en pair of `enable-lingua-italian-for-english-speakers`, its texts in _Italian for
+English speakers (change 25's release)_; the en-GB text is the en-US text, word for word
 (M10: US English). **es-ES** and **es-MX** are written for Spanish speakers, who study English —
 the en-es pair of `enable-lingua-spanish-speakers` (change 35), the first release carrying
 `_locales/es` (M13's rule applied to Spanish) — and French if change 52 lists fr-es; the es-MX text
 is the es-ES text, word for word (M10: tú, neutral Spanish, no vosotros, the RAE's numbers —
 « 25,4 MB »). The locales are M16's, settled by the owner on 2026-10-09; French studied adds none: a
 French speaker cannot study French, and fr-en is glossed in English, fr-es in Spanish. Nor does
-Italian studied: it-fr is glossed in French, and Italian listings, with the it-IT locale, are the
+Italian studied: it-fr is glossed in French, it-en in English, and Italian listings, with the it-IT locale, are the
 Italian programme's stage 3 (I9).
 
 With fr-FR primary, a storefront whose language has no localisation shows the French listing: a
@@ -71,11 +73,11 @@ Store Connect refuses.
 | Field | Limit | fr-FR | en-US, en-GB | es-ES, es-MX |
 |---|---|---|---|---|
 | Name | 30 | `Cymbra Lingua` (13) | `Cymbra Lingua` (13) | `Cymbra Lingua` (13) |
-| Subtitle | 30 | current (until Italian ships) `Anglais et espagnol en lisant` (29); with Italian `Anglais, espagnol ou italien` (28) | `Spanish and French as you read` (30) | with fr-es `Inglés y francés mientras lees` (30); without, `Aprende inglés mientras lees` (28) |
-| Promotional text | 170 | current 154 characters; with Italian 165 — below | 130 characters, below | with fr-es 146 characters; without, 133 — below |
-| Description | 4000 | current 3186 characters; with Italian 3299 — below | 3046 characters, below | with fr-es 3437 characters; without, 3015 — below |
-| Keywords | 100 | current 92 characters (93 bytes); with Italian 95 (96 bytes) — below | 99 characters, below | with fr-es 90 characters (94 bytes); without, 89 (92 bytes) — below |
-| Support URL | — | `https://cymbra.app/support/` | `https://cymbra.app/en/support/` | `https://cymbra.app/es/soporte/` or `https://cymbra.app/en/support/` — the owner chooses, below |
+| Subtitle | 30 | current (until Italian ships) `Anglais et espagnol en lisant` (29); with Italian `Anglais, espagnol ou italien` (28) | `Spanish and French as you read` (30); from change 25, `Spanish, French or Italian` (26) | with fr-es `Inglés y francés mientras lees` (30); without, `Aprende inglés mientras lees` (28) |
+| Promotional text | 170 | current 154 characters; with Italian 165 — below | 130 characters; from change 25, 139 — below | with fr-es 146 characters; without, 133 — below |
+| Description | 4000 | current 3186 characters; with Italian 3299 (3310 from change 25) — below | 3046 characters; from change 25, 3136 — below | with fr-es 3437 characters (3447 from change 25); without, 3015 — below |
+| Keywords | 100 | current 92 characters (93 bytes); with Italian 95 (96 bytes) — below | 99 characters; from change 25, 96 — below | with fr-es 90 characters (94 bytes); without, 89 (92 bytes) — below |
+| Support URL | — | `https://cymbra.app/support/` | `https://cymbra.app/en/support/` | `https://cymbra.app/es/soporte/` — the owner's choice, below |
 | Marketing URL | — | `https://cymbra.app/lingua/` | `https://cymbra.app/en/lingua/` | `https://cymbra.app/es/lingua/` |
 | Privacy policy | — | `https://cymbra.app/confidentialite/` | `https://cymbra.app/en/privacy/` | `https://cymbra.app/es/privacidad/` |
 | Category | — | Education (secondary: Reference) | the app's, not a locale's | the app's, not a locale's |
@@ -91,8 +93,13 @@ figures — en-es, written by change 35 — and live once the site is deployed a
 that, the address would serve the home page (an unknown path is not a 404 there). The support page
 `/es/soporte/` is change 29's translation of `/support/`; like it and `/en/support/`, the other
 locales' support pages, it speaks of Cymbra Music (its subscription, its app menus), not of Lingua,
-and gives the contact address. Change 29 leaves the choice to the owner: `/es/soporte/` or
-`/en/support/`.
+and gives the contact address. Change 29 left the choice to the owner — `/es/soporte/` or
+`/en/support/` —, who chose `/es/soporte/` on 2026-10-25.
+
+The en-US and en-GB columns' « from change 25 » figures are the texts of _Italian for English
+speakers (change 25's release)_ (add-lingua-italian-english-listings), pasted with that release;
+there too the es-ES/es-MX and fr-FR descriptions' last lines, which say English speakers learn
+Italian.
 
 ## Promotional text
 
@@ -517,7 +524,7 @@ English. Change 26 (`add-lingua-italian-english-listings`) writes what this list
 implemented before change 25 as change 21 (`add-lingua-italian-listings`) is before change 20. Every
 text below is a draft for the owner (M9), true of change 25's release and pasted with it, after the
 site deploy that publishes it-en's figures (I12, M18); until then the texts to paste are the ones
-above — change 21's **with Italian** from change 20's release, once #1057 merges. The en-US texts
+above — change 21's **with Italian** from change 20's release. The en-US texts
 are change 21's, changed wherever they say what an English speaker studies (D2); the es-ES, es-MX
 and fr-FR descriptions change only in the line that says what English speakers learn (D3); en-GB is
 en-US word for word, es-MX es-ES. Each count is the text's length as App Store Connect counts it
@@ -645,7 +652,7 @@ Cymbra Lingua now reads Italian too, for English speakers: check Italian in Sett
 
 ### Review notes for change 25's submission (3971 / 4000)
 
-Change 21's block for change 20's submission (_Review notes_, once #1057 merges; #994's block for
+Change 21's block for change 20's submission (_Review notes_; #994's block for
 the next submission, with Italian for French speakers), with English speakers named among Italian's
 readers in "Purpose & audience": « …; English and French speakers Italian too. » (+12, D4). The
 route note already covers it-en — a model per pair studied, within « 25.4-26.2 MB each », it-en being
@@ -1271,8 +1278,9 @@ la barre d'adresse et choisis ton niveau d'anglais. Pour l'espagnol ou l'italien
 Réglages de l'extension, onglet Langue, puis choisis son niveau. »* The fr-FR description's step 3
 follows it in its own register (« Pour l'espagnol ou l'italien, cochez-le dans les Réglages de
 l'extension, onglet Langue, puis choisissez son niveau. »); should the owner word the page otherwise
-at change 20, the description's step 3 follows that wording. The English and Spanish pages do not
-move.
+at change 20, the description's step 3 follows that wording. The Spanish page does not move; the
+English page names Italian from change 25 — _What the app itself says, for English speakers of
+Italian_, above, and the en-US description's step 3 with it.
 
 ## Screenshots — what the slots actually asked for
 
