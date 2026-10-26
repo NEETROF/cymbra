@@ -881,7 +881,7 @@ describe("the Italian table (change: add-site-italian-locale, D6)", () => {
 
   it("names the card's tense and gender and the estimated levels, never for English", () => {
     const t = linguaPageText("it", withEnIt, noDiscord);
-    expect(card(t, "click").body).toContain(" In spagnolo, in italiano e in francese, la carta indica anche il tempo verbale e il genere.");
+    expect(card(t, "click").body).toContain(" Per le parole in spagnolo, in italiano e in francese, la carta indica anche il tempo verbale e il genere.");
     expect(card(t, "level").body).toContain(" Per lo spagnolo, l'italiano e il francese, i livelli sono stimati");
     expect(card(t, "level").title).toContain("QCER");
   });
@@ -957,7 +957,7 @@ describe("the Italian home's Lingua card follows the shipped pairs (change: add-
   it("before a pair glossed in Italian: every language read, its readers, and the English Lingua page", () => {
     const { body, href } = italianHomeLinguaCard(nine.pairs);
     expect(body).toBe(
-      "Leggi il web in inglese, in spagnolo, in francese o in italiano, con le parole che non conosci ancora evidenziate direttamente nella pagina. Una percentuale onesta per pagina, un clic per la traduzione e il tuo vocabolario, che si costruisce da solo. Pensata per francofoni, anglofoni e ispanofoni, con l'interfaccia e le traduzioni nella propria lingua.",
+      "Leggi il web in inglese, in spagnolo, in francese o in italiano, con le parole che non conosci ancora evidenziate direttamente nella pagina. Una percentuale reale per pagina, un clic per la traduzione e il tuo vocabolario, che si costruisce da solo. Pensata per francofoni, anglofoni e ispanofoni, con l'interfaccia e le traduzioni nella propria lingua.",
     );
     expect(href).toBe("/en/lingua");
   });

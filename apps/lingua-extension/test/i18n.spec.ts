@@ -46,6 +46,7 @@ import { sync as frSync } from "@/i18n/fr/sync.ts";
 import { translation as frTranslation } from "@/i18n/fr/translation.ts";
 import { account as frAccount } from "@/i18n/fr/account.ts";
 import { lineText } from "@/reading/grammar-description.ts";
+import { type Catalogue, catalogue, type Message, modules, SENTINELS, slotsOf, texts } from "./support/catalogue.ts";
 
 // The catalogue (add-lingua-interface-language): the key every surface reads before its copy, the
 // helpers a count and a figure go through, and the parity of the English, Spanish and Italian drafts
@@ -477,17 +478,6 @@ describe("a slot message rendered around a node", () => {
 
 // — Parity of the drafts with the French (D6) —
 
-type Catalogue = Record<string, unknown>;
-const modules = import.meta.glob<Catalogue>("../src/i18n/{fr,en,es,it}/*.ts", { eager: true });
-
-function catalogue(language: InterfaceLanguage, surface: string): Catalogue {
-  const mod = modules[`../src/i18n/${language}/${surface}.ts`];
-  if (!mod) throw new Error(`no ${language} module for ${surface}`);
-  const names = Object.keys(mod);
-  expect(names, `${language}/${surface} exports one object`).toHaveLength(1);
-  return mod[names[0]] as Catalogue;
-}
-
 /** Texts that are the same in every language: names, symbols, separators, spoken previews. */
 const SAME_EVERYWHERE = new Set([
   "Cymbra Lingua",
@@ -551,55 +541,6 @@ const SAME_SHAPE_AS_FRENCH: Record<Draft, Set<string>> = {
   es: new Set(),
   it: new Set(),
 };
-
-/**
- * What a slot message is called with: one sentinel per part, a letter no draft writes, and a
- * different alphabet at each depth of nesting, so that a message returned by a message — an inner
- * form that dropped its own part — is caught even though its text carries the outer one.
- */
-const SENTINELS: readonly (readonly string[])[] = [[..."αβγδ"], [..."εζηθ"], [..."ικλμ"]];
-
-type Message = (...args: string[]) => unknown;
-
-interface Text {
-  path: string;
-  text: string;
-  /** The sentinels given on the way to this text: each must appear in it. */
-  given: string[];
-}
-
-/** The parts each French message takes, by path — what a draft at the same path is called with. */
-type Slots = ReadonlyMap<string, number>;
-
-function slotsOf(value: unknown, path: string, into = new Map<string, number>(), depth = 0): Slots {
-  if (typeof value === "function") {
-    into.set(path, value.length);
-    slotsOf((value as Message)(...(SENTINELS[depth] ?? [])), `${path}()`, into, depth + 1);
-  } else if (value && typeof value === "object") {
-    for (const [key, v] of Object.entries(value as Catalogue)) slotsOf(v, `${path}.${key}`, into, depth);
-  }
-  return into;
-}
-
-/**
- * Every text a value can produce. A message is called with as many sentinels as the French message
- * at its path takes — its own count would let a draft that dropped a part pass — and its texts must
- * contain each one. A `many` form the French lacks takes what the French `other` takes.
- */
-function texts(value: unknown, path: string, slots: Slots, depth = 0, given: string[] = []): Text[] {
-  if (typeof value === "string") return [{ path, text: value, given }];
-  if (typeof value === "function") {
-    const count = Math.max(1, slots.get(path) ?? slots.get(path.replace(/\.many$/, ".other")) ?? value.length);
-    const alphabet = SENTINELS[depth] ?? [];
-    if (count > alphabet.length) throw new Error(`${path}: more parts, or deeper, than the sentinels cover`);
-    const args = alphabet.slice(0, count);
-    return texts((value as Message)(...args), `${path}()`, slots, depth + 1, [...given, ...args]);
-  }
-  if (value && typeof value === "object") {
-    return Object.entries(value as Catalogue).flatMap(([key, v]) => texts(v, `${path}.${key}`, slots, depth, given));
-  }
-  throw new Error(`${path}: a catalogue value is a string, a function or an object of them`);
-}
 
 /** The key set of a value, nested; a plural form's `many` is optional. */
 function shape(value: unknown): unknown {
@@ -699,16 +640,16 @@ describe("the drafts are whole", () => {
   it("Italian writes as Italian does (add-lingua-italian-interface D4): QCER, its contractions, no gender assumed", () => {
     expect(itLanguages.levelScale).toBe("QCER");
     expect(borrowedTypicalNote("it", "es", "en")).toBe(
-      "ripreso dall'inglese, di cui lo spagnolo riprende le dimensioni dei livelli.",
+      "ripreso dall'inglese, di cui lo spagnolo adotta il numero di parole per livello.",
     );
     expect(borrowedTypicalNote("it", "en", "es")).toBe(
-      "ripreso dallo spagnolo, di cui l'inglese riprende le dimensioni dei livelli.",
+      "ripreso dallo spagnolo, di cui l'inglese adotta il numero di parole per livello.",
     );
     expect(borrowedTypicalNote("it", "en", "fr")).toBe(
-      "ripreso dal francese, di cui l'inglese riprende le dimensioni dei livelli.",
+      "ripreso dal francese, di cui l'inglese adotta il numero di parole per livello.",
     );
     expect(borrowedTypicalNote("it", "en", "it")).toBe(
-      "ripreso dall'italiano, di cui l'inglese riprende le dimensioni dei livelli.",
+      "ripreso dall'italiano, di cui l'inglese adotta il numero di parole per livello.",
     );
     // « tu », never « Lei »; the reader's gender never assumed (« Connecté » is « Accesso effettuato »).
     // The text modules: `grammar` is a renderer (add-lingua-italian-card-wording), checked as one below.

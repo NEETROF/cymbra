@@ -492,23 +492,23 @@ const it: LinguaTable = {
   cards: [
     {
       key: "highlight",
-      title: "🖍️ Evidenziazione sul posto",
-      body: "Le parole sconosciute compaiono evidenziate direttamente nella pagina, senza rompere nulla del sito che stai leggendo.",
+      title: "🖍️ Evidenziazione nella pagina",
+      body: "Le parole sconosciute compaiono evidenziate direttamente nella pagina, senza alterare il sito che stai leggendo.",
     },
     {
       key: "percentage",
-      title: "📊 Una percentuale onesta",
+      title: "📊 Una percentuale reale",
       body: "L'icona mostra la quota di parole che conosci nella pagina corrente. Una cifra per pagina, non un punteggio gonfiato.",
     },
     {
       key: "click",
       title: "👆 Un clic per capire",
-      body: "Fai clic su una parola evidenziata: la sua forma del dizionario, la sua traduzione, la sua frequenza spiegata con chiarezza e tre pulsanti: «La conosco», «+ Mazzo» e «Ignora».",
+      body: "Fai clic su una parola evidenziata: la sua forma del dizionario, la sua traduzione, la sua frequenza spiegata con chiarezza e tre pulsanti («La conosco», «+ Mazzo» e «Ignora»).",
     },
     {
       key: "deck",
       title: "🗂️ Mazzo e ripasso",
-      body: "Le parole e le espressioni che metti da parte diventano carte, con la frase in cui le hai incontrate. Il ripasso si fa nel pannello laterale.",
+      body: "Le parole e le espressioni che acquisisci diventano carte, con la frase in cui le hai incontrate. Il ripasso si fa nel riquadro laterale.",
     },
     {
       key: "offline",
@@ -518,26 +518,26 @@ const it: LinguaTable = {
     {
       key: "level",
       title: "📈 Il tuo livello, sulla scala QCER",
-      body: "Una stima del tuo vocabolario, riferita alla scala A1→C2 e non a un badge fatto in casa.",
+      body: "Una stima del tuo vocabolario, riferita alla scala A1→C2 e non a un distintivo fatto in casa.",
     },
     {
       key: "account",
       title: "🪪 Account facoltativo",
-      body: "Senza account, le tue parole, il tuo mazzo e i tuoi stati restano sul tuo dispositivo. Con l'accesso a Cymbra ID, ti seguono da un dispositivo all'altro.",
+      body: "Senza account, le tue parole, il loro stato e il tuo mazzo restano sul tuo dispositivo. Con l'accesso a Cymbra ID, ti seguono da un dispositivo all'altro.",
     },
   ],
-  genderCard: " In {inStudied}, la carta indica anche il tempo verbale e il genere.",
+  genderCard: " Per le parole in {inStudied}, la carta indica anche il tempo verbale e il genere.",
   estimatedLevels:
     " Per {theStudied}, i livelli sono stimati in base alla frequenza delle parole, in mancanza di una lista QCER libera da diritti.",
   languagesCard: "Scegli le tue lingue nelle Impostazioni: ogni pagina viene letta nella sua.",
   coverageHeading: "Cosa copre il dizionario",
   captionOneNative:
-    "La quota delle parole più comuni che hanno una definizione in {native}, misurata allo stesso modo per ogni lingua, sui dizionari forniti con l'estensione.",
+    "La quota delle parole più comuni che hanno una traduzione in {native}, misurata allo stesso modo per ogni lingua, sui dizionari forniti con l'estensione.",
   captionPerPair:
-    "La quota delle parole più comuni che hanno una definizione nella lingua di chi legge, misurata allo stesso modo per ogni coppia, sui dizionari forniti con l'estensione.",
+    "La quota delle parole più comuni che hanno una traduzione nella lingua di chi legge, misurata allo stesso modo per ogni coppia, sui dizionari forniti con l'estensione.",
   commonestWords: "Parole più comuni",
   glossesOrigin:
-    "Le definizioni provengono dal Wikizionario e da traduzioni scritte da persone, mai da una traduzione automatica.",
+    "I significati provengono dal Wikizionario e da traduzioni scritte da persone, mai da una traduzione automatica.",
   translationServes: " La traduzione estesa, facoltativa, traduce {served}.",
   translationNotYet: " Non ancora disponibile: {unserved}.",
   throughEnglish: " (passando per l'inglese)",
@@ -966,7 +966,7 @@ export function spanishHomeLinguaCard(pairs: LinguaPair[]): HomeLinguaCard {
 // every language Lingua reads and the speakers it is made for, links `/en/lingua`, and never
 // says that Lingua explains words in Italian.
 const HOME_IT = {
-  read: "Leggi il web {ofStudied}, con le parole che non conosci ancora evidenziate direttamente nella pagina. Una percentuale onesta per pagina, un clic per la traduzione e il tuo vocabolario, che si costruisce da solo.",
+  read: "Leggi il web {ofStudied}, con le parole che non conosci ancora evidenziate direttamente nella pagina. Una percentuale reale per pagina, un clic per la traduzione e il tuo vocabolario, che si costruisce da solo.",
   audience: " Pensata per {speakers}, con l'interfaccia e le traduzioni nella propria lingua.",
 };
 

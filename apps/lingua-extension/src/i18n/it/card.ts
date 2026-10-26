@@ -37,7 +37,7 @@ export const card: typeof fr = {
   known: "La conosco",
   addToDeck: "+ Mazzo",
   ignore: "Ignora",
-  relearn: "Rimetti da imparare",
+  relearn: "Segna come da imparare",
   closeIcon: "✕",
   close: "Chiudi",
 };

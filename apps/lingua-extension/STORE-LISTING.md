@@ -1332,7 +1332,7 @@ to `_locales/it`, never here.
 The French, English and Spanish summaries do not move with en-it: what their readers study is
 unchanged.
 
-### IT (3,160 / 16,000 characters)
+### IT (3,116 / 16,000 characters)
 
 For Italian speakers, who study English (en-it, from change 45). Its last-but-one paragraph says what
 other readers study, with it-es: the one release carries change 30 (the owner, 2026-10-26).
@@ -1343,18 +1343,18 @@ familiare, calcolata su ciò che hai davvero segnato, non stimata.
 
 Fai clic su una parola evidenziata per vederne il significato in italiano, la forma che trovi nel
 dizionario e la frequenza nell'uso comune. I significati provengono dal Wikizionario: sono scritti da
-persone, mai tradotti automaticamente. La carta indica anche il tempo o la forma del verbo, come si
-impara a scuola («passato semplice di go», «forma in -ing di run»). Poi decidi: «La conosco», «+ Mazzo» per
-ripassarla più tardi, oppure «Ignora». Seleziona più parole e premi Alt+L per acquisire
+persone, mai tradotti automaticamente. La carta indica anche il tempo o la forma del verbo («passato semplice di
+go», «forma in -ing di run»). Poi decidi: «La conosco», «+ Mazzo» per ripassarla più tardi, oppure
+«Ignora». Seleziona più parole e premi Alt+L per acquisire
 un'espressione intera insieme alla frase da cui proviene.
 
 Le carte che crei si ripassano in un pannello sulla pagina o nel riquadro laterale, con una
 ripetizione dilazionata che sceglie per te il momento giusto. Le tue statistiche stimano il tuo
 vocabolario livello per livello, da A1 a C2, secondo il QCER.
 
-Leggi anche i tuoi libri: importa i tuoi file EPUB senza DRM nella biblioteca dell'estensione e
-leggili offline con la stessa evidenziazione, pagina per pagina, anche su un tablet a inchiostro
-elettronico. I tuoi libri restano sul tuo dispositivo.
+Leggi anche i tuoi libri: importa i file EPUB senza DRM nella biblioteca dell'estensione e leggili
+offline con la stessa evidenziazione, pagina per pagina, anche su un tablet a inchiostro elettronico.
+Restano sul tuo dispositivo.
 
 **L'analisi è locale.** I dizionari e il motore girano nel tuo browser e l'estensione funziona
 offline. Ciò che leggi non lascia mai il tuo dispositivo. Cymbra Lingua può inviare conteggi
@@ -1362,21 +1362,21 @@ anonimi (installazione, primi passi, ritorni) senza alcun identificativo; un int
 Impostazioni li disattiva.
 
 **Traduzione estesa** (facoltativa, disattivata per impostazione predefinita, su Chrome, Firefox
-(computer e Android) e Safari): la tua selezione viene tradotta in italiano all'interno della sua
-frase, direttamente dall'inglese, sul tuo dispositivo, dal motore di Firefox Translations. Se attivi
-la traduzione estesa, il modello di traduzione (26,5 MB) viene scaricato da Cymbra una sola volta; il
-testo delle pagine che leggi resta comunque sul tuo dispositivo. Se la disattivi, il modello viene
+(computer e Android) e Safari): la tua selezione viene tradotta in italiano nel contesto della sua
+frase, direttamente dall'inglese, sul tuo dispositivo, con il motore di Firefox Translations. Se
+attivi la traduzione estesa, il modello di traduzione (26,5 MB) viene scaricato una sola volta dai
+server di Cymbra; il testo delle pagine che leggi resta comunque sul tuo dispositivo. Se la disattivi, il modello viene
 eliminato.
 
-Quante parole inglesi spiega in italiano il nostro dizionario? I nostri dati sono pubblicati su
+Quante parole inglesi spiega in italiano il nostro dizionario? Le cifre sono pubblicate su
 cymbra.app/it/lingua.
 
 Crea un account Cymbra se, e solo se, vuoi ritrovare le tue parole e le tue carte sugli altri tuoi
 dispositivi. Oltre alla Traduzione online qui sotto e ai conteggi anonimi, sono gli unici dati che
 lasciano il tuo dispositivo, e puoi cancellarli dalle Impostazioni senza eliminare il tuo account.
 
-**Traduzione online** (disattivata per impostazione predefinita, per gli account che vi hanno
-accesso): un pulsante invia a un servizio di traduzione online la frase di cui vuoi una traduzione
+**Traduzione online** (disattivata per impostazione predefinita, per gli account abilitati): un
+pulsante invia a un servizio di traduzione online la frase di cui vuoi una traduzione
 migliore, solo quando lo premi; nessuno la conserva.
 
 L'interfaccia è in italiano. Cymbra Lingua insegna anche l'inglese, lo spagnolo e l'italiano ai
@@ -1386,11 +1386,11 @@ l'inglese, il francese e l'italiano agli ispanofoni, in spagnolo.
 Cymbra Lingua è disponibile su Chrome, su Firefox (computer e Android) e come app per Safari (iPhone,
 iPad, Mac).
 
-_Without it-es_ (3,148; only for a submission of change 45 made before change 30's, which the one
+_Without it-es_ (3,104; only for a submission of change 45 made before change 30's, which the one
 release rules out): the last-but-one paragraph's last clause reads « e l'inglese e il francese agli
 ispanofoni, in spagnolo. » (change 31's _The Italian texts' line on what Spanish speakers study_).
 
-_Withheld_ (should change 45 not offer en-it's translation; 2,655): the **Traduzione estesa**
+_Withheld_ (should change 45 not offer en-it's translation; 2,596): the **Traduzione estesa**
 paragraph goes whole — an Italian reader studies English alone, so no other model is left to name.
 
 The text quotes the interface it describes: « La conosco », « + Mazzo », « Ignora » (`card.ts`),
@@ -1416,9 +1416,9 @@ extension's own reader page, with the same highlighting).
 ### Permission justifications with Italian for Italian speakers
 
 From change 45, Italian speakers' interface is Italian, so the answers that quote a label in each
-interface quote the Italian one too (change 46's D2, +134). Italian adds no permission. The four
-answers that move, pasted with the one release; `storage`, `sidePanel` and `identity` quote no label
-and stay as above:
+interface quote the Italian one too (change 46's D2, +153; +134 until change 44 recounted it). Italian adds no permission. The four
+answers that move, pasted with the one release; `scripting`, `storage`, `sidePanel` and `identity` quote
+no label and stay as above:
 
 **`activeTab`** — The reader is injected only into the tab the user is looking at, when they click
 "Analyze this page" (« Analizar esta página » in Spanish, « Analyser cette page » in French,
@@ -1527,7 +1527,7 @@ it true once change 45 lists en-it after it-es in `packs.json` (change 46's D1):
 | Alt+L « acquisire un'espressione intera insieme alla frase »                                                                              | IT            | `commandCaptureSelection`, « Acquisisci la selezione (parola o espressione) insieme alla frase » (`_locales/it/messages.json`, change 39)                                                                                                                                                                                                                                                                                          |
 | Review in a panel on the page or in the « riquadro laterale »                                                                             | IT            | « Ripasso » (`src/i18n/it/drawer.ts`, `sidepanel.ts`); « riquadro laterale » (`commandSidePanel`, `_locales/it`)                                                                                                                                                                                                                                                                                                                   |
 | Statistics A1 to C2, QCER; English's levels not estimated                                                                                 | IT            | the scale's Italian name (`levelScale`, `src/i18n/it/languages.ts`, M19, I6); English's levels are CEFR-J's and Octanove's, not estimated (`reduce-en-it.py`'s credits; en-it's `manifest.json` `licences`), so the text says nothing of an estimate                                                                                                                                                                               |
-| Books: EPUB without DRM, offline, on the device, e-ink                                                                                    | IT            | the books note (`booksNote`, `src/i18n/it/settings.ts`); the reader is every pair's (`src/reader/`)                                                                                                                                                                                                                                                                                                                                |
+| Books: EPUB without DRM, offline, on the device, e-ink                                                                                    | IT            | the books note (`booksNote`, `src/i18n/it/settings.ts`); the reader is every pair's (`src/reader/`); the e-ink colour sets « E-ink contrastato », « E-ink a colori » (`presetEinkMono`, `presetEinkColour`, `src/i18n/it/colours.ts`)                                                                                                                                                                                              |
 | Local analysis; anonymous counts « (installazione, primi passi, ritorni) », no identifier, one switch in Settings; « senza tracciamento » | IT            | as the French text (_Remote code_, _Data usage disclosures_); « Conteggi anonimi », « Invia conteggi anonimi » in Impostazioni › Dati (`usageCounts`, `usageCountsToggle`, `src/i18n/it/settings.ts`); « installazione, primi passi, ritorni » is the interface's own list (`usageInform`, `src/i18n/it/onboarding.ts`) — no identifier, so no tracking; online translation keeps nothing (_Data usage disclosures_)               |
 | « Traduzione estesa », straight from English, « 26,5 MB », the model deleted when off                                                     | IT            | route `en-it` = `en-it/base-memory/2.1`, 26,509,835 B (`model-manifest.json`), « 26,5 MB » as the setting rounds it (`megabytes`); « Traduzione estesa » (`toggle`, `src/i18n/it/translation.ts`); the platforms are the French text's, the owner's wording                                                                                                                                                                        |
 | Italian's translation offered, the selection marked in it                                                                                 | IT            | en-it in `MARKED_PAIRS` (`src/translate/markup.ts`): 94 of its 96 shown marks right, 4 % withheld, the first tier (change 38, `measure-lingua-en-it-translation-marks`, #1092; `tool/marks/README.md`)                                                                                                                                                                                                                             |
@@ -1539,7 +1539,7 @@ it true once change 45 lists en-it after it-es in `packs.json` (change 46's D1):
 | « Analizza questa pagina », « Evidenzia sempre (tutte le pagine) », « Traduzione estesa », « Sì, consenti »                               | single fields | `src/i18n/it/popup.ts` (`analyse`, `alwaysHighlight`, `usageYes`), `translation.ts` (`toggle`), `onboarding.ts` (`usageYes`)                                                                                                                                                                                                                                                                                                       |
 | « In Safari, apri l'estensione dal menu della barra degli indirizzi e scegli il tuo livello di inglese » (the App Store's it-IT step 3)   | IT            | change 40's activation page, `it.step3` (`apps/lingua-apple/Shared (App)/Resources/copy.js`), shown from change 45                                                                                                                                                                                                                                                                                                                 |
 | « Impostazioni > App > Safari > Estensioni » (the App Store's it-IT step 1)                                                               | IT            | change 40's `it.step1` (« Impostazioni → App → Safari → Estensioni »), the activation page's own path; the Mac path « Safari > Impostazioni > Estensioni » after `it.stateUnknown` (« nelle impostazioni di Safari, sezione Estensioni »), the page's line for macOS 13 and later (`stateUnknownPreferences`' « preferenze » being the one before) — both unverified on a device in Italian, in the owner's dogfood checklist      |
-| « La lettura ad alta voce usa una voce americana o britannica » (the App Store's it-IT « What's New »)                                    | IT            | `PREFERRED_REGIONS.en` (`src/reading/speech.ts`): a voice of the United States, then of Britain, ranked before another region's of the same quality; « Lettura ad alta voce » (`readAloud`, `src/i18n/it/settings.ts`)                                                                                                                                                                                                             |
+| « La lettura ad alta voce usa di preferenza una voce americana o britannica » (the App Store's it-IT « What's New »)                      | IT            | `PREFERRED_REGIONS.en` (`src/reading/speech.ts`): a voice of the United States, then of Britain, ranked before another region's of the same quality; « Lettura ad alta voce » (`readAloud`, `src/i18n/it/settings.ts`)                                                                                                                                                                                                             |
 
 ### Screenshots
 

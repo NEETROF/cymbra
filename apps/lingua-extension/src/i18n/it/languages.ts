@@ -68,7 +68,7 @@ export const languages: typeof fr = {
   myLevelTitleEstimated: (of) => `Il mio livello ${of} stimato`,
   estimatedLevelsNote: (the) =>
     `Livelli stimati in base alla frequenza delle parole, in mancanza di una lista ${levelScale} libera da diritti per ${the}.`,
-  borrowedTypicalNote: (from, the) => `ripreso ${da(from)}, di cui ${the} riprende le dimensioni dei livelli.`,
+  borrowedTypicalNote: (from, the) => `ripreso ${da(from)}, di cui ${the} adotta il numero di parole per livello.`,
   levelNameEstimated: (level) => `${level} (stimato)`,
   chooseLevelPrompt: (of) => `Scegli il tuo livello ${of}`,
   noTextDetected: (masculine) => `Nessun testo in ${masculine} rilevato in questa pagina.`,

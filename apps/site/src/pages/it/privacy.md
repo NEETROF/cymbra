@@ -201,7 +201,7 @@ file (Cloudflare) vede l'indirizzo IP del dispositivo che li richiede. Disattiva
 l'impostazione rimuove i modelli dal dispositivo. L'app Cymbra Lingua conserva una propria
 copia dei modelli: la scarica, dallo stesso indirizzo e alle stesse condizioni, solo dopo
 che l'hai accettata nell'app, quando l'impostazione è attiva nell'estensione Safari dello
-stesso dispositivo, e la rimuove quando viene disattivata.
+stesso dispositivo, e la rimuove quando l'impostazione viene disattivata.
 
 **Traduzione online.** Questa impostazione, disattivata per impostazione predefinita e
 propria di ogni dispositivo (non viene sincronizzata), è proposta solo agli account che vi

@@ -974,9 +974,9 @@ _Italian for Italian speakers_, gives the bytes and the claims): en-it's one mod
 « 26,5 MB »; its coverage, 92.1 / 83.1 / 70.6 %, under en-es's by 0.9 to 1.9 points only, so the
 description says nothing of it (_provisional_); its marks on the first tier (change 38, #1092: 94 of 96
 right, 4 % withheld), so translation is offered, marked. Should change 45 not offer en-it's
-translation, TRADUZIONE ESTESA (FACOLTATIVA) goes whole (2756) and « What's New » loses « , e con la
+translation, TRADUZIONE ESTESA (FACOLTATIVA) goes whole (2751) and « What's New » loses « , e con la
 traduzione estesa la tua selezione viene tradotta direttamente dall'inglese all'italiano, sul tuo
-dispositivo » (289). Nothing here uses the superscript e (U+1D49), which App Store Connect refuses.
+dispositivo » (303). Nothing here uses the superscript e (U+1D49), which App Store Connect refuses.
 
 The owner's patterns from the earlier listings are applied by default, each **provisional** until the
 owner confirms it (task 3.2): no « less complete dictionary » sentence (the gap is small); the voice
@@ -990,9 +990,9 @@ unchanged; the support address `/it/assistenza/`.
 | Name | 30 | `Cymbra Lingua` (13) — the brand, kept: « lingua » is an ordinary Italian word, so the name already indexes it |
 | Subtitle | 30 | `Impara l'inglese leggendo` (25) |
 | Promotional text | 170 | 133 characters, below — re-pasted with every version |
-| Description | 4000 | 3186 characters, below |
+| Description | 4000 | 3196 characters, below |
 | Keywords | 100 | 99 characters (99 bytes), below |
-| What's New | 4000 | 409 characters (346 without the voice), below |
+| What's New | 4000 | 423 characters (346 without the voice), below |
 | Support URL | — | `https://cymbra.app/it/assistenza/` (_provisional_; the owner's question: `/it/assistenza/` or `/en/support/`) |
 | Marketing URL | — | `https://cymbra.app/it/lingua/` — built once en-it is in the published figures (change 41's D6), pinned by change 45; pasted after the site deploy that follows it |
 | Privacy policy | — | `https://cymbra.app/it/privacy/` — a courtesy translation, the French prevailing (I13) |
@@ -1019,7 +1019,7 @@ search.
 inglese,vocabolario,lettura,traduzione,estensione,imparare,ripasso,QCER,lingue,flashcard,dizionario
 ```
 
-### Description, it-IT (3186 / 4000)
+### Description, it-IT (3196 / 4000)
 
 The es-ES text without fr-es, written for a reader of Italian who studies English, with what the
 other texts added since (the anonymous counts, the last line's four audiences). Its steps follow the
@@ -1030,7 +1030,7 @@ Italian catalogue (`apps/lingua-extension/src/i18n/it/card.ts`: « La conosco »
 « Ignora »; « Un badge », `showPercentPill`); its grammar the Italian renderer (`src/i18n/it/grammar.ts`:
 « passato semplice di go », pinned by `test/baseline/word-card-en-it.txt`); its size the model
 catalogue (en-it 2.1, « 26,5 MB »). English's levels are not estimated (CEFR-J and Octanove), named
-QCER. The last line is the form with it-es (the one release carries change 30); without it-es (3174),
+QCER. The last line is the form with it-es (the one release carries change 30); without it-es (3184),
 its last clause reads « e in spagnolo per gli ispanofoni, che imparano l'inglese e il francese. »
 
 ```
@@ -1053,7 +1053,7 @@ I TUOI LIBRI
 Importa i tuoi libri EPUB senza DRM nella biblioteca dell'estensione e leggili offline, con la stessa evidenziazione. Restano sul tuo dispositivo.
 
 TRADUZIONE ESTESA (FACOLTATIVA)
-La tua selezione viene tradotta in italiano all'interno della sua frase, direttamente dall'inglese, sul tuo dispositivo, dal motore di Firefox Translations, incluso nell'app. Se attivi la traduzione estesa, il modello di traduzione (26,5 MB) viene scaricato da Cymbra una sola volta; il testo delle pagine che leggi resta comunque sul tuo dispositivo. Se la disattivi, il modello viene eliminato.
+La tua selezione viene tradotta in italiano nel contesto della sua frase, direttamente dall'inglese, sul tuo dispositivo, con il motore di Firefox Translations, incluso nell'app. Se attivi la traduzione estesa, il modello di traduzione (26,5 MB) viene scaricato una sola volta dai server di Cymbra; il testo delle pagine che leggi resta comunque sul tuo dispositivo. Se la disattivi, il modello viene eliminato.
 
 LA TUA LETTURA RESTA TUA
 I dizionari e i motori di analisi e di traduzione sono nell'app, e tutto funziona offline. Ciò che leggi non lascia mai il tuo dispositivo. L'estensione può inviare conteggi anonimi (installazione, primi passi, ritorni) senza alcun identificativo; un interruttore nelle Impostazioni dell'estensione li disattiva.
@@ -1061,25 +1061,26 @@ I dizionari e i motori di analisi e di traduzione sono nell'app, e tutto funzion
 UN ACCOUNT, SE LO VUOI
 Crea un account Cymbra se, e solo se, vuoi ritrovare le tue parole e le tue carte sugli altri tuoi dispositivi. Oltre ai conteggi anonimi, sono gli unici dati che lasciano il tuo dispositivo, e puoi cancellarli dalle Impostazioni dell'estensione senza eliminare il tuo account.
 
-Quante parole inglesi spiega in italiano il nostro dizionario? I nostri dati sono pubblicati su cymbra.app/it/lingua.
+Quante parole inglesi spiega in italiano il nostro dizionario? Le cifre sono pubblicate su cymbra.app/it/lingua.
 
 L'interfaccia è in italiano per gli italofoni, che imparano l'inglese; in francese per i francofoni, che imparano l'inglese, lo spagnolo e l'italiano; in inglese per gli anglofoni, che imparano lo spagnolo, il francese e l'italiano; e in spagnolo per gli ispanofoni, che imparano l'inglese, il francese e l'italiano.
 ```
 
-### What's New, it-IT (409 / 4000)
+### What's New, it-IT (423 / 4000)
 
 The paragraph for Italian speakers, for change 45's release, modelled on the es-ES one for en-es's
 release (_What's New — the release that ships Spanish speakers' English_) — the first notes this locale
 carries; the rest of its notes is written with the release, like every « What's New ». With the voice
 clause, as changes 21's, 26's and 31's paragraphs (_provisional_): « Lettura ad alta voce » is the
 Italian catalogue's (`readAloud`, `src/i18n/it/settings.ts`), the voices `PREFERRED_REGIONS.en`'s
-(`src/reading/speech.ts`: the United States, then Britain); without it, « La lettura ad alta voce
-usa una voce americana o britannica, e con la traduzione estesa » reads « Con la traduzione estesa »
-(346). If change 45 does not offer en-it's translation, the last clause goes (289). The
+(`src/reading/speech.ts`: the United States, then Britain, ahead of other English voices — hence « di
+preferenza », change 44); without it, « La lettura ad alta voce usa di preferenza una voce americana o
+britannica, e con la traduzione estesa » reads « Con la traduzione estesa »
+(346). If change 45 does not offer en-it's translation, the last clause goes (303). The
 fr-FR, en-US and es-ES notes say nothing of en-it: their readers' languages do not move.
 
 ```
-Cymbra Lingua ora parla italiano, per chi parla italiano e impara l'inglese: l'interfaccia, la carta, il ripasso e le statistiche sono in italiano, e ogni parola inglese mostra il suo significato in italiano, scritto da persone. La lettura ad alta voce usa una voce americana o britannica, e con la traduzione estesa la tua selezione viene tradotta direttamente dall'inglese all'italiano, sul tuo dispositivo.
+Cymbra Lingua ora parla italiano, per gli italofoni che imparano l'inglese: l'interfaccia, la carta, il ripasso e le statistiche sono in italiano, e le parole inglesi mostrano il loro significato in italiano, scritto da persone. La lettura ad alta voce usa di preferenza una voce americana o britannica, e con la traduzione estesa la tua selezione viene tradotta direttamente dall'inglese all'italiano, sul tuo dispositivo.
 ```
 
 ### Review notes for change 45's submission (3974 / 4000)
