@@ -63,10 +63,13 @@ describe("each page names its translations", () => {
   }
 
   it("the Lingua page names the languages a shipped pair is glossed in (change: add-site-lingua-matrix-pages)", () => {
-    // French and English always; Spanish once a key of the file the build reads,
-    // `<studied>-<native>`, is glossed in Spanish — read here, not asked of the site's helpers.
+    // French and English always; Spanish and Italian each once a key of the file the build reads,
+    // `<studied>-<native>`, is glossed in it — read here, not asked of the site's helpers
+    // (generalised by enable-lingua-italian-speakers, D6).
     const lingua: Record<string, string> = { fr: "/lingua", en: "/en/lingua" };
-    if (Object.keys(coverage.glossed).some((pair) => pair.split("-")[1] === "es")) lingua.es = "/es/lingua";
+    for (const lang of ["es", "it"]) {
+      if (Object.keys(coverage.glossed).some((pair) => pair.split("-")[1] === lang)) lingua[lang] = `/${lang}/lingua`;
+    }
     const expected = Object.entries(lingua).map(([l, href]) => [l, served(href)]);
     for (const [lang, path] of Object.entries(lingua)) {
       const { hreflang, switchTo } = alternatesOf(path);

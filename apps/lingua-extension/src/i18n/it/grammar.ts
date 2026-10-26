@@ -21,7 +21,7 @@ import type { GrammarLine, Named, StudiedLanguageCode } from "../index.ts";
 
 // The word card's grammar in Italian — a draft after the French renderer
 // (add-lingua-italian-card-wording D1–D5), reviewed by the Italian reviewer agent (I2, D8) and shown
-// to no reader before the Italian interface is (the Italian programme's change 45). It names
+// since the Italian interface is (enable-lingua-italian-speakers). It names
 // Italian's forms by Treccani's names, the mood before the tense — « indicativo imperfetto »,
 // « congiuntivo presente », « passato remoto » (D1); French's and Spanish's by the Italian name of the
 // same tense — the passé simple and the pretérito perfecto simple are « passato remoto » — Spanish's

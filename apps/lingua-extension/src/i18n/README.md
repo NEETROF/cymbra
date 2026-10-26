@@ -179,11 +179,11 @@ _participio pasado_ (the Spanish Wiktionary's English form-of wording) and « fo
 
 ## Italian
 
-Written before it is shown (add-lingua-italian-interface): `INTERFACE_LANGUAGES` gains `it` with the
-Italian programme's change 45, which shows it; until then a stored `it` reads French and no surface
-reads these modules. Drafted by an agent and reviewed by the dedicated Italian reviewer
-(`.claude/agents/lingua-italian-reviewer.md`, I2), the owner reading it on the five targets from
-change 45.
+Written before it was shown (add-lingua-italian-interface): `INTERFACE_LANGUAGES` gained `it` with
+the Italian programme's change 45 (enable-lingua-italian-speakers), which ships en-it and shows it to
+a reader whose native language is Italian. Drafted by an agent and reviewed by the dedicated Italian
+reviewer (`.claude/agents/lingua-italian-reviewer.md`, I2), the owner reading it on the five targets
+in that release's dogfood.
 
 Tu, never Lei (I6): the imperative is the tu form (_scegli_, _riprova_, _accedi di nuovo_). The reader
 is addressed without a gender: « Accesso effettuato », never « connesso/a »; « Ti diamo il
@@ -224,9 +224,9 @@ parole in apprendimento (« mots en cours »), evidenziazione (surlignage), live
 laterale, biblioteca, nome utente (pseudo), account collegati, sincronizzazione, badge (pastille),
 pacchetto (the dictionary pack), modello, traduzione estesa / online. The voice help's Windows and
 macOS menu paths and Firefox's consent name are unverified (`it/settings.ts`). Provisional choices of the owner
-(2026-10-26), checked when the interface is shown (change 45): « nome utente », where Music says
-« Handle »; « Stats » in the HUD and the drawer, as the Spanish; the unverified paths stay marked until
-change 45 or 44 checks them.
+(2026-10-26), checked in the dogfood of the release that shows the interface (change 45): « nome
+utente », where Music says « Handle »; « Stats » in the HUD and the drawer, as the Spanish; the
+unverified paths stay marked until that dogfood or change 44 checks them.
 
 ## What is the same everywhere
 

@@ -377,7 +377,7 @@ describe("A pair's marks are measured before they are shown", () => {
     expect(nativeOf("en-it")).toBe("it");
     expect(judged("en-it")).toEqual({ correct: 94, shown: 96, withheld: 4, total: 100 });
     // The tier verdict against the list: on the tier, so listed — inert until the Italian programme's
-    // change 45 (enable-lingua-italian-speakers) lists en-it in packs.json (D4).
+    // change 45 (enable-lingua-italian-speakers) listed en-it in packs.json (D4), live since.
     expect(firstTier(judged("en-it"))).toBe(true);
     expect(MARKED_PAIRS.includes("en-it")).toBe(firstTier(judged("en-it")));
     // Its own measurement, on en-fr's and en-es's selections: the same ids, another model, another

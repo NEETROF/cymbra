@@ -26,8 +26,19 @@ function appWith(packs: unknown): string {
 }
 
 describe("the shipped pairs", () => {
-  it("ships en-fr, es-fr, es-en, en-es, fr-en and fr-es then it-fr, it-en and it-es, each native language's default first (enable-lingua-italian, enable-lingua-italian-for-english-speakers, enable-lingua-italian-for-spanish-speakers)", () => {
-    expect(shippedPairs()).toEqual(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en", "it-es"]);
+  it("ships en-fr, es-fr, es-en, en-es, fr-en and fr-es then it-fr, it-en, it-es and en-it, each native language's default first (enable-lingua-italian, enable-lingua-italian-for-english-speakers, enable-lingua-italian-for-spanish-speakers, enable-lingua-italian-speakers)", () => {
+    expect(shippedPairs()).toEqual([
+      "en-fr",
+      "es-fr",
+      "es-en",
+      "en-es",
+      "fr-en",
+      "fr-es",
+      "it-fr",
+      "it-en",
+      "it-es",
+      "en-it",
+    ]);
   });
 
   it("refuses a list it could not build from", () => {

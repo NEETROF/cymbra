@@ -86,6 +86,17 @@ describe("canonical addresses", () => {
     const lingua = headOf(read("lingua/index.html"));
     expect(canonicalOf(lingua)).toBe(`${SITE}/lingua/`);
     expect(lingua).toContain(`<link rel="alternate" hreflang="en" href="${SITE}/en/lingua/">`);
+    // The scenario *The Lingua page*: every Lingua page, the Italian one since en-it ships
+    // (enable-lingua-italian-speakers, D6).
+    for (const [lang, path] of [
+      ["fr", "lingua"],
+      ["en", "en/lingua"],
+      ["es", "es/lingua"],
+      ["it", "it/lingua"],
+    ]) {
+      expect(lingua).toContain(`<link rel="alternate" hreflang="${lang}" href="${SITE}/${path}/">`);
+    }
+    expect(canonicalOf(headOf(read("it/lingua/index.html")))).toBe(`${SITE}/it/lingua/`);
     const privacy = headOf(read("en/privacy/index.html"));
     expect(canonicalOf(privacy)).toBe(`${SITE}/en/privacy/`);
     expect(privacy).toContain(`<link rel="alternate" hreflang="fr" href="${SITE}/confidentialite/">`);
@@ -118,7 +129,9 @@ describe("share previews", () => {
 
   it("the Lingua and Music pages show their own capture, every other page the brand image", () => {
     const imageOf = (page: string) => new URL(meta(headOf(read(page)), "og:image")!).pathname;
-    for (const page of ["lingua/index.html", "en/lingua/index.html"]) expect(imageOf(page)).toMatch(/^\/_astro\/share\./);
+    for (const page of ["lingua/index.html", "en/lingua/index.html", "es/lingua/index.html", "it/lingua/index.html"]) {
+      expect(imageOf(page)).toMatch(/^\/_astro\/share\./);
+    }
     for (const page of ["music/index.html", "en/music/index.html", "es/music/index.html", "it/music/index.html"]) {
       expect(imageOf(page)).toMatch(/^\/_astro\/share\./);
     }
@@ -143,7 +156,7 @@ describe("share previews", () => {
     const site = resolve(__dirname, "../..");
     const sets = {
       lingua: {
-        pages: { fr: "lingua/index.html", en: "en/lingua/index.html", es: "es/lingua/index.html" },
+        pages: { fr: "lingua/index.html", en: "en/lingua/index.html", es: "es/lingua/index.html", it: "it/lingua/index.html" },
         source: (lang: string) => resolve(site, `src/assets/lingua/${lang}/share.jpg`),
       },
       music: {

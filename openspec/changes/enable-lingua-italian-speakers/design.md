@@ -159,8 +159,8 @@ Twelve MODIFIED, each copied whole from its latest holder, every scenario kept:
 
 | Requirement | Holder | Edit |
 |---|---|---|
-| *The shipped pairs are one list* | change 25 | en-it in the list; *Italian speakers learning English* |
-| *The setting's memory follows the models…* | change 25 | an Italian speaker reading English: one model |
+| *The shipped pairs are one list* | change 30 (it-es listed first, re-copied at implementation) | en-it in the list, after it-es; *Italian speakers learning English* |
+| *The setting's memory follows the models…* | change 30 (re-copied at implementation) | an Italian speaker reading English: one model |
 | *The interface language is the reader's native language…* | main spec | `it` among the interface languages; an Italian reader's key |
 | *The account's e-mails follow the interface language* | `send-lingua-browser-locale-on-account-emails` | `it` an interface language; *An Italian browser* now sends the interface language; an Italian-native reader |
 | *Cymbra account deletion is reachable from Lingua* | `add-site-spanish-locale` | the Italian page for Italian |
@@ -215,6 +215,17 @@ screenshots are taken by hand from this change's build (change 46's D4).
   captions and captures;
 - change 46 on main, its listings ready to paste.
 
+**The owner's decision (2026-10-26): one release.** This change ships in the same single release as
+changes 20, 25 and 30 — release pull request #1036, which the owner merges after this change —, not
+in a release of its own after change 32's. Change 32's D4 asked for a release carrying the Italian
+variant to be live on every store before any reader could choose Italian, so that a store rollback
+lands on a build that knows it; with one release, a rollback lands on 1.10.1, which does not. The owner
+accepts that risk: no Italian reader is in production, so no Italian native's backup can meet that
+build. The dogfood below is the owner's one complete pass over that release, before #1036 merges. The
+host app's release carries en-it without a `Release-As`: `lingua-apple` 1.9.0 is already pending in
+#1036, and this change's squashed `feat` commit touches `apps/lingua-apple` (D8), so release-please
+adds it to that release.
+
 **The owner's steps:**
 1. Go-ahead before merge (I12).
 2. Dogfood on the five targets, on a build carrying change 44's corrections: Chrome, Firefox (desktop and Android) and Safari (macOS and iOS). Check:
@@ -246,6 +257,9 @@ merge, as changes 33, 39, 40 and 46 do (I2).
 - **A French reader with an Italian browser now sends `fr`** → I10's decision; an account that has a
   language keeps it (Cymbra ID records a locale only on an account with none).
 - **Italian shown without a native reader** → change 44's pass, the dogfood, and change 55.
+- **One release for changes 20, 25, 30 and this one** (the owner, 2026-10-26; D9) → change 32's D4
+  order is not kept: a rollback lands on a build without the Italian variant. Accepted: no Italian
+  reader is in production.
 
 ## Migration Plan
 

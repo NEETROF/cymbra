@@ -7,7 +7,7 @@
 // for English natives (es-en, fr-en, it-en — Italian since enable-lingua-italian-for-english-speakers
 // D6), English, French and Italian for Spanish natives (en-es, fr-es, it-es — Italian since
 // enable-lingua-italian-for-spanish-speakers D6), English for Italian natives (en-it, held ahead of
-// its pair by localise-lingua-apple-host-italian D3, shown from the Italian programme's change 45;
+// its pair by localise-lingua-apple-host-italian D3, shown since enable-lingua-italian-speakers;
 // changes 50 and 54 name French and Spanish when fr-it and es-it ship). Its last step chooses the
 // first language's level, then — for a native with two pairs or more — says where another is
 // ticked: the extension's settings, under its Language tab.

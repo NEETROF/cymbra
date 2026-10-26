@@ -114,9 +114,13 @@ describe("the choice exists from two native languages (D1)", () => {
   it("en-es shipping too offers French, English and Spanish, in listed order (enable-lingua-spanish-speakers)", () => {
     expect(nativeChoiceOffered(ALL)).toBe(true);
     expect(offeredNatives(ALL)).toEqual(["fr", "en", "es"]);
-    // The bundle's list since change 35.
+  });
+
+  it("en-it shipping offers Italian last, in listed order (enable-lingua-italian-speakers)", () => {
+    // The bundle's list since enable-lingua-italian-speakers; the list before it offered three.
     expect(nativeChoiceOffered()).toBe(true);
-    expect(offeredNatives()).toEqual(["fr", "en", "es"]);
+    expect(offeredNatives()).toEqual(["fr", "en", "es", "it"]);
+    expect(offeredNatives([...ALL, "fr-en", "fr-es", "it-fr", "it-en", "it-es"])).toEqual(["fr", "en", "es"]);
   });
 });
 

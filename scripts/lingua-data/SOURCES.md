@@ -1111,7 +1111,7 @@ Italian Wiktionary's English section, its definitions first; the English Wiktion
 translations; the Italian Wiktionary's English translations read backwards. No pivot, no machine
 translation. Its rule digest is `reduce-en-it.py`, `reduce_common.py` and `reduce_edition_it.py`: en-es's
 table readers are copied into the reducer, not shared, so that en-es's pin does not move (D3). No
-package carries en-it before change 45. Its first update writes its folder whole: the pull request
+package carried en-it before change 45 (`enable-lingua-italian-speakers`), which lists it. Its first update writes its folder whole: the pull request
 that registers it carries none.
 
 | Table | Source | Licence | What we keep |

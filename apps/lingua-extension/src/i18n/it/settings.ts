@@ -4,7 +4,7 @@ import type { settings as fr } from "../fr/settings.ts";
 // add-lingua-italian-interface D1). Unverified (D1: no agent can see them): the Windows and macOS
 // menu paths of `installVoiceHelp` and the name of Firefox's consent in `usageCountsFirefoxNote` are
 // written as an Italian Windows 11, macOS and Firefox are believed to name them, from no cited
-// source — the owner's reading at change 45, or change 44's reviewer, confirms them. A count follows
+// source — the owner's dogfood of enable-lingua-italian-speakers, or change 44's reviewer, confirms them. A count follows
 // the feminine plural article « le », which never elides (« le 3000 parole », D4).
 
 export const settings: typeof fr = {

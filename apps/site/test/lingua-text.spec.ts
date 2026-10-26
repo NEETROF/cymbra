@@ -19,7 +19,18 @@ import {
   STUDIED,
   studiedLanguage,
 } from "../src/lib/lingua-text";
-import { EIGHT_PAIRS, MATRIX, NINE_PAIRS, ROUTES, SEVEN_PAIRS, SIX_PAIRS, TODAY, WITH_FR_EN } from "./support/lingua";
+import {
+  EIGHT_AND_EN_IT,
+  EIGHT_PAIRS,
+  MATRIX,
+  NINE_PAIRS,
+  ROUTES,
+  SEVEN_PAIRS,
+  SIX_PAIRS,
+  TEN_PAIRS,
+  TODAY,
+  WITH_FR_EN,
+} from "./support/lingua";
 import { STUDIED as CAPTURED } from "../../lingua-extension/tool/capture/plan.mjs";
 
 // The words around the data (change: add-site-lingua-matrix-pages, D2 and D4), built from
@@ -43,6 +54,8 @@ const six = shipped(SIX_PAIRS);
 const seven = shipped(SEVEN_PAIRS);
 const eight = shipped(EIGHT_PAIRS);
 const nine = shipped(NINE_PAIRS);
+const eightAndEnIt = shipped(EIGHT_AND_EN_IT);
+const ten = shipped(TEN_PAIRS);
 const discord = { discordUrl: "https://discord.gg/example" };
 const noDiscord = { discordUrl: null };
 const card = (t: LinguaPageText, key: CardKey) => t.cards.find((c) => c.key === key)!;
@@ -776,10 +789,9 @@ describe("the French home's Lingua card follows the shipped pairs (change: add-s
 });
 
 describe("the captures' words (change: add-site-lingua-showcase, D10, D11)", () => {
-  // French, English and Spanish: the languages `plan.mjs` captures. Italian's showcase strings are
-  // type stubs until change 45 captures the extension in Italian and rewrites them (change:
-  // add-site-italian-locale, D6), and joins them here then.
-  const LANGS = ["fr", "en", "es"] as const;
+  // The languages `plan.mjs` captures: Italian since enable-lingua-italian-speakers (D5, D6), which
+  // captured the extension in Italian and rewrote change 41's stubs against its captures.
+  const LANGS = ["fr", "en", "es", "it"] as const;
   const extension = (path: string) => readFileSync(resolve(__dirname, `../../lingua-extension/src/i18n/${path}`), "utf8");
   const label = (lang: string, module: string, key: string) =>
     extension(`${lang}/${module}.ts`).match(new RegExp(`^  ${key}: "([^"]+)",$`, "m"))?.[1];
@@ -787,10 +799,12 @@ describe("the captures' words (change: add-site-lingua-showcase, D10, D11)", () 
     fr: (text) => `« ${text} »`,
     en: (text) => `“${text}”`,
     es: (text) => `«${text}»`,
+    it: (text) => `«${text}»`,
   };
 
   it.each(LANGS)("%s: a heading, the hero's alt text, the video's label and caption, and every capture's alt text and caption", (lang) => {
-    const { showcase, hints } = linguaPageText(lang, six, noDiscord);
+    // The Italian page is built only with en-it (D3): the ten pairs.
+    const { showcase, hints } = linguaPageText(lang, lang === "it" ? ten : six, noDiscord);
     expect(showcase.heading).toBeTruthy();
     expect(showcase.hero.alt.length).toBeGreaterThan(40);
     expect(showcase.video.label).toBeTruthy();
@@ -814,7 +828,8 @@ describe("the captures' words (change: add-site-lingua-showcase, D10, D11)", () 
 
   it.each(LANGS)("%s: the alt texts name the languages the capture's reader studies (tool/capture/plan.mjs)", (lang) => {
     const t = LINGUA_TEXT[lang];
-    const [first, second] = CAPTURED[lang];
+    // A reader of one studied language (the Italian set) reads a second page in it (D5).
+    const [first, second = first] = CAPTURED[lang];
     expect(t.showcase.hero.alt).toContain(t.names[first]);
     expect(t.showcase.shareAlt).toContain(t.names[first]);
     expect(t.showcase.shots.second.alt).toContain(t.names[second]);
@@ -889,6 +904,52 @@ describe("the Italian table (change: add-site-italian-locale, D6)", () => {
     expect(LINGUA_TEXT.fr.speakers.it).toBe("italophones");
     expect(LINGUA_TEXT.en.speakers.it).toBe("Italian speakers");
     expect(LINGUA_TEXT.es.speakers.it).toBe("italohablantes");
+  });
+});
+
+describe("English for Italian speakers: en-it beside the eight or nine pairs (enable-lingua-italian-speakers, D6)", () => {
+  it("Nine pairs on a phone: en-it beside the eight, the Italian page's nine rows, English → Italian first", () => {
+    const t = linguaPageText("it", eightAndEnIt, noDiscord);
+    expect(t.coverage.rows.map((row) => row[0])).toEqual([
+      "Inglese → italiano",
+      "Inglese → francese",
+      "Spagnolo → francese",
+      "Italiano → francese",
+      "Spagnolo → inglese",
+      "Francese → inglese",
+      "Italiano → inglese",
+      "Inglese → spagnolo",
+      "Francese → spagnolo",
+    ]);
+    expect(t.coverage.rows[0]).toEqual(["Inglese → italiano", "92%", "83%", "71%"]);
+  });
+
+  it("the ten pairs, it-es listed before en-it: still English → Italian first on the Italian page", () => {
+    const t = linguaPageText("it", ten, noDiscord);
+    expect(t.coverage.rows).toHaveLength(10);
+    expect(t.coverage.rows[0][0]).toBe("Inglese → italiano");
+    expect(t.coverage.rows.map((row) => row[0])).toContain("Italiano → spagnolo");
+  });
+
+  it("names the scale « QCER » on the Italian page, and says neither that English's levels are estimated nor that its card names a gender", () => {
+    const t = linguaPageText("it", ten, noDiscord);
+    expect(card(t, "level").title).toContain("QCER");
+    expect(card(t, "level").title).not.toContain("CEFR");
+    expect(card(t, "click").body).not.toMatch(/In inglese[^.]*genere/);
+    expect(card(t, "level").body).not.toMatch(/l'inglese[^.]*stimat/);
+  });
+
+  it("the French, English and Spanish pages name Italian speakers' English, and en-it's row", () => {
+    const fr = linguaPageText("fr", ten, noDiscord);
+    const en = linguaPageText("en", ten, noDiscord);
+    const es = linguaPageText("es", ten, noDiscord);
+    expect(fr.coverage.rows.map((row) => row[0])).toContain("Anglais → italien");
+    expect(en.coverage.rows.map((row) => row[0])).toContain("English → Italian");
+    expect(es.coverage.rows.map((row) => row[0])).toContain("Inglés → italiano");
+    // Each page still leads with its own readers' pairs.
+    expect(fr.coverage.rows[0][0]).toBe("Anglais → français");
+    expect(en.coverage.rows[0][0]).toBe("Spanish → English");
+    expect(es.coverage.rows[0][0]).toBe("Inglés → español");
   });
 });
 

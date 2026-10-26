@@ -10,8 +10,8 @@ import { createCard, type WordPopupContent } from "@/reading/wordpopup.ts";
 // Spanish renderers' unit specs (test/word-grammar-en.spec.ts, test/word-grammar-es.spec.ts) hold
 // theirs — every name of D1–D3, the future subjunctive and the gerunds the goldens' probes lack
 // included; the persons merged; the agreements; the contractions and « può anche essere »; the sense
-// headings; what stays unnamed. Shown to no reader before the Italian interface is (the Italian
-// programme's change 45). The real forms are pinned by test/word-card-grammar-it.spec.ts.
+// headings; what stays unnamed. Shown since the Italian interface is (enable-lingua-italian-speakers).
+// The real forms are pinned by test/word-card-grammar-it.spec.ts.
 
 const verb = (features: Record<string, string>): GrammarTag => ({ pos: "VERB", features });
 const fin = (Mood: string, Person: string, Number: string, Tense?: string): GrammarTag =>

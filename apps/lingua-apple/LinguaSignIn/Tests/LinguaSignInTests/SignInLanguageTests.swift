@@ -61,8 +61,8 @@ final class SignInLanguageTests: XCTestCase {
     }
 
     func testABuildDeclaringFrenchEnglishAndSpanishNeverShowsItalian() throws {
-        // Inert until change 45 (localise-lingua-apple-host-italian D1, D5): today's builds declare
-        // [fr, en, es], so Italian is never shown, even when asked for.
+        // A build from before en-it (localise-lingua-apple-host-italian D1, D5) declared [fr, en, es],
+        // so Italian was never shown, even when asked for; builds since enable-lingua-italian-speakers declare it.
         let bundle = try builtBundle(declaring: ["fr", "en", "es"])
         XCTAssertEqual(SignInLanguage.offered(in: bundle), [.fr, .en, .es])
         XCTAssertNotEqual(SignInLanguage.shown(.it, in: bundle), .it)

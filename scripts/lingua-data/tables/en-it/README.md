@@ -3,9 +3,9 @@
 The reduced tables Cymbra Lingua's English→Italian data pack is built from: English glossed in Italian,
 for Italian speakers studying English — the first pair glossed in Italian (add-lingua-pack-en-it, change
 36 of `docs/lingua/italian-programme.md`). They are committed so that every build makes the same pack
-with no download, and so that a change to the dictionary is a pull request whose diff shows it. No
-extension package carries the pack: `apps/lingua-extension/packs.json` does not list en-it until the
-interface speaks Italian (change 45).
+with no download, and so that a change to the dictionary is a pull request whose diff shows it. Every
+extension package carries the pack since change 45 (`enable-lingua-italian-speakers`), which lists
+en-it in `apps/lingua-extension/packs.json` and shows the Italian interface.
 
 This folder holds what belongs to en-it alone: its Italian glosses, its expressions, the parts of speech
 of their senses, its notice, manifest and pin. English's own tables — its forms, ranks, levels,

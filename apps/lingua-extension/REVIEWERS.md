@@ -63,11 +63,11 @@ same add-on with its sign-in buttons hidden.
 One language pack per pair `packs.json` lists, `<studied>-<native>`: `en-fr` (English glossed in
 French), `es-fr` (Spanish in French), `es-en` (Spanish in English), `en-es` (English in Spanish),
 `fr-en` (French in English), `fr-es` (French in Spanish), `it-fr` (Italian in French), `it-en`
-(Italian in English) and `it-es` (Italian in Spanish). Each ships as **two parts**, which the
+(Italian in English), `it-es` (Italian in Spanish) and `en-it` (English in Italian). Each ships as **two parts**, which the
 add-on assembles when it loads them: the pair's **layer**, `assets/packs/<pair>.lingua` (its
 translations, senses, expressions and NOTICE, 0.3 to 1.6 MB), and its studied language's **base**,
 `assets/bases/<studied>.lingua` (forms, frequencies, levels and readings, 0.9 to 1.6 MB) — one base
-for every pair of that language, so the package carries **nine layers and four bases**, thirteen files.
+for every pair of that language, so the package carries **ten layers and four bases**, fourteen files.
 They are **generated, not authored**: the built files are not in the archive, but everything they
 are built from is. `yarn gen:pack:real` runs `scripts/lingua-data/build.sh --parts <pair>
 assets/bases/<studied>.lingua assets/packs/<pair>.lingua` for each pair, which builds both from the
@@ -158,19 +158,19 @@ not from `mozilla/firefox-translations-models`: each file lists its path there a
 the gzip file Mozilla serves, beside the sha256 of its decompressed bytes that the add-on checks.
 The package downloads none of them until the reader turns « Traduction étendue » on, and then only
 the models its pairs' routes need. This package ships the pairs `en-fr`, `es-fr`, `es-en`, `en-es`,
-`fr-en`, `fr-es`, `it-fr`, `it-en` and `it-es` (`packs.json`), and a reader's pairs are those of
-their native language, so every reader downloads three models at most — a French-speaking reader the
+`fr-en`, `fr-es`, `it-fr`, `it-en`, `it-es` and `en-it` (`packs.json`), and a reader's pairs are those
+of their native language, so every reader downloads three models at most — a French-speaking reader the
 models of `en-fr`, `es-fr` and `it-fr` (`en-fr/base-memory/2.0`, `es-en/base-memory/2.0` and
 `it-en/base-memory/2.0`, Italian going through English, the engine holding two of them at a time), an
 English-speaking reader those of `es-en`, `fr-en` and `it-en` (`es-en/base-memory/2.0`,
 `fr-en/base-memory/2.0` and `it-en/base-memory/2.0`, three one-model routes, the engine holding two of
 them at a time), a Spanish-speaking reader those of `en-es`, `fr-es` and `it-es`
 (`en-es/base-memory/2.1`, `fr-en/base-memory/2.0` and `it-en/base-memory/2.0`, French and Italian going
-through English, the engine holding two of them at a time); a French-speaking reader downloads nothing
-of `fr-en`, since no pair of this package teaches them French, and any reader `it-en/base-memory/2.0`
-only once they study Italian. The other Italian routes are listed ahead of their pairs: no pair of this
-package is glossed in Italian, so no reader downloads `en-it/base-memory/2.1`, and nothing is kept or
-loaded for their routes.
+through English, the engine holding two of them at a time), an Italian-speaking reader that of `en-it`
+(`en-it/base-memory/2.1`, one model); a French-speaking reader downloads nothing of `fr-en`, since no
+pair of this package teaches them French, any reader `it-en/base-memory/2.0` only once they study
+Italian, and no reader but an Italian-speaking one `en-it/base-memory/2.1`. The other routes through
+`en-it` (`fr-it`, `es-it`) are listed ahead of their pairs: nothing is kept or loaded for them.
 
 ## Where the add-on reaches the network
 
@@ -227,7 +227,7 @@ There are four origins, all of them in the source:
   (`src/account/locale.ts`). A link, not a request. And, only while the counts are on for an
   installation made since they exist, the leaving page the browser opens when the add-on is
   removed: `runtime.setUninstallURL` registers `https://cymbra.app/lingua/au-revoir/`
-  (`/en/lingua/goodbye/`, `/es/lingua/adios/`, in the interface language) with
+  (`/en/lingua/goodbye/`, `/es/lingua/adios/`, `/it/lingua/arrivederci/`, in the interface language) with
   `?b=<browser>&v=<major.minor>` and nothing else, and registers `""` as soon as they are off (and
   always for an installation updated from a release that did not count). The add-on sends nothing
   there itself: loading the page is an ordinary visit to the site's static host, and the page asks

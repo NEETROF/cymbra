@@ -26,8 +26,8 @@
  * shipped them, fr-en and fr-es until change 52 (enable-lingua-french), it-fr until the Italian
  * programme's change 20 (enable-lingua-italian) shipped it, it-en until its change 25
  * (enable-lingua-italian-for-english-speakers) shipped it, and it-es until its change 30
- * (enable-lingua-italian-for-spanish-speakers) shipped it; en-it is listed ahead of its readers,
- * inert until the Italian programme's change 45 (enable-lingua-italian-speakers) lists it.
+ * (enable-lingua-italian-for-spanish-speakers) shipped it, and en-it until its change 45
+ * (enable-lingua-italian-speakers) shipped it.
  */
 export const MARKED_PAIRS: readonly string[] = [
   "en-fr",

@@ -91,11 +91,11 @@ const BEFORE_13 = {
 const LANGUAGES = ["fr", "en", "es", "it"];
 
 /**
- * The pairs a native language's page names: the shipped pairs, plus en-it, whose page this change
- * holds ahead of the Italian programme's change 45 (localise-lingua-apple-host-italian D5) — so the
- * Italian page is pinned now, and fails changes 50 and 54 until they rewrite it.
+ * The pairs a native language's page names: the shipped pairs, en-it among them since
+ * enable-lingua-italian-speakers (localise-lingua-apple-host-italian held its page ahead of it, D5) —
+ * so the Italian page is pinned, and fails changes 50 and 54 until they rewrite it.
  */
-const LISTED_PAIRS: readonly string[] = [...new Set([...SHIPPED_PAIRS, "en-it"])];
+const LISTED_PAIRS: readonly string[] = SHIPPED_PAIRS;
 const listed = (native: string): string[] => pairsOf(native, LISTED_PAIRS);
 
 /** The languages a native language's listed pairs study, in their order, as its page names them. */

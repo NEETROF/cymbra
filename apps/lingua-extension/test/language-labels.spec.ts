@@ -167,7 +167,7 @@ describe("A Spanish-native reader", () => {
 });
 
 describe("An Italian-native reader (add-lingua-italian-interface D1, D4)", () => {
-  // INTERFACE_LANGUAGES gains Italian with change 45 only: the loops below do not reach it, this does.
+  // INTERFACE_LANGUAGES gained Italian with enable-lingua-italian-speakers: the loops below reach it too.
   it("reads every message in Italian: « di inglese », « l'inglese », « voce inglese », the QCER", () => {
     expect(every("it", "en")).toEqual({
       languageName: "Inglese",

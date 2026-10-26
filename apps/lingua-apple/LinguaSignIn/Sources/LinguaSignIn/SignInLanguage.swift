@@ -5,8 +5,8 @@ import Foundation
 /// which the activation page (copy.js) and the sign-in sheet (`SignInCopy`) each hold a copy in. Which of them a build *offers* is its `CFBundleLocalizations`
 /// alone, written by tool/app_localizations.sh from the natives of the shipped pairs; a screen shows
 /// the language it is asked for only among those, then the device's, then English once English is
-/// offered and French otherwise. Italian is offered by no build before a pair glossed in Italian
-/// ships (en-it, the Italian programme's change 45): until then its copy is held, never shown.
+/// offered and French otherwise. Italian is offered since a pair glossed in Italian ships (en-it,
+/// the Italian programme's change 45, enable-lingua-italian-speakers); before it, its copy was held.
 public enum SignInLanguage: String, CaseIterable, Codable, Sendable {
     case fr
     case en
