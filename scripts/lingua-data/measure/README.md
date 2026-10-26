@@ -109,3 +109,16 @@ design's Measurement writes down, and the words they keep. Nothing fetched is co
 ```bash
 scripts/lingua-data/measure/it-guard.sh
 ```
+
+## en-it's misspelling census
+
+`en_it_misspellings.py` lists the words of en-it's glosses, in the rows of the 5,000 commonest English
+lemmas, that Italian's committed forms (`tables/it/forms.tsv`) do not hold and that wordfreq's Italian
+list rates under 1.5 Zipf (refine-lingua-en-it-glosses D12, task 1.7): the candidates a person reads
+for `CORRECTIONS` in `reduce_english_it.py`. Nearly all are real Italian, which is why no rule takes
+them; en-it's pin does not record `tables/it/`, so the reduction never reads it. Needs wordfreq
+(`requirements-reduce.txt`); it decides nothing.
+
+```bash
+python3 scripts/lingua-data/measure/en_it_misspellings.py [--gloss <gloss.tsv>] [--top 5000] [--below 1.5]
+```
