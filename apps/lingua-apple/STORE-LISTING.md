@@ -34,7 +34,10 @@ is the es-ES text, word for word (M10: tú, neutral Spanish, no vosotros, the RA
 « 25,4 MB »). The locales are M16's, settled by the owner on 2026-10-09; French studied adds none: a
 French speaker cannot study French, and fr-en is glossed in English, fr-es in Spanish. Nor does
 Italian studied: it-fr is glossed in French, it-en in English, it-es in Spanish, and Italian listings, with the it-IT locale, are the
-Italian programme's stage 3 (I9).
+Italian programme's stage 3 (I9). **it-IT**, from the Italian programme's change 45, is written for
+Italian speakers, who study English — the en-it pair of `enable-lingua-italian-speakers` —, its texts
+in _Italian for Italian speakers (change 45's release)_ (add-lingua-italian-audience-listings): a
+sixth locale, for every later release.
 
 With fr-FR primary, a storefront whose language has no localisation shows the French listing: a
 German App Store user reads French while the app opens in English (M13, change 28).
@@ -75,18 +78,18 @@ speakers (change 30's release)_), and one release carries changes 20, 25 and 30 
 
 ## Fields
 
-| Field | Limit | fr-FR | en-US, en-GB | es-ES, es-MX |
-|---|---|---|---|---|
-| Name | 30 | `Cymbra Lingua` (13) | `Cymbra Lingua` (13) | `Cymbra Lingua` (13) |
-| Subtitle | 30 | current (until Italian ships) `Anglais et espagnol en lisant` (29); with Italian `Anglais, espagnol ou italien` (28) | `Spanish and French as you read` (30); from change 25, `Spanish, French or Italian` (26) | with fr-es `Inglés y francés mientras lees` (30); without, `Aprende inglés mientras lees` (28); from change 30, `Inglés, francés o italiano` (26) |
-| Promotional text | 170 | current 154 characters; with Italian 165 — below | 130 characters; from change 25, 139 — below | with fr-es 146 characters; without, 133; from change 30, 159 — below |
-| Description | 4000 | current 3186 characters; with Italian 3299 (3310 from change 25) — below | 3046 characters; from change 25, 3136 — below | with fr-es 3437 characters (3447 from change 25, 3617 from change 30); without, 3015 — below |
-| Keywords | 100 | current 92 characters (93 bytes); with Italian 95 (96 bytes) — below | 99 characters; from change 25, 96 — below | with fr-es 90 characters (94 bytes); without, 89 (92 bytes); from change 30, 90 (94 bytes) — below |
-| Support URL | — | `https://cymbra.app/support/` | `https://cymbra.app/en/support/` | `https://cymbra.app/es/soporte/` — the owner's choice, below |
-| Marketing URL | — | `https://cymbra.app/lingua/` | `https://cymbra.app/en/lingua/` | `https://cymbra.app/es/lingua/` |
-| Privacy policy | — | `https://cymbra.app/confidentialite/` | `https://cymbra.app/en/privacy/` | `https://cymbra.app/es/privacidad/` |
-| Category | — | Education (secondary: Reference) | the app's, not a locale's | the app's, not a locale's |
-| Age rating | — | 4+ | the app's, not a locale's | the app's, not a locale's |
+| Field | Limit | fr-FR | en-US, en-GB | es-ES, es-MX | it-IT, from change 45 |
+|---|---|---|---|---|---|
+| Name | 30 | `Cymbra Lingua` (13) | `Cymbra Lingua` (13) | `Cymbra Lingua` (13) | `Cymbra Lingua` (13) |
+| Subtitle | 30 | current (until Italian ships) `Anglais et espagnol en lisant` (29); with Italian `Anglais, espagnol ou italien` (28) | `Spanish and French as you read` (30); from change 25, `Spanish, French or Italian` (26) | with fr-es `Inglés y francés mientras lees` (30); without, `Aprende inglés mientras lees` (28); from change 30, `Inglés, francés o italiano` (26) | `Impara l'inglese leggendo` (25) |
+| Promotional text | 170 | current 154 characters; with Italian 165 — below | 130 characters; from change 25, 139 — below | with fr-es 146 characters; without, 133; from change 30, 159 — below | 133 characters — below |
+| Description | 4000 | current 3186 characters; with Italian 3299 (3310 from change 25) — below | 3046 characters; from change 25, 3136 — below | with fr-es 3437 characters (3447 from change 25, 3617 from change 30); without, 3015 — below | 3186 characters — below |
+| Keywords | 100 | current 92 characters (93 bytes); with Italian 95 (96 bytes) — below | 99 characters; from change 25, 96 — below | with fr-es 90 characters (94 bytes); without, 89 (92 bytes); from change 30, 90 (94 bytes) — below | 99 characters (99 bytes) — below |
+| Support URL | — | `https://cymbra.app/support/` | `https://cymbra.app/en/support/` | `https://cymbra.app/es/soporte/` — the owner's choice, below | `https://cymbra.app/it/assistenza/` — provisional, below |
+| Marketing URL | — | `https://cymbra.app/lingua/` | `https://cymbra.app/en/lingua/` | `https://cymbra.app/es/lingua/` | `https://cymbra.app/it/lingua/` |
+| Privacy policy | — | `https://cymbra.app/confidentialite/` | `https://cymbra.app/en/privacy/` | `https://cymbra.app/es/privacidad/` | `https://cymbra.app/it/privacy/` |
+| Category | — | Education (secondary: Reference) | the app's, not a locale's | the app's, not a locale's | the app's, not a locale's |
+| Age rating | — | 4+ | the app's, not a locale's | the app's, not a locale's | the app's, not a locale's |
 
 The fr-FR subtitle with Italian names three languages: « … en lisant » no longer fits (36
 characters, 38 with « ou »), so it goes (add-lingua-italian-listings, D3; see _Keywords_ for the
@@ -108,7 +111,9 @@ Italian. The es-ES and es-MX column's « from change 30 » figures are the texts
 Spanish speakers (change 30's release)_ (add-lingua-italian-spanish-listings), pasted with that
 release. One release carries changes 20, 25 and 30 (the owner, 2026-10-26), so every locale's text
 with Italian — fr-FR's, en-US's and es-ES's — is pasted with it, the review notes being change 30's
-block, which names all three audiences.
+block, which names all three audiences. Change 45 joins that release (the owner, 2026-10-26): the
+it-IT column's texts are _Italian for Italian speakers (change 45's release)_'s, added with it, and
+its review notes replace change 30's.
 
 ## Promotional text
 
@@ -949,6 +954,240 @@ pull request that next touches this file:
 | es-MX | _to record_ | _to record_ | _to record_ | |
 | Review notes | _to record_ | _to record_ | _to record_ | |
 
+## Italian for Italian speakers (change 45's release)
+
+The Italian programme's change 45 (`enable-lingua-italian-speakers`) lists en-it, after it-es, and
+shows the Italian interface; its build is the first whose host app declares Italian (change 40). Change
+46 (`add-lingua-italian-audience-listings`) adds **it-IT**, a sixth App Store locale, for Italian
+speakers, who study English, glossed in Italian, the interface in Italian (I9, settled on 2026-10-22).
+Without it, the App Store's Italian storefront shows the French listing (fr-FR primary). Every text
+below is written in « tu » and Italian typography (I6), modelled on the es-ES text without fr-es (one
+studied language), reviewed by the Italian reviewer agent (I2, change 46's D6), and true of change
+45's release; the owner decided on 2026-10-26 that change 45 ships in the one release that carries
+changes 20, 25 and 30, so these texts are pasted with it, after the site deploy that publishes
+`/it/lingua/` and en-it's figures (I12, M18). The fr-FR, en-US and es-ES texts do not move: none says
+what Italian speakers study. Each count is the text's length as App Store Connect counts it
+(_Locales_).
+
+The figures are `main`'s when they were written (change 46, D1; `apps/lingua-extension/STORE-LISTING.md`,
+_Italian for Italian speakers_, gives the bytes and the claims): en-it's one model, 26,509,835 B,
+« 26,5 MB »; its coverage, 92.1 / 83.1 / 70.6 %, under en-es's by 0.9 to 1.9 points only, so the
+description says nothing of it (_provisional_); its marks on the first tier (change 38, #1092: 94 of 96
+right, 4 % withheld), so translation is offered, marked. Should change 45 not offer en-it's
+translation, TRADUZIONE ESTESA (FACOLTATIVA) goes whole (2756) and « What's New » loses « , e con la
+traduzione estesa la tua selezione viene tradotta direttamente dall'inglese all'italiano, sul tuo
+dispositivo » (289). Nothing here uses the superscript e (U+1D49), which App Store Connect refuses.
+
+The owner's patterns from the earlier listings are applied by default, each **provisional** until the
+owner confirms it (task 3.2): no « less complete dictionary » sentence (the gap is small); the voice
+clause in « What's New »; the most general keyword giving way; the other locales' screenshots
+unchanged; the support address `/it/assistenza/`.
+
+### Fields, it-IT
+
+| Field | Limit | it-IT |
+|---|---|---|
+| Name | 30 | `Cymbra Lingua` (13) — the brand, kept: « lingua » is an ordinary Italian word, so the name already indexes it |
+| Subtitle | 30 | `Impara l'inglese leggendo` (25) |
+| Promotional text | 170 | 133 characters, below — re-pasted with every version |
+| Description | 4000 | 3186 characters, below |
+| Keywords | 100 | 99 characters (99 bytes), below |
+| What's New | 4000 | 409 characters (346 without the voice), below |
+| Support URL | — | `https://cymbra.app/it/assistenza/` (_provisional_; the owner's question: `/it/assistenza/` or `/en/support/`) |
+| Marketing URL | — | `https://cymbra.app/it/lingua/` — built once en-it is in the published figures (change 41's D6), pinned by change 45; pasted after the site deploy that follows it |
+| Privacy policy | — | `https://cymbra.app/it/privacy/` — a courtesy translation, the French prevailing (I13) |
+
+`/it/assistenza/` (`apps/site/src/pages/it/assistenza.md`, change 41) is the Italian translation of
+`/support/`: like `/en/support/` and `/es/soporte/`, it speaks of Cymbra Music and gives the contact
+address. Chosen by default as the owner chose `/es/soporte/` for es-ES on 2026-10-25.
+
+### Promotional text, it-IT (133 / 170)
+
+> Le parole inglesi che non conosci ancora, evidenziate sulla pagina che stai leggendo. L'analisi avviene sul tuo dispositivo, offline.
+
+### Keywords, it-IT (99 / 100; 99 bytes)
+
+Apple counts this field in bytes; no letter here is accented. With `parole` the list would be 106
+bytes, so `parole`, the most general, which `vocabolario` covers, gives way, as `words` did in English
+(change 26) and `aprender` in Spanish (change 31) — _provisional_. `lingue` takes the place of
+`mazzo`, the interface's word for the deck, on the reviewer agent's advice (I2): searched alone,
+« mazzo » finds card games, and `flashcard` already carries the idea — _provisional_ too. QCER is the
+CEFR's Italian name, the one the interface uses (I6, M19); `flashcard` is the word Italian learners
+search.
+
+```
+inglese,vocabolario,lettura,traduzione,estensione,imparare,ripasso,QCER,lingue,flashcard,dizionario
+```
+
+### Description, it-IT (3186 / 4000)
+
+The es-ES text without fr-es, written for a reader of Italian who studies English, with what the
+other texts added since (the anonymous counts, the last line's four audiences). Its steps follow the
+host app's Italian page (`copy.js`, `it.step1` to `it.step3`, change 40: « Apri Impostazioni → App →
+Safari → Estensioni », « In Safari, apri l'estensione dal menu della barra degli indirizzi e scegli il
+tuo livello di inglese. »), the arrows written « > » as every description writes them; its labels the
+Italian catalogue (`apps/lingua-extension/src/i18n/it/card.ts`: « La conosco », « + Mazzo »,
+« Ignora »; « Un badge », `showPercentPill`); its grammar the Italian renderer (`src/i18n/it/grammar.ts`:
+« passato semplice di go », pinned by `test/baseline/word-card-en-it.txt`); its size the model
+catalogue (en-it 2.1, « 26,5 MB »). English's levels are not estimated (CEFR-J and Octanove), named
+QCER. The last line is the form with it-es (the one release carries change 30); without it-es (3174),
+its last clause reads « e in spagnolo per gli ispanofoni, che imparano l'inglese e il francese. »
+
+```
+Cymbra Lingua è un'estensione di Safari che evidenzia, sulla pagina che stai leggendo, le parole inglesi che non conosci ancora, senza cambiare l'impaginazione. Un badge ti mostra quanta parte del testo ti è familiare, calcolata su ciò che hai davvero segnato, non stimata.
+
+DOPO L'INSTALLAZIONE
+Questa app installa l'estensione, che va poi attivata.
+1. Apri Impostazioni > App > Safari > Estensioni (su Mac: Safari > Impostazioni > Estensioni).
+2. Attiva Cymbra Lingua, poi consentila sui siti web che leggi.
+3. In Safari, apri l'estensione dal menu della barra degli indirizzi e scegli il tuo livello di inglese: finché non lo fai, l'estensione considera sconosciute tutte le parole.
+Ricarica le schede già aperte perché vengano evidenziate.
+
+LETTURA
+Tocca una parola evidenziata: il suo significato in italiano, la forma che trovi nel dizionario e la frequenza nell'uso comune. I significati provengono dal Wikizionario: sono scritti da persone, mai tradotti automaticamente. La carta indica anche il tempo verbale («passato semplice di go»). Poi decidi: «La conosco», «+ Mazzo» per ripassarla più tardi, oppure «Ignora». Seleziona più parole per acquisire un'espressione intera insieme alla frase da cui proviene.
+
+RIPASSO
+Le carte che crei si ripassano in un pannello sulla pagina che stai leggendo, con una ripetizione dilazionata che sceglie per te il momento giusto. Una schermata di statistiche stima il tuo vocabolario livello per livello, da A1 a C2 secondo il QCER, a partire dalle parole che hai segnato.
+
+I TUOI LIBRI
+Importa i tuoi libri EPUB senza DRM nella biblioteca dell'estensione e leggili offline, con la stessa evidenziazione. Restano sul tuo dispositivo.
+
+TRADUZIONE ESTESA (FACOLTATIVA)
+La tua selezione viene tradotta in italiano all'interno della sua frase, direttamente dall'inglese, sul tuo dispositivo, dal motore di Firefox Translations, incluso nell'app. Se attivi la traduzione estesa, il modello di traduzione (26,5 MB) viene scaricato da Cymbra una sola volta; il testo delle pagine che leggi resta comunque sul tuo dispositivo. Se la disattivi, il modello viene eliminato.
+
+LA TUA LETTURA RESTA TUA
+I dizionari e i motori di analisi e di traduzione sono nell'app, e tutto funziona offline. Ciò che leggi non lascia mai il tuo dispositivo. L'estensione può inviare conteggi anonimi (installazione, primi passi, ritorni) senza alcun identificativo; un interruttore nelle Impostazioni dell'estensione li disattiva.
+
+UN ACCOUNT, SE LO VUOI
+Crea un account Cymbra se, e solo se, vuoi ritrovare le tue parole e le tue carte sugli altri tuoi dispositivi. Oltre ai conteggi anonimi, sono gli unici dati che lasciano il tuo dispositivo, e puoi cancellarli dalle Impostazioni dell'estensione senza eliminare il tuo account.
+
+Quante parole inglesi spiega in italiano il nostro dizionario? I nostri dati sono pubblicati su cymbra.app/it/lingua.
+
+L'interfaccia è in italiano per gli italofoni, che imparano l'inglese; in francese per i francofoni, che imparano l'inglese, lo spagnolo e l'italiano; in inglese per gli anglofoni, che imparano lo spagnolo, il francese e l'italiano; e in spagnolo per gli ispanofoni, che imparano l'inglese, il francese e l'italiano.
+```
+
+### What's New, it-IT (409 / 4000)
+
+The paragraph for Italian speakers, for change 45's release, modelled on the es-ES one for en-es's
+release (_What's New — the release that ships Spanish speakers' English_) — the first notes this locale
+carries; the rest of its notes is written with the release, like every « What's New ». With the voice
+clause, as changes 21's, 26's and 31's paragraphs (_provisional_): « Lettura ad alta voce » is the
+Italian catalogue's (`readAloud`, `src/i18n/it/settings.ts`), the voices `PREFERRED_REGIONS.en`'s
+(`src/reading/speech.ts`: the United States, then Britain); without it, « La lettura ad alta voce
+usa una voce americana o britannica, e con la traduzione estesa » reads « Con la traduzione estesa »
+(346). If change 45 does not offer en-it's translation, the last clause goes (289). The
+fr-FR, en-US and es-ES notes say nothing of en-it: their readers' languages do not move.
+
+```
+Cymbra Lingua ora parla italiano, per chi parla italiano e impara l'inglese: l'interfaccia, la carta, il ripasso e le statistiche sono in italiano, e ogni parola inglese mostra il suo significato in italiano, scritto da persone. La lettura ad alta voce usa una voce americana o britannica, e con la traduzione estesa la tua selezione viene tradotta direttamente dall'inglese all'italiano, sul tuo dispositivo.
+```
+
+### Review notes for change 45's submission (3974 / 4000)
+
+Change 31's block for change 30's submission, with the Italian interface named (change 46's D2):
+"Regional differences" says the interface follows a device in Italian too (« French, Spanish,
+Italian, else English », +9) and that one in Italian runs the same steps in its own labels
+(« ; one in Italian, the Italian ones. », +34). "Purpose & audience" does not move: « Readers study
+English, Spanish or French, other than their own » already covers Italian speakers studying English
+(change 21's sentence, which over-claims for them, as change 31 noted). The route note's range becomes
+« 25.4-26.5 MB each » (±0): en-it is 26,509,835 B, « 26.5 MB », over the 26.2 the range said. The
+sources do not move: en-it's glosses read the Italian, English and French Wiktionaries
+(`tables/en-it/manifest.json`), credited already. To keep the room changes 21, 26 and 31 left for a
+dashboard that counts each of the block's 22 line breaks as two, wording was cut, and no step, label
+or source a reviewer needs: change 31's spare cuts, « for the glosses » (−16) and « Wikidata Lexemes
+(CC0) » → « Wikidata (CC0) » (−8); « and their CEFR level is estimated » → « and their CEFR level
+estimated » (−3); step 5's « Settings (four tabs) » → « Settings » (−12, _provisional_ — the owner's choice to confirm). **3974** as this file
+counts, **3996** with each line break counted twice. No step is added for Italian: the reviewer's
+path stays in the English interface. Pasted with the one release; a submission before it pastes
+change 31's (or change 26's, or 21's) block.
+
+```
+No account needed to review this app. An optional Cymbra account saves progress across reinstalls and devices. To test it: panel > Settings > Data > Account, Sign in with Apple or Google - no invitation needed.
+
+IMPORTANT - this app hosts a Safari extension: enable it in Safari first.
+
+1. Settings > Apps > Safari > Extensions (macOS: Safari > Settings > Extensions): enable "Cymbra Lingua", then set "Other Websites" to Allow.
+2. In SAFARI (not in the app), open the extension from the address-bar menu, keep English as your language and pick a Spanish level (B1). With no level, every word is highlighted, the pill 0%.
+3. Open a Spanish page. Reload any tab opened BEFORE the extension was enabled or the level picked.
+4. Words above your level are highlighted; the pill shows the share you know. Tap a highlighted word: a card gives its English translation, dictionary form and frequency, with "I know it", "+ Deck", "Ignore".
+5. Tap the pill to open the panel: Review, Stats (estimated vocabulary, A1 to C2), Settings.
+6. French: Settings > Language > "Languages studied" > "French", then a French level, on a French page.
+7. Open the app: it reviews the deck built in Safari (on the device).
+
+Account deletion: panel > Settings > Data, signed in > "Manage my data" opens the account page. "Erase my Lingua data…" erases it on the server and every device, keeping the account. "Delete my Cymbra account" opens https://cymbra.app/en/delete-account/, where the account (shared by Cymbra's apps) is deleted after signing in.
+
+OPTIONAL - "Extended translation", off by default (Settings > Language). Its engine (Mozilla's Firefox Translations) ships inside the app. Turning it on downloads data only - a model per pair studied (25.4-26.5 MB each; a pair through English chains two) from models.cymbra.app, checked against a pinned sha256. No page text, account or device identifier is sent. Turning it off deletes the models.
+
+Purpose & audience: Cymbra Lingua helps people learn a language by reading web pages and DRM-free EPUB books: unknown words are highlighted, looked up offline, captured into a deck reviewed with spaced repetition, and their CEFR level estimated from the words they marked. Readers study English, Spanish or French, other than their own; English, French and Spanish speakers Italian too.
+
+External services: highlighting, lookup, level estimate and translation run on the device; no ads. By default (legitimate interest), once the popup has said so, anonymous counts go to api.cymbra.app as they happen: install, level chosen, first page analysed, return on day 1, 7-13, 30-59 - each once, with install day, browser, version; no identifier, no page text. Off: Settings > Data > "Anonymous usage counts". Only on the reader's action: models.cymbra.app serves the models above; the backend syncs the word list when signed in and, for accounts we grant it, relays the AI-based "Online translation" (off by default): each button press sends one sentence to Google Gemini, else Anthropic Claude, kept by no one; Sign in with Apple / Google authenticate (the app never sees a password). No payment processor, no in-app purchase.
+
+Regional differences: none. The interface follows the device's language (French, Spanish, Italian, else English); Settings > Language switches. A device in Spanish runs steps 2-5 on an English page: "Elige tu nivel de inglés", "La conozco", "+ Mazo", "Ignorar", "Repaso", "Ajustes"; one in Italian, the Italian ones.
+
+Third-party material: the bundled dictionaries use sources licensed for commercial use - ESDB (SCOWL) inflections, CEFR-J and Octanove level lists for English; the UD Spanish-GSD, French-GSD and Italian-MarkIT treebanks, Morph-it!; wordfreq frequencies; Wikidata (CC0) and kaikki.org extracts of nine Wiktionaries (en, fr, es, it, de, pt, ru, pl, nl) - credited in the extension's "Sources & privacy" panel. The translation models are Mozilla's (MPL 2.0). The app does not operate in a regulated industry.
+```
+
+### Screenshots, it-IT
+
+A set of its own in each it-IT slot — iPhone 6.5", iPad 13", macOS —, captured by the owner by hand in
+Safari from change 45's build, on a device in Italian, an English level chosen (B1), as the es-ES set
+was for en-es; never the browser stores' `store-captures/it/`, Chromium's rendering (Guideline 2.3.3).
+The host app declares Italian only from that build (change 40). The reviewer agent checks each shot's
+text (I2):
+
+1. **Reading** — an English article in Safari (an English Wikipedia page reads well), highlighting on,
+   the badge showing the share of the page known.
+2. **The word card** — open on a highlighted past form: « went » reads « passato semplice di go »
+   (`apps/lingua-extension/test/baseline/word-card-en-it.txt`), its Italian gloss below, « La
+   conosco », « + Mazzo » and « Ignora ».
+3. **Review** — the panel (« Ripasso ») on a card, its answer revealed below its sentence, the two
+   answers (« Non la sapevo » and « La sapevo »).
+4. **Statistics** — « Stats », the ladder « Il mio livello di inglese » from A1 to C2 (QCER), its
+   levels English's own lists, not estimated.
+
+On macOS, the same four in Safari for Mac.
+
+### What the app itself says, for Italian speakers
+
+The host app's Italian page (change 40, `localise-lingua-apple-host-italian`, `copy.js`), shown from
+change 45, says to an Italian speaker: *« In Safari, apri l'estensione dal menu della barra degli
+indirizzi e scegli il tuo livello di inglese. »* The it-IT description's step 3 carries it word for
+word (its apostrophe straight, as the description writes every one), then the reason, as the es-ES
+step 3 does; it names no other language, the reader studying one. Step 1 follows the page's
+« Impostazioni → App → Safari → Estensioni »; the Mac path, « Safari > Impostazioni > Estensioni », follows
+the page's line for macOS 13 and later, `it.stateUnknown` (« nelle impostazioni di Safari, sezione
+Estensioni »), `stateUnknownPreferences`' « preferenze » being the one before macOS 13. Both paths
+are unverified on a device in Italian (the reviewer's _Unverified_), in the owner's dogfood
+checklist. Should the owner word the page otherwise
+at change 45, the description follows that wording.
+
+### The locale, from now on
+
+I9 adds it-IT for good: every later release needs an it-IT « What's New » and the promotional text
+re-pasted, each reviewed by the Italian reviewer agent (I2), as the five others are written with every
+release.
+
+### The dashboards, change 45's submission
+
+One release carries changes 20, 25, 30 and 45 (the owner, 2026-10-26), so this is one submission with
+changes 20's, 25's and 30's (_The dashboards, change 30's submission_, above): fr-FR's, en-US's,
+en-GB's, es-ES's and es-MX's texts with Italian pasted in the same pass, and this block's review notes
+in place of change 31's. With that release, after the site deploy that publishes `/it/lingua/`:
+
+1. **Add the Italian localisation** (App Store Connect › the app › App Information, the language menu
+   › Italian): the name and subtitle above, the privacy policy URL.
+2. **Under the version, Italian**: the promotional text, the description, the keywords, the support
+   and marketing URLs, « What's New », and the it-IT screenshots per slot.
+3. **The review notes** above, in App Review Information (one field, every locale).
+4. **Check** that the Italian storefront shows the it-IT listing, no longer the French.
+
+What App Store Connect shows is recorded here, in the pull request that next touches this file:
+
+| Locale | Checked on | Fields pasted | Counter as pasted | Notes |
+|---|---|---|---|---|
+| it-IT | _to record_ | _to record_ | _to record_ | |
+| Review notes | _to record_ | _to record_ | _to record_ | |
+
 ## What's New — 1.8.1
 
 Submitted on 2026-10-16: iOS build 260, macOS build 261, in the five locales (en-GB as en-US, es-MX
@@ -1163,7 +1402,9 @@ studied_, below) names it for French speakers; change 25's (_Italian for English
 25's release)_) for English speakers; change 30's (_Italian for Spanish speakers (change 30's
 release)_, 3970) for Spanish speakers, its route note « a pair through English chains two » and its
 sources Wikidata Lexemes and the nine Wiktionaries it-es reads. One release carries changes 20, 25
-and 30 (the owner, 2026-10-26), so change 30's block is the one pasted with it.
+and 30 (the owner, 2026-10-26), so change 30's block is the one pasted with it — and, change 45
+joining that release, change 45's (_Italian for Italian speakers (change 45's release)_, 3974), which
+names the Italian interface and widens the models' range to 26.5 MB for en-it.
 
 M15 is settled: extended translation opens with each pair; should change 52 not offer one, its
 models go from the OPTIONAL paragraph and the count only falls.
@@ -1427,6 +1668,7 @@ Chromium's rendering of the extension, not the Safari app's, and App Review asks
 | en-GB | en-US's set | en-US's set | en-US's set | — |
 | es-ES | to capture | to capture | to capture | a build of change 35, the device in Spanish: the Spanish interface on an English page; the fifth, if change 52 lists fr-es, from its build, on a French page |
 | es-MX | es-ES's set | es-ES's set | es-ES's set | — |
+| it-IT | to capture | to capture | to capture | change 45's build, the device in Italian: the Italian interface on an English page, four shots (_Italian for Italian speakers (change 45's release)_) |
 
 The en-US set, captured by the owner (the device in English, a Spanish level chosen — B1):
 
