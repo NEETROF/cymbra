@@ -229,6 +229,18 @@ procedure) runs on it. No French or English description moves: none says what Sp
     English chains two » holds either way. These variants are written beside the drafts in the listing
     files, as change 21's were.
 
+Taken on `main` at `e63e7d7f4` (2026-10-25):
+- **Sizes**: it-en is 26,242,301 B, so it-es's route is 51,615,655 B, « 51,6 MB », and « 51,6 MB con el
+  francés o el italiano » holds; French and Italian together are 77,850,370 B, « 77,9 MB », it-en being
+  over the 26,241,931 B threshold of *Measured*: « 77,9 MB con los dos », not « 77,8 ».
+- **Coverage**: it-es's committed figures, after change 28, are 85.2 / 76.1 / 65.1 %, under en-es's
+  93.0 / 85.0 / 71.7 at each top by 7.8, 8.9 and 6.6 points: the dictionary sentence names Italian.
+  The gap is fr-es's kind, not it-en's 0.7 to 3.0 points, for which the owner left change 26's
+  sentence out.
+- **Translation**: change 29 (#1071) measured 90 of 95 shown marks right, 94.7 %, 5 % withheld: the
+  first tier. The owner's answer under M15: the marks are shown. The drafts stand as written; the
+  withheld variants are written beside them.
+
 ### D6 — Where the definitions come from, and the claims table
 
 The Spanish texts say « Los significados proceden del Wikcionario, escritos por personas, nunca por una
@@ -305,6 +317,14 @@ The extension file's « what each claim rests on » gains rows:
   carries, and change 45, whose table block this one extends. `scripts/openspec_archive_order.py`
   ignores a named change that has no directory, so change 30 is waited for once proposed.
 
+Changes 21 and 26 were not on `main` when this change was implemented (2026-10-25): #1057 merges with
+change 20's #1058 after the owner's dogfood, and change 26's branch waits on #1057. So, as change 26
+did, the listing texts went into a section of their own in each file, which merges with both
+branches, and the site's tests and the notes changes 21 and 26 edit in place wait on #1057's merge.
+The site's tests were written and run on a scratch copy of #1057's branch with change 26's patch
+applied; their patch is kept for the rebase. Change 46 was not implemented either: its Italian
+line's form with it-es is recorded in the extension file for change 46 to carry (D3).
+
 ### D9 — Requirements true of their time
 
 - ***The store listings name each studied language*** (held by change 46):
@@ -375,3 +395,27 @@ For the owner:
    to an Italian page.
 7. **The es-ES and es-MX Support URL**: the listing file does not record it. Which page it names, as
    change 46 asks for it-IT.
+
+**Settled by the owner on 2026-10-25.**
+- **1, the drafts** (D2–D4): as written.
+- **2, the keywords**: `aprender` gives way.
+- **3, « What's New »**: with the voice clause (485), as for changes 21 and 26; « , escrito por personas »
+  left out.
+- **4, the review notes**: D4's cuts (3,970).
+- **5, provenance**: (a), Wikidata named — « Los significados proceden del Wikcionario y, para el
+  italiano, también de Wikidata, escritos por personas, nunca por una traducción automática. » The site's
+  three `glossesOrigin` sentences follow when change 30 lands: they are static, and would name Wikidata
+  before it-es is listed if they landed earlier.
+- **6, the Chrome Web Store's Spanish screenshots**: unchanged.
+- **7, the es-ES and es-MX Support URL**: `https://cymbra.app/es/soporte/` (`apps/site/src/pages/es/soporte.md`).
+- And, for change 30 (its Open Question 1): the Spanish summary « La web en inglés, francés o italiano:
+  palabras desconocidas resaltadas, porcentaje honesto. Sin conexión. » (105), which the extension file's
+  section quotes; the activation page keeps its drafted `lede` and step 3.
+
+Nothing counted moves: every answer is the draft the files already carried, but the summary's quote.
+
+**One release** (the owner, 2026-10-26). Changes 20, 25 and 30 ship in one release, so D8's « pasted
+with change 30's release » is that release: the texts of changes 21, 26 and 31 are pasted together,
+the single fields and the review notes being this change's, and a submission before it pastes
+changes 21's and 26's alone. #1057, #1058, #1074 and #1075 merged that day: the site's tests and the
+notes changes 21 and 26 edit in place were done on `main`, the sections moved after change 26's.
