@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ANDROID_VOICES_KEY,
   REMOTE_VOICES_KEY,
+  SPEECH_RATE_KEY,
   type AsyncStorageArea,
   classifyStored,
   DEFAULT_HUD_POSITION,
@@ -22,6 +23,7 @@ import {
   loadStored,
   loadAndroidVoices,
   loadRemoteVoices,
+  loadSpeechRate,
   loadVoices,
   loadHudPosition,
   loadNewWordsPerDay,
@@ -35,6 +37,7 @@ import {
   saveHudHidden,
   saveAndroidVoices,
   saveRemoteVoices,
+  saveSpeechRate,
   saveHudPosition,
   saveVoice,
   STORAGE_VERSION,
@@ -285,6 +288,15 @@ describe("the read-aloud voice preference", () => {
     expect(await loadAndroidVoices(fakeArea({ [ANDROID_VOICES_KEY]: "yes" }))).toBe(false);
   });
 
+  it("reads the speaking rate as normal until the reader chooses a step", async () => {
+    const area = fakeArea();
+    expect(await loadSpeechRate(area)).toBe(1);
+    await saveSpeechRate(area, 0.75);
+    expect(area.store[SPEECH_RATE_KEY]).toBe(0.75);
+    expect(await loadSpeechRate(area)).toBe(0.75);
+    expect(await loadSpeechRate(fakeArea({ [SPEECH_RATE_KEY]: 3 }))).toBe(1);
+  });
+
   it("keeps remote voices refused until they are allowed", async () => {
     const area = fakeArea();
     expect(await loadRemoteVoices(area)).toBe(false);
@@ -300,7 +312,7 @@ describe("the read-aloud voice preference", () => {
     const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
     const area = fakeArea({ [VOICE_KEY]: "Daniel" });
     const pref = storedVoicePreference(area);
-    expect(await pref.load()).toEqual({ voices: { en: "Daniel" }, androidVoices: false, remoteVoices: false });
+    expect(await pref.load()).toEqual({ voices: { en: "Daniel" }, androidVoices: false, remoteVoices: false, rate: 1 });
     const seen: unknown[] = [];
     pref.watch((settings) => seen.push(settings));
     area.store[VOICE_KEY] = "Moira";
@@ -312,13 +324,17 @@ describe("the read-aloud voice preference", () => {
     area.store[REMOTE_VOICES_KEY] = true;
     listener!({ [REMOTE_VOICES_KEY]: { newValue: true } }, "local");
     await settle();
+    area.store[SPEECH_RATE_KEY] = 0.5;
+    listener!({ [SPEECH_RATE_KEY]: { newValue: 0.5 } }, "local");
+    await settle();
     listener!({ [VOICE_KEY]: { newValue: "Karen" } }, "sync");
     listener!({ [HUD_HIDDEN_KEY]: { newValue: true } }, "local");
     await settle();
     expect(seen).toEqual([
-      { voices: { en: "Moira" }, androidVoices: false, remoteVoices: false },
-      { voices: { en: "Moira" }, androidVoices: true, remoteVoices: false },
-      { voices: { en: "Moira" }, androidVoices: true, remoteVoices: true },
+      { voices: { en: "Moira" }, androidVoices: false, remoteVoices: false, rate: 1 },
+      { voices: { en: "Moira" }, androidVoices: true, remoteVoices: false, rate: 1 },
+      { voices: { en: "Moira" }, androidVoices: true, remoteVoices: true, rate: 1 },
+      { voices: { en: "Moira" }, androidVoices: true, remoteVoices: true, rate: 0.5 },
     ]);
   });
 });
