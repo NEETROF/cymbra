@@ -6,7 +6,7 @@ import type { GrammarBlocks, GrammarLine, Named, StudiedLanguageCode } from "../
 // dictionary form left out on its own card — and with it its plural, where the card also reads the
 // form in the singular, for every studied language (refine-lingua-card-invariable-plurals D2) —, the
 // other dictionary forms and the pieces. A renderer per interface language
-// (`src/i18n/{fr,en,es}/grammar.ts`) says it in that language's words; this module holds the
+// (`src/i18n/{fr,en,es,it}/grammar.ts`) says it in that language's words; this module holds the
 // decisions every renderer shares — what is named at all, and how a line is composed from its parts
 // — so a renderer can only word what the French card names, never more.
 
@@ -375,6 +375,13 @@ export interface ReadingWords {
   name(kind: FormKind, studied: StudiedLanguageCode, tense: string | undefined): Named | null;
   /** A finite form's persons (sorted) and number, in its tense. */
   persons(persons: readonly string[], number: "Sing" | "Plur", tense: string): Named;
+  /**
+   * One tense read in both numbers, named once: the singular's persons (sorted), the plural's, then
+   * the tense — « prima persona singolare e terza persona plurale dell'indicativo presente »
+   * (review-lingua-italian-wording). Optional: a renderer that leaves it unset names the tense with
+   * each number, as the French, English and Spanish cards do.
+   */
+  bothNumbers?(singular: readonly string[], plural: readonly string[], tense: string): Named;
   /** The order of the numbers within one tense. */
   numbers: readonly ("Sing" | "Plur")[];
   /** What merges the persons of two readings: the tense's name (French), or its key (by tag). */
@@ -482,8 +489,18 @@ export function nameReadings(readings: readonly Reading[], studied: StudiedLangu
   // earlier one (`mergeMoods`).
   const places = groups.map((g) => g.at).sort((a, b) => a - b);
   groups.sort((a, b) => rank(a.key) - rank(b.key) || words.numbers.indexOf(a.number) - words.numbers.indexOf(b.number));
-  groups.forEach(({ number, tense, persons }, i) => {
-    out[places[i]!] = words.persons([...persons].sort(), number, tense);
+  // One tense in both numbers: its two groups sit side by side once sorted, the singular first where
+  // the renderer orders the numbers so; a renderer that names them once (`bothNumbers`) takes the
+  // place of the first, and the second place empties, as a merge of moods empties one.
+  groups.forEach(({ key, number, tense, persons }, i) => {
+    const next = groups[i + 1];
+    if (emptied.has(places[i]!)) return;
+    if (words.bothNumbers && number === "Sing" && next?.key === key && next.number === "Plur") {
+      out[places[i]!] = words.bothNumbers([...persons].sort(), [...next.persons].sort(), tense);
+      emptied.add(places[i + 1]!);
+    } else {
+      out[places[i]!] = words.persons([...persons].sort(), number, tense);
+    }
   });
   return emptied.size === 0 ? out : out.filter((_, i) => !emptied.has(i));
 }

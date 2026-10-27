@@ -21,8 +21,10 @@
 //! `tables/en-es/`; es-en, the committed pair glossed in English (add-lingua-pack-es-en), built
 //! from `tables/es/` and `tables/es-en/`; fr-es, French glossed in Spanish
 //! (add-lingua-pack-fr-es), built from `tables/fr/` and `tables/fr-es/`; it-en, Italian glossed in
-//! English (add-lingua-pack-it-en D9), built from `tables/it/` and `tables/it-en/`; and it-es, Italian
-//! glossed in Spanish (add-lingua-pack-it-es D11), built from `tables/it/` and `tables/it-es/`.
+//! English (add-lingua-pack-it-en D9), built from `tables/it/` and `tables/it-en/`; it-es, Italian
+//! glossed in Spanish (add-lingua-pack-it-es D11), built from `tables/it/` and `tables/it-es/`; and
+//! en-it, English glossed in Italian (add-lingua-pack-en-it D8), built from `tables/en/` and
+//! `tables/en-it/`.
 //!
 //! Every probe of the language's invariance baseline is answered through both packs, and must
 //! be byte for byte alike once glosses, senses and expressions — the native side — are removed
@@ -311,6 +313,47 @@ fn spec_scenario_english_through_another_native_language() {
         .map(|(tag, _)| tag.unwrap().to_ud())
         .collect();
     assert_eq!(read, tags, "three, as the core reads it");
+}
+
+#[test]
+fn spec_scenario_english_through_italian() {
+    // en-fr, English's reference, and en-it: the committed pair glossed in Italian
+    // (add-lingua-pack-en-it D8, *One studied side, three natives*), both built from tables/en/ — the
+    // real third pack. The scenario's engine holds the one pack (`render_unseeded`): en-fr's cards
+    // carry no label, en-it's `it`.
+    let root = Scenario::tables_root();
+    let (reference_inputs, other_inputs) = (
+        inputs_from_tables(&root, "en-fr").expect("read en-fr"),
+        inputs_from_tables(&root, "en-it").expect("read en-it"),
+    );
+    assert_eq!(
+        other_inputs.meta.native, "it",
+        "en-it is glossed in Italian"
+    );
+    let (reference, other) = (
+        build_pack(&reference_inputs).expect("en-fr"),
+        build_pack(&other_inputs).expect("en-it"),
+    );
+    let (en_fr, en_it) = (Pack::load(&reference).unwrap(), Pack::load(&other).unwrap());
+    assert_eq!(en_it.pair().key(), "en-it", "glossed in Italian");
+    assert_studied_sections_alike("en-fr", &reference, &other);
+    assert_probes_alike(&ENGLISH, None, &reference, &other, "fr", "it");
+    // A lemma en-it glosses and en-fr does not is no dictionary word: the dictionary words are
+    // en-fr's, read from tables/en.
+    let only_here: Vec<&str> = other_inputs
+        .glosses
+        .iter()
+        .map(|(lemma, _)| lemma.as_str())
+        .filter(|lemma| en_fr.gloss(lemma).is_none())
+        .collect();
+    assert!(!only_here.is_empty(), "en-it glosses lemmas en-fr does not");
+    for lemma in &only_here {
+        assert!(!en_it.is_dictionary_word(lemma), "{lemma}");
+    }
+    assert_eq!(en_it.gloss("house"), Some("casa; alloggiare"));
+    assert!(en_it.is_dictionary_word("house"));
+    // *A vocabulary size counts dictionary words*: the universe and the ladder are en-fr's.
+    assert_eq!(sizes(&other, "en"), sizes(&reference, "en"));
 }
 
 #[test]
@@ -710,6 +753,7 @@ fn seeding_follows_each_packs_glosses() {
         ("fr", "fr-en", "fr-es"),
         ("it", "it-fr", "it-en"),
         ("it", "it-fr", "it-es"),
+        ("en", "en-fr", "en-it"),
     ];
     let checked: Vec<_> = std::thread::scope(|scope| {
         let threads: Vec<_> = languages
@@ -741,7 +785,11 @@ fn seeding_follows_each_packs_glosses() {
             "es" => assert_eq!(a.skipped, 0, "es-fr glosses every levelled lemma"),
             // The C1 lemmas en-fr seeds rarest first are not en-es's: C1 is the fifth level,
             // `rare` its second order.
-            "en" => assert_ne!(a.cards[4 * 2 + 1], b.cards[4 * 2 + 1], "C1, rarest first"),
+            "en" => assert_ne!(
+                a.cards[4 * 2 + 1],
+                b.cards[4 * 2 + 1],
+                "C1, rarest first: {other_pair}"
+            ),
             // Italian's levels go to its dictionary words alone, it-fr's glossed lemmas
             // (add-lingua-pack-it-fr D5): it-fr seeds every card it is asked for.
             "it" => assert_eq!(a.skipped, 0, "it-fr glosses every levelled lemma"),
@@ -811,6 +859,7 @@ fn a_gloss_the_reader_chose_wins_through_every_native_language() {
         ("fr-en", "fr-es", "fr", "maison"),
         ("it-fr", "it-en", "it", "casa"),
         ("it-fr", "it-es", "it", "casa"),
+        ("en-fr", "en-it", "en", "house"),
     ];
     for (reference, other, language, lemma) in cases {
         let reference_pack = Scenario::real_pack(reference);

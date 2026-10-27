@@ -1,6 +1,6 @@
 import Foundation
 
-/// The host app's sign-in link, `cymbra-lingua://signin?provider=apple|google&lang=fr|en|es`,
+/// The host app's sign-in link, `cymbra-lingua://signin?provider=apple|google&lang=fr|en|es|it`,
 /// opened by the Safari extension (`hostAppSignInUrl` in apps/lingua-extension). The scheme is
 /// declared in both apps' `CFBundleURLTypes`.
 public enum SignInLink {
@@ -12,7 +12,7 @@ public enum SignInLink {
     }
 
     /// The interface language a sign-in link names (localise-lingua-apple-host D3), among the
-    /// languages the app speaks; nil for an older link naming none, and for any other value — any
+    /// languages the app speaks — Italian too (localise-lingua-apple-host-italian D2); nil for an older link naming none, and for any other value — any
     /// page can open the link, so the raw value is never shown or passed on.
     public static func language(from url: URL) -> SignInLanguage? {
         query(ofSignIn: url, "lang").flatMap(SignInLanguage.init(rawValue:))
@@ -60,7 +60,8 @@ public enum SignInFlow {
 
 /// The sheet's copy, in one of the languages the app speaks (localise-lingua-apple-host D3): the
 /// French is what the sheet showed before the table, byte for byte; the English and Spanish are
-/// drafts after it (tú, no vosotros). A failure names its provider and never reads as a password
+/// drafts after it (tú, no vosotros); the Italian is a draft after it too, reviewed by the Italian
+/// reviewer agent (localise-lingua-apple-host-italian D2, D6: « tu », no gendered participle). A failure names its provider and never reads as a password
 /// error, in every language. Apple's own button is labelled by the system, not from here.
 public struct SignInCopy: Sendable {
     public let language: SignInLanguage
@@ -103,6 +104,7 @@ public struct SignInCopy: Sendable {
         case .fr: return Self.fr
         case .en: return Self.en
         case .es: return Self.es
+        case .it: return Self.it
         }
     }
 
@@ -176,5 +178,23 @@ public struct SignInCopy: Sendable {
         button: "Continuar con {provider}",
         failure: "No se pudo iniciar sesión con {provider}. Vuelve a intentarlo en un momento.",
         unavailable: "Iniciar sesión con {provider} todavía no está disponible en esta versión."
+    )
+
+    // A draft after the French (tu, no voi; no gendered participle), reviewed by the Italian
+    // reviewer agent (localise-lingua-apple-host-italian D6). Music's terms (app_it.arb): « Accedi »,
+    // « Annulla », « Riprova », « Continua con Google/Apple », « Continua con l'email ».
+    private static let it = Table(
+        heading: "Accedi a Cymbra Lingua",
+        lede: "Accedi per ritrovare le tue parole e i tuoi ripassi su tutti i tuoi dispositivi.",
+        appLede: "Accedi per sincronizzare i ripassi fatti nell'app e usare la traduzione online. Usa lo stesso account che usi in Safari.",
+        done: "Fatto! Torna su Safari: Cymbra Lingua sta completando l'accesso.",
+        browserWaiting:
+            "Completa l'accesso nella finestra del browser. Se non si apre nulla, annulla, chiudi il browser e riprova.",
+        close: "Chiudi",
+        cancel: "Annulla",
+        emailButton: "Continua con l'email",
+        button: "Continua con {provider}",
+        failure: "L'accesso con {provider} non è andato a buon fine. Riprova tra un momento.",
+        unavailable: "L'accesso con {provider} non è ancora disponibile in questa versione."
     )
 }

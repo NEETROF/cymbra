@@ -104,14 +104,16 @@ export function localeProblems(manifest, locales) {
 
 /**
  * How each native language names the languages a pair may study, as the interface's catalogue
- * names them (`name` in src/i18n/{fr,en,es}/languages.ts; test/check-version.spec.ts holds the two
+ * names them (`name` in src/i18n/{fr,en,es,it}/languages.ts; test/check-version.spec.ts holds the two
  * equal). The description is read in its own language: « anglais » is English in French, "English"
- * in English, « inglés » in Spanish. Italian since enable-lingua-italian (D7).
+ * in English, « inglés » in Spanish, « inglese » in Italian. Italian since enable-lingua-italian (D7);
+ * Italian's own row since localise-lingua-manifest-italian (D2).
  */
 export const LANGUAGE_NAMES = Object.freeze({
   fr: Object.freeze({ en: "Anglais", es: "Espagnol", fr: "Français", it: "Italien" }),
   en: Object.freeze({ en: "English", es: "Spanish", fr: "French", it: "Italian" }),
   es: Object.freeze({ en: "Inglés", es: "Español", fr: "Francés", it: "Italiano" }),
+  it: Object.freeze({ en: "Inglese", es: "Spagnolo", fr: "Francese", it: "Italiano" }),
 });
 
 /**

@@ -41,7 +41,7 @@ export const review: typeof fr = {
   onlineUnavailable: "Traduzione online non disponibile al momento.",
   onlineLimit: (time: string) => `Limite giornaliero raggiunto: di nuovo disponibile alle ore ${time}.`,
   keep: (candidate: string) => `Tieni «${candidate}»`,
-  keepOther: "Tieni un'altra traduzione…",
+  keepOther: "Tieni una traduzione…",
   keepEdit: "Modifica",
   keepFieldLabel: "Traduzione da tenere",
   keepSave: "Salva",

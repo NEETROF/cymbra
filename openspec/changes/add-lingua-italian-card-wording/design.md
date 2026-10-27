@@ -275,6 +275,14 @@ the open points it settles:
 
 The apostrophe is settled in D4; if the reviewer changes it, change 33's catalogue follows.
 
+The reviewer's pass (5 suggestions, no must-fix) kept « condizionale presente », « determinante »
+and the mood before the tense; it applied « sostantivo di genere comune » for the common gender
+(« sostantivo comune » is a common noun) and the U+0027 apostrophe in the two catalogue entries that
+wrote U+2019. Handed to change 44: a comma join where a line names several agreements (« plurale e
+maschile e femminile plurale di grande ») and a tense named once across numbers (`sono`), both in
+code shared with the English and Spanish renderers; and whether Italian schoolbooks say « presente
+semplice » and « forma in -ing ».
+
 The owner is not asked to review Italian. Change 44 rereads the card with the rest of the Italian
 wording, and dogfood waits for change 45.
 

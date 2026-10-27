@@ -1,0 +1,74 @@
+---
+import Base from '../../layouts/Base.astro';
+import Community from '../../components/Community.astro';
+import StoreButtons from '../../components/StoreButtons.astro';
+import { musicStores } from '../../lib/stores';
+import MusicShowcase from '../../components/MusicShowcase.astro';
+import { SHARE_COPY } from '../../lib/music-media';
+import shareImage from '../../assets/music/it/share.png';
+
+// Cymbra Music's Italian page (change: add-site-italian-locale, D4): the French page
+// translated (« tu », no gender assumed of the reader), static, no island, in the app's own
+// Italian terms (`apps/music/lib/l10n/app_it.arb`: Cascata, Spartito, Modalità attesa,
+// Libreria) and its Italian listing's (`apps/music/store/copy/it.md`) elsewhere. The French
+// page's closing paragraph (the plan, betas, subscription and access code, on the account and
+// code pages) is not carried, as in Spanish: both pages are English; the account stays in the
+// navigation.
+---
+
+<Base
+  title="Cymbra Music — pratica e corsi di musica con lo strumento collegato"
+  description="Collega la tua tastiera MIDI e suona: Cymbra Music segue lo spartito in tempo reale, ti dà un riscontro immediato e ti fa progredire lezione dopo lezione."
+  lang="it"
+  alternates={{ fr: '/music', en: '/en/music', es: '/es/music', it: '/it/music' }}
+  image={{ src: shareImage, alt: SHARE_COPY.it.alt }}
+>
+  <section class="hero container">
+    <p class="kicker">Cymbra Music</p>
+    <h1>Impara la musica, <span class="gradient">con il tuo strumento collegato</span></h1>
+    <p class="tagline">
+      Cymbra trasforma la pratica in un'esperienza guidata: segui i corsi, suona in tempo
+      reale con il tuo strumento e progredisci passo dopo passo.
+    </p>
+    <StoreButtons links={musicStores('it')} primary />
+  </section>
+
+  <MusicShowcase lang="it" />
+
+  <section id="funzioni" class="features container">
+    <div class="card">
+      <h3>🎹 Si collega ai tuoi strumenti</h3>
+      <p>Collega qualsiasi tastiera MIDI USB o batteria elettronica, oppure suona direttamente sullo schermo.</p>
+    </div>
+    <div class="card">
+      <h3>👀 Due modi di leggere</h3>
+      <p>Lo spartito classico sul pentagramma per esercitarti nella lettura, o le note che cadono a cascata per imparare in fretta. Puoi cambiare vista in qualsiasi momento.</p>
+    </div>
+    <div class="card">
+      <h3>⏸️ Modalità attesa</h3>
+      <p>Lo spartito si ferma finché non suoni la nota giusta. Mano sinistra e mano destra separatamente, con un colore per ogni mano.</p>
+    </div>
+    <div class="card">
+      <h3>🥁 Anche la batteria</h3>
+      <p>Vere parti di batteria, sul pentagramma o su un kit animato. Associa i tuoi pad una volta sola e isola un elemento per studiare un groove.</p>
+    </div>
+    <div class="card">
+      <h3>🎯 Punteggio in tempo reale</h3>
+      <p>Precisione e tempismo valutati mentre suoni, con un riepilogo della sessione alla fine di ogni esecuzione.</p>
+    </div>
+    <div class="card">
+      <h3>📚 Una libreria che cresce</h3>
+      <p>Spartiti di pubblico dominio, dal principiante all'avanzato, suoni di pianoforte di qualità e, se vuoi, le tue SoundFont.</p>
+    </div>
+    <div class="card">
+      <h3>🌍 Quattro lingue</h3>
+      <p>Italiano, inglese, francese e spagnolo.</p>
+    </div>
+    <div class="card">
+      <h3>🔒 Rispetto della tua privacy</h3>
+      <p>Dati ospitati in Francia (UE), nessuna rivendita, nessun tracker pubblicitario.</p>
+    </div>
+  </section>
+
+  <Community lang="it" />
+</Base>

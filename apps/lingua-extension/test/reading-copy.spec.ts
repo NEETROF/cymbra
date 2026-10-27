@@ -6,6 +6,7 @@ import { selection as enSelection } from "@/i18n/en/selection.ts";
 import { selection as esSelection } from "@/i18n/es/selection.ts";
 import { grammar as esGrammar } from "@/i18n/es/grammar.ts";
 import { grammar as frGrammar } from "@/i18n/fr/grammar.ts";
+import { grammar as itGrammar } from "@/i18n/it/grammar.ts";
 import { hud as frHud } from "@/i18n/fr/hud.ts";
 import { createHud, LinguaHud } from "@/reading/hud.ts";
 import { readingCopy } from "@/reading/reading-copy.ts";
@@ -338,6 +339,8 @@ describe("the session hands the surfaces the language", () => {
     expect(readingCopy("fr").grammar).toBe(frGrammar);
     expect(readingCopy("en").grammar).toBe(enGrammar);
     expect(readingCopy("es").grammar).toBe(esGrammar);
+    // Italian's own renderer, no longer the English one (add-lingua-italian-card-wording D6).
+    expect(readingCopy("it").grammar).toBe(itGrammar);
   });
 
   it("reads French for a language the catalogue lacks, never throwing", () => {

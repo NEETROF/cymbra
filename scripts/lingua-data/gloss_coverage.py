@@ -67,6 +67,11 @@ TOPS = (5_000, 10_000, 20_000)
 # committed ranks with every source in D2's order, D4's pre-pass and D3's pivot (85.2 / 76.0 / 65.1 %,
 # reduced from the bytes its first update would read, 2026-10-25) less two points — settled by the owner
 # on 2026-10-25 (task 0.1), before the measurement whose tables are committed, never lowered after it.
+# en-it (add-lingua-pack-en-it D6, the programme's M6): the same rule, the study's figures on English's
+# committed ranks with the Italian Wiktionary's English section, read by change 35's rules, and both
+# translation tables (91.4 / 82.8 / 70.3 %, reduced from the bytes its first update would read,
+# 2026-10-26) less two points — settled by the owner on 2026-10-26 (task 0.1), before the measurement
+# whose tables are committed, never lowered after it.
 FLOORS = {
     "es-en": (87.6, 77.2, 63.7),
     "en-es": (91.4, 83.2, 69.9),
@@ -75,6 +80,7 @@ FLOORS = {
     "it-fr": (87.2, 79.8, 71.3),
     "it-en": (89.3, 82.2, 73.7),
     "it-es": (83.2, 74.0, 63.1),
+    "en-it": (89.4, 80.8, 68.3),
 }
 
 

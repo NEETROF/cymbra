@@ -34,6 +34,8 @@ import {
   INTERFACE_LANGUAGES,
   OVERRIDES,
   READER_LEVELS,
+  SECOND_PAGES,
+  secondShot,
   SEED_REVIEW,
   SITE_SHOTS,
   STORE_SHOTS,
@@ -90,6 +92,22 @@ describe("the thirty days of statistics (D4)", () => {
     );
     // Every one of the thirty days holds a reading: the charts are full.
     expect(Object.keys(stats).length).toBe(30);
+  });
+
+  it("gives a reader of one studied language a reading every day, in that language (enable-lingua-italian-speakers D5)", async () => {
+    const records = recentDays({ nowMs, languages: ["en"], native: "it" });
+    const stats = await loadDailyStats(memoryArea({ [DAILY_KEY]: records }));
+    expect(Object.keys(stats).length).toBe(30);
+    expect(new Set(Object.values(stats).flatMap((d) => Object.keys(d)))).toEqual(new Set(["en"]));
+    expect(Object.values(countsOf(stats, "en")).every((c) => c.exposures > 0)).toBe(true);
+    expect(new Set(Object.values(stats).flatMap((d) => Object.values(d).map((r) => r.native)))).toEqual(
+      new Set(["it"]),
+    );
+    // Both rows' readings, in the one language: as much read as a reader of two.
+    const two = recentDays({ nowMs, languages: ["en", "es"], native: "fr" });
+    const sum = (r: typeof records) =>
+      Object.values(r).reduce((n, d) => n + Object.values(d).reduce((m, c) => m + c.exposures, 0), 0);
+    expect(sum(records)).toBe(sum(two));
   });
 
   it("follows the day it runs: the same month a week later is a week later", () => {
@@ -606,12 +624,37 @@ describe("the shot plan (D5)", () => {
     expect(SITE_SHOTS).toEqual([...STORE_SHOTS, "reader-eink"]);
   });
 
-  it("gives each interface language two studied languages other than its own, with a page and a book", () => {
+  it("gives each interface language one or two studied languages other than its own, with a page and a book", () => {
+    expect(INTERFACE_LANGUAGES).toEqual(["fr", "en", "es", "it"]);
     for (const language of INTERFACE_LANGUAGES) {
-      const studied = STUDIED[language as keyof typeof STUDIED];
-      expect(studied).toHaveLength(2);
+      const studied: readonly string[] = STUDIED[language];
+      expect(studied.length).toBeGreaterThanOrEqual(1);
+      expect(studied.length).toBeLessThanOrEqual(2);
       expect(studied).not.toContain(language);
       for (const s of studied) expect(BOOK[s as keyof typeof BOOK]).toBe(s);
+    }
+    // An Italian reader studies English alone (enable-lingua-italian-speakers D5).
+    expect(STUDIED.it).toEqual(["en"]);
+  });
+
+  it("opens, for the `second` shot, the second studied language's page, or a second page in the one studied (D5)", () => {
+    expect(secondShot("fr")).toEqual({ page: "es", studied: "es", words: WORDS.es.second });
+    expect(secondShot("en")).toEqual({ page: "fr", studied: "fr", words: OVERRIDES.en!.fr!.second });
+    expect(secondShot("it")).toEqual({ page: "en-2", studied: "en", words: SECOND_PAGES.en!.second });
+    for (const [studied, other] of Object.entries(SECOND_PAGES)) {
+      const html = readFileSync(join(fixtures, "pages", `${other!.page}.html`), "utf8");
+      // The second page is in the language it is studied for, and not the first page again.
+      expect(html).toContain(`<html lang="${studied}">`);
+      expect(other!.page).not.toBe(studied);
+      const text = pageText(other!.page);
+      expect(other!.second.length).toBeGreaterThan(0);
+      for (const word of other!.second) expect(hasWord(text, word), `${other!.page}: ${word}`).toBe(true);
+      // None of them is a word the seed marks on the first page: they stay highlighted.
+      const seeded = new Set([
+        ...WORDS[studied as keyof typeof WORDS].seedKnown,
+        ...WORDS[studied as keyof typeof WORDS].seedDeck,
+      ]);
+      for (const word of other!.second) expect(seeded.has(word), `${word} is seeded`).toBe(false);
     }
   });
 

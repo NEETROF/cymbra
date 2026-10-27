@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it, type Mock, vi } from "vitest";
-import type { InterfaceLanguage } from "@/i18n/language.ts";
+import { INTERFACE_LANGUAGES, type InterfaceLanguage } from "@/i18n/language.ts";
 import {
   hostAppSignInUrl,
   interfaceLanguageTeller,
@@ -73,6 +73,19 @@ describe("interfaceLanguageTeller", () => {
     expect(send).not.toHaveBeenCalled();
     await tell("es");
     expect(send).toHaveBeenCalledWith({ type: "interface.language", language: "es" });
+  });
+
+  it("tells Italian now the interface is shown in it (localise-lingua-apple-host-italian D5, enable-lingua-italian-speakers D3)", async () => {
+    // The host app kept `it` since localise-lingua-apple-host-italian; the extension sends it once
+    // INTERFACE_LANGUAGES lists it.
+    expect(INTERFACE_LANGUAGES).toContain("it");
+    const send = vi.fn<NativeSend>(async () => ({}));
+    const tell = interfaceLanguageTeller(send);
+    await tell("it");
+    expect(send).toHaveBeenCalledWith({ type: "interface.language", language: "it" });
+    // Still a language the key actually holds: no other spelling.
+    await tell("IT");
+    expect(told(send)).toEqual(["it"]);
   });
 
   it("tells a language once, and again only once it changes", async () => {

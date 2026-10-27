@@ -243,7 +243,7 @@ describe("the entry's wiring: mountAccountPage (localise-lingua-account-onboardi
     return { doc, sent, hashes, mounted };
   }
 
-  it("English chosen in an Italian browser: the page in English, `it` sent to the server", async () => {
+  it("English chosen in an Italian browser: the page in English, `en` sent, the extension speaking Italian (I10)", async () => {
     const { doc, sent, mounted } = await mount({
       area: pageArea({ [INTERFACE_LANGUAGE_KEY]: "en", [NATIVE_CHOSEN_KEY]: true }),
       store: pageArea({ [LAST_NATIVE_KEY]: "en" }),
@@ -259,11 +259,34 @@ describe("the entry's wiring: mountAccountPage (localise-lingua-account-onboardi
       type: "account:signUp",
       email: "new@example.com",
       password: "a long passphrase",
-      locale: "it",
+      locale: "en",
     });
     expect(doc.querySelector("#account-root .account-lead")?.textContent).toBe(
       "Enter the code sent to new@example.com",
     );
+  });
+
+  it("Italian chosen in an Italian browser: the page in Italian, `it` sent, the Italian deletion page (enable-lingua-italian-speakers)", async () => {
+    const { doc, sent, mounted } = await mount({
+      area: pageArea({ [INTERFACE_LANGUAGE_KEY]: "it", [NATIVE_CHOSEN_KEY]: true }),
+      store: pageArea({ [LAST_NATIVE_KEY]: "it" }),
+      browserLanguage: "it-IT",
+      hash: "#signup",
+    });
+    expect(mounted?.language).toBe("it");
+    expect(doc.documentElement.lang).toBe("it");
+    expect(doc.querySelector("#account-root h2")?.textContent).toBe("Crea un account Cymbra");
+    await mounted!.flow.signUp("new@example.com", "a long passphrase");
+    expect(sent.find((m) => m.type === "account:signUp")).toEqual({
+      type: "account:signUp",
+      email: "new@example.com",
+      password: "a long passphrase",
+      locale: "it",
+    });
+    expect(doc.querySelector("#account-root .account-lead")?.textContent).toBe(
+      "Inserisci il codice inviato a new@example.com",
+    );
+    expect(mounted!.flow.view().deleteAccountUrl).toBe("https://cymbra.app/it/elimina-account/");
   });
 
   it("an English interface in an Italian browser, nothing chosen on this device: the page in English, the browser's tag on the requests", async () => {
@@ -282,7 +305,8 @@ describe("the entry's wiring: mountAccountPage (localise-lingua-account-onboardi
       // keeps its own, whichever device gave it.
       { type: "account:resendVerification", email: "new@example.com", locale: "it-IT" },
     ]);
-    expect(mounted!.flow.view().deleteAccountUrl).toBe("https://cymbra.app/en/delete-account/");
+    // The deletion page by the browser's tag, Italian since enable-lingua-italian-speakers (D2).
+    expect(mounted!.flow.view().deleteAccountUrl).toBe("https://cymbra.app/it/elimina-account/");
   });
 
   it("reads the interface language first, then whether the reader chose", async () => {

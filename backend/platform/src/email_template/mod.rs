@@ -68,11 +68,11 @@ impl SupportedLocale {
     }
 }
 
-/// Locale-aware Terms + Privacy URLs on the `cymbra.app` legal site (change:
-/// localise-cymbra-id-email-legal-links): French uses the French pages, Spanish the
-/// Spanish pages, and every other locale — English, and Italian, which has no site
-/// pages — falls back to the English pages. The rule is the e-mails' own; the apps
-/// resolve their in-app legal links by their own rule.
+/// Locale-aware Terms + Privacy URLs on the `cymbra.app` legal site (changes:
+/// localise-cymbra-id-email-legal-links, localise-cymbra-id-email-legal-links-italian):
+/// French uses the French pages, Spanish the Spanish pages, Italian the Italian pages,
+/// and English the English pages. The rule is the e-mails' own; the apps resolve their
+/// in-app legal links by their own rule.
 ///
 /// A sent e-mail keeps its links forever, so every path here is pinned on the site
 /// (`apps/site/src/lib/pinned-routes.ts`).
@@ -86,7 +86,11 @@ fn legal_links(locale: SupportedLocale) -> (&'static str, &'static str) {
             "https://cymbra.app/es/terminos/",
             "https://cymbra.app/es/privacidad/",
         ),
-        SupportedLocale::En | SupportedLocale::It => (
+        SupportedLocale::It => (
+            "https://cymbra.app/it/termini/",
+            "https://cymbra.app/it/privacy/",
+        ),
+        SupportedLocale::En => (
             "https://cymbra.app/en/terms/",
             "https://cymbra.app/en/privacy/",
         ),
@@ -420,14 +424,19 @@ mod tests {
     }
 
     #[test]
-    fn italian_uses_english_legal_links() {
-        // No Italian site pages: Italian falls back to the English ones.
+    fn italian_uses_italian_legal_links() {
         let e = password_reset_email("code", SupportedLocale::It, None);
         assert_legal_links(
             &e,
-            "https://cymbra.app/en/terms/",
-            "https://cymbra.app/en/privacy/",
+            "https://cymbra.app/it/termini/",
+            "https://cymbra.app/it/privacy/",
         );
+        for (part, body) in [("html", &e.html), ("text", &e.text)] {
+            assert!(
+                !body.contains("https://cymbra.app/en/"),
+                "an Italian e-mail's {part} part must not link the English pages"
+            );
+        }
     }
 
     /// The HTML declares `lang` exactly once, on `<html>`, as `tag`.

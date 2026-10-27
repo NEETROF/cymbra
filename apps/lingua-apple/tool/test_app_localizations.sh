@@ -82,6 +82,7 @@ french=$(packs french en-fr es-fr)
 english=$(packs english en-fr es-fr es-en)
 spanish=$(packs spanish en-fr en-es)
 three=$(packs three en-fr es-en en-es)
+italian=$(packs italian en-fr es-fr it-fr es-en fr-en it-en en-es fr-es it-es en-it)
 
 if [ "$development_language" = "en" ]; then pass "the project's development language is en, what the generated plists are documented to hold"; else fail "the project's development language is '$development_language'; the generated plists are documented to hold en"; fi
 
@@ -136,6 +137,15 @@ bash "$script" "$spanish" "$work/app.plist" "$work/app.src.plist" "$development_
 if [ "$(localizations "$work/app.plist")" = '["fr","es"]' ] && [ "$(region "$work/app.plist")" = "fr" ]; then pass "fr + es natives declare [fr, es] / fr"; else fail "fr + es natives declared $(localizations "$work/app.plist") / $(region "$work/app.plist")"; fi
 bash "$script" "$three" "$work/app.plist" "$work/app.src.plist" "$development_language" >/dev/null
 if [ "$(localizations "$work/app.plist")" = '["fr","en","es"]' ] && [ "$(region "$work/app.plist")" = "en" ]; then pass "fr + en + es natives declare [fr, en, es] / en"; else fail "fr + en + es natives declared $(localizations "$work/app.plist") / $(region "$work/app.plist")"; fi
+
+# 6b. en-it among the packs (localise-lingua-apple-host-italian D4): Italian declared after fr, en, es, region en, and no warning — the app holds Italian copy.
+bash "$script" "$italian" "$work/app.plist" "$work/app.src.plist" "$development_language" >/dev/null 2>"$work/italian.err"
+if [ "$(localizations "$work/app.plist")" = '["fr","en","es","it"]' ] && [ "$(region "$work/app.plist")" = "en" ]; then pass "en-it among the packs declares [fr, en, es, it] / en"; else fail "en-it among the packs declared $(localizations "$work/app.plist") / $(region "$work/app.plist")"; fi
+if [ ! -s "$work/italian.err" ]; then pass "en-it among the packs warns nothing"; else fail "en-it among the packs warned: $(cat "$work/italian.err")"; fi
+# A native the app has no copy for is still declared after them, with a warning.
+other=$(packs other en-fr en-de)
+bash "$script" "$other" "$work/app.plist" "$work/app.src.plist" "$development_language" >/dev/null 2>"$work/other.err"
+if [ "$(localizations "$work/app.plist")" = '["fr","de"]' ] && grep -q "de-native packs ship" "$work/other.err"; then pass "a native without copy is declared last, with a warning"; else fail "a native without copy declared $(localizations "$work/app.plist"), warned: $(cat "$work/other.err")"; fi
 
 # 7. No pack is a build that forgot the extension; a missing plist is a wrong phase; the phase's arguments are all four.
 mkdir -p "$work/empty"

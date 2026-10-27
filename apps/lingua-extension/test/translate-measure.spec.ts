@@ -68,12 +68,26 @@ describe("the stop words speak the pair's native language (D1)", () => {
       const [form, lemma] = line.split("\t");
       if (form) forms.set(form, [...(forms.get(form) ?? []), lemma]);
     }
-    return (word: string) => [...new Set([word, ...(forms.get(word) ?? [])])].flatMap((l) => senses.get(l) ?? []);
+    return (word: string) => {
+      // Italian's elided pieces are forms written with their apostrophe (« dell' », « quest' »), and
+      // its articulated prepositions are split by the pre-pass into a preposition and an article
+      // (add-lingua-italian-tokenisation), so neither is a rank of its own: the word is tried, then
+      // with its apostrophe, then as the preposition it is split into (measure-lingua-en-it-translation-marks D1).
+      const spellings = [word, `${word}'`, ...(language === "it" ? [ITALIAN_ARTICULATED.get(word)] : [])];
+      const lemmas = spellings.flatMap((w) => (w ? [w, ...(forms.get(w) ?? [])] : []));
+      return [...new Set(lemmas)].flatMap((l) => senses.get(l) ?? []);
+    };
   }
+  /** Italian's articulated prepositions of a, da, in and su, elided ones included, and the preposition each is split into. */
+  const ITALIAN_ARTICULATED = new Map(
+    Object.entries({ a: "a", da: "da", ne: "in", su: "su" }).flatMap(([stem, preposition]) =>
+      ["l", "llo", "lla", "i", "gli", "lle", "ll"].map((ending) => [`${stem}${ending}`, preposition] as const),
+    ),
+  );
   /** UD's function classes; X is a contraction (« del », « al ») in the Spanish tables. */
   const FUNCTION = new Set(["DET", "ADP", "PRON", "CCONJ", "SCONJ", "PART", "AUX", "ADV", "NUM", "SYM", "INTJ", "X"]);
 
-  it.each(["en", "es"])(
+  it.each(["en", "es", "it"])(
     "%s: no content word of its own language from the committed tables — every function word has a function-class reading, every auxiliary a verb's",
     (language) => {
       const read = readings(language);
@@ -93,7 +107,7 @@ describe("the stop words speak the pair's native language (D1)", () => {
         if (!ok) content.push(`${word} (${category}: ${[...new Set(tags)].join(", ")})`);
       }
       expect(content).toEqual([]);
-      // The check is not vacuous: the tables know nearly every word (« an » is the one English word they do not list).
+      // The check is not vacuous: the tables know nearly every word (« an » is the one English word they do not list, and Italian's every word is known).
       expect(unknown.length, `unknown to the tables: ${unknown.join(", ")}`).toBeLessThanOrEqual(1);
       expect(words.length).toBeGreaterThan(80);
     },
@@ -113,6 +127,9 @@ describe("the stop words speak the pair's native language (D1)", () => {
     expect(spanish.has("el")).toBe(true);
     expect(stopWords("en").has("the")).toBe(true);
     expect(stopWords("es").has("the")).toBe(false);
+    const italian = stopWords("it");
+    expect(["dell", "nell", "quest", "l", "della", "e"].every((w) => italian.has(w))).toBe(true); // « è » is « e », folded
+    expect(italian.has("è")).toBe(false);
     expect(() => stopWords("de")).toThrow(/no stop words for the native language "de"/);
   });
 });

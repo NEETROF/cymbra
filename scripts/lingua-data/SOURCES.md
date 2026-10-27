@@ -1101,6 +1101,95 @@ English- and French-dump derivation writes one more file, the pivot, every Spani
 two more, the Spanish Wiktionary's Italian section and its Spanish entries' Italian translations, and
 every Italian-dump derivation two more, its Spanish translations and its Spanish section; no other pair's `DUMPS` names any of them, so no other pin moves.
 
+## EN → IT: English glossed in Italian
+
+Reduced by `reduce-en-it.py` (add-lingua-pack-en-it, change 36 of `docs/lingua/italian-programme.md`):
+English glossed in Italian, the first pair glossed in Italian — Italian speakers studying English. Like
+en-es, it reads English's studied side — `tables/en/`, which en-fr's reduction writes — as committed and
+writes its native side alone, from three tables written by people in Italian, in en-es's order: the
+Italian Wiktionary's English section, its definitions first; the English Wiktionary's Italian
+translations; the Italian Wiktionary's English translations read backwards. No pivot, no machine
+translation. Its rule digest is `reduce-en-it.py`, `reduce_common.py` and `reduce_edition_it.py`: en-es's
+table readers are copied into the reducer, not shared, so that en-es's pin does not move (D3). No
+package carried en-it before change 45 (`enable-lingua-italian-speakers`), which lists it. Its first update writes its folder whole: the pull request
+that registers it carries none.
+
+| Table | Source | Licence | What we keep |
+|---|---|---|---|
+| `tables/en-it/gloss.tsv`, `senses.tsv` | **kaikki.org**: the Italian Wiktionary's (`itwiktionary`) English section (`kaikki-it-Inglese.jsonl`, `EDITIONS["it"]`); the English Wiktionary's (`enwiktionary`) English entries' Italian translations (`kaikki-en-traductions-it.jsonl`, `EDITIONS["en"]`); the Italian Wiktionary's Italian entries' English translations, read backwards (`kaikki-it-traductions-en.jsonl`, it-en's file) | CC BY-SA 4.0 + GFDL | up to eight senses per lemma grouped by part of speech (the shared rules), from the section read by the Italian edition's rules and pre-pass (change 35); then, for what it leaves out, at most three Italian words per part of speech from the direct table, in its order, its disused words and translators' notes out; then from the inverted table, the commonest Italian word first (wordfreq), each listed once. A letter glosses no word in either direction. The tables' words keep their case and take the edition's typography |
+| `tables/en-it/mwe.tsv` | the same three files | CC BY-SA 4.0 + GFDL | keyed as en-es keys them: the section's multi-word headwords, then the tables'; `LOCUTIONS` is empty |
+| `NOTICE`, `manifest.json` | both sides' sources | — | the studied side as en-es's notice credits it (ESDB with its WordNet notice, wordfreq, the French Wiktionary's form links and dictionary words, CEFR-J, Octanove), and the native side (the Italian Wiktionary's definitions and English translations, the English Wiktionary's Italian translations, wordfreq's Italian list). The levels are CEFR-J's and Octanove's |
+
+**Coverage** is held to `gloss_coverage.FLOORS["en-it"]`: the study's figures on English's committed
+ranks (2026-10-26, reduced locally from the bytes an update reads that day: the Italian dump of
+2026-10-24 21:16, decompressed sha256 `e007665a…`; the English dump of 2026-10-21 11:23, `60a6073c…`),
+**91.4 / 82.8 / 70.3 %** of the 5,000 / 10,000 / 20,000 commonest (84.8 / 72.2 / 53.0 from the
+definitions alone, 90.6 / 81.1 / 67.0 with the direct table), less two points — **89.4 / 80.8 / 68.3**,
+settled by the owner on 2026-10-26, before the first committed measurement (D6, task 0.1). 21,526 glosses
+of 40,685 lemmas: 13,677 from the section (55 through a pointer), 6,125 from the direct table, 1,724
+from the inverted one; 13,423 expressions; 12.8 % of the 8,276 glossed among the 10,000 commonest from a
+table. **Committed** by the update of 2026.10.26 (`lingua-pack-update` run 40324469757, the release
+`lingua-pack-sources-en-it-2026.10.26`), byte for byte the study: the pack 1,553,528 B, its base
+English's one (935,260 B, en-es's), its layer 618,493 B.
+
+### EN → IT: en-it's glosses refined (refine-lingua-en-it-glosses)
+
+Change 37 of `docs/lingua/italian-programme.md`: rules of en-it's own module, `reduce_english_it.py`,
+imported by `reduce-en-it.py` alone, each measured alone against change 36's committed rows; no shared
+or Italian-edition module edited, no new source — the part of speech's evidence is what en-it's pin
+already holds: the two translation tables and wordfreq's Italian and English lists, credited in its
+notice. Its rule digest gains the module: an edit of it re-pins en-it and no other pair.
+
+- **the section** (D5–D9, D13): a frame before the translation out when short items follow (`my` « il
+  mio, la mia, i miei, le mie »); a name's note off a word with a common entry, a given name's note read
+  « Giovanni (nome) » (it-es's short form, the owner's); a pointer's wording; a heraldic sense wherever
+  it stands, and a tincture's; an abbreviation's English expansion, unless the word keeps no Italian
+  sense or four of its senses or more are expansions alone; a wiki's text; a state's code beside another
+  sense — a sense D7, D9 or D13 would take that is the word's only one stays;
+- **the tables** (D10b): an item holding « ə » out, a one-letter item joined to the word before it
+  (`mx` « signor/a »);
+- **the rows** (D2, D3, D10a, D11): a row of two classes of parts of speech or more opens on the class
+  the English Wiktionary's first translated sense names when its best word in either table rates 0.5
+  Zipf above the row's first class's on wordfreq's Italian list, a verb never yielding to a noun; a row
+  missing that class (never an adjective's row opened on a verb), or whose first sense describes and
+  shares no word with either table (the table's word at Zipf 3 or more), opens on the English
+  Wiktionary's first sense, at most three words, none English, no interjection's, no lemma under three
+  letters; a sense whose every item an earlier one holds, « X / X », an item repeated inside a sense out;
+  a contraction no source glosses reads as a pointer, « contrazione di you are » — the section's frame,
+  the full form composed by rule, **generated**, no Italian word written (task 0.1, the owner's) —, and
+  `doesn't` its own full form;
+- **`FIRST_RUN`** (D4): 34 rows open on a sense a source writes — `that`, `this`, `an`, `me`, `can`,
+  `will`, `do`, `very`, `even`, `still`, `down`, `big`, `course`, `take`, `after`, `feel`, `money`,
+  `way`, `set`, `since`, `read`, `run`, `about`, `through`, `cock`, `cervix`, `inquisition`,
+  `connection` (« collegamento » the inverted table's, the rest the direct one's), `large`,
+  `preservative`, `former`, `none`, `bye`, `conductor`;
+- **`CORRECTIONS`** (D12): 23 rows — the false friends `prove`, `disposable`, `ultimately`, `editor`,
+  `fabric`, `firm`, `passionate`, `sacred`; the pages copied from another word, `some` (*many*'s) and
+  `trash` (*thrash*'s senses); `media`'s English sentences; `tide`, `whiplash`, `tory`; the misspellings
+  « squaglia » (`scale`), « referenzia » (`he`), « grupo » (`social`), « sù » (`top`), « stazine »
+  (`station`), « orundo » (`original`), « armoia » (`sort`), and `head`'s « capoccia » opening the row;
+  and `lot` « molto, parecchio (a lot) », the expression *a lot*'s words with « (a lot) » **written by a
+  person** (task 0.2, the owner's, `BY_A_PERSON`). Each op names the source it reads and the page it is
+  reported to — the Italian Wiktionary's English entry for a section's slip (https://it.wiktionary.org/wiki/some,
+  …/trash, …/scale, …), the English Wiktionary's entry for a table's word —; one that finds nothing is
+  named on the reduction's summary line, and the tests over the committed tables fail;
+- **round 2** (the specialist's review of the gloss diff, the owner's, 2026-10-26): a reviewed row is
+  never moved by D2 or D3; `FIRST_RUN` gains `cop`, `whenever`, `flash`, `epic`, `piece`, `graph`,
+  `whatsoever`, `shine`, `cope`, `express`, `joint`, `stir`, `forum`, and `CORRECTIONS` `spare` and
+  `intense` (Webster's English sentences, https://it.wiktionary.org/wiki/intense), every word a source's;
+  D6 keeps a given name on a word that only names itself (`henry`), D8 reads « armi parlanti » as
+  heraldry, D5 « rafforzativo » as a frame.
+
+**Predicted at implementation** (2026-10-26, reduced locally by `build.sh --reduce en-it` from the
+pinned release `lingua-pack-sources-en-it-2026.10.26`, Python 3.12 and `requirements-reduce.txt`),
+round 1 byte for byte the design's prototype (1,035 rows); with round 2, 1,027 rows of `gloss.tsv`
+change (152 / 308 / 402 / 165 of the 1,000 / 5,000 / 20,000 commonest and beyond), 613 in their first
+sense; 54 lemmas gained, none lost; 9 expressions; coverage **92.1 / 83.1 / 70.6 %**; `gloss.tsv`
+`dcf37238…`, `senses.tsv` `ede1bb63…`, `mwe.tsv` `9767baf4…`, `NOTICE` unchanged; the pack 1,550,149 B
+(`fd8adda6…`), its base English's, byte for byte (935,260 B), its layer 615,114 B (`cc38c3ce…`), at
+`pack_version` `2026.10.26+0a3353d.fb7962e`. Only en-it re-pins: `tables/en/` and the nine other pairs' tables, pins
+and packs do not move.
+
 ## The editions' dumps
 
 kaikki is read at **one address per Wiktionary edition** — the English, French and Spanish ones,
@@ -1122,6 +1211,7 @@ derived from the dumps served on 2026-10-08:
 | **English** (`kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz`): 2,981,058,381 B gzipped, 25,614,284,530 B decompressed, regenerated 2026-10-03 08:24 | `kaikki-Spanish.jsonl` | Spanish entries | 928,737,891 B | es-fr (forms, readings, genders), es-en (glosses) |
 | | `kaikki-French.jsonl` | French entries | 510,058,226 B | fr-en (French's forms, readings and levels, and fr-en's glosses) |
 | | `kaikki-en-traductions-es.jsonl` | English entries' Spanish translations | 13,762,773 B | en-es (direct) |
+| | `kaikki-en-traductions-it.jsonl` | English entries' Italian translations | 9,684,334 B (the dump regenerated 2026-10-21) | en-it (direct; add-lingua-pack-en-it) |
 | **French** (`kaikki.org/frwiktionary/raw-wiktextract-data.jsonl.gz`): 736,590,407 B gzipped, 6,865,136,428 B decompressed, regenerated 2026-10-02 00:10 | `kaikki-Anglais.jsonl` | English entries | 145,705,523 B | en-fr |
 | | `kaikki-fr-Espagnol.jsonl` | Spanish entries | 212,331,331 B | es-fr |
 | | `kaikki-fr-traductions.jsonl` | French entries' Spanish translations | 6,191,621 B | es-fr (inverted), fr-es (direct) |
@@ -1129,7 +1219,8 @@ derived from the dumps served on 2026-10-08:
 | | `kaikki-fr-Italien.jsonl` | Italian entries | 769,483,152 B (the proposal's measure; the review derived it again from the dump regenerated 2026-10-23) | it-fr (glosses, expressions; add-lingua-pack-it-fr) |
 | | `kaikki-fr-traductions-it.jsonl` | French entries' Italian translations | about 7 MB | it-fr (inverted) |
 | **Italian** (`kaikki.org/itwiktionary/raw-wiktextract-data.jsonl.gz`): 43,849,715 B gzipped, regenerated 2026-10-21 | `kaikki-it-traductions-fr.jsonl` | Italian entries' French translations | about 1.2 MB | it-fr (direct) |
-| | `kaikki-it-traductions-en.jsonl` | Italian entries' English translations | 7,216,558 B (the dumps of 2026-10-21 and 2026-10-24 alike) | it-en (direct; add-lingua-pack-it-en) |
+| | `kaikki-it-traductions-en.jsonl` | Italian entries' English translations | 7,216,558 B (the dumps of 2026-10-21 and 2026-10-24 alike) | it-en (direct; add-lingua-pack-it-en), en-it (inverted) |
+| | `kaikki-it-Inglese.jsonl` | English entries | 13,670,867 B (the dump of 2026-10-24) | en-it (definitions, expressions; add-lingua-pack-en-it) |
 | **Spanish** (`kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz`): 103,226,106 B gzipped, 1,233,016,167 B decompressed, regenerated 2026-10-02 12:12 | `kaikki-es-English.jsonl` | English entries | 36,426,539 B | en-es |
 | | `kaikki-es-Frances.jsonl` | French entries | 7,438,610 B | fr-es (definitions) |
 | | `kaikki-es-traductions.jsonl` | Spanish entries' French translations | 1,537,580 B | es-fr (direct), fr-es (inverted) |
@@ -1476,7 +1567,7 @@ edition (generalise-lingua-gloss-reducer):
 | `reduce_edition_fr.py` | French (frwiktionary) | en-fr, es-fr | Today's rules, unchanged: the form-of wordings (« Pluriel de », « Forme de », also read for en-fr's own forms), « Présent », « Graphie » for expressions, the pointers and placeholders (« → voir », « Définition manquante ou à compléter »), a coordinator left hanging (« ou », « et »), a letter's name; a gloss of translation-table words opens on a capital |
 | `reduce_edition_en.py` | English (enwiktionary) | es-en | Senses tagged `form-of` or `alt-of`, naming their word in `form_of` or `alt_of`; untagged « plural of », « inflection of », « alternative form of », « synonym of », « only used in », « see »; no placeholder (an undefined sense has no gloss, tagged `no-gloss`, and is left out); a letter's name; glosses stay in lower case, as the edition writes a foreign word's senses. Its senses read as meanings before the shared rules read them (`read_as_meanings`, refine-lingua-es-en-glosses): a sense nested under a label or a pointer by its own gloss; a shortened or respelled form (« apocopic form of », « pronunciation spelling of »…, an untagged one a pointer too) by the meaning it carries or its target's senses, a pronoun's case form by its meaning; a place's name after a function word spelled like it; the edition's descriptions in lower case, one ellipsis, curly double quotes, no numbered sense, nothing after a line break. Two settings, es-en's alone and off until the owner picks them: long parentheses (M20, `LONG_PARENTHESIS` as `EN.long_parenthesis`, 0 keeps them) and the merging of a word's same-part-of-speech etymologies before the round-robin (`MERGE_SAME_POS_ETYMOLOGIES`, a pre-pass `reduce-es-en.py` runs) |
 | `reduce_edition_es.py` | Spanish (eswiktionary) | en-es, fr-es, it-es | Untagged « Forma del plural de », « Grafía obsoleta de », « Participio pasado del verbo (to) read », a tense or a person followed by « de » or « del » — the « de » is required, so « Femenino. » stays a meaning; sense-link subscripts taken out whole — one, a range or two (« dejar₉ », « Madrid₁₋₂ », « bottom₉ o ₁₀ »), after a lower-case letter, the word's period or a stray space, never after a capital (« C₄H₁₀ » keeps its digits) nor a preposition (« similar a ₁ » names one of the entry's senses) — and « Véase también »; a letter's name. Its notes to its readers (refine-lingua-en-es-glosses): a maintenance template (« ^([cita requerida]) »), a disambiguation note (« [sentido del sustantivo] »), a reference to numbered senses (« (definiciones [1,2]) »), the expansion notice, and a usage note after the meaning, a sentence opening on a closed list (« A veces », « Usado », « Se dice »…), a second sentence that carries the meaning kept. Its senses read in their order before the shared rules read them (`read_as_meanings`, a pre-pass en-es and fr-es run): the senses it marks obsolete or outdated after the others, nothing left out; one ellipsis « … », straight double quotes paired « » (`typography`, which en-es and fr-es also apply to the translation tables' words) |
-| `reduce_edition_it.py` | Italian (itwiktionary) | none yet: en-it, fr-it and es-it (changes 36, 47, 51); it-fr and it-en read only its translation tables, and it-es takes the notes out of its Spanish section itself, so none of them loads it | Its census: the English, French and Spanish sections of kaikki's dump of 2026-10-21 (add-lingua-italian-edition-rules). Untagged pointers are its Italian wordings followed by « di » or an articled form and a target of at most three words that ends the sense (« plurale di », « femminile di », a person, « participio … di », « passato … di », « variante [statunitense, ortografica…] di », « comparativo di », « superlativo di », « forma corta di »), the English grammar wordings (« simple past tense e past participle di »), the Spanish section's English bot pointers and « vedi » and a word; with text after its target, a sense is a meaning (« plurale di that: quelli, quelle »); « contrazione di » never points, « abbreviazione di » only when the word it names lends a gloss. Its notes: the placeholder « definizione mancante; se vuoi, aggiungila tu », « vedi italiano » after a meaning, « (inv) », template residue; a letter's name (« nome della lettera X », « La lettera Zeta »); glosses in lower case, as the edition writes them, so a gloss of translation-table words keeps its words' case. Its senses read as meanings before the shared rules read them (`read_as_meanings`): residue out before the pointer test; a pointer names the word its wording names, not kaikki's last link, and lends that word's gloss; a sense tagged `form-of` not worded as a pointer is a meaning when its word has no other (`hear`); a gloss nested under a pointer by its own text (`could`); « vedi italiano » alone, or with a qualifier, the headword itself (`panda`); obsolete, archaic and heraldic senses after the others of their entry; a headword — word or expression — whose every sense with a gloss is heraldic left out, for the translation tables to gloss (`le`, « arms of alliance »); gender and number marks out (« merda f » → « merda »), never after « di » or « of », « … », straight quotes paired « » (`typography`, which the pairs also apply to the tables' words) |
+| `reduce_edition_it.py` | Italian (itwiktionary) | en-it (add-lingua-pack-en-it); fr-it and es-it to come (changes 47, 51); it-fr and it-en read only its translation tables, and it-es takes the notes out of its Spanish section itself, so none of them loads it | Its census: the English, French and Spanish sections of kaikki's dump of 2026-10-21 (add-lingua-italian-edition-rules). Untagged pointers are its Italian wordings followed by « di » or an articled form and a target of at most three words that ends the sense (« plurale di », « femminile di », a person, « participio … di », « passato … di », « variante [statunitense, ortografica…] di », « comparativo di », « superlativo di », « forma corta di »), the English grammar wordings (« simple past tense e past participle di »), the Spanish section's English bot pointers and « vedi » and a word; with text after its target, a sense is a meaning (« plurale di that: quelli, quelle »); « contrazione di » never points, « abbreviazione di » only when the word it names lends a gloss. Its notes: the placeholder « definizione mancante; se vuoi, aggiungila tu », « vedi italiano » after a meaning, « (inv) », template residue; a letter's name (« nome della lettera X », « La lettera Zeta »); glosses in lower case, as the edition writes them, so a gloss of translation-table words keeps its words' case. Its senses read as meanings before the shared rules read them (`read_as_meanings`): residue out before the pointer test; a pointer names the word its wording names, not kaikki's last link, and lends that word's gloss; a sense tagged `form-of` not worded as a pointer is a meaning when its word has no other (`hear`); a gloss nested under a pointer by its own text (`could`); « vedi italiano » alone, or with a qualifier, the headword itself (`panda`); obsolete, archaic and heraldic senses after the others of their entry; a headword — word or expression — whose every sense with a gloss is heraldic left out, for the translation tables to gloss (`le`, « arms of alliance »); gender and number marks out (« merda f » → « merda »), never after « di » or « of », « … », straight quotes paired « » (`typography`, which the pairs also apply to the tables' words) |
 
 Each module's docstring holds the census its rules come from, measured on the data es-fr pins. The
 French-native pairs' reducers bind the French edition; `reduce_common.py` imports no edition, so a
@@ -1496,7 +1587,8 @@ keep-lingua-italian-acronyms-and-names) and `reduce_italian_treebank.py`, and it
 `reduce_common.py`, `reduce_edition_en.py`, `reduce_italian_acronyms.py` and `reduce_italian_en.py`
 (add-lingua-pack-it-en D4), and it-es's `reduce-it-es.py`, `reduce_common.py`, `reduce_edition_es.py`,
 `reduce_italian_acronyms.py`, `reduce_italian_es.py` and `reduce_spanish_tables.py` (add-lingua-pack-it-es
-D4). Editing the English edition re-pins es-en, fr-en and it-en alone, the Spanish edition en-es, fr-es and it-es alone, either French module (the treebank's,
+D4), and en-it's `reduce-en-it.py`, `reduce_common.py` and `reduce_edition_it.py` (add-lingua-pack-en-it
+D1): editing the Italian edition re-pins en-it alone. Editing the English edition re-pins es-en, fr-en and it-en alone, the Spanish edition en-es, fr-es and it-es alone, either French module (the treebank's,
 the acronyms') fr-en and fr-es alone (each pair's own rules, such as en-es's and fr-es's passes over their section, live in
 its reducer); editing `reduce_common.py` re-pins every pair. `check-reducer` fails, naming the module, when a
 reducer loads a rule module its record does not name, and tests refuse a `reduce_*` import a

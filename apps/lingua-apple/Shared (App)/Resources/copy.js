@@ -1,13 +1,16 @@
 // The activation page's copy, one table per language (localise-lingua-apple-host, D2). The French
 // is Main.html's text byte for byte — the page keeps it in place, and
-// apps/lingua-extension/test/apple-activation-page.spec.ts holds the two equal. The English and
-// Spanish are drafts after it. Each table names every language its natives study in the shipped
+// apps/lingua-extension/test/apple-activation-page.spec.ts holds the two equal. The English,
+// Spanish and Italian are drafts after it, the Italian reviewed by the Italian reviewer agent. Each table names every language its natives study in the shipped
 // pairs (enable-lingua-french D7), the French page included: English, Spanish and Italian for French
 // natives (en-fr, es-fr, it-fr — Italian since enable-lingua-italian D7), Spanish, French and Italian
 // for English natives (es-en, fr-en, it-en — Italian since enable-lingua-italian-for-english-speakers
 // D6), English, French and Italian for Spanish natives (en-es, fr-es, it-es — Italian since
-// enable-lingua-italian-for-spanish-speakers D6). Its last step chooses the first language's level,
-// then says where another is ticked: the extension's settings, under its Language tab.
+// enable-lingua-italian-for-spanish-speakers D6), English for Italian natives (en-it, held ahead of
+// its pair by localise-lingua-apple-host-italian D3, shown since enable-lingua-italian-speakers;
+// changes 50 and 54 name French and Spanish when fr-it and es-it ship). Its last step chooses the
+// first language's level, then — for a native with two pairs or more — says where another is
+// ticked: the extension's settings, under its Language tab.
 //
 // ViewController.swift sets window.linguaLanguage before the page loads — the extension's
 // interface language once the extension has run, the device's language before, among the
@@ -74,6 +77,25 @@
             stateUnknownPreferences: "Activa Cymbra Lingua en las preferencias de Safari, sección Extensiones.",
             stateOnPreferences: "Extensión activa. Puedes desactivarla en las preferencias de Safari, sección Extensiones.",
             stateOffPreferences: "Extensión desactivada. Actívala en las preferencias de Safari, sección Extensiones.",
+        },
+        // A draft after the French, for Italian natives, who study English (en-it): tu, no voi
+        // (localise-lingua-apple-host-italian D3, D6). Unreachable until a build declares `it`.
+        it: {
+            iconAlt: "Icona di Cymbra Lingua",
+            title: "Cymbra Lingua",
+            lede: "Leggi il web in inglese: le parole che non conosci ancora sono evidenziate, direttamente in Safari.",
+            step1: "Apri <strong>Impostazioni → App → Safari → Estensioni</strong>.",
+            step2: "Attiva <strong>Cymbra Lingua</strong>, poi imposta «Altri siti web» su <strong>Consenti</strong>.",
+            step3: "In Safari, apri l’estensione dal <strong>menu della barra degli indirizzi</strong> e scegli il tuo livello di inglese.",
+            noteIos: "Ricarica le schede già aperte perché vengano evidenziate.",
+            stateUnknown: "Attiva Cymbra Lingua nelle impostazioni di Safari, sezione Estensioni.",
+            stateOn: "Estensione attiva. Puoi disattivarla nelle impostazioni di Safari, sezione Estensioni.",
+            stateOff: "Estensione disattivata. Attivala nelle impostazioni di Safari, sezione Estensioni.",
+            openPreferences: "Attiva in Safari",
+            noteMac: "Ricarica le schede già aperte perché vengano evidenziate.",
+            stateUnknownPreferences: "Attiva Cymbra Lingua nelle preferenze di Safari, sezione Estensioni.",
+            stateOnPreferences: "Estensione attiva. Puoi disattivarla nelle preferenze di Safari, sezione Estensioni.",
+            stateOffPreferences: "Estensione disattivata. Attivala nelle preferenze di Safari, sezione Estensioni.",
         },
     };
 

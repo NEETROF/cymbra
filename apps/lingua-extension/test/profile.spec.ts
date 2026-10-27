@@ -119,8 +119,8 @@ describe("the native language of a stored backup", () => {
 
   it("reads Italian, a native language since add-lingua-italian-native-language, once a pair is glossed in it", () => {
     expect(nativeLanguageOf(native("Italian"), ["en-fr", "en-it"])).toBe("it");
-    // No shipped pair is glossed in Italian: read as French, as any native language with no pair.
-    expect(nativeLanguageOf(native("Italian"))).toBe("fr");
+    // With no pair glossed in Italian: read as French, as any native language with no pair.
+    expect(nativeLanguageOf(native("Italian"), ["en-fr", "es-fr", "es-en", "en-es", "it-en"])).toBe("fr");
   });
 
   it("is French for a native language no listed pair is glossed in", () => {
@@ -131,9 +131,10 @@ describe("the native language of a stored backup", () => {
     expect(nativeLanguageOf(native("Spanish"), ["en-fr", "es-fr", "es-en"])).toBe("fr");
   });
 
-  it("is each stored native language with the bundle's list, which glosses in all three (enable-lingua-spanish-speakers)", () => {
+  it("is each stored native language with the bundle's list, which glosses in all four (enable-lingua-spanish-speakers, enable-lingua-italian-speakers)", () => {
     expect(nativeLanguageOf(native("French"))).toBe("fr");
     expect(nativeLanguageOf(native("English"))).toBe("en");
     expect(nativeLanguageOf(native("Spanish"))).toBe("es");
+    expect(nativeLanguageOf(native("Italian"))).toBe("it");
   });
 });

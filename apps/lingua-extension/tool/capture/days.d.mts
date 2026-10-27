@@ -3,7 +3,7 @@ export declare const DAILY_KEY: "cymbra-lingua-daily-v4";
 export declare const DAYS: number;
 export declare function recentDays(options: {
   nowMs: number;
-  languages: readonly [string, string];
+  languages: readonly [string, string] | readonly [string];
   native: string;
 }): Record<
   number,

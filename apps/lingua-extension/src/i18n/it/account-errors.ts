@@ -8,12 +8,12 @@ export const accountErrors: typeof fr = {
   rateLimited: "Troppi tentativi. Riprova tra qualche minuto.",
   generic: "Si è verificato un errore. Riprova.",
   storageFull:
-    "La memoria dell’estensione è piena su questo dispositivo. Reimposta i tuoi dati locali in Impostazioni, poi riprova.",
+    "La memoria dell'estensione è piena su questo dispositivo. Reimposta i tuoi dati locali in Impostazioni, poi riprova.",
   badCode: "Codice non valido o scaduto. Richiedi un nuovo codice.",
   sessionExpired: "La sessione è scaduta. Accedi di nuovo.",
   linkAlreadyLinked: (provider) => `Questo account ${provider} è già collegato a un altro account Cymbra.`,
   linkUnauthenticated: (provider) =>
-    `Il collegamento con ${provider} non è andato a buon fine. Riprova; se il problema persiste, accedi di nuovo.`,
+    `Il collegamento con ${provider} non è andato a buon fine. Riprova. Se il problema persiste, accedi di nuovo.`,
   linkFailed: (provider) => `Impossibile collegare ${provider}. Riprova.`,
   wrongCredentials: "Email o password errate.",
   emailNotVerified: "Il tuo indirizzo email non è ancora verificato.",

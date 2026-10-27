@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -6,7 +6,9 @@ import { describe, expect, it } from "vitest";
 // media and of the site as a whole (change: add-site-lingua-showcase, D14). The numbers live in
 // this one table; `apps/site/README.md` points here. A failure names each file and its size. The
 // captures and videos come from `yarn capture` in apps/lingua-extension: one heavier than its budget
-// is re-encoded there, not let through here.
+// is re-encoded there, not let through here. The site's total is 50 MB since the Italian pages
+// (change: add-site-italian-locale, D7, the owner's answer of 2026-10-22): a language's Music media
+// weigh about 7.2 MB and its Lingua set about 3 MB, and a visitor loads only their own page's.
 const BUDGET = {
   /** Each image variant the Lingua pages serve (`<img>`, `srcset`). */
   imageVariant: 250 * 1024,
@@ -19,14 +21,24 @@ const BUDGET = {
   /** Each demo video. */
   video: 4 * 1024 * 1024,
   /** Every image, poster and video of the site together. */
-  allMedia: 30 * 1024 * 1024,
+  allMedia: 50 * 1024 * 1024,
   /** Cloudflare Pages: no file of 25 MiB or more, fewer than 20,000 files. */
   file: 25 * 1024 * 1024,
   files: 20_000,
 };
 
 const dist = resolve(__dirname, "../../dist");
-const LINGUA_PAGES = ["lingua/index.html", "en/lingua/index.html", "es/lingua/index.html"];
+/**
+ * The Lingua pages the build produced, read from it rather than named (D6): a language's page is
+ * built once a pair glossed in it ships (`/es/lingua/`, then `/it/lingua/` with en-it), and a page
+ * built without its media must fail here, not pass unchecked.
+ */
+const LINGUA_PAGES = readdirSync(dist, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && /^[a-z]{2}$/.test(entry.name))
+  .map((entry) => `${entry.name}/lingua/index.html`)
+  .filter((page) => existsSync(resolve(dist, page)))
+  .concat("lingua/index.html")
+  .sort();
 const MEDIA = /\.(avif|webp|jpe?g|png|gif|svg|ico|mp4|webm)$/i;
 
 function filesUnder(dir = dist): string[] {
@@ -53,7 +65,8 @@ describe("the Lingua page's media stay within their budget", () => {
     ...[...page.matchAll(/ srcset="([^"]+)"/g)].flatMap((m) => srcsetFiles(m[1])),
   ]);
 
-  it("has captures to check", () => {
+  it("has captures to check, on every Lingua page the build produced", () => {
+    expect(LINGUA_PAGES).toEqual(expect.arrayContaining(["lingua/index.html", "en/lingua/index.html"]));
     expect(images.length).toBeGreaterThan(30);
   });
 

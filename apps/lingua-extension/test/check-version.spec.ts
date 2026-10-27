@@ -13,6 +13,7 @@ import { shippedPairs } from "../tool/packs.mjs";
 import { languages as enLanguages } from "../src/i18n/en/languages";
 import { languages as esLanguages } from "../src/i18n/es/languages";
 import { languages as frLanguages } from "../src/i18n/fr/languages";
+import { languages as itLanguages } from "../src/i18n/it/languages";
 
 const app = join(__dirname, "..");
 const manifest = (await import("../manifest.json")) as unknown as Record<string, unknown>;
@@ -76,7 +77,7 @@ describe("the release version guard", () => {
 
     expect(versionProblem(pkg.version)).toBeNull();
     expect(manifestProblems(manifest)).toEqual([]);
-    expect(Object.keys(locales)).toEqual(["en", "es", "fr"]);
+    expect(Object.keys(locales)).toEqual(["en", "es", "fr", "it"]);
     expect(localeProblems(manifest, locales)).toEqual([]);
   });
 });
@@ -161,6 +162,12 @@ describe("the stores' summary names what its readers can study (add-lingua-frenc
     "The web in Spanish, French or Italian: unknown words highlighted, an honest percentage. Offline and private.";
   // enable-lingua-italian-for-spanish-speakers lists it-es after it-en.
   const WITH_IT_ES = [...WITH_IT_EN, "it-es"];
+  // enable-lingua-italian-speakers lists en-it after it-es: the first pair glossed in Italian (localise-lingua-manifest-italian).
+  const WITH_EN_IT = [...WITH_IT_ES, "en-it"];
+  // The Italian description, naming English alone: en-it is the only pair glossed in Italian
+  // enable-lingua-italian-speakers ships; fr-it and es-it rewrite it to name French and Spanish.
+  const IT_DESCRIPTION =
+    "Leggi il web in inglese: parole sconosciute evidenziate, percentuale reale. Offline e senza tracciamento.";
   // The Spanish description that names Italian (enable-lingua-italian-for-spanish-speakers D6, the
   // owner's words, 2026-10-25): the earlier lists are read with change 52's, ES_DRAFT.
   const ES_ITALIAN =
@@ -355,6 +362,29 @@ describe("the stores' summary names what its readers can study (add-lingua-frenc
     expect(problems[0]).toContain("it names Italiano, which no shipped pair glossed in es studies");
   });
 
+  it("commits the Italian description naming English alone, within Apple's limit (localise-lingua-manifest-italian D1)", () => {
+    expect(locales.it?.extensionDescription?.message).toBe(IT_DESCRIPTION);
+    expect(IT_DESCRIPTION).toHaveLength(105);
+    expect(localeProblems(manifest, locales)).toEqual([]);
+  });
+
+  it("en-it listed with the committed Italian description passes; today's list does not read it", () => {
+    expect(summaryProblems(manifest, locales, WITH_EN_IT)).toEqual([]);
+    // No pair glossed in Italian ships: whatever the Italian description names is not read.
+    expect(summaryProblems(manifest, reading("it", "Leggi il web in francese.", locales), WITH_IT_ES)).toEqual([]);
+  });
+
+  it("en-it listed with an Italian description naming French fails, naming the Italian description and Francese", () => {
+    const problems = summaryProblems(
+      manifest,
+      reading("it", "Leggi il web in inglese o francese: parole sconosciute evidenziate.", locales),
+      WITH_EN_IT,
+    );
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain("the it description (_locales/it/messages.json)");
+    expect(problems[0]).toContain("it names Francese, which no shipped pair glossed in it studies");
+  });
+
   it("matches a name whole and whatever its case", () => {
     expect(namedLanguages("fr", "Lisez l'anglais et l'ESPAGNOL")).toEqual(["en", "es"]);
     expect(namedLanguages("fr", "Le web en anglais, espagnol ou ITALIEN")).toEqual(["en", "es", "it"]);
@@ -366,6 +396,8 @@ describe("the stores' summary names what its readers can study (add-lingua-frenc
     expect(namedLanguages("es", "inglesa")).toEqual([]);
     expect(namedLanguages("es", "La web en inglés, francés o ITALIANO")).toEqual(["en", "fr", "it"]);
     expect(namedLanguages("es", "italianos")).toEqual([]);
+    expect(namedLanguages("it", "Leggi il web in INGLESE e l'italiano")).toEqual(["en", "it"]);
+    expect(namedLanguages("it", "inglesi, francesi")).toEqual([]);
   });
 
   it("names each language as the interface's catalogue does", () => {
@@ -379,6 +411,7 @@ describe("the stores' summary names what its readers can study (add-lingua-frenc
       fr: catalogue(frLanguages),
       en: catalogue(enLanguages),
       es: catalogue(esLanguages),
+      it: catalogue(itLanguages),
     });
   });
 

@@ -298,6 +298,15 @@ describe("helpers", () => {
     expect(threeSpanish).toContain("Descarga 77,9 MB una vez");
     expect(threeSpanish).toContain("unos 340 MB de memoria");
     expect(threeSpanish).not.toContain("unos 200 MB");
+    // An Italian reader of English: en-it's one model — one model's memory, in the Italian interface
+    // (enable-lingua-italian-speakers D4).
+    const italianCopy = settingsCopy("it").translation;
+    const englishItalian = costText({ download: 26_509_835, stored: 36_507_703 }, "it", italianCopy);
+    expect(englishItalian).toBe(
+      "Traduce le tue frasi su questo dispositivo, senza inviare nulla. Richiede di scaricare 26,5 MB una sola " +
+        "volta, poi circa 200 MB di memoria durante la traduzione. Impostazione valida solo su questo dispositivo.",
+    );
+    expect(englishItalian).not.toContain("circa 340 MB");
     expect(stateText({ phase: "failed", reason: "storage" }, COST)).toContain("(36,7 Mo)");
     expect(stateText({ phase: "failed", reason: "storage" })).toBe(
       "Pas assez de place sur cet appareil pour le modèle.",
