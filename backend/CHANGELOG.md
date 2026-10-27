@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.40.0](https://github.com/NEETROF/cymbra/compare/backend-v0.39.0...backend-v0.40.0) (2026-10-27)
+
+
+### Features
+
+* **lingua:** accept Italian in online translation ([#1061](https://github.com/NEETROF/cymbra/issues/1061)) ([c97efb3](https://github.com/NEETROF/cymbra/commit/c97efb36e481d3ca50668d8829ba560974a0a3bc))
+* **platform:** link the Italian legal pages from Italian e-mails ([#1090](https://github.com/NEETROF/cymbra/issues/1090)) ([17aa3a0](https://github.com/NEETROF/cymbra/commit/17aa3a01a18818fd108cb761eeaeda0da760e75e))
+* **site:** Italian locale — home, Music, legal pages, deletion, leaving page ([#1089](https://github.com/NEETROF/cymbra/issues/1089)) ([727ac39](https://github.com/NEETROF/cymbra/commit/727ac3918a10f94bab62a0f49c2ca47b2d1637a9))
+
 ## [0.39.0](https://github.com/NEETROF/cymbra/compare/backend-v0.38.0...backend-v0.39.0) (2026-10-15)
 
 
