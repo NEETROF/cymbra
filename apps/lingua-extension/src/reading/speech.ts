@@ -40,7 +40,7 @@ export interface SpeechEngine<V extends VoiceInfo = VoiceInfo> {
   /** Call `listener` when the voices change; returns how to stop, where the platform allows it. */
   onVoicesChanged(listener: () => void): (() => void) | void;
   /** Speak `text` with `voice`; `done` runs once, with null or the error code. */
-  speak(text: string, voice: V, done: (error: string | null) => void): void;
+  speak(text: string, voice: V, rate: SpeechRate, done: (error: string | null) => void): void;
   /** Stop everything queued in this frame. */
   cancel(): void;
 }
@@ -53,9 +53,28 @@ export interface SpeechSettings {
   readonly androidVoices: boolean;
   /** Whether remote voices may stand in where no voice of the studied language is on the device. */
   readonly remoteVoices: boolean;
+  /** How fast every reading is spoken, one choice for every studied language. */
+  readonly rate: SpeechRate;
 }
 
-export const DEFAULT_SPEECH_SETTINGS: SpeechSettings = { voices: {}, androidVoices: false, remoteVoices: false };
+/** The speaking rates « Vitesse de lecture » offers: ultra slow, very slow, slow, normal. */
+export const SPEECH_RATES = [0.25, 0.5, 0.75, 1] as const;
+
+export type SpeechRate = (typeof SPEECH_RATES)[number];
+
+export const DEFAULT_SPEECH_RATE: SpeechRate = 1;
+
+/** A stored value read as a speaking rate: one of the steps, else normal. */
+export function speechRateOf(value: unknown): SpeechRate {
+  return SPEECH_RATES.find((step) => step === value) ?? DEFAULT_SPEECH_RATE;
+}
+
+export const DEFAULT_SPEECH_SETTINGS: SpeechSettings = {
+  voices: {},
+  androidVoices: false,
+  remoteVoices: false,
+  rate: DEFAULT_SPEECH_RATE,
+};
 
 /** Where those settings are kept, and how a change made in another context reaches this one. */
 export interface VoicePreference {
@@ -91,6 +110,8 @@ export interface Speaker {
   remoteVoices(): boolean;
   /** Whether remote voices could stand in: some in the studied language, none on the device. */
   offersRemoteVoices(): boolean;
+  /** The speaking rate the next reading uses. */
+  rate(): SpeechRate;
   speaking(): Speaking | null;
   /**
    * Stop whatever is speaking and speak `text`, with `voice` or the chosen one. Synchronous all
@@ -448,6 +469,7 @@ export function createSpeaker<V extends VoiceInfo>(
     androidVoices: () => settings.androidVoices,
     offersAndroidVoices: () => voices.some((v) => isAndroidVoice(v) && isEligible(v, langOf(), true)),
     remoteVoices: () => settings.remoteVoices,
+    rate: () => settings.rate,
     offersRemoteVoices: () =>
       voices.some((v) => isRemoteVoice(v, langOf())) &&
       !voices.some((v) => isEligible(v, langOf(), settings.androidVoices)),
@@ -460,7 +482,7 @@ export function createSpeaker<V extends VoiceInfo>(
       current = { key, text, token };
       // `cancel` makes the previous utterance report its end later — on Chrome after this one
       // has started — so an answer only counts for the utterance still current.
-      engine.speak(text, v, (error) => {
+      engine.speak(text, v, settings.rate, (error) => {
         if (current?.token !== token) return;
         current = null;
         if (error && !OWN_ERRORS.has(error)) console.warn(`[lingua] read-aloud failed: ${error}`);
@@ -500,10 +522,11 @@ export function browserSpeechEngine(
       synth.addEventListener("voiceschanged", listener);
       return () => synth.removeEventListener("voiceschanged", listener);
     },
-    speak(text, voice, done) {
+    speak(text, voice, rate, done) {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.voice = voice;
       utterance.lang = voice.lang;
+      utterance.rate = rate;
       let settled = false;
       const finish = (error: string | null): void => {
         if (settled) return;
