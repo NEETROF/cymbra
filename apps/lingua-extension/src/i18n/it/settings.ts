@@ -23,6 +23,8 @@ export const settings: typeof fr = {
   pillNote: "Un badge discreto in fondo alla pagina: percentuale + accesso al mazzo e alle impostazioni.",
   readAloud: "Lettura ad alta voce",
   readingVoice: "Voce di lettura",
+  speechRate: "Velocità di lettura",
+  speechRateSteps: { 0.25: "Lentissima", 0.5: "Molto lenta", 0.75: "Lenta", 1: "Normale" },
   listen: "▶ Ascolta",
   stop: "■ Ferma",
   onDeviceNote: "Voci installate su questo dispositivo: il testo letto non lascia il dispositivo.",
