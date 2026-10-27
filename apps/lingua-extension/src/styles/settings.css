@@ -203,6 +203,24 @@ kbd {
   font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
 }
 
+/* « Vitesse de lecture » sits between the voice row and the on-device note: air on both sides. */
+.set-rate-row {
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+
+/* In the narrow popup the label and the three steps do not fit side by side: the steps wrap under
+   the label and share the width, none cut off. */
+.set-rate-row .set-segmented {
+  flex: 1 1 auto;
+}
+
+.set-rate-row .set-segment {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+}
+
 .set-stepper,
 .set-segmented {
   display: flex;
