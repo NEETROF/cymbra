@@ -1405,28 +1405,24 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn spec_scenario_an_italian_pack_glossed_in_a_language_the_core_does_not_know_as_native() {
-        // add-lingua-italian-baseline D3: Italian is no native language before change 32, so a
-        // pack studying Italian glossed in Italian is refused as glossed in an unknown native
-        // language — the pack-glossed-in-its-own-language rule cannot fire for it yet.
+    fn spec_scenario_an_italian_pack_glossed_in_italian_is_refused_as_its_own_studied_language() {
+        // add-lingua-italian-native-language D1, rewriting add-lingua-italian-baseline D3's test:
+        // Italian is a native language now, so a pack studying Italian glossed in Italian is
+        // refused as glossed in the language it studies, not as an unknown native language.
         let bytes = sample_pack_bytes_with("it", "it", ITALIAN_ANALYZER_VERSION);
         let err = Pack::load(&bytes)
             .err()
             .expect("a pack glossed in Italian is refused");
         assert!(
-            matches!(&err, PackError::UnknownNative(tag) if tag == "it"),
+            matches!(&err, PackError::NativeStudied(StudiedLanguage::Italian)),
             "{err}"
         );
         assert!(err.to_string().contains("\"it\""), "{err}");
-        assert!(matches!(
-            Pack::pair_in(&bytes),
-            Err(PackError::UnknownNative(tag)) if tag == "it"
-        ));
-        // A pack of another language glossed in Italian is refused the same way.
-        assert!(matches!(
-            Pack::load(&sample_pack_bytes_with("en", "it", ANALYZER_VERSION)),
-            Err(PackError::UnknownNative(tag)) if tag == "it"
-        ));
+        // A pack of another language glossed in Italian loads: the en-it pair of change 36.
+        let pack = Pack::load(&sample_pack_bytes_with("en", "it", ANALYZER_VERSION))
+            .expect("an en-it pack loads");
+        assert_eq!(pack.meta().pair_key(), "en-it");
+        assert_eq!(pack.pair().native, NativeLanguage::Italian);
     }
 
     #[test]

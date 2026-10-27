@@ -28,6 +28,10 @@ const WITH_FRENCH = [...WITH_BOTH, "fr-en", "fr-es"];
 const WITH_ITALIAN = [...WITH_FRENCH, "it-fr"];
 /** That list beside Italian glossed in English, last: packs.json since enable-lingua-italian-for-english-speakers. */
 const WITH_IT_EN = [...WITH_ITALIAN, "it-en"];
+/** That list beside Italian glossed in Spanish, last: packs.json since enable-lingua-italian-for-spanish-speakers. */
+const WITH_IT_ES = [...WITH_IT_EN, "it-es"];
+/** That list beside the first Italian-glossed pair, en-it: packs.json since enable-lingua-italian-speakers (localise-lingua-manifest-italian D3). */
+const WITH_EN_IT = [...WITH_IT_ES, "en-it"];
 
 type Manifest = Record<string, unknown> & {
   description: string;
@@ -58,8 +62,8 @@ function step(target: (typeof TARGETS)[number], pairs: readonly string[], own = 
 const text = (manifest: unknown) => `${JSON.stringify(manifest, null, 2)}\n`;
 
 describe("the committed messages (localise-lingua-manifest D1)", () => {
-  it("exist for French, English and Spanish, each holding every message a localised manifest references", () => {
-    expect(Object.keys(messages)).toEqual(["en", "es", "fr"]);
+  it("exist for French, English, Spanish and Italian, each holding every message a localised manifest references", () => {
+    expect(Object.keys(messages)).toEqual(["en", "es", "fr", "it"]);
     for (const [language, own] of Object.entries(messages)) {
       for (const key of LOCALISED_MESSAGES) {
         expect(typeof own[key]?.message, `${language}: ${key}`).toBe("string");
@@ -84,7 +88,38 @@ describe("the committed messages (localise-lingua-manifest D1)", () => {
     expect(messages.en![DESCRIPTION_MESSAGE]!.message).not.toMatch(/English/);
     expect(messages.es![DESCRIPTION_MESSAGE]!.message).toMatch(/inglés/);
     expect(messages.es![DESCRIPTION_MESSAGE]!.message).not.toMatch(/español/);
+    // Italian speakers study English (en-it; localise-lingua-manifest-italian D1).
+    expect(messages.it![DESCRIPTION_MESSAGE]!.message).toMatch(/inglese/);
+    expect(messages.it![DESCRIPTION_MESSAGE]!.message).not.toMatch(/italiano/i);
   });
+});
+
+describe("the Italian messages, carried once a pair glossed in Italian ships (localise-lingua-manifest-italian D3, D5)", () => {
+  it.each(TARGETS)("%s: the list before en-it carries no `_locales/it`, and no manifest reads from it", (target) => {
+    const { locales } = step(target, WITH_IT_ES);
+    expect(locales).not.toContain("it");
+  });
+
+  it.each(TARGETS)(
+    "%s: packs.json, which lists en-it, carries `_locales/it` (enable-lingua-italian-speakers)",
+    (target) => {
+      const { locales } = step(target, shippedPairs());
+      expect(locales).toContain("it");
+    },
+  );
+
+  it.each(TARGETS)(
+    "%s: en-it listed carries `_locales/it` beside the other natives, English the default, every reference resolving",
+    (target) => {
+      const { manifest, locales } = step(target, WITH_EN_IT);
+      expect(locales).toEqual(["fr", "en", "es", "it"]);
+      expect(manifest.default_locale).toBe("en");
+      expect(manifest.description).toBe(`__MSG_${DESCRIPTION_MESSAGE}__`);
+      const references = [...new Set([...text(manifest).matchAll(/__MSG_(\w+)__/g)].map((m) => m[1]!))];
+      expect(references.sort()).toEqual([...LOCALISED_MESSAGES].sort());
+      for (const key of references) expect(messages.it![key]?.message, `it: ${key}`).toBeTruthy();
+    },
+  );
 });
 
 describe("the shipped natives decide the manifest's languages (D2)", () => {
@@ -256,11 +291,11 @@ describe("the manifest step once es-en ships (the scenario *An English-glossed p
     expect(manifest.default_locale).toBe("en");
   });
 
-  it("runs on packs.json, which lists es-en since change 34, en-es since change 35, fr-en and fr-es since change 52, then it-fr (enable-lingua-italian) and it-en (enable-lingua-italian-for-english-speakers)", () => {
-    expect(shippedPairs()).toEqual(WITH_IT_EN);
+  it("runs on packs.json, which lists es-en since change 34, en-es since change 35, fr-en and fr-es since change 52, then it-fr (enable-lingua-italian), it-en (enable-lingua-italian-for-english-speakers), it-es (enable-lingua-italian-for-spanish-speakers) and en-it (enable-lingua-italian-speakers)", () => {
+    expect(shippedPairs()).toEqual(WITH_EN_IT);
     for (const target of TARGETS) {
       const { manifest, locales } = step(target, shippedPairs());
-      expect(locales).toEqual(["fr", "en", "es"]); // the shipped natives in listed order
+      expect(locales).toEqual(["fr", "en", "es", "it"]); // the shipped natives in listed order
       expect(manifest.default_locale).toBe("en"); // M13: English, the first `_locales` change 34 shipped
       expect(manifest.description).toBe(`__MSG_${DESCRIPTION_MESSAGE}__`);
     }
@@ -320,6 +355,44 @@ describe("the manifest step once es-en ships (the scenario *An English-glossed p
       expect(exposed.resources).toContain("assets/packs/it-en.lingua");
       exposed.resources = exposed.resources.filter((r) => r !== "assets/packs/it-en.lingua");
       expect(text(after.manifest)).toBe(text(before.manifest));
+    },
+  );
+
+  it.each(TARGETS)(
+    "%s: enable-lingua-italian-for-spanish-speakers adds it-es's layer alone and moves nothing else of enable-lingua-italian-for-english-speakers' manifest",
+    (target) => {
+      // it-es adds no native language, and no base: Italian's is it-fr's (D1, D8).
+      const before = step(target, WITH_IT_EN);
+      const after = step(target, WITH_IT_ES);
+      expect(after.locales).toEqual(before.locales);
+      expect(after.manifest.default_locale).toBe("en");
+      const exposed = (after.manifest.web_accessible_resources as { resources: string[] }[])[0]!;
+      expect(exposed.resources).toContain("assets/packs/it-es.lingua");
+      exposed.resources = exposed.resources.filter((r) => r !== "assets/packs/it-es.lingua");
+      expect(text(after.manifest)).toBe(text(before.manifest));
+    },
+  );
+
+  it.each(TARGETS)(
+    "%s: exposes the nine layers, then the four bases, once each (ship-lingua-pack-bases-once D4, enable-lingua-italian-for-spanish-speakers)",
+    (target) => {
+      const { manifest } = step(target, WITH_IT_ES);
+      const resources = (manifest.web_accessible_resources as { resources: string[] }[])[0]!.resources;
+      expect(resources.filter((r) => r.startsWith("assets/"))).toEqual([
+        "assets/packs/en-fr.lingua",
+        "assets/packs/es-fr.lingua",
+        "assets/packs/es-en.lingua",
+        "assets/packs/en-es.lingua",
+        "assets/packs/fr-en.lingua",
+        "assets/packs/fr-es.lingua",
+        "assets/packs/it-fr.lingua",
+        "assets/packs/it-en.lingua",
+        "assets/packs/it-es.lingua",
+        "assets/bases/en.lingua",
+        "assets/bases/es.lingua",
+        "assets/bases/fr.lingua",
+        "assets/bases/it.lingua",
+      ]);
     },
   );
 

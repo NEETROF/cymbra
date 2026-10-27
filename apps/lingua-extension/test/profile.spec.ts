@@ -56,6 +56,21 @@ describe("the studied languages of a stored backup", () => {
     );
   });
 
+  it("reads Italian, which a reader of Spanish studies since enable-lingua-italian-for-spanish-speakers", () => {
+    // A version 4 backup of a Spanish-native reader who studies English then Italian: read as both, in
+    // their order, Spanish native.
+    const version4 = JSON.stringify(
+      { schema_version: 4, profile: { native_language: "Spanish", studied_languages: ["English", "Italian"] } },
+      null,
+      2,
+    );
+    expect(studiedLanguagesOf(version4)).toEqual(["en", "it"]);
+    expect(nativeLanguageOf(version4)).toBe("es");
+    expect(
+      nativeLanguageOf(version4, ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en", "it-es"]),
+    ).toBe("es");
+  });
+
   it("reads a backup without a profile as English — every reader of English alone", () => {
     expect(studiedLanguagesOf(JSON.stringify({ schema_version: 1, knowledge: {} }))).toEqual(["en"]);
   });
@@ -102,6 +117,12 @@ describe("the native language of a stored backup", () => {
     expect(nativeLanguageOf("null", MIXED)).toBe("fr");
   });
 
+  it("reads Italian, a native language since add-lingua-italian-native-language, once a pair is glossed in it", () => {
+    expect(nativeLanguageOf(native("Italian"), ["en-fr", "en-it"])).toBe("it");
+    // With no pair glossed in Italian: read as French, as any native language with no pair.
+    expect(nativeLanguageOf(native("Italian"), ["en-fr", "es-fr", "es-en", "en-es", "it-en"])).toBe("fr");
+  });
+
   it("is French for a native language no listed pair is glossed in", () => {
     expect(nativeLanguageOf(native("English"), ["en-fr", "es-fr"])).toBe("fr");
     expect(nativeLanguageOf(native("Spanish"), ["en-fr", "es-en"])).toBe("fr");
@@ -110,9 +131,10 @@ describe("the native language of a stored backup", () => {
     expect(nativeLanguageOf(native("Spanish"), ["en-fr", "es-fr", "es-en"])).toBe("fr");
   });
 
-  it("is each stored native language with the bundle's list, which glosses in all three (enable-lingua-spanish-speakers)", () => {
+  it("is each stored native language with the bundle's list, which glosses in all four (enable-lingua-spanish-speakers, enable-lingua-italian-speakers)", () => {
     expect(nativeLanguageOf(native("French"))).toBe("fr");
     expect(nativeLanguageOf(native("English"))).toBe("en");
     expect(nativeLanguageOf(native("Spanish"))).toBe("es");
+    expect(nativeLanguageOf(native("Italian"))).toBe("it");
   });
 });

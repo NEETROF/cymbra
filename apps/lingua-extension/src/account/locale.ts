@@ -31,10 +31,12 @@ function primarySubtag(tag: string): string {
 
 /**
  * The account locale of a reader who has chosen their language — always a bare primary subtag, never
- * the browser's whole tag: the browser's language when Cymbra speaks it and the extension does not
- * (`it`), so a reader whose Music writes to them in Italian keeps their Italian e-mails; the interface
+ * the browser's whole tag: the browser's language when Cymbra speaks it and the extension does not,
+ * so a reader whose Music writes to them in that language keeps their e-mails in it; the interface
  * language otherwise, whatever else the browser is in (a German browser sends the interface language,
- * not `de`).
+ * not `de`). Since the extension speaks Italian (enable-lingua-italian-speakers D2, I10), every
+ * language Cymbra speaks is an interface language, and the first arm waits for the next one Music
+ * adds: a French reader with an Italian browser sends `fr`.
  */
 export function accountLocale(interfaceLanguage: InterfaceLanguage, browserLanguage: string): string {
   const browser = primarySubtag(browserLanguage);
@@ -91,7 +93,7 @@ export interface AccountLanguage {
  * whole code of its own, so its screen is not moved from a device where the reader chose nothing.
  * Once they have chosen: the account locale (`accountLocale`) on all four, and the deletion page by
  * the interface language alone — a page the reader reads, where the account locale may be the
- * browser's `it`.
+ * browser's language when Cymbra speaks one the extension does not.
  */
 export function accountLanguage(
   interfaceLanguage: InterfaceLanguage,
@@ -105,14 +107,20 @@ export function accountLanguage(
   return { locale: accountLocale(interfaceLanguage, browserLanguage), deletion: interfaceLanguage };
 }
 
+/** Each site language's deletion page, pinned routes of the site (`apps/site/src/lib/pinned-routes.ts`). */
+const DELETE_ACCOUNT_PAGES: Readonly<Record<string, string>> = {
+  fr: "https://cymbra.app/suppression-compte/",
+  es: "https://cymbra.app/es/eliminar-cuenta/",
+  it: "https://cymbra.app/it/elimina-account/",
+};
+
 /**
- * The site page that deletes the whole Cymbra account (add-lingua-privacy-controls D5): the French
- * page for a tag that starts with `fr`, the English one otherwise until the site has a Spanish page
- * (change 29 adds it) — the rule it always had. Callers pass `AccountLanguage.deletion`: the
- * interface language once the reader has chosen it, the browser's whole tag until then.
+ * The site page that deletes the whole Cymbra account (add-lingua-privacy-controls D5): the page in
+ * the language a tag starts with — French, Spanish (add-site-spanish-locale's task 3.2, landed by
+ * enable-lingua-italian-speakers D2) or Italian (enable-lingua-italian-speakers D2) — the English one
+ * otherwise. Callers pass `AccountLanguage.deletion`: the interface language once the reader has
+ * chosen it, the browser's whole tag until then.
  */
 export function deleteAccountUrl(language: string): string {
-  return language.toLowerCase().startsWith("fr")
-    ? "https://cymbra.app/suppression-compte/"
-    : "https://cymbra.app/en/delete-account/";
+  return DELETE_ACCOUNT_PAGES[primarySubtag(language)] ?? "https://cymbra.app/en/delete-account/";
 }

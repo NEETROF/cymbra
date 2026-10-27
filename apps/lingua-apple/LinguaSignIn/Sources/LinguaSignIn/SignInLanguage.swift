@@ -1,15 +1,17 @@
 import Foundation
 
 /// The languages the host app speaks (localise-lingua-apple-host): the extension's interface
-/// languages, `fr`, `en` and `es`, which the activation page (copy.js) and the sign-in sheet
-/// (`SignInCopy`) each hold a copy in. Which of them a build *offers* is its `CFBundleLocalizations`
+/// languages, `fr`, `en` and `es`, and `it` ahead of them (localise-lingua-apple-host-italian D1),
+/// which the activation page (copy.js) and the sign-in sheet (`SignInCopy`) each hold a copy in. Which of them a build *offers* is its `CFBundleLocalizations`
 /// alone, written by tool/app_localizations.sh from the natives of the shipped pairs; a screen shows
 /// the language it is asked for only among those, then the device's, then English once English is
-/// offered and French otherwise.
+/// offered and French otherwise. Italian is offered since a pair glossed in Italian ships (en-it,
+/// the Italian programme's change 45, enable-lingua-italian-speakers); before it, its copy was held.
 public enum SignInLanguage: String, CaseIterable, Codable, Sendable {
     case fr
     case en
     case es
+    case it
 
     /// The languages a build offers, among these: what its `CFBundleLocalizations` declares, and
     /// nothing else — `Base` and any other value drop out.

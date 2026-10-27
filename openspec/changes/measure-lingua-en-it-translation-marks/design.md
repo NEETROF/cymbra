@@ -156,6 +156,35 @@ The documents follow:
 « dell'X », « all'X » or « quest'X ». The marks are measured as shipped. This is listed for change 45's
 dogfood.
 
+### D7 — The MODIFIED block, as change 24 leaves it (decided at implementation)
+
+At implementation, on main at `3e37d9d22`, change 24 (`measure-lingua-it-en-translation-marks`) and
+change 29 (`measure-lingua-it-es-translation-marks`) are implemented (#1064, #1071), neither archived.
+The archive order is change 24, then this change, then change 29 (its `archiveAfter` names this one),
+then changes 49 and 53. Checked word for word: this change's requirement and scenarios equal change
+24's plus *An English selection, judged in Italian*; change 29's equal this change's plus its own
+scenario; change 49's equal change 29's plus one.
+
+The block therefore stays as proposed, and is not re-copied from change 29 as merged. Change 29 is
+this block's successor, not its source: re-copying it here would put change 29's scenario into this
+change's archive, ahead of change 29's own, and change 29's archive, which replaces the requirement
+next, would bring nothing new. Change 29's design D6 made the same reading from the other side —
+it copied this block while this change was open, and keeps it in `archiveAfter`. Nothing measured or
+listed here waits on the archives.
+
+### D8 — Found at the run and in the judgment
+
+- **Italian's articulated prepositions, whole** (D1): the set holds every articulated preposition of
+  `a`, `da`, `in` and `su`, not only the elided ones, since the experiment reads « nella » or « sul »
+  as one word. The table check maps each to the preposition the pre-pass splits it into, as D1 maps
+  « all », « dall », « nell », « sull »; no Italian word is unknown to the tables.
+- **The soak** was run again in one instance and isolated, beside change 2's: no trap either way.
+- **The judges' agreement**: 99 of 100 engine verdicts. The one disagreement, k 70 (« plotter » left
+  in English: A correct and loose, B wrong), is committed `wrong` with both verdicts. Two loose lines
+  are one judge's doubt only (k 32 B's, k 75 A's), committed `correct` and flagged `doubtful:`, as
+  every line both judges call correct is. On the gloss column judge B called k 25 and k 99 correct
+  where the column shows no mark; they stand `withheld`, a slip, not a verdict.
+
 ## Risks / Trade-offs
 
 - **Two agents judging a language nobody on the team reads** → criteria first, three references, the

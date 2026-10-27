@@ -1,0 +1,2568 @@
+{
+  "schema_version": 2,
+  "knowledge": {
+    "statuses": {
+      "English": {
+        "airline": {
+          "Known": "Manual"
+        },
+        "bennet": "Ignored",
+        "bingley": "Ignored",
+        "border": {
+          "Known": "Manual"
+        },
+        "cabin": "Learning",
+        "charm": "Learning",
+        "climate": {
+          "Known": "Manual"
+        },
+        "decade": {
+          "Known": "Manual"
+        },
+        "distant": {
+          "Known": "Manual"
+        },
+        "emission": "Learning",
+        "investment": {
+          "Known": "Manual"
+        },
+        "morris": "Ignored",
+        "narrow": "Learning",
+        "oh": "Ignored",
+        "operator": {
+          "Known": "Manual"
+        },
+        "ordinary": {
+          "Known": "Manual"
+        },
+        "overnight": "Learning",
+        "patience": {
+          "Known": "Manual"
+        },
+        "queue": "Learning",
+        "rail": {
+          "Known": "Manual"
+        },
+        "railway": {
+          "Known": "Manual"
+        },
+        "remove": {
+          "Known": "Manual"
+        },
+        "route": {
+          "Known": "Manual"
+        },
+        "season": {
+          "Known": "Manual"
+        },
+        "security": {
+          "Known": "Manual"
+        },
+        "service": {
+          "Known": "Manual"
+        },
+        "sometimes": {
+          "Known": "Manual"
+        },
+        "tax": {
+          "Known": "Manual"
+        },
+        "twentieth": {
+          "Known": "Manual"
+        },
+        "whether": {
+          "Known": "Manual"
+        }
+      }
+    },
+    "calibration": {
+      "English": 0
+    },
+    "declared_level": {
+      "English": "B1"
+    },
+    "declared_level_at": {
+      "English": 1793049486235
+    },
+    "updated": {
+      "English": {
+        "airline": 1793049490537,
+        "bennet": 1793049516887,
+        "bingley": 1793049518406,
+        "border": 1793049489974,
+        "cabin": 1793049508000,
+        "charm": 1793049504000,
+        "climate": 1793049494971,
+        "decade": 1793049492729,
+        "distant": 1793049494412,
+        "emission": 1793049506000,
+        "investment": 1793049497192,
+        "morris": 1793049517645,
+        "narrow": 1793049500000,
+        "oh": 1793049519165,
+        "operator": 1793049493287,
+        "ordinary": 1793049489397,
+        "overnight": 1793049510000,
+        "patience": 1793049497750,
+        "queue": 1793049502000,
+        "rail": 1793049499400,
+        "railway": 1793049491079,
+        "remove": 1793049498300,
+        "route": 1793049492179,
+        "season": 1793049496083,
+        "security": 1793049493854,
+        "service": 1793049491628,
+        "sometimes": 1793049495525,
+        "tax": 1793049498849,
+        "twentieth": 1793049488832,
+        "whether": 1793049496641
+      }
+    }
+  },
+  "exposure": {
+    "counters": {
+      "English": {
+        "a": {
+          "occurrences": 5,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "about": {
+          "occurrences": 2,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "accept": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049490,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "account": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "across": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049498,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "adventure": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "after": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "again": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "agree": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "air": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "airport": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "all": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "almost": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "also": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "always": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "an": {
+          "occurrences": 3,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "and": {
+          "occurrences": 5,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "another": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "answer": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "any": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "anything": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "appointment": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "arrive": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "as": {
+          "occurrences": 2,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "asleep": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "at": {
+          "occurrences": 4,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "back": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "be": {
+          "occurrences": 5,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "beauty": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "because": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "become": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049498,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "before": {
+          "occurrences": 3,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "behind": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "between": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "bit": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "board": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "break": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "breakfast": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "bring": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "build": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "bus": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "business": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "but": {
+          "occurrences": 2,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "by": {
+          "occurrences": 4,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "can": {
+          "occurrences": 2,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "capital": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "car": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "carry": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "case": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "centre": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "century": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "certain": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049498,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "certainly": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "change": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "cheap": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "check": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "choice": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049498,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "choose": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "city": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "come": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "common": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049498,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "company": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "complain": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "concern": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049490,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "condition": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "consider": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "continent": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049498,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "conversation": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "cost": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "country": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "cross": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "cry": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "daughter": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "day": {
+          "occurrences": 3,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "dear": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "decide": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "delay": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "depend": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049498,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "describe": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "design": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "dinner": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "disappear": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "do": {
+          "occurrences": 3,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "down": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "early": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "else": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049498,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "end": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "enough": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "enter": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "evening": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "every": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "exist": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "expensive": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "experience": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "fall": {
+          "occurrences": 3,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "family": {
+          "occurrences": 3,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "feel": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "feeling": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "few": {
+          "occurrences": 2,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "fine": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "first": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "five": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "fix": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "flat": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "flight": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "for": {
+          "occurrences": 4,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "fortune": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "four": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "from": {
+          "occurrences": 3,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "girl": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "give": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "glad": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "go": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "good": {
+          "occurrences": 3,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "government": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049490,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "grow": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "half": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "handsome": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "happily": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049490,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "have": {
+          "occurrences": 5,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "he": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "hear": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "her": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "here": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "him": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "his": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "hour": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "house": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "how": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "however": {
+          "occurrences": 2,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "i": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "idea": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "if": {
+          "occurrences": 3,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "impossible": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "in": {
+          "occurrences": 4,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "indeed": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "into": {
+          "occurrences": 2,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "it": {
+          "occurrences": 3,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "its": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049498,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "journey": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "just": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "know": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "lady": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "landscape": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "large": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "last": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "leave": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049498,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "let": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "lie": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "life": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "like": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "likely": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "line": {
+          "occurrences": 3,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "little": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "long": {
+          "occurrences": 3,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "lose": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "love": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "luck": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "make": {
+          "occurrences": 2,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "man": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "many": {
+          "occurrences": 5,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "marry": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "may": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "me": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "mean": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049490,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "meet": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "memory": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "might": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "mind": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "modern": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "monday": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "motorway": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "mr": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "mrs": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "much": {
+          "occurrences": 3,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "must": {
+          "occurrences": 2,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "my": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "name": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "never": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "new": {
+          "occurrences": 4,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "next": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "night": {
+          "occurrences": 4,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "no": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "north": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "not": {
+          "occurrences": 5,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "notice": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049490,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "now": {
+          "occurrences": 3,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "number": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049490,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "of": {
+          "occurrences": 5,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "offer": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "often": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "on": {
+          "occurrences": 4,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "once": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049498,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "one": {
+          "occurrences": 3,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "only": {
+          "occurrences": 2,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "or": {
+          "occurrences": 4,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "other": {
+          "occurrences": 2,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "our": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "over": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "own": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "park": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "part": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "party": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "passenger": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049498,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "perhaps": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "person": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "photograph": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "picture": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "place": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "plane": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049490,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "play": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049490,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "point": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "prefer": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "pretend": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "price": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "produce": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049490,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "promise": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049490,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "quiet": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "quietly": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "rather": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "read": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "reply": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "restaurant": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "return": {
+          "occurrences": 3,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "ride": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "run": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "same": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049490,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "say": {
+          "occurrences": 2,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "seat": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049490,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "see": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "seem": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "sell": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "send": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "several": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "share": {
+          "occurrences": 2,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "she": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "simple": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "single": {
+          "occurrences": 2,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "sir": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "sleep": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "slowly": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "small": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "smooth": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "so": {
+          "occurrences": 2,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "some": {
+          "occurrences": 2,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "somewhere": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049498,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "soon": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "sound": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "still": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "stranger": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "student": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "such": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "suggest": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "sure": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "take": {
+          "occurrences": 2,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "talk": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "tell": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "than": {
+          "occurrences": 3,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "that": {
+          "occurrences": 5,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "the": {
+          "occurrences": 5,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "their": {
+          "occurrences": 3,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "them": {
+          "occurrences": 2,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "themselves": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "then": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "therefore": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "these": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "they": {
+          "occurrences": 4,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "thing": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "think": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "this": {
+          "occurrences": 3,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "though": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "thousand": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "throw": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "ticket": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "time": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "timetable": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "to": {
+          "occurrences": 4,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "today": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "tonight": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049498,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "too": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "track": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "train": {
+          "occurrences": 4,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "travel": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "traveller": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "trip": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049490,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "truth": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "try": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "turn": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "two": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "up": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "us": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "use": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "very": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "view": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "visit": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "wake": {
+          "occurrences": 3,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "want": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "way": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049498,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "week": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "well": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "what": {
+          "occurrences": 2,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "wheel": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "when": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "which": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "while": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "who": {
+          "occurrences": 4,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "whole": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "why": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "wife": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "will": {
+          "occurrences": 3,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "with": {
+          "occurrences": 2,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "without": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "woman": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "word": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "work": {
+          "occurrences": 2,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049515,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "would": {
+          "occurrences": 2,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "year": {
+          "occurrences": 2,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "yet": {
+          "occurrences": 1,
+          "last_source": "reading:reading.example",
+          "last_seen": 1793049496,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "you": {
+          "occurrences": 3,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "young": {
+          "occurrences": 1,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        },
+        "your": {
+          "occurrences": 4,
+          "last_source": "reading:book",
+          "last_seen": 1793049518,
+          "last_day": 20752,
+          "distinct_days": 1
+        }
+      }
+    }
+  },
+  "deck": {
+    "cards": {
+      "English": {
+        "cabin": {
+          "lemma": "cabin",
+          "encountered_form": "cabins",
+          "provenance": {
+            "sentence": "Passengers sometimes complain about delays, broken air conditioning or cabins that feel smaller than the photographs suggested.",
+            "source": {
+              "Web": {
+                "url": "http://reading.example:65509/en.html"
+              }
+            },
+            "captured_at": 1793049508
+          },
+          "gloss": "cabina; capanna",
+          "gloss_language": "it",
+          "media": null,
+          "review": {
+            "memory": null,
+            "due": null,
+            "last_review": null,
+            "reps": 0,
+            "lapses": 0
+          },
+          "updated_at": 1793049508
+        },
+        "charm": {
+          "lemma": "charm",
+          "encountered_form": "charm",
+          "provenance": {
+            "sentence": "What seems certain is that the idea of sleeping your way across a continent has not lost its charm.",
+            "source": {
+              "Web": {
+                "url": "http://reading.example:65509/en.html"
+              }
+            },
+            "captured_at": 1793049504
+          },
+          "gloss": "fascino, incanto, attrattiva, seduzione, grazia; amuleto, talismano, portafortuna; ciondolo; incanto, incantesimo, malia; affascinare, incantare, deliziare, rapire; incantare, stregare; proteggere con arti magiche; far scomparire come per incanto, far passare come per magia",
+          "gloss_language": "it",
+          "media": null,
+          "review": {
+            "memory": {
+              "stability": 3.173,
+              "difficulty": 5.282434422319005
+            },
+            "due": 1793308714,
+            "last_review": 1793049514,
+            "reps": 1,
+            "lapses": 0
+          },
+          "updated_at": 1793049514
+        },
+        "emission": {
+          "lemma": "emission",
+          "encountered_form": "emissions",
+          "provenance": {
+            "sentence": "A seat on an overnight train produces only a fraction of the emissions of the same trip by plane, and a growing number of travellers say they would happily accept a longer journey if it meant a smaller footprint.",
+            "source": {
+              "Web": {
+                "url": "http://reading.example:65509/en.html"
+              }
+            },
+            "captured_at": 1793049506
+          },
+          "gloss": "emissione, emanazione, fuga, fuoriuscita; eiaculazione, eiaculato, spermatico",
+          "gloss_language": "it",
+          "media": null,
+          "review": {
+            "memory": {
+              "stability": 3.173,
+              "difficulty": 5.282434422319005
+            },
+            "due": 1793308714,
+            "last_review": 1793049514,
+            "reps": 1,
+            "lapses": 0
+          },
+          "updated_at": 1793049514
+        },
+        "narrow": {
+          "lemma": "narrow",
+          "encountered_form": "narrow",
+          "provenance": {
+            "sentence": "Sleeper carriages crossed borders every evening, carrying students, families and business travellers who preferred a narrow bunk to an early flight.",
+            "source": {
+              "Web": {
+                "url": "http://reading.example:65509/en.html"
+              }
+            },
+            "captured_at": 1793049500
+          },
+          "gloss": "stretto, scarso, limitato",
+          "gloss_language": "it",
+          "media": null,
+          "review": {
+            "memory": {
+              "stability": 3.173,
+              "difficulty": 5.282434422319005
+            },
+            "due": 1793308712,
+            "last_review": 1793049512,
+            "reps": 1,
+            "lapses": 0
+          },
+          "updated_at": 1793049512
+        },
+        "overnight": {
+          "lemma": "overnight",
+          "encountered_form": "overnight",
+          "provenance": {
+            "sentence": "A seat on an overnight train produces only a fraction of the emissions of the same trip by plane, and a growing number of travellers say they would happily accept a longer journey if it meant a smaller footprint.",
+            "source": {
+              "Web": {
+                "url": "http://reading.example:65509/en.html"
+              }
+            },
+            "captured_at": 1793049510
+          },
+          "gloss": "durante la notte; improvvisamente, da un momento all'altro; che accade nella notte; per una notte; improvviso; di merce destinata alla consegna per il giorno dopo",
+          "gloss_language": "it",
+          "media": null,
+          "review": {
+            "memory": null,
+            "due": null,
+            "last_review": null,
+            "reps": 0,
+            "lapses": 0
+          },
+          "updated_at": 1793049510
+        },
+        "queue": {
+          "lemma": "queue",
+          "encountered_form": "queues",
+          "provenance": {
+            "sentence": "You board the train after work, read for an hour, and arrive in the centre of another capital before breakfast, without queues, security checks or a bus ride from a distant airport.",
+            "source": {
+              "Web": {
+                "url": "http://reading.example:65509/en.html"
+              }
+            },
+            "captured_at": 1793049502
+          },
+          "gloss": "coda, fila (nel senso di successione di oggetti o individui)",
+          "gloss_language": "it",
+          "media": null,
+          "review": {
+            "memory": {
+              "stability": 0.40255,
+              "difficulty": 7.1949
+            },
+            "due": 1793135913,
+            "last_review": 1793049513,
+            "reps": 1,
+            "lapses": 0
+          },
+          "updated_at": 1793049513
+        }
+      }
+    }
+  },
+  "fsrs": {
+    "w": [
+      0.40255,
+      1.18385,
+      3.173,
+      15.69105,
+      7.1949,
+      0.5345,
+      1.4604,
+      0.0046,
+      1.54575,
+      0.1192,
+      1.01925,
+      1.9395,
+      0.11,
+      0.29605,
+      2.2698,
+      0.2315,
+      2.9898,
+      0.51655,
+      0.6621
+    ],
+    "request_retention": 0.9,
+    "maximum_interval_days": 36500
+  },
+  "profile": {
+    "native_language": "Italian",
+    "studied_languages": [
+      "English"
+    ]
+  }
+}

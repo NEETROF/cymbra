@@ -1,7 +1,9 @@
 import { accountErrors as enErrors } from "../i18n/en/account-errors.ts";
 import { account as enAccount } from "../i18n/en/account.ts";
 import { accountErrors as esErrors } from "../i18n/es/account-errors.ts";
+import { accountErrors as itErrors } from "../i18n/it/account-errors.ts";
 import { account as esAccount } from "../i18n/es/account.ts";
+import { account as itAccount } from "../i18n/it/account.ts";
 import { accountErrors as frErrors } from "../i18n/fr/account-errors.ts";
 import { account as frAccount } from "../i18n/fr/account.ts";
 import { DEFAULT_INTERFACE_LANGUAGE, formatCount, type InterfaceLanguage } from "../i18n/index.ts";
@@ -21,9 +23,14 @@ export type AccountErrors = typeof frErrors;
 /** The account page's copy: its errors and the catalogue's `account` module, in the interface language. */
 export type AccountCopy = AccountErrors & typeof frAccount;
 
-const ERRORS: Record<InterfaceLanguage, AccountErrors> = { fr: frErrors, en: enErrors, es: esErrors };
+const ERRORS: Record<InterfaceLanguage, AccountErrors> = { fr: frErrors, en: enErrors, es: esErrors, it: itErrors };
 
-const ACCOUNT: Record<InterfaceLanguage, typeof frAccount> = { fr: frAccount, en: enAccount, es: esAccount };
+const ACCOUNT: Record<InterfaceLanguage, typeof frAccount> = {
+  fr: frAccount,
+  en: enAccount,
+  es: esAccount,
+  it: itAccount,
+};
 
 /** The errors' module for the interface language. */
 function errorsOf(language: InterfaceLanguage): AccountErrors {

@@ -1,0 +1,81 @@
+{
+  "snapshot": "2026.10.26",
+  "pack": {
+    "sha256": "fd8adda69b2941c48b11577fe2c22ae465e5c011789c09649bec898324dcb97b",
+    "size": 1550149
+  },
+  "base": {
+    "sha256": "2dab95c10bcf2a3cd4d2ac35a15fc85b128136c2377d5611f89db9af193be0ef",
+    "size": 935260
+  },
+  "layer": {
+    "sha256": "cc38c3ce1485e5dc9529fbc46055aff92b54fc902d9dda3fa431babe6c53ef0b",
+    "size": 615114
+  },
+  "reducer": {
+    "sha256": "0a3353d3ea7c909dbf0c98ce825eaa9b0cb099c6cfa24be8d6fd1414fff309be",
+    "files": [
+      "reduce-en-it.py",
+      "reduce_common.py",
+      "reduce_edition_it.py",
+      "reduce_english_it.py"
+    ]
+  },
+  "studied": {
+    "reference": "en-fr",
+    "tables": {
+      "forms.tsv": "ba0ecb3f28d68540f57f10c4ae96ec6f298833843f76012f2920b2cf3accfae6",
+      "freq.tsv": "a3d6570460d44767be5e16713e7df56c234b9747e3783ec68a5ebaf860ad9260",
+      "grammar.tsv": "cac1ffab950228164d1cf72d32de365394b86cc4015fafe3d9c003c6fc653574",
+      "level.tsv": "6adac153859ea1b5a6a4fd64e2988c388c566e95c84731a3c02a60267afd949c",
+      "lexical.tsv": "467f5c0a7fb8bbfe6cbcc59fa035c2ebcbfba6bc45aa4bec7c0f80a9615b3d0c",
+      "tags.tsv": "6aedd254524a9c2c66efd24279ce0dc2bb0347ed8299f9af2880653f8f1915d8"
+    }
+  },
+  "sources": {
+    "kaikki-it": {
+      "release": "lingua-pack-sources-en-it-2026.10.26",
+      "url": "https://kaikki.org/itwiktionary/raw-wiktextract-data.jsonl.gz",
+      "fetched": "2026-10-26",
+      "last_modified": "Sat, 24 Oct 2026 21:16:17 GMT",
+      "dump": {
+        "sha256": "e007665a8b21ed628d38095fcff107988f4af91e06c67f1283d363ce39ddf562",
+        "size": 566646259,
+        "compressed_size": 43849715
+      },
+      "files": {
+        "kaikki-it-Inglese.jsonl": {
+          "asset": "kaikki-it-Inglese.jsonl.zst",
+          "sha256": "79033de933029e3311c506e5298556671b93abdd9e0374bea11f7e4f4c9c1fab",
+          "size": 13670867
+        },
+        "kaikki-it-traductions-en.jsonl": {
+          "asset": "kaikki-it-traductions-en.jsonl.zst",
+          "sha256": "e192643a4e0501431c31050d9b2cc087b9d8ab80fa1576d80d8502ea9ed245d4",
+          "size": 7216558
+        }
+      }
+    },
+    "kaikki-en": {
+      "release": "lingua-pack-sources-en-it-2026.10.26",
+      "url": "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz",
+      "fetched": "2026-10-26",
+      "last_modified": "Wed, 21 Oct 2026 11:23:03 GMT",
+      "dump": {
+        "sha256": "60a6073c7cd3f77a6f76fac8135dc8e34ca38ce1d12052f855fe36a5a1c2f965",
+        "size": 26611939151,
+        "compressed_size": 3082192147
+      },
+      "files": {
+        "kaikki-en-traductions-it.jsonl": {
+          "asset": "kaikki-en-traductions-it.jsonl.zst",
+          "sha256": "bb2f8c5a946aee33df78e51348f80e9a64190dd841bcb1353a2a1698cd0d0a0e",
+          "size": 9684334
+        }
+      }
+    },
+    "wordfreq": {
+      "version": "3.1.1"
+    }
+  }
+}

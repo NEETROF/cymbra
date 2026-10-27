@@ -65,7 +65,8 @@ it changes: `apps/lingua-extension/test/italian-glossary.json`. Each concept hol
 `docs/lingua/italian-glossary.md` presents it.
 
 The agent builds it from the surfaces as they stand. Where they disagree, the order of precedence is:
-1. the words change 39 pinned (« riquadro laterale », « pannello di ripasso », « cattura la selezione »),
+1. the words change 39 pinned (« riquadro laterale », « pannello di ripasso », « acquisisci la selezione » —
+   the draft's « cattura » gave way to Réglages' verb in its review),
    so that its test and this one never pull apart;
 2. then Music's `app_it.arb` for Cymbra-wide terms (« Accedi », « Esci », « Elimina account »), as the
    programme and change 33's D1 take it;

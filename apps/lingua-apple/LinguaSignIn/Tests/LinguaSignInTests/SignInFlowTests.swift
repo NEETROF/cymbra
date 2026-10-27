@@ -56,6 +56,7 @@ final class SignInFlowTests: XCTestCase {
         XCTAssertEqual(SignInLink.language(from: URL(string: "cymbra-lingua://signin?provider=apple&lang=fr")!), .fr)
         XCTAssertEqual(SignInLink.language(from: URL(string: "cymbra-lingua://signin?provider=google&lang=en")!), .en)
         XCTAssertEqual(SignInLink.language(from: URL(string: "cymbra-lingua://signin?lang=es&provider=apple")!), .es)
+        XCTAssertEqual(SignInLink.language(from: URL(string: "cymbra-lingua://signin?provider=google&lang=it")!), .it)
         // The provider still reads with a language beside it.
         XCTAssertEqual(SignInLink.provider(from: URL(string: "cymbra-lingua://signin?provider=apple&lang=es")!), .apple)
     }
@@ -69,6 +70,8 @@ final class SignInFlowTests: XCTestCase {
             "cymbra-lingua://signin?provider=apple&lang=de",
             "cymbra-lingua://signin?provider=apple&lang=EN",
             "cymbra-lingua://signin?provider=apple&lang=en-US",
+            "cymbra-lingua://signin?provider=apple&lang=it-IT",
+            "cymbra-lingua://signin?provider=apple&lang=IT",
             "cymbra-lingua://signin?provider=apple&lang=%3Cscript%3E",
             "cymbra-lingua://settings?provider=apple&lang=en",
         ] {
@@ -98,7 +101,7 @@ final class SignInFlowTests: XCTestCase {
 
     func testFailureCopyNamesTheProviderAndNeverAPassword() {
         // In every language: a failure names its provider, and no message reads as a password error.
-        let password = ["mot de passe", "password", "contraseña"]
+        let password = ["mot de passe", "password", "contraseña", "parola d'ordine"]
         for language in SignInLanguage.allCases {
             let copy = SignInCopy(language: language)
             for provider in [SignInProvider.apple, .google] {
@@ -121,7 +124,7 @@ final class SignInFlowTests: XCTestCase {
 
     func testTheDraftsAreNotTheFrench() {
         let fr = SignInCopy(language: .fr)
-        for language in [SignInLanguage.en, .es] {
+        for language in [SignInLanguage.en, .es, .it] {
             let copy = SignInCopy(language: language)
             XCTAssertNotEqual(copy.heading, fr.heading, "\(language)")
             XCTAssertNotEqual(copy.lede, fr.lede, "\(language)")
@@ -139,5 +142,22 @@ final class SignInFlowTests: XCTestCase {
             XCTAssertFalse(spanish.contains(form), form)
         }
         XCTAssertTrue(spanish.contains("vuelve"))
+        XCTAssertNotEqual(SignInCopy(language: .it).heading, SignInCopy(language: .es).heading)
+        // Italian speaks to the reader (tu), never to readers (voi), and with no gendered
+        // participle (localise-lingua-apple-host-italian D6).
+        let it = SignInCopy(language: .it)
+        let italian = [it.heading, it.lede, it.appLede, it.done, it.browserWaiting, it.failure(.apple), it.unavailable(.apple)]
+            .joined(separator: " ").lowercased()
+        for form in ["accedete", "tornate", "completate", "annullate", "chiudete", "riprovate", "usate", "vostr",
+                     "connesso", "connessa", "pronto", "pronta"] {
+            XCTAssertFalse(italian.contains(form), form)
+        }
+        for form in ["accedi", "torna", "riprova", "le tue parole"] {
+            XCTAssertTrue(italian.contains(form), form)
+        }
+        XCTAssertEqual(it.cancel, "Annulla")
+        XCTAssertEqual(it.close, "Chiudi")
+        XCTAssertEqual(it.button(.google), "Continua con Google")
+        XCTAssertEqual(it.button(.apple), "Continua con Apple")
     }
 }

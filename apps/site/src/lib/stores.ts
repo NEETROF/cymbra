@@ -39,11 +39,13 @@ const DESKTOP_SOON: Record<Lang, string> = {
   fr: "Windows / Linux — bientôt",
   en: "Windows / Linux — soon",
   es: "Windows / Linux — próximamente",
+  it: "Windows / Linux — in arrivo",
 };
 const FIREFOX: Record<Lang, string> = {
   fr: "Firefox (ordinateur et Android)",
   en: "Firefox (desktop and Android)",
   es: "Firefox (escritorio y Android)",
+  it: "Firefox (computer e Android)",
 };
 
 /** Where to get Cymbra Music, most-used platform first. */

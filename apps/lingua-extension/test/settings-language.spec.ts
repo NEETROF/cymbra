@@ -50,6 +50,8 @@ const SIX = ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"];
 const SEVEN = [...SIX, "it-fr"];
 /** The eight pairs, it-en last: packs.json since enable-lingua-italian-for-english-speakers. */
 const EIGHT = [...SEVEN, "it-en"];
+/** The nine pairs, it-es last: packs.json since enable-lingua-italian-for-spanish-speakers. */
+const NINE = [...EIGHT, "it-es"];
 /** A language the reader added, whose model is still to download. */
 const missing = (total: number): ModelState => ({
   phase: "missing",
@@ -801,6 +803,19 @@ describe("the level blocks name the language in the interface language", () => {
   it("A Spanish-native reader on the eight pairs: never Italian (enable-lingua-italian-for-english-speakers D8)", async () => {
     const r = await mountWithFrench("es", "es", ["en", "fr"], EIGHT);
     expect(r.offered.map(([language]) => language)).toEqual(["en", "fr"]);
+  });
+
+  it("A Spanish-native reader of English and Italian on the nine pairs: English, French then Italian offered, « Nivel de italiano estimado » and its note (enable-lingua-italian-for-spanish-speakers D3)", async () => {
+    const r = await mountWithFrench("es", "es", ["en", "it"], NINE);
+    expect(r.offered).toEqual([
+      ["en", true],
+      ["fr", false],
+      ["it", true],
+    ]);
+    expect(r.levelTitles).toEqual(["Nivel de inglés", "Nivel de italiano estimado"]);
+    expect(r.block("Nivel de italiano estimado").querySelector(".set-estimate")?.textContent).toBe(
+      "Niveles estimados según la frecuencia de las palabras, a falta de una lista MCER de uso libre para el italiano.",
+    );
   });
 
   it("Every reader today: the French titles and note, byte for byte", async () => {

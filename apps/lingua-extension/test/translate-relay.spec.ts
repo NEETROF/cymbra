@@ -82,11 +82,25 @@ describe("relayTranslation", () => {
     expect(marks.map((m) => fr.slice(m.start, m.end))).toEqual(["maison"]);
   });
 
-  it("The shipped pairs today: en-fr and es-fr are marked, as before; es-en, en-es, fr-en, fr-es, it-fr and it-en were listed ahead of their readers and ship marked since their packs are listed, and it-es is listed ahead of its readers, inert until the Italian programme's change 30 (routes-by-pair D4, matrix-marks D5, french-translation D7, it-fr-translation-marks D4, enable-lingua-italian D5, it-en-translation-marks D3, enable-lingua-italian-for-english-speakers D4, it-es-translation-marks D4)", () => {
-    expect(MARKED_PAIRS).toEqual(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en", "it-es"]);
-    // Every marked pair ships, but those listed ahead of their readers.
-    expect(MARKED_PAIRS.filter((pair) => !SHIPPED_PAIRS.includes(pair))).toEqual(["it-es"]);
+  it("The shipped pairs today: en-fr and es-fr are marked, as before; es-en, en-es, fr-en, fr-es, it-fr, it-en and it-es were listed ahead of their readers and ship marked since their packs are listed (routes-by-pair D4, matrix-marks D5, french-translation D7, it-fr-translation-marks D4, enable-lingua-italian D5, it-en-translation-marks D3, enable-lingua-italian-for-english-speakers D4, it-es-translation-marks D4, enable-lingua-italian-for-spanish-speakers D4)", () => {
+    expect(MARKED_PAIRS).toEqual([
+      "en-fr",
+      "es-fr",
+      "es-en",
+      "en-es",
+      "fr-en",
+      "fr-es",
+      "it-fr",
+      "it-en",
+      "it-es",
+      "en-it",
+    ]);
+    // Every marked pair ships: en-it, listed ahead of its readers by measure-lingua-en-it-translation-marks
+    // (D4), ships since the Italian programme's change 45 (enable-lingua-italian-speakers).
+    expect(MARKED_PAIRS.filter((pair) => !SHIPPED_PAIRS.includes(pair))).toEqual([]);
+    expect(SHIPPED_PAIRS).toContain("en-it");
     expect(SHIPPED_PAIRS).toContain("it-en"); // since enable-lingua-italian-for-english-speakers (D4)
+    expect(SHIPPED_PAIRS).toContain("it-es"); // since enable-lingua-italian-for-spanish-speakers (D4)
     // Keyed by pair, never by studied language: a language alone is not in the list.
     expect(MARKED_PAIRS).not.toContain("en");
     expect(MARKED_PAIRS).not.toContain("es");
@@ -225,8 +239,10 @@ describe("relayTranslation", () => {
       language: "it",
     };
     expect(request.sentence.slice(114, 122)).toBe("maggiore");
-    // 90 of 95, 5 % withheld; listed, not shipped: inert until change 30 lists it-es in packs.json.
+    // 90 of 95, 5 % withheld; shipped since change 30 (enable-lingua-italian-for-spanish-speakers D4)
+    // lists it-es in packs.json.
     expect(MARKED_PAIRS).toContain("it-es");
+    expect(SHIPPED_PAIRS).toContain("it-es");
     const result = await relayTranslation(access, request, pairOf(request.language, "es"));
     expect(pairs).toEqual(["it-es", "it-es"]);
     expect(seen).toEqual([
@@ -236,6 +252,36 @@ describe("relayTranslation", () => {
     if (result.kind !== "translated") throw new Error("not translated");
     const { sentence: es, marks } = result.translation;
     expect(marks.map((m) => es.slice(m.start, m.end))).toEqual(["mayor"]);
+  });
+
+  it("An English selection, judged in Italian: a reader of Italian on an English page goes through en-it, marked in the Italian sentence on en-it's own figures, the fragment moving a tag that landed on a neighbour (en-it-translation-marks D4)", async () => {
+    // As measured (results-en-it.jsonl, k 63): the tag lands on « un », the fragment alone is « ufficiale ».
+    const { access, seen, pairs } = engine((markup) => ({
+      ok: true,
+      html:
+        markup === "officer"
+          ? "ufficiale"
+          : "Joseph Darnand, che divenne <b>un</b> ufficiale delle SS e guidò i paramilitari di Milice che braccarono i membri della Resistenza, fu giustiziato nell'ottobre 1945.",
+    }));
+    const request = {
+      sentence:
+        "Joseph Darnand, who became an SS officer and led the Milice paramilitaries who hunted down members of the Resistance, was executed in October 1945.",
+      selection: { start: 33, end: 40 }, // « officer »
+      language: "en",
+    };
+    expect(request.sentence.slice(33, 40)).toBe("officer");
+    // 94 of 96, 4 % withheld; listed ahead of its readers, live since change 45 lists en-it.
+    expect(MARKED_PAIRS).toContain("en-it");
+    expect(SHIPPED_PAIRS).toContain("en-it");
+    const result = await relayTranslation(access, request, pairOf(request.language, "it"));
+    expect(pairs).toEqual(["en-it", "en-it"]);
+    expect(seen).toEqual([
+      "Joseph Darnand, who became an SS <b>officer</b> and led the Milice paramilitaries who hunted down members of the Resistance, was executed in October 1945.",
+      "officer",
+    ]);
+    if (result.kind !== "translated") throw new Error("not translated");
+    const { sentence: italian, marks } = result.translation;
+    expect(marks.map((m) => italian.slice(m.start, m.end))).toEqual(["ufficiale"]);
   });
 
   it("translates a sentence through an unmeasured pair untagged, once, without a mark (pivot D3)", async () => {

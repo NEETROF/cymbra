@@ -38,6 +38,7 @@ export const PRIVACY_POLICY_URLS = {
   fr: "https://cymbra.app/confidentialite/",
   en: "https://cymbra.app/en/privacy/",
   es: "https://cymbra.app/es/privacidad/",
+  it: "https://cymbra.app/it/privacy/",
 } as const;
 
 /** Its own message type: an online translation never queues behind the engine's, nor the reverse. */

@@ -126,6 +126,23 @@ export function render(probe: Probe, ui: Interface, studied: StudiedLanguageCode
   return out;
 }
 
+/**
+ * What the card says of one grammar probe's form, its grammar lines alone — no gloss page, no sense
+ * heading, no selection row (add-lingua-italian-card-wording D7): a form's readings are the same
+ * whatever the native, so an interface no pack is glossed in yet can have its grammar pinned over
+ * another native's golden; a phrase probe says nothing of grammar and is left out.
+ */
+export function renderGrammar(probe: Probe, grammar: GrammarRenderer, studied: StudiedLanguageCode): string[] {
+  if (probe.kind !== "word-grammar") return [];
+  const { written, lemma, grammar: wordGrammar } = probe;
+  return [
+    `### ${probe.name}`,
+    ...grammar
+      .grammarLines(wordGrammar, lemma, surfaceOf(probe), written, studied)
+      .map((line) => `grammar: ${lineText(line)}`),
+  ];
+}
+
 /** The text a snapshot pins: every probe's lines, in the golden's order. */
 export function pinned(all: readonly Probe[], ui: Interface, studied: StudiedLanguageCode): string {
   return `${all.flatMap((probe) => render(probe, ui, studied)).join("\n")}\n`;

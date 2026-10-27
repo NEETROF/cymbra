@@ -10,6 +10,7 @@ import {
   esOr,
   fill,
   frenchHomeLinguaCard,
+  italianHomeLinguaCard,
   LINGUA_TEXT,
   type LinguaPageText,
   linguaPageText,
@@ -18,7 +19,18 @@ import {
   STUDIED,
   studiedLanguage,
 } from "../src/lib/lingua-text";
-import { EIGHT_PAIRS, MATRIX, NINE_PAIRS, ROUTES, SEVEN_PAIRS, SIX_PAIRS, TODAY, WITH_FR_EN } from "./support/lingua";
+import {
+  EIGHT_AND_EN_IT,
+  EIGHT_PAIRS,
+  MATRIX,
+  NINE_PAIRS,
+  ROUTES,
+  SEVEN_PAIRS,
+  SIX_PAIRS,
+  TEN_PAIRS,
+  TODAY,
+  WITH_FR_EN,
+} from "./support/lingua";
 import { STUDIED as CAPTURED } from "../../lingua-extension/tool/capture/plan.mjs";
 
 // The words around the data (change: add-site-lingua-matrix-pages, D2 and D4), built from
@@ -42,6 +54,8 @@ const six = shipped(SIX_PAIRS);
 const seven = shipped(SEVEN_PAIRS);
 const eight = shipped(EIGHT_PAIRS);
 const nine = shipped(NINE_PAIRS);
+const eightAndEnIt = shipped(EIGHT_AND_EN_IT);
+const ten = shipped(TEN_PAIRS);
 const discord = { discordUrl: "https://discord.gg/example" };
 const noDiscord = { discordUrl: null };
 const card = (t: LinguaPageText, key: CardKey) => t.cards.find((c) => c.key === key)!;
@@ -197,7 +211,7 @@ describe("the matrix: each page leads with its readers' pairs (D2)", () => {
     expect(t.coverage.perPair).toBe(false);
     expect(t.coverage.head).toEqual(["Palabras más frecuentes", "Inglés"]);
     expect(t.coverage.note).toBe(
-      "Las definiciones proceden del Wikcionario y de traducciones escritas por personas, nunca de una traducción automática. La traducción ampliada, opcional, traduce el inglés.",
+      "Los significados proceden del Wikcionario y, para el italiano, también de Wikidata, escritos por personas, nunca por una traducción automática. La traducción ampliada, opcional, traduce el inglés.",
     );
   });
 
@@ -314,7 +328,7 @@ describe("the coverage table and the translation note per pair (D4)", () => {
       "Les définitions viennent du Wiktionnaire et de traductions écrites par des personnes, jamais d'une traduction automatique. La traduction étendue, facultative, traduit l'anglais vers le français, l'espagnol vers le français (en passant par l'anglais), l'espagnol vers l'anglais et l'anglais vers l'espagnol.",
     );
     expect(linguaPageText("es", matrix, noDiscord).coverage.note).toBe(
-      "Las definiciones proceden del Wikcionario y de traducciones escritas por personas, nunca de una traducción automática. La traducción ampliada, opcional, traduce del inglés al español, del inglés al francés, del español al francés (pasando por el inglés) y del español al inglés.",
+      "Los significados proceden del Wikcionario y, para el italiano, también de Wikidata, escritos por personas, nunca por una traducción automática. La traducción ampliada, opcional, traduce del inglés al español, del inglés al francés, del español al francés (pasando por el inglés) y del español al inglés.",
     );
   });
 
@@ -775,7 +789,9 @@ describe("the French home's Lingua card follows the shipped pairs (change: add-s
 });
 
 describe("the captures' words (change: add-site-lingua-showcase, D10, D11)", () => {
-  const LANGS = ["fr", "en", "es"] as const;
+  // The languages `plan.mjs` captures: Italian since enable-lingua-italian-speakers (D5, D6), which
+  // captured the extension in Italian and rewrote change 41's stubs against its captures.
+  const LANGS = ["fr", "en", "es", "it"] as const;
   const extension = (path: string) => readFileSync(resolve(__dirname, `../../lingua-extension/src/i18n/${path}`), "utf8");
   const label = (lang: string, module: string, key: string) =>
     extension(`${lang}/${module}.ts`).match(new RegExp(`^  ${key}: "([^"]+)",$`, "m"))?.[1];
@@ -783,10 +799,12 @@ describe("the captures' words (change: add-site-lingua-showcase, D10, D11)", () 
     fr: (text) => `« ${text} »`,
     en: (text) => `“${text}”`,
     es: (text) => `«${text}»`,
+    it: (text) => `«${text}»`,
   };
 
   it.each(LANGS)("%s: a heading, the hero's alt text, the video's label and caption, and every capture's alt text and caption", (lang) => {
-    const { showcase, hints } = linguaPageText(lang, six, noDiscord);
+    // The Italian page is built only with en-it (D3): the ten pairs.
+    const { showcase, hints } = linguaPageText(lang, lang === "it" ? ten : six, noDiscord);
     expect(showcase.heading).toBeTruthy();
     expect(showcase.hero.alt.length).toBeGreaterThan(40);
     expect(showcase.video.label).toBeTruthy();
@@ -810,7 +828,8 @@ describe("the captures' words (change: add-site-lingua-showcase, D10, D11)", () 
 
   it.each(LANGS)("%s: the alt texts name the languages the capture's reader studies (tool/capture/plan.mjs)", (lang) => {
     const t = LINGUA_TEXT[lang];
-    const [first, second] = CAPTURED[lang];
+    // A reader of one studied language (the Italian set) reads a second page in it (D5).
+    const [first, second = first] = CAPTURED[lang];
     expect(t.showcase.hero.alt).toContain(t.names[first]);
     expect(t.showcase.shareAlt).toContain(t.names[first]);
     expect(t.showcase.shots.second.alt).toContain(t.names[second]);
@@ -826,5 +845,148 @@ describe("the captures' words (change: add-site-lingua-showcase, D10, D11)", () 
     }
     expect(showcase.video.caption).toContain(quoted[lang](label(lang, "card", "known")!));
     expect(showcase.shots["reader-eink"].alt).toContain(quoted[lang](label(lang, "colours", "presetEinkMono")!));
+  });
+});
+
+describe("the Italian table (change: add-site-italian-locale, D6)", () => {
+  // en-it, the pair change 45 lists (Italian speakers study English), beside the nine pairs: the
+  // Italian page it builds, in Italian numbers and with each language's article.
+  const withEnIt = shipped(
+    { tops: NINE_PAIRS.tops, glossed: { ...NINE_PAIRS.glossed, "en-it": [91.4, 82.8, 70.3] } },
+    { ...ROUTES, "en-it": ["en-it/base-memory/2.0"] },
+  );
+
+  it("leads with its readers, Italian speakers studying English, then the other readers", () => {
+    const t = linguaPageText("it", withEnIt, noDiscord);
+    expect(t.description).toContain("le parole in inglese che non conosci ancora");
+    expect(t.heroNote).toContain("Pensata per italofoni che imparano l'inglese.");
+    expect(t.heroNote).toContain(
+      "Anche per francofoni che imparano l'inglese, lo spagnolo o l'italiano: l'interfaccia e le traduzioni sono in francese.",
+    );
+    expect(t.closing.body).toContain('<a href="/it/music">Cymbra Music</a>');
+  });
+
+  it("writes numbers as Italian does: 5000 solid, 20.000 grouped, 96% with no space", () => {
+    const t = linguaPageText("it", withEnIt, noDiscord);
+    expect(t.coverage.head).toEqual(["Parole più comuni", "5000", "10.000", "20.000"]);
+    expect(t.coverage.rows[0]).toEqual(["Inglese → italiano", "91%", "83%", "70%"]);
+  });
+
+  it("contracts « da » and « a » with each language's article", () => {
+    const { note } = linguaPageText("it", withEnIt, noDiscord).coverage;
+    for (const words of ["dall'inglese all'italiano", "dallo spagnolo al francese", "dal francese allo spagnolo", "dall'italiano all'inglese"]) {
+      expect(note).toContain(words);
+    }
+  });
+
+  it("names the card's tense and gender and the estimated levels, never for English", () => {
+    const t = linguaPageText("it", withEnIt, noDiscord);
+    expect(card(t, "click").body).toContain(" Per le parole in spagnolo, in italiano e in francese, la carta indica anche il tempo verbale e il genere.");
+    expect(card(t, "level").body).toContain(" Per lo spagnolo, l'italiano e il francese, i livelli sono stimati");
+    expect(card(t, "level").title).toContain("QCER");
+  });
+
+  it("quotes the word card's three buttons as the Italian card labels them, «» without inner spaces", () => {
+    const catalogue = readFileSync(resolve(__dirname, "../../lingua-extension/src/i18n/it/card.ts"), "utf8");
+    const body = card(linguaPageText("it", withEnIt, noDiscord), "click").body;
+    for (const key of ["known", "addToDeck", "ignore"]) {
+      const text = catalogue.match(new RegExp(`^  ${key}: "([^"]+)",$`, "m"))?.[1];
+      expect(text, `it/card.ts ${key}`).toBeTruthy();
+      expect(body).toContain(`«${text}»`);
+    }
+  });
+
+  it("is built only with its readers' pair (D3, as Spanish's)", () => {
+    expect(() => linguaPageText("it", nine, noDiscord)).toThrow("the it page is built only with a pair glossed in its language");
+  });
+
+  it("names Italian speakers in the French, English and Spanish tables", () => {
+    expect(LINGUA_TEXT.fr.speakers.it).toBe("italophones");
+    expect(LINGUA_TEXT.en.speakers.it).toBe("Italian speakers");
+    expect(LINGUA_TEXT.es.speakers.it).toBe("italohablantes");
+  });
+});
+
+describe("English for Italian speakers: en-it beside the eight or nine pairs (enable-lingua-italian-speakers, D6)", () => {
+  it("Nine pairs on a phone: en-it beside the eight, the Italian page's nine rows, English → Italian first", () => {
+    const t = linguaPageText("it", eightAndEnIt, noDiscord);
+    expect(t.coverage.rows.map((row) => row[0])).toEqual([
+      "Inglese → italiano",
+      "Inglese → francese",
+      "Spagnolo → francese",
+      "Italiano → francese",
+      "Spagnolo → inglese",
+      "Francese → inglese",
+      "Italiano → inglese",
+      "Inglese → spagnolo",
+      "Francese → spagnolo",
+    ]);
+    expect(t.coverage.rows[0]).toEqual(["Inglese → italiano", "92%", "83%", "71%"]);
+  });
+
+  it("the ten pairs, it-es listed before en-it: still English → Italian first on the Italian page", () => {
+    const t = linguaPageText("it", ten, noDiscord);
+    expect(t.coverage.rows).toHaveLength(10);
+    expect(t.coverage.rows[0][0]).toBe("Inglese → italiano");
+    expect(t.coverage.rows.map((row) => row[0])).toContain("Italiano → spagnolo");
+  });
+
+  it("names the scale « QCER » on the Italian page, and says neither that English's levels are estimated nor that its card names a gender", () => {
+    const t = linguaPageText("it", ten, noDiscord);
+    expect(card(t, "level").title).toContain("QCER");
+    expect(card(t, "level").title).not.toContain("CEFR");
+    expect(card(t, "click").body).not.toMatch(/In inglese[^.]*genere/);
+    expect(card(t, "level").body).not.toMatch(/l'inglese[^.]*stimat/);
+  });
+
+  it("the French, English and Spanish pages name Italian speakers' English, and en-it's row", () => {
+    const fr = linguaPageText("fr", ten, noDiscord);
+    const en = linguaPageText("en", ten, noDiscord);
+    const es = linguaPageText("es", ten, noDiscord);
+    expect(fr.coverage.rows.map((row) => row[0])).toContain("Anglais → italien");
+    expect(en.coverage.rows.map((row) => row[0])).toContain("English → Italian");
+    expect(es.coverage.rows.map((row) => row[0])).toContain("Inglés → italiano");
+    // Each page still leads with its own readers' pairs.
+    expect(fr.coverage.rows[0][0]).toBe("Anglais → français");
+    expect(en.coverage.rows[0][0]).toBe("Spanish → English");
+    expect(es.coverage.rows[0][0]).toBe("Inglés → español");
+  });
+});
+
+describe("the Italian home's Lingua card follows the shipped pairs (change: add-site-italian-locale, D4)", () => {
+  it("before a pair glossed in Italian: every language read, its readers, and the English Lingua page", () => {
+    const { body, href } = italianHomeLinguaCard(nine.pairs);
+    expect(body).toBe(
+      "Leggi il web in inglese, in spagnolo, in francese o in italiano, con le parole che non conosci ancora evidenziate direttamente nella pagina. Una percentuale reale per pagina, un clic per la traduzione e il tuo vocabolario, che si costruisce da solo. Pensata per francofoni, anglofoni e ispanofoni, con l'interfaccia e le traduzioni nella propria lingua.",
+    );
+    expect(href).toBe("/en/lingua");
+  });
+
+  it("with today's two French-glossed pairs: French speakers alone", () => {
+    expect(italianHomeLinguaCard(today.pairs).body).toMatch(/^Leggi il web in inglese o in spagnolo, .* Pensata per francofoni, con l'interfaccia/);
+  });
+
+  it("once en-it ships: English, read with an Italian gloss, no audience, and /it/lingua", () => {
+    const pairs = shipped({ tops: NINE_PAIRS.tops, glossed: { ...NINE_PAIRS.glossed, "en-it": [91.4, 82.8, 70.3] } }).pairs;
+    const { body, href } = italianHomeLinguaCard(pairs);
+    expect(body).toMatch(/^Leggi il web in inglese, con le parole/);
+    expect(body).not.toContain("Pensata per");
+    expect(href).toBe("/it/lingua");
+  });
+
+  it("refuses a language its table cannot name", () => {
+    const pairs = shipped({ tops: [1], glossed: { "de-fr": [1] } }, {}).pairs;
+    expect(() => italianHomeLinguaCard(pairs)).toThrow('the it table has no name for the language "de"');
+  });
+});
+
+describe("the Italian note on pairs extended translation does not serve yet (review of change 41)", () => {
+  it("reads whole whether a pair is named by its studied language or by both", () => {
+    const one = shipped({ tops: [5000], glossed: { "en-it": [90] } }, {});
+    expect(linguaPageText("it", one, noDiscord).coverage.note).toContain(" Non ancora disponibile: l'inglese.");
+    const two = shipped({ tops: [5000], glossed: { "en-it": [90], "en-fr": [95] } }, {});
+    expect(linguaPageText("it", two, noDiscord).coverage.note).toContain(
+      " Non ancora disponibile: dall'inglese all'italiano e dall'inglese al francese.",
+    );
   });
 });

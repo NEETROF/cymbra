@@ -100,7 +100,7 @@ describe("useAppleSignIn", () => {
     expect(init).toHaveBeenCalled();
   });
 
-  it("loads the SDK in the page's language: es_ES for Spanish, en_US when unknown", async () => {
+  it("loads the SDK in the page's language: es_ES for Spanish, it_IT for Italian, en_US when unknown", async () => {
     // `load()` is not awaited on purpose: `run()` executes synchronously up to its first
     // `await` — `loadAppleId()` has appended the <script> before `load()` returns its
     // promise — and nothing fires the script's `load` event here, so an await would hang.
@@ -109,6 +109,14 @@ describe("useAppleSignIn", () => {
     const es = document.querySelector<HTMLScriptElement>('script[src*="appleid.auth.js"]');
     expect(es?.src).toContain("/es_ES/");
     es?.remove();
+
+    // Italian (change: add-site-italian-locale): it_IT.
+    vi.resetModules();
+    const italian = await import("../src/apple");
+    void italian.useAppleSignIn("c", "r", vi.fn()).load("it");
+    const it_ = document.querySelector<HTMLScriptElement>('script[src*="appleid.auth.js"]');
+    expect(it_?.src).toContain("/it_IT/");
+    it_?.remove();
 
     vi.resetModules();
     const fresh = await import("../src/apple");

@@ -1,0 +1,18 @@
+{
+  "extensionDescription": {
+    "message": "Leggi il web in inglese: parole sconosciute evidenziate, percentuale reale. Offline e senza tracciamento.",
+    "description": "The extension's description: the extensions page, and both stores' summary. At most 112 characters (Apple's limit). Names the languages an Italian reader can study in the shipped pairs (English, en-it; French, fr-it, and Spanish, es-it, to come) — not a translation of the French. Tu. « percentuale reale », not « onesta » (with a quantity, onesto reads \"reasonable\"); « senza tracciamento », not « privato » (which reads \"not public\")."
+  },
+  "commandCaptureSelection": {
+    "message": "Acquisisci la selezione (parola o espressione) insieme alla frase",
+    "description": "The Alt+L command, as the browser's shortcuts page describes it: capture the selected word or phrase together with its sentence. Imperative, as the browsers' Italian pages word their commands; contains the words the Italian settings give it (« acquisisci la selezione »)."
+  },
+  "commandToggleDrawer": {
+    "message": "Apri o chiudi il pannello di ripasso sulla pagina",
+    "description": "The Alt+Shift+D command, as the browser's shortcuts page describes it: open or close the in-page review panel (the drawer). Contains the words the Italian settings give it (« pannello di ripasso sulla pagina »)."
+  },
+  "commandSidePanel": {
+    "message": "Apri il riquadro laterale di ripasso",
+    "description": "The Alt+Shift+S command, as the browser's shortcuts page describes it: open the browser's review side panel (Chromium). Contains the words the Italian settings give it (« riquadro laterale », Chrome's Italian word for its side panel, which keeps « pannello » for Lingua's own panels)."
+  }
+}

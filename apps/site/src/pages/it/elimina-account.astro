@@ -1,0 +1,52 @@
+---
+import Base from '../../layouts/Base.astro';
+import CourtesyNotice from '../../components/CourtesyNotice.astro';
+import DeleteAccountIsland from '../../components/DeleteAccountIsland.vue';
+
+// The Italian twin of `/suppression-compte` (change: add-site-italian-locale, D2, D5): the
+// page Lingua's deletion link opens for an Italian interface (change 45), pinned ahead of it.
+// A courtesy translation: the French page prevails, and the notice under the title links it
+// (I13). From here, Sign in with Apple returns to `https://cymbra.app/elimina-account`
+// (`appleReturnUrl`), which the owner registers on the Services ID.
+---
+
+<Base
+  title="Elimina il mio account — Cymbra"
+  description="Elimina definitivamente il tuo account Cymbra e i dati collegati."
+  lang="it"
+  noindex
+  alternates={{ fr: '/suppression-compte', en: '/en/delete-account', es: '/es/eliminar-cuenta', it: '/it/elimina-account' }}
+>
+  <section class="container narrow">
+    <h1>Elimina il mio account</h1>
+    <CourtesyNotice lang="it" href="/suppression-compte" />
+    <p class="prose">
+      Il tuo account Cymbra è comune a tutte le app Cymbra: Cymbra Music e Cymbra Lingua.
+      Eliminarlo cancella anche i tuoi dati in ciascuna di esse.
+    </p>
+    <DeleteAccountIsland client:load lang="it" />
+
+    <!-- Partial deletion: declared to Play under "Manage app data", so it is
+         described here, outside the island, to stay readable while signed out. -->
+    <section class="prose">
+      <h2>Eliminare solo alcuni dati</h2>
+      <p>
+        Non serve eliminare il tuo account per cancellare una parte dei tuoi dati. Da
+        Cymbra Music puoi, in qualsiasi momento:
+      </p>
+      <ul>
+        <li>eliminare uno spartito che hai importato, dalla tua libreria;</li>
+        <li>eliminare una raccolta, o toglierne uno spartito;</li>
+        <li>eliminare un suono importato, dalla schermata dei suoni.</li>
+      </ul>
+      <p>
+        Da Cymbra Lingua, <strong>Account → I tuoi dati → Cancella i miei dati di Lingua</strong> cancella le tue parole, il tuo livello, il tuo mazzo e le tue statistiche di Lingua, sul server e su tutti i tuoi dispositivi, senza toccare il tuo account né Cymbra Music.
+      </p>
+      <p>
+        Per qualsiasi altra richiesta di eliminazione mirata (i tuoi progressi, i tuoi
+        punteggi o un contributo già pubblicato), scrivi a <a href="mailto:privacy@cymbra.app">privacy@cymbra.app</a> indicando
+        i dati interessati.
+      </p>
+    </section>
+  </section>
+</Base>

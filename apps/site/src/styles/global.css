@@ -188,10 +188,18 @@ a:hover { text-decoration: underline; }
 .prose { padding-block: 2.5rem 1rem; max-width: 760px; }
 .prose h1 { font-size: 2rem; margin-bottom: 0.25rem; }
 .prose .updated { color: var(--muted); font-size: 0.9rem; margin-bottom: 2rem; }
+/* The courtesy notice of an Italian legal page, directly under its title (CourtesyNotice.astro). */
+.courtesy { color: var(--muted); font-size: 0.9rem; font-style: italic; margin: 0 0 0.25rem; }
 .prose h2 { margin-top: 2.2rem; font-size: 1.3rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
 .prose table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.92rem; }
 .prose th, .prose td { border: 1px solid var(--border); padding: 0.5rem 0.7rem; text-align: left; vertical-align: top; }
 .prose th { background: var(--surface); }
+/* A phone's width (375 px): the privacy policies' three-column tables were wider than the page in
+   every language (a long word in a narrow column), scrolling it sideways. A cell's word is hyphenated
+   in the page's language, or broken as a last resort (change: add-site-italian-locale). */
+@media (max-width: 480px) {
+  .prose th, .prose td { hyphens: auto; overflow-wrap: anywhere; padding: 0.45rem 0.5rem; }
+}
 /* A table wider than the text scrolls inside its own box, never the page (the Lingua page's
    per-pair coverage table, change: add-lingua-french-listings, D8). */
 .table-scroll { overflow-x: auto; }

@@ -429,7 +429,7 @@ mod tests {
         assert_eq!(json["profile"]["native_language"], "English");
         assert_eq!(
             NativeLanguage::ALL.map(|native| serde_json::to_value(native).expect("a name")),
-            ["French", "English", "Spanish"].map(serde_json::Value::from)
+            ["French", "English", "Spanish", "Italian"].map(serde_json::Value::from)
         );
     }
 
@@ -454,6 +454,34 @@ mod tests {
             Profile::studying(NativeLanguage::English, ES)
         );
         assert_eq!(restored, state, "a version 2 round trip is lossless");
+    }
+
+    #[test]
+    fn an_italian_native_is_written_as_version_2_and_restored() {
+        // add-lingua-italian-native-language D4: an Italian native studying English or Spanish
+        // is a version 2 file, as any other native language than French.
+        for studied in [StudiedLanguage::English, ES] {
+            let mut state = LinguaState::default();
+            state
+                .knowledge
+                .set_status(studied, "faro", Status::Learning);
+            state
+                .profile
+                .set(NativeLanguage::Italian, vec![studied])
+                .expect("English or Spanish for an Italian reader");
+            assert_eq!(state.backup_version(), 2, "{studied:?}");
+            let backup = state.to_backup();
+            assert!(
+                backup.contains("\"native_language\": \"Italian\""),
+                "{backup}"
+            );
+            let restored = LinguaState::from_backup(&backup).expect("restore");
+            assert_eq!(
+                restored.profile,
+                Profile::studying(NativeLanguage::Italian, studied)
+            );
+            assert_eq!(restored, state, "a version 2 round trip is lossless");
+        }
     }
 
     #[test]

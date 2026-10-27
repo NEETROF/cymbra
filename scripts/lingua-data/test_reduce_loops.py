@@ -677,13 +677,17 @@ class Loops(unittest.TestCase):
     def test_a_french_dispatch_runs_in_the_fr_group(self):
         workflow = WORKFLOWS / "lingua-pack-update.yml"
         text = workflow.read_text(encoding="utf-8")
-        self.assertIn("options: [en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr, it-en, it-es, all]", text)
-        groups = {pair: concurrency_group(workflow, pair) for pair in ("en-fr", "en-es", "es-fr", "es-en", "fr-en", "fr-es", "all", "")}
+        self.assertIn("options: [en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr, it-en, it-es, en-it, all]", text)
+        groups = {
+            pair: concurrency_group(workflow, pair) for pair in ("en-fr", "en-es", "en-it", "es-fr", "es-en", "fr-en", "fr-es", "all", "")
+        }
         self.assertEqual(
             groups,
             {
                 "en-fr": "lingua-pack-update-en",
                 "en-es": "lingua-pack-update-en",
+                # en-it reads tables/en, which en-fr writes (add-lingua-pack-en-it D8).
+                "en-it": "lingua-pack-update-en",
                 "es-fr": "lingua-pack-update-es",
                 "es-en": "lingua-pack-update-es",
                 # fr-en writes tables/fr/, which fr-es reads (add-lingua-pack-fr-es): one run at a time.
@@ -791,6 +795,30 @@ class Loops(unittest.TestCase):
         done = self.update("update", "it-fr")
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertEqual(self.built(), ["update it-fr", "reduce it-es"])
+
+    def test_spec_scenario_en_it_s_first_update(self):
+        """en-it (add-lingua-pack-en-it D7, D8): registered, reduced after en-fr, its first update writing
+        its folder whole — the pull request carries none."""
+        # Before its first update, en-it is no pair of any run.
+        done = self.reduce_job()
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(self.built(), ["reduce en-fr", "reduce es-fr", "reduce en-es", "reduce es-en"])
+        self.log.unlink()
+        # Dispatched, its update runs with no folder of its own: reduced alone, reported against none,
+        # its raw sources kept for the release step.
+        done = self.update("update", "en-it")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(self.built(), ["update en-it"])
+        self.assertEqual(self.kept_work(), ["en-it"])
+        self.assertEqual(list((self.temp / "committed" / "en-it").iterdir()), [], "reported against no tables")
+        self.log.unlink()
+        # Once committed, en-fr's update brings it along with en-es, each reduced again from its own pin.
+        (self.tables / "en-it").mkdir()
+        (self.tables / "en-it" / "pin.json").write_text("{}\n")
+        shutil.rmtree(self.temp / "committed")
+        done = self.update("update", "en-fr")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(self.built(), ["update en-fr", "reduce en-es", "reduce en-it"])
 
     def test_spec_scenario_it_es_s_release_names_wikidata_and_cc0(self):
         # it-es's release holds a file derived from Wikidata's Lexemes dump (change 27a's review): its

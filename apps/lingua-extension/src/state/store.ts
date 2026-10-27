@@ -1,6 +1,11 @@
 import { DEFAULT_NATIVE, pairsOf, SHIPPED_PAIRS } from "../analyzer/pairs.ts";
 import type { NativeLanguage } from "../analyzer/types.ts";
-import { INTERFACE_LANGUAGE_KEY, type InterfaceLanguage, isInterfaceLanguage } from "../i18n/language.ts";
+import {
+  INTERFACE_LANGUAGE_KEY,
+  type InterfaceLanguage,
+  isInterfaceLanguage,
+  isNativeLanguage,
+} from "../i18n/language.ts";
 import { isStorageFull } from "./auth-errors.ts";
 import { DAILY_KEY, DAY_ONLY_DAILY_KEY, PER_LANGUAGE_DAILY_KEY, RETIRED_DAILY_KEY } from "./dailystats.ts";
 import { type AsyncStorageArea, loadStored, nativeLanguageOfStored, ROOT_KEY, STORAGE_VERSION } from "./storage.ts";
@@ -109,7 +114,7 @@ export class StaleNativeLanguageError extends Error {
  * as a profile naming one is read (`nativeLanguageOf`, M22) — or null when nothing is recorded.
  */
 function recordedNative(value: unknown, pairs: readonly string[]): NativeLanguage | null {
-  if (!isInterfaceLanguage(value)) return null;
+  if (!isNativeLanguage(value)) return null;
   return pairsOf(value, pairs).length > 0 ? value : DEFAULT_NATIVE;
 }
 
@@ -124,7 +129,7 @@ export interface StoreChange {
 /** Whether a stored change names a reason this build knows: an unknown one is no reason. */
 function reasonOf(value: unknown): StoreChangeReason | undefined {
   const reason = value as Partial<NativeLanguageChange> | null | undefined;
-  return reason?.type === "native-language" && isInterfaceLanguage(reason.native)
+  return reason?.type === "native-language" && isNativeLanguage(reason.native)
     ? { type: "native-language", native: reason.native }
     : undefined;
 }

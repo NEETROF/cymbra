@@ -1,0 +1,24 @@
+---
+// The notice an Italian legal page carries directly under its title (change:
+// add-site-italian-locale, D2; the Italian programme's I13): the translation is a courtesy,
+// the French page prevails, and the notice links it. No one on the team reads Italian, and an
+// Italian text that said more than the French could bind the publisher. Only Italian carries
+// one: a language without a notice here refuses the page at build time.
+import type { Lang } from '../lib/i18n';
+
+interface Props {
+  lang: Lang;
+  /** The French page this one translates, which prevails. */
+  href: string;
+}
+
+const NOTICE: Partial<Record<Lang, string>> = {
+  it: 'Traduzione di cortesia: fa fede la versione francese',
+};
+
+const { lang, href } = Astro.props;
+const text = NOTICE[lang];
+if (!text) throw new Error(`CourtesyNotice: no courtesy notice in ${lang}`);
+---
+
+<p class="courtesy" lang={lang}><a href={href} hreflang="fr">{text}</a></p>

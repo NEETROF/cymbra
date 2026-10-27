@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { popup as enPopup } from "@/i18n/en/popup.ts";
 import { popup as esPopup } from "@/i18n/es/popup.ts";
+import { popup as itPopup } from "@/i18n/it/popup.ts";
 import { popup as frPopup } from "@/i18n/fr/popup.ts";
 import {
   COPY_PENDING_ATTR,
@@ -32,7 +33,7 @@ const HTML = readFileSync(join(root, "src/popup/popup.html"), "utf8");
 const CSS = readFileSync(join(root, "src/popup/popup.css"), "utf8");
 
 /** The popup's modules by interface language, as popup.ts picks them. */
-const POPUP: Record<InterfaceLanguage, typeof frPopup> = { fr: frPopup, en: enPopup, es: esPopup };
+const POPUP: Record<InterfaceLanguage, typeof frPopup> = { fr: frPopup, en: enPopup, es: esPopup, it: itPopup };
 
 function page(): Document {
   return new DOMParser().parseFromString(HTML, "text/html");
@@ -248,6 +249,18 @@ describe("the popup's page, filled from the catalogue", () => {
     expect(r.text("level-line")).toBe("Estimated Italian level: B1");
     r = await rendered("en", stats({ ...italian, analysable: false, languages: ["es", "it"] }));
     expect(r.text("note")).toBe("No text in your languages found on this page.");
+  });
+
+  it("A Spanish-native reader of Italian: the panel names Italian in Spanish (enable-lingua-italian-for-spanish-speakers D3)", async () => {
+    const italian = { language: "it" as const, languages: ["it" as const], levelsEstimated: true };
+    let r = await rendered("es", stats({ ...italian, analysable: false }));
+    expect(r.text("note")).toBe("No se detectó texto en italiano en esta página.");
+    r = await rendered("es", stats({ ...italian, needsLevel: true }));
+    expect(r.text("level-cta")).toBe("Elige tu nivel de italiano");
+    r = await rendered("es", stats(italian));
+    expect(r.text("level-line")).toBe("Nivel de italiano estimado: B1");
+    r = await rendered("es", stats({ ...italian, analysable: false, languages: ["en", "it"] }));
+    expect(r.text("note")).toBe("No se detectó texto en tus idiomas en esta página.");
   });
 
   it("A reader of French, English- or Spanish-native: the panel names French in their language (enable-lingua-french D3)", async () => {

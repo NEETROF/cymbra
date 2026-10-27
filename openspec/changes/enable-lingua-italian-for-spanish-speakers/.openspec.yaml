@@ -1,7 +1,6 @@
 schema: spec-driven
 created: 2026-10-22
 archiveAfter:
-  - enable-lingua-italian-speakers
   - enable-lingua-italian-for-english-speakers
   - enable-lingua-italian
   - add-lingua-pack-it-es

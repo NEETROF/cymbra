@@ -151,3 +151,55 @@ describe("a Spanish Lingua page only once a pair glossed in Spanish ships (D3)",
     },
   );
 });
+
+describe("an Italian Lingua page only once a pair glossed in Italian ships (change: add-site-italian-locale, D6)", () => {
+  // Before change 45 no listed pair was glossed in Italian: `/it/lingua/` was not built, and every
+  // Italian page linked the English Lingua page. enable-lingua-italian-speakers lists en-it together
+  // with the page's media (D5, D6).
+  const glossedInItalian = Object.keys(coverage.glossed).filter((pair) => pair.split("-")[1] === "it");
+  const expected = glossedInItalian.length ? "/it/lingua" : "/en/lingua";
+  const italianPages = builtPages().filter((page) => page.startsWith("it/") && !page.startsWith("it/lingua/index"));
+
+  it("builds /it/lingua/ exactly when a shipped pair is glossed in Italian", () => {
+    expect(existsSync(resolve(dist, "it/lingua/index.html")), "dist/it/lingua/index.html").toBe(glossedInItalian.length > 0);
+  });
+
+  it(`links Lingua from every Italian page's nav and footer to ${expected}`, () => {
+    expect(italianPages.length).toBeGreaterThan(0);
+    for (const page of italianPages) {
+      const html = read(page);
+      const nav = html.match(/<nav class="nav-links">(.*?)<\/nav>/s)?.[1] ?? "";
+      const footer = html.match(/<footer class="site-footer">(.*?)<\/footer>/s)?.[1] ?? "";
+      expect(nav, `${page} nav`).toContain(`<a href="${expected}">Lingua</a>`);
+      expect(footer, `${page} footer`).toContain(`<a href="${expected}">Lingua</a>`);
+    }
+    expect(read("it/404.html")).toContain(`<a class="btn btn-ghost" href="${expected}">Cymbra Lingua</a>`);
+  });
+
+  it.skipIf(glossedInItalian.length === 0)(
+    "/it/lingua/ is Italian, leads with English → Italian, names the scale « QCER » and shows the Italian captures",
+    () => {
+      const html = read("it/lingua/index.html");
+      expect(html).toContain('<html lang="it"');
+      expect(html).toContain('<link rel="canonical" href="https://cymbra.app/it/lingua/">');
+      expect(html).toContain('<link rel="alternate" hreflang="it" href="https://cymbra.app/it/lingua/">');
+      expect(html.match(/<nav class="nav-links">(.*?)<\/nav>/s)?.[1]).toContain('<a href="/it/lingua">Lingua</a>');
+      const rows = [...html.matchAll(/<th scope="row">([^<]*)<\/th>/g)].map((m) => m[1]);
+      expect(rows[0]).toBe("Inglese → italiano");
+      expect(rows).toHaveLength(Object.keys(coverage.glossed).length);
+      expect(html).toContain("QCER");
+      // The Italian video, and every alt text in Italian (the scenario *The Italian page*).
+      expect(html).toContain('<source src="/media/lingua/it/demo.mp4" type="video/mp4">');
+      const alts = [...html.matchAll(/<img [^>]*alt="([^"]*)"/g)].map((m) => m[1]).filter((alt) => alt.length > 0);
+      expect(alts.length).toBeGreaterThanOrEqual(6);
+      for (const alt of alts) expect(alt, alt).toMatch(/inglese|Cymbra|pannello|statistiche|lettore/);
+      // The click card quotes the Italian word card's three buttons as the extension labels them.
+      const card = readFileSync(resolve(__dirname, "../../../lingua-extension/src/i18n/it/card.ts"), "utf8");
+      for (const key of ["known", "addToDeck", "ignore"]) {
+        const label = card.match(new RegExp(`^  ${key}: "([^"]+)",$`, "m"))?.[1];
+        expect(label, `it/card.ts ${key}`).toBeTruthy();
+        expect(html, `/it/lingua/: ${key}`).toContain(`«${label}»`);
+      }
+    },
+  );
+});

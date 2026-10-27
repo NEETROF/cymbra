@@ -284,6 +284,29 @@ describe("helpers", () => {
     expect(threeEnglish).toContain("Downloads 78.7 MB once");
     expect(threeEnglish).toContain("about 340 MB of memory");
     expect(threeEnglish).not.toContain("about 200 MB");
+    // A Spanish reader of Italian alone: it-es's route, it-en then en-es — two models' memory
+    // (enable-lingua-italian-for-spanish-speakers D5).
+    const spanishCopy = settingsCopy("es").translation;
+    const italianSpanish = costText({ download: 51_615_655, stored: 73_664_404, twoModels: true }, "es", spanishCopy);
+    expect(italianSpanish).toBe(
+      "Traduce tus frases en este dispositivo, sin enviar nada. Descarga 51,6 MB una vez y luego usa " +
+        "unos 340 MB de memoria durante la traducción. Ajuste propio de este dispositivo.",
+    );
+    // A Spanish reader of English, French and Italian: en-es, fr-en and it-en, held two at a time —
+    // the memory of two, the download of three.
+    const threeSpanish = costText({ download: 77_850_370, stored: 110_864_715, twoModels: true }, "es", spanishCopy);
+    expect(threeSpanish).toContain("Descarga 77,9 MB una vez");
+    expect(threeSpanish).toContain("unos 340 MB de memoria");
+    expect(threeSpanish).not.toContain("unos 200 MB");
+    // An Italian reader of English: en-it's one model — one model's memory, in the Italian interface
+    // (enable-lingua-italian-speakers D4).
+    const italianCopy = settingsCopy("it").translation;
+    const englishItalian = costText({ download: 26_509_835, stored: 36_507_703 }, "it", italianCopy);
+    expect(englishItalian).toBe(
+      "Traduce le tue frasi su questo dispositivo, senza inviare nulla. Richiede di scaricare 26,5 MB una sola " +
+        "volta, poi circa 200 MB di memoria durante la traduzione. Impostazione valida solo su questo dispositivo.",
+    );
+    expect(englishItalian).not.toContain("circa 340 MB");
     expect(stateText({ phase: "failed", reason: "storage" }, COST)).toContain("(36,7 Mo)");
     expect(stateText({ phase: "failed", reason: "storage" })).toBe(
       "Pas assez de place sur cet appareil pour le modèle.",

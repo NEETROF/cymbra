@@ -46,6 +46,37 @@ final class SignInLanguageTests: XCTestCase {
         XCTAssertEqual(SignInLanguage.offered(by: []), [])
     }
 
+    func testItalianIsOfferedAndPreferredOnceDeclared() {
+        // localise-lingua-apple-host-italian D1: `it` read like the others, appended after `es`.
+        XCTAssertEqual(SignInLanguage.allCases, [.fr, .en, .es, .it])
+        XCTAssertEqual(SignInLanguage.offered(by: ["fr", "en", "es", "it"]), [.fr, .en, .es, .it])
+        XCTAssertEqual(SignInLanguage.offered(by: ["fr", "en", "es", "it-IT", "IT"]), [.fr, .en, .es])
+        XCTAssertEqual(SignInLanguage.preferred(["it", "en"], developmentRegion: "en"), .it)
+        // An Italian device once en-it ships: the page and an older link's sheet are Italian…
+        XCTAssertEqual(SignInLanguage.shown(nil, offered: [.fr, .en, .es, .it], preferred: .it), .it)
+        XCTAssertEqual(SignInLanguage.shown(.it, offered: [.fr, .en, .es, .it], preferred: .en), .it)
+        // …and before it ships, English, as before (*A device in Italian before a pair glossed in Italian ships*).
+        XCTAssertEqual(SignInLanguage.shown(nil, offered: [.fr, .en, .es], preferred: .en), .en)
+        XCTAssertEqual(SignInLanguage.shown(.it, offered: [.fr, .en, .es], preferred: .es), .es)
+    }
+
+    func testABuildDeclaringFrenchEnglishAndSpanishNeverShowsItalian() throws {
+        // A build from before en-it (localise-lingua-apple-host-italian D1, D5) declared [fr, en, es],
+        // so Italian was never shown, even when asked for; builds since enable-lingua-italian-speakers declare it.
+        let bundle = try builtBundle(declaring: ["fr", "en", "es"])
+        XCTAssertEqual(SignInLanguage.offered(in: bundle), [.fr, .en, .es])
+        XCTAssertNotEqual(SignInLanguage.shown(.it, in: bundle), .it)
+        XCTAssertNotEqual(SignInLanguage.shown(nil, in: bundle), .it)
+        XCTAssertEqual(SignInLanguage.shown(.es, in: bundle), .es)
+    }
+
+    func testABuildDeclaringItalianShowsItalianWhenAskedFor() throws {
+        let bundle = try builtBundle(declaring: ["fr", "en", "es", "it"])
+        XCTAssertEqual(SignInLanguage.offered(in: bundle), [.fr, .en, .es, .it])
+        XCTAssertEqual(SignInLanguage.shown(.it, in: bundle), .it)
+        XCTAssertEqual(SignInLanguage.shown(.fr, in: bundle), .fr)
+    }
+
     func testThePreferredLocalisationMapsOrFallsBackToTheDevelopmentRegion() {
         XCTAssertEqual(SignInLanguage.preferred(["en", "fr"], developmentRegion: "fr"), .en)
         XCTAssertEqual(SignInLanguage.preferred(["es"], developmentRegion: "en"), .es)
@@ -125,6 +156,31 @@ final class SignInLanguageTests: XCTestCase {
         XCTAssertEqual(InterfaceLanguageStore(defaults: defaults).current(), .es)
         store.remember(.fr)
         XCTAssertEqual(store.current(), .fr)
+    }
+
+    func testTheStoreKeepsItalian() {
+        defaults.set("it", forKey: InterfaceLanguageStore.key)
+        XCTAssertEqual(InterfaceLanguageStore(defaults: defaults).current(), .it)
+        let store = InterfaceLanguageStore(defaults: defaults)
+        store.remember(.it)
+        XCTAssertEqual(store.current(), .it)
+    }
+
+    func testTheNativeMessageKeepsItalian() {
+        // localise-lingua-apple-host-italian D2: refused before this change, kept now; the extension
+        // sends it only once its interface is shown in Italian (test/native-signin.spec.ts).
+        let store = InterfaceLanguageStore(defaults: defaults)
+        store.remember(.fr)
+        XCTAssertEqual(
+            NativeMessage.reply(to: ["type": "interface.language", "language": "it"], handoff: nil, languages: store) as? [String: String],
+            ["language": "it"]
+        )
+        XCTAssertEqual(store.current(), .it)
+        XCTAssertEqual(
+            NativeMessage.reply(to: ["type": "interface.language", "language": "it-IT"], handoff: nil, languages: store) as? [String: String],
+            ["error": "unknownLanguage"]
+        )
+        XCTAssertEqual(store.current(), .it)
     }
 
     func testTheStoreReadsAnythingElseAsNothing() {

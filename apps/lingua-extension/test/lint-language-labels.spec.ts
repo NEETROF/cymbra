@@ -35,17 +35,19 @@ export const BASELINE: readonly string[] = [];
 
 /** Literals that name a language but are data, by file: the engine's enum names (state/profile.ts). */
 export const EXCEPTIONS: Readonly<Record<string, readonly string[]>> = {
-  "src/state/profile.ts": ["French", "English", "Spanish"],
+  "src/state/profile.ts": ["French", "English", "Spanish", "Italian"],
 };
 
 /**
  * Every name of a studied or native language in every interface language, with its inflections —
  * « anglaise », « espagnoles », « ingleses », « francesas » — as a whole word, whatever the case.
  * Italian's too, whose voices Réglages names before it is studied (add-lingua-italian-read-aloud
- * D3): « italien », « italienne » (its doubled n), "Italian", « italiano », « italiana ».
+ * D3): « italien », « italienne » (its doubled n), "Italian", « italiano », « italiana ». And the
+ * Italian interface's own (add-lingua-italian-interface D7): « spagnolo/a/i/e », « inglese/i »,
+ * « francese/i », « italiano/a/i/e ».
  */
 export const NAMES =
-  /(?<!\p{L})(?:anglais|espagnol|français|italienn?|english|spanish|french|italian|ingl[eé]s|español|franc[eé]s|italiano)(?:e|es|a|as|s)?(?!\p{L})/iu;
+  /(?<!\p{L})(?:anglais|espagnol|français|italienn?|english|spanish|french|italian|ingl[eé]s|español|franc[eé]s|italiano|spagnol[oaie]|ingles[ei]|frances[ei]|italian[oaie])(?:e|es|a|as|s)?(?!\p{L})/iu;
 
 /** The literals of a file that name a language, the file's exceptions left out. */
 export function nameLiterals(path: string, rel: string, exceptions = EXCEPTIONS): Hit[] {
@@ -88,7 +90,7 @@ describe("languages are named in one place per interface language", () => {
     expect(rels).toContain("src/analyzer/language-labels.ts");
     expect(rels).toContain("src/state/profile.ts");
     expect(rels.some((rel) => rel.startsWith("src/i18n/"))).toBe(true);
-    for (const language of ["fr", "en", "es"]) {
+    for (const language of ["fr", "en", "es", "it"]) {
       expect(statSync(join(SRC, "i18n", language, "languages.ts")).isFile()).toBe(true);
       expect(rels).not.toContain(`src/i18n/${language}/languages.ts`);
     }
@@ -125,6 +127,16 @@ describe("languages are named in one place per interface language", () => {
       "italiano",
       "Italiana",
       "italianos",
+      "spagnolo",
+      "Spagnola",
+      "spagnoli",
+      "spagnole",
+      "inglese",
+      "Inglesi",
+      "francese",
+      "FRANCESI",
+      "italiani",
+      "italiane",
     ]) {
       expect(NAMES.test(`un mot ${word} ici`), word).toBe(true);
     }
@@ -144,6 +156,10 @@ describe("languages are named in one place per interface language", () => {
       "Italy",
       "Italie",
       "Italia",
+      "spagna",
+      "Inghilterra",
+      "Francia",
+      "lingua",
     ]) {
       expect(NAMES.test(text), text).toBe(false);
     }

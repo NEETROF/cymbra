@@ -8,6 +8,7 @@ alternates:
   fr: /cgu
   en: /en/terms
   es: /es/terminos
+  it: /it/termini
 ---
 
 Al crear una cuenta o al utilizar los **servicios Cymbra** (editados por **NEETROF**),

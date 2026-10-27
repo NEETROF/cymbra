@@ -270,6 +270,7 @@ export const LEAVING_PAGES: Record<InterfaceLanguage, string> = {
   fr: "https://cymbra.app/lingua/au-revoir/",
   en: "https://cymbra.app/en/lingua/goodbye/",
   es: "https://cymbra.app/es/lingua/adios/",
+  it: "https://cymbra.app/it/lingua/arrivederci/",
 };
 
 /** The uninstall address while counting is on: the leaving page, with the browser and version only. */

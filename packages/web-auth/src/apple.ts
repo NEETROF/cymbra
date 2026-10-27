@@ -13,9 +13,10 @@ import type { SignInOptions } from "./google";
 // when no client id is configured.
 const SDK_BASE = "https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1";
 
-// Apple locale segment in the SDK URL (drives the SDK's own copy). We ship en/fr/es
-// (the site's Spanish pages — change: add-site-spanish-locale).
-const SDK_LOCALE: Record<string, string> = { en: "en_US", fr: "fr_FR", es: "es_ES" };
+// Apple locale segment in the SDK URL (drives the SDK's own copy). We ship en/fr/es/it
+// (the site's Spanish pages — change: add-site-spanish-locale; its Italian pages —
+// change: add-site-italian-locale).
+const SDK_LOCALE: Record<string, string> = { en: "en_US", fr: "fr_FR", es: "es_ES", it: "it_IT" };
 
 interface AppleAuthResponse {
   readonly authorization?: { readonly id_token?: string };

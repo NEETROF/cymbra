@@ -218,14 +218,14 @@ describe("word popup card", () => {
 
 describe("a French word's card, for readers of English and Spanish (enable-lingua-french D3)", () => {
   /** The card of « parle » (parler), seen apart from its dictionary form, in the interface language given. */
-  const french = (language: "en" | "es") => {
+  const french = (language: "en" | "es" | "it") => {
     const card = createCard(undefined, language);
     card.show(
       content({
         language: "fr",
         headword: "parler",
         surface: "parle",
-        gloss: language === "en" ? "to speak, to talk" : "hablar",
+        gloss: { en: "to speak, to talk", es: "hablar", it: "parlare" }[language],
         sentence: "Il parle trop vite.",
         grammar: {
           gloss: null,
@@ -242,7 +242,7 @@ describe("a French word's card, for readers of English and Spanish (enable-lingu
     return card.el;
   };
 
-  for (const language of ["en", "es"] as const) {
+  for (const language of ["en", "es", "it"] as const) {
     it(`${language}: the lines are the interface's, and every French word in them says it is French`, () => {
       const el = french(language);
       expect(el.querySelector(".headword")?.getAttribute("lang")).toBe("fr");
@@ -257,9 +257,11 @@ describe("a French word's card, for readers of English and Spanish (enable-lingu
       expect(marked.every((node) => node.getAttribute("lang") === "fr")).toBe(true);
       const line = el.querySelector(".grammar-line")?.textContent ?? "";
       expect(line).toBe(
-        language === "en"
-          ? "third-person singular present indicative of parler"
-          : "tercera persona del singular del presente de indicativo de parler",
+        {
+          en: "third-person singular present indicative of parler",
+          es: "tercera persona del singular del presente de indicativo de parler",
+          it: "terza persona singolare dell'indicativo presente di parler",
+        }[language],
       );
     });
   }
@@ -351,6 +353,50 @@ describe("an Italian word's card, for readers of English (enable-lingua-italian-
     expect(marked.every((node) => node.getAttribute("lang") === "it")).toBe(true);
     expect(el.querySelector(".grammar-line")?.textContent).toBe(
       "third-person singular past historic (passato remoto) of parlare",
+    );
+  });
+});
+
+describe("an Italian word's card, for readers of Spanish (enable-lingua-italian-for-spanish-speakers D3)", () => {
+  /** The card of « parlò » (parlare), in the passato remoto, in the Spanish interface. */
+  const italian = () => {
+    const card = createCard(undefined, "es");
+    card.show(
+      content({
+        language: "it",
+        headword: "parlare",
+        surface: "parlò",
+        gloss: "hablar",
+        sentence: "Parlò troppo in fretta.",
+        grammar: {
+          gloss: null,
+          senses: [],
+          readings: [
+            { pos: "VERB", features: { Mood: "Ind", Number: "Sing", Person: "3", Tense: "Past", VerbForm: "Fin" } },
+          ],
+          others: [],
+          pieces: [],
+        },
+      }),
+      () => {},
+    );
+    return card.el;
+  };
+
+  it("the lines are Spanish, the tense named « pretérito perfecto simple de indicativo », every Italian word in them marked as Italian", () => {
+    const el = italian();
+    expect(el.querySelector(".headword")?.getAttribute("lang")).toBe("it");
+    const marked = [...el.querySelectorAll("[lang]")].filter((node) => node !== el);
+    expect(marked.length).toBeGreaterThan(1);
+    expect(marked.map((node) => [node.textContent, node.getAttribute("lang")])).toEqual(
+      expect.arrayContaining([
+        ["parlare", "it"],
+        ["parlò", "it"],
+      ]),
+    );
+    expect(marked.every((node) => node.getAttribute("lang") === "it")).toBe(true);
+    expect(el.querySelector(".grammar-line")?.textContent).toBe(
+      "tercera persona del singular del pretérito perfecto simple de indicativo de parlare",
     );
   });
 });

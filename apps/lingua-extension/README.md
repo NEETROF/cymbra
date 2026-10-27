@@ -208,19 +208,21 @@ yarn lint && yarn format:check && yarn typecheck && yarn test
 
 Packs themselves are **never committed**; what they are built from is. The pairs a package
 ships are one list, `packs.json` (`["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr",
-"it-en"]`; the first pair glossed in a native language gives that native language's default studied
-language, so French, studied by English and Spanish speakers, comes after the first four, and Italian,
-studied by French speakers since enable-lingua-italian and by English speakers since
-enable-lingua-italian-for-english-speakers, last). Each pair's pack ships as **two parts**
+"it-en", "it-es", "en-it"]`; the first pair glossed in a native language gives that native language's
+default studied language, so French, studied by English and Spanish speakers, comes after the first
+four, Italian, studied by French speakers since enable-lingua-italian, by English speakers since
+enable-lingua-italian-for-english-speakers and by Spanish speakers since
+enable-lingua-italian-for-spanish-speakers, after them, and English glossed in Italian, for Italian
+speakers since enable-lingua-italian-speakers, last). Each pair's pack ships as **two parts**
 (ship-lingua-pack-bases-once): the pair's **layer** — its glosses, senses, expressions and NOTICE —
 at the pair's path, `assets/packs/<pair>.lingua`, and its studied language's **base** — forms,
 lemmas, ranks, levels, readings and dictionary words — once for every pair of that language, at
-`assets/bases/<studied>.lingua`: eight layers and four bases, 13.0 MB where eight whole packs would
-be 18.6. At run time an engine starts with the default pair's base and layer, assembled
+`assets/bases/<studied>.lingua`: ten layers and four bases, 14.0 MB where ten whole packs would
+be 22.0. At run time an engine starts with the default pair's base and layer, assembled
 (`LinguaEngine.assemble`), and adds another listed pair's the first time its language is needed
 (`addParts`; `src/analyzer/engine.ts`, `src/analyzer/pairs.ts`). `tool/check_variants.mjs` refuses a
 package whose files differ from the list's layers and their languages' bases, or that carries a
-whole pack, and any list but en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr then it-en: shipping another pair,
+whole pack, and any list but en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr, it-en, it-es then en-it: shipping another pair,
 or dropping one, takes two edits in one pull request, one of them in that gate.
 `yarn gen:pack:real` builds each listed pair's layer and its studied language's base
 (`scripts/lingua-data/build.sh --parts`) from the reduced tables committed under
@@ -398,7 +400,7 @@ Réglages view (drawer and side panel); a second opening brings the open reader 
 
 `yarn capture` (`tool/capture/`, change `add-site-lingua-showcase`) makes the site's images, share
 images and demo videos, and the Chrome Web Store / addons.mozilla.org screenshots, from the real
-extension, in each interface language (fr, en, es). It runs on a developer's machine, never in CI.
+extension, in each interface language (fr, en, es, it). It runs on a developer's machine, never in CI.
 
 Prerequisites: `yarn gen:wasm`, `yarn gen:pack:real` (the captures read with the real packs),
 `yarn fetch:engine`, ffmpeg (`brew install ffmpeg`; the tool checks for it first), and Playwright's
@@ -433,8 +435,9 @@ What it does:
   the fonts of the Mac it runs on, so another machine's captures can differ by a few pixels.
 - **Serves the fixtures** (`tool/capture/fixtures/`, see its README) from a local server, under the
   reserved name `reading.example` mapped to `127.0.0.1` (a card keeps the host it was met on): one
-  article per studied language written for the purpose, and a public-domain chapter per studied
-  language assembled into an EPUB.
+  article per studied language written for the purpose, a second English one for a reader who studies
+  English alone (the Italian set, enable-lingua-italian-speakers D5), and a public-domain chapter per
+  studied language assembled into an EPUB.
 - **Restores the reader's state** through Réglages › Données › Restaurer — a backup the product
   itself recorded (`--record-seed`: the install's welcome page, level B1 in each language, words
   marked known and added to the deck on the fixture pages, a short review, the book's names marked
@@ -450,7 +453,8 @@ What it does:
   translation (the hero's, the second page's), a second card or a revealed review card whose gloss
   reads as a dictionary's list rather than a translation (`glossProblems`: longer than 60
   characters, a parenthesis, a first name's sense), a name of the book still highlighted, a
-  statistics page without its language picker, a demo whose pill does not rise after « Je
+  statistics page without its language picker (a reader of two studied languages; a reader of one
+  has none), a demo whose pill does not rise after « Je
   connais », or whose last frame shows the closing note on agent sessions.
 
 Where the outputs land (`tool/capture/plan.mjs` holds the plan):
@@ -463,7 +467,8 @@ Where the outputs land (`tool/capture/plan.mjs` holds the plan):
 | The store screenshots, 1280×800 RGB PNG (no alpha, checked), whole windows: `1-card`, `2-second`, `3-review`, `4-stats`, `5-reader`; the 440×280 promo tile                                      | `store-captures/<lang>/`                        | no — uploaded by hand |
 
 The French set reads English (then Spanish), the English set Spanish (then French), the Spanish set
-English (then French). Safari and App Store captures stay manual: they are the Safari app's, not
+English (then French), the Italian set English alone — its `second` shot on a second English article,
+« The little libraries on the corner » (`SECOND_PAGES`), and its statistics with no language picker. Safari and App Store captures stay manual: they are the Safari app's, not
 Chromium's rendering (`apps/lingua-apple/STORE-LISTING.md`). The site's weight budget for these files
 is `apps/site/test/post-build/media-budget.spec.ts`.
 

@@ -93,7 +93,7 @@ export interface PhraseGloss {
 /**
  * A Universal Dependencies part of speech and its features, as the pack stores them
  * (add-lingua-word-grammar). Codes, never shown: `reading/grammar-description.ts` describes them in
- * no language and `src/i18n/{fr,en,es}/grammar.ts` name them in the interface language's.
+ * no language and `src/i18n/{fr,en,es,it}/grammar.ts` name them in the interface language's.
  */
 export interface GrammarTag {
   /** The UD part of speech (`NOUN`, `VERB`, …). */
@@ -148,8 +148,9 @@ export function isPaintedClass(cls: TokenClass): cls is "Learning" | "Unknown" {
 export type StudiedLanguage = "en" | "es" | "fr" | "it";
 
 /** A language the engine glosses in — the reader's native language — as its ISO 639-1 tag
- *  (generalise-lingua-native-language). */
-export type NativeLanguage = "fr" | "en" | "es";
+ *  (generalise-lingua-native-language); Italian since add-lingua-italian-native-language, known
+ *  before any pair is glossed in it. */
+export type NativeLanguage = "fr" | "en" | "es" | "it";
 
 /** A CEFR level, ordered A1 < … < C2 (add-lingua-cefr-levels). */
 export type CefrLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";

@@ -639,6 +639,46 @@ describe("stats for an English-native reader of Italian (enable-lingua-italian-f
   });
 });
 
+describe("stats for a Spanish-native reader of Italian (enable-lingua-italian-for-spanish-speakers D3)", () => {
+  /** A Spanish-native reader studying `studied` on the nine pairs, Italian's levels estimated and its sizes English's. */
+  async function readerOf(studied: StudiedLanguage[]): Promise<FakePort> {
+    packs.shipped = ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en", "it-es"];
+    const port = levelledPort({
+      levelsEstimated: async () => true,
+      levelLadder: async function (this: { language: StudiedLanguage }) {
+        return ladder(10).map((row) => (this.language === "it" ? { ...row, typicalFrom: "en" as const } : row));
+      },
+    });
+    port.nativeLanguage = async () => "es";
+    await port.setStudiedLanguages(studied);
+    return port;
+  }
+
+  const languages = (): string[] =>
+    [...root.querySelectorAll(".stats-languages button")].map((b) => b.textContent ?? "");
+
+  it("a reader of English and Italian: Italian named, « Mi nivel de italiano estimado », its note and English's sizes, in Spanish", async () => {
+    await mountStats(root, await readerOf(["en", "it"]), fakeArea(), "it", "es");
+
+    expect(languages()).toEqual(["Inglés", "Italiano"]);
+    expect(root.querySelector(".stats-languages button.active")?.textContent).toBe("Italiano");
+    expect(pick(".ladder-head .mlabel").textContent).toBe("Mi nivel de italiano estimado");
+    expect(pick(".ladder-estimate").textContent).toBe(
+      "Niveles estimados según la frecuencia de las palabras, a falta de una lista MCER de uso libre para el italiano.",
+    );
+    expect(pick(".ladder-scope").textContent).toContain(
+      "tomado del inglés, cuyos tamaños de nivel retoma el italiano.",
+    );
+  });
+
+  it("a reader of English, French and Italian: the three named in the profile's order", async () => {
+    await mountStats(root, await readerOf(["en", "fr", "it"]), fakeArea(), "en", "es");
+
+    expect(languages()).toEqual(["Inglés", "Francés", "Italiano"]);
+    expect(root.querySelector(".stats-languages button.active")?.textContent).toBe("Inglés");
+  });
+});
+
 describe("stats for a French-native reader of Italian (enable-lingua-italian D3)", () => {
   /** A French-native reader studying `studied` on the seven pairs, Italian's levels estimated and its sizes English's. */
   async function readerOf(studied: StudiedLanguage[]): Promise<FakePort> {

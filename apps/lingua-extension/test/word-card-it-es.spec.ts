@@ -9,8 +9,8 @@ import { golden, pinned, pinnedBlock, probes } from "./word-card-french.ts";
 // crates/lingua-wasm/tests/baseline/it-es.golden — the Italian baseline's 32, the card's 24 and the 40
 // lemmas — is rendered with the interface in Spanish through `src/i18n/es/grammar.ts`, Italian studied,
 // and every `phrase-gloss` probe as the whole-selection card shows it (`word-card-french.ts`); the lines
-// are held in a snapshot. No reader sees them before change 30 lists it-es; the owner reads them first
-// (task 6.1). Re-blessed with `yarn vitest run test/word-card-it-es.spec.ts -u` when the golden is
+// are held in a snapshot. No reader saw them before change 30 (enable-lingua-italian-for-spanish-speakers)
+// listed it-es; the owner reads them first (task 6.1). Re-blessed with `yarn vitest run test/word-card-it-es.spec.ts -u` when the golden is
 // (`lingua-pack-update` does, on its branch), and in the pull request that moves the wording, which says
 // why (M9: the owner reviews every Spanish line).
 

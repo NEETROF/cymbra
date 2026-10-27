@@ -37,6 +37,9 @@ const EN_IT = "en-it/base-memory/2.1";
 /** it-en's served size, and es-en's, fr-en's and it-en's together (enable-lingua-italian-for-english-speakers D5). */
 const IT_EN_DOWNLOAD = 26_242_301;
 const EN_THREE_DOWNLOAD = 78_718_068;
+/** it-en's and en-es's served sizes together, and en-es's, fr-en's and it-en's (enable-lingua-italian-for-spanish-speakers D5). */
+const ES_ITALIAN_DOWNLOAD = 51_615_655;
+const ES_THREE_DOWNLOAD = 77_850_370;
 
 // en-es 2.1 as Mozilla publishes it (add-lingua-translation-matrix-models D1): the sha256 of each
 // file's decompressed bytes, read from the files downloaded from the registry and equal to Firefox's
@@ -608,9 +611,20 @@ describe("the committed catalogue", () => {
     }
   });
 
-  it("Italian studied by readers of French (enable-lingua-italian D5, D6): it-fr through it-en then en-fr; the it-en model fetched once a French- or, since enable-lingua-italian-for-english-speakers, an English-native reader accepts Italian, and by no one else", () => {
+  it("Italian studied by readers of French (enable-lingua-italian D5, D6): it-fr through it-en then en-fr; the it-en model fetched once a French- or, since enable-lingua-italian-for-english-speakers, an English-native reader accepts Italian, and since enable-lingua-italian-for-spanish-speakers a Spanish-native one", () => {
     const c = parseCatalogue(committed);
-    expect(SHIPPED_PAIRS).toEqual(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en"]);
+    expect(SHIPPED_PAIRS).toEqual([
+      "en-fr",
+      "es-fr",
+      "es-en",
+      "en-es",
+      "fr-en",
+      "fr-es",
+      "it-fr",
+      "it-en",
+      "it-es",
+      "en-it",
+    ]);
     const download = (pairs: string[]) => modelsFor(c, pairs).reduce((sum, m) => sum + totalSize(m), 0);
     // A French-native reader of Italian alone: it-en then en-fr, two models.
     expect(readerPairs(["it"], "fr")).toEqual(["it-fr"]);
@@ -627,8 +641,8 @@ describe("the committed catalogue", () => {
     // A French-native reader who has not accepted Italian downloads what they did before (Every reader today).
     expect(modelsFor(c, readerPairs(["en", "es"], "fr")).map((m) => m.version)).toEqual([EN_FR, ES_EN]);
     expect(modelsFor(c, readerPairs(["en"], "fr")).map((m) => m.version)).toEqual([EN_FR]);
-    // it-en is needed by a French- or an English-native reader who studies Italian, and by no
-    // Spanish-native reader; en-it by no one.
+    // it-en is needed by every reader who studies Italian — French-, English- and, through it-es,
+    // Spanish-native; en-it by none of them (an Italian-native reader's, enable-lingua-italian-speakers).
     for (const native of ["fr", "en", "es"]) {
       for (const languages of [
         ["it"],
@@ -640,12 +654,32 @@ describe("the committed catalogue", () => {
       ]) {
         const needed = modelsFor(c, readerPairs(languages, native)).map((m) => m.version);
         const where = `${native}: ${languages.join(",")}`;
-        expect(needed.includes(IT_EN), where).toBe(native !== "es" && languages.includes("it"));
+        expect(needed.includes(IT_EN), where).toBe(languages.includes("it"));
         expect(needed, where).not.toContain(EN_IT);
       }
     }
-    // An Italian-native reader still has no shipped pair.
-    expect(readerPairs(["en", "es", "fr"], "it")).toEqual([]);
+    // An Italian-native reader had no shipped pair before enable-lingua-italian-speakers.
+    expect(
+      readerPairs(
+        ["en", "es", "fr"],
+        "it",
+        SHIPPED_PAIRS.filter((pair) => pair !== "en-it"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("English studied by readers of Italian (enable-lingua-italian-speakers D1, D4): en-it through its one model, fetched once an Italian-native reader accepts English", () => {
+    const c = parseCatalogue(committed);
+    const download = (pairs: string[]) => modelsFor(c, pairs).reduce((sum, m) => sum + totalSize(m), 0);
+    // An Italian-native reader of English alone: the en-it model alone, about 200 MB while translating.
+    expect(readerPairs(["en"], "it")).toEqual(["en-it"]);
+    expect(routeOf(c, "en-it").map((m) => m.version)).toEqual([EN_IT]);
+    expect(modelsFor(c, readerPairs(["en"], "it")).map((m) => m.version)).toEqual([EN_IT]);
+    expect(download(readerPairs(["en"], "it"))).toBe(totalSize(routeOf(c, "en-it")[0]!));
+    expect(download(readerPairs(["en"], "it"))).toBe(26_509_835);
+    // Spanish, French and Italian have no pair glossed in Italian: English is all they study.
+    expect(readerPairs(["en", "es", "fr"], "it")).toEqual(["en-it"]);
+    expect(readerPairs(["es", "fr"], "it")).toEqual([]);
   });
 
   it("Italian studied by readers of English (enable-lingua-italian-for-english-speakers D4, D5): it-en through its one model; three one-model routes for Spanish, French and Italian, held two at a time", () => {
@@ -664,8 +698,35 @@ describe("the committed catalogue", () => {
     for (const pair of readerPairs(["es", "fr", "it"], "en")) expect(routeOf(c, pair)).toHaveLength(1);
     // An English-native reader who has not accepted Italian downloads what they did before.
     expect(modelsFor(c, readerPairs(["es", "fr"], "en")).map((m) => m.version)).toEqual([ES_EN, FR_EN]);
-    // A Spanish-native reader's Italian has no pair yet (change 30).
-    expect(readerPairs(["en", "it"], "es")).toEqual(["en-es"]);
+    // A Spanish-native reader's Italian had no pair before change 30 (enable-lingua-italian-for-spanish-speakers).
+    expect(
+      readerPairs(
+        ["en", "it"],
+        "es",
+        SHIPPED_PAIRS.filter((pair) => pair !== "it-es"),
+      ),
+    ).toEqual(["en-es"]);
+  });
+
+  it("Italian studied by readers of Spanish (enable-lingua-italian-for-spanish-speakers D4, D5): it-es through it-en then en-es; English, French and Italian three models, en-es serving both routes through English, held two at a time", () => {
+    const c = parseCatalogue(committed);
+    const download = (pairs: string[]) => modelsFor(c, pairs).reduce((sum, m) => sum + totalSize(m), 0);
+    // A Spanish-native reader of Italian alone: two models, it-en then en-es.
+    expect(readerPairs(["it"], "es")).toEqual(["it-es"]);
+    expect(routeOf(c, "it-es").map((m) => m.version)).toEqual([IT_EN, EN_ES]);
+    expect(modelsFor(c, readerPairs(["it"], "es")).map((m) => m.version)).toEqual([IT_EN, EN_ES]);
+    expect(download(readerPairs(["it"], "es"))).toBe(ES_ITALIAN_DOWNLOAD);
+    // Of English and Italian: the same two models, en-es counted once.
+    expect(readerPairs(["en", "it"], "es")).toEqual(["en-es", "it-es"]);
+    expect(modelsFor(c, readerPairs(["en", "it"], "es")).map((m) => m.version)).toEqual([EN_ES, IT_EN]);
+    expect(download(readerPairs(["en", "it"], "es"))).toBe(ES_ITALIAN_DOWNLOAD);
+    // Of English, French and Italian: three models, each route two at most.
+    expect(readerPairs(["en", "fr", "it"], "es")).toEqual(["en-es", "fr-es", "it-es"]);
+    expect(modelsFor(c, readerPairs(["en", "fr", "it"], "es")).map((m) => m.version)).toEqual([EN_ES, FR_EN, IT_EN]);
+    expect(download(readerPairs(["en", "fr", "it"], "es"))).toBe(ES_THREE_DOWNLOAD);
+    for (const pair of readerPairs(["en", "fr", "it"], "es")) expect(routeOf(c, pair).length).toBeLessThanOrEqual(2);
+    // A Spanish-native reader who has not accepted Italian downloads what they did before.
+    expect(modelsFor(c, readerPairs(["en", "fr"], "es")).map((m) => m.version)).toEqual([EN_ES, FR_EN]);
   });
 });
 

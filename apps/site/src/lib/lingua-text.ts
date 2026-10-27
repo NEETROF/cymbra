@@ -1,9 +1,10 @@
 // The words of the Lingua page, one table per site language, and the builders that fill
 // them from the shipped pairs (change: add-site-lingua-matrix-pages, D1, D2, D4). Read by
-// `src/components/LinguaPage.astro` — and, for the Lingua card of the Spanish and English home
-// pages, by `src/pages/es/index.astro` and `src/pages/en/index.astro` (`spanishHomeLinguaCard`,
-// change: extend-site-spanish-locale, D3; `englishHomeLinguaCard`, change:
-// add-lingua-french-listings, D9).
+// `src/components/LinguaPage.astro` — and, for the Lingua card of the Spanish, English and Italian
+// home pages, by `src/pages/es/index.astro`, `src/pages/en/index.astro` and `src/pages/it/index.astro`
+// (`spanishHomeLinguaCard`, change: extend-site-spanish-locale, D3; `englishHomeLinguaCard`,
+// change: add-lingua-french-listings, D9; `italianHomeLinguaCard`, change: add-site-italian-locale,
+// D4).
 //
 // Every string is the INNER HTML of its slot — inserted with `set:html`, never through an
 // `{expression}`: an expression escapes apostrophes (`'` → `&#39;`) and `&nbsp;`, and the
@@ -80,6 +81,11 @@ interface LinguaTable {
   captionOneNative: string;
   captionPerPair: string;
   commonestWords: string;
+  /**
+   * Where the glosses come from. The Spanish sentence names Wikidata for Italian since it-es ships
+   * (enable-lingua-italian-for-spanish-speakers; add-lingua-italian-spanish-listings D6, option a);
+   * the French and English do not, since only it-es uses Wikidata (the owner, 2026-10-26).
+   */
   glossesOrigin: string;
   translationServes: string;
   translationNotYet: string;
@@ -117,7 +123,7 @@ export interface ShowcaseText {
 
 const fr: LinguaTable = {
   names: { en: "anglais", es: "espagnol", fr: "français", it: "italien" },
-  speakers: { fr: "francophones", en: "anglophones", es: "hispanophones" },
+  speakers: { fr: "francophones", en: "anglophones", es: "hispanophones", it: "italophones" },
   title: "Cymbra Lingua — enrichissez votre vocabulaire en lisant le web",
   description:
     "Une extension navigateur qui surligne, sur la page que vous lisez, les mots {ofStudied} que vous ne connaissez pas encore. Analyse hors-ligne, aucun compte requis.",
@@ -233,7 +239,7 @@ const fr: LinguaTable = {
 
 const en: LinguaTable = {
   names: { en: "English", es: "Spanish", fr: "French", it: "Italian" },
-  speakers: { fr: "French speakers", en: "English speakers", es: "Spanish speakers" },
+  speakers: { fr: "French speakers", en: "English speakers", es: "Spanish speakers", it: "Italian speakers" },
   title: "Cymbra Lingua — grow your vocabulary while you read the web",
   description:
     "A browser extension that highlights, on the page you are reading, the {ofStudied} words you do not know yet. Offline analysis, no account required.",
@@ -344,7 +350,7 @@ const en: LinguaTable = {
 
 const es: LinguaTable = {
   names: { en: "inglés", es: "español", fr: "francés", it: "italiano" },
-  speakers: { es: "hispanohablantes", en: "anglohablantes", fr: "francohablantes" },
+  speakers: { es: "hispanohablantes", en: "anglohablantes", fr: "francohablantes", it: "italohablantes" },
   title: "Cymbra Lingua — amplía tu vocabulario leyendo la web",
   description:
     "Una extensión para el navegador que resalta, en la página que lees, las palabras {ofStudied} que todavía no conoces. Análisis sin conexión, sin necesidad de cuenta.",
@@ -409,7 +415,7 @@ const es: LinguaTable = {
     "La proporción de las palabras más frecuentes que tienen una definición en la lengua del lector, medida de la misma manera para cada par, en los diccionarios que se entregan con la extensión.",
   commonestWords: "Palabras más frecuentes",
   glossesOrigin:
-    "Las definiciones proceden del Wikcionario y de traducciones escritas por personas, nunca de una traducción automática.",
+    "Los significados proceden del Wikcionario y, para el italiano, también de Wikidata, escritos por personas, nunca por una traducción automática.",
   translationServes: " La traducción ampliada, opcional, traduce {served}.",
   translationNotYet: " Pendiente: {unserved}.",
   throughEnglish: " (pasando por el inglés)",
@@ -457,7 +463,132 @@ const es: LinguaTable = {
   },
 };
 
-export const LINGUA_TEXT: Record<Lang, LinguaTable> = { fr, en, es };
+// Italian (change: add-site-italian-locale, D6; the Italian programme's I6): « tu », Italian
+// numbers (« 20.000 », « 5000 », « 96% »), QCER for the scale, Lingua's Italian labels
+// (`apps/lingua-extension/src/i18n/it/card.ts`: «La conosco», «+ Mazzo», «Ignora», guillemets
+// without inner spaces). The Italian page is built only once a pair glossed in Italian ships
+// (en-it, change 45, enable-lingua-italian-speakers), so it always has readers (`madeFor` null, as
+// Spanish's). Before it, the table served the types and the Italian home's Lingua card
+// (`italianHomeLinguaCard`).
+const it: LinguaTable = {
+  names: { en: "inglese", es: "spagnolo", fr: "francese", it: "italiano" },
+  speakers: { it: "italofoni", en: "anglofoni", es: "ispanofoni", fr: "francofoni" },
+  title: "Cymbra Lingua — arricchisci il tuo vocabolario leggendo il web",
+  description:
+    "Un'estensione per il browser che evidenzia, nella pagina che stai leggendo, le parole {ofStudied} che non conosci ancora. Analisi offline, nessun account richiesto.",
+  kicker: 'Cymbra Lingua · <span class="badge">beta</span>',
+  headline: 'Il tuo vocabolario, <span class="gradient">dove già leggi</span>',
+  tagline:
+    "Un'estensione per il browser che evidenzia le parole {ofStudied} che non conosci ancora, direttamente nella pagina. Nessuna app da aprire, nessuna sessione di ripasso da programmare: leggi e impari.",
+  platforms:
+    "Disponibile su Chrome, su Edge e sugli altri browser Chromium, su Firefox (computer e Android) e su Safari (iPhone, iPad, Mac).",
+  forReaders: "Pensata per {speakers} che imparano {learnStudied}.",
+  // The Italian page is built only once a pair glossed in Italian ships (D3): it always has readers.
+  madeFor: null,
+  alsoFor: "Anche per {speakers} che imparano {learnStudied}: l'interfaccia e le traduzioni sono in {native}.",
+  joinCommunity: "Unisciti alla community",
+  toTalk: " per parlarne.",
+  featuresId: "funzioni",
+  cards: [
+    {
+      key: "highlight",
+      title: "🖍️ Evidenziazione nella pagina",
+      body: "Le parole sconosciute compaiono evidenziate direttamente nella pagina, senza compromettere il sito che stai leggendo.",
+    },
+    {
+      key: "percentage",
+      title: "📊 Una percentuale reale",
+      body: "L'icona mostra la quota di parole che conosci nella pagina corrente. Una cifra per pagina, non un punteggio gonfiato.",
+    },
+    {
+      key: "click",
+      title: "👆 Un clic per capire",
+      body: "Fai clic su una parola evidenziata: la sua forma del dizionario, la sua traduzione, la sua frequenza spiegata con chiarezza e tre pulsanti («La conosco», «+ Mazzo» e «Ignora»).",
+    },
+    {
+      key: "deck",
+      title: "🗂️ Mazzo e ripasso",
+      body: "Le parole e le espressioni che salvi diventano carte, con la frase in cui le hai incontrate. Il ripasso si fa nel riquadro laterale.",
+    },
+    {
+      key: "offline",
+      title: "📴 Offline fin dalla progettazione",
+      body: "L'analisi avviene nel tuo browser, con un dizionario integrato. Nessuna pagina letta viene inviata altrove.",
+    },
+    {
+      key: "level",
+      title: "📈 Il tuo livello, sulla scala QCER",
+      body: "Una stima del tuo vocabolario, riferita alla scala A1→C2 e non a un distintivo inventato da noi.",
+    },
+    {
+      key: "account",
+      title: "🪪 Account facoltativo",
+      body: "Senza account, le tue parole, il loro stato e il tuo mazzo restano sul tuo dispositivo. Con l'accesso a Cymbra ID, ti seguono da un dispositivo all'altro.",
+    },
+  ],
+  genderCard: " Per le parole in {inStudied}, la carta indica anche il tempo verbale e il genere.",
+  estimatedLevels:
+    " Per {theStudied}, i livelli sono stimati in base alla frequenza delle parole, in mancanza di una lista QCER libera da diritti.",
+  languagesCard: "Scegli le tue lingue nelle Impostazioni: ogni pagina viene letta nella sua.",
+  coverageHeading: "Cosa copre il dizionario",
+  captionOneNative:
+    "La quota delle parole più comuni che hanno una traduzione in {native}, misurata allo stesso modo per ogni lingua, sui dizionari forniti con l'estensione.",
+  captionPerPair:
+    "La quota delle parole più comuni che hanno una traduzione nella lingua di chi legge, misurata allo stesso modo per ogni coppia, sui dizionari forniti con l'estensione.",
+  commonestWords: "Parole più comuni",
+  glossesOrigin:
+    "I significati provengono dal Wikizionario e da traduzioni scritte da persone, mai da una traduzione automatica.",
+  translationServes: " La traduzione estesa, facoltativa, traduce {served}.",
+  translationNotYet: " Non ancora disponibile: {unserved}.",
+  throughEnglish: " (passando per l'inglese)",
+  closingHeading: "E la musica?",
+  closingBody:
+    'Lingua condivide il suo account, la sua filosofia e il suo rispetto per i tuoi dati con <a href="{music}">Cymbra Music</a>, disponibile sull\'App Store e su Google Play.',
+  // Written against the Italian captures (enable-lingua-italian-speakers, D5, D10; change 41's
+  // stubs rewritten): the Italian reader studies English alone, so the second capture is a second
+  // English page (`tool/capture/plan.mjs`, `SECOND_PAGES`). The labels quoted are the Italian
+  // extension's (`it/review.ts`, `it/card.ts`, `it/colours.ts`).
+  showcase: {
+    heading: "In immagini",
+    hero: {
+      alt: "Una pagina in inglese letta con Cymbra Lingua: le parole sconosciute sono evidenziate, il badge indica la quota di parole conosciute ed è aperta la carta di un verbo, con la forma del dizionario, il tempo verbale e la traduzione.",
+    },
+    video: {
+      label: "Dimostrazione di Cymbra Lingua, senza audio",
+      caption:
+        "Una pagina letta, la carta di una parola, una parola aggiunta al mazzo, un'altra segnata con «La conosco» e poi le statistiche.",
+    },
+    shots: {
+      second: {
+        alt: "Un altro articolo in inglese, con l'interfaccia in italiano: la carta di un sostantivo ne indica la traduzione.",
+        caption: "Ogni pagina in inglese, evidenziata allo stesso modo.",
+      },
+      review: {
+        alt: "Il pannello di ripasso aperto sulla pagina: una carta girata, con la frase in cui è comparsa la parola, la traduzione e le due risposte «Non la sapevo» e «La sapevo».",
+        caption: "Il ripasso, in un pannello aperto sulla pagina.",
+      },
+      stats: {
+        alt: "La pagina delle statistiche: il vocabolario stimato e la scala dei livelli QCER, da A1 a C2, per l'inglese.",
+        caption: "Il tuo livello, sulla scala QCER.",
+      },
+      reader: {
+        alt: "Il lettore di libri EPUB dell'estensione, aperto sul primo capitolo di Orgoglio e pregiudizio, in lingua originale, con le parole sconosciute evidenziate.",
+        caption: "I tuoi libri EPUB, evidenziati allo stesso modo.",
+      },
+      "reader-eink": {
+        alt: "La stessa pagina del lettore con il set di colori «E-ink contrastato»: nero su bianco, le parole sottolineate con un tratto spesso.",
+        caption: "Un set di colori per i tablet a inchiostro elettronico.",
+      },
+    },
+    shareAlt: "Cymbra Lingua su una pagina in inglese: le parole sconosciute evidenziate e la carta di un verbo aperta.",
+  },
+  hints: {
+    ios: "Su iPhone e iPad, Lingua si usa in Safari.",
+    android: "Su Android, Lingua si usa in Firefox.",
+  },
+};
+
+export const LINGUA_TEXT: Record<Lang, LinguaTable> = { fr, en, es, it };
 
 /** What a studied language's packs are, as the page tells its readers. */
 export interface StudiedLanguage {
@@ -494,7 +625,7 @@ export function studiedLanguage(code: string): StudiedLanguage {
 }
 
 /** Where each language's page sends its readers for Cymbra Music: its Music page in that language. */
-const MUSIC_HREF: Record<Lang, string> = { fr: "/music", en: "/en/music", es: "/es/music" };
+const MUSIC_HREF: Record<Lang, string> = { fr: "/music", en: "/en/music", es: "/es/music", it: "/it/music" };
 
 // Each language's grammar around a language name: the forms the sentences need, the list
 // conjunctions and the number formats. Code, not copy: nothing here reaches the page on its
@@ -543,6 +674,31 @@ export const esOr = (items: string[]): string => {
   return joinList(items, /^h?o/i.test(last) ? "u" : "o");
 };
 
+// Italian (change: add-site-italian-locale, D6; the Italian programme's I6): each language
+// name with its article (« l'inglese », « lo spagnolo », « il francese », « l'italiano »),
+// contracted with « da » and « a » (« dall'inglese all'italiano »), as the extension's
+// `it/languages.ts` writes them; numbers as the extension's Italian writes them: four digits
+// solid (5000), longer ones grouped by three with a full stop (20.000), the per-cent sign
+// with no space (96%).
+const itThe = (name: string): string => {
+  if (/^[aeiouh]/i.test(name)) return `l'${name}`;
+  if (/^(s[^aeiou]|z|gn|ps|x|y)/i.test(name)) return `lo ${name}`;
+  return `il ${name}`;
+};
+/** « da » or « a » contracted with the article `itThe` gives `name`. */
+const itContract = (preposition: "da" | "a", name: string): string => {
+  const the = itThe(name);
+  if (the.startsWith("l'")) return `${preposition}ll'${name}`;
+  if (the.startsWith("lo ")) return `${preposition}llo ${name}`;
+  return `${preposition}l ${name}`;
+};
+const itCount = (n: number): string => {
+  const digits = String(n);
+  if (digits.length <= 4) return digits;
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+};
+const itPercent = (share: number): string => `${Math.round(share)}%`;
+
 const GRAMMAR: Record<Lang, Grammar> = {
   fr: {
     of: (name) => (frElides(name) ? `d'${name}` : `de ${name}`),
@@ -576,6 +732,17 @@ const GRAMMAR: Record<Lang, Grammar> = {
     or: esOr,
     count: esCount,
     percent: esPercent,
+  },
+  it: {
+    of: (name) => `in ${name}`,
+    learn: itThe,
+    the: itThe,
+    to: (studied, native) => `${itContract("da", studied)} ${itContract("a", native)}`,
+    and: (items) => joinList(items, "e"),
+    inList: (items) => GRAMMAR.it.and(items.map((item, i) => (i === 0 ? item : `in ${item}`))),
+    or: (items) => joinList(items, "o"),
+    count: itCount,
+    percent: itPercent,
   },
 };
 
@@ -791,28 +958,52 @@ export interface HomeLinguaCard {
  * its readers, the button opens `/en/lingua` (`linguaHref('es')`, as the Spanish nav).
  */
 export function spanishHomeLinguaCard(pairs: LinguaPair[]): HomeLinguaCard {
-  const t = LINGUA_TEXT.es;
-  const g = GRAMMAR.es;
+  return homeLinguaCard("es", HOME_ES, pairs);
+}
+
+// The Lingua card of the Italian home page (change: add-site-italian-locale, D4), on the
+// Spanish card's rule: until a pair glossed in Italian ships (en-it, change 45), it names
+// every language Lingua reads and the speakers it is made for, links `/en/lingua`, and never
+// says that Lingua explains words in Italian.
+const HOME_IT = {
+  read: "Leggi il web {ofStudied}, con le parole che non conosci ancora evidenziate direttamente nella pagina. Una percentuale reale per pagina, un clic per la traduzione e il tuo vocabolario, che si costruisce da solo.",
+  audience: " Pensata per {speakers}, con l'interfaccia e le traduzioni nella propria lingua.",
+};
+
+/**
+ * The Italian home page's Lingua card, from the shipped pairs: a pair glossed in Italian
+ * ships → the languages read with an Italian gloss, no audience, the button opens
+ * `/it/lingua`; none ships → every language read, the speakers of every native language as
+ * its readers, the button opens `/en/lingua` (`linguaHref('it')`, as the Italian nav).
+ */
+export function italianHomeLinguaCard(pairs: LinguaPair[]): HomeLinguaCard {
+  return homeLinguaCard("it", HOME_IT, pairs);
+}
+
+/** The Spanish and Italian home cards' one rule, in `lang`'s table and grammar. */
+function homeLinguaCard(lang: Lang, words: { read: string; audience: string }, pairs: LinguaPair[]): HomeLinguaCard {
+  const t = LINGUA_TEXT[lang];
+  const g = GRAMMAR[lang];
   const name = (code: string): string => {
-    if (!Object.hasOwn(t.names, code)) throw new Error(`lingua-text.ts: the es table has no name for the language "${code}"`);
+    if (!Object.hasOwn(t.names, code)) throw new Error(`lingua-text.ts: the ${lang} table has no name for the language "${code}"`);
     return t.names[code];
   };
   const speakers = (code: string): string => {
     if (!Object.hasOwn(t.speakers, code)) {
-      throw new Error(`lingua-text.ts: the es table has no speakers for the language "${code}"`);
+      throw new Error(`lingua-text.ts: the ${lang} table has no speakers for the language "${code}"`);
     }
     return t.speakers[code];
   };
-  const groups = pairsByNative("es", pairs);
+  const groups = pairsByNative(lang, pairs);
   if (groups.length === 0) throw new Error("lingua-text.ts: no shipped pair to describe");
-  const readers = groups[0].native === "es" ? groups[0] : null;
+  const readers = groups[0].native === lang ? groups[0] : null;
   // The languages read, once each, in `packs.json`'s order: the readers' alone once they
   // exist, every pair's until then.
   const studied: string[] = [];
   for (const p of readers ? readers.pairs : pairs) if (!studied.includes(p.studied)) studied.push(p.studied);
-  let body = fill(HOME_ES.read, { ofStudied: g.or(studied.map((code) => g.of(name(code)))) });
-  if (!readers) body += fill(HOME_ES.audience, { speakers: g.and(groups.map((group) => speakers(group.native))) });
-  return { body, href: linguaHref("es", pairs) };
+  let body = fill(words.read, { ofStudied: g.or(studied.map((code) => g.of(name(code)))) });
+  if (!readers) body += fill(words.audience, { speakers: g.and(groups.map((group) => speakers(group.native))) });
+  return { body, href: linguaHref(lang, pairs) };
 }
 
 // The Lingua card of the English home page (change: add-lingua-french-listings, D9). Written

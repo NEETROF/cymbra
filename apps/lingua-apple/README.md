@@ -18,8 +18,9 @@ extension (see `openspec/changes/add-lingua-apple`).
   markup), driven by `Shared (App)/ViewController.swift`: iOS shows the steps (no state API
   there); macOS shows the real state (`SFSafariExtensionManager`) and opens Safari's
   settings on the extension (`SFSafariApplication.showPreferencesForExtension`). Its copy
-  is one table per language, `Resources/copy.js` (fr byte for byte the markup's, en and es
-  drafts), which fills the page on `DOMContentLoaded` in the language `ViewController`
+  is one table per language, `Resources/copy.js` (fr byte for byte the markup's, en, es
+  and it drafts — Italian held ahead of en-it by `localise-lingua-apple-host-italian`, shown
+  since en-it ships, `enable-lingua-italian-speakers`), which fills the page on `DOMContentLoaded` in the language `ViewController`
   injects before load: the extension's interface language once the extension has run
   (its native handler keeps it in the App Group, `interface.language`), the device's
   before — among the declared languages only, English once English ships and French
@@ -32,7 +33,10 @@ extension (see `openspec/changes/add-lingua-apple`).
   after the copy on both extension targets) writes `CFBundleLocalizations` — what the App
   Store's "Languages" line shows — and `CFBundleDevelopmentRegion` (`en` once English
   ships, `fr` otherwise) into the processed plist, only when it holds something else; a
-  native is 2–3 lowercase letters, or the build fails. While every shipped native is
+  native is 2–3 lowercase letters, or the build fails. The app holds copy in fr, en, es and
+  it, and declares `[fr, en, es, it]` since en-it ships (Italian offered from this release,
+  `enable-lingua-italian-speakers`; its copy held ahead of it by
+  `localise-lingua-apple-host-italian`); another native is declared after them, with a warning. While every shipped native is
   French, the plist is never touched — left as Xcode generated it: the source plist's
   `[fr]` on the apps, none on the extensions, and `en` — the project's development
   language, which Xcode writes over the source's `fr` — as the region. So the Swift side
@@ -46,13 +50,13 @@ extension (see `openspec/changes/add-lingua-apple`).
   API, which Safari ships from 17.2.
 - **Apple and Google sign-in** (`openspec/changes/add-lingua-connected-clients`, D6) — Safari
   has no `identity.launchWebAuthFlow`, so the extension opens this app on
-  `cymbra-lingua://signin?provider=apple|google&lang=fr|en|es` (`CFBundleURLTypes` in both
+  `cymbra-lingua://signin?provider=apple|google&lang=fr|en|es|it` (`CFBundleURLTypes` in both
   apps). The app shows `Shared (App)/SignInView.swift`, runs the provider's native sheet and
   leaves the id_token in the App Group; the extension's `SafariWebExtensionHandler` answers
   `auth.takeIdToken` with it once, within five minutes. The Cymbra session stays in the
   extension. The logic lives in the local package [`LinguaSignIn`](LinguaSignIn), linked by
-  all four targets. The sheet's copy (`SignInCopy(language:)`, fr byte for byte, en and es
-  drafts) is in the link's `lang` — the extension's interface language — when the app
+  all four targets. The sheet's copy (`SignInCopy(language:)`, fr byte for byte, en, es
+  and it drafts) is in the link's `lang` — the extension's interface language — when the app
   declares that language, the device's when declared, English once English ships and
   French otherwise; `lang` is read from a closed list (`SignInLink.language(from:)`), never
   shown or passed on, and an older link naming none is shown the same way without it.
