@@ -56,6 +56,11 @@ jobs:
       # wasm-pack drives the lingua-wasm build + the native/WASM parity test below.
       - uses: taiki-e/install-action@wasm-pack
       - uses: Swatinem/rust-cache@v2
+        with:
+          # The key only hashes Cargo.lock, so a profile change in Cargo.toml would keep
+          # restoring artifacts built at the old opt-level (and never re-save them).
+          # Bump this suffix whenever [profile.*] changes.
+          key: opt2
       - name: Module boundaries (no impl->impl deps)
         run: python3 backend/scripts/check_boundaries.py
       - name: Format

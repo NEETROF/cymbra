@@ -88,6 +88,10 @@ jobs:
         if: env.RUN_RUST == 'true'
       - uses: Swatinem/rust-cache@v2
         if: env.RUN_RUST == 'true'
+        with:
+          # Keyed on the dev profile too: rust-cache hashes Cargo.lock only. Keep in sync with
+          # rust.yml and bump when [profile.*] in Cargo.toml changes.
+          key: opt2
       - name: Rust coverage
         if: env.RUN_RUST == 'true'
         # Same exclusions as the rust gate, from the shared file.

@@ -39,6 +39,18 @@ midir = { git = "https://github.com/NEETROF/midir", rev = "fcafd065ac2c308e6d146
 [profile.dev.package.rustysynth]
 opt-level = 3
 
+# The Lingua suites load real dictionary packs; unoptimised (and llvm-cov instrumented)
+# that took 20+ min of CI. Third-party deps and the pack engine are optimised — the
+# workspace crates under test stay at opt-level 0, so coverage and debug info are unchanged.
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.dev.package.lingua-core]
+opt-level = 2
+
+[profile.dev.package.lingua-pack]
+opt-level = 2
+
 # Shared dependency versions for the Cymbra ID backend (change: add-cymbra-id).
 # Declaring them here keeps versions consistent; a crate only compiles a dep when
 # it opts in via `dep.workspace = true`. The OpenTelemetry stack versions are
