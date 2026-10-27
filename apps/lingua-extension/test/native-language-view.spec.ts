@@ -6,6 +6,7 @@ import type { NativeLanguage, StudiedLanguage } from "@/analyzer/types.ts";
 import { nativeLanguage as enCopy } from "@/i18n/en/native-language.ts";
 import { nativeLanguage as esCopy } from "@/i18n/es/native-language.ts";
 import { nativeLanguage as frCopy } from "@/i18n/fr/native-language.ts";
+import { nativeLanguage as itCopy } from "@/i18n/it/native-language.ts";
 import { mountNativeStep, presetThenStart } from "@/onboarding/native-step.ts";
 import { mountNativeCta } from "@/popup/native-cta.ts";
 import { mountNativeLanguage, nativeLanguageCopy } from "@/reading/native-language-view.ts";
@@ -29,6 +30,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const TODAY = ["en-fr", "es-fr"];
 /** es-en shipping beside them (change 34). */
 const MIXED = ["en-fr", "es-fr", "es-en"];
+/** The bundle's list before enable-lingua-italian-speakers: no pair glossed in Italian. */
+const BEFORE_EN_IT = ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es", "it-fr", "it-en", "it-es"];
 /** The engine's names for the languages (state/profile.ts). */
 const NAMES = { fr: "French", en: "English", es: "Spanish", it: "Italian" } as const;
 
@@ -116,12 +119,13 @@ describe("the view (D4)", () => {
     expect(button(container).hidden).toBe(true);
   });
 
-  it("The bundle's list since change 35 (enable-lingua-spanish-speakers): « Español » offered beside French and English", async () => {
+  it("The list since change 35 (enable-lingua-spanish-speakers): « Español » offered beside French and English", async () => {
     const container = document.createElement("div");
     const view = mountNativeLanguage(container, {
       language: "fr",
       copy: frCopy,
       profile: profile("fr", ["en", "es"]),
+      pairs: BEFORE_EN_IT,
     })!;
     await view.refresh();
 
@@ -134,6 +138,25 @@ describe("the view (D4)", () => {
     pick(container, "es");
     expect(visibleNotes(container)).toEqual([frCopy.note]);
     expect(button(container).hidden).toBe(false);
+  });
+
+  it("The bundle's list since enable-lingua-italian-speakers: « Italiano » offered last, in its own name", async () => {
+    const container = document.createElement("div");
+    const view = mountNativeLanguage(container, {
+      language: "it",
+      copy: itCopy,
+      profile: profile("it", ["en"]),
+    })!;
+    await view.refresh();
+
+    expect(radios(container)).toEqual([
+      { native: "fr", checked: false, name: "Français", lang: "fr" },
+      { native: "en", checked: false, name: "English", lang: "en" },
+      { native: "es", checked: false, name: "Español", lang: "es" },
+      { native: "it", checked: true, name: "Italiano", lang: "it" },
+    ]);
+    expect(visibleNotes(container)).toEqual([itCopy.note]);
+    expect(button(container).hidden).toBe(true);
   });
 
   it("A native language that was the only studied one: the choice offers to confirm, naming no studied language", async () => {

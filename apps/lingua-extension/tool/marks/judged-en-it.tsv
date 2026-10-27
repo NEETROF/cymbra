@@ -1,0 +1,101 @@
+k	id	word	upos	engine_marks	engine	engine_reason	gloss_marks	gloss	gloss_reason
+0	n01001011	transition	NOUN	transizione	correct		transizione	correct	
+1	n01004009	teaching	VERB	insegnare	correct		insegnare	correct	
+2	n01010042	time	NOUN	tempo	correct		tempo	correct	
+3	n01016014	Korean	ADJ	sudcoreana	correct		sudcoreana	correct	
+4	n01019005	security	NOUN	sicurezza	correct		sicurezza	correct	
+5	n01022016	area	NOUN	settore	correct			withheld	no gloss word in the sentence
+6	n01025045	history	NOUN	storia	correct		storia	correct	
+7	n01029011	far	ADJ	Vladivostok	wrong	marks « Vladivostok » instead of « estremo » (« Russia's far east » → « l'estremo oriente della Russia »; en-fr « l'extrême » and en-es « extremo » correct)		withheld	no gloss word in the sentence
+8	n01033021	pattern	NOUN	modello	correct			withheld	no gloss word in the sentence
+9	n01036020	like	VERB		withheld	no mark (« He'd also like » → « Vorrei », the subject turned first person, unmarked)		withheld	no gloss word in the sentence
+10	n01041018	Physicians	NOUN	I medici	correct	« I medici »: the article carried along	medici	correct	
+11	n01045035	judge	NOUN	giudice	correct		giudice	correct	
+12	n01050014	hemoglobin	NOUN	emoglobina	correct		emoglobina	correct	
+13	n01054011	released	VERB	rilasciate	correct	the participle of « sono state rilasciate », without its auxiliary	rilasciate	correct	
+14	n01059008	discordance	NOUN	discordanza	correct			withheld	no gloss for the word
+15	n01063011	clinical	ADJ	clinici	correct		clinici	correct	
+16	n01066093	neglect	NOUN	negligenza	correct		negligenza	correct	
+17	n01070017	suggested	VERB	suggerì	correct		suggerì	correct	
+18	n01074020	edge	NOUN	vantaggio	correct	doubtful: « edge » rendered « vantaggio » (advantage), a mistranslation the mark follows, as en-es's « ventaja »		withheld	no gloss word in the sentence
+19	n01078025	modern	ADJ	moderna	correct		moderna	correct	
+20	n01084008	couple	NOUN	coppia	correct		coppia	correct	
+21	n01087005	say	VERB	dire	correct		dire	correct	
+22	n01091013	shooting	NOUN	delle riprese	correct	doubtful: « the shooting lobby » rendered « la lobby delle riprese » (filming), a wrong sense the mark follows, the articulated preposition carried along		withheld	no gloss word in the sentence
+23	n01094014	marketplaces	NOUN	mercati	correct		mercati	correct	
+24	n01097098	stop	NOUN	tappa	correct			withheld	no gloss word in the sentence
+25	n01102006	told	VERB	detto	correct			withheld	no gloss word in the sentence
+26	n01107006	compensation	NOUN	risarcimento	correct		risarcimento	correct	
+27	n01110008	Premium	ADJ	Premium	correct		Premium	correct	
+28	n01114025	adults	NOUN	adulti	correct		adulti	correct	
+29	n01118003	mic	NOUN	microfono	correct		microfono	correct	
+30	n01121032	died	VERB	è morto	correct	« è morto », the auxiliary carried with the participle		withheld	no gloss word in the sentence
+31	n01127089	know	VERB	so	correct			withheld	no gloss word in the sentence
+32	n01130003	ground	NOUN	il ground	correct	doubtful: « ground zero » → « il ground zero », kept in English as Italian writes it, the mark on « il ground », half the loanword, as the criteria's « Ground » allows (judge B's doubt; en-fr withheld, en-es « la zona » correct)		withheld	no gloss word in the sentence
+33	n01134015	credited	VERB	accreditato	correct	doubtful: « is credited » rendered « È accreditato », a calque the mark follows (PUD: « Gli viene riconosciuto il merito »)	accreditato	correct	doubtful: « accreditato », the engine's calque
+34	n01138026	episodes	NOUN	episodi	correct		episodi	correct	
+35	n01142008	incredible	ADJ	incredibile	correct		incredibile	correct	
+36	n01145028	volunteers	NOUN	volontari	correct		volontari	correct	
+37	n01149027	see	VERB	visto	correct	the participle of « ho visto », without its auxiliary		withheld	no gloss word in the sentence
+38	w01003056	islands	NOUN	Le isole	correct	« Le isole »: the article carried along		withheld	no gloss word in the sentence
+39	w01007004	limited	ADJ	limitata	correct		limitata	correct	
+40	w01010046	state	NOUN	stato	correct		con	wrong	marks « con » instead of « stato »
+41	w01016070	example	NOUN	esempio	correct		esempio	correct	
+42	w01020018	climate	NOUN	clima	correct		clima	correct	
+43	w01025085	important	ADJ	importanti	correct		importanti	correct	
+44	w01028069	reaction	NOUN	reazione	correct		reazione	correct	
+45	w01031015	tends	VERB	tende	correct		tende	correct	
+46	w01035081	land	NOUN	La terra	correct	« La terra »: the article carried along	terra	correct	
+47	w01038044	indigenous	ADJ	indigeni	correct		indigeni	correct	
+48	w01042055	city	NOUN	città	correct		città	correct	
+49	w01046056	government	NOUN	governo	correct		governo	correct	
+50	w01050067	fall	NOUN	caduta	correct		caduta	correct	
+51	w01053015	exact	ADJ	esatto	correct		esatto	correct	
+52	w01058009	battle	NOUN	battaglia	correct		battaglia	correct	
+53	w01063048	represented	VERB	rappresentavano	correct		rappresentavano	correct	
+54	w01066040	New	NOUN	Capodanno	correct	« Chinese New Year » → « Capodanno cinese », one Italian word		withheld	no gloss word in the sentence
+55	w01070031	astronomical	ADJ	astronomico	correct		astronomico	correct	
+56	w01072079	century	NOUN	secolo	correct		secolo	correct	
+57	w01075039	make	VERB	costituiscono	correct	« make up » → « costituiscono », an expression's rendering (en-fr's « qui » wrong)		withheld	no gloss word in the sentence
+58	w01080129	enemies	NOUN	nemici	correct		nemici	correct	
+59	w01085004	Army	NOUN	L'esercito	correct	« L'esercito »: the elided article carried along	esercito	correct	
+60	w01089040	time	NOUN	momento	correct			withheld	no gloss word in the sentence
+61	w01095090	considered	VERB	considerato	correct		considerato	correct	
+62	w01099012	origin	NOUN	dell'origine	correct	« dell'origine »: the articulated preposition carried along	origine	correct	
+63	w01102020	officer	NOUN	ufficiale	correct	« an SS officer » → « un ufficiale delle SS »: marked where en-fr and en-es withheld, a new verdict — the mark covers the rendering	ufficiale	correct	
+64	w01106073	altitude	NOUN	quota	correct			withheld	no gloss word in the sentence
+65	w01111089	met	VERB	incontrò	correct		incontrò	correct	
+66	w01115023	University	NOUN	all'Università	correct	« all'Università »: the articulated preposition carried along	Università	correct	
+67	w01119059	similar	ADJ	simile	correct		simile	correct	
+68	w01125036	hours	NOUN	ore	correct			withheld	no gloss word in the sentence
+69	w01130099	released	VERB	pubblicò	correct		pubblicò	correct	
+70	w01133014	plotter	NOUN	plotter	wrong	doubtful: A correct, a loose rendering — « plotter » left in English, the mark following it / B wrong — an untranslated copy, Italian's « plotter » being only the drawing device (PUD: « sceneggiatore »); the judges disagree, so wrong		withheld	no gloss for the word
+71	w01136029	stereotypical	ADJ	stereotipata	correct		stereotipata	correct	
+72	w01140032	method	NOUN	metodo	correct		metodo	correct	
+73	w01143037	played	VERB	interpretato	correct		recitato	wrong	marks « recitato » (« co-starred ») instead of « interpretato »
+74	w01147122	information	NOUN	informazioni	correct		informazioni	correct	
+75	n02002007	able	ADJ	grado	correct	doubtful: « were able to » → « sono stati in grado di », the mark on « grado » without « in » (judge A's doubt; judge B read it plainly correct, as 99's « D'altra »)	grado	correct	doubtful: « grado » without « in »
+76	n02027007	agents	NOUN	gli agenti	correct	« gli agenti »: the article carried along	agenti	correct	
+77	n02038007	gropes	VERB	palpeggia	correct	doubtful: « gropes » rendered « palpeggia » (fondles), a wrong sense the mark follows, as en-es's « anda »	palpeggia	correct	doubtful: « palpeggia », a wrong sense
+78	n02048002	alarm	NOUN		withheld	no mark (« alarm clock » → « sveglia », unmarked; en-fr « réveil » correct, en-es withheld)	sveglia	correct	« alarm clock » → « sveglia », one Italian word
+79	n02073024	time	NOUN	momento	correct	« For the time being » → « Per il momento », an expression's rendering		withheld	no gloss word in the sentence
+80	n03001007	letter	NOUN	La lettera	correct	« La lettera »: the article carried along (« Mr. » left dangling before it)	lettera	correct	
+81	n03005025	accused	VERB	ha accusato	correct	« ha accusato », the auxiliary carried with the participle	accusato	correct	
+82	n03008011	way	NOUN		withheld	no mark (« on its way out » → « in uscita »)		withheld	no gloss word in the sentence
+83	n04003043	hit	NOUN	di successo	correct	« hit song » → « canzone di successo », the preposition carried along	successo	correct	
+84	n04007018	note	NOUN	nota	correct		nota	correct	
+85	n05001005	represents	VERB	rappresenta	correct		rappresenta	correct	
+86	n05003022	one	NOUN		withheld	no mark (« the only one » → « l'unico »), as en-fr and en-es		withheld	no gloss word in the sentence
+87	n05008012	worried	ADJ	preoccupato	correct		preoccupato	correct	
+88	w02003037	cloister	NOUN	chiostro	correct		chiostro	correct	
+89	w02006081	win	VERB	vincere	correct		vincere	correct	
+90	w02009002	severity	NOUN	gravità	correct			withheld	no gloss word in the sentence
+91	w02014013	last	ADJ	ultimi	correct		ultimi	correct	
+92	w02017061	traces	NOUN	tracce	correct		tracce	correct	
+93	w03003039	captained	VERB	capitanata	correct	« capitanata » (en-fr « commandé » correct, en-es withheld)	capitanata	correct	
+94	w03007039	outposts	NOUN	avamposti	correct		avamposti	correct	
+95	w04001027	lower	ADJ	inferiore	correct		inferiore	correct	
+96	w04004051	parts	NOUN	parti	correct			withheld	no gloss word in the sentence
+97	w04010027	met	VERB	incontrati	correct	the participle of « si sono incontrati », without « si sono »	incontrati	correct	
+98	w05003012	breakdown	NOUN	rottura	correct		rottura	correct	
+99	w05006058	other	ADJ	D'altra	correct	« On the other hand » → « D'altra parte », an expression's rendering		withheld	no gloss word in the sentence

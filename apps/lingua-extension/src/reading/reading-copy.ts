@@ -46,7 +46,7 @@ const COPY: Record<InterfaceLanguage, ReadingCopy> = {
   en: { hud: enHud, drawer: enDrawer, card: enCard, selection: enSelection, grammar: enGrammar },
   es: { hud: esHud, drawer: esDrawer, card: esCard, selection: esSelection, grammar: esGrammar },
   // Italian's renderer of readings names forms in Italian grammar's terms (add-lingua-italian-card-wording
-  // D6) — unreachable before the Italian interface is shown (the Italian programme's change 45).
+  // D6), shown since enable-lingua-italian-speakers.
   it: { hud: itHud, drawer: itDrawer, card: itCard, selection: itSelection, grammar: itGrammar },
 };
 

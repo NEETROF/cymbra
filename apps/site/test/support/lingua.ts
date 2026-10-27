@@ -36,6 +36,8 @@ export const ROUTES: Routes = {
   "it-en": ["it-en/base-memory/2.0"],
   // Italian's for Spanish speakers (the same change 2): through English, it-en then en-es.
   "it-es": ["it-en/base-memory/2.0", "en-es/base-memory/2.1"],
+  // English's for Italian speakers (the same change 2): en-it alone, the direct model of its pair.
+  "en-it": ["en-it/base-memory/2.1"],
 };
 
 /**
@@ -95,4 +97,21 @@ export const EIGHT_PAIRS: Coverage = {
 export const NINE_PAIRS: Coverage = {
   tops: TODAY.tops,
   glossed: { ...EIGHT_PAIRS.glossed, "it-es": [85.2, 76.1, 65.1] },
+};
+
+/**
+ * The eight pairs and the one the Italian programme's change 45 (enable-lingua-italian-speakers)
+ * lists beside them: en-it (English for Italian speakers), with the figures its committed tables
+ * measured (changes 36 and 37, add-lingua-pack-en-it, refine-lingua-en-it-glosses) — the scenario
+ * *Nine pairs on a phone*, en-it the ninth.
+ */
+export const EIGHT_AND_EN_IT: Coverage = {
+  tops: TODAY.tops,
+  glossed: { ...EIGHT_PAIRS.glossed, "en-it": [92.1, 83.1, 70.6] },
+};
+
+/** The nine pairs and en-it: the ten change 45 ships, it-es listed before en-it. */
+export const TEN_PAIRS: Coverage = {
+  tops: TODAY.tops,
+  glossed: { ...NINE_PAIRS.glossed, "en-it": [92.1, 83.1, 70.6] },
 };

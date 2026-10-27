@@ -197,6 +197,12 @@ describe("Apple return URL", () => {
     expect(appleReturnUrl("https://cymbra.app", "/suppression-compte/")).toBe("https://cymbra.app/suppression-compte");
     expect(appleReturnUrl("https://cymbra.app", "/en/delete-account/")).toBe("https://cymbra.app/delete-account");
   });
+
+  it("strips /it as well: the Italian deletion page sends /elimina-account (change: add-site-italian-locale)", () => {
+    expect(appleReturnUrl("https://cymbra.app", "/it/elimina-account/")).toBe("https://cymbra.app/elimina-account");
+    expect(appleReturnUrl("https://cymbra.app", "/it/")).toBe("https://cymbra.app/");
+    expect(appleReturnUrl("https://cymbra.app", "/italia/")).toBe("https://cymbra.app/italia");
+  });
 });
 
 describe("Spanish copy", () => {
@@ -208,6 +214,17 @@ describe("Spanish copy", () => {
     expect(formatDate("es", "2026-11-14T10:00:00Z")).toBe("14 de noviembre de 2026");
     expect(formatDate("fr", "2026-11-14T10:00:00Z")).toBe("14 novembre 2026");
     expect(formatDate("en", "2026-11-14T10:00:00Z")).toBe("November 14, 2026");
+  });
+});
+
+describe("Italian copy (change: add-site-italian-locale, D5)", () => {
+  it("is complete, interpolates, and dates in it-IT", () => {
+    expect(t("it", "deleteTitle")).toBe("Elimina il mio account");
+    expect(t("it", "deleteConfirmWord")).toBe("ELIMINA");
+    expect(t("it", "deleteConfirmPrompt", { word: "neetrof" })).toBe("Per confermare, scrivi neetrof qui sotto.");
+    expect(humanError("it", new WebAuthError(401, "invalid credentials"))).toBe(t("it", "errUnauthenticated"));
+    expect(humanError("it", new WebAuthError(401, "invalid credentials"))).not.toContain("invalid credentials");
+    expect(formatDate("it", "2026-11-14T10:00:00Z")).toBe("14 novembre 2026");
   });
 });
 

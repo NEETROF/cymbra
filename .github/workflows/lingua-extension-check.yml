@@ -162,8 +162,8 @@ jobs:
       # freezes it glossed in Spanish over tables/it/ and tables/it-es/, equal to it-fr's on the studied
       # side; the Spanish card's lines over it are pinned by test/word-card-it-es.spec.ts. en-it (change
       # 36, add-lingua-pack-en-it D8) freezes the English scenario glossed in Italian over tables/en/ and
-      # tables/en-it/, equal to en-fr's on the studied side; its Italian card's snapshot comes with the
-      # Italian interface (changes 33 and 34).
+      # tables/en-it/, equal to en-fr's on the studied side; the Italian card's lines over it are pinned
+      # by test/word-card-en-it.spec.ts (refine-lingua-en-it-glosses D15).
       - name: Invariance baselines (en-fr, es-fr, es-en, en-es, fr-en, fr-es, it-fr, it-en, it-es, en-it)
         run: cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline --test fr_es_baseline --test italian_baseline --test it_en_baseline --test it_es_baseline --test en_it_baseline
       # What a pack studies does not depend on how it glosses (add-lingua-pack-lexical-layer):

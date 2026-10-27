@@ -1,6 +1,6 @@
 # cymbra.app — the Cymbra web site
 
-Astro (fr default, en, es) static site deployed on Cloudflare Pages. Lives in the
+Astro (fr default, en, es, it) static site deployed on Cloudflare Pages. Lives in the
 monorepo (`apps/site`, imported 2026-08-16 from `NEETROF/cymbra-site` with its
 history) because it is becoming a **product surface** — Cymbra ID sign-in, access
 code redemption (`/redeem`), the web checkout page (`/checkout`), subscription
@@ -23,13 +23,13 @@ the legal texts with the rest of the repo.
 
 ## Pages
 
-The landing side is a **hub + one page per product**, fr (default), en and es:
+The landing side is a **hub + one page per product**, fr (default), en, es and it:
 
-| Page (fr / en / es) | What it holds |
+| Page (fr / en / es / it) | What it holds |
 |---|---|
-| `/`, `/en/`, `/es/` | The Cymbra hub: positioning, one card per product, what both apps share (one account, EU hosting, offline, immediate feedback). The three homes' Lingua cards are built from the shipped pairs (see below) |
-| `/music`, `/en/music`, `/es/music` | Cymbra Music — hero, store buttons, features. The copy mirrors `apps/music/store/copy/{fr,en,es}.md` (and, in Spanish, the app's own terms, `apps/music/lib/l10n/app_es.arb`), so the site, the app and the store listings never claim different things |
-| `/lingua`, `/en/lingua`, (`/es/lingua`) | Cymbra Lingua — one component, `src/components/LinguaPage.astro`, fed by the shipped pairs (`src/lib/lingua-pairs.ts`: `src/data/lingua-coverage.json` for the pairs and their figures, the extension's `model-manifest.json` for the translation routes) and by one text table per site language (`src/lib/lingua-text.ts`); store buttons (the visitor's browser's store marked primary, see below), the captures of the extension at work and its demo video (see below), the coverage table (one column per pair while every pair is glossed in one language, one row per pair once in two — see below), the community invite when `PUBLIC_DISCORD_URL` is set. Each page leads with the pairs glossed in its language. `/es/lingua` (`src/pages/[locale]/lingua.astro`) is built only once a pair glossed in Spanish ships (change `add-site-lingua-matrix-pages`) |
+| `/`, `/en/`, `/es/`, `/it/` | The Cymbra hub: positioning, one card per product, what both apps share (one account, EU hosting, offline, immediate feedback). The four homes' Lingua cards are built from the shipped pairs (see below) |
+| `/music`, `/en/music`, `/es/music`, `/it/music` | Cymbra Music — hero, store buttons, features. The copy mirrors `apps/music/store/copy/{fr,en,es,it}.md` (and, in Spanish and Italian, the app's own terms, `apps/music/lib/l10n/app_{es,it}.arb`), so the site, the app and the store listings never claim different things |
+| `/lingua`, `/en/lingua`, (`/es/lingua`, `/it/lingua`) | Cymbra Lingua — one component, `src/components/LinguaPage.astro`, fed by the shipped pairs (`src/lib/lingua-pairs.ts`: `src/data/lingua-coverage.json` for the pairs and their figures, the extension's `model-manifest.json` for the translation routes) and by one text table per site language (`src/lib/lingua-text.ts`); store buttons (the visitor's browser's store marked primary, see below), the captures of the extension at work and its demo video (see below), the coverage table (one column per pair while every pair is glossed in one language, one row per pair once in two — see below), the community invite when `PUBLIC_DISCORD_URL` is set. Each page leads with the pairs glossed in its language. `/es/lingua` and `/it/lingua` (`src/pages/[locale]/lingua.astro`) are built only once a pair glossed in their language ships (change `add-site-lingua-matrix-pages`; `/it/lingua` with en-it, the Italian programme's change 45) |
 
 Distribution links live in **one** place, `src/lib/stores.ts`, read by the product
 pages and by the post-checkout `Downloads` block. A channel is either `live: true`
@@ -57,6 +57,20 @@ fr-es beside it, « …en inglés, en francés o en italiano… » with it-es be
 programme's change 30; `add-lingua-italian-spanish-listings`, D1) — and opens `/es/lingua`; until then it names every language read and
 the speakers it is made for (« Pensada para francohablantes… ») and opens `/en/lingua`, so
 it never tells a Spanish speaker that Lingua explains words in Spanish before it does.
+
+Italian (`/it/`, change `add-site-italian-locale`) follows Spanish: `/it/privacy`, `/it/termini`,
+`/it/assistenza`, `/it/elimina-account`, `/it/lingua/arrivederci` and `/it/404`, and the home and
+Music pages, `/it/` and `/it/music`, translations of the French pages in « tu » with no gender
+assumed of the reader (the Italian programme's I6), reviewed by the Italian reviewer agent
+(`.claude/agents/lingua-italian-reviewer.md`, I2). The account, code and checkout pages stay
+French and English, as for Spanish. The privacy policy, the terms and the deletion page are
+**courtesy translations**: directly under their title, « Traduzione di cortesia: fa fede la
+versione francese » links the French page, which prevails (I13; `CourtesyNotice.astro`,
+`frenchOriginal` in the front matter); `test/legal-pages.spec.ts` holds each to its French page's
+date of last update and sections, so a French edit is mirrored in Italian in the same pull
+request. The Italian home's Lingua card (`italianHomeLinguaCard`) names every language read and
+« Pensata per francofoni, anglofoni e ispanofoni… », and opens `/en/lingua`, until a pair glossed
+in Italian ships; then the languages read with an Italian gloss and `/it/lingua`.
 
 The English home's Lingua card follows the same rule (`englishHomeLinguaCard`, change
 `add-lingua-french-listings`, D9): once a pair glossed in English ships it names the
@@ -98,12 +112,12 @@ six pairs of stage 3: 335 px for 335 at 375 px; at 320 px the tables are 301–3
 
 **Every page names its translations.** `Base.astro` takes `alternates` — the page's
 address in each language it exists in, its own included, e.g.
-`{ fr: '/confidentialite', en: '/en/privacy', es: '/es/privacidad' }`; the twins are not
+`{ fr: '/confidentialite', en: '/en/privacy', es: '/es/privacidad', it: '/it/privacy' }`; the twins are not
 derivable from the path. They drive the header's language switch (every *other* language
 the page exists in) and one `hreflang` per alternate (no `x-default`). A page that exists
 in one language passes that one alone: no switch, its own `hreflang`. Markdown pages
 declare them in their front matter, forwarded by `Legal.astro`, which refuses a page
-whose `lang` is not one of the three or that names no alternates; `Base.astro` refuses
+whose `lang` is not one of the site's languages or that names no alternates; `Base.astro` refuses
 any page whose alternates omit its own language. The footer's `FR` / `EN` links are the
 locale roots, as before. The French and English pages render as before: the only
 markup differences against the previous build are the `hreflang` / switch entries and
@@ -181,7 +195,7 @@ does not ask for reduced motion and does not save data.
 **The weight budget** of these media and of the site lives in one table at the top of
 `test/post-build/media-budget.spec.ts`, run by `yarn check:routes`: each image variant ≤ 250 KB, the
 hero's largest ≤ 200 KB, each share image ≤ 300 KB, each poster ≤ 150 KB, each video ≤ 4 MB, all
-media ≤ 30 MB, no file of 25 MiB or more and fewer than 20,000 files (Cloudflare Pages' limits).
+media ≤ 50 MB (30 until `add-site-italian-locale`, D7: a language's Music media weigh about 7.2 MB, its Lingua set about 3 MB, and a visitor loads only their own page's), no file of 25 MiB or more and fewer than 20,000 files (Cloudflare Pages' limits).
 
 **The store buttons choose the visitor's store** (D11): on the Lingua page only, each button
 carries `data-store`, and `src/components/StoreChoice.astro` marks the one of the visitor's browser
@@ -199,19 +213,19 @@ the source.
 
 ## The Music page's media (change: add-site-music-showcase)
 
-The Music page (fr/en/es) shows a video of the app being played and a gallery of five
+The Music page (fr/en/es/it) shows a video of the app being played and a gallery of five
 iPad captures, in the page's language, and declares a share preview so a link pasted in
 a chat shows a picture. None of it is made by hand:
 
 - **Captures and video** come from the Music capture harness (`apps/music/store/`, see
-  its README). `yarn sync:music-media` copies them into `src/assets/music/<lang>/`; which
+  its README). `yarn sync:music-media` copies them into `src/assets/music/<lang>/` (`yarn sync:music-media it`: one language alone, the others untouched); which
   files, and their captions and alt texts, are declared once in `src/lib/music-media.ts`.
   `test/music-media.spec.ts` fails when a copy differs from its source, when a video is
   over 4 MB or 30 s or has no sound, or when a text is missing in a language. CI's `site`
   filter watches `apps/music/store/**`, so a refreshed capture that was not synced fails
   the pull request.
 - **Share previews** (`src/assets/music/<lang>/share.png`) are generated from the staff
-  capture by `yarn gen:music-share` and committed, and passed as `Base.astro`'s `image`
+  capture by `yarn gen:music-share` (`yarn gen:music-share it` for one language) and committed, and passed as `Base.astro`'s `image`
   prop; `test/post-build/share-preview.spec.ts` checks every Music page's is in the build,
   on an absolute URL, and `head.spec.ts` that it is its own language's, at 1200×630.
 
@@ -239,17 +253,20 @@ deletion fails the pull request.
 Adding a page does **not** pin it. A route joins the day a client or a listing field
 starts requesting it, and the change that creates that consumer is the one that adds it
 — `/suppression-compte/`, `/lingua/` and `/es/eliminar-cuenta/` joined with Lingua's
-deletion link and its listings' Homepage / Marketing URL.
+deletion link and its listings' Homepage / Marketing URL. The exception: a path about to be
+compiled into a client is pinned ahead of it, from the day the page is published —
+`/es/eliminar-cuenta/`, the leaving pages, and `/it/privacy/`, `/it/termini/`,
+`/it/elimina-account/` and `/it/lingua/arrivederci/` (change `add-site-italian-locale`, D3).
 
 Why this is worth a gate rather than a note: the site answers an unmatched path with
 the **nearest `404.html`**, and until `pin-music-site-url-contract` there was none, so
 every unknown path returned the home page with a `200`. A dead `/en/privacy/` would
 have served French marketing copy to someone asking for the English privacy policy,
 with a status code no uptime check would flag. `src/pages/404.astro`,
-`src/pages/en/404.astro` and `src/pages/es/404.astro` cover the three locales — the
-English and Spanish ones are copied to `dist/<locale>/404.html` by a small integration in
+`src/pages/en/404.astro`, `src/pages/es/404.astro` and `src/pages/it/404.astro` cover the four
+locales — the English, Spanish and Italian ones are copied to `dist/<locale>/404.html` by a small integration in
 `astro.config.mjs` (`localised404()`), since Astro only gives the root `404.astro` its
-special filename; `yarn check:routes` asserts the three files.
+special filename; `yarn check:routes` asserts the four files.
 
 ## Account pages (change: add-site-account-pages)
 
@@ -268,7 +285,7 @@ shared **`packages/web-auth`** package (`@cymbra/web-auth`, Yarn `portal:`), the
 same code as the back office: audience `web`, access token **in memory only**,
 persistence through the backend's HttpOnly refresh cookie (re-minted on mount).
 Field names of the plan JSON are the proto's (`src/lib/web-plans.ts`); errors are
-mapped to fr/en/es copy in `src/lib/plan-view.ts` (`humanError`, `redeemError`) —
+mapped to fr/en/es/it copy in `src/lib/plan-view.ts` (`humanError`, `redeemError`) —
 never shown raw.
 
 Configuration is build-time `PUBLIC_*` env (`.env.example`): `PUBLIC_API_URL`,
@@ -279,8 +296,8 @@ button), `PUBLIC_PADDLE_ENV` + `PUBLIC_PADDLE_CLIENT_TOKEN` (missing token ⇒
 Google web client and the Apple Services ID. Apple matches Return URLs exactly: the
 Services ID lists what `appleReturnUrl` (`src/lib/plan-view.ts`) sends from each page
 that mounts the sign-in — the page's path without its locale prefix or trailing slash —
-`https://cymbra.app/redeem`, `/account`, `/suppression-compte`, `/delete-account` and
-`/eliminar-cuenta`.
+`https://cymbra.app/redeem`, `/account`, `/suppression-compte`, `/delete-account`,
+`/eliminar-cuenta` and `/elimina-account`.
 
 Store builds of the app never link to `/redeem` (Apple 3.1.1); the app's "manage"
 action for a web subscription opens `/account`. The site sets no CSP today (a
@@ -289,7 +306,7 @@ from `cdn.paddle.com`, Google/Apple sign-in load their SDKs on demand.
 
 ## The Lingua leaving page (change: add-lingua-usage-counts)
 
-`/lingua/au-revoir/`, `/en/lingua/goodbye/` and `/es/lingua/adios/` (`noindex`, pinned):
+`/lingua/au-revoir/`, `/en/lingua/goodbye/`, `/es/lingua/adios/` and `/it/lingua/arrivederci/` (`noindex`, pinned):
 Chrome and Firefox open the page of Lingua's interface language when the extension is removed
 while its anonymous counts are on, with `?b=<browser>&v=<major.minor>` and nothing else. The
 island, `LeaveReasonIsland`, asks one question with six fixed answers and no free text. Loading
@@ -300,7 +317,7 @@ shown. A missing or malformed `b`/`v` is sent as `unknown`. State and call:
 `src/composables/useLeaveReason.ts`, behind the client seam of `src/lib/lingua-leave.ts`
 (`setLinguaLeaveClientForTest`). Without JavaScript the same answers are a plain form
 (`leaveFormAction()`, hidden `lang`): the backend counts the answer and sends the browser back to
-the page's `#merci` / `#thanks` / `#gracias` block (`src/components/LeaveThanks.astro`, shown by
+the page's `#merci` / `#thanks` / `#gracias` / `#grazie` block (`src/components/LeaveThanks.astro`, shown by
 `.leave-done:target`). Backend side: `https://cymbra.app` in `CYMBRA_WEB_ORIGINS`, as for the
 account pages, and **first** in that list: it is where the plain form is sent back to.
 
@@ -315,7 +332,10 @@ set). CI gate: `.github/workflows/site-check.yml` (`yarn check` + `yarn test` +
 Deploy order (change `add-site-spanish-locale`): nothing links a Spanish page before it
 is live. The site is deployed, and `https://cymbra.app/eliminar-cuenta` registered on the
 Services ID, before any release of the extension or of Cymbra ID that links a Spanish
-page.
+page. Italian (change `add-site-italian-locale`) the same way: the backend (its leaving
+thanks, `thanks_path("it")`), then the site, and `https://cymbra.app/elimina-account` on the
+Services ID, before the release of the extension's Italian interface (the Italian programme's
+change 45) or of Cymbra ID's Italian e-mails (change 43).
 
 Migration note: the old repo's Cloudflare Pages project was connected to
 `NEETROF/cymbra-site` directly. Either point that project at this monorepo
@@ -325,10 +345,12 @@ workflow above deploy with wrangler — then archive the old repo.
 ## Legal texts
 
 `src/pages/{cgu,confidentialite}.md`, `src/pages/en/{terms,privacy}.md` and
-`src/pages/es/{terminos,privacidad}.md` are the published pages; the Spanish ones are
-translations of the French, reviewed by the owner. The product-specific drafts live in `docs/legal/` at the repo
+`src/pages/es/{terminos,privacidad}.md` and `src/pages/it/{termini,privacy}.md` are the
+published pages; the Spanish ones are translations of the French, reviewed by the owner; the
+Italian ones are courtesy translations, reviewed by the Italian reviewer agent, the French
+prevailing (see above). The product-specific drafts live in `docs/legal/` at the repo
 root; keeping them in one place (a build step or a shared source) is a follow-up.
 
-Each page's `updated` date is printed as its front matter writes it, `dd/mm/yyyy` in all three
-languages: `src/layouts/Legal.astro` does not reformat it, so the English page shows
+Each page's `updated` date is printed as its front matter writes it, `dd/mm/yyyy` in every
+language: `src/layouts/Legal.astro` does not reformat it, so the English page shows
 `08/10/2026` for 8 October 2026.

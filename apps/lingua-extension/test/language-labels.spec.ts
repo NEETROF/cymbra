@@ -167,7 +167,7 @@ describe("A Spanish-native reader", () => {
 });
 
 describe("An Italian-native reader (add-lingua-italian-interface D1, D4)", () => {
-  // INTERFACE_LANGUAGES gains Italian with change 45 only: the loops below do not reach it, this does.
+  // INTERFACE_LANGUAGES gained Italian with enable-lingua-italian-speakers: the loops below reach it too.
   it("reads every message in Italian: « di inglese », « l'inglese », « voce inglese », the QCER", () => {
     expect(every("it", "en")).toEqual({
       languageName: "Inglese",
@@ -178,7 +178,7 @@ describe("An Italian-native reader (add-lingua-italian-interface D1, D4)", () =>
       myLevelTitleEstimated: "Il mio livello di inglese stimato",
       estimatedLevelsNote:
         "Livelli stimati in base alla frequenza delle parole, in mancanza di una lista QCER libera da diritti per l'inglese.",
-      borrowedTypicalNote: "ripreso dallo spagnolo, di cui l'inglese riprende le dimensioni dei livelli.",
+      borrowedTypicalNote: "ripreso dallo spagnolo, di cui l'inglese adotta il numero di parole per livello.",
       levelName: "B1",
       levelNameEstimated: "B1 (stimato)",
       chooseLevelPrompt: "Scegli il tuo livello di inglese",
@@ -192,7 +192,7 @@ describe("An Italian-native reader (add-lingua-italian-interface D1, D4)", () =>
     expect(every("it", "es")).toMatchObject({
       languageName: "Spagnolo",
       levelTitleEstimated: "Livello di spagnolo stimato",
-      borrowedTypicalNote: "ripreso dall'inglese, di cui lo spagnolo riprende le dimensioni dei livelli.",
+      borrowedTypicalNote: "ripreso dall'inglese, di cui lo spagnolo adotta il numero di parole per livello.",
       noTextDetected: "Nessun testo in spagnolo rilevato in questa pagina.",
       noVoiceInstalled: "Nessuna voce spagnola è installata su questo dispositivo. ",
       windowsVoiceLanguage: "Spagnolo (Spagna)",

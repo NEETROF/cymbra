@@ -10,8 +10,8 @@ import { createCard, type WordPopupContent } from "@/reading/wordpopup.ts";
 // Spanish renderers' unit specs (test/word-grammar-en.spec.ts, test/word-grammar-es.spec.ts) hold
 // theirs — every name of D1–D3, the future subjunctive and the gerunds the goldens' probes lack
 // included; the persons merged; the agreements; the contractions and « può anche essere »; the sense
-// headings; what stays unnamed. Shown to no reader before the Italian interface is (the Italian
-// programme's change 45). The real forms are pinned by test/word-card-grammar-it.spec.ts.
+// headings; what stays unnamed. Shown since the Italian interface is (enable-lingua-italian-speakers).
+// The real forms are pinned by test/word-card-grammar-it.spec.ts.
 
 const verb = (features: Record<string, string>): GrammarTag => ({ pos: "VERB", features });
 const fin = (Mood: string, Person: string, Number: string, Tense?: string): GrammarTag =>
@@ -207,8 +207,27 @@ describe("the word card in Italian, of a Spanish word", () => {
     ).toEqual([
       "prima e terza persona singolare del congiuntivo presente e terza persona singolare dell'imperativo di hablar",
     ]);
+    // One tense in both numbers is named once (review-lingua-italian-wording, after change 34's review).
     expect(lines("es", "hablar", "x", [fin("Ind", "1", "Plur", "Pres"), fin("Ind", "3", "Sing", "Pres")])).toEqual([
-      "terza persona singolare dell'indicativo presente e prima persona plurale dell'indicativo presente di hablar",
+      "terza persona singolare e prima persona plurale dell'indicativo presente di hablar",
+    ]);
+  });
+
+  it("One tense in both numbers, named once — each half with its article after « può anche essere »", () => {
+    const sono = [fin("Ind", "3", "Plur", "Pres"), fin("Ind", "1", "Sing", "Pres")];
+    expect(lines("it", "essere", "sono", sono)).toEqual([
+      "prima persona singolare e terza persona plurale dell'indicativo presente di essere",
+    ]);
+    expect(lines("it", "x", "x", [], [{ lemma: "essere", readings: sono }])).toEqual([
+      "può anche essere la prima persona singolare e la terza persona plurale dell'indicativo presente di essere",
+    ]);
+    // Two tenses: each still named, a comma before the name that joins two numbers itself.
+    expect(lines("it", "essere", "x", [PARTICIPLE, ...sono])).toEqual([
+      "participio passato, prima persona singolare e terza persona plurale dell'indicativo presente di essere",
+    ]);
+    // Different tenses are not merged: each number keeps its own.
+    expect(lines("es", "hablar", "x", [fin("Ind", "3", "Sing", "Pres"), fin("Sub", "1", "Plur", "Pres")])).toEqual([
+      "terza persona singolare dell'indicativo presente e prima persona plurale del congiuntivo presente di hablar",
     ]);
   });
 
@@ -490,6 +509,18 @@ describe("the line's grammar in Italian", () => {
     expect(name({ pos: "PRON", features: { Gender: "Fem" } }, "es")).toBe("femminile");
     expect(lines("es", "grande", "grandes", [noun("Masc", "Plur"), noun("Fem", "Plur")])).toEqual([
       "maschile e femminile plurale di grande",
+    ]);
+  });
+
+  it("A comma, not a second « e », before the genders named once (review-lingua-italian-wording)", () => {
+    const grandi = [PLURAL, noun("Masc", "Plur"), noun("Fem", "Plur")];
+    expect(lines("it", "grande", "grandi", grandi)).toEqual(["plurale, maschile e femminile plurale di grande"]);
+    expect(lines("it", "x", "x", [], [{ lemma: "grande", readings: grandi }])).toEqual([
+      "può anche essere il plurale, il maschile e femminile plurale di grande",
+    ]);
+    // First, the merged name needs no comma after it: « plurale » closes it.
+    expect(lines("es", "x", "y", [noun("Masc", "Plur"), noun("Fem", "Plur"), PLURAL])).toEqual([
+      "maschile e femminile plurale e plurale di x",
     ]);
   });
 

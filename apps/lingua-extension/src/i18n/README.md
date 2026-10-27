@@ -179,11 +179,11 @@ _participio pasado_ (the Spanish Wiktionary's English form-of wording) and « fo
 
 ## Italian
 
-Written before it is shown (add-lingua-italian-interface): `INTERFACE_LANGUAGES` gains `it` with the
-Italian programme's change 45, which shows it; until then a stored `it` reads French and no surface
-reads these modules. Drafted by an agent and reviewed by the dedicated Italian reviewer
-(`.claude/agents/lingua-italian-reviewer.md`, I2), the owner reading it on the five targets from
-change 45.
+Written before it was shown (add-lingua-italian-interface): `INTERFACE_LANGUAGES` gained `it` with
+the Italian programme's change 45 (enable-lingua-italian-speakers), which ships en-it and shows it to
+a reader whose native language is Italian. Drafted by an agent and reviewed by the dedicated Italian
+reviewer (`.claude/agents/lingua-italian-reviewer.md`, I2), the owner reading it on the five targets
+in that release's dogfood.
 
 Tu, never Lei (I6): the imperative is the tu form (_scegli_, _riprova_, _accedi di nuovo_). The reader
 is addressed without a gender: « Accesso effettuato », never « connesso/a »; « Ti diamo il
@@ -203,7 +203,10 @@ Italian name of the same tense (the passé simple and the pretérito perfecto si
 remoto »; Spanish's future subjunctive « congiuntivo futuro (futuro de subjuntivo) »); English's as the
 Italian Wiktionary names them (« presente semplice », « passato semplice », « participio passato ») and
 « forma in -ing ». Persons read « terza persona singolare », several of one tense named once (« prima e
-terza persona singolare »); « di » contracts with a tense's article (« del passato remoto »,
+terza persona singolare »), and a tense read in both numbers named once too (« prima persona singolare e
+terza persona plurale dell'indicativo presente », review-lingua-italian-wording, through
+`ReadingWords.bothNumbers`); a list puts a comma, not a second « e », before a name that joins two
+itself (« plurale, maschile e femminile plurale di grande »); « di » contracts with a tense's article (« del passato remoto »,
 « dell'indicativo imperfetto ») and never elides before a word of the page (« di eat »); « può anche
 essere » takes each name's article (« il passato semplice », « l'infinito », « la forma in -ing »).
 Pinned on the real packs' readings by `test/word-card-grammar-it.spec.ts`, grammar lines only.
@@ -220,13 +223,20 @@ ore », whose article never elides (« alle ore 13:05 »); a count follows the f
 Terms, from Cymbra Music's Italian (`apps/music/lib/l10n/app_it.arb`) where it has them:
 Impostazioni (Réglages), Accedi / Esci, Annulla, Riprova, account, Email, Password; and mazzo (deck),
 carta (card — « scheda » is the browser's tab), ripasso / ripassare, parole conosciute / sconosciute,
-parole in apprendimento (« mots en cours »), evidenziazione (surlignage), livello, QCER (CEFR), pannello
-laterale, biblioteca, nome utente (pseudo), account collegati, sincronizzazione, badge (pastille),
-pacchetto (the dictionary pack), modello, traduzione estesa / online. The voice help's Windows and
-macOS menu paths and Firefox's consent name are unverified (`it/settings.ts`). Provisional choices of the owner
-(2026-10-26), checked when the interface is shown (change 45): « nome utente », where Music says
-« Handle »; « Stats » in the HUD and the drawer, as the Spanish; the unverified paths stay marked until
-change 45 or 44 checks them.
+parole in apprendimento (« mots en cours »), evidenziazione (surlignage), livello, QCER (CEFR),
+pannello di ripasso sulla pagina (the drawer), riquadro laterale (the browser's side panel, Chrome's
+own word — « pannello » stays for Lingua's panels), acquisisci la selezione (capturer la sélection),
+biblioteca, nome utente (pseudo), account collegati, sincronizzazione, badge (pastille), pacchetto
+(the dictionary pack), modello, traduzione estesa / online. One word per concept across every Italian
+surface: the glossary, `test/italian-glossary.json` (presented by `docs/lingua/italian-glossary.md`,
+review-lingua-italian-wording), names each concept's accepted and refused forms, and
+`test/italian-glossary.spec.ts` holds this catalogue, `_locales/it` and the Safari app's activation
+page to it. The voice help's Windows and macOS menu paths, Firefox's consent name
+(`it/settings.ts`) and the onboarding's « Fissa » (`it/onboarding.ts`) are unverified. Choices of the
+owner (2026-10-26), kept by change 44's pass and checked in the dogfood of the release that shows the
+interface (change 45): « nome utente », where Music says « Handle »; « Stats » in the HUD and the
+drawer, where the French writes « Stats », as the Spanish; the unverified paths stay marked until that
+dogfood checks them.
 
 ## What is the same everywhere
 

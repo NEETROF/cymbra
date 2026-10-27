@@ -17,10 +17,11 @@ const DELETION: Record<Lang, string> = {
   fr: "/suppression-compte",
   en: "/en/delete-account",
   es: "/es/eliminar-cuenta",
+  it: "/it/elimina-account",
 };
 // Astro gives the root `404.astro` its special filename; `localised404()` copies the
 // others to `dist/<locale>/404.html`, outside `outputFileFor`'s one-directory-per-page rule.
-const NOT_FOUND: Record<Lang, string> = { fr: "404.html", en: "en/404.html", es: "es/404.html" };
+const NOT_FOUND: Record<Lang, string> = { fr: "404.html", en: "en/404.html", es: "es/404.html", it: "it/404.html" };
 
 const read = (file: string) => readFileSync(resolve(dist, file), "utf8");
 
@@ -45,14 +46,20 @@ describe("each locale's pages say their language", () => {
   // The Lingua leaving page (change: add-lingua-usage-counts, D12): the question in the
   // page's language, its island told the same language, and kept out of search results like
   // the site's other utility pages. The answers are fixed: no field to type in.
-  const LEAVING: Record<Lang, string> = { fr: "/lingua/au-revoir/", en: "/en/lingua/goodbye/", es: "/es/lingua/adios/" };
+  const LEAVING: Record<Lang, string> = {
+    fr: "/lingua/au-revoir/",
+    en: "/en/lingua/goodbye/",
+    es: "/es/lingua/adios/",
+    it: "/it/lingua/arrivederci/",
+  };
   const QUESTION: Record<Lang, string> = {
     fr: "Pourquoi quittez-vous Cymbra Lingua ?",
     en: "Why are you leaving Cymbra Lingua?",
     es: "¿Por qué dejas Cymbra Lingua?",
+    it: "Perché lasci Cymbra Lingua?",
   };
   /** The block the plain form is sent back to (`thanks_path` in backend/server/src/web_lingua.rs). */
-  const THANKS: Record<Lang, string> = { fr: "merci", en: "thanks", es: "gracias" };
+  const THANKS: Record<Lang, string> = { fr: "merci", en: "thanks", es: "gracias", it: "grazie" };
   for (const lang of LANGS) {
     it(`${lang}: the leaving page asks its question in ${lang}, with six answers and no field`, () => {
       const html = read(outputFileFor(LEAVING[lang]));
@@ -85,10 +92,12 @@ describe("each locale's pages say their language", () => {
 
   // The Spanish home and Music pages (change: extend-site-spanish-locale, D1): static
   // pages, in Spanish, mounting no island.
-  for (const path of ["/es/", "/es/music"]) {
-    it(`es: ${path} is <html lang="es"> and mounts no island`, () => {
+  // And the Italian ones (change: add-site-italian-locale, D4).
+  for (const path of ["/es/", "/es/music", "/it/", "/it/music"]) {
+    const lang = path.slice(1, 3);
+    it(`${lang}: ${path} is <html lang="${lang}"> and mounts no island`, () => {
       const html = read(outputFileFor(path));
-      expect(html).toContain('<html lang="es"');
+      expect(html).toContain(`<html lang="${lang}"`);
       expect(html).not.toContain("<astro-island");
     });
   }

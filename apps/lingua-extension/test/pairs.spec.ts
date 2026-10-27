@@ -43,6 +43,8 @@ const ITALIAN = [...FRENCH, "it-fr"];
 const ITALIAN_EN = [...ITALIAN, "it-en"];
 /** That list beside Italian glossed in Spanish, last: packs.json since enable-lingua-italian-for-spanish-speakers. */
 const ITALIAN_ES = [...ITALIAN_EN, "it-es"];
+/** That list beside English glossed in Italian, last: packs.json since enable-lingua-italian-speakers. */
+const ENGLISH_IT = [...ITALIAN_ES, "en-it"];
 
 describe("the pair that serves a language", () => {
   it("is the first listed pair that studies it, glossed in the reader's native language", () => {
@@ -182,8 +184,8 @@ describe("the pairs of a native language", () => {
     expect(defaultPair("es", MIXED)).toBeNull();
   });
 
-  it("are, in the bundle's list, French's three pairs, English's three and Spanish's three, Italian last (enable-lingua-italian, enable-lingua-italian-for-english-speakers, enable-lingua-italian-for-spanish-speakers)", () => {
-    expect(SHIPPED_PAIRS).toEqual(ITALIAN_ES);
+  it("are, in the bundle's list, French's three pairs, English's three, Spanish's three and Italian's one, Italian last (enable-lingua-italian, enable-lingua-italian-for-english-speakers, enable-lingua-italian-for-spanish-speakers, enable-lingua-italian-speakers)", () => {
+    expect(SHIPPED_PAIRS).toEqual(ENGLISH_IT);
     // A French-native reader — every installed reader (M22) — keeps their default, and is offered
     // Italian after Spanish (enable-lingua-italian D1).
     expect(DEFAULT_NATIVE).toBe("fr");
@@ -200,6 +202,18 @@ describe("the pairs of a native language", () => {
     // default.
     expect(pairsOf("es")).toEqual(["en-es", "fr-es", "it-es"]);
     expect(defaultPair("es")).toBe("en-es");
+    // An Italian-native reader studies English through en-it (enable-lingua-italian-speakers D1),
+    // their default and only studied language.
+    expect(pairsOf("it")).toEqual(["en-it"]);
+    expect(defaultPair("it")).toBe("en-it");
+  });
+
+  it("are, on enable-lingua-italian-for-spanish-speakers' list, none for an Italian speaker: en-it came after it-es (enable-lingua-italian-speakers)", () => {
+    expect(pairsOf("it", ITALIAN_ES)).toEqual([]);
+    expect(defaultPair("it", ITALIAN_ES)).toBeNull();
+    for (const native of ["fr", "en", "es"] as const) {
+      expect(pairsOf(native, ITALIAN_ES)).toEqual(pairsOf(native, ENGLISH_IT));
+    }
   });
 
   it("are, on enable-lingua-italian-for-english-speakers' list, Spanish's two: it-es came after it-en (enable-lingua-italian-for-spanish-speakers)", () => {
@@ -235,12 +249,14 @@ describe("the shipped natives (add-lingua-native-language-choice D1)", () => {
     expect(shippedNatives(FRENCH)).toEqual(["fr", "en", "es"]); // the French pairs add no native language
     expect(shippedNatives(ITALIAN)).toEqual(["fr", "en", "es"]); // nor does it-fr (enable-lingua-italian D7)
     expect(shippedNatives(ITALIAN_EN)).toEqual(["fr", "en", "es"]); // nor it-en
+    expect(shippedNatives(ITALIAN_ES)).toEqual(["fr", "en", "es"]); // nor it-es
+    expect(shippedNatives(ENGLISH_IT)).toEqual(["fr", "en", "es", "it"]); // en-it adds Italian
     expect(shippedNatives(["es-en", "en-fr", "en-es"])).toEqual(["en", "fr", "es"]);
     expect(shippedNatives([])).toEqual([]);
   });
 
-  it("count three in the bundle's list: French first (M22), English, then Spanish (enable-lingua-spanish-speakers; enable-lingua-french, enable-lingua-italian and enable-lingua-italian-for-english-speakers add none)", () => {
-    expect(shippedNatives()).toEqual([DEFAULT_NATIVE, "en", "es"]);
+  it("count four in the bundle's list: French first (M22), English, Spanish (enable-lingua-spanish-speakers; enable-lingua-french, enable-lingua-italian, enable-lingua-italian-for-english-speakers and enable-lingua-italian-for-spanish-speakers add none), then Italian (enable-lingua-italian-speakers)", () => {
+    expect(shippedNatives()).toEqual([DEFAULT_NATIVE, "en", "es", "it"]);
   });
 
   it("are read the same by the build (tool/packs.mjs)", () => {
@@ -251,6 +267,8 @@ describe("the shipped natives (add-lingua-native-language-choice D1)", () => {
       FRENCH,
       ITALIAN,
       ITALIAN_EN,
+      ITALIAN_ES,
+      ENGLISH_IT,
       ["es-en", "en-fr", "en-es"],
       ["en-fr-x", "en"],
     ]) {

@@ -19,7 +19,8 @@ extension (see `openspec/changes/add-lingua-apple`).
   there); macOS shows the real state (`SFSafariExtensionManager`) and opens Safari's
   settings on the extension (`SFSafariApplication.showPreferencesForExtension`). Its copy
   is one table per language, `Resources/copy.js` (fr byte for byte the markup's, en, es
-  and it drafts — Italian held ahead of en-it, `localise-lingua-apple-host-italian`), which fills the page on `DOMContentLoaded` in the language `ViewController`
+  and it drafts — Italian held ahead of en-it by `localise-lingua-apple-host-italian`, shown
+  since en-it ships, `enable-lingua-italian-speakers`), which fills the page on `DOMContentLoaded` in the language `ViewController`
   injects before load: the extension's interface language once the extension has run
   (its native handler keeps it in the App Group, `interface.language`), the device's
   before — among the declared languages only, English once English ships and French
@@ -33,8 +34,9 @@ extension (see `openspec/changes/add-lingua-apple`).
   Store's "Languages" line shows — and `CFBundleDevelopmentRegion` (`en` once English
   ships, `fr` otherwise) into the processed plist, only when it holds something else; a
   native is 2–3 lowercase letters, or the build fails. The app holds copy in fr, en, es and
-  it (Italian from `localise-lingua-apple-host-italian`: inert until a pair glossed in
-  Italian ships, en-it); another native is declared after them, with a warning. While every shipped native is
+  it, and declares `[fr, en, es, it]` since en-it ships (Italian offered from this release,
+  `enable-lingua-italian-speakers`; its copy held ahead of it by
+  `localise-lingua-apple-host-italian`); another native is declared after them, with a warning. While every shipped native is
   French, the plist is never touched — left as Xcode generated it: the source plist's
   `[fr]` on the apps, none on the extensions, and `en` — the project's development
   language, which Xcode writes over the source's `fr` — as the region. So the Swift side

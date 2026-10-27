@@ -381,6 +381,15 @@ describe("The committed catalogue's routes: a model is deleted only when a third
     expect(pairs(residency).sort()).toEqual(["en-es", "fr-es"]);
   });
 
+  it("An Italian-native reader of English: en-it's one model, held, nothing deleted (enable-lingua-italian-speakers D4)", () => {
+    const EN_IT = "en-it/base-memory/2.1";
+    expect(committed("en-it")).toEqual({ pair: "en-it", models: [EN_IT] });
+    const { steps, residency } = walk(["en-it", "en-it"]);
+    for (const step of steps) expect(step, step.pair).toMatchObject({ evict: [], drop: [] });
+    expect([...heldModels(residency)]).toEqual([EN_IT]);
+    expect(pairs(residency)).toEqual(["en-it"]);
+  });
+
   it("A French-native reader of English and Spanish, as before: en-fr and es-fr, nothing deleted", () => {
     const { steps } = walk(["en-fr", "es-fr", "en-fr", "es-fr"]);
     for (const step of steps) expect(step, step.pair).toMatchObject({ evict: [], drop: [] });

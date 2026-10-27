@@ -58,7 +58,7 @@ taken again.
 | `fr-en` | `fr-en/base-memory/2.0`                                                 | yes, since change 52 (French studied)                        |
 | `fr-es` | `fr-en/base-memory/2.0`, then `en-es/base-memory/2.1` — through English | yes, since change 52 (French studied)                        |
 | `it-en` | `it-en/base-memory/2.0`                                                 | yes, since the Italian programme's row 25 (English speakers) |
-| `en-it` | `en-it/base-memory/2.1`                                                 | not yet: the Italian programme's row 45                      |
+| `en-it` | `en-it/base-memory/2.1`                                                 | yes, since the Italian programme's row 45 (Italian speakers) |
 | `it-fr` | `it-en/base-memory/2.0`, then `en-fr/base-memory/2.0` — through English | yes, since the Italian programme's row 20 (Italian studied)  |
 | `it-es` | `it-en/base-memory/2.0`, then `en-es/base-memory/2.1` — through English | yes, since the Italian programme's row 30 (Spanish speakers) |
 | `fr-it` | `fr-en/base-memory/2.0`, then `en-it/base-memory/2.1` — through English | not yet: the Italian programme's row 50                      |
@@ -99,9 +99,12 @@ en-it's (52,750,887) — two models each, as es-fr and fr-es. it-fr ships since 
 programme's row 20 (`enable-lingua-italian`): a French-native reader who accepts Italian downloads
 it-en's model beside en-fr's. it-en ships since row 25 (`enable-lingua-italian-for-english-speakers`),
 its one model, and it-es since row 30 (`enable-lingua-italian-for-spanish-speakers`): a Spanish-native
-reader who accepts Italian downloads it-en's model beside en-es's. No pair of `packs.json` is glossed
-in Italian, so no reader's pairs need the three other routes: nothing is downloaded, kept or loaded
-for them until the programme ships their pairs — en-it in row 45, fr-it in row 50 and es-it in row 54. The model host must serve both models before any package or App Store build whose
+reader who accepts Italian downloads it-en's model beside en-es's. en-it ships since row 45
+(`enable-lingua-italian-speakers`), its one model: an Italian-native reader who accepts English
+downloads en-it's files, 26,509,835 bytes, and the setting says « circa 200 MB ». No other pair of
+`packs.json` is glossed in Italian, so no reader's pairs need the two other routes: nothing is
+downloaded, kept or loaded for them until the programme ships their pairs — fr-it in row 50 and es-it
+in row 54. The model host must serve both models before any package or App Store build whose
 catalogue names them is released: the owner dispatches `lingua-model-deploy` right after the merge,
 and until then the release gates refuse (`add-lingua-italian-translation-models` D6).
 
@@ -123,7 +126,8 @@ below: three models, two at a time, and the setting says « environ 340 Mo », t
 (`enable-lingua-italian-for-english-speakers`), and the Spanish row since row 30
 (`enable-lingua-italian-for-spanish-speakers`): a Spanish-native reader of Italian alone downloads
 it-en's and en-es's files, 51,615,655 B (51,6 MB), « unos 340 MB » as for three. The Italian row waits
-for its pairs:
+for fr-it and es-it; until then an Italian-native reader holds en-it alone (row 45,
+`enable-lingua-italian-speakers`):
 
 | Native  | Pairs               | Models              | Download               |
 | ------- | ------------------- | ------------------- | ---------------------- |
@@ -170,8 +174,12 @@ the same selections through it-en then en-es and judged in Spanish (row 29,
 `measure-lingua-it-es-translation-marks`): 90 of its 95 shown marks correct (86 of 95 with its
 doubtful lines counted wrong), 5 % withheld, on the first tier — a blind second judge agreed on every
 line —, listed ahead of its readers too, inert until row 30
-(`enable-lingua-italian-for-spanish-speakers`) listed it-es, marked since. Rows 38, 49 and 53 measure the other
-Italian pairs through their routes before they ship.
+(`enable-lingua-italian-for-spanish-speakers`) listed it-es, marked since. en-it is measured on the
+English selections through its one model and judged in Italian by two agent judges, the second blind
+to the first (row 38, `measure-lingua-en-it-translation-marks`): 94 of its 96 shown marks correct
+(88 of 96 with its doubtful lines counted wrong), 4 % withheld, on the first tier — listed ahead of
+its readers, inert until row 45 (`enable-lingua-italian-speakers`) listed en-it, marked since. Rows 49 and 53
+measure fr-it and es-it through their routes before they ship.
 
 It is bundled, so the reviewed package decides what is accepted; the host only serves bytes. The
 setting's cost (« Télécharge 25,8 Mo une fois ») is computed from it, and so is what the build, the
@@ -424,6 +432,17 @@ committed English, French or Spanish corpus trapped en-it 2.1, fr-it or es-it in
 engine build, isolated or in one instance; the browsers' workers were not run. The rows that ship
 these pairs (45, 50 and 54) read these figures; they decide nothing here, and a trap on another
 input still costs the reader one respawn.
+
+Row 38 (`measure-lingua-en-it-translation-marks` D2) soaked en-it again before measuring its marks
+(2026-10-26), with the six models assembled again from Mozilla's registry by
+`tool/assemble_model_site.mjs` (every pin held), the same engine (`.wasm` `7ef4b3fd…`), machine and
+Node: isolated, 100 / 100 translated, 0 trapped, 0 timed out, 152 / 155 / 197 ms per sentence, 395.1
+MiB (the highest child's), 46 s; in one instance, 100 / 100, 0 trapped, 34 / 37 / 175 ms, 415.4 MiB
+(this process's), 4.4 s — the figures above, within the machine's load (a one-minute average between
+4.0 and 4.8). The marks measurement that followed (`tool/measure_marks.mjs --pair en-it`, the same
+session) asked every English selection twice through one engine: no request trapped, every fragment
+was reconciled, and `tool/marks/README.md` lists no trapped selection. Its marks, judged in Italian:
+94 of 96 shown correct, 4 % withheld; two runs gave the same results byte for byte.
 
 The it-en model is soaked below, over the Italian selections.
 

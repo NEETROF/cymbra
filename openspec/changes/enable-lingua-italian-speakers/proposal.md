@@ -54,12 +54,12 @@ None.
 
 - `lingua-browser-extension`: ADDED *English is studied by readers of Italian*.
 - `lingua-data-packs`: MODIFIED *The shipped pairs are one list* (held by
-  `enable-lingua-italian-for-english-speakers`). RENAMED change 36's *en-it is committed beside
+  `enable-lingua-italian-for-spanish-speakers`, which listed it-es first: en-it follows it). RENAMED change 36's *en-it is committed beside
   English's studied tables, held to a coverage floor, and not shipped* to « …, and shipped once Italian
   is an interface language », as changes 25 and 30 rename their twins (amended by change 30's pull
   request).
 - `lingua-translation`: MODIFIED *The setting's memory follows the models the reader's pairs need*
-  (held by `enable-lingua-italian-for-english-speakers`).
+  (held by `enable-lingua-italian-for-spanish-speakers`).
 - `lingua-interface-language`:
   - MODIFIED *The interface language is the reader's native language, under its own key* (held by no
     open change);

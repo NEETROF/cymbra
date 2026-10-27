@@ -23,7 +23,7 @@
 
 - [x] 4.1 `crates/lingua-wasm/tests/en_it_baseline.rs` and `baseline/en-it.golden` (en-es's 40 extra lemmas; the studied side en-fr's), blessed in task 3.2's pull request; `cross_native.rs` with en-it; both workflows run it (D8).
 - [x] 4.2 `crates/lingua-pack/tests/committed_tables.rs`: en-it built to its pin, its credits, listed in no package while the list does not name it; `scripts/lingua-data/testdata/en-it/` (`pipeline_testdata.rs`); `tables/en-fr/README.md` names en-it among the pairs reading `../en/`.
-- [ ] 4.3 `apps/lingua-extension/test/row-gloss-tables.spec.ts` with en-it; `test/word-card-en-it.spec.ts` and `test/baseline/word-card-en-it.txt`, the card in Italian over en-it's golden, re-blessed with it (D8). — The row cut is done (no row empty or ending on an opening mark); the card in Italian waits for the Italian interface and renderer (changes 33 and 34: no `src/i18n/it` on `main`).
+- [x] 4.3 `apps/lingua-extension/test/row-gloss-tables.spec.ts` with en-it; `test/word-card-en-it.spec.ts` and `test/baseline/word-card-en-it.txt`, the card in Italian over en-it's golden, re-blessed with it (D8). — The row cut is done (no row empty or ending on an opening mark); the card in Italian waits for the Italian interface and renderer (changes 33 and 34: no `src/i18n/it` on `main`). Done by change 37 (refine-lingua-en-it-glosses, its task 2.1, D15): `test/word-card-en-it.spec.ts` and its snapshot, blessed over this change's tables, and its line in `lingua-pack-update.yml`'s bless step.
 
 ## 5. Gates
 

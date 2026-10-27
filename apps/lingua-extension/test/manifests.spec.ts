@@ -30,7 +30,7 @@ const WITH_ITALIAN = [...WITH_FRENCH, "it-fr"];
 const WITH_IT_EN = [...WITH_ITALIAN, "it-en"];
 /** That list beside Italian glossed in Spanish, last: packs.json since enable-lingua-italian-for-spanish-speakers. */
 const WITH_IT_ES = [...WITH_IT_EN, "it-es"];
-/** That list beside the first Italian-glossed pair, en-it (change 45 lists it; localise-lingua-manifest-italian D3). */
+/** That list beside the first Italian-glossed pair, en-it: packs.json since enable-lingua-italian-speakers (localise-lingua-manifest-italian D3). */
 const WITH_EN_IT = [...WITH_IT_ES, "en-it"];
 
 type Manifest = Record<string, unknown> & {
@@ -94,11 +94,19 @@ describe("the committed messages (localise-lingua-manifest D1)", () => {
   });
 });
 
-describe("the Italian messages, inert until a pair glossed in Italian ships (localise-lingua-manifest-italian D3, D5)", () => {
-  it.each(TARGETS)("%s: today's list carries no `_locales/it`, and no manifest reads from it", (target) => {
-    const { locales } = step(target, shippedPairs());
+describe("the Italian messages, carried once a pair glossed in Italian ships (localise-lingua-manifest-italian D3, D5)", () => {
+  it.each(TARGETS)("%s: the list before en-it carries no `_locales/it`, and no manifest reads from it", (target) => {
+    const { locales } = step(target, WITH_IT_ES);
     expect(locales).not.toContain("it");
   });
+
+  it.each(TARGETS)(
+    "%s: packs.json, which lists en-it, carries `_locales/it` (enable-lingua-italian-speakers)",
+    (target) => {
+      const { locales } = step(target, shippedPairs());
+      expect(locales).toContain("it");
+    },
+  );
 
   it.each(TARGETS)(
     "%s: en-it listed carries `_locales/it` beside the other natives, English the default, every reference resolving",
@@ -283,11 +291,11 @@ describe("the manifest step once es-en ships (the scenario *An English-glossed p
     expect(manifest.default_locale).toBe("en");
   });
 
-  it("runs on packs.json, which lists es-en since change 34, en-es since change 35, fr-en and fr-es since change 52, then it-fr (enable-lingua-italian), it-en (enable-lingua-italian-for-english-speakers) and it-es (enable-lingua-italian-for-spanish-speakers)", () => {
-    expect(shippedPairs()).toEqual(WITH_IT_ES);
+  it("runs on packs.json, which lists es-en since change 34, en-es since change 35, fr-en and fr-es since change 52, then it-fr (enable-lingua-italian), it-en (enable-lingua-italian-for-english-speakers), it-es (enable-lingua-italian-for-spanish-speakers) and en-it (enable-lingua-italian-speakers)", () => {
+    expect(shippedPairs()).toEqual(WITH_EN_IT);
     for (const target of TARGETS) {
       const { manifest, locales } = step(target, shippedPairs());
-      expect(locales).toEqual(["fr", "en", "es"]); // the shipped natives in listed order
+      expect(locales).toEqual(["fr", "en", "es", "it"]); // the shipped natives in listed order
       expect(manifest.default_locale).toBe("en"); // M13: English, the first `_locales` change 34 shipped
       expect(manifest.description).toBe(`__MSG_${DESCRIPTION_MESSAGE}__`);
     }

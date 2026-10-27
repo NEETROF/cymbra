@@ -3828,13 +3828,15 @@ fn spec_scenario_it_es_s_glosses_refined() {
 #[test]
 fn spec_scenario_it_es_is_shipped_once_italian_is_enabled_for_spanish_speakers() {
     // No package listed it-es while the list of shipped pairs did not name it (D11); change 30
-    // (enable-lingua-italian-for-spanish-speakers D1) lists it, last, with its `testdata/it-es/`,
-    // the it-fr fixture glossed in Spanish.
+    // (enable-lingua-italian-for-spanish-speakers D1) lists it right after it-en — last until change
+    // 45 (enable-lingua-italian-speakers) listed en-it after it —, with its `testdata/it-es/`, the it-fr
+    // fixture glossed in Spanish.
     let packs = json(
         &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../apps/lingua-extension/packs.json"),
     );
     let pairs = packs["pairs"].as_array().unwrap();
-    assert_eq!(pairs.last().unwrap(), "it-es", "{pairs:?}");
+    let it_en = pairs.iter().position(|p| p == "it-en").unwrap();
+    assert_eq!(pairs[it_en + 1], "it-es", "{pairs:?}");
     assert!(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../scripts/lingua-data/testdata/it-es")
@@ -3845,7 +3847,8 @@ fn spec_scenario_it_es_is_shipped_once_italian_is_enabled_for_spanish_speakers()
 
 // en-it (add-lingua-pack-en-it, the Italian programme's change 36): English glossed in Italian, the first
 // pair glossed in Italian, from the Italian Wiktionary's English section and the two Wiktionaries'
-// translation tables. Its first update wrote its folder whole (D7); no package lists it before change 45.
+// translation tables. Its first update wrote its folder whole (D7); no package listed it before change 45
+// (enable-lingua-italian-speakers), which lists it (D11).
 
 /// en-it's pack, whole and as its base and layer, built once per test binary.
 fn en_it() -> &'static (Vec<u8>, SplitPack) {
@@ -3906,12 +3909,14 @@ fn spec_scenario_english_glossed_in_italian() {
             "en-it: en/{name}"
         );
     }
+    // Change 37 (refine-lingua-en-it-glosses D1): en-it's own rules, in a module no other pair loads.
     assert_eq!(
         pin["reducer"]["files"],
         serde_json::json!([
             "reduce-en-it.py",
             "reduce_common.py",
-            "reduce_edition_it.py"
+            "reduce_edition_it.py",
+            "reduce_english_it.py"
         ])
     );
     // Its own fetch, under its own release: the Italian Wiktionary's English section and English
@@ -3957,6 +3962,96 @@ fn spec_scenario_english_glossed_in_italian() {
 }
 
 #[test]
+fn spec_scenario_en_it_s_glosses_refined() {
+    // Change 37 (refine-lingua-en-it-glosses), re-reduced at en-it's pin: the requirements' scenarios
+    // as the committed rows read them — the part of speech two signals agree on (D2), the missing main
+    // sense and a row of descriptions (D3), the reviewed rows (D4, D12, a person's « (a lot) » among
+    // them), frames, names, heraldry, expansions and repeats out (D5–D10), contractions read as
+    // pointers (D11) — and what no rule moves.
+    let glossed = tsv(&tables().join("en-it/gloss.tsv"));
+    for (lemma, gloss) in [
+        ("prove", "dimostrare, provare"),
+        ("its", "suo; possessivo di it"),
+        ("rescue", "salvare; salvataggio"),
+        ("goddamn", "dannato, maledetto"),
+        ("my", "il mio, la mia, i miei, le mie"),
+        ("summer", "estate"),
+        ("john", "Giovanni (nome)"),
+        (
+            "side",
+            "lato; faccia di una medaglia; allearsi; schierarsi; sgrossare",
+        ),
+        ("uk", "Regno Unito"),
+        ("national", "nazionale"),
+        ("mx", "signor/a"),
+        ("disposable", "monouso, usa e getta"),
+        ("some", "qualche, alcuni, alcune; del, della"),
+        ("trash", "spazzatura, immondizia, rifiuti; scartare"),
+        ("you're", "contrazione di you are"),
+        (
+            "how'd",
+            "contrazione di how did; contrazione di how would; contrazione di how had",
+        ),
+        ("doesn't", "contrazione di does not"),
+        (
+            "audio",
+            "relativo all'ascolto, alla riproduzione sonora; sonoro, audio, segnale sonoro",
+        ),
+    ] {
+        assert_eq!(glossed[lemma], gloss, "en-it: {lemma}");
+    }
+    for (lemma, opening) in [
+        ("make", "fare, creare, fabbricare; "),
+        (
+            "that",
+            "quello, quella; che, il quale, la quale, i quali, le quali; ",
+        ),
+        ("can", "potere; latta, lattina, scatola, barattolo; "),
+        ("lot", "molto, parecchio (a lot); lotto; "),
+    ] {
+        assert!(
+            glossed[lemma].starts_with(opening),
+            "en-it: {lemma} « {} »",
+            glossed[lemma]
+        );
+    }
+    assert!(glossed["make"].ends_with("; marca"), "en-it: make");
+    // Round 2 (the specialist's review of the gloss diff): a reviewed row holds its order, and the rows
+    // read worse open on a source's words.
+    for (lemma, gloss) in [
+        ("henry", "Enrico (nome); henry"),
+        ("intense", "intenso"),
+        ("spare", "di scorta, di ricambio; risparmiare; ricambio"),
+        ("whenever", "ogni volta che; in qualsiasi momento"),
+        ("ash", "cenere; frassino; cenerino"),
+    ] {
+        assert_eq!(glossed[lemma], gloss, "en-it: {lemma}");
+    }
+    for (lemma, opening) in [
+        ("cop", "poliziotto; "),
+        ("express", "esprimere; "),
+        ("cope", "affrontare, far fronte; resistere, fronteggiare; "),
+        ("so", "così, molto; "),
+    ] {
+        assert!(
+            glossed[lemma].starts_with(opening),
+            "en-it: {lemma} « {} »",
+            glossed[lemma]
+        );
+    }
+    assert!(
+        glossed["csi"].starts_with("California Security Institute; "),
+        "a list of expansions stays"
+    );
+    for lemma in ["i's", "you's", "women's", "someone's", "n't"] {
+        assert!(
+            !glossed.contains_key(lemma),
+            "en-it: {lemma} is no contraction"
+        );
+    }
+}
+
+#[test]
 fn spec_scenario_the_credits_of_en_it() {
     // en-it's notice names both sides' sources: the studied side as en-es's notice credits it and the
     // native side — the Italian Wiktionary's definitions and English translations, the English
@@ -3994,14 +4089,17 @@ fn spec_scenario_the_credits_of_en_it() {
 }
 
 #[test]
-fn spec_scenario_en_it_is_not_shipped() {
-    // No package lists en-it while the list of shipped pairs does not name it (D11): change 45, the
-    // Italian interface, lists it. Its fixture, `testdata/en-it/`, is there for the test builds.
+fn spec_scenario_en_it_is_shipped_once_italian_is_an_interface_language() {
+    // No package listed en-it while the list of shipped pairs did not name it (D11); change 45
+    // (enable-lingua-italian-speakers D1), the Italian interface, lists it, last, after it-es. Its
+    // fixture, `testdata/en-it/`, is there for the test builds.
     let packs = json(
         &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../apps/lingua-extension/packs.json"),
     );
     let pairs = packs["pairs"].as_array().unwrap();
-    assert!(!pairs.iter().any(|p| p == "en-it"), "{pairs:?}");
+    assert_eq!(pairs.last().unwrap(), "en-it", "{pairs:?}");
+    let it_es = pairs.iter().position(|p| p == "it-es").unwrap();
+    assert_eq!(pairs[it_es + 1], "en-it", "{pairs:?}");
     assert!(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../scripts/lingua-data/testdata/en-it")

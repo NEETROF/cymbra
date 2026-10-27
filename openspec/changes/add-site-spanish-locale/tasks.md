@@ -13,7 +13,7 @@
 ## 3. Pins and the extension's link
 
 - [x] 3.1 `pinned-routes.ts`: `/suppression-compte/`, `/lingua/`, `/es/eliminar-cuenta/`; `/en/delete-account/`'s `pinnedBy` names Lingua; the README's stale sentence removed (D4).
-- [ ] 3.2 After change 17's `deleteAccountUrl(interfaceLanguage)` has merged: Spanish → `/es/eliminar-cuenta/` (in `account/flow.ts`, or `account/locale.ts` if change 17 moved it); its test (D4).
+- [x] 3.2 After change 17's `deleteAccountUrl(interfaceLanguage)` has merged: Spanish → `/es/eliminar-cuenta/` (in `account/flow.ts`, or `account/locale.ts` if change 17 moved it); its test (D4). Landed by `enable-lingua-italian-speakers` (the Italian programme's change 45, its D2), beside Italian's arm: `deleteAccountUrl` in `account/locale.ts`, `test/account-locale.spec.ts`.
 
 ## 4. Gates, review and docs
 

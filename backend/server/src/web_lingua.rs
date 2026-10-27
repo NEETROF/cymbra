@@ -14,8 +14,8 @@
 //! answers (no free text), `429` past the flood limit, `503` when the counter could not be
 //! written. The flood guard counts every request first, a malformed one included.
 //!
-//! Answers to the form: `303` back to the page's thanks (`#merci`, `#thanks`, `#gracias`, in
-//! the form's `lang`, on the site's origin — the first of `CYMBRA_WEB_ORIGINS`, never an
+//! Answers to the form: `303` back to the page's thanks (`#merci`, `#thanks`, `#gracias`,
+//! `#grazie`, in the form's `lang`, on the site's origin — the first of `CYMBRA_WEB_ORIGINS`, never an
 //! address the request names), whatever happened to the answer, as the script thanks the
 //! reader whatever the backend says; `400` only for an answer that is not one of the six.
 
@@ -77,6 +77,7 @@ fn thanks_path(lang: &str) -> &'static str {
     match lang {
         "en" => "/en/lingua/goodbye/#thanks",
         "es" => "/es/lingua/adios/#gracias",
+        "it" => "/it/lingua/arrivederci/#grazie",
         _ => "/lingua/au-revoir/#merci",
     }
 }
@@ -137,7 +138,7 @@ fn is_form(headers: &HeaderMap) -> bool {
 fn thanks(site: Option<&str>, lang: &str) -> Response {
     match site.and_then(|s| HeaderValue::from_str(&format!("{s}{}", thanks_path(lang))).ok()) {
         Some(location) => (StatusCode::SEE_OTHER, [(LOCATION, location)]).into_response(),
-        None => (StatusCode::OK, "Merci. Thank you. Gracias.").into_response(),
+        None => (StatusCode::OK, "Merci. Thank you. Gracias. Grazie.").into_response(),
     }
 }
 
@@ -335,7 +336,7 @@ mod tests {
             .withf(|_, reason, browser, version, _| {
                 reason == "unclear" && browser == "unknown" && version == "unknown"
             })
-            .times(3)
+            .times(4)
             .returning(|_, _, _, _, _| Ok(()));
         let app = web_lingua_router(
             module(repo, true, 60),
@@ -343,6 +344,8 @@ mod tests {
         );
         for (lang, thanks) in [
             ("es", "https://cymbra.app/es/lingua/adios/#gracias"),
+            // The Italian page (add-site-italian-locale, D8).
+            ("it", "https://cymbra.app/it/lingua/arrivederci/#grazie"),
             ("fr", "https://cymbra.app/lingua/au-revoir/#merci"),
             // A language the site does not have: French, never an address from the request.
             (

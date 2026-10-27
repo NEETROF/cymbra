@@ -4,7 +4,7 @@ import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { Coverage, Routes } from "../../src/lib/lingua-pairs";
 import takenWith from "../fixtures/lingua/taken-with.json";
-import { MATRIX, ROUTES, SIX_PAIRS, TODAY } from "../support/lingua";
+import { EIGHT_AND_EN_IT, MATRIX, ROUTES, SIX_PAIRS, TEN_PAIRS, TODAY } from "../support/lingua";
 import { pinnedMain } from "../support/media.mjs";
 
 // The Lingua pages rendered as the build renders them, through Astro's Container API, on a
@@ -12,7 +12,7 @@ import { pinnedMain } from "../support/media.mjs";
 // `src/data/lingua-coverage.json` and the extension's model catalogue, so the page, its
 // `getStaticPaths()` and the layout's Spanish links all read the same list:
 // - the fixtures' pairs (`test/fixtures/lingua/taken-with.json`, the shipped en-fr, es-fr, es-en, en-es,
-//   fr-en, fr-es, it-fr and it-en):
+//   fr-en, fr-es, it-fr, it-en, it-es and en-it):
 //   `/lingua/` and `/en/lingua/` render the fixtures' `<main>`, byte for byte, whatever the
 //   live data holds (`test/post-build/lingua.spec.ts` checks the built pages against the
 //   same fixtures while the live pairs are the fixtures');
@@ -22,7 +22,8 @@ import { pinnedMain } from "../support/media.mjs";
 //   the Spanish-glossed pair, and the Spanish nav and footer link it — what the build does
 //   since change 35 (enable-lingua-spanish-speakers) ships en-es;
 // - the six pairs (fr-en and fr-es beside the matrix, change 52): the coverage table has a row
-//   per pair inside a box that scrolls on its own (change: add-lingua-french-listings, D8).
+//   per pair inside a box that scrolls on its own (change: add-lingua-french-listings, D8);
+// - en-it beside the eight or nine pairs (enable-lingua-italian-speakers, D6): `/it/lingua/`.
 
 const coverage = vi.hoisted(() => ({ tops: [] as number[], glossed: {} as Record<string, number[]> }));
 const manifest = vi.hoisted(() => ({ routes: {} as Record<string, string[]> }));
@@ -49,6 +50,7 @@ const shipTheFixtures = () => ship(takenWith.coverage, takenWith.routes);
 const shipToday = () => ship(TODAY, ROUTES);
 const shipTheMatrix = () => ship(MATRIX, ROUTES);
 const shipSixPairs = () => ship(SIX_PAIRS, ROUTES);
+const shipTenPairs = () => ship(TEN_PAIRS, ROUTES);
 
 const fixture = (lang: string) => readFileSync(resolve(__dirname, `../fixtures/lingua/main.${lang}.html`), "utf8");
 // The page's `<main>`, its image addresses and script bodies left aside: the Container names them
@@ -185,7 +187,7 @@ describe("the six pairs: a row per pair, in a box that scrolls on its own (chang
     expect(rowHeaders(english)).toEqual(["Spanish → English", "English → French", "Spanish → French", "English → Spanish"]);
   });
 
-  it("fr-en and fr-es shipping beside them (change 52), then it-fr (enable-lingua-italian), it-en (enable-lingua-italian-for-english-speakers) and it-es (enable-lingua-italian-for-spanish-speakers): nine rows in the box, each native's pairs together — the fixtures' table", async () => {
+  it("fr-en and fr-es shipping beside them (change 52), then it-fr (enable-lingua-italian), it-en (enable-lingua-italian-for-english-speakers), it-es (enable-lingua-italian-for-spanish-speakers) and en-it (enable-lingua-italian-speakers): ten rows in the box, each native's pairs together — the fixtures' table", async () => {
     shipTheFixtures();
     const french = await render(FrenchPage);
     expect(main(french)).toContain('<div class="table-scroll">');
@@ -199,6 +201,7 @@ describe("the six pairs: a row per pair, in a box that scrolls on its own (chang
       "Anglais → espagnol",
       "Français → espagnol",
       "Italien → espagnol",
+      "Anglais → italien",
     ]);
     const english = await render(EnglishPage);
     expect(main(english)).toContain('<div class="table-scroll">');
@@ -212,6 +215,48 @@ describe("the six pairs: a row per pair, in a box that scrolls on its own (chang
       "English → Spanish",
       "French → Spanish",
       "Italian → Spanish",
+      "English → Italian",
     ]);
+  });
+});
+
+describe("en-it ships: /it/lingua/ (enable-lingua-italian-speakers, D6; change 42's leftovers)", () => {
+  it("builds /it/lingua/ beside /es/lingua/, and every Lingua page names it", async () => {
+    shipTenPairs();
+    expect(getStaticPaths()).toEqual([{ params: { locale: "es" } }, { params: { locale: "it" } }]);
+    for (const page of [FrenchPage, EnglishPage]) {
+      expect(hreflangs(await render(page))).toEqual([
+        ["fr", "https://cymbra.app/lingua/"],
+        ["en", "https://cymbra.app/en/lingua/"],
+        ["es", "https://cymbra.app/es/lingua/"],
+        ["it", "https://cymbra.app/it/lingua/"],
+      ]);
+    }
+  });
+
+  it("/it/lingua/ is Italian, ten rows, English → Italian first, the scale « QCER », linked from its own nav and footer", async () => {
+    shipTenPairs();
+    const html = await render(localePage, { locale: "it" });
+    expect(html).toContain('<html lang="it">');
+    expect(html).toContain("<title>Cymbra Lingua — arricchisci il tuo vocabolario leggendo il web</title>");
+    expect(headers(html)).toEqual(["Parole più comuni", "5000", "10.000", "20.000"]);
+    const rows = rowHeaders(html);
+    expect(rows).toHaveLength(10);
+    expect(rows[0]).toBe("Inglese → italiano");
+    expect(main(html)).toContain("Pensata per italofoni che imparano l'inglese.");
+    expect(main(html)).toContain("QCER");
+    expect(navLingua(html)).toBe("/it/lingua");
+    expect(footerLingua(html)).toBe("/it/lingua");
+    expect(main(html)).toContain('<source src="/media/lingua/it/demo.mp4" type="video/mp4">');
+  });
+
+  it("Nine pairs on a phone: en-it beside the eight, nine rows on the Italian page, English → Italian first, in the box that scrolls on its own", async () => {
+    ship(EIGHT_AND_EN_IT, ROUTES);
+    const html = await render(localePage, { locale: "it" });
+    expect(main(html)).toContain('<div class="table-scroll">');
+    const rows = rowHeaders(html);
+    expect(rows).toHaveLength(9);
+    expect(rows[0]).toBe("Inglese → italiano");
+    expect(rows).not.toContain("Italiano → spagnolo");
   });
 });

@@ -1,0 +1,26 @@
+---
+// The Lingua leaving page, Italian (change: add-site-italian-locale, D1; add-lingua-usage-counts,
+// D12): the page Chrome and Firefox open when Lingua is removed with its anonymous counts on,
+// `?b=&v=` appended. A pinned route (`src/lib/pinned-routes.ts`), pinned ahead of the first build
+// that compiles it into `LEAVING_PAGES.it` (change 45): an installed build asks for it forever.
+// Built whatever the shipped pairs, unlike `/it/lingua/` (`[locale]/lingua.astro`).
+import Base from '../../../layouts/Base.astro';
+import LeaveReasonIsland from '../../../components/LeaveReasonIsland.vue';
+import LeaveThanks from '../../../components/LeaveThanks.astro';
+import { config } from '../../../lib/config';
+import { t } from '../../../lib/i18n';
+---
+
+<Base
+  title="Arrivederci — Cymbra Lingua"
+  description="Una domanda per chi lascia Cymbra Lingua."
+  lang="it"
+  noindex
+  alternates={{ fr: '/lingua/au-revoir', en: '/en/lingua/goodbye', es: '/es/lingua/adios', it: '/it/lingua/arrivederci' }}
+>
+  <section class="container narrow">
+    <h1>{t('it', 'leaveQuestion')}</h1>
+    <LeaveThanks lang="it" communityUrl={config.discordUrl} />
+    <LeaveReasonIsland client:load lang="it" communityUrl={config.discordUrl} />
+  </section>
+</Base>

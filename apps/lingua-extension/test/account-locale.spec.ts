@@ -38,6 +38,8 @@ import { pageArea, refusingArea } from "./helpers.ts";
 
 const FRENCH_PAGE = "https://cymbra.app/suppression-compte/";
 const ENGLISH_PAGE = "https://cymbra.app/en/delete-account/";
+const SPANISH_PAGE = "https://cymbra.app/es/eliminar-cuenta/";
+const ITALIAN_PAGE = "https://cymbra.app/it/elimina-account/";
 
 /** Music's locales, from its ARB files alone: `apps/music/lib/l10n/app_<code>.arb`. */
 const MUSIC_L10N = join(dirname(fileURLToPath(import.meta.url)), "../../music/lib/l10n");
@@ -271,10 +273,14 @@ describe("accountLocale, once the reader has chosen", () => {
     expect(accountLocale("es", "en-US")).toBe("es");
   });
 
-  it("is the browser's language when Cymbra speaks it and the extension does not", () => {
-    expect(accountLocale("fr", "it-IT")).toBe("it");
-    expect(accountLocale("en", "it")).toBe("it");
-    expect(accountLocale("es", "IT_ch")).toBe("it");
+  it("is the interface language in an Italian browser, since the extension speaks Italian (enable-lingua-italian-speakers D2, I10)", () => {
+    // Every language Cymbra speaks is an interface language: no browser's language is sent instead.
+    expect(CYMBRA_LANGUAGES.filter((code) => !(INTERFACE_LANGUAGES as readonly string[]).includes(code))).toEqual([]);
+    expect(accountLocale("fr", "it-IT")).toBe("fr");
+    expect(accountLocale("en", "it")).toBe("en");
+    expect(accountLocale("es", "IT_ch")).toBe("es");
+    expect(accountLocale("it", "it-IT")).toBe("it");
+    expect(accountLocale("it", "fr-FR")).toBe("it");
   });
 
   it("is the interface language when the browser's language is one Cymbra does not speak", () => {
@@ -303,24 +309,33 @@ describe("accountLanguage: the browser's whole tag until the reader has chosen t
 
   it("chosen: the account locale, and the deletion page by the interface language", () => {
     expect(accountLanguage("fr", "en-GB", "fr")).toEqual({ locale: "fr", deletion: "fr" });
-    expect(accountLanguage("fr", "it-IT", "fr")).toEqual({ locale: "it", deletion: "fr" });
+    expect(accountLanguage("fr", "it-IT", "fr")).toEqual({ locale: "fr", deletion: "fr" });
+    expect(accountLanguage("it", "it-IT", "it")).toEqual({ locale: "it", deletion: "it" });
     expect(accountLanguage("en", "", "en")).toEqual({ locale: "en", deletion: "en" });
   });
 });
 
-describe("deleteAccountUrl, the rule it always had", () => {
-  it("opens the French page for a tag that starts with `fr`, the English one otherwise", () => {
+describe("deleteAccountUrl: the page in the tag's language, English otherwise (enable-lingua-italian-speakers D2)", () => {
+  it("opens the French page for a tag that starts with `fr`, the English one for a language the site has no page in", () => {
     expect(deleteAccountUrl("fr")).toBe(FRENCH_PAGE);
     expect(deleteAccountUrl("fr-CA")).toBe(FRENCH_PAGE);
     expect(deleteAccountUrl("FR-fr")).toBe(FRENCH_PAGE);
     expect(deleteAccountUrl("en")).toBe(ENGLISH_PAGE);
     expect(deleteAccountUrl("en-GB")).toBe(ENGLISH_PAGE);
-    expect(deleteAccountUrl("it-IT")).toBe(ENGLISH_PAGE);
+    expect(deleteAccountUrl("de-DE")).toBe(ENGLISH_PAGE);
+    expect(deleteAccountUrl("")).toBe(ENGLISH_PAGE);
   });
 
-  it("opens the English page for Spanish until the site has a Spanish one", () => {
-    expect(deleteAccountUrl("es")).toBe(ENGLISH_PAGE);
-    expect(deleteAccountUrl("es-ES")).toBe(ENGLISH_PAGE);
+  it("opens the Spanish page for Spanish, the arm add-site-spanish-locale's task 3.2 left to this change", () => {
+    expect(deleteAccountUrl("es")).toBe(SPANISH_PAGE);
+    expect(deleteAccountUrl("es-ES")).toBe(SPANISH_PAGE);
+    expect(deleteAccountUrl("ES_mx")).toBe(SPANISH_PAGE);
+  });
+
+  it("opens the Italian page for Italian", () => {
+    expect(deleteAccountUrl("it")).toBe(ITALIAN_PAGE);
+    expect(deleteAccountUrl("it-IT")).toBe(ITALIAN_PAGE);
+    expect(deleteAccountUrl("it-CH")).toBe(ITALIAN_PAGE);
   });
 });
 
@@ -418,10 +433,16 @@ describe("The account's e-mails follow the interface language", () => {
     expect(french.locales).toEqual(["fr-FR", "fr-FR", "fr-FR", "fr-FR"]);
     expect(french.deleteAccountUrl).toBe(FRENCH_PAGE);
 
+    // The deletion page by the browser's tag, which has an Italian page since
+    // enable-lingua-italian-speakers (D2), and a Spanish one.
     const italian = await sentLocales("fr", "it-IT", null);
     expect(italian.types).toEqual(FOUR_REQUESTS);
     expect(italian.locales).toEqual(["it-IT", "it-IT", "it-IT", "it-IT"]);
-    expect(italian.deleteAccountUrl).toBe(ENGLISH_PAGE);
+    expect(italian.deleteAccountUrl).toBe(ITALIAN_PAGE);
+
+    const spanish = await sentLocales("en", "es-MX", null);
+    expect(spanish.locales).toEqual(["es-MX", "es-MX", "es-MX", "es-MX"]);
+    expect(spanish.deleteAccountUrl).toBe(SPANISH_PAGE);
   });
 
   it("A reader who has not chosen, on one device: their e-mails in English as before, Cymbra Music's language untouched", async () => {
@@ -460,26 +481,38 @@ describe("The account's e-mails follow the interface language", () => {
     const got = await sentLocales("es", "es-ES", "es");
     expect(got.types).toEqual(FOUR_REQUESTS);
     expect(got.locales).toEqual(["es", "es", "es", "es"]);
-    // The English page until the site has a Spanish one (add-site-spanish-locale).
+    // The Spanish page (add-site-spanish-locale, landed by enable-lingua-italian-speakers D2).
     expect(got.deleteAccountUrl).toBe(deleteAccountUrl("es"));
-    expect(got.deleteAccountUrl).toBe(ENGLISH_PAGE);
+    expect(got.deleteAccountUrl).toBe(SPANISH_PAGE);
 
     const id = cymbraId();
     await flowFor(accountLanguage("es", "es-ES", "es"), "es", id.send).signUp("ana@example.com", "a long passphrase");
     expect(id.mails).toEqual(["es"]);
   });
 
-  it("An Italian browser, French chosen: `it`, so Music's Italian e-mails stay Italian; the French page", async () => {
+  it("An Italian browser, French chosen: `fr`, since the extension speaks Italian (I10); the French page", async () => {
     const got = await sentLocales("fr", "it-IT", "fr");
     expect(got.types).toEqual(FOUR_REQUESTS);
-    expect(got.locales).toEqual(["it", "it", "it", "it"]);
+    expect(got.locales).toEqual(["fr", "fr", "fr", "fr"]);
     expect(got.deleteAccountUrl).toBe(FRENCH_PAGE);
 
+    // An account that has a language keeps it: Music's Italian e-mails stay Italian.
     const id = cymbraId();
     id.setLocale("it"); // created in Music, in « Italiano »
     await flowFor(accountLanguage("fr", "it-IT", "fr"), "fr", id.send).requestReset("ana@example.com");
     expect(id.mails).toEqual(["it"]);
     expect(id.account.locale).toBe("it");
+  });
+
+  it("An Italian-native reader, Italian chosen: `it`, Italian e-mails, the page lingua-privacy gives an Italian interface", async () => {
+    const got = await sentLocales("it", "it-IT", "it");
+    expect(got.types).toEqual(FOUR_REQUESTS);
+    expect(got.locales).toEqual(["it", "it", "it", "it"]);
+    expect(got.deleteAccountUrl).toBe(ITALIAN_PAGE);
+
+    const id = cymbraId();
+    await flowFor(accountLanguage("it", "it-IT", "it"), "it", id.send).signUp("ada@example.com", "a long passphrase");
+    expect(id.mails).toEqual(["it"]);
   });
 
   it("A browser in a language Cymbra does not speak: English chosen on a German browser sends `en`", async () => {
@@ -633,7 +666,8 @@ describe("the three lingua-account requirements that carry the locale", () => {
     const at = (got: Awaited<ReturnType<typeof sentLocales>>, type: string): string =>
       got.locales[got.types.indexOf(type)];
     for (const [language, browserLanguage, chosen, locale] of [
-      ["en", "it-IT", "en", "it"],
+      ["en", "it-IT", "en", "en"],
+      ["it", "fr-FR", "it", "it"],
       ["fr", "en-US", null, "en-US"],
     ] as const) {
       const got = await sentLocales(language, browserLanguage, chosen);

@@ -1,13 +1,15 @@
 // What the captures show, per interface language (add-site-lingua-showcase D4, D5): the reader's
-// two studied languages, the page and the book of each, and the words the seed and the shots click.
+// studied languages — two, or one for a reader whose pairs study one (enable-lingua-italian-speakers
+// D5: an Italian reader studies English alone) — the page and the book of each, and the words the
+// seed and the shots click.
 // A word is a whole word of the fixture page; when a listed word is not highlighted (the pack moved
 // and it is now under the reader's level), the next one is used, and the log says so.
 
 /** The interface languages, in the order the tool runs them. */
-export const INTERFACE_LANGUAGES = ["fr", "en", "es"];
+export const INTERFACE_LANGUAGES = ["fr", "en", "es", "it"];
 
 /** The browser locale each run starts with: a new install presets its native language from it. */
-export const LOCALE = { fr: "fr-FR", en: "en-GB", es: "es-ES" };
+export const LOCALE = { fr: "fr-FR", en: "en-GB", es: "es-ES", it: "it-IT" };
 
 /**
  * The time zone every run reads its clock in — the tool's own process and the browser — so that a
@@ -15,8 +17,12 @@ export const LOCALE = { fr: "fr-FR", en: "en-GB", es: "es-ES" };
  */
 export const TIME_ZONE = "Europe/Paris";
 
-/** The two studied languages of each interface language's reader, the first the one the shots lead with. */
-export const STUDIED = { fr: ["en", "es"], en: ["es", "fr"], es: ["en", "fr"] };
+/**
+ * The studied languages of each interface language's reader, the first the one the shots lead with:
+ * two, or one when the reader's pairs study one — the Italian reader studies English alone (en-it,
+ * enable-lingua-italian-speakers D5), and reads a second page in it (`SECOND_PAGES`).
+ */
+export const STUDIED = { fr: ["en", "es"], en: ["es", "fr"], es: ["en", "fr"], it: ["en"] };
 
 /** The reader's level in each studied language. */
 export const LEVEL = "B1";
@@ -150,16 +156,41 @@ export const WORDS = {
  * Where one interface language's shots take other words than `WORDS`' (interface, then studied
  * language): the Spanish set's hero card on `abandoned` opens on a noun sense, « Despreocupación »;
  * the English set's « empreinte » explains itself in a parenthesis, where « couchette » reads
- * "sleeping berth".
+ * "sleeping berth"; the Italian set's review card is `cabins`, « cabina », en-it's `emissions` reading
+ * a dictionary's list of senses (enable-lingua-italian-speakers D5).
  */
 export const OVERRIDES = {
   es: { en: { card: ["vanished", "negotiated"] } },
   en: { fr: { second: ["couchette", "navette"] } },
+  it: { en: { seedDeck: ["narrow", "queues", "charm", "emissions", "cabins", "overnight"] } },
 };
 
 /** The words the shots of `interfaceLanguage` use on `studied`'s page: `WORDS`, then `OVERRIDES`. */
 export function wordsFor(interfaceLanguage, studied) {
   return { ...WORDS[studied], ...(OVERRIDES[interfaceLanguage]?.[studied] ?? {}) };
+}
+
+/**
+ * The second page in a studied language, for a reader who studies it alone (enable-lingua-italian-speakers
+ * D5): a second fixture article (`fixtures/pages/<page>.html`) and the words its `second` shot tries,
+ * as `WORDS`' `second` — a noun, with a translation in the reader's language. Nothing is seeded there.
+ */
+export const SECOND_PAGES = {
+  en: { page: "en-2", second: ["carpenter", "cabinet", "pensioner"] },
+};
+
+/**
+ * The page the `second` shot opens and the words it tries: the second studied language's article, or,
+ * for a reader who studies one language, the second article in it (`SECOND_PAGES`).
+ * @param {string} interfaceLanguage
+ * @returns {{ page: string, studied: string, words: string[] }}
+ */
+export function secondShot(interfaceLanguage) {
+  const [first, second] = STUDIED[interfaceLanguage];
+  if (second !== undefined) return { page: second, studied: second, words: wordsFor(interfaceLanguage, second).second };
+  const other = SECOND_PAGES[first];
+  if (other === undefined) throw new Error(`${interfaceLanguage} studies ${first} alone, which has no second page`);
+  return { page: other.page, studied: first, words: other.second };
 }
 
 /** The book each studied language's reader shot opens (fixtures/books/<language>.txt). */

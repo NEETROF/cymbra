@@ -9,7 +9,7 @@ import { outputFileFor } from "../../src/lib/pinned-routes";
 // head.spec.ts's, for every page.
 
 const dist = resolve(__dirname, "../../dist");
-const MUSIC_PAGES = ["/music", "/en/music", "/es/music"];
+const MUSIC_PAGES = ["/music", "/en/music", "/es/music", "/it/music"];
 
 describe("Music pages: share preview and video behaviour", () => {
   for (const page of MUSIC_PAGES) {

@@ -16,6 +16,7 @@ const DELETE_PAGE: Record<Lang, string> = {
   fr: "/suppression-compte",
   en: "/en/delete-account",
   es: "/es/eliminar-cuenta",
+  it: "/it/elimina-account",
 };
 const deleteHref = DELETE_PAGE[props.lang];
 const {

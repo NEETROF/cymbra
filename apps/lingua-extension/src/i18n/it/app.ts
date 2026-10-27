@@ -30,5 +30,5 @@ export const app: typeof fr = {
   syncOtherAccount: "Safari è collegato a un altro account: i tuoi ripassi passeranno da Safari.",
   syncSafariSignedOut: "Collega anche Safari a questo account per sincronizzare dall'app.",
   syncOlderExtension: "Aggiorna l'estensione di Safari per sincronizzare dall'app.",
-  syncFailed: "Sincronizzazione al momento impossibile: i tuoi ripassi partiranno più tardi.",
+  syncFailed: "Sincronizzazione al momento impossibile: i tuoi ripassi verranno inviati più tardi.",
 };

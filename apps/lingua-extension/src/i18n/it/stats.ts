@@ -41,11 +41,11 @@ export const stats: typeof fr = {
   noCardsAdded: "Nessuna carta aggiunta: queste parole sono già seguite, nel tuo mazzo o senza traduzione.",
   known: "conosciuta",
   ignored: "ignorata",
-  relearn: "Rimetti da imparare",
+  relearn: "Segna come da imparare",
   markedTitle: "Parole segnate",
   noMarked: "Nessuna parola segnata «conosciuta» o «ignorata» per ora.",
   markedNote:
-    "Segnate «conosciuta» o «ignorata» (e quindi non più evidenziate). Rimettine una «da imparare» perché venga segnalata di nuovo. " +
+    "Segnate «conosciuta» o «ignorata» (e quindi non più evidenziate). Segnane una come «da imparare» per vederla di nuovo evidenziata. " +
     "Durante la lettura: Alt/Opzione + clic (o pressione prolungata sullo schermo touch) su una parola per riaprirla.",
 
   vocabularyKnown: "Vocabolario conosciuto",

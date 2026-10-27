@@ -186,7 +186,7 @@ public struct SignInCopy: Sendable {
     private static let it = Table(
         heading: "Accedi a Cymbra Lingua",
         lede: "Accedi per ritrovare le tue parole e i tuoi ripassi su tutti i tuoi dispositivi.",
-        appLede: "Accedi per sincronizzare i ripassi fatti nell'app e usare la traduzione online. Usa lo stesso account di Safari.",
+        appLede: "Accedi per sincronizzare i ripassi fatti nell'app e usare la traduzione online. Usa lo stesso account che usi in Safari.",
         done: "Fatto! Torna su Safari: Cymbra Lingua sta completando l'accesso.",
         browserWaiting:
             "Completa l'accesso nella finestra del browser. Se non si apre nulla, annulla, chiudi il browser e riprova.",

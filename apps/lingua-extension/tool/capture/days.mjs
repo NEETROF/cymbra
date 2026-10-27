@@ -32,22 +32,32 @@ const SECOND = {
   reviews: [0, 5, 0, 0, 5, 0, 0, 0, 6, 0, 0, 5, 0, 0, 0, 5, 0, 0, 5, 0, 8, 0, 0, 5, 5, 0, 0, 6, 0, 0],
 };
 
+/** One studied language's days: both rows read in it, so that every day holds a reading. */
+const ALONE = Object.fromEntries(
+  Object.entries(FIRST).map(([key, values]) => [key, values.map((value, i) => value + SECOND[key][i])]),
+);
+
 /**
- * The thirty UTC days ending on `nowMs`'s, oldest first, each with the counts of the reader's two
- * studied languages, labelled with their native language: the value to store under `DAILY_KEY`.
+ * The thirty UTC days ending on `nowMs`'s, oldest first, each with the counts of the reader's studied
+ * languages — two, or one for a reader who studies one (enable-lingua-italian-speakers D5), who then
+ * reads it every day — labelled with their native language: the value to store under `DAILY_KEY`.
  * `unknownSeen` is a fifth of the words read, as a B1 reader meets them.
- * @param {{ nowMs: number, languages: readonly [string, string], native: string }} options
+ * @param {{ nowMs: number, languages: readonly [string, string] | readonly [string], native: string }} options
  */
 export function recentDays({ nowMs, languages, native }) {
   const today = Math.floor(nowMs / DAY_MS);
   const records = {};
+  const rows =
+    languages.length === 1
+      ? [[languages[0], ALONE]]
+      : [
+          [languages[0], FIRST],
+          [languages[1], SECOND],
+        ];
   for (let i = 0; i < DAYS; i++) {
     const day = today - (DAYS - 1) + i;
     const byLanguage = {};
-    for (const [language, counts] of [
-      [languages[0], FIRST],
-      [languages[1], SECOND],
-    ]) {
+    for (const [language, counts] of rows) {
       const exposures = counts.exposures[i];
       if (exposures === 0 && counts.reviews[i] === 0) continue;
       byLanguage[language] = {

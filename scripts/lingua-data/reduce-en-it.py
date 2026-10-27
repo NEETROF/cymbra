@@ -37,6 +37,21 @@ refinement's, change 37's (D10). The translation tables are read by en-es's read
 direct table's words without the words it labels disused or their translators' notes, the inverted
 table's Italian words listed once per English word, each in the Italian edition's typography.
 
+Change 37 (refine-lingua-en-it-glosses) reads them again with en-it's own rules, `reduce_english_it.py`,
+in three passes, each rule named in its `RULES` (`--rules` runs some alone, as the design measured
+them): the section's entries after the edition's pre-pass — names' notes off common words and given
+names short (D6: 73 rows), heraldry and tinctures (D8: 60), a wiki's text (D9: 1), a state's code
+beside another sense (D13: 3), abbreviations' English expansions (D9: 72), pointers' wording (D7: 11),
+frames before the translation (D5: 59) —; the tables before `native_side` — split forms (D10b: 1) —;
+the rows after it — contractions read as pointers (D11: 55 rows, 54 lemmas gained), the part of speech
+two signals agree on (D2: 199), the missing main part of speech and rows of descriptions opened on the
+English Wiktionary's first sense (D3a: 76, D3b: 45), the reviewed rows `FIRST_RUN` and `CORRECTIONS`
+(D4, D12: 55), repeats last (D10a: 369). Together, over the pinned sources, the design measured 1,035
+rows changed, 618 in their first sense, coverage 92.1 / 83.1 / 70.6 %. Round 2 (the specialist's review
+of the gloss diff, the owner's, 2026-10-26) holds a reviewed row from D2 and D3, adds 15 reviewed rows
+and narrows D5, D6 and D8 by a word each: 1,027 rows changed against change 36's, 613 in their first
+sense, the coverage as round 1's. A reviewed row that finds nothing is named on the summary line.
+
 Outputs, in `--work`: `gloss.tsv`, `senses.tsv`, `mwe.tsv`, `NOTICE` and `manifest.json` — and
 `measures.json`, the translation-table share (D9), which `pack_sources.py split` files nowhere: it is
 shown in the pull request and the tables' README, and stored in no pack.
@@ -49,6 +64,7 @@ the committed tables: when a studied table moves, en-it's pack moves and its che
 """
 
 import argparse
+import collections
 import functools
 import json
 import os
@@ -58,6 +74,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import reduce_common as common  # noqa: E402 — the rules every pair shares
 import reduce_edition_it as italian  # noqa: E402 — the Italian Wiktionary's rules: en-it's glosses are Italian
+import reduce_english_it as refine  # noqa: E402 — en-it's own rules (change 37), no other pair's
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ANALYSIS_RS = os.path.join(_HERE, "..", "..", "crates", "lingua-core", "src", "analysis", "mod.rs")
@@ -418,13 +435,26 @@ def main():
     )
     ap.add_argument("--built-at", required=True, help="yyyy-mm-dd (source snapshot date)")
     ap.add_argument("--pack-version", required=True)
+    ap.add_argument(
+        "--rules",
+        default=",".join(refine.RULES),
+        help="change 37's rules that run, comma-separated (reduce_english_it.RULES, all by default; empty for none): "
+        "a rule measured alone",
+    )
     a = ap.parse_args()
+    rules = tuple(name for name in a.rules.split(",") if name)
+    unknown = [name for name in rules if name not in refine.RULES]
+    if unknown:
+        raise SystemExit(f"error: no such rule of reduce_english_it.py: {', '.join(unknown)}")
 
     # wordfreq orders the inverted table's Italian words, the commonest first, and tells a
     # translator's note holding an Italian word from one holding none (D3).
     from wordfreq import zipf_frequency
 
     frequency = functools.lru_cache(maxsize=None)(lambda w: zipf_frequency(w, EDITION.code))
+    # Change 37's rules read both of wordfreq's lists, English's and Italian's (refine-lingua-en-it-glosses D2, D9).
+    zipf = functools.lru_cache(maxsize=None)(zipf_frequency)
+    stats = collections.Counter()
 
     ranks = read_studied(a.studied, a.max_lemmas)
     readings = read_readings(a.studied)
@@ -432,6 +462,7 @@ def main():
         os.path.join(a.work, "kaikki-it-Inglese.jsonl"), os.path.join(a.work, "kaikki-it-Inglese-words.jsonl")
     )
     entries = italian.read_as_meanings(entries, os.path.join(a.work, "kaikki-it-Inglese-meanings.jsonl"))
+    entries = refine.read_section(entries, os.path.join(a.work, "kaikki-it-Inglese-refined.jsonl"), zipf=zipf, rules=rules, stats=stats)
     direct = read_translated(
         os.path.join(a.work, "kaikki-en-traductions-it.jsonl"),
         os.path.join(a.work, "kaikki-en-traductions-it-words.jsonl"),
@@ -446,8 +477,14 @@ def main():
         frequency=frequency,
         readings=readings,
     )
+    direct, inverted = refine.split_forms(direct, rules, stats), refine.split_forms(inverted, rules, stats)
     sources = [(direct, list), (inverted, by_italian_frequency(frequency))]
     glosses, runs, expressions, steps = native_side(entries, ranks, sources)
+    first = refine.first_senses(os.path.join(a.work, "kaikki-en-traductions-it.jsonl"), italian.typography)
+    generated, unfired = refine.refine_rows(
+        glosses, runs, steps, ranks=ranks, first=first, direct=direct, inverted=inverted, expressions=expressions,
+        zipf=zipf, rules=rules, stats=stats,
+    )  # fmt: skip
     # The runs' parts of speech are the Italian Wiktionary's; English's readings come from the
     # tables the builder reads in tables/en, not from here.
     common.write(a.work, "gloss.tsv", "".join(f"{l}\t{g}\n" for l, g in sorted(glosses.items())))
@@ -494,6 +531,22 @@ def main():
         f"(direct {len(measures['direct'])}, inverted {len(measures['inverted'])})",
         file=sys.stderr,
     )
+    print(
+        "reduced en-it: change 37's rules (" + (", ".join(rules) or "none") + "): "
+        + (", ".join(f"{n} {what}" for what, n in sorted(stats.items())) or "nothing moved"),
+        file=sys.stderr,
+    )
+    print(
+        f"reduced en-it: generated by rule, {len(generated)} contractions read as pointers (D11): {', '.join(generated) or 'none'}; "
+        f"written by a person: " + ", ".join(f"{w} « {g} »" for w, g in refine.BY_A_PERSON.items()),
+        file=sys.stderr,
+    )
+    if "reviewed rows" in rules:
+        print(
+            f"reduced en-it: change 37's reviewed rows: {len(refine.FIRST_RUN)} of FIRST_RUN, {len(refine.CORRECTIONS)} of CORRECTIONS"
+            + (f"; what found nothing, to read again: {'; '.join(unfired)}" if unfired else ", every row fired"),
+            file=sys.stderr,
+        )
 
 
 if __name__ == "__main__":

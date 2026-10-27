@@ -30,10 +30,11 @@ describe("pinned routes survive the build", () => {
 
   it("ships a not-found page in each locale", () => {
     // Cloudflare Pages serves the nearest `404.html` up the requested path. Without
-    // the English (Spanish) one, an unmatched `/en/...` (`/es/...`) answers in French;
+    // the English (Spanish, Italian) one, an unmatched `/en/...` (`/es/...`, `/it/...`)
+    // answers in French;
     // without any, the host falls back to the home page with a 200 and the breakage is
     // invisible.
-    for (const file of ["404.html", "en/404.html", "es/404.html"]) {
+    for (const file of ["404.html", "en/404.html", "es/404.html", "it/404.html"]) {
       expect(existsSync(resolve(dist, file)), `dist/${file} is missing`).toBe(true);
     }
   });
