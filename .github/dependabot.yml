@@ -1,0 +1,82 @@
+# Security updates only, grouped: one pull request per directory instead of one per package.
+#
+# Without this file GitHub opens a PR per vulnerable package. A `dependabot.yml` also switches on
+# *version* updates (a PR for every outdated dependency), so `open-pull-requests-limit: 0` turns those
+# off again and leaves the security updates, which `applies-to: security-updates` then groups.
+#
+# apps/lingua-extension stays its own entry on purpose: any change under it ships a release and a
+# store submission (release-please attributes by path, whatever the commit scope says).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/apps/site"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    groups:
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+  - package-ecosystem: npm
+    directory: "/apps/back-office"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    groups:
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+  - package-ecosystem: npm
+    directory: "/apps/lingua-extension"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    groups:
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+  - package-ecosystem: npm
+    directory: "/packages/web-auth"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    groups:
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+  - package-ecosystem: cargo
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    groups:
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+  - package-ecosystem: pub
+    directory: "/apps/music"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    groups:
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+  - package-ecosystem: pub
+    directory: "/packages/cymbra_flags"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    groups:
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    groups:
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
