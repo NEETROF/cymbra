@@ -16,6 +16,7 @@ import { checkEdit, editedForm } from "@/review/edit.ts";
 import {
   DEFAULT_SPEECH_SETTINGS,
   type SpeechEngine,
+  type SpeechRate,
   type SpeechSettings,
   type VoiceInfo,
   type VoicePreference,
@@ -309,6 +310,7 @@ export function voiceFixture(target: string): VoiceInfo[] {
 export interface FakeUtterance {
   text: string;
   voice: VoiceInfo;
+  rate: SpeechRate;
   done: (error: string | null) => void;
 }
 
@@ -327,7 +329,7 @@ export function makeFakeSpeech(voices: VoiceInfo[] = [], initial: Partial<Speech
   const engine: SpeechEngine = {
     voices: () => listed,
     onVoicesChanged: (listener) => void changed.push(listener),
-    speak: (text, voice, done) => void spoken.push({ text, voice, done }),
+    speak: (text, voice, rate, done) => void spoken.push({ text, voice, rate, done }),
     cancel: () => void cancels++,
   };
   const preference: VoicePreference = {
