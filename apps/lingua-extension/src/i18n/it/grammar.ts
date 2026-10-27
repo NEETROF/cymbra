@@ -31,7 +31,10 @@ import type { GrammarLine, Named, StudiedLanguageCode } from "../index.ts";
 // gave Spanish its « forma en -ing » (D3). Italian has articles and elides: « di » before a tense
 // contracts with its article (« del passato remoto », « dell'indicativo imperfetto »), never before a
 // word of the page (« di eat », « di andare »); persons read « terza persona singolare », several of
-// one tense and number named once, « prima e terza persona singolare » (D4). The apostrophe is
+// one tense and number named once, « prima e terza persona singolare » (D4), and a tense read in
+// both numbers named once, « prima persona singolare e terza persona plurale dell'indicativo
+// presente »; a list puts a comma before a name that joins two itself, « plurale, maschile e
+// femminile plurale » (review-lingua-italian-wording, after change 34's review). The apostrophe is
 // U+0027, as the Italian catalogue writes « l'inglese ». Readings merge by tag; the tenses come in
 // the order its table lists them; the genders of one number are named once, « il maschile e
 // femminile plurale », as the English and Spanish cards name them.
@@ -142,6 +145,33 @@ function join(items: readonly string[]): string {
   return `${items.slice(0, -1).join(", ")} e ${items.at(-1)}`;
 }
 
+/**
+ * The names that themselves join two with « e » — the genders of one number named once (« maschile
+ * e femminile plurale »), one tense named once for both numbers — before which a list writes a
+ * comma (`list`).
+ */
+const JOINED = new WeakSet<Named>();
+
+/**
+ * A tense named once for both numbers, by its halves: « può anche essere » gives each its article
+ * (« la prima persona singolare e la terza persona plurale dell'indicativo presente »).
+ */
+const BOTH_NUMBERS = new WeakMap<Named, { singular: string; plural: string; tense: string }>();
+
+/**
+ * A line's names in a list, as `join` writes it, but a comma before a name that joins two itself:
+ * « plurale, maschile e femminile plurale di grande », never « plurale e maschile e femminile
+ * plurale » (review-lingua-italian-wording, after change 34's review). `text` words each name.
+ */
+function list(named: readonly Named[], text: (n: Named) => string): string {
+  return named
+    .map((n, i) => {
+      if (i === 0) return text(n);
+      return `${i === named.length - 1 && !JOINED.has(n) ? " e " : ", "}${text(n)}`;
+    })
+    .join("");
+}
+
 /** Each gendered agreement's name — « femminile singolare » — and the gender and number it names. */
 const GENDERED: ReadonlyMap<string, GenderedName> = new Map(
   Object.keys(GENDERS).flatMap((gender) =>
@@ -154,7 +184,11 @@ function genders(named: readonly Named[]): Named[] {
   return mergeGenders(
     named,
     (n) => GENDERED.get(n.name),
-    (merged, number) => masculine(`${join(merged.map((g) => GENDERS[g]!))} ${NUMBERS[number]}`),
+    (merged, number) => {
+      const named = masculine(`${join(merged.map((g) => GENDERS[g]!))} ${NUMBERS[number]}`);
+      JOINED.add(named);
+      return named;
+    },
     Object.keys(GENDERS),
   );
 }
@@ -192,18 +226,35 @@ const readingWords: ReadingWords = {
     const who = join(persons.map((p) => ORDINALS[p]!));
     return { article: "la", name: `${who} persona ${NUMBERS[number]} ${ofTense(tense)}` };
   },
+  bothNumbers(singular, plural, tense) {
+    // « prima persona singolare e terza persona plurale dell'indicativo presente »: the tense named
+    // once, where the French names it with each number (review-lingua-italian-wording).
+    const halves = {
+      singular: `${join(singular.map((p) => ORDINALS[p]!))} persona ${NUMBERS.Sing}`,
+      plural: `${join(plural.map((p) => ORDINALS[p]!))} persona ${NUMBERS.Plur}`,
+      tense: ofTense(tense),
+    };
+    const named = { article: "la", name: `${halves.singular} e ${halves.plural} ${halves.tense}` };
+    JOINED.add(named);
+    BOTH_NUMBERS.set(named, halves);
+    return named;
+  },
   numbers: ["Sing", "Plur"],
   mergeBy: "key",
 };
 
 /** « il passato semplice », « l'infinito », « la forma in -ing »: each name with its article. */
 function withArticles(named: readonly Named[]): string {
-  return join(named.map((n) => (n.article === "l'" ? `l'${n.name}` : `${n.article} ${n.name}`)));
+  return list(named, (n) => {
+    const halves = BOTH_NUMBERS.get(n);
+    if (halves) return `la ${halves.singular} e la ${halves.plural} ${halves.tense}`;
+    return n.article === "l'" ? `l'${n.name}` : `${n.article} ${n.name}`;
+  });
 }
 
 const lineWords: LineWords = {
   names: (readings, studied) => genders(nameReadings(readings, studied, readingWords)),
-  formOf: (named) => `${join(named.map((n) => n.name))} `,
+  formOf: (named) => `${list(named, (n) => n.name)} `,
   mayAlsoBe: (named) => `può anche essere ${withArticles(named)} `,
   // « di eat », « di andare »: « di » never elides before a word of the page.
   of: (word): GrammarLine => ["di ", { word }],

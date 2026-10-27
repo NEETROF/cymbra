@@ -365,7 +365,7 @@ grammar: può anche essere il femminile plurale di foi
 ### word-grammar è essere
 grammar: terza persona singolare dell'indicativo presente di essere
 ### word-grammar sono essere
-grammar: prima persona singolare dell'indicativo presente e terza persona plurale dell'indicativo presente di essere
+grammar: prima persona singolare e terza persona plurale dell'indicativo presente di essere
 ### word-grammar era essere
 grammar: terza persona singolare dell'indicativo imperfetto di essere
 ### word-grammar fu essere
@@ -463,7 +463,7 @@ grammar: femminile plurale di casa
 ### word-grammar rosse rosso
 grammar: femminile plurale di rosso
 ### word-grammar grandi grande
-grammar: plurale e maschile e femminile plurale di grande
+grammar: plurale, maschile e femminile plurale di grande
 ### word-grammar tali tale
 grammar: può anche essere il maschile plurale di talo
 ### word-grammar minore piccolo

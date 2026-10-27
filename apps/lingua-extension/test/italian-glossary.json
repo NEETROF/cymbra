@@ -1,0 +1,467 @@
+{
+  "about": "The Italian glossary (review-lingua-italian-wording D1): for each product concept, its French forms, the Italian forms accepted and the variants refused, with why. Read by test/italian-glossary.spec.ts against the catalogue, _locales/it and the Safari app's activation page (copy.js); presented by docs/lingua/italian-glossary.md. Precedence where surfaces disagree: change 39's pinned words, then Music's app_it.arb for Cymbra-wide terms, then the interface's term, then a platform's own word. Forms are matched whole, case-free, bounded by letters.",
+  "perAudience": [
+    {
+      "key": "_locales.extensionDescription",
+      "reason": "Written for Italian speakers studying English (change 39, change 46's D1), not translated from the French."
+    },
+    {
+      "key": "copy.lede",
+      "reason": "Names the languages an Italian reader studies (English, en-it), not the French page's three (change 40's D3)."
+    },
+    {
+      "key": "copy.step3",
+      "reason": "Stops at choosing the level for English alone: an Italian reader has one pair, so the French sentence on ticking another language in Réglages › Langue is not there (change 40's D3)."
+    }
+  ],
+  "concepts": [
+    {
+      "id": "review-panel",
+      "en": "the review panel on the page (the drawer)",
+      "fr": ["panneau de révision", "tiroir"],
+      "it": ["pannello di ripasso", "pannello"],
+      "itRejected": ["pannello di revisione", "cassetto"],
+      "why": "Change 39's word (precedence 1): `_locales/it`'s commandToggleDrawer and Réglages' shortcut line say « pannello di ripasso sulla pagina », held equal by locales-shortcuts.spec.ts; « pannello » alone where the French says « tiroir ».",
+      "exceptions": []
+    },
+    {
+      "id": "side-panel",
+      "en": "the browser's side panel",
+      "fr": ["panneau latéral"],
+      "it": ["riquadro laterale"],
+      "itRejected": ["pannello laterale"],
+      "why": "Change 39's word (precedence 1): Chrome's Italian name for its side panel (26 strings against 2), so the shortcuts page and Réglages agree; « pannello » stays for Lingua's own panels. Firefox's « barra laterale » is Firefox's own word, not refused.",
+      "exceptions": []
+    },
+    {
+      "id": "capture",
+      "en": "capturing the selection",
+      "fr": ["capturer", "capture", "capturé", "capturée"],
+      "it": ["acquisisci", "acquisire", "acquisita", "acquisito"],
+      "itRejected": ["cattura", "catturare", "catturata", "catturato"],
+      "why": "Change 39's word (precedence 1): Réglages' verb, « Acquisisci la selezione »; its draft's « Cattura » suggests a screenshot in Italian interfaces.",
+      "exceptions": []
+    },
+    {
+      "id": "deck",
+      "en": "the deck of cards",
+      "fr": ["deck"],
+      "it": ["mazzo", "mazzi"],
+      "itRejected": ["deck"],
+      "why": "The interface's word (I6 rule 3, change 33): « mazzo », as a deck of cards; the French keeps the English « deck ».",
+      "exceptions": []
+    },
+    {
+      "id": "card",
+      "en": "a card of the deck or the word card",
+      "fr": ["carte", "cartes"],
+      "it": ["carta", "carte"],
+      "itRejected": ["flashcard", "flashcards"],
+      "why": "The interface's word (I6 rule 3): « carta », never « scheda », which is the browser's tab. « flashcard » stays a search keyword of the App Store listing, not the interface's name. « Carta » is also the Paper theme's name (French « Papier »), capitalised where it names the theme (« Tema Carta: sfondo »), so no rule refuses « carta ».",
+      "exceptions": []
+    },
+    {
+      "id": "tab",
+      "en": "the browser's tab",
+      "fr": ["onglet", "onglets"],
+      "it": ["scheda", "schede"],
+      "itRejected": ["tab", "linguetta"],
+      "why": "Chrome's and Firefox's Italian word (a platform's word, precedence 4); never used for a card. Safari's Italian may call its tabs « pannelli » (unverified, the owner's checklist E12): the activation page keeps « schede » until the dogfood says otherwise, « pannello » being Lingua's panels. A settings tab is named by its path, « Impostazioni › Dati », not « scheda ».",
+      "exceptions": []
+    },
+    {
+      "id": "review",
+      "en": "reviewing, a review",
+      "fr": ["réviser", "révise", "révision", "révisions", "revoir"],
+      "it": ["ripassa", "ripassale", "ripassare", "ripasso", "ripassi"],
+      "itRejected": ["revisione", "revisioni", "revisionare"],
+      "why": "The interface's word (I6 rule 3): « ripasso / ripassare », a learner's review; « revisione » is an inspection or an edit. « Da rivedere » names a missed card shown again, a second form kept on purpose (change 44's pass).",
+      "exceptions": [
+        {
+          "key": "review.repeat()",
+          "reason": "« À revoir · 2ᵉ passage » is a missed card shown again: « Da rivedere · 2º passaggio », kept apart from the due count's « da ripassare » on purpose (change 44's pass)."
+        }
+      ]
+    },
+    {
+      "id": "settings",
+      "en": "the extension's settings (Réglages), and the device's Settings app",
+      "fr": ["réglages", "réglage"],
+      "it": ["impostazioni", "impostazione"],
+      "itRejected": [],
+      "why": "Music's word (precedence 2), « Impostazioni », which is also iOS's and Chrome's. Safari's « preferenze » before macOS 13 answers the French « préférences », not this concept. A settings tab is named by its path, as the French writes it (« Impostazioni › Dati », « Impostazioni → Dati »), never « scheda Dati »; the activation page's step 3 will name « Impostazioni › Lingua » so when changes 50 and 54 give it a second sentence.",
+      "exceptions": []
+    },
+    {
+      "id": "statistics",
+      "en": "the statistics page and tab",
+      "fr": ["statistiques", "stats"],
+      "it": ["statistiche", "stats"],
+      "itRejected": [],
+      "why": "« Statistiche » for the page and the side panel's tab; « Stats » where the French itself writes the clipping « Stats » (the HUD's and the drawer's narrow buttons), as the Spanish does — the owner's provisional choice of 2026-10-26, kept by change 44 (its report).",
+      "exceptions": []
+    },
+    {
+      "id": "sign-in",
+      "en": "signing in",
+      "fr": ["se connecter", "connecte-toi", "reconnecte-toi", "te connecter", "connexion"],
+      "it": ["accedi", "accedere", "accesso"],
+      "itRejected": ["login", "log in", "loggati"],
+      "why": "Music's word (precedence 2): « Accedi »; « Accesso effettuato » for « Connecté », which never assumes the reader's gender (I6 rule 2). « sessione » names both the sign-in session and a review session (French « session » / « séance »); the two never share a sentence.",
+      "exceptions": [
+        {
+          "key": "account-errors.unavailable",
+          "reason": "« Vérifie ta connexion » is the network connection: « Controlla la connessione »."
+        },
+        {
+          "key": "translation.failedNetwork",
+          "reason": "« pas de connexion » is the network connection: « nessuna connessione »."
+        }
+      ]
+    },
+    {
+      "id": "sign-out",
+      "en": "signing out",
+      "fr": ["se déconnecter", "déconnecté"],
+      "it": ["esci", "disconnessione"],
+      "itRejected": ["logout", "log out", "disconnettiti"],
+      "why": "Music's word (precedence 2): « Esci »; « Disconnessione effettuata » for « Tu es déconnecté », free of the reader's gender.",
+      "exceptions": []
+    },
+    {
+      "id": "account",
+      "en": "a Cymbra account",
+      "fr": [
+        "compte Cymbra",
+        "ton compte",
+        "un compte",
+        "ce compte",
+        "le compte",
+        "mon compte",
+        "autre compte",
+        "comptes"
+      ],
+      "it": ["account"],
+      "itRejected": [],
+      "why": "Music's word (precedence 2): « account », invariable. The French « compte » is also the verb « compter », so only its nominal uses are forms here.",
+      "exceptions": []
+    },
+    {
+      "id": "delete",
+      "en": "deleting (an account, a book)",
+      "fr": ["supprimer", "supprime", "supprimé", "suppression"],
+      "it": ["elimina", "eliminare", "eliminato", "eliminata", "eliminazione"],
+      "itRejected": [],
+      "why": "Music's « Elimina account » (precedence 2); « Cancella » stays for « Effacer » (erasing data), a different act.",
+      "exceptions": []
+    },
+    {
+      "id": "linked-accounts",
+      "en": "the sign-in methods linked to an account",
+      "fr": ["comptes connectés", "méthode de connexion", "méthodes de connexion"],
+      "it": ["account collegati", "metodo di accesso", "metodi di accesso"],
+      "itRejected": ["account connessi"],
+      "why": "The interface's words (change 33), « Account collegati », with sign-in's « accesso ».",
+      "exceptions": []
+    },
+    {
+      "id": "password",
+      "en": "a password",
+      "fr": ["mot de passe"],
+      "it": ["password"],
+      "itRejected": ["parola d'ordine", "parola segreta"],
+      "why": "Music's word (precedence 2): « password », feminine (« la password »).",
+      "exceptions": []
+    },
+    {
+      "id": "email",
+      "en": "an email address or message",
+      "fr": ["email", "e-mail", "emails", "e-mails"],
+      "it": ["email"],
+      "itRejected": ["e-mail", "mail", "posta elettronica"],
+      "why": "Music's sign-in word (« Continua con l'email », precedence 2) and the interface's: « email », feminine. Music elsewhere writes « e-mail », its own inconsistency, out of this change's scope.",
+      "exceptions": []
+    },
+    {
+      "id": "username",
+      "en": "the username (French « pseudo »)",
+      "fr": ["pseudo"],
+      "it": ["nome utente"],
+      "itRejected": ["pseudonimo", "nickname", "handle"],
+      "why": "The interface's word (change 33), also the site's privacy policy (change 41's review: « pseudonimo » read as an assumed name). An exception to precedence 2, kept by change 44: Music's arb says « Handle », not an Italian word for it, while Italian interfaces that show an @-name say « nome utente »; the value always shows with its « @ », so a reader knows it in both products. Aligning Music is a Music change.",
+      "exceptions": []
+    },
+    {
+      "id": "known",
+      "en": "a word marked known",
+      "fr": ["connu", "connue", "connus", "connues"],
+      "it": ["conosciuta", "conosciute", "conosciuto", "conosciuti"],
+      "itRejected": [],
+      "why": "The interface's word: « parola conosciuta », agreeing with « parola », never with the reader.",
+      "exceptions": []
+    },
+    {
+      "id": "unknown",
+      "en": "an unknown word",
+      "fr": ["inconnu", "inconnue", "inconnus", "inconnues"],
+      "it": ["sconosciuta", "sconosciute", "sconosciuto", "sconosciuti"],
+      "itRejected": [],
+      "why": "The interface's word: « parole sconosciute »; « ignota » is literary, but not refused: it has other senses (« causa ignota »).",
+      "exceptions": []
+    },
+    {
+      "id": "learning",
+      "en": "a word being learnt",
+      "fr": ["en cours d'apprentissage", "mots en cours", "(en cours)"],
+      "it": ["in apprendimento"],
+      "itRejected": ["in corso di apprendimento"],
+      "why": "The interface's words: « in apprendimento », a status, where « in corso » would read as « under way ».",
+      "exceptions": []
+    },
+    {
+      "id": "highlight",
+      "en": "highlighting a word",
+      "fr": ["surligner", "surligne", "surligné", "surlignée", "surlignés", "surlignées", "surlignage"],
+      "it": ["evidenzia", "evidenziare", "evidenziata", "evidenziate", "evidenziato", "evidenziati", "evidenziazione"],
+      "itRejected": [],
+      "why": "The interface's word (I6 rule 3): « evidenziare / evidenziazione »; the underline style is « sottolineatura », a setting of its own.",
+      "exceptions": []
+    },
+    {
+      "id": "level",
+      "en": "a reader's level",
+      "fr": ["niveau", "niveaux"],
+      "it": ["livello", "livelli"],
+      "itRejected": [],
+      "why": "The interface's word (I6 rule 3).",
+      "exceptions": []
+    },
+    {
+      "id": "level-scale",
+      "en": "the level scale's acronym",
+      "fr": ["CEFR", "CECRL", "CECR"],
+      "it": ["QCER"],
+      "itRejected": ["CEFR", "QCRE", "CECR"],
+      "why": "I6: « QCER », the Quadro comune europeo di riferimento's Italian acronym, as M19 gave each language its own.",
+      "exceptions": []
+    },
+    {
+      "id": "pack",
+      "en": "a language pack (the dictionary data)",
+      "fr": ["pack", "packs"],
+      "it": ["pacchetto", "pacchetti"],
+      "itRejected": ["pack"],
+      "why": "The interface's word (I6 rule 3).",
+      "exceptions": []
+    },
+    {
+      "id": "extended-translation",
+      "en": "the on-device translation setting",
+      "fr": ["traduction étendue"],
+      "it": ["traduzione estesa"],
+      "itRejected": ["traduzione avanzata", "traduzione ampliata"],
+      "why": "The interface's words (I6 rule 3).",
+      "exceptions": []
+    },
+    {
+      "id": "online-translation",
+      "en": "the opt-in online translation",
+      "fr": ["traduction en ligne", "traduction automatique en ligne"],
+      "it": ["traduzione online", "traduzione automatica online"],
+      "itRejected": ["traduzione in linea"],
+      "why": "The interface's words (I6 rule 3), « online » as Italian writes it.",
+      "exceptions": []
+    },
+    {
+      "id": "read-aloud",
+      "en": "reading aloud",
+      "fr": ["voix haute"],
+      "it": ["ad alta voce"],
+      "itRejected": ["a voce alta"],
+      "why": "The interface's words: « Lettura ad alta voce ».",
+      "exceptions": [
+        {
+          "key": "languages.french.preview",
+          "reason": "The French voices' preview is French in every interface (add-lingua-french-read-aloud D4)."
+        }
+      ]
+    },
+    {
+      "id": "offline",
+      "en": "offline",
+      "fr": ["hors ligne"],
+      "it": ["offline"],
+      "itRejected": ["fuori linea", "non in linea"],
+      "why": "The interface's word, as `_locales/it` writes it (« Offline e senza tracciamento »).",
+      "exceptions": []
+    },
+    {
+      "id": "sync",
+      "en": "synchronising",
+      "fr": ["synchroniser", "synchronise", "synchronisent", "synchronisé", "synchronisation", "sync"],
+      "it": ["sincronizza", "sincronizzare", "sincronizzano", "sincronizzato", "sincronizzati", "sincronizzazione"],
+      "itRejected": ["sync"],
+      "why": "The interface's word; the French clipping « sync » is written out.",
+      "exceptions": []
+    },
+    {
+      "id": "backup",
+      "en": "a backup",
+      "fr": ["sauvegarde", "sauvegarder"],
+      "it": ["backup"],
+      "itRejected": ["copia di sicurezza"],
+      "why": "The interface's word, as Italian software writes it (« Esegui il backup »).",
+      "exceptions": []
+    },
+    {
+      "id": "restore",
+      "en": "restoring a backup",
+      "fr": ["restaurer", "restaurée", "restauré"],
+      "it": ["ripristina", "ripristinare", "ripristinato", "ripristino"],
+      "itRejected": [],
+      "why": "The interface's word; « Recupero dal server » keeps the server restart apart (change 33's review).",
+      "exceptions": []
+    },
+    {
+      "id": "library",
+      "en": "the book library",
+      "fr": ["bibliothèque"],
+      "it": ["biblioteca"],
+      "itRejected": ["libreria"],
+      "why": "The interface's word: « biblioteca », the reader's collection of books. « libreria » can mean one too (Treccani's first sense, « raccolta di libri »; Apple Libri's word, unverified), but it also reads as a bookshop or a bookcase, so the interface keeps one word and refuses the other.",
+      "exceptions": []
+    },
+    {
+      "id": "badge",
+      "en": "the percentage pill on the page",
+      "fr": ["pastille"],
+      "it": ["badge"],
+      "itRejected": ["pillola", "bollino"],
+      "why": "The interface's word (change 33), as the site's captions and the App Store text write it. The toolbar icon's count has no noun in Italian (« le carte da ripassare sull'icona »): a string that names it must not call it « badge » too (change 44's pass kept « badge » for the pill rather than « indicatore »).",
+      "exceptions": []
+    },
+    {
+      "id": "true-percentage",
+      "en": "the page's percentage, counted from what the reader marked",
+      "fr": ["pourcentage honnête"],
+      "it": ["percentuale reale"],
+      "itRejected": ["percentuale onesta"],
+      "why": "`_locales/it`'s word (change 39): with a quantity « onesta » reads \"fair, reasonable\" (Treccani, « onesto »); the site's « Una percentuale onesta » was corrected by change 44.",
+      "exceptions": []
+    },
+    {
+      "id": "native-language",
+      "en": "the reader's native language",
+      "fr": ["langue maternelle"],
+      "it": ["lingua madre"],
+      "itRejected": ["lingua materna", "lingua nativa"],
+      "why": "The interface's words: « lingua madre », the current usage.",
+      "exceptions": []
+    },
+    {
+      "id": "studied-language",
+      "en": "a studied language",
+      "fr": ["langue étudiée", "langues étudiées"],
+      "it": ["lingua studiata", "lingue studiate"],
+      "itRejected": [],
+      "why": "The interface's words.",
+      "exceptions": []
+    },
+    {
+      "id": "expression",
+      "en": "a multi-word expression",
+      "fr": ["expression", "expressions"],
+      "it": ["espressione", "espressioni"],
+      "itRejected": ["locuzione", "locuzioni"],
+      "why": "The interface's word, as the card's title names it.",
+      "exceptions": []
+    },
+    {
+      "id": "colour-set",
+      "en": "a colour preset",
+      "fr": ["jeu de couleurs", "jeux de couleurs", "préréglage", "préréglages"],
+      "it": ["set di colori"],
+      "itRejected": ["preset"],
+      "why": "The interface's words (change 33's review unified « preset » into « set di colori »).",
+      "exceptions": []
+    },
+    {
+      "id": "steps",
+      "en": "the usage counts' steps",
+      "fr": ["étape", "étapes"],
+      "it": ["tappa", "tappe"],
+      "itRejected": [],
+      "why": "The interface's word (change 33's review unified « passaggi » into « tappe »); « passaggio » stays free for its other senses (a card's « 2º passaggio »), so it is not refused.",
+      "exceptions": []
+    },
+    {
+      "id": "usage-counts",
+      "en": "the anonymous usage counts",
+      "fr": ["comptage", "comptages"],
+      "it": ["conteggio", "conteggi"],
+      "itRejected": [],
+      "why": "The interface's word, as the listings write it (« conteggi anonimi »).",
+      "exceptions": []
+    },
+    {
+      "id": "to-sort",
+      "en": "sorting a book's looked-up words",
+      "fr": ["trier", "trié", "triés", "à trier"],
+      "it": ["smistare", "smistato", "smistate", "smistati"],
+      "itRejected": [],
+      "why": "The interface's word.",
+      "exceptions": []
+    },
+    {
+      "id": "practice",
+      "en": "the review app's practice round",
+      "fr": ["entraînement"],
+      "it": ["esercizio"],
+      "itRejected": ["allenamento"],
+      "why": "The interface's word.",
+      "exceptions": []
+    }
+  ],
+  "readByThePass": [
+    {
+      "id": "english-tense-names",
+      "en": "English tenses named on the card for an Italian reader",
+      "fr": ["prétérit", "présent simple"],
+      "it": ["passato semplice", "presente semplice", "forma in -ing", "participio passato"],
+      "itRejected": ["simple past", "past simple", "present simple"],
+      "why": "Change 34's D3 (`src/i18n/it/grammar.ts`, read by the pass and change 34's snapshot, not this test): the Italian Wiktionary's names, read whole inside an Italian sentence (« del presente semplice »). Italian schoolbooks of English often keep the English names; change 44's pass recommends keeping D3, the listings no longer claim it is « come si impara a scuola », and change 55's Italian readers settle it."
+    },
+    {
+      "id": "feedback",
+      "en": "Music's immediate feedback",
+      "fr": ["retour immédiat", "retour"],
+      "it": ["riscontro"],
+      "itRejected": [],
+      "why": "The site's word (`/it/`, `/it/music/`), the Accademia della Crusca's Italian for « feedback »; Music's Italian store copy says « feedback », Music's string, out of this change's scope."
+    },
+    {
+      "id": "score",
+      "en": "Music's sheet music",
+      "fr": ["partition"],
+      "it": ["spartito"],
+      "itRejected": [],
+      "why": "The site's word throughout; Music's arb mixes « spartito » and « partitura », Music's to align."
+    },
+    {
+      "id": "terms-of-use",
+      "en": "the terms of use",
+      "fr": ["Conditions d'utilisation"],
+      "it": ["Termini di utilizzo", "Termini"],
+      "itRejected": ["Termini di servizio"],
+      "why": "The site's page title and the French source (« Conditions d'utilisation »; the Spanish « Condiciones de uso »); the Cymbra ID e-mails' footer shortens it to « Termini ». Music's footer « Termini di servizio » follows its English arb (\"Terms of Service\") — Music's string, out of this change's scope."
+    },
+    {
+      "id": "wait-mode",
+      "en": "Music's Wait Mode",
+      "fr": ["Mode Attente"],
+      "it": ["modalità attesa"],
+      "itRejected": ["Wait Mode"],
+      "why": "Music's own label (`leaderboardModeWait`, precedence 2), written lower case mid-sentence on the site (change 41's review). Music's store copy « Modalità Attesa » and two arb strings saying « Wait Mode » are Music's strings, out of this change's scope."
+    }
+  ]
+}

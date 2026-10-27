@@ -34,9 +34,9 @@ cui si trovano, e possono evolvere, essere sospesi o interrotti.
 
 ## 3. Uso accettabile
 
-Ti impegni a non: aggirare la sicurezza, abusare del servizio (carico eccessivo,
-automazione non autorizzata), usurpare l'identità altrui, o utilizzare Cymbra per scopi
-illeciti.
+Ti impegni a non aggirare la sicurezza, non abusare del servizio (carico eccessivo,
+automazione non autorizzata), non usurpare l'identità altrui e non utilizzare Cymbra per
+scopi illeciti.
 
 ## 4. Proprietà intellettuale
 

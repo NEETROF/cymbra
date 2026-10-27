@@ -454,7 +454,7 @@ const it: typeof fr = {
   deletedTitle: "Account eliminato",
   deletedBody:
     "Il tuo account è stato eliminato. La cancellazione dei dati collegati si completa nei prossimi minuti. Puoi chiudere questa pagina.",
-  deleteAppNote: "Puoi eliminare il tuo account anche dall'app: Account → Elimina account.",
+  deleteAppNote: "Puoi eliminare il tuo account anche dall'app: menu dell'account → Elimina account.",
   deleteContact: "Non riesci ad accedere al tuo account? Scrivi a privacy@cymbra.app.",
   checkoutTitle: "Pagamento",
   checkoutLoading: "Apertura del pagamento sicuro…",
