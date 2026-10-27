@@ -142,7 +142,12 @@ function copyTexts(language: string): Map<string, string> {
   const window = dom.window as typeof dom.window & { linguaCopy: { COPY: Record<string, Record<string, string>> } };
   window.eval(readFileSync(COPY_JS, "utf8"));
   const table = window.linguaCopy.COPY[language] ?? {};
-  return new Map(Object.entries(table).map(([key, text]) => [`copy.${key}`, text.replace(/<[^>]*>/g, "")]));
+  const plain = (html: string): string => {
+    const holder = window.document.createElement("div");
+    holder.innerHTML = html;
+    return holder.textContent ?? "";
+  };
+  return new Map(Object.entries(table).map(([key, text]) => [`copy.${key}`, plain(text)]));
 }
 
 function normalised(...sources: Map<string, string>[]): Map<string, string> {
