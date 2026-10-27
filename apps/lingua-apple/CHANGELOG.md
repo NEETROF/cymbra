@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.9.0](https://github.com/NEETROF/cymbra/compare/lingua-apple-v1.8.1...lingua-apple-v1.9.0) (2026-10-27)
+
+
+### Features
+
+* **lingua:** hold the Apple host app's Italian copy, inert until en-it ships ([#1086](https://github.com/NEETROF/cymbra/issues/1086)) ([9fa5b2d](https://github.com/NEETROF/cymbra/commit/9fa5b2dc184131f0306b450f0a87246fcab29253))
+* **lingua:** offer Italian to English speakers ([#1075](https://github.com/NEETROF/cymbra/issues/1075)) ([80b0437](https://github.com/NEETROF/cymbra/commit/80b043716ba0f90d4c4d98a16890870adc825e9d))
+* **lingua:** offer Italian to French speakers ([#1058](https://github.com/NEETROF/cymbra/issues/1058)) ([8855972](https://github.com/NEETROF/cymbra/commit/8855972a02646fac9cf571f63c7e729970fa8bb3))
+* **lingua:** offer Italian to Spanish speakers ([#1077](https://github.com/NEETROF/cymbra/issues/1077)) ([c03571a](https://github.com/NEETROF/cymbra/commit/c03571ad85b525f3d88000f536dae56328a16a57))
+* **lingua:** ship each studied language's base once and each pair's layer ([#1037](https://github.com/NEETROF/cymbra/issues/1037)) ([a39eb7d](https://github.com/NEETROF/cymbra/commit/a39eb7d8b3f6f4ecd59e4b53ea1c8d42fd3d6f1e))
+* **lingua:** show the Italian interface and ship en-it for Italian speakers ([#1093](https://github.com/NEETROF/cymbra/issues/1093)) ([df2695a](https://github.com/NEETROF/cymbra/commit/df2695a72e22d8e0f39839b02da381e496346f89))
+* **lingua:** the listings, the site and the back office, for French speakers who study Italian ([#1057](https://github.com/NEETROF/cymbra/issues/1057)) ([244229b](https://github.com/NEETROF/cymbra/commit/244229b6a74c4ff7295321b3e1bbb8527d4ab10b))
+
+
+### Bug Fixes
+
+* **lingua:** one Italian vocabulary across the extension, the Safari app and the site ([#1095](https://github.com/NEETROF/cymbra/issues/1095)) ([e5fdd1b](https://github.com/NEETROF/cymbra/commit/e5fdd1b2340d6329e86a778ef1d07e539ae00b27))
+
 ## [1.8.1](https://github.com/NEETROF/cymbra/compare/lingua-apple-v1.8.0...lingua-apple-v1.8.1) (2026-10-15)
 
 

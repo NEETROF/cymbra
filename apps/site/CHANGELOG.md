@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.17.0](https://github.com/NEETROF/cymbra/compare/site-v0.16.0...site-v0.17.0) (2026-10-27)
+
+
+### Features
+
+* **lingua:** offer Italian to English speakers ([#1075](https://github.com/NEETROF/cymbra/issues/1075)) ([80b0437](https://github.com/NEETROF/cymbra/commit/80b043716ba0f90d4c4d98a16890870adc825e9d))
+* **lingua:** offer Italian to French speakers ([#1058](https://github.com/NEETROF/cymbra/issues/1058)) ([8855972](https://github.com/NEETROF/cymbra/commit/8855972a02646fac9cf571f63c7e729970fa8bb3))
+* **lingua:** offer Italian to Spanish speakers ([#1077](https://github.com/NEETROF/cymbra/issues/1077)) ([c03571a](https://github.com/NEETROF/cymbra/commit/c03571ad85b525f3d88000f536dae56328a16a57))
+* **lingua:** show the Italian interface and ship en-it for Italian speakers ([#1093](https://github.com/NEETROF/cymbra/issues/1093)) ([df2695a](https://github.com/NEETROF/cymbra/commit/df2695a72e22d8e0f39839b02da381e496346f89))
+* **lingua:** the listings, the site and the back office, for French speakers who study Italian ([#1057](https://github.com/NEETROF/cymbra/issues/1057)) ([244229b](https://github.com/NEETROF/cymbra/commit/244229b6a74c4ff7295321b3e1bbb8527d4ab10b))
+* **site:** Italian locale — home, Music, legal pages, deletion, leaving page ([#1089](https://github.com/NEETROF/cymbra/issues/1089)) ([727ac39](https://github.com/NEETROF/cymbra/commit/727ac3918a10f94bab62a0f49c2ca47b2d1637a9))
+
+
+### Bug Fixes
+
+* **lingua:** one Italian vocabulary across the extension, the Safari app and the site ([#1095](https://github.com/NEETROF/cymbra/issues/1095)) ([e5fdd1b](https://github.com/NEETROF/cymbra/commit/e5fdd1b2340d6329e86a778ef1d07e539ae00b27))
+
 ## [0.16.0](https://github.com/NEETROF/cymbra/compare/site-v0.15.0...site-v0.16.0) (2026-10-15)
 
 
