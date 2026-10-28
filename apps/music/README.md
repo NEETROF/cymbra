@@ -221,6 +221,42 @@ to the GitHub Release, the iOS **IPA** is both attached and delivered to
 **TestFlight**, and the macOS **`.pkg`** is delivered to App Store Connect *without*
 being attached. Details below.
 
+### Windows and Linux desktop releases
+
+**Windows ships through the Microsoft Store.** The `windows` job wraps its own
+`flutter build windows` output (production config baked in) into an MSIX with the
+[`msix`](https://pub.dev/packages/msix) package (`msix_config` in `pubspec.yaml`,
+version `major.minor.patch.0`) and, on a `music-v*` tag, submits it with the
+Microsoft Store Developer CLI. The Store signs the package (no certificate, no
+SmartScreen warning, no Smart App Control block) and updates it — the app never
+self-updates on Windows. One-time setup:
+
+1. A **company** developer account for NEETROF at
+   [storedeveloper.microsoft.com](https://storedeveloper.microsoft.com) (free since
+   2026-05).
+2. Reserve the name *Cymbra Music*, then copy from *Product identity* the Store ID
+   and the three package identity values into the `MSSTORE_*` repository
+   variables listed in the header of
+   [`music-release.yml`](../../.github/workflows/music-release.yml).
+3. **First submission by hand**: run the release workflow without a tag (identity
+   variables set), download the `windows-msix` artifact, and submit it in Partner
+   Center with the listing, screenshots, age rating, privacy policy URL and, under
+   in-app purchases, the declaration that the app uses a third-party payment
+   provider (Store policy 10.8.2).
+4. Partner Center → Account settings → User management → **Microsoft Entra
+   applications**: add an application with the *Manager* role and a key; put its
+   tenant id, client id, key and the account's Seller ID into the
+   `PARTNER_CENTER_*` secrets. From then on, each `music-v*` tag submits the new
+   version, certified in up to three business days.
+
+**Linux ships an AppImage** next to the tarball, built on **ubuntu-22.04** so the
+binary also runs on Ubuntu 22.04 and Debian 12 (a binary needs a glibc at least as
+new as the one it was linked against). It replaces itself from the signed feed
+(change `add-desktop-auto-update`) — no password, no privileged code — when its
+directory is writable; elsewhere it only points to the download page. Users who
+want it in their application menu use an integration tool (Gear Lever,
+AppImageLauncher).
+
 ### Config via `--dart-define-from-file`
 
 All build-time config (OIDC client IDs + gRPC endpoint) lives in per-environment

@@ -19,9 +19,16 @@ Constraints that shape the design:
   `path_provider`, `shared_preferences`, `package_info_plus`, `cymbra_flags`,
   and a platform seam at
   [app_platform.dart:52](../../../apps/music/lib/services/app_platform.dart:52).
-- **No Windows code-signing certificate**, by owner decision. That rules out
-  MSIX (it cannot be sideloaded without a trusted certificate) and means
-  SmartScreen will warn on the downloaded installer.
+- **Windows ships through the Microsoft Store** (owner decision, 2026-10-24, after
+  weighing signing). Unsigned executables are blocked outright by Windows 11's
+  Smart App Control, and every code-signing route costs money (Artifact Signing
+  ~10 $/month, OV certificates 150–300 $/year); the Store re-signs MSIX packages
+  for free, updates them, and company accounts are free since 2026-05. The app
+  therefore never self-updates on Windows (decision 4, revised).
+- **Linux: one file for every distribution.** A `.deb` upgraded through `pkexec`
+  and a root helper was implemented and tested on 2026-10-24, then dropped by the
+  owner for the AppImage (decision 5): every distribution, no password, no
+  privileged code.
 - **CLAUDE.md gates**: ≥80 % line coverage both ecosystems, Riverpod+Freezed
   with dependencies as providers, no raw technical error strings in the UI.
 
@@ -44,9 +51,15 @@ Constraints that shape the design:
 - macOS, iOS, Android — store-managed, untouched.
 - Delta/differential updates (zsync, MSIX block-map). Full downloads for now;
   the manifest shape leaves room to add them.
-- `.deb` + APT repository, Flatpak, Snap. Rejected as more infrastructure for
-  the same outcome at the current scale.
-- A Windows code-signing certificate, and therefore MSIX / `.appinstaller`.
+- A `.deb`, an APT repository, Flatpak, Snap on Linux. The `.deb` (tried) is
+  Debian-family only and needs a password per update; the sandboxed formats
+  block raw MIDI access out of the box (Snap's `alsa` interface is
+  `deny-auto-connection`).
+- A Windows code-signing certificate, a self-hosted Windows installer, and the
+  portable zip as a public download (unsigned ⇒ blocked by Smart App Control).
+- Distributions other than Debian/Ubuntu derivatives as packages. They keep the
+  tarball, which notifies but does not self-update; an `.rpm` follows only on
+  demand.
 - Silent updates without consent. The user always approves an install.
 - ARM64 desktop builds. The pipeline is x64-only today; the manifest is keyed by
   `os`+`arch` so adding one is additive.
@@ -85,7 +98,7 @@ The endpoint returns an envelope:
 {
   "manifest": "<base64 of the exact manifest JSON bytes>",
   "signature": "<base64 Ed25519 signature over those bytes>",
-  "key_id": "2026-08-a",
+  "key_id": "2026-10-a",
   "rollout_percent": 25
 }
 ```
@@ -116,7 +129,6 @@ The manifest itself:
   "min_supported_version": "1.20.0+27",
   "notes_url": "https://github.com/NEETROF/cymbra/releases/tag/music-v1.25.0",
   "targets": {
-    "windows-x64": { "kind": "inno-setup", "url": "https://…-setup.exe",  "size": 48123904, "sha256": "…" },
     "linux-x64":   { "kind": "appimage",   "url": "https://….AppImage",   "size": 52428800, "sha256": "…" }
   }
 }
@@ -138,36 +150,39 @@ enforce.
 *Alternative considered.* Server-side bucketing on an install id — rejected: it
 introduces a pseudonymous identifier and a per-client response for no benefit.
 
-### 4. Windows: per-user Inno Setup installer, silent update, no UAC
+### 4. Windows: the Microsoft Store, not an installer of our own
 
-`PrivilegesRequired=lowest` with `DefaultDirName={localappdata}\Programs\Cymbra`.
-The per-user location is the entire reason an update can be applied without an
-elevation prompt — a `Program Files` install would prompt on every update, which
-in practice means nobody updates.
+*Revised 2026-10-24 — replaces a per-user Inno Setup installer with silent
+self-update, which was implemented first and is removed.*
 
-Update flow: the app spawns the verified installer detached with
-`/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS`
-and exits. A running `.exe` cannot be overwritten on Windows, which is why the
-installer — not the app — performs the swap. Relaunch is an Inno `[Run]` entry
-flagged `postinstall nowait` **without** `skipifsilent`, so it also fires in
-silent mode; `/RESTARTAPPLICATIONS` is a Restart-Manager fallback, not the
-primary mechanism.
+The `windows` job keeps its own `flutter build windows` (production endpoint and
+desktop OAuth client baked in), then wraps that output into an MSIX with the
+`msix` package (`--store`, no rebuild), versioned `major.minor.patch.0` — the
+Store reserves the fourth field. On a `music-v*` tag it submits the package with
+the Microsoft Store Developer CLI (`msstore publish -i <file>.msix`), using a
+Partner Center Entra application held as repository secrets. A dry-run packages
+with placeholder identity values and submits nothing, so packaging regressions
+still fail the job.
 
-The `AppId` GUID is generated once and **frozen forever**: changing it later
-makes every subsequent update install alongside the old app instead of over it.
+The Store re-signs the package with Microsoft's certificate and owns updates, so
+the app's updater is off on Windows (`AppPlatform.selfUpdates` is Linux only) and
+the manifest carries no Windows target. The download page links the Store's web
+installer. MSIX desktop apps run as full trust: MIDI, audio and the OAuth
+loopback behave as in an unpackaged build (to confirm on a real machine).
 
-The installer writes a marker file in `{app}` identifying the install method.
-The updater reads it to decide whether it may self-install; the portable zip has
-no marker and therefore takes the notify-only path.
-
-*Alternatives considered.* MSIX + `.appinstaller` — the cleanest UX (Windows
-updates it in the background, zero in-app code) but requires a trusted
-certificate, which is out of scope. WinSparkle via the `auto_updater` package —
-less code on Windows, but it covers Windows and macOS only, so Linux would need
-a hand-written path anyway; one shared architecture beats two half-architectures
-in a repo that gates on coverage.
+*Alternatives considered.* A signed Inno installer with silent self-update
+(implemented, then dropped: it needs a paid certificate). An unsigned installer
+(blocked by Smart App Control). `msstore package`, which runs its own
+`flutter build` without this repository's `--dart-define`s.
 
 ### 5. Linux: AppImage that replaces itself
+
+The AppImage is built with the current `appimagetool`, whose static type-2
+runtime embeds FUSE 3: hosts need FUSE support (`fusermount3`, present on
+current desktops) but no longer `libfuse2`. It is not added to the desktop's
+application menu by itself; integration tools (Gear Lever, AppImageLauncher) do
+that, and the download page says so.
+
 
 The AppImage runtime exports `$APPIMAGE` (the absolute path of the running file).
 The updater downloads the new AppImage **into the same directory** — same
@@ -182,7 +197,10 @@ If `$APPIMAGE` is unset (tarball install, `flutter run`) or the directory is not
 writable (`/opt`, root-owned), the updater takes the notify-only path. It never
 escalates privileges.
 
-*Alternatives considered.* `.deb` + self-hosted APT repo — apt would handle
+*Alternatives considered.* A `.deb` upgraded from the app through `pkexec` and a
+root-owned helper re-verifying a private copy (implemented and tested on
+2026-10-24, then dropped: Debian/Ubuntu only, a password at every update, and
+privileged code to maintain). `.deb` + self-hosted APT repo — apt would handle
 updates with no in-app code, but needs a GPG-signed repository, the user must add
 the source and have root, and the update UX leaves the product entirely.
 Self-hosted Flatpak — best desktop-integrated UX, heaviest infrastructure
@@ -248,6 +266,20 @@ cause — never a raw error string on screen.
 single action, because the alternative is a client failing against the backend
 with errors the user cannot act on.
 
+### 9. (superseded) Windows signing
+
+Artifact Signing in CI was implemented, then removed with decision 4's revision:
+the Store signs Windows packages. Kept as a note so the history reads.
+
+### 10. The Linux binary is built on the oldest supported Ubuntu
+
+A Linux binary runs only on systems whose glibc is at least as new as the one it
+was linked against. The release job used `ubuntu-latest` (24.04), so its output
+refused to start on Ubuntu 22.04 and Debian 12. The `linux` job — and only that
+job — now runs on `ubuntu-22.04`, the oldest image GitHub provides; every other
+job keeps its image. When GitHub retires that image the job stops starting, and
+moving to the next one is a deliberate decision to drop those distributions.
+
 ## Risks / Trade-offs
 
 - **The updater is remote code execution by design.** → The verify-before-execute
@@ -259,23 +291,21 @@ with errors the user cannot act on.
   a connection error, so the client sees a malformed response and stays quiet.
   → The Caddyfile change is a blocking deploy task with an explicit
   `curl` verification against production before the first release is ingested.
-- **SmartScreen warns on the unsigned installer**, and reputation builds slowly.
-  → Accepted for now; documented on the download page. The `key_id` field and the
-  installer pipeline are designed so adding a certificate later is a CI change,
-  not a redesign.
+- **Store certification** takes up to three business days per submission, so a
+  Windows hotfix is not immediate. → Accepted; the Linux path keeps its staged
+  rollout and kill-switch.
+- **The Store can be disabled on managed (enterprise) PCs.** → Not the target
+  audience; no public fallback, since an unsigned binary is blocked anyway.
+- **The first Store submission is manual** (app reservation, listing, age rating,
+  privacy policy URL) before CI can submit updates.
+
+- **`appimagetool` needs FUSE**, which GitHub runners do not reliably provide. →
+  Invoke it with `--appimage-extract-and-run`.
 - **Signing key loss or compromise.** → Loss means clients stop accepting new
   releases until a build ships with a new key, so the key is backed up out of
   band at creation. Compromise is contained by shipping a build that drops the
   key from the trusted map; the map is a set, not a single value, precisely to
   allow overlap during rotation.
-- **The Inno `AppId` is a one-way door.** → Generated once, checked in, and
-  called out in the installer script's header comment.
-- **`appimagetool` needs FUSE**, which GitHub runners do not reliably provide. →
-  Invoke it with `--appimage-extract-and-run`.
-- **An interrupted Windows install can leave the app unlaunchable** (the
-  installer replaced files, then failed or was killed). → Inno's own rollback
-  covers the common case; the recovery path is re-running the installer, which
-  the release page always hosts.
 - **Two extra artifacts per release** to build and keep working. → Both are
   produced in the existing `windows` and `linux` jobs, and the archives stay
   published so a packaging regression never leaves users with no download at all.
@@ -298,15 +328,9 @@ with errors the user cannot act on.
 
 ## Open Questions
 
-- Is Inno Setup preinstalled on the `windows-latest` runner image, or does the
-  job need a `choco install innosetup` step? To confirm at implementation time;
-  either way it is a one-line difference.
-- Which pure-Dart Ed25519 package to depend on (`cryptography` vs `pointycastle`):
-  decide on package health and pinning at implementation time. The golden-fixture
-  test makes the choice swappable.
-- Whether the ingest credential is a dedicated shared secret or the existing
-  admin bearer identity used by the SoundFont admin upload
-  ([soundfont.rs:336](../../../backend/server/src/soundfont.rs:336)). A shared
-  secret is simpler for CI; the admin path reuses an audited gate. Leaning shared
-  secret, since ingest re-verifies the signature and therefore carries little
-  authority on its own.
+- Resolved at implementation: the Dart Ed25519 verifier is the already-present
+  `cryptography` package; ingest uses a dedicated shared secret.
+- Whether anything in the app behaves differently inside an MSIX package (MIDI
+  device access, audio output, the OAuth loopback port, file locations under
+  package virtualization). Expected not — packaged desktop apps run as full
+  trust — and confirmed on a real Windows machine before the first submission.

@@ -39,6 +39,10 @@ cymbra-analytics = { path = "../analytics" }
 # Push-notification platform (token registry / consent / timezone RPCs; change:
 # add-push-notifications).
 cymbra-notifications = { path = "../notifications" }
+# Desktop update feed (change: add-desktop-auto-update): the release store and
+# the shared manifest contract the ingest handler re-verifies against.
+cymbra-updates = { path = "../updates" }
+cymbra-update-manifest = { path = "../../crates/update-manifest" }
 async-trait.workspace = true
 uuid.workspace = true
 tokio.workspace = true

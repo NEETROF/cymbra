@@ -39,6 +39,9 @@ pub use flags::{
 pub use cymbra_music::score_preview_http::{ScorePreviewState, score_preview_router};
 pub use cymbra_music::soundfont_http::{JwtAuth, SoundfontAuth, SoundfontState, soundfont_router};
 
+// The desktop update feed lives in its module too (change: add-desktop-auto-update).
+pub use cymbra_updates::{UpdatesState, updates_router};
+
 /// Liveness/readiness logic (pure; the HTTP/gRPC surfaces apply it).
 pub mod health {
     /// Ready only when every critical dependency is reachable.

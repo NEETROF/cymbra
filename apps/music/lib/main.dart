@@ -41,6 +41,9 @@ import 'state/session_notifier.dart';
 import 'state/drums_access.dart';
 import 'state/plan_notifier.dart';
 import 'state/screen_wake.dart';
+import 'state/player_notifier.dart';
+import 'state/update_listener.dart';
+import 'state/update_notifier.dart';
 import 'state/usage_tracking_notifier.dart';
 import 'theme/cymbra_theme.dart';
 import 'widgets/coach_layer.dart';
@@ -91,6 +94,18 @@ Future<void> main() async {
         (ref) => ref
             .watch(flagsProvider)
             .getBool(kAcousticInputEnabledFlag, or: false),
+      ),
+      // Desktop auto-update (change: add-desktop-auto-update): plain `false` in
+      // tests, the remote `desktop.auto_update.enabled` flag in the app. Off, the
+      // updater never checks, never prompts and never blocks.
+      desktopUpdateEnabledProvider.overrideWith(
+        (ref) =>
+            ref.watch(flagsProvider).getBool(kDesktopUpdateFlag, or: false),
+      ),
+      // Never interrupt a play or practice session with an update prompt: the
+      // offer waits for the session to end (plain `false` in tests).
+      updateSessionActiveProvider.overrideWith(
+        (ref) => ref.watch(playerProvider.select((p) => p.isPlaying)),
       ),
     ],
   );
@@ -230,7 +245,12 @@ class CymbraApp extends ConsumerWidget {
       home: const PostPlayRatingToastListener(
         child: LanguageSyncListener(
           child: PushRegistrationListener(
-            child: ForegroundNotificationListener(child: OnboardingGate()),
+            child: ForegroundNotificationListener(
+              // Owns the throttled launch check and turns updater state into the
+              // prompt / blocking screen (change: add-desktop-auto-update). Inert
+              // outside Windows/Linux and while the flag is off.
+              child: UpdateListener(child: OnboardingGate()),
+            ),
           ),
         ),
       ),
