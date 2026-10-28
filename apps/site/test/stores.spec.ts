@@ -5,7 +5,9 @@ import {
   LINGUA_FIREFOX_ADDONS,
   LINGUA_FIREFOX_ANDROID,
   linguaStores,
+  musicAppStores,
   musicStores,
+  MUSIC_DESKTOP_DOWNLOADS,
   MUSIC_APP_STORE,
   MUSIC_GOOGLE_PLAY,
 } from "../src/lib/stores";
@@ -14,7 +16,7 @@ describe("store links", () => {
   it("points Music at the published listings", () => {
     const links = musicStores("fr");
     const live = links.filter((l) => l.live);
-    expect(live.map((l) => l.href)).toEqual([MUSIC_APP_STORE, MUSIC_GOOGLE_PLAY]);
+    expect(live.map((l) => l.href)).toEqual([MUSIC_APP_STORE, MUSIC_GOOGLE_PLAY, MUSIC_DESKTOP_DOWNLOADS.fr]);
     // The App Store record covers the three Apple platforms: one link, one label.
     expect(live[0].label).toContain("iOS");
     expect(live[0].label).toContain("macOS");
@@ -22,14 +24,23 @@ describe("store links", () => {
 
   it("never marks an unpublished channel as live", () => {
     const dead = [...musicStores("en"), ...linguaStores("en")].filter((l) => !l.live);
-    expect(dead.length).toBeGreaterThan(0);
     for (const l of dead) expect(l.href).toBe("#");
+  });
+
+  it("leads the desktop button to the Music page's downloads, never a 'soon' placeholder (change: add-music-download-page)", () => {
+    for (const lang of ["fr", "en", "es"] as const) {
+      const desktop = musicStores(lang)[2];
+      expect(desktop.live).toBe(true);
+      expect(desktop.label).toBe("Windows / Linux");
+      expect(desktop.href).toBe(MUSIC_DESKTOP_DOWNLOADS[lang]);
+    }
+    expect(MUSIC_DESKTOP_DOWNLOADS).toEqual({ fr: "/music#telecharger", en: "/en/music#download", es: "/es/music#descargar" });
+    expect(musicAppStores().map((l) => l.href)).toEqual([MUSIC_APP_STORE, MUSIC_GOOGLE_PLAY]);
   });
 
   it("labels the channels in each site language", () => {
     // The Spanish labels (change: add-site-lingua-matrix-pages); the store names do not move.
     expect(linguaStores("es").map((l) => l.label)).toEqual(["Chrome", "Firefox (escritorio y Android)", "Safari (iPhone, iPad, Mac)"]);
-    expect(musicStores("es")[2].label).toBe("Windows / Linux — próximamente");
     expect(linguaStores("fr")[1].label).toBe("Firefox (ordinateur et Android)");
     expect(linguaStores("en")[1].label).toBe("Firefox (desktop and Android)");
   });

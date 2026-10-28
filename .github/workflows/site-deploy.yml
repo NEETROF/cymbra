@@ -14,7 +14,8 @@ name: site-deploy
 # until the Pages project is (re)pointed at this monorepo the job is skipped.
 #
 # Required repo VARIABLES: CF_PAGES_SITE_PROJECT (Cloudflare Pages project name),
-# PUBLIC_API_URL / PUBLIC_GOOGLE_CLIENT_ID / PUBLIC_APPLE_CLIENT_ID (+ PUBLIC_PADDLE_*)
+# PUBLIC_API_URL / PUBLIC_GOOGLE_CLIENT_ID / PUBLIC_APPLE_CLIENT_ID (+ PUBLIC_PADDLE_*),
+# MSSTORE_PRODUCT_ID (shared with music-release)
 # Required repo SECRETS:  CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID (shared with
 #                         the back-office deploy)
 on:
@@ -89,6 +90,9 @@ jobs:
           PUBLIC_PADDLE_CLIENT_TOKEN: ${{ vars.PUBLIC_PADDLE_CLIENT_TOKEN }}
           # The community server's permanent invite; empty = no "join the community" link.
           PUBLIC_DISCORD_URL: ${{ vars.PUBLIC_DISCORD_URL }}
+          # Cymbra Music's Microsoft Store product id; empty = Windows "coming soon".
+          # The same variable music-release submits to the Store with: one source.
+          PUBLIC_MSSTORE_PRODUCT_ID: ${{ vars.MSSTORE_PRODUCT_ID }}
         run: yarn build
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v4

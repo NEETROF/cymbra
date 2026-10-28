@@ -29,6 +29,15 @@ pub trait ReleaseRepo: Send + Sync {
     /// above zero. `None` means the endpoint answers `204`.
     async fn servable(&self, product: &str, channel: &str) -> anyhow::Result<Option<Release>>;
 
+    /// The highest non-paused release for a product/channel, whatever its
+    /// rollout — what the download page describes (see
+    /// [`crate::core::select_latest_downloadable`]). `None` means `204`.
+    async fn latest_downloadable(
+        &self,
+        product: &str,
+        channel: &str,
+    ) -> anyhow::Result<Option<Release>>;
+
     /// Store (or replace) a release, keyed on `(product, channel, version)`.
     /// Re-ingesting the same version replaces its bytes and policy — that is how
     /// a rollout percentage is raised.
@@ -54,6 +63,26 @@ impl ReleaseRepo for PgReleaseRepo {
                     rollout_percent, paused \
                FROM app_updates.releases \
               WHERE product = $1 AND channel = $2 AND NOT paused AND rollout_percent > 0 \
+              ORDER BY version_order DESC \
+              LIMIT 1",
+        )
+        .bind(product)
+        .bind(channel)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row)
+    }
+
+    async fn latest_downloadable(
+        &self,
+        product: &str,
+        channel: &str,
+    ) -> anyhow::Result<Option<Release>> {
+        let row: Option<Release> = sqlx::query_as(
+            "SELECT product, channel, version, version_order, manifest, signature, key_id, \
+                    rollout_percent, paused \
+               FROM app_updates.releases \
+              WHERE product = $1 AND channel = $2 AND NOT paused \
               ORDER BY version_order DESC \
               LIMIT 1",
         )

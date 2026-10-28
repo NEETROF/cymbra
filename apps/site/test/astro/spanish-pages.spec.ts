@@ -1,4 +1,6 @@
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
+import { loadRenderers } from "astro:container";
+import { getContainerRenderer as vueRenderer } from "@astrojs/vue/container-renderer";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { Coverage, Routes } from "../../src/lib/lingua-pairs";
 import { MATRIX, ROUTES, TODAY } from "../support/lingua";
@@ -54,7 +56,8 @@ const main = (html: string) => html.match(/<main>(.*?)<\/main>/s)?.[1] ?? "";
 
 let container: AstroContainer;
 beforeAll(async () => {
-  container = await AstroContainer.create();
+  // The Music page and the downloads block mount the desktop-downloads Vue island.
+  container = await AstroContainer.create({ renderers: await loadRenderers([vueRenderer()]) });
 });
 type Page = Parameters<AstroContainer["renderToString"]>[0];
 const render = (page: Page) => container.renderToString(page, { partial: false });
@@ -126,10 +129,16 @@ describe("/es/music/", () => {
       ["EN", "/en/music"],
     ]);
     expect(main(html)).toContain('<a class="btn btn-primary" href="https://apps.apple.com/app/id6789557194" rel="noopener">App Store (iOS, iPadOS, macOS)</a>');
-    expect(main(html)).toContain("Windows / Linux — próximamente");
+    expect(main(html)).toContain('href="/es/music#descargar"');
+    // The download section, readable without scripts (change: add-music-download-page, D8).
+    expect(main(html)).toContain('<section id="descargar"');
+    expect(main(html)).toContain('href="https://github.com/NEETROF/cymbra/releases"');
     expect([...main(html).matchAll(/<div class="card">/g)]).toHaveLength(8);
     expect(main(html)).toContain("<h3>⏸️ Modo Espera</h3>");
-    expect(html).not.toContain("<astro-island");
+    // One island only: the desktop downloads (change: add-music-download-page).
+    expect([...html.matchAll(/<astro-island\b[^>]*component-url="([^"]+)"/g)].map((m) => m[1])).toEqual([
+      expect.stringContaining("MusicDownloadsIsland"),
+    ]);
   });
 
   it("leaves out the French page's closing about plans and codes: no account or code link in the page", async () => {

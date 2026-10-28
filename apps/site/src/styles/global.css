@@ -238,6 +238,11 @@ a:hover { text-decoration: underline; }
 .betas { padding-left: 1.1rem; margin: 0; display: grid; gap: 0.35rem; }
 .downloads { margin-top: 2rem; }
 .downloads h3 { font-size: 1.05rem; margin-bottom: 0.5rem; }
+.downloads .desktop-downloads { margin-top: 1rem; }
+/* The Music page's desktop downloads (change: add-music-download-page). */
+.downloads-section { padding-block: 2rem 1rem; }
+.downloads-section h2 { margin-bottom: 0.3rem; }
+.downloads-section > .muted { margin: 0 0 1rem; }
 .cta-row.left { justify-content: flex-start; }
 /* Lingua leaving page: six full-width answers; the tapped one stays marked once all are disabled. */
 .leave-answers { display: grid; gap: 0.6rem; margin: 1rem 0 0; }

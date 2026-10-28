@@ -7,25 +7,25 @@
 
 ## 2. Backend: latest-release view
 
-- [ ] 2.1 Add a pure `select_latest_downloadable` (not paused, highest `version_order`, rollout ignored) next to `select_servable` in `backend/updates/src/core.rs`; unit tests for: rollout 0 included, newest paused skipped, all paused, empty, `1.9.0` vs `1.10.0` ordering.
-- [ ] 2.2 Add the view type and projection (version, `released_at`, `notes_url`, `targets` with kind/url/size/sha256) built from a verified manifest; unit test that no signature, key id or rollout field leaks.
-- [ ] 2.3 Add `GET /updates/desktop/latest` in `backend/server/src/updates.rs`: re-verify the envelope against the trusted keys, `204` on verify failure / unknown product or channel / nothing available, `200` JSON otherwise with `Cache-Control: public, max-age=…`; router tests over the repository trait with `mockall` mocks (200, 204 ×4, byte-identical responses, no request identifier read).
-- [ ] 2.4 Restrict cross-origin reads of this route to `CYMBRA_WEB_ORIGINS`, without credentials, following `backend/server/src/web_lingua.rs` (the `/updates/desktop` route itself keeps no CORS layer); test an allowed origin, a foreign origin, and no `Origin`.
-- [ ] 2.5 Confirm the Caddy `@http` matcher entry added for `/updates/desktop` also covers `/updates/desktop/latest` (widen it to `/updates/*` if not), and add to `backend/deploy/DEPLOY.md`: `curl -i https://<prod>/updates/desktop/latest` answers `204` or `200` JSON, never `200` with `grpc-status: 12`.
-- [ ] 2.6 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo llvm-cov` stays ≥ 80 %.
+- [x] 2.1 Add a pure `select_latest_downloadable` (not paused, highest `version_order`, rollout ignored) next to `select_servable` in `backend/updates/src/core.rs`; unit tests for: rollout 0 included, newest paused skipped, all paused, empty, `1.9.0` vs `1.10.0` ordering.
+- [x] 2.2 Add the view type and projection (version, `released_at`, `notes_url`, `targets` with kind/url/size/sha256) built from a verified manifest; unit test that no signature, key id or rollout field leaks.
+- [x] 2.3 Add `GET /updates/desktop/latest` in `backend/updates/src/http.rs` (the module owns its HTTP surface; the server mounts it): re-verify the envelope against the trusted keys, `204` on verify failure / unknown product or channel / nothing available, `200` JSON otherwise with `Cache-Control: public, max-age=…`; router tests over the repository trait with `mockall` mocks (200, 204 ×4, byte-identical responses, no request identifier read).
+- [x] 2.4 Restrict cross-origin reads of this route to `CYMBRA_WEB_ORIGINS`, without credentials, following `backend/server/src/web_lingua.rs` (the `/updates/desktop` route itself keeps no CORS layer); test an allowed origin, a foreign origin, and no `Origin`.
+- [x] 2.5 Confirm the Caddy `@http` matcher entry added for `/updates/desktop` also covers `/updates/desktop/latest` (widen it to `/updates/*` if not), and add to `backend/deploy/DEPLOY.md`: `curl -i https://<prod>/updates/desktop/latest` answers `204` or `200` JSON, never `200` with `grpc-status: 12`.
+- [x] 2.6 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo llvm-cov` stays ≥ 80 %.
 
 ## 3. Site: client and island
 
-- [ ] 3.1 Add `apps/site/src/lib/desktop-release.ts`: the response type, the GitHub-asset address check (D5), the releases-page URL constant and the per-version `releases/tag/music-v<major.minor.patch>` link (the manifest's `1.37.0+51` is tagged `music-v1.37.0`: the build number is dropped); unit tests for accepted and rejected addresses and for the tag link.
-- [ ] 3.2 Add the composable `useLatestDesktopRelease.ts` behind an injectable client seam with the `Async` union (`idle | loading | success | none | error`); tests for success, 204 → `none`, network failure and malformed body → `error`, foreign address filtered.
-- [ ] 3.3 Add `MusicDownloadsIsland.vue`: the Linux AppImage card (version, date, size, SHA-256, link, notes link, install steps) with the fallback for `none`/`error`, the Windows Store card (web-installer button from `PUBLIC_MSSTORE_PRODUCT_ID`, "coming soon" when unset), and the platform highlight; component tests with the fake client for each state, a release without a Linux target, and the Store id set / unset.
-- [ ] 3.4 Add the fr / en / es strings (card titles, steps, fallback, "not available yet") with no key missing in any locale; run the site's i18n/lint check.
+- [x] 3.1 Add `apps/site/src/lib/desktop-release.ts`: the response type, the GitHub-asset address check (D5), the releases-page URL constant and the per-version `releases/tag/music-v<major.minor.patch>` link (the manifest's `1.37.0+51` is tagged `music-v1.37.0`: the build number is dropped); unit tests for accepted and rejected addresses and for the tag link.
+- [x] 3.2 Add the composable `useLatestDesktopRelease.ts` behind an injectable client seam with the shared `Async` union from `@cymbra/web-auth` (the site's convention), `success(null)` standing for `none` (the `204`); tests for success, 204 → `none`, network failure and malformed body → `error`, foreign address filtered.
+- [x] 3.3 Add `MusicDownloadsIsland.vue`: the Linux AppImage card (version, date, size, SHA-256, link, notes link, install steps) with the fallback for `none`/`error`, the Windows Store card (web-installer button from `PUBLIC_MSSTORE_PRODUCT_ID`, "coming soon" when unset), and the platform highlight; component tests with the fake client for each state, a release without a Linux target, and the Store id set / unset.
+- [x] 3.4 Add the fr / en / es strings (card titles, steps, fallback, "not available yet") with no key missing in any locale; run the site's i18n/lint check.
 
 ## 4. Site: pages
 
-- [ ] 4.1 Add the "Download" section to `music.astro` and its `en/` and `es/` twins: statically rendered releases-page link and platform guidance, island mounted on top; verify the built HTML contains the link with scripts disabled.
-- [ ] 4.2 Replace the dimmed `DESKTOP_SOON` entry in `lib/stores.ts` with an anchor to the section, render the island in `Downloads.astro` (used by `/account`), and add `Downloads` to `checkout/done.astro` and `en/checkout/done.astro`, which today only link to the account; check no "coming soon" text remains in any locale.
-- [ ] 4.3 `site-check` passes (build, typecheck, tests); add the Music page to the sitemap/pinned-routes tests only if they enumerate sections.
+- [x] 4.1 Add the "Download" section to `music.astro` and its `en/` and `es/` twins: statically rendered releases-page link and platform guidance, island mounted on top; verify the built HTML contains the link with scripts disabled.
+- [x] 4.2 Replace the dimmed `DESKTOP_SOON` entry in `lib/stores.ts` with an anchor to the section, render the island in `Downloads.astro` (used by `/account`), and add `Downloads` to `checkout/done.astro` and `en/checkout/done.astro`, which today only link to the account; check no "coming soon" text remains in any locale.
+- [x] 4.3 `site-check` passes (build, typecheck, tests); add the Music page to the sitemap/pinned-routes tests only if they enumerate sections.
 
 ## 5. Integration checks
 

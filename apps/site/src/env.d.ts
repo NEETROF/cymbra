@@ -13,6 +13,8 @@ interface ImportMetaEnv {
   readonly PUBLIC_PADDLE_CLIENT_TOKEN?: string;
   /** Discord community invite shown on /lingua; unset hides the link. */
   readonly PUBLIC_DISCORD_URL?: string;
+  /** Cymbra Music's Microsoft Store product id (12 characters); unset = Windows "coming soon". */
+  readonly PUBLIC_MSSTORE_PRODUCT_ID?: string;
 }
 
 interface ImportMeta {

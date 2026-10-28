@@ -1,5 +1,6 @@
 ---
 import Base from '../../layouts/Base.astro';
+import Downloads from '../../components/Downloads.astro';
 ---
 
 <Base title="Merci — Cymbra" description="Votre paiement est enregistré." lang="fr" noindex alternates={{ fr: '/checkout/done', en: '/en/checkout/done' }}>
@@ -12,5 +13,6 @@ import Base from '../../layouts/Base.astro';
       </p>
       <p><a class="btn btn-primary" href="/account">Voir mon compte</a></p>
     </div>
+    <Downloads lang="fr" />
   </section>
 </Base>

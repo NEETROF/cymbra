@@ -16,6 +16,8 @@ serde = { workspace = true }
 serde_json.workspace = true
 # The module owns its HTTP surface (the feed + CI ingest); the server mounts it.
 axum.workspace = true
+# CORS for the download page's view only (change: add-music-download-page).
+tower-http.workspace = true
 # The shared manifest contract: ingest re-verifies the signature before storing.
 cymbra-update-manifest = { path = "../../crates/update-manifest" }
 # Doubles for the release repository in the server's handler tests

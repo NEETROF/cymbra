@@ -2,6 +2,8 @@
 import Base from '../layouts/Base.astro';
 import Community from '../components/Community.astro';
 import StoreButtons from '../components/StoreButtons.astro';
+import MusicDownloadsIsland from '../components/MusicDownloadsIsland.vue';
+import { config } from '../lib/config';
 import { musicStores } from '../lib/stores';
 import MusicShowcase from '../components/MusicShowcase.astro';
 import { SHARE_COPY } from '../lib/music-media';
@@ -60,6 +62,12 @@ import shareImage from '../assets/music/fr/share.png';
       <h3>🔒 Respect de votre vie privée</h3>
       <p>Données hébergées en France (UE), aucune revente, aucun pisteur publicitaire.</p>
     </div>
+  </section>
+
+  <section id="telecharger" class="container downloads-section">
+    <h2>Sur ordinateur</h2>
+    <p class="muted">Windows et Linux. Sur iPhone, iPad, Mac et Android, passez par les boutons ci-dessus.</p>
+    <MusicDownloadsIsland client:load lang="fr" storeProductId={config.msStoreProductId} />
   </section>
 
   <Community lang="fr" />

@@ -84,12 +84,17 @@ describe("each locale's pages say their language", () => {
   }
 
   // The Spanish home and Music pages (change: extend-site-spanish-locale, D1): static
-  // pages, in Spanish, mounting no island.
-  for (const path of ["/es/", "/es/music"]) {
-    it(`es: ${path} is <html lang="es"> and mounts no island`, () => {
-      const html = read(outputFileFor(path));
-      expect(html).toContain('<html lang="es"');
-      expect(html).not.toContain("<astro-island");
-    });
-  }
+  // pages, in Spanish, mounting no island — but the Music page's desktop downloads
+  // (change: add-music-download-page), whose server render is already the fallback.
+  it('es: /es/ is <html lang="es"> and mounts no island', () => {
+    const html = read(outputFileFor("/es/"));
+    expect(html).toContain('<html lang="es"');
+    expect(html).not.toContain("<astro-island");
+  });
+  it('es: /es/music is <html lang="es"> and mounts only the desktop downloads island', () => {
+    const html = read(outputFileFor("/es/music"));
+    expect(html).toContain('<html lang="es"');
+    expect([...html.matchAll(/<astro-island\b[^>]*component-url="([^"]+)"/g)]).toHaveLength(1);
+    expect(html).toContain('href="https://github.com/NEETROF/cymbra/releases"');
+  });
 });

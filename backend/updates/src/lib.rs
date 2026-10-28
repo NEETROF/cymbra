@@ -29,12 +29,16 @@
 pub mod core;
 pub mod http;
 pub mod repo;
+pub mod view;
 
-pub use core::{is_servable, select_servable, version_order};
+pub use core::{
+    is_downloadable, is_servable, select_latest_downloadable, select_servable, version_order,
+};
 pub use http::{UpdatesState, updates_router};
 #[cfg(any(test, feature = "mock"))]
 pub use repo::MockReleaseRepo;
 pub use repo::{PgReleaseRepo, ReleaseRepo};
+pub use view::{DownloadTarget, DownloadView, verified_view};
 
 /// The module's Postgres schema.
 pub const SCHEMA: &str = "app_updates";

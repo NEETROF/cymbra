@@ -678,6 +678,17 @@ update feed inert (204)` and no client is ever offered an update. Bring it up
    A `200` with a `grpc-status: 12` header and an empty body means step 3 did not
    take effect — Caddy is still routing the path to tonic.
 
+   The download page's view (change: add-music-download-page) sits under the same
+   `/updates/*` matcher entry:
+   ```bash
+   curl -i 'https://api.cymbra.app/updates/desktop/latest?product=music&channel=stable' \
+        -H 'Origin: https://cymbra.app'
+   ```
+   Expect `204` (nothing ingested yet) or `200` JSON (`version`, `released_at`,
+   `targets`), with `Access-Control-Allow-Origin: https://cymbra.app` — never a `200`
+   carrying `grpc-status: 12`. No grant means `cymbra.app` is missing from
+   `CYMBRA_WEB_ORIGINS`.
+
 **Staging and rollback.** The release workflow ingests at `rollout_percent = 0`
 (nothing is offered). Raise it in steps:
 ```sql
@@ -685,7 +696,14 @@ UPDATE app_updates.releases SET rollout_percent = 25, updated_at = now()
  WHERE product = 'music' AND channel = 'stable' AND version = '1.25.0+34';
 ```
 The kill-switch is `rollout_percent = 0` (or `paused = true`); it takes effect
-within the 5-minute cache lifetime. There is **no downgrade path** by design —
+within the 5-minute cache lifetime.
+
+**The download page ignores rollout, not pause.** `cymbra.app/music` shows the
+highest **non-paused** release even at `rollout_percent = 0` — a person choosing
+to download needs no staging. So `rollout_percent = 0` stops automatic updates
+but leaves the build on the page; to take a bad build off the page, **pause it**.
+Pausing the newest makes the page show the next one down: pause every release
+you want hidden. There is **no downgrade path** by design —
 a client refuses any version that is not strictly newer, so rolling back means
 pausing the bad release and shipping a higher fixed version, never re-publishing
 an older one.
