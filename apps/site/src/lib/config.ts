@@ -13,6 +13,9 @@ export interface SiteConfig {
   /** Community invite (Discord): header, footer, a band on home/Music/Lingua, the
    *  Lingua hero note. Unset = no link anywhere. */
   discordUrl: string | null;
+  /** Cymbra Music's Microsoft Store product id: the Windows download button. Unset =
+   *  the Windows card says "coming soon" (change: add-music-download-page). */
+  msStoreProductId: string | null;
 }
 
 function nonEmpty(v: string | undefined): string | null {
@@ -28,6 +31,7 @@ export function readConfig(env: ImportMetaEnv = import.meta.env): SiteConfig {
     paddleEnv: nonEmpty(env.PUBLIC_PADDLE_ENV) === "sandbox" ? "sandbox" : "production",
     paddleClientToken: nonEmpty(env.PUBLIC_PADDLE_CLIENT_TOKEN),
     discordUrl: nonEmpty(env.PUBLIC_DISCORD_URL),
+    msStoreProductId: nonEmpty(env.PUBLIC_MSSTORE_PRODUCT_ID),
   };
 }
 

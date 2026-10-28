@@ -1,9 +1,12 @@
 ---
 // App download links per platform (design open question → yes): a useful landing
 // after a web purchase. The links themselves live in `src/lib/stores.ts`, shared
-// with the home hub and the product pages.
+// with the home hub and the product pages; the desktop builds (Windows Store, Linux
+// AppImage) are the Music page's island (change: add-music-download-page).
 import StoreButtons from './StoreButtons.astro';
-import { musicStores } from '../lib/stores';
+import MusicDownloadsIsland from './MusicDownloadsIsland.vue';
+import { musicAppStores } from '../lib/stores';
+import { config } from '../lib/config';
 import type { Lang } from '../lib/i18n';
 
 interface Props {
@@ -20,5 +23,6 @@ const TITLE: Record<Lang, string> = {
 
 <section class="downloads">
   <h3>{TITLE[lang]}</h3>
-  <StoreButtons links={musicStores(lang)} centered={false} />
+  <StoreButtons links={musicAppStores()} centered={false} />
+  <MusicDownloadsIsland client:load lang={lang} storeProductId={config.msStoreProductId} />
 </section>

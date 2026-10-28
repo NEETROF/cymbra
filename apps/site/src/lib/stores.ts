@@ -6,8 +6,8 @@
 // Chrome Web Store, on Firefox Add-ons — desktop and Android, one listing, the manifest declaring
 // `gecko_android` (apps/lingua-extension/tool/manifests.mjs) — and on the App Store, whose record
 // 6813053825 (its Safari app) covers iPhone, iPad and Mac. The desktop builds of Music
-// (Windows / Linux) are not published yet: they render as dimmed buttons, the way the
-// store buttons did before the listings existed.
+// (Windows through the Microsoft Store, the Linux AppImage) live in the Music page's
+// download section, which this button points at (change: add-music-download-page).
 
 import type { Lang } from "./i18n";
 
@@ -35,10 +35,12 @@ export const LINGUA_FIREFOX_ANDROID = "https://addons.mozilla.org/android/addon/
 export const LINGUA_APP_STORE = "https://apps.apple.com/app/id6813053825";
 
 // The labels that differ by language; the store names do not.
-const DESKTOP_SOON: Record<Lang, string> = {
-  fr: "Windows / Linux — bientôt",
-  en: "Windows / Linux — soon",
-  es: "Windows / Linux — próximamente",
+const DESKTOP_LABEL = "Windows / Linux";
+/** The Music page's download section, per language (`MusicDownloadsIsland`). */
+export const MUSIC_DESKTOP_DOWNLOADS: Record<Lang, string> = {
+  fr: "/music#telecharger",
+  en: "/en/music#download",
+  es: "/es/music#descargar",
 };
 const FIREFOX: Record<Lang, string> = {
   fr: "Firefox (ordinateur et Android)",
@@ -46,13 +48,17 @@ const FIREFOX: Record<Lang, string> = {
   es: "Firefox (escritorio y Android)",
 };
 
-/** Where to get Cymbra Music, most-used platform first. */
-export function musicStores(lang: Lang): StoreLink[] {
+/** Cymbra Music's store listings alone — where the desktop downloads are shown beside them. */
+export function musicAppStores(): StoreLink[] {
   return [
     { label: "App Store (iOS, iPadOS, macOS)", href: MUSIC_APP_STORE, live: true },
     { label: "Google Play", href: MUSIC_GOOGLE_PLAY, live: true },
-    { label: DESKTOP_SOON[lang], href: "#", live: false },
   ];
+}
+
+/** Where to get Cymbra Music, most-used platform first; the desktop button leads to the Music page's downloads. */
+export function musicStores(lang: Lang): StoreLink[] {
+  return [...musicAppStores(), { label: DESKTOP_LABEL, href: MUSIC_DESKTOP_DOWNLOADS[lang], live: true }];
 }
 
 /** Where to get Cymbra Lingua: its Safari app's one App Store record serves iPhone, iPad and Mac. */

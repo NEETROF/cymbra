@@ -25,6 +25,11 @@
 //!   workflow. It **re-verifies the CI signature before storing**, so a stolen
 //!   ingest credential still cannot inject an unsigned or foreign-key manifest:
 //!   the credential decides *whether* something is stored, never *what*.
+//! - `GET  /updates/desktop/latest?product=&channel=` — the download page's
+//!   decoded view (change: add-music-download-page, design D2–D4): the highest
+//!   **non-paused** release whatever its rollout, re-verified on each read.
+//!   Readable cross-origin by the configured web origins only, without
+//!   credentials. The updater never uses it.
 //!
 //! The product/channel/version a row is stored under are read from the **signed
 //! manifest**, never from the request, so ingest cannot mislabel a release into
@@ -37,14 +42,15 @@
 
 use std::sync::Arc;
 
-use crate::{Release, ReleaseRepo, version_order};
+use crate::{Release, ReleaseRepo, verified_view, version_order};
 use axum::Router;
 use axum::extract::{Query, State};
-use axum::http::{HeaderMap, StatusCode, header};
+use axum::http::{HeaderMap, HeaderValue, Method, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use cymbra_update_manifest::{Envelope, TrustedKeys, VerifyError};
 use serde::Deserialize;
+use tower_http::cors::{AllowOrigin, CorsLayer};
 
 /// How long a feed response may be cached. The kill-switch (`rollout_percent = 0`)
 /// therefore takes effect within this window, not instantly — the trade for a
@@ -59,15 +65,33 @@ pub struct UpdatesState {
     pub repo: Option<Arc<dyn ReleaseRepo>>,
     pub trusted_keys: Arc<TrustedKeys>,
     pub ingest_secret: Option<Arc<String>>,
+    /// `CYMBRA_WEB_ORIGINS`: the only origins allowed to read
+    /// `/updates/desktop/latest` from a browser. Empty ⇒ no cross-origin grant.
+    pub web_origins: Vec<String>,
 }
 
 /// The desktop update feed router, ready to `.merge()` into the HTTP server.
 ///
-/// No CORS layer: the consumers are the desktop apps, not a browser.
+/// The feed and its ingest carry no CORS layer: their consumers are the desktop
+/// apps and the CI, not a browser. Only the download page's view does, and only
+/// for the site's origins — a plain `GET`, never with credentials.
 pub fn updates_router(state: UpdatesState) -> Router {
+    let origins: Vec<HeaderValue> = state
+        .web_origins
+        .iter()
+        .filter_map(|o| o.parse::<HeaderValue>().ok())
+        .collect();
+    let cors = CorsLayer::new()
+        .allow_origin(AllowOrigin::list(origins))
+        .allow_methods([Method::GET]);
+    let latest = Router::new()
+        .route("/updates/desktop/latest", get(serve_latest))
+        .layer(cors)
+        .with_state(state.clone());
     Router::new()
         .route("/updates/desktop", get(serve_feed).post(ingest_release))
         .with_state(state)
+        .merge(latest)
 }
 
 /// `?product=music&channel=stable` — the only request-scoped input, and both
@@ -102,6 +126,42 @@ async fn serve_feed(State(s): State<UpdatesState>, Query(q): Query<FeedQuery>) -
         Ok(None) => no_content(),
         Err(e) => {
             tracing::warn!(error = %e, product = %q.product, channel = %q.channel, "update feed read failed");
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
+}
+
+/// `GET /updates/desktop/latest` — what the download page shows, or `204`.
+///
+/// Every "nothing to show" case answers the same `204`: unwired, unknown
+/// product or channel, all paused, and a row that no longer verifies. The page
+/// renders one fallback for all of them, and an outsider learns nothing about
+/// which it was. Reads only the query: no account, install id or version.
+async fn serve_latest(State(s): State<UpdatesState>, Query(q): Query<FeedQuery>) -> Response {
+    let Some(repo) = s.repo.as_ref() else {
+        return no_content();
+    };
+    match repo.latest_downloadable(&q.product, &q.channel).await {
+        Ok(Some(release)) => {
+            match verified_view(&release, &s.trusted_keys, &q.product, &q.channel) {
+                Some(view) => (
+                    StatusCode::OK,
+                    [(header::CACHE_CONTROL, cache_control())],
+                    axum::Json(view),
+                )
+                    .into_response(),
+                None => {
+                    // Withheld, not invented (design D4). Loud in the log: a
+                    // stored row that stopped verifying is a key rotation gone
+                    // wrong or a tampered table.
+                    tracing::error!(version = %release.version, key_id = %release.key_id, "stored release no longer verifies; download page withheld");
+                    no_content()
+                }
+            }
+        }
+        Ok(None) => no_content(),
+        Err(e) => {
+            tracing::warn!(error = %e, product = %q.product, channel = %q.channel, "download view read failed");
             StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
@@ -227,6 +287,7 @@ mod tests {
 
     const SECRET: [u8; 32] = [3u8; 32];
     const KEY_ID: &str = "test-a";
+    const SITE: &str = "https://cymbra.app";
 
     fn key() -> SigningKey {
         SigningKey::from_bytes(&SECRET)
@@ -284,6 +345,7 @@ mod tests {
             repo,
             trusted_keys: trusted(),
             ingest_secret: secret.map(|s| Arc::new(s.to_string())),
+            web_origins: vec![SITE.to_string()],
         }
     }
 
@@ -385,6 +447,178 @@ mod tests {
             .returning(|_, _| Err(anyhow::anyhow!("boom")));
         let (status, _, _) = call(state(Some(Arc::new(repo)), None), get("/updates/desktop")).await;
         assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    // --- the download page's view ----------------------------------------
+
+    /// A row as ingest would store it: really signed, rollout 0.
+    fn signed_release(version: &str) -> Release {
+        release_from_envelope(&envelope_json(&manifest(version), 0), &trusted()).unwrap()
+    }
+
+    fn latest_repo(row: Option<Release>) -> Arc<dyn ReleaseRepo> {
+        let mut repo = MockReleaseRepo::new();
+        repo.expect_latest_downloadable()
+            .withf(|p, c| p == "music" && c == "stable")
+            .returning(move |_, _| Ok(row.clone()));
+        // The updater's selection must never be consulted for the page.
+        repo.expect_servable().never();
+        Arc::new(repo)
+    }
+
+    #[tokio::test]
+    async fn the_latest_view_describes_a_rollout_zero_release() {
+        let (status, headers, body) = call(
+            state(Some(latest_repo(Some(signed_release("1.25.0+34")))), None),
+            get("/updates/desktop/latest?product=music&channel=stable"),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            headers.get(header::CACHE_CONTROL).unwrap(),
+            "public, max-age=300"
+        );
+        let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(json["version"], "1.25.0+34");
+        assert_eq!(json["targets"]["windows-x64"]["size"], 1);
+        assert!(json.get("signature").is_none());
+        assert!(json.get("rollout_percent").is_none());
+    }
+
+    #[tokio::test]
+    async fn the_latest_view_is_byte_identical_for_every_caller() {
+        let repo = latest_repo(Some(signed_release("1.25.0+34")));
+        let a = call(
+            state(Some(repo.clone()), None),
+            get("/updates/desktop/latest"),
+        )
+        .await;
+        let other_caller = Request::builder()
+            .uri("/updates/desktop/latest?product=music&channel=stable")
+            .header(header::AUTHORIZATION, "Bearer someone")
+            .header("x-install-id", "abc")
+            .header(header::USER_AGENT, "elsewhere")
+            .body(Body::empty())
+            .unwrap();
+        let b = call(state(Some(repo), None), other_caller).await;
+        assert_eq!(a.0, b.0);
+        assert_eq!(a.2, b.2);
+    }
+
+    #[tokio::test]
+    async fn the_latest_view_answers_204_when_nothing_is_downloadable() {
+        let (status, headers, body) = call(
+            state(Some(latest_repo(None)), None),
+            get("/updates/desktop/latest"),
+        )
+        .await;
+        assert_eq!(status, StatusCode::NO_CONTENT);
+        assert!(body.is_empty());
+        assert!(headers.get(header::CACHE_CONTROL).is_some());
+    }
+
+    #[tokio::test]
+    async fn the_latest_view_answers_204_for_an_unknown_product() {
+        let mut repo = MockReleaseRepo::new();
+        repo.expect_latest_downloadable()
+            .withf(|p, _| p == "nope")
+            .returning(|_, _| Ok(None));
+        let (status, _, _) = call(
+            state(Some(Arc::new(repo)), None),
+            get("/updates/desktop/latest?product=nope&channel=stable"),
+        )
+        .await;
+        assert_eq!(status, StatusCode::NO_CONTENT);
+    }
+
+    #[tokio::test]
+    async fn the_latest_view_withholds_a_row_that_no_longer_verifies() {
+        // `release()` carries a dummy signature: stored, but not ours.
+        let (status, _, body) = call(
+            state(Some(latest_repo(Some(release("1.25.0+34")))), None),
+            get("/updates/desktop/latest"),
+        )
+        .await;
+        assert_eq!(status, StatusCode::NO_CONTENT);
+        assert!(body.is_empty());
+    }
+
+    #[tokio::test]
+    async fn the_latest_view_answers_204_when_unwired() {
+        let (status, _, _) = call(state(None, None), get("/updates/desktop/latest")).await;
+        assert_eq!(status, StatusCode::NO_CONTENT);
+    }
+
+    #[tokio::test]
+    async fn the_latest_view_read_failure_is_a_500() {
+        let mut repo = MockReleaseRepo::new();
+        repo.expect_latest_downloadable()
+            .returning(|_, _| Err(anyhow::anyhow!("boom")));
+        let (status, _, _) = call(
+            state(Some(Arc::new(repo)), None),
+            get("/updates/desktop/latest"),
+        )
+        .await;
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    fn get_from(uri: &str, origin: &str) -> Request<Body> {
+        Request::builder()
+            .uri(uri)
+            .header(header::ORIGIN, origin)
+            .body(Body::empty())
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn the_site_may_read_the_latest_view_without_credentials() {
+        let (_, headers, _) = call(
+            state(Some(latest_repo(None)), None),
+            get_from("/updates/desktop/latest", SITE),
+        )
+        .await;
+        assert_eq!(
+            headers.get(header::ACCESS_CONTROL_ALLOW_ORIGIN).unwrap(),
+            SITE
+        );
+        assert!(
+            headers
+                .get(header::ACCESS_CONTROL_ALLOW_CREDENTIALS)
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn a_foreign_origin_gets_no_grant_on_the_latest_view() {
+        let (_, headers, _) = call(
+            state(Some(latest_repo(None)), None),
+            get_from("/updates/desktop/latest", "https://evil.example"),
+        )
+        .await;
+        assert!(headers.get(header::ACCESS_CONTROL_ALLOW_ORIGIN).is_none());
+    }
+
+    #[tokio::test]
+    async fn no_origin_means_no_cors_header() {
+        let (status, headers, _) = call(
+            state(Some(latest_repo(None)), None),
+            get("/updates/desktop/latest"),
+        )
+        .await;
+        assert_eq!(status, StatusCode::NO_CONTENT);
+        assert!(headers.get(header::ACCESS_CONTROL_ALLOW_ORIGIN).is_none());
+    }
+
+    #[tokio::test]
+    async fn the_updater_feed_still_grants_no_origin() {
+        let mut repo = MockReleaseRepo::new();
+        repo.expect_servable().returning(|_, _| Ok(None));
+        let (_, headers, _) = call(
+            state(Some(Arc::new(repo)), None),
+            get_from("/updates/desktop", SITE),
+        )
+        .await;
+        assert!(headers.get(header::ACCESS_CONTROL_ALLOW_ORIGIN).is_none());
     }
 
     // --- ingest ------------------------------------------------------------

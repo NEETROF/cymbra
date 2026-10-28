@@ -13,9 +13,10 @@
 // limitations under the License.
 
 //! Pure, host-testable feed logic (change: add-desktop-auto-update, task 2.8):
-//! version ordering and the servable-release predicate. No Postgres, no HTTP —
-//! the adapters in [`crate::repo`] and `backend/server/src/updates.rs` are thin
-//! glue over what lives here.
+//! version ordering and the servable-release predicate; plus the download page's
+//! own selection (change: add-music-download-page, task 2.1). No Postgres, no
+//! HTTP — the adapters in [`crate::repo`] and [`crate::http`] are thin glue over
+//! what lives here.
 
 use crate::Release;
 
@@ -72,6 +73,27 @@ pub fn select_servable(candidates: &[Release]) -> Option<&Release> {
     candidates
         .iter()
         .filter(|r| is_servable(r))
+        .max_by_key(|r| r.version_order)
+}
+
+/// Whether a stored release may be shown on the download page. Only pause
+/// counts: rollout throttles *automatic* updates against a bad build, and a
+/// person choosing to download has no such need (design D3 of
+/// add-music-download-page). A rollout-0 release — the CI's ingest state — is
+/// therefore shown.
+pub fn is_downloadable(release: &Release) -> bool {
+    !release.paused
+}
+
+/// The release the download page describes: the highest non-paused version,
+/// whatever its rollout, or `None` (a `204`).
+///
+/// Pausing the newest makes the page fall back to the next one down — an
+/// operator pulling a build pauses every release they want hidden.
+pub fn select_latest_downloadable(candidates: &[Release]) -> Option<&Release> {
+    candidates
+        .iter()
+        .filter(|r| is_downloadable(r))
         .max_by_key(|r| r.version_order)
 }
 
@@ -166,5 +188,48 @@ mod tests {
         ];
         assert!(select_servable(&rows).is_none());
         assert!(select_servable(&[]).is_none());
+    }
+
+    #[test]
+    fn a_rollout_zero_release_is_downloadable() {
+        let rows = vec![release("1.25.0+34", 0, false)];
+        assert_eq!(
+            select_latest_downloadable(&rows).unwrap().version,
+            "1.25.0+34"
+        );
+    }
+
+    #[test]
+    fn the_download_page_skips_the_paused_head() {
+        let rows = vec![
+            release("1.24.0+32", 100, false),
+            release("1.25.0+34", 0, true),
+        ];
+        assert_eq!(
+            select_latest_downloadable(&rows).unwrap().version,
+            "1.24.0+32"
+        );
+    }
+
+    #[test]
+    fn nothing_downloadable_when_all_are_paused_or_none_exist() {
+        let rows = vec![
+            release("1.25.0+34", 100, true),
+            release("1.24.0+32", 0, true),
+        ];
+        assert!(select_latest_downloadable(&rows).is_none());
+        assert!(select_latest_downloadable(&[]).is_none());
+    }
+
+    #[test]
+    fn the_download_page_orders_versions_numerically() {
+        let rows = vec![
+            release("1.10.0+40", 0, false),
+            release("1.9.0+39", 100, false),
+        ];
+        assert_eq!(
+            select_latest_downloadable(&rows).unwrap().version,
+            "1.10.0+40"
+        );
     }
 }

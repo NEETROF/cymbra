@@ -1,4 +1,6 @@
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
+import { loadRenderers } from "astro:container";
+import { getContainerRenderer as vueRenderer } from "@astrojs/vue/container-renderer";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import takenWith from "../fixtures/lingua/taken-with.json";
 
@@ -23,7 +25,8 @@ import Downloads from "../../src/components/Downloads.astro";
 
 let container: AstroContainer;
 beforeAll(async () => {
-  container = await AstroContainer.create();
+  // The Music page and the downloads block mount the desktop-downloads Vue island.
+  container = await AstroContainer.create({ renderers: await loadRenderers([vueRenderer()]) });
   coverage.tops = takenWith.coverage.tops;
   coverage.glossed = takenWith.coverage.glossed;
   manifest.routes = takenWith.routes;
@@ -131,17 +134,22 @@ describe("the store buttons (D11)", () => {
   it("the Music page's buttons choose nothing and carry no store script", async () => {
     const html = await render(MusicPage);
     expect(html).not.toContain("data-store");
-    // Its only script is the showcase video's (change: add-site-music-showcase), none a store's.
+    // Its scripts are the showcase video's (change: add-site-music-showcase) and the desktop
+    // downloads island's hydration (change: add-music-download-page) — none a store's.
     const scripts = html.match(/<script\b[^>]*>/gi) ?? [];
-    expect(scripts).toHaveLength(1);
-    expect(scripts[0]).toContain("MusicShowcase.astro");
+    expect(scripts.filter((s) => s.includes("src="))).toEqual([expect.stringContaining("MusicShowcase.astro")]);
+    expect(html).not.toContain("StoreChoice");
     expect(html).toContain('<a class="btn btn-primary" href="https://apps.apple.com/app/id6789557194" rel="noopener">');
   });
 
-  it("the post-checkout downloads render as before", async () => {
+  it("the post-checkout downloads keep the store links and add the desktop downloads, readable without scripts", async () => {
     const html = await container.renderToString(Downloads, { props: { lang: "en" } });
-    expect(html).toBe(
-      '<section class="downloads"><h3>Get Cymbra Music</h3><div class="cta-row left"><a class="btn btn-ghost" href="https://apps.apple.com/app/id6789557194" rel="noopener">App Store (iOS, iPadOS, macOS)</a><a class="btn btn-ghost" href="https://play.google.com/store/apps/details?id=com.cymbra.music" rel="noopener">Google Play</a><a class="btn btn-ghost disabled" href="#" aria-disabled="true">Windows / Linux — soon</a></div></section>',
+    expect(html).toContain(
+      '<section class="downloads"><h3>Get Cymbra Music</h3><div class="cta-row left"><a class="btn btn-ghost" href="https://apps.apple.com/app/id6789557194" rel="noopener">App Store (iOS, iPadOS, macOS)</a><a class="btn btn-ghost" href="https://play.google.com/store/apps/details?id=com.cymbra.music" rel="noopener">Google Play</a></div>',
     );
+    // The island's server render is its fallback (design D8): the releases page, no "soon".
+    expect(html).toContain('href="https://github.com/NEETROF/cymbra/releases"');
+    expect(html).toContain("Downloads are available on the releases page.");
+    expect(html).not.toContain("— soon");
   });
 });

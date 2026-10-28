@@ -790,6 +790,9 @@ async fn main() -> anyhow::Result<()> {
         repo: updates_repo,
         trusted_keys: Arc::new(update_trusted_keys),
         ingest_secret: cfg.update_ingest_secret.clone().map(Arc::new),
+        // The site reads `/updates/desktop/latest` from the browser
+        // (change: add-music-download-page).
+        web_origins: cfg.web_origins.clone(),
     }));
 
     let grpc_addr: SocketAddr = cfg.grpc_addr.parse()?;
